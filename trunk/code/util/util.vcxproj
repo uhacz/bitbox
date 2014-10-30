@@ -80,16 +80,13 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="array.h" />
+    <ClInclude Include="buffer.h" />
     <ClInclude Include="dlmalloc.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="type.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="array.c">
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsC</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
-    </ClCompile>
+    <ClCompile Include="buffer.c" />
     <ClCompile Include="dlmalloc.c" />
     <ClCompile Include="memory.c" />
   </ItemGroup>
