@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <util\memory.h>
+#include <util/memory.h>
 
 struct Test
 {
@@ -17,7 +17,7 @@ int main( int argc, char* argv[] )
     bxMemoryStartUp();
 
     Test* t = BX_ALLOCATE( bxDefaultAllocator(), Test );
-
+    void* aa = BX_MALLOC( bxDefaultAllocator(), 16, 4 );
     BX_FREE0( bxDefaultAllocator(), t );
 
     bxMemoryShutDown();

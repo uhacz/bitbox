@@ -25,8 +25,6 @@ typedef volatile long		atomic32;
 typedef volatile __int64	atomic64;
 #ifdef x86
 typedef atomic32 atomic;
-typedef i32 sint;
-typedef u32 uint;
 #elif x64
 typedef atomic64 atomic;
 #else
