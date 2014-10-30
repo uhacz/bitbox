@@ -1,20 +1,19 @@
 #include "buffer.h"
 #include "memory.h"
+#include "debug.h"
 #include <string.h>
 
-static int _Buffer_calculateMemorySize( int newCapacityInBytes, int alignment )
+static struct buffer_t* _Buffer_allocate( int newCapacityInBytes, struct bxAllocator* alloc, int alignment )
 {
+    struct buffer_t* b = 0;
     int memorySize = 0;
+    void* memory = 0;
+
     memorySize += sizeof( struct buffer_t );
     memorySize = TYPE_ALIGN( memorySize, alignment );
     memorySize += newCapacityInBytes;
-    
-    return memorySize;
-}
-static struct buffer_t* _Buffer_allocate( int memorySize, struct bxAllocator* alloc, int alignment )
-{
-    struct buffer_t* b = 0;
-    void* memory = BX_MALLOC( alloc, memorySize, alignment );
+
+    memory = BX_MALLOC( alloc, memorySize, alignment );
     memset( memory, 0, memorySize );
 
     b = (struct buffer_t*)memory;
@@ -32,14 +31,11 @@ static void _Buffer_grow( struct buffer_t** buff, int newCapacityInBytes, struct
 
     if( !oldBuff )
     {
-        int memorySize = _Buffer_calculateMemorySize( newCapacityInBytes, alignment );    
-        buff[0] = _Buffer_allocate( memorySize, alloc, alignment );
+        buff[0] = _Buffer_allocate( newCapacityInBytes, alloc, alignment );
     }
     else if( newCapacityInBytes > (int)oldBuff->capacityInBytes )
     {
-        int memorySize = _Buffer_calculateMemorySize( newCapacityInBytes, alignment );
-        newBuff = _Buffer_allocate( memorySize, alloc, alignment );
-        
+        newBuff = _Buffer_allocate( newCapacityInBytes, alloc, alignment );
         newBuff->sizeInBytes = oldBuff->sizeInBytes;
         memcpy( newBuff->data, oldBuff->data, newBuff->sizeInBytes );
 
@@ -54,15 +50,14 @@ int buffer_push( struct buffer_t** buff, const void* element, int elementSize, s
 {
     int offset, needToGrow, newCapacity;
     
-    needToGrow = !buff[0];
-    needToGrow |= buff[0]->sizeInBytes + elementSize < buff[0]->capacityInBytes;
-    
+    needToGrow = ( !buff[0] ) ? 1 : buff[0]->sizeInBytes + elementSize > buff[0]->capacityInBytes;
     newCapacity = ( !buff[0] ) ? elementSize * 16 : 2*(buff[0]->sizeInBytes + elementSize);
 
     if( needToGrow )
     {
         _Buffer_grow( buff, newCapacity, alloc, alignment );
     }
+
 
     offset = buff[0]->sizeInBytes;
     memcpy( buff[0]->data + offset, element, elementSize );
@@ -77,26 +72,56 @@ void buffer_pop( struct buffer_t* buff , int elementSize, struct bxAllocator* al
     if( !buff )
         return;
 
-    n = ( elementSize > buff->sizeInBytes ) ? buff->sizeInBytes : elementSize;
+    n = ( (u32)elementSize > buff->sizeInBytes ) ? buff->sizeInBytes : elementSize;
     buff->sizeInBytes -= n;
 }
 
 void buffer_removeSwap( struct buffer_t* buff, int offset, int size )
 {
-
+    SYS_ASSERT( size != 0 );
+	SYS_ASSERT( (u32)( offset + size ) <= buff->sizeInBytes );
+	
+	if( size == buff->sizeInBytes )
+	{
+        buff->sizeInBytes = 0;
+	}
+	else
+	{
+		u8* toErase = buff->data + offset;
+		u8* toCopy = buff->data + buff->sizeInBytes - size;
+		memcpy( toErase, toCopy, size );
+		buff->sizeInBytes -= size;
+	}
+	
+#ifdef _DEBUG
+	memset( buff->data + buff->sizeInBytes, 0xBU, size );
+#endif
 }
 
 void buffer_remove( struct buffer_t* buff, int offset, int size )
 {
+    SYS_ASSERT( size != 0 );
+	SYS_ASSERT( (u32)( offset + size ) <= buff->sizeInBytes );
 
+	if( size == buff->sizeInBytes )
+	{
+		buff->sizeInBytes = 0;
+	}
+	else
+	{
+		u8* to_erase = buff->data + offset;
+		u8* to_copy = buff->data + offset + size;
+		const u32 to_copy_size = buff->sizeInBytes - (offset+size);
+		memcpy( to_erase, to_copy, to_copy_size );
+		buff->sizeInBytes -= size;
+	}
+
+#ifdef _DEBUG
+	memset( buff->data + buff->sizeInBytes, 0xBU, size );
+#endif
 }
-
-//struct buffer_t* buffer_new( u32 capacity, struct bxAllocator* alloc )
-//{
-//
-//}
 
 void buffer_delete( struct buffer_t** buff, struct bxAllocator* alloc )
 {
-
+    BX_FREE0( alloc, buff[0] );
 }

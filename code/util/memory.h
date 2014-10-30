@@ -22,10 +22,10 @@ extern void bxMemoryShutDown();
 
 extern struct bxAllocator* bxDefaultAllocator();
 
-#define BX_MALLOC   ( alloc, size, align ) (*alloc->_malloc)( alloc, size, align )
-#define BX_ALLOCATE ( alloc, typ ) (typ*)( (*alloc->_malloc)( alloc, sizeof(typ), ALIGNOF(typ)) )
-#define BX_FREE     ( alloc, ptr ) ((*alloc->_free)( alloc, ptr ) )
-#define BX_FREE0    ( alloc, ptr ) { BX_FREE(alloc, ptr); ptr = 0; }
+#define BX_MALLOC( alloc, siz, algn ) (*alloc->_malloc)( alloc, siz, algn )
+#define BX_ALLOCATE( alloc, typ ) (typ*)( (*alloc->_malloc)( alloc, sizeof(typ), ALIGNOF(typ)) )
+#define BX_FREE( alloc, ptr ) ((*alloc->_free)( alloc, ptr ) )
+#define BX_FREE0( alloc, ptr ) { BX_FREE(alloc, ptr); ptr = 0; }
 
 #ifdef __cplusplus
 }

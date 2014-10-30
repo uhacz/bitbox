@@ -66,3 +66,5 @@ typedef atomic64 atomic;
 #define ALIGNOF(x) __alignof(x)
 #endif
 
+#define MAKE_STR(x) MAKE_STR_(x)
+#define MAKE_STR_(x) #x
