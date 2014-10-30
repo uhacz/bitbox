@@ -81,6 +81,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="buffer.h" />
+    <ClInclude Include="containers.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="dlmalloc.h" />
     <ClInclude Include="memory.h" />
