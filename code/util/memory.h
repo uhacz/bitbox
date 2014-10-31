@@ -1,32 +1,29 @@
 #pragma once
 #include "type.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef void* (*malloc_f )( struct allocator_t* alloc, size_t size, size_t align );
-typedef void (*free_f)( struct allocator_t* alloc, void* ptr );
-
-struct allocator_t
+struct bxAllocator
 {
-    malloc_f _malloc;
-    free_f _free;
-
-    size_t _allocatedSize;
+    virtual ~bxAllocator() {}
+    virtual void* alloc( size_t size, size_t align ) = 0;
+    virtual void  free( void* ptr ) = 0;
+    virtual size_t allocatedSize() const = 0;
 };
 
+extern bxAllocator* bxDefaultAllocator();
 
-extern void bxMemoryStartUp();
-extern void bxMemoryShutDown();
+#define BX_MALLOC( a, siz, algn ) a->alloc( siz, algn )
+#define BX_ALLOCATE( a, typ ) (typ*)( a->alloc( sizeof(typ), ALIGNOF(typ)) )
+#define BX_FREE( a, ptr ) (a->free( ptr ) )
+#define BX_FREE0( a, ptr ) { BX_FREE(a, ptr); ptr = 0; }
 
-extern struct allocator_t* bxDefaultAllocator();
-
-#define BX_MALLOC( alloc, siz, algn ) (*alloc->_malloc)( alloc, siz, algn )
-#define BX_ALLOCATE( alloc, typ ) (typ*)( (*alloc->_malloc)( alloc, sizeof(typ), ALIGNOF(typ)) )
-#define BX_FREE( alloc, ptr ) ((*alloc->_free)( alloc, ptr ) )
-#define BX_FREE0( alloc, ptr ) { BX_FREE(alloc, ptr); ptr = 0; }
-
-#ifdef __cplusplus
+#define BX_NEW(a, T, ...) (new ((a)->alloc(sizeof(T), ALIGNOF(T))) T(__VA_ARGS__))
+template<typename T>
+void BX_DELETE( bxAllocator* alloc, T* ptr )
+{
+    if( ptr )
+    {
+        ptr->~T();
+        alloc->free( ptr );
+    }
 }
-#endif
+#define BX_DELETE0( a, ptr ) { BX_DELETE( a, ptr ); ptr = 0; }

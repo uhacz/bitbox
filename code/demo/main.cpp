@@ -21,14 +21,12 @@ int main( int argc, char* argv[] )
     //buffer_t* buff = 0;
 
     
-    bxMemoryStartUp();
-
     array_t<Test> test;
 
     for( int i = 0; i < 10; ++i )
     {
     //    buffer_pushBack( int, buff, i, bxDefaultAllocator() );
-        push_back( test, Test(i) );
+        array::push_back( test, Test(i) );
     }
 
     for( int i = 10; i < 20; ++i )
@@ -36,19 +34,19 @@ int main( int argc, char* argv[] )
         //int val = ( ( i + 1 ) * 10 );
         //buffer_pushBack( int, buff, val, bxDefaultAllocator() );
 
-        push_back( test, Test(i) );
+        array::push_back( test, Test(i) );
     }
 
-    erase_swap( test, 5 );
-    erase( test, 2 );
+    array::erase_swap( test, 5 );
+    array::erase( test, 2 );
 
     Test a = test[3];
     a = test[4];
 
-    pop_back( test );
+    array::pop_back( test );
 
-    Test* b = begin( test );
-    const Test* e = end( test );
+    Test* b = array::begin( test );
+    const Test* e = array::end( test );
     while( b != e )
     {
         printf( "%f, ", b->b );
@@ -63,9 +61,6 @@ int main( int argc, char* argv[] )
     //a = buffer_vget( int, buff, 4 );
     //const int n = buffer_count( int, buff );
     //buffer_delete( &buff, bxDefaultAllocator() );
-
-
-    bxMemoryShutDown();
 
     system( "PAUSE" );
     
