@@ -89,10 +89,10 @@
     <ClInclude Include="type.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="buffer.c" />
+    <ClCompile Include="buffer.cpp" />
     <ClCompile Include="debug.c" />
     <ClCompile Include="dlmalloc.c" />
-    <ClCompile Include="memory.c" />
+    <ClCompile Include="memory.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

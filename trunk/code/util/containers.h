@@ -8,10 +8,10 @@ struct array_t
 {
     u32 size;
     u32 capacity;
-    allocator_t* allocator;
+    bxAllocator* allocator;
     T* data;
     
-    array_t( allocator_t* alloc = bxDefaultAllocator() );
+    array_t( bxAllocator* alloc = bxDefaultAllocator() );
     ~array_t();
 
     T &operator[]( int i) { return data[i]; }
@@ -25,7 +25,7 @@ struct queue_t
     u32 size;
     u32 offset;
 
-    queue_t( allocator_t* alloc = bxDefaultAllocator() );
+    queue_t( bxAllocator* alloc = bxDefaultAllocator() );
 
     T &operator[]( int i);
 	const T &operator[]( int i) const;

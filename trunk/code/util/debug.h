@@ -6,10 +6,15 @@
 #define LOGGER_ENABLED 1
 #define ASSERTION_ENABLED 1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 //////////////////////////////////////////////////////////////////////////
 extern void bxDebugAssert( int expression, const char *format, ... );
 extern void bxDebugHalt( char *str );
-
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef LOGGER_ENABLED
 

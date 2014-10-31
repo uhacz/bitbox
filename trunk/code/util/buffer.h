@@ -2,9 +2,7 @@
 
 #include "type.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+struct bxAllocator;
 
 struct buffer_t
 {
@@ -13,12 +11,12 @@ struct buffer_t
     u8* data;
 };
 
-int  buffer_push      ( struct buffer_t** buff, const void* element, int elementSize, struct allocator_t* alloc, int alignment );
-void buffer_pop       ( struct buffer_t* buff , int elementSize, struct allocator_t* alloc );
-void buffer_removeSwap( struct buffer_t* buff , int offset, int size );
-void buffer_remove    ( struct buffer_t* buff , int offset, int size );
+int  buffer_push      ( buffer_t** buff, const void* element, int elementSize, bxAllocator* alloc, int alignment );
+void buffer_pop       ( buffer_t* buff , int elementSize, bxAllocator* alloc );
+void buffer_removeSwap( buffer_t* buff , int offset, int size );
+void buffer_remove    ( buffer_t* buff , int offset, int size );
 
-void buffer_delete( struct buffer_t** buff, struct allocator_t* alloc );
+void buffer_delete( struct buffer_t** buff, bxAllocator* alloc );
 
 #define buffer_pushBack( type, buff, element, alloc ) buffer_push( &(buff), &(element), sizeof(type), (alloc), ALIGNOF(type) )
 #define buffer_popBack ( type, buff )                 buffer_pop( buff, sizeof(type) )
@@ -31,7 +29,3 @@ void buffer_delete( struct buffer_t** buff, struct allocator_t* alloc );
 #define buffer_count( type, buff ) ( buff ? buff->sizeInBytes / sizeof(type) : 0 )
 #define buffer_pget(type, buff, i )(type*)( buff->data + i*sizeof(type) )
 #define buffer_vget(type, buff, i ) *buffer_pget(type, buff, i )
-
-#ifdef __cplusplus
-}
-#endif
