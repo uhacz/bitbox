@@ -3,7 +3,7 @@
 #include "debug.h"
 #include <string.h>
 
-static struct buffer_t* _Buffer_allocate( int newCapacityInBytes, struct bxAllocator* alloc, int alignment )
+static struct buffer_t* _Buffer_allocate( int newCapacityInBytes, struct allocator_t* alloc, int alignment )
 {
     struct buffer_t* b = 0;
     int memorySize = 0;
@@ -24,7 +24,7 @@ static struct buffer_t* _Buffer_allocate( int newCapacityInBytes, struct bxAlloc
     return b;
 }
 
-static void _Buffer_grow( struct buffer_t** buff, int newCapacityInBytes, struct bxAllocator* alloc, int alignment )
+static void _Buffer_grow( struct buffer_t** buff, int newCapacityInBytes, struct allocator_t* alloc, int alignment )
 {
     struct buffer_t* oldBuff = buff[0];
     struct buffer_t* newBuff = 0;
@@ -46,7 +46,7 @@ static void _Buffer_grow( struct buffer_t** buff, int newCapacityInBytes, struct
 }
 
 
-int buffer_push( struct buffer_t** buff, const void* element, int elementSize, struct bxAllocator* alloc, int alignment )
+int buffer_push( struct buffer_t** buff, const void* element, int elementSize, struct allocator_t* alloc, int alignment )
 {
     int offset, needToGrow, newCapacity;
     
@@ -65,7 +65,7 @@ int buffer_push( struct buffer_t** buff, const void* element, int elementSize, s
     return offset;
 }
 
-void buffer_pop( struct buffer_t* buff , int elementSize, struct bxAllocator* alloc )
+void buffer_pop( struct buffer_t* buff , int elementSize, struct allocator_t* alloc )
 {
     int n = 0;
 
@@ -121,7 +121,7 @@ void buffer_remove( struct buffer_t* buff, int offset, int size )
 #endif
 }
 
-void buffer_delete( struct buffer_t** buff, struct bxAllocator* alloc )
+void buffer_delete( struct buffer_t** buff, struct allocator_t* alloc )
 {
     BX_FREE0( alloc, buff[0] );
 }

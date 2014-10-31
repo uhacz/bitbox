@@ -8,13 +8,14 @@ struct array_t
 {
     u32 size;
     u32 capacity;
-    T* data;
     allocator_t* allocator;
-
+    T* data;
+    
     array_t( allocator_t* alloc = bxDefaultAllocator() );
+    ~array_t();
 
-    T &operator[]( int i);
-	const T &operator[]( int i) const;
+    T &operator[]( int i) { return data[i]; }
+    const T &operator[]( int i) const { return data[i]; }
 };
 
 template< typename T >

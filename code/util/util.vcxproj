@@ -80,6 +80,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="array.h" />
     <ClInclude Include="buffer.h" />
     <ClInclude Include="containers.h" />
     <ClInclude Include="debug.h" />
