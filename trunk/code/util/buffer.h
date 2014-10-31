@@ -13,12 +13,12 @@ struct buffer_t
     u8* data;
 };
 
-int  buffer_push      ( struct buffer_t** buff, const void* element, int elementSize, struct bxAllocator* alloc, int alignment );
-void buffer_pop       ( struct buffer_t* buff , int elementSize, struct bxAllocator* alloc );
+int  buffer_push      ( struct buffer_t** buff, const void* element, int elementSize, struct allocator_t* alloc, int alignment );
+void buffer_pop       ( struct buffer_t* buff , int elementSize, struct allocator_t* alloc );
 void buffer_removeSwap( struct buffer_t* buff , int offset, int size );
 void buffer_remove    ( struct buffer_t* buff , int offset, int size );
 
-void buffer_delete( struct buffer_t** buff, struct bxAllocator* alloc );
+void buffer_delete( struct buffer_t** buff, struct allocator_t* alloc );
 
 #define buffer_pushBack( type, buff, element, alloc ) buffer_push( &(buff), &(element), sizeof(type), (alloc), ALIGNOF(type) )
 #define buffer_popBack ( type, buff )                 buffer_pop( buff, sizeof(type) )
