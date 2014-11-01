@@ -33,11 +33,18 @@ struct queue_t
 
 struct hashmap_t
 {
-    struct Cell
+    struct cell_t
     {
         u64 key;
         u64 value;
     };
 
-    array_t<Cell> cells;
+    cell_t* cells;
+    bxAllocator* allocator;
+    
+    size_t size;
+    size_t capacity;
+
+    hashmap_t( int initSize = 16, bxAllocator* alloc = bxDefaultAllocator() );
+    ~hashmap_t();
 };

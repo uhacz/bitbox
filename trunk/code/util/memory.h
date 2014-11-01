@@ -16,6 +16,7 @@ extern bxAllocator* bxDefaultAllocator();
 #define BX_FREE( a, ptr ) (a->free( ptr ) )
 #define BX_FREE0( a, ptr ) { BX_FREE(a, ptr); ptr = 0; }
 
+#include <new>
 #define BX_NEW(a, T, ...) (new ((a)->alloc(sizeof(T), ALIGNOF(T))) T(__VA_ARGS__))
 template<typename T>
 void BX_DELETE( bxAllocator* alloc, T* ptr )
