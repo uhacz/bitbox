@@ -1,37 +1,24 @@
 #include "input.h"
 #include <memory.h>
 
-bxInput_State::bxInput_State()
+bxInput::bxInput()
 {
 	memset( this, 0, sizeof(*this) );
 }
 
-void bxInput_clearState( bxInput_State* state, bool keys, bool mouse, bool pad )
+void bxInput_clear( bxInput* state, bool keys, bool mouse, bool pad )
 {
 	if( keys )
 	{
-		memset( state->keys, 0, sizeof(state->keys) );
+		memset( state->kbd.currentState(), 0, sizeof(bxInput_KeyboardState) );
 	}
 	if( mouse )
 	{
-		memset( &state->mouse, 0, sizeof(state->mouse) );
+		memset( state->mouse.currentState(), 0, sizeof(bxInput_MouseState) );
 	}
 	if( pad )
 	{
-		memset( state->pad, 0, sizeof(state->pad) );
+		memset( state->pad.currentState(), 0, sizeof(bxInput_PadState) );
 	}
 
-}
-
-bool bxInput_isKeyPressed( const bxInput* input, unsigned char key )
-{
-    return input->curr.keys[key] > 0;
-}
-
-bool bxInput_isPeyPressedOnce( const bxInput* input, unsigned char key )
-{
-    const unsigned char curr_state = input->curr.keys[key];
-    const unsigned char prev_state = input->prev.keys[key];
-
-    return !prev_state && curr_state;
 }

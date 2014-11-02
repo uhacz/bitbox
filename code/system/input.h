@@ -61,31 +61,66 @@ struct bxInput_PadState
 	u32 connected;
 };
 
-//////////////////////////////////////////////////////////////////////////
-/// standard input: keyboard and mouse
-struct bxInput_State
+struct bxInput_KeyboardState
 {
-	bxInput_State();
-	u8 keys[256];
-
-	struct 
-	{
-		u16 x;
-		u16 y;
-		i16 dx;
-		i16 dy;
-
-		u8 lbutton;
-		u8 mbutton;
-		u8 rbutton;
-		i8 wheel;
-	} mouse;
-
-	enum { eMAX_PAD_CONTROLLERS = 1 };
-	bxInput_PadState pad[eMAX_PAD_CONTROLLERS];
+    u8 keys[256];
 };
 
-//////////////////////////////////////////////////////////////////////////
+struct bxInput_MouseState
+{
+    u16 x;
+    u16 y;
+    i16 dx;
+    i16 dy;
+
+    u8 lbutton;
+    u8 mbutton;
+    u8 rbutton;
+    i8 wheel;
+};
+
+/////////////////////////////////////////////////////////////////
+struct bxInput_Pad
+{
+    bxInput_PadState state[2];
+    u32 currentStateIndex : 1;
+
+    bxInput_PadState* currentState() { return &state[currentStateIndex]; }
+};
+
+struct bxInput_Keyboard
+{
+    bxInput_KeyboardState state[2];
+    i32 currentStateIndex;
+
+    bxInput_KeyboardState* currentState() { return &state[currentStateIndex]; }
+};
+
+
+struct bxInput_Mouse
+{
+    bxInput_MouseState state[2];
+    i32 currentStateIndex;
+
+    bxInput_MouseState* currentState() { return &state[currentStateIndex]; }
+    const bxInput_MouseState& prevState() const { return state[!currentStateIndex]; }
+};
+
+/////////////////////////////////////////////////////////////////
+inline void bxInput_swap( bxInput_Pad* pad )
+{
+    pad->currentStateIndex = !pad->currentStateIndex;
+}
+inline void bxInput_swap( bxInput_Keyboard* kbd )
+{
+    kbd->currentStateIndex = !kbd->currentStateIndex;
+}
+inline void bxInput_swap( bxInput_Mouse* mouse )
+{
+    mouse->currentStateIndex = !mouse->currentStateIndex;
+}
+
+/////////////////////////////////////////////////////////////////
 /// input
 struct bxInput
 {
@@ -97,39 +132,53 @@ struct bxInput
         eKEY_RIGHT = 39,
         eKEY_DOWN = 40,
         eKEY_LSHIFT = 16,
-
 	};
-	bxInput_State curr;
-	bxInput_State prev;
+
+    bxInput_Keyboard kbd;
+    bxInput_Mouse mouse;
+    bxInput_Pad pad;
+
+    bxInput();
 };
+inline void bxInput_swap( bxInput* input )
+{
+    bxInput_swap( &input->kbd );
+    bxInput_swap( &input->mouse );
+    bxInput_swap( &input->pad );
+}
 
-bool bxInput_isKeyPressed( const bxInput* input, unsigned char key );
-bool bxInput_isPeyPressedOnce( const bxInput* input, unsigned char key );
 
+void bxInput_clear( bxInput* input, bool keys = true, bool mouse = true, bool pad = true );
 void bxInput_updatePad( bxInput_PadState* pad_states, u32 n );
-void bxInput_clearState( bxInput_State* state, bool keys = true, bool mouse = true, bool pad = true );
 
 //////////////////////////////////////////////////////////////////////////
-inline void bxInput_computeMouseDelta( bxInput_State* curr, const bxInput_State& prev )
+inline bool bxInput_isKeyPressed( const bxInput_Keyboard* input, unsigned char key )
 {
-	curr->mouse.dx = curr->mouse.x - prev.mouse.x;
-	curr->mouse.dy = curr->mouse.y - prev.mouse.y;
+    return input->state[input->currentStateIndex].keys[key] > 0;
 }
+inline bool bxInput_isPeyPressedOnce( const bxInput_Keyboard* input, unsigned char key )
+{
+    const unsigned char curr_state = input->state[!input->currentStateIndex].keys[key];
+    const unsigned char prev_state = input->state[ input->currentStateIndex].keys[key];
 
-
-
-inline const bxInput_PadState& input_get_pad0_state( const bxInput& input ) 
+    return !prev_state && curr_state;
+}
+inline void bxInput_computeMouseDelta( bxInput_MouseState* curr, const bxInput_MouseState& prev )
+{
+	curr->dx = curr->x - prev.x;
+	curr->dy = curr->y - prev.y;
+}
+inline const bxInput_Pad& bxInput_getPad( const bxInput& input ) 
 { 
-	return input.curr.pad[0]; 
+	return input.pad; 
 }
-inline bool is_pad_button_pressed_once( const bxInput& input, u32 pad_index, u16 button_mask )
+inline bool bxInput_isPadButtonPressedOnce( const bxInput_Pad& input, u16 button_mask )
 {
-	const bxInput_PadState& prev_state = input.curr.pad[pad_index];
-	const bxInput_PadState& curr_state = input.prev.pad[pad_index];
+	const bxInput_PadState& prev_state = input.state[!input.currentStateIndex];
+	const bxInput_PadState& curr_state = input.state[ input.currentStateIndex];
 
 	const u16 prev = prev_state.digital.buttons & button_mask;
 	const u16 curr = curr_state.digital.buttons & button_mask;
 
 	return !prev && curr;
 }
-inline bool is_pad0_button_pressed_once( const bxInput& input, u16 button_mask ) { return is_pad_button_pressed_once( input, 0, button_mask ); }

@@ -1,7 +1,11 @@
 #include "input.h"
 
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
+#ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+    #define NOMINMAX
+#endif
 #include <windows.h>
 
 #include <XInput.h>
@@ -23,7 +27,7 @@ namespace
 	    *dst_value = value;
     }
 
-    void _update_pad_input_state( bxInput_PadState* pad, const XINPUT_STATE& xstate )
+    void _updatePadInputState( bxInput_PadState* pad, const XINPUT_STATE& xstate )
     {
 	
 	    const float analog_magnitude = 32767.f;
@@ -96,7 +100,7 @@ void bxInput_updatePad( bxInput_PadState* pad_states, u32 n )
 		if( !state.connected )
 			continue;
 
-		_update_pad_input_state( &state, xstate );
+		_updatePadInputState( &state, xstate );
 
 
 #ifdef ST8_DEBUG_PAD_STATE	

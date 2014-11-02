@@ -95,7 +95,7 @@ public:
     virtual bool update()
     {
         bxWindow* win = bxWindow_get();
-        if( bxInput_isPeyPressedOnce( &win->input, bxInput::eKEY_ESC ) )
+        if( bxInput_isPeyPressedOnce( &win->input.kbd, bxInput::eKEY_ESC ) )
         {
             return false;
         }
@@ -104,21 +104,21 @@ public:
     }
 };
 
-
-
-
 int main( int argc, const char* argv[] )
 {
     bxWindow* window = bxWindow_create( "demo", 1280, 720, false, 0 );
-    bxDemoApp app;
-    if( bxApplication_startup( &app, argc, argv ) )
+    if( window )
     {
-        bxApplication_run( &app );
+        bxDemoApp app;
+        if( bxApplication_startup( &app, argc, argv ) )
+        {
+            bxApplication_run( &app );
+        }
+
+        bxApplication_shutdown( &app );
+        bxWindow_release();
     }
-
-    bxApplication_shutdown( &app );
-
-    bxWindow_release();
+    
     
     return 0;
 }

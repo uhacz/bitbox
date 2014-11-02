@@ -82,8 +82,8 @@ bxWindow* bxWindow_create( const char* name, unsigned width, unsigned height, bo
     SYS_ASSERT( __window == 0 );
 	
 	HINSTANCE hinstance = GetModuleHandle(NULL);
-	HWND hwnd = 0;
 	HDC hdc = 0;
+	HWND hwnd = 0;
 
 	{ // create window
 		WNDCLASS wndClass;
@@ -124,19 +124,18 @@ bxWindow* bxWindow_create( const char* name, unsigned width, unsigned height, bo
 			}
 			else
 			{
-				style = WS_BORDER | WS_THICKFRAME;
-				
-			}
+                style = WS_BORDER | WS_THICKFRAME;
+			} 
 			hwnd = CreateWindowEx( 
 				ex_style, name, name, style,
-				0, 0, 
-				10, 10, 
-				parent_hwnd, NULL, hinstance,0 );
+				10, 10,
+				100, 100, 
+				parent_hwnd, NULL, hinstance, 0 );
 		}
 
 		if( hwnd == NULL )
 		{
-			printf( "create_window: Error while creating window\n" );
+			printf( "create_window: Error while creating window (Err: 0x%x)\n", GetLastError() );
 			return 0;
 		}
 	
@@ -195,7 +194,10 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
 {
 	static bool lButtonPressed = false;
 	
-	bxInput_State* curr_input = &__window->input.curr;
+    bxInput* input = &__window->input;
+
+    bxInput_KeyboardState* kbdState = input->kbd.currentState();
+    bxInput_MouseState* mouseState = input->mouse.currentState();
 	
 	switch( msg )
 	{
@@ -203,7 +205,7 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
 		{
 			if ( wParam < 256 )
 			{
-				curr_input->keys[wParam] = false;
+				kbdState->keys[wParam] = false;
 			}
 			break;
 		}
@@ -211,22 +213,22 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
 		{
 			if ( wParam < 256 )
 			{
-				curr_input->keys[wParam] = true;
+				kbdState->keys[wParam] = true;
 			}
 			break;
 		}
 
 	case WM_LBUTTONDOWN:
 		{
-			curr_input->mouse.lbutton = 1;
-			curr_input->mouse.x = LOWORD(lParam);
-			curr_input->mouse.y = HIWORD(lParam);
+			mouseState->lbutton = 1;
+			mouseState->x = LOWORD(lParam);
+			mouseState->y = HIWORD(lParam);
 			break;
 		}
 
 	case WM_LBUTTONUP:
 		{
-			curr_input->mouse.lbutton = 0;
+			mouseState->lbutton = 0;
 			break;
 		}
 
@@ -234,8 +236,8 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
 		{
 			const unsigned short x = LOWORD(lParam);
 			const unsigned short y = HIWORD(lParam);
-			curr_input->mouse.x = x;
-			curr_input->mouse.y = y;
+			mouseState->x = x;
+			mouseState->y = y;
 			
 			break;
 		}

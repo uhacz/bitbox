@@ -17,8 +17,10 @@ int bxApplication_run( bxApplication* app )
 
 	do 
 	{
-		win->input.prev = win->input.curr;
-		bxInput_clearState( &win->input.curr, false, false, true );
+        bxInput_swap( &win->input );
+		bxInput_clear( &win->input, false, false, true );
+
+		//win->input.prev = win->input.curr;
 		MSG msg = {0};
 		while( PeekMessage(&msg, win->hwnd, 0U, 0U, PM_REMOVE) != 0 )
 		{
@@ -26,10 +28,11 @@ int bxApplication_run( bxApplication* app )
 			DispatchMessage( &msg );
 		}
 		
-		bxInput_updatePad( win->input.curr.pad, bxInput_State::eMAX_PAD_CONTROLLERS );
-		bxInput_computeMouseDelta( &win->input.curr, win->input.prev );
+		bxInput_updatePad( win->input.pad.currentState(), 1 );
+		bxInput_computeMouseDelta( win->input.mouse.currentState(), win->input.mouse.prevState() );
 
 		ret = app->update();
+
 	} while ( ret );
 
 	return ret;
