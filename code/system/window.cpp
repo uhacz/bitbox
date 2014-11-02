@@ -192,13 +192,16 @@ void bxWindow_setSize( bxWindow* win, unsigned width, unsigned height )
 
 LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
-	static bool lButtonPressed = false;
-	
-    bxInput* input = &__window->input;
+    if( !__window )
+    {
+        return DefWindowProc( hwnd, msg, wParam, lParam );
+    }
 
+    static bool lButtonPressed = false;
+    bxInput* input = &__window->input;
     bxInput_KeyboardState* kbdState = input->kbd.currentState();
     bxInput_MouseState* mouseState = input->mouse.currentState();
-	
+
 	switch( msg )
 	{
 	case WM_KEYUP:
