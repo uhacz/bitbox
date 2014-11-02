@@ -25,9 +25,9 @@ struct bxWindow
 	HINSTANCE hinstance;
 	HDC hdc;
 
-	unsigned width;
-	unsigned height;
-	unsigned full_screen : 1;
+	u32 width;
+	u32 height;
+	u32 full_screen : 1;
 
 	bxInput input;
 };
