@@ -1,5 +1,8 @@
 #pragma once
 
+#include <util/type.h>
+#include <util/debug.h>
+
 namespace bxGdi
 {
     enum EStage
@@ -154,23 +157,37 @@ namespace bxGdi
     EVertexSlot vertexSlotFromString( const char* n );
 }///
 
-struct bxGdi_Device
+struct bxGdiDevice
 {};
 
-struct bxGdi_Context
+struct bxGdiContext
 {};
 
-struct bxGdi_Id
+struct bxGdiID
 {
     uptr i;
 };
-struct bxGdi_VertexBuffer : public bxGdi_Id {};
-struct bxGdi_IndexBuffer  : public bxGdi_Id {};
-struct bxGdi_Buffer       : public bxGdi_Id {};
-struct bxGdi_Shader       : public bxGdi_Id {};
-struct bxGdi_Texture      : public bxGdi_Id {};
+struct bxGdiVertexBuffer : public bxGdiID {};
+struct bxGdiIndexBuffer  : public bxGdiID {};
+struct bxGdiBuffer       : public bxGdiID {};
+struct bxGdiShader       : public bxGdiID {};
+struct bxGdiTexture      : public bxGdiID {};
+struct bxGdiInputLayout  : public bxGdiID {};
+struct bxGdiBlendState   : public bxGdiID {};
+struct bxGdiDepthState   : public bxGdiID {};
+struct bxGdiRasterState  : public bxGdiID {};
+struct bxGdiSampler      : public bxGdiID {};
+struct bxGdiViewport
+{
+    i16 x, y;
+    u16 w, h;
 
-union bxGdi_VertexStreamBlock
+    bxGdiViewport() {}
+    bxGdiViewport( int xx, int yy, unsigned ww, unsigned hh )
+        : x(xx), y(yy), w(ww), h(hh) {}
+};
+
+union bxGdiVertexStreamBlock
 {
     u16 hash;
     struct
@@ -180,23 +197,23 @@ union bxGdi_VertexStreamBlock
         u16 numElements : 4;
     };
 };
-struct bxGdi_VertexStreamDesc
+struct bxGdiVertexStreamDesc
 {
     enum { eMAX_BLOCKS = 6 };
-    bxGdi_VertexStreamBlock blocks[eMAX_BLOCKS];
+    bxGdiVertexStreamBlock blocks[eMAX_BLOCKS];
     i32 count;
 
-    bxGdi_VertexStreamDesc();
+    bxGdiVertexStreamDesc();
     void addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements );
 };
 namespace bxGdi
 {
-    int      blockStride( const bxGdi_VertexStreamBlock& block ); // { return typeStride[block.dataType] * block.numElements; }
-    int      streamStride(const bxGdi_VertexStreamDesc& vdesc );
-    unsigned streamSlotMask( const bxGdi_VertexStreamDesc& vdesc );
-    inline int streamEqual( const bxGdi_VertexStreamDesc& a, const bxGdi_VertexStreamDesc& b )
+    int      blockStride( const bxGdiVertexStreamBlock& block ); // { return typeStride[block.dataType] * block.numElements; }
+    int      streamStride(const bxGdiVertexStreamDesc& vdesc );
+    unsigned streamSlotMask( const bxGdiVertexStreamDesc& vdesc );
+    inline int streamEqual( const bxGdiVertexStreamDesc& a, const bxGdiVertexStreamDesc& b )
     {
-        SYS_STATIC_ASSERT( bxGdi_VertexStreamDesc::eMAX_BLOCKS == 6 );
+        SYS_STATIC_ASSERT( bxGdiVertexStreamDesc::eMAX_BLOCKS == 6 );
         return ( a.count == b.count ) 
             && ( a.blocks[0].hash == b.blocks[0].hash )
             && ( a.blocks[1].hash == b.blocks[1].hash )
@@ -207,61 +224,63 @@ namespace bxGdi
     }
 };
 
-
-
-struct bxGdi_HwState
-{};
-
-struct bxGdi_Sampler
-{};
-struct bxGdi_Viewport
-{};
+struct bxGdiShaderReflection;
 
 namespace bxGdi
 {
-    int  startup( bxGdi_Device** dev, bxGdi_Context** ctx, uptr hWnd, int winWidth, int winHeight, int fullScreen );
-    void shutdown( bxGdi_Device** dev, bxGdi_Context** ctx );
+    int  startup( bxGdiDevice** dev, bxGdiContext** ctx, uptr hWnd, int winWidth, int winHeight, int fullScreen );
+    void shutdown( bxGdiDevice** dev, bxGdiContext** ctx );
 
     ///////////////////////////////////////////////////////////////// 
-    bxGdi_Id releaseResource( bxGdi_Id* id );
-    bxGdi_VertexBuffer createVertexBuffer( bxGdi_Device* dev );
-    bxGdi_IndexBuffer  createIndexBuffer( bxGdi_Device* dev );
+    bxGdiID releaseResource( bxGdiID* id );
+    bxGdiVertexBuffer createVertexBuffer( bxGdiDevice* dev, const bxGdiVertexStreamDesc& desc, u32 numElements, const void* data = 0 );
+    bxGdiIndexBuffer  createIndexBuffer( bxGdiDevice* dev, int dataType, u32 numElements, const void* data = 0  );
 
-    bxGdi_Buffer createBuffer( bxGdi_Device* dev );
-    bxGdi_Shader createShader( bxGdi_Device* dev );
-    bxGdi_Shader createShader( bxGdi_Device* dev );
-    bxGdi_Texture createTexture1D( bxGdi_Device* dev );
-    bxGdi_Texture createTexture2D( bxGdi_Device* dev );
-    bxGdi_Texture createTexture3D( bxGdi_Device* dev );
-    bxGdi_Texture createTextureCube( bxGdi_Device* dev );
+    bxGdiBuffer createBuffer( bxGdiDevice* dev, u32 sizeInBytes, u32 bindFlags );
+    bxGdiShader createShader( bxGdiDevice* dev, int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdiShaderReflection* reflection = 0);
+    bxGdiShader createShader( bxGdiDevice* dev, int stage, const void* codeBlob, size_t codeBlobSizee, bxGdiShaderReflection* reflection = 0  );
+    bxGdiTexture createTexture( bxGdiDevice* dev, const void* dataBlob, size_t dataBlobSize );
+    bxGdiTexture createTexture1D( bxGdiDevice* dev );
+    bxGdiTexture createTexture2D( bxGdiDevice* dev );
+    bxGdiTexture createTexture3D( bxGdiDevice* dev );
+    bxGdiTexture createTextureCube( bxGdiDevice* dev );
+    bxGdiInputLayout createInputLayout( bxGdiDevice* dev, const bxGdiVertexStreamDesc* descs, int ndescs, bxGdiShader vertex_shader );
+    bxGdiBlendState  createBlendState( bxGdiDevice* dev );
+    bxGdiDepthState  createDepthState( bxGdiDevice* dev );
+    bxGdiRasterState createRasterState( bxGdiDevice* dev );
 
     /////////////////////////////////////////////////////////////////
-    void clearState                ( bxGdi_Context* ctx );
-    void setViewport               ( bxGdi_Context* ctx, const bxGdi_Viewport& vp );
-    void setVertexBuffers          ( bxGdi_Context* ctx, bxGdi_VertexBuffer* vbuffers, const bxGdi_VertexStreamDesc* descs, unsigned start, unsigned n );
-    void setIndexBuffer            ( bxGdi_Context* ctx, bxGdi_IndexBuffer ibuffer, int data_type );
-    void setShaderPrograms         ( bxGdi_Context* ctx, bxGdi_Shader* shaders, int n );
-    void setVertexFormat           ( bxGdi_Context* ctx, const bxGdi_VertexStreamDesc* descs, int ndescs, bxGdi_Shader vertex_shader );
-    void setCbuffers               ( bxGdi_Context* ctx, bxGdi_Buffer* cbuffers , unsigned startSlot, unsigned n, int stage );
-    void setTextures               ( bxGdi_Context* ctx, bxGdi_Texture* textures, unsigned startSlot, unsigned n, int stage );
-    void setSamplers               ( bxGdi_Context* ctx, bxGdi_Sampler* samplers, unsigned startSlot, unsigned n, int stage );
-    void setHwState                ( bxGdi_Context* ctx, const bxGdi_HwState& hwstate );
-    void setTopology               ( bxGdi_Context* ctx, int topology );
+    void clearState                ( bxGdiContext* ctx );
+    void setViewport               ( bxGdiContext* ctx, const bxGdiViewport& vp );
+    void setVertexBuffers          ( bxGdiContext* ctx, bxGdiVertexBuffer* vbuffers, const bxGdiVertexStreamDesc* descs, unsigned start, unsigned n );
+    void setIndexBuffer            ( bxGdiContext* ctx, bxGdiIndexBuffer ibuffer, int data_type );
+    void setShaderPrograms         ( bxGdiContext* ctx, bxGdiShader* shaders, int n );
+    void setInputLayout            ( bxGdiContext* ctx, const bxGdiInputLayout ilay );
 
-    void changeToMainFramebuffer   ( bxGdi_Context* ctx );
-    void changeRenderTargets       ( bxGdi_Context* ctx, bxGdi_Texture* colorTex, unsigned nColor, bxGdi_Texture depthTex );
-    void clearBuffers              ( bxGdi_Context* ctx, bxGdi_Texture* colorTex, unsigned nColor, bxGdi_Texture depthTex, float rgbad[5], int flag_color, int flag_depth );
+    void setCbuffers               ( bxGdiContext* ctx, bxGdiBuffer* cbuffers , unsigned startSlot, unsigned n, int stage );
+    void setTextures               ( bxGdiContext* ctx, bxGdiTexture* textures, unsigned startSlot, unsigned n, int stage );
+    void setSamplers               ( bxGdiContext* ctx, bxGdiSampler* samplers, unsigned startSlot, unsigned n, int stage );
 
-    void draw                      ( bxGdi_Context* ctx, unsigned numVertices, unsigned startIndex );
-    void drawIndexed               ( bxGdi_Context* ctx, unsigned numIndices , unsigned startIndex, unsigned baseVertex );
-    void drawInstanced             ( bxGdi_Context* ctx, unsigned numVertices, unsigned startIndex, unsigned numInstances );
-    void drawIndexedInstanced      ( bxGdi_Context* ctx, unsigned numIndices , unsigned startIndex, unsigned numInstances, unsigned baseVertex );
+    void setDepthState             ( bxGdiContext* ctx, const bxGdiDepthState state );
+    void setBlendState             ( bxGdiContext* ctx, const bxGdiBlendState state );
+    void setRasterState            ( bxGdiContext* ctx, const bxGdiRasterState state );
 
-    unsigned char* mapVertices     ( bxGdi_Context* ctx, bxGdi_VertexBuffer vbuffer, int offsetInBytes, int mapType );
-    unsigned char* mapIndices      ( bxGdi_Context* ctx, bxGdi_IndexBuffer ibuffer, int offsetInBytes, int mapType );
-    void unmapVertices             ( bxGdi_Context* ctx, bxGdi_VertexBuffer vbuffer );
-    void unmapIndices              ( bxGdi_Context* ctx, bxGdi_IndexBuffer ibuffer );
-    void updateCBuffer             ( bxGdi_Context* ctx, bxGdi_Buffer cbuffer, const void* data );
-    void swap                      ( bxGdi_Context* ctx );
-    void generateMipmaps           ( bxGdi_Context* ctx, bxGdi_Texture texture );
+    void setTopology               ( bxGdiContext* ctx, int topology );
+
+    void changeToMainFramebuffer   ( bxGdiContext* ctx );
+    void changeRenderTargets       ( bxGdiContext* ctx, bxGdiTexture* colorTex, unsigned nColor, bxGdiTexture depthTex );
+    void clearBuffers              ( bxGdiContext* ctx, bxGdiTexture* colorTex, unsigned nColor, bxGdiTexture depthTex, float rgbad[5], int flag_color, int flag_depth );
+
+    void draw                      ( bxGdiContext* ctx, unsigned numVertices, unsigned startIndex );
+    void drawIndexed               ( bxGdiContext* ctx, unsigned numIndices , unsigned startIndex, unsigned baseVertex );
+    void drawInstanced             ( bxGdiContext* ctx, unsigned numVertices, unsigned startIndex, unsigned numInstances );
+    void drawIndexedInstanced      ( bxGdiContext* ctx, unsigned numIndices , unsigned startIndex, unsigned numInstances, unsigned baseVertex );
+
+    unsigned char* mapVertices     ( bxGdiContext* ctx, bxGdiVertexBuffer vbuffer, int offsetInBytes, int mapType );
+    unsigned char* mapIndices      ( bxGdiContext* ctx, bxGdiIndexBuffer ibuffer, int offsetInBytes, int mapType );
+    void unmapVertices             ( bxGdiContext* ctx, bxGdiVertexBuffer vbuffer );
+    void unmapIndices              ( bxGdiContext* ctx, bxGdiIndexBuffer ibuffer );
+    void updateCBuffer             ( bxGdiContext* ctx, bxGdiBuffer cbuffer, const void* data );
+    void swap                      ( bxGdiContext* ctx );
+    void generateMipmaps           ( bxGdiContext* ctx, bxGdiTexture texture );
 }///
