@@ -156,27 +156,6 @@ namespace bxGdi
     };
     EVertexSlot vertexSlotFromString( const char* n );
 }///
-
-struct bxGdiDevice
-{};
-
-struct bxGdiContext
-{};
-
-struct bxGdiID
-{
-    uptr i;
-};
-struct bxGdiVertexBuffer : public bxGdiID {};
-struct bxGdiIndexBuffer  : public bxGdiID {};
-struct bxGdiBuffer       : public bxGdiID {};
-struct bxGdiShader       : public bxGdiID {};
-struct bxGdiTexture      : public bxGdiID {};
-struct bxGdiInputLayout  : public bxGdiID {};
-struct bxGdiBlendState   : public bxGdiID {};
-struct bxGdiDepthState   : public bxGdiID {};
-struct bxGdiRasterState  : public bxGdiID {};
-struct bxGdiSampler      : public bxGdiID {};
 struct bxGdiViewport
 {
     i16 x, y;
@@ -224,63 +203,215 @@ namespace bxGdi
     }
 };
 
+
+struct ID3D11Resource;
+struct ID3D11DeviceChild;
+
+struct ID3D11Buffer;
+struct ID3D11VertexShader;
+struct ID3D11PixelShader;
+struct ID3D11ComputeShader;
+struct ID3D11InputLayout;
+struct ID3D11BlendState;
+struct ID3D11DepthStencilState;
+struct ID3D11RasterizerState;
+struct ID3D11SamplerState;
+
+struct ID3D11Texture1D;
+struct ID3D11Texture2D;
+struct ID3D11Texture3D;
+struct ID3D11ShaderResourceView;
+struct ID3D11RenderTargetView;
+struct ID3D11DepthStencilView;
+struct ID3D11UnorderedAccessView;
+
+struct bxGdiVertexBuffer
+{
+    union 
+    {
+        uptr id;
+        ID3D11Buffer* dx11Buffer;
+    };
+    bxGdiVertexStreamDesc desc;
+    u32 numElements;
+};
+struct bxGdiIndexBuffer
+{
+    union 
+    {
+        uptr id;
+        ID3D11Buffer* dx11Buffer;
+    };
+    u32 dataType;
+    u32 numElements;
+};
+
+struct bxGdiBuffer
+{
+    union
+    {
+        uptr id;
+        ID3D11Buffer* dx11Buffer;
+    };
+
+    u32 sizeInBytes;
+    u32 bindFlags;
+};
+union bxGdiShader
+{
+    struct 
+    {
+        union 
+        {
+            ID3D11DeviceChild*      object;
+            ID3D11VertexShader*     vertex;
+            ID3D11PixelShader*      pixel;
+            ID3D11ComputeShader*    compute;
+        };
+        void* inputSignature;
+        size_t inputSignatureSize;
+    } dx;
+};
+union bxGdiTexture
+{
+    struct
+    {
+        union 
+        {
+            ID3D11Resource*   resource;
+            ID3D11Texture1D* _1D;
+            ID3D11Texture2D* _2D;
+            ID3D11Texture3D* _3D;
+        };
+
+        ID3D11ShaderResourceView*   viewSH;
+        ID3D11RenderTargetView*     viewRT;
+        ID3D11DepthStencilView*     viewDS;
+        ID3D11UnorderedAccessView*  viewUA;
+    } dx;
+
+    i16 width;
+    i16 height;
+    i16 depth;
+    i16 dataType;
+    i16 numElements;
+};
+union bxGdiInputLayout
+{
+    struct  
+    {
+        ID3D11InputLayout* lay;
+    } dx;
+};
+union bxGdiBlendState 
+{
+    struct  
+    {
+        ID3D11BlendState* state;
+    } dx;
+};
+union bxGdiDepthState 
+{
+    struct  
+    {
+        ID3D11DepthStencilState* state;
+    } dx;
+};
+union bxGdiRasterState
+{
+    struct  
+    {
+        ID3D11RasterizerState* state;
+    } dx;
+};
+union bxGdiSampler    
+{
+    struct  
+    {
+        ID3D11RasterizerState* state;
+    } dx;
+};
+
+
+
 struct bxGdiShaderReflection;
 
-namespace bxGdi
+struct bxGdiContextBackend;
+struct bxGdiDeviceBackend
 {
-    int  startup( bxGdiDevice** dev, bxGdiContext** ctx, uptr hWnd, int winWidth, int winHeight, int fullScreen );
-    void shutdown( bxGdiDevice** dev, bxGdiContext** ctx );
+    virtual ~bxGdiDeviceBackend() {}
 
-    ///////////////////////////////////////////////////////////////// 
-    bxGdiID releaseResource( bxGdiID* id );
-    bxGdiVertexBuffer createVertexBuffer( bxGdiDevice* dev, const bxGdiVertexStreamDesc& desc, u32 numElements, const void* data = 0 );
-    bxGdiIndexBuffer  createIndexBuffer( bxGdiDevice* dev, int dataType, u32 numElements, const void* data = 0  );
+    virtual bxGdiVertexBuffer createVertexBuffer( const bxGdiVertexStreamDesc& desc, u32 numElements, const void* data = 0 ) = 0;
+    virtual bxGdiIndexBuffer  createIndexBuffer( int dataType, u32 numElements, const void* data = 0  ) = 0;
+    virtual bxGdiBuffer createBuffer( u32 sizeInBytes, u32 bindFlags ) = 0;
+    
+    virtual bxGdiShader createShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdiShaderReflection* reflection = 0) = 0;
+    virtual bxGdiShader createShader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdiShaderReflection* reflection = 0  ) = 0;
+    
+    virtual bxGdiTexture createTexture( const void* dataBlob, size_t dataBlobSize ) = 0;
+    virtual bxGdiTexture createTexture1D() = 0;
+    virtual bxGdiTexture createTexture2D() = 0;
+    virtual bxGdiTexture createTexture3D() = 0;
+    virtual bxGdiTexture createTextureCube() = 0;
+    
+    virtual bxGdiInputLayout createInputLayout( const bxGdiVertexStreamDesc* descs, int ndescs, bxGdiShader vertex_shader ) = 0;
+    virtual bxGdiBlendState  createBlendState() = 0;
+    virtual bxGdiDepthState  createDepthState() = 0;
+    virtual bxGdiRasterState createRasterState() = 0;
 
-    bxGdiBuffer createBuffer( bxGdiDevice* dev, u32 sizeInBytes, u32 bindFlags );
-    bxGdiShader createShader( bxGdiDevice* dev, int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdiShaderReflection* reflection = 0);
-    bxGdiShader createShader( bxGdiDevice* dev, int stage, const void* codeBlob, size_t codeBlobSizee, bxGdiShaderReflection* reflection = 0  );
-    bxGdiTexture createTexture( bxGdiDevice* dev, const void* dataBlob, size_t dataBlobSize );
-    bxGdiTexture createTexture1D( bxGdiDevice* dev );
-    bxGdiTexture createTexture2D( bxGdiDevice* dev );
-    bxGdiTexture createTexture3D( bxGdiDevice* dev );
-    bxGdiTexture createTextureCube( bxGdiDevice* dev );
-    bxGdiInputLayout createInputLayout( bxGdiDevice* dev, const bxGdiVertexStreamDesc* descs, int ndescs, bxGdiShader vertex_shader );
-    bxGdiBlendState  createBlendState( bxGdiDevice* dev );
-    bxGdiDepthState  createDepthState( bxGdiDevice* dev );
-    bxGdiRasterState createRasterState( bxGdiDevice* dev );
+    virtual void releaseVertexBuffer( bxGdiVertexBuffer* id ) = 0;
+    virtual void releaseIndexBuffer( bxGdiIndexBuffer* id ) = 0;
+    virtual void releaseBuffer( bxGdiBuffer* id ) = 0;
+    virtual void releaseShader( bxGdiShader* id ) = 0;
+    virtual void releaseTexture( bxGdiTexture* id ) = 0;
+    virtual void releaseInputLayout( bxGdiInputLayout * id ) = 0;
+    virtual void releaseBlendState ( bxGdiBlendState  * id ) = 0;
+    virtual void releaseDepthState ( bxGdiDepthState  * id ) = 0;
+    virtual void releaseRasterState( bxGdiRasterState * id ) = 0;
 
-    /////////////////////////////////////////////////////////////////
-    void clearState                ( bxGdiContext* ctx );
-    void setViewport               ( bxGdiContext* ctx, const bxGdiViewport& vp );
-    void setVertexBuffers          ( bxGdiContext* ctx, bxGdiVertexBuffer* vbuffers, const bxGdiVertexStreamDesc* descs, unsigned start, unsigned n );
-    void setIndexBuffer            ( bxGdiContext* ctx, bxGdiIndexBuffer ibuffer, int data_type );
-    void setShaderPrograms         ( bxGdiContext* ctx, bxGdiShader* shaders, int n );
-    void setInputLayout            ( bxGdiContext* ctx, const bxGdiInputLayout ilay );
+    bxGdiContextBackend* ctx;
+};
 
-    void setCbuffers               ( bxGdiContext* ctx, bxGdiBuffer* cbuffers , unsigned startSlot, unsigned n, int stage );
-    void setTextures               ( bxGdiContext* ctx, bxGdiTexture* textures, unsigned startSlot, unsigned n, int stage );
-    void setSamplers               ( bxGdiContext* ctx, bxGdiSampler* samplers, unsigned startSlot, unsigned n, int stage );
+struct bxGdiContextBackend
+{
+    virtual void clearState             () = 0;
+    virtual void setViewport            ( const bxGdiViewport& vp ) = 0;
+    virtual void setVertexBuffers       ( bxGdiVertexBuffer* vbuffers, const bxGdiVertexStreamDesc* descs, unsigned start, unsigned n ) = 0;
+    virtual void setIndexBuffer         ( bxGdiIndexBuffer ibuffer, int data_type ) = 0;
+    virtual void setShaderPrograms      ( bxGdiShader* shaders, int n ) = 0;
+    virtual void setInputLayout         ( const bxGdiInputLayout ilay ) = 0;
 
-    void setDepthState             ( bxGdiContext* ctx, const bxGdiDepthState state );
-    void setBlendState             ( bxGdiContext* ctx, const bxGdiBlendState state );
-    void setRasterState            ( bxGdiContext* ctx, const bxGdiRasterState state );
+    virtual void setCbuffers            ( bxGdiBuffer* cbuffers , unsigned startSlot, unsigned n, int stage ) = 0;
+    virtual void setTextures            ( bxGdiTexture* textures, unsigned startSlot, unsigned n, int stage ) = 0;
+    virtual void setSamplers            ( bxGdiSampler* samplers, unsigned startSlot, unsigned n, int stage ) = 0;
 
-    void setTopology               ( bxGdiContext* ctx, int topology );
+    virtual void setDepthState          ( const bxGdiDepthState state ) = 0;
+    virtual void setBlendState          ( const bxGdiBlendState state ) = 0;
+    virtual void setRasterState         ( const bxGdiRasterState state ) = 0;
 
-    void changeToMainFramebuffer   ( bxGdiContext* ctx );
-    void changeRenderTargets       ( bxGdiContext* ctx, bxGdiTexture* colorTex, unsigned nColor, bxGdiTexture depthTex );
-    void clearBuffers              ( bxGdiContext* ctx, bxGdiTexture* colorTex, unsigned nColor, bxGdiTexture depthTex, float rgbad[5], int flag_color, int flag_depth );
+    virtual void setTopology            ( int topology ) = 0;
 
-    void draw                      ( bxGdiContext* ctx, unsigned numVertices, unsigned startIndex );
-    void drawIndexed               ( bxGdiContext* ctx, unsigned numIndices , unsigned startIndex, unsigned baseVertex );
-    void drawInstanced             ( bxGdiContext* ctx, unsigned numVertices, unsigned startIndex, unsigned numInstances );
-    void drawIndexedInstanced      ( bxGdiContext* ctx, unsigned numIndices , unsigned startIndex, unsigned numInstances, unsigned baseVertex );
+    virtual void changeToMainFramebuffer() = 0;
+    virtual void changeRenderTargets    ( bxGdiTexture* colorTex, unsigned nColor, bxGdiTexture depthTex ) = 0;
+    virtual void clearBuffers           ( bxGdiTexture* colorTex, unsigned nColor, bxGdiTexture depthTex, float rgbad[5], int flag_color, int flag_depth ) = 0;
 
-    unsigned char* mapVertices     ( bxGdiContext* ctx, bxGdiVertexBuffer vbuffer, int offsetInBytes, int mapType );
-    unsigned char* mapIndices      ( bxGdiContext* ctx, bxGdiIndexBuffer ibuffer, int offsetInBytes, int mapType );
-    void unmapVertices             ( bxGdiContext* ctx, bxGdiVertexBuffer vbuffer );
-    void unmapIndices              ( bxGdiContext* ctx, bxGdiIndexBuffer ibuffer );
-    void updateCBuffer             ( bxGdiContext* ctx, bxGdiBuffer cbuffer, const void* data );
-    void swap                      ( bxGdiContext* ctx );
-    void generateMipmaps           ( bxGdiContext* ctx, bxGdiTexture texture );
+    virtual void draw                   ( unsigned numVertices, unsigned startIndex ) = 0;
+    virtual void drawIndexed            ( unsigned numIndices , unsigned startIndex, unsigned baseVertex ) = 0;
+    virtual void drawInstanced          ( unsigned numVertices, unsigned startIndex, unsigned numInstances ) = 0;
+    virtual void drawIndexedInstanced   ( unsigned numIndices , unsigned startIndex, unsigned numInstances, unsigned baseVertex ) = 0;
+
+    virtual unsigned char* mapVertices  ( bxGdiVertexBuffer vbuffer, int offsetInBytes, int mapType ) = 0;
+    virtual unsigned char* mapIndices   ( bxGdiIndexBuffer ibuffer, int offsetInBytes, int mapType ) = 0;
+    virtual void unmapVertices          ( bxGdiVertexBuffer vbuffer ) = 0;
+    virtual void unmapIndices           ( bxGdiIndexBuffer ibuffer ) = 0;
+    virtual void updateCBuffer          ( bxGdiBuffer cbuffer, const void* data ) = 0;
+    virtual void swap                   () = 0;
+    virtual void generateMipmaps        ( bxGdiTexture texture ) = 0;
+};
+
+namespace bxGdiBackend
+{
+    int  startup( bxGdiDeviceBackend** dev, uptr hWnd, int winWidth, int winHeight, int fullScreen );
+    void shutdown( bxGdiDeviceBackend** dev );
+   
 }///
