@@ -87,6 +87,7 @@
     <ClInclude Include="dlmalloc.h" />
     <ClInclude Include="hashmap.h" />
     <ClInclude Include="memory.h" />
+    <ClInclude Include="pool_allocator.h" />
     <ClInclude Include="string_util.h" />
     <ClInclude Include="type.h" />
   </ItemGroup>
@@ -96,6 +97,7 @@
     <ClCompile Include="dlmalloc.c" />
     <ClCompile Include="hashmap.cpp" />
     <ClCompile Include="memory.cpp" />
+    <ClCompile Include="pool_allocator.cpp" />
     <ClCompile Include="string_util.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
