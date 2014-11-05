@@ -155,6 +155,77 @@ namespace bxGdi
         0, //eTANGENT,
     };
     EVertexSlot vertexSlotFromString( const char* n );
+    
+    //////////////////////////////////////////////////////////////////////
+    /// hwState
+	enum EDepthFunc
+	{
+		eDEPTH_FUNC_NEVER = 0,
+		eDEPTH_FUNC_LESS	  ,
+		eDEPTH_FUNC_EQUAL	  ,
+		eDEPTH_FUNC_LEQUAL	  ,
+		eDEPTH_FUNC_GREATER  ,
+		eDEPTH_FUNC_NOTEQUAL ,
+		eDEPTH_FUNC_GEQUAL	  ,
+		eDEPTH_FUNC_ALWAYS	  ,
+	};
+
+	enum EBlendFactor
+	{
+		eBLEND_ZERO				    = 0,
+		eBLEND_ONE				    ,
+		eBLEND_SRC_COLOR			,
+		eBLEND_ONE_MINUS_SRC_COLOR,
+		eBLEND_DST_COLOR			,
+		eBLEND_ONE_MINUS_DST_COLOR,
+		eBLEND_SRC_ALPHA			,
+		eBLEND_ONE_MINUS_SRC_ALPHA,
+		eBLEND_DST_ALPHA			,
+		eBLEND_ONE_MINUS_DST_ALPHA,
+		eBLEND_SRC_ALPHA_SATURATE	,
+	};
+
+    enum EBlendEquation
+    {
+        eBLEND_ADD = 0,
+        eBLEND_SUB,
+        eBLEND_REVERSE_SUB,
+        eBLEND_MIN,
+        eBLEND_MAX,
+    };
+
+	enum ECulling
+	{
+		eCULL_NONE = 0,
+		eCULL_BACK,
+		eCULL_FRONT,
+	};
+
+	enum EFillmode
+	{
+		eFILL_SOLID = 0,
+		eFILL_WIREFRAME,
+	};
+
+	enum EColorMask
+	{
+		eCOLOR_MASK_NONE  = 0,
+		eCOLOR_MASK_RED   = BIT_OFFSET(0),
+		eCOLOR_MASK_GREEN = BIT_OFFSET(1),
+		eCOLOR_MASK_BLUE  = BIT_OFFSET(2),
+		eCOLOR_MASK_ALPHA = BIT_OFFSET(3),
+		eCOLOR_MASK_ALL   = eCOLOR_MASK_RED|eCOLOR_MASK_GREEN|eCOLOR_MASK_BLUE|eCOLOR_MASK_ALPHA,
+	};
+
+
+    static const u32 cMAX_RENDER_TARGETS = 8;
+    static const u32 cMAX_CBUFFERS = 8;
+    static const u32 cMAX_TEXTURES = 16;
+    static const u32 cMAX_SAMPLERS = 16;
+    static const u32 cMAX_VERTEX_BUFFERS = 6;
+    static const u32 cMAX_SHADER_MACRO = 32;
+
+    struct ShaderReflection;
 }///
 struct bxGdiViewport
 {
@@ -202,6 +273,98 @@ namespace bxGdi
             && ( a.blocks[5].hash == b.blocks[5].hash );
     }
 };
+
+struct bxGdiFormat
+{
+    u8 type;
+    u8 numElements : 6;
+    u8 normalized : 1;
+    u8 srgb : 1;
+
+    bxGdiFormat( bxGdi::EDataType t, u8 nElem, u8 norm = 0, u8 s = 0 )
+        : type( t ), numElements( nElem ), normalized( norm ), srgb(s)
+    {}
+
+    bxGdiFormat()
+        : type(0), numElements(0), normalized(0), srgb(0) 
+    {}
+};
+
+struct bxGdiHwState
+{
+    union Blend
+    {
+	    u32 key;
+	    struct  
+	    {
+		    u64 enable           : 1;
+		    u64 color_mask       : 4;
+            u64 equation         : 4;
+            u64 src_factor       : 4;
+            u64 dst_factor       : 4;
+		    u64 src_factor_alpha : 4;
+		    u64 dst_factor_alpha : 4;
+	    };
+    };
+
+    union Depth
+    {
+	    u32 key;
+	    struct  
+	    {
+		    u16 function;
+		    u8  test;
+		    u8	write;
+	    };
+    };
+
+    union Raster
+    {
+	    u32 key;
+	    struct  
+	    {
+		    u32 cull_mode        : 2;
+		    u32 fill_mode        : 2;
+		    u32 multisample      : 1;
+		    u32 antialiased_line : 1;
+		    u32 scissor          : 1;
+	    };
+    };
+
+    bxGdiHwState()
+	{
+		blend.enable = 0;
+		blend.color_mask = bxGdi::eCOLOR_MASK_ALL;
+		blend.src_factor_alpha = bxGdi::eBLEND_ONE;
+		blend.dst_factor_alpha = bxGdi::eBLEND_ZERO;
+        blend.src_factor = bxGdi::eBLEND_ONE;
+        blend.dst_factor = bxGdi::eBLEND_ZERO;
+        blend.equation = bxGdi::eBLEND_ADD;
+
+		depth.function = bxGdi::eDEPTH_FUNC_LEQUAL;
+		depth.test = 1;
+		depth.write = 1;
+
+		raster.cull_mode = bxGdi::eCULL_BACK;
+		raster.fill_mode = bxGdi::eFILL_SOLID;
+		raster.multisample = 1;
+		raster.antialiased_line = 0;
+		raster.scissor = 0;
+	}
+	Blend blend;
+	Depth depth;
+	Raster raster;
+};
+inline bool operator == ( const bxGdiHwState&  a, const bxGdiHwState& b )
+{
+    return a.blend.key == b.blend.key &&
+           a.depth.key == b.depth.key &&
+           a.raster.key == b.raster.key;
+}
+inline bool operator != ( const bxGdiHwState&  a, const bxGdiHwState& b )
+{
+    return !(a == b);
+}
 
 //////////////////////////////////////////////////////////////////////////
 /// dx11 structs
@@ -272,8 +435,11 @@ union bxGdiShader
         void* inputSignature;
         size_t inputSignatureSize;
     } dx;
+
+    i32 stage;
+
 };
-union bxGdiTexture
+struct bxGdiTexture
 {
     struct
     {
@@ -294,8 +460,7 @@ union bxGdiTexture
     i16 width;
     i16 height;
     i16 depth;
-    i8 dataType;
-    i8 numPixelComponents;
+    bxGdiFormat format;
 };
 union bxGdiInputLayout
 {
@@ -335,7 +500,7 @@ union bxGdiSampler
 
 
 
-struct bxGdiShaderReflection;
+
 
 struct bxGdiContextBackend;
 struct bxGdiDeviceBackend
@@ -346,19 +511,20 @@ struct bxGdiDeviceBackend
     virtual bxGdiIndexBuffer  createIndexBuffer( int dataType, u32 numElements, const void* data = 0  ) = 0;
     virtual bxGdiBuffer createBuffer( u32 sizeInBytes, u32 bindFlags ) = 0;
     
-    virtual bxGdiShader createShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdiShaderReflection* reflection = 0) = 0;
-    virtual bxGdiShader createShader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdiShaderReflection* reflection = 0  ) = 0;
+    virtual bxGdiShader createShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdi::ShaderReflection* reflection = 0) = 0;
+    virtual bxGdiShader createShader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdi::ShaderReflection* reflection = 0  ) = 0;
     
     virtual bxGdiTexture createTexture( const void* dataBlob, size_t dataBlobSize ) = 0;
     virtual bxGdiTexture createTexture1D() = 0;
-    virtual bxGdiTexture createTexture2D() = 0;
+    virtual bxGdiTexture createTexture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data ) = 0;
+    virtual bxGdiTexture createTexture2Ddepth( int w, int h, int mips, bxGdi::EDataType dataType, unsigned bindFlags ) = 0;
     virtual bxGdiTexture createTexture3D() = 0;
     virtual bxGdiTexture createTextureCube() = 0;
     
     virtual bxGdiInputLayout createInputLayout( const bxGdiVertexStreamDesc* descs, int ndescs, bxGdiShader vertex_shader ) = 0;
-    virtual bxGdiBlendState  createBlendState() = 0;
-    virtual bxGdiDepthState  createDepthState() = 0;
-    virtual bxGdiRasterState createRasterState() = 0;
+    virtual bxGdiBlendState  createBlendState( bxGdiHwState::Blend blend ) = 0;
+    virtual bxGdiDepthState  createDepthState( bxGdiHwState::Depth depth ) = 0;
+    virtual bxGdiRasterState createRasterState( bxGdiHwState::Raster raster ) = 0;
 
     virtual void releaseVertexBuffer( bxGdiVertexBuffer* id ) = 0;
     virtual void releaseIndexBuffer( bxGdiIndexBuffer* id ) = 0;
