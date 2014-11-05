@@ -37,4 +37,19 @@ namespace array
     template< typename T > inline T* end( vector_t<T>& a )   { return ( a.empty() ) ? 0 : &a[0] + a.size(); }
     template< typename T > inline const T* begin( const vector_t<T>& a ) { return ( a.empty() ) ? 0 : &a[0]; }
     template< typename T > inline const T* end  ( const vector_t<T>& a ) { return ( a.empty() ) ? 0 : &a[0] + a.size(); }
+
+    template< typename T, typename Top > 
+    inline T* find( T* first, T* last, Top op )
+    {
+        while (first!=last) 
+        {
+            if (op(*first)) 
+            {
+                return first;
+            }
+            ++first;
+        }
+        return last;
+    }
+
 }///
