@@ -85,16 +85,19 @@
     <ClInclude Include="containers.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="dlmalloc.h" />
+    <ClInclude Include="hash.h" />
     <ClInclude Include="hashmap.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="pool_allocator.h" />
     <ClInclude Include="string_util.h" />
     <ClInclude Include="type.h" />
+    <ClInclude Include="vector.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="buffer.cpp" />
     <ClCompile Include="debug.c" />
     <ClCompile Include="dlmalloc.c" />
+    <ClCompile Include="hash.cpp" />
     <ClCompile Include="hashmap.cpp" />
     <ClCompile Include="memory.cpp" />
     <ClCompile Include="pool_allocator.cpp" />

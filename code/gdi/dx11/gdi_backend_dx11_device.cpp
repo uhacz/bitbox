@@ -1,5 +1,7 @@
 #include "../gdi_backend.h"
-#include <util/pool_allocator.h>
+#include "../gdi_shader_reflection.h"
+#include <util/hash.h>
+//#include <util/pool_allocator.h>
 
 #include <dxgi.h>
 #include <d3d11.h>
@@ -113,6 +115,156 @@ namespace bxGdi
         if( cpua_flags & eCPU_WRITE ) result |= D3D11_CPU_ACCESS_WRITE;
         return result;
     }
+    int to_D3D_SHADER_MACRO_array( D3D_SHADER_MACRO* output, int output_capacity, const char** shader_macro )
+    {
+        int counter = 0;
+        while( *shader_macro )
+        {
+            SYS_ASSERT( counter < output_capacity );
+            output[counter].Name = shader_macro[0];
+            output[counter].Definition = shader_macro[1];
+
+            ++counter;
+            shader_macro += 2;
+        }
+        return counter;
+    }
+    void _FetchShaderReflection( ShaderReflection* out, const void* code_blob, size_t code_blob_size, int stage )
+    {
+        ID3D11ShaderReflection* reflector = NULL;
+        D3DReflect( code_blob, code_blob_size, IID_ID3D11ShaderReflection, (void**)&reflector );
+
+        D3D11_SHADER_DESC sdesc;
+        reflector->GetDesc( &sdesc );
+
+        //out->cbuffers.resize( sdesc.ConstantBuffers );
+
+        for ( u32 i = 0; i < sdesc.ConstantBuffers; ++i )
+        {
+            //ShaderCBufferDesc& cb = out->cbuffers[i];
+            ID3D11ShaderReflectionConstantBuffer* cbuffer_reflector = reflector->GetConstantBufferByIndex(i);		
+
+            D3D11_SHADER_BUFFER_DESC sb_desc;
+            cbuffer_reflector->GetDesc( &sb_desc );
+
+            D3D11_SHADER_INPUT_BIND_DESC bind_desc;
+            reflector->GetResourceBindingDescByName( sb_desc.Name, &bind_desc );
+
+
+            const u32 cb_hashed_name = simple_hash( sb_desc.Name );
+            u32 cbuffer_found = util::array_find1( array::begin( out->cbuffers ), (u32)out->cbuffers.size(), ShaderReflection::FunctorCBuffer( cb_hashed_name ) );
+            if( cbuffer_found != u32(~0) )
+            {
+                out->cbuffers[cbuffer_found].stage_mask |= ( 1 << stage );
+                continue;
+            }
+
+            out->cbuffers.push_back( ShaderCBufferDesc() );
+            ShaderCBufferDesc& cb = out->cbuffers.back();
+            cb.hashed_name = cb_hashed_name;
+            cb.size = sb_desc.Size;
+            cb.slot = bind_desc.BindPoint;
+            cb.stage_mask = ( 1 << stage );
+            //cb.variables.resize( sb_desc.Variables );
+            //cb.num_variables = sb_desc.Variables;
+            //cb.variables = (ShaderVariableDesc*)utils::memory_alloc( cb.num_variables * sizeof(ShaderVariableDesc) );
+
+            for( u32 j = 0; j < sb_desc.Variables; ++j )
+            {
+                ID3D11ShaderReflectionVariable* var_reflector = cbuffer_reflector->GetVariableByIndex(j);
+                D3D11_SHADER_VARIABLE_DESC sv_desc;
+                var_reflector->GetDesc( &sv_desc );
+
+                cb.variables.push_back( ShaderVariableDesc() );
+                ShaderVariableDesc& vdesc = cb.variables.back();
+                vdesc.hashed_name = util::hash( sv_desc.Name );
+                vdesc.offset = sv_desc.StartOffset;
+                vdesc.size = sv_desc.Size;
+            }
+        }
+
+        for ( u32 i = 0; i < sdesc.BoundResources; ++i )
+        {
+            D3D11_SHADER_INPUT_BIND_DESC rdesc;
+            reflector->GetResourceBindingDesc( i, &rdesc );
+
+            /// system variable
+            if( rdesc.Name[0] == '_' ) 
+                continue;
+
+            const u32 hashed_name = util::hash( rdesc.Name );
+
+
+            if( rdesc.Type == D3D_SIT_TEXTURE )
+            {
+                const u32 found = util::array_find1( array::begin( out->textures ), (u32)out->textures.size(), ShaderReflection::FunctorTexture(hashed_name) );
+                if( found != u32(~0) )
+                {
+                    out->textures[found].stage_mask |= ( 1 << stage );
+                    continue;
+                }
+                out->textures.push_back( ShaderTextureDesc() );
+                ShaderTextureDesc& tdesc = out->textures.back();
+                tdesc.hashed_name = util::hash( rdesc.Name );
+                tdesc.slot = rdesc.BindPoint;
+                tdesc.stage_mask = ( 1 << stage );
+                switch( rdesc.Dimension )
+                {
+                case D3D10_SRV_DIMENSION_TEXTURE1D:
+                    tdesc.dimm = 1;
+                    SYS_ASSERT( false && "not implemented" );
+                    break;
+                case D3D10_SRV_DIMENSION_TEXTURE2D:
+                    tdesc.dimm = 2;
+                    break;
+                case D3D10_SRV_DIMENSION_TEXTURE3D:
+                    tdesc.dimm = 3;
+                    SYS_ASSERT( false && "not implemented" );
+                    break;
+                case D3D10_SRV_DIMENSION_TEXTURECUBE:
+                    tdesc.dimm = 2;
+                    tdesc.is_cubemap = 1;
+                    SYS_ASSERT( false && "not implemented" );
+                    break;
+                default:
+                    SYS_ASSERT( false && "not implemented" );
+                    break;
+                }
+            }
+            else if( rdesc.Type == D3D_SIT_SAMPLER )
+            {
+                const u32 found = util::array_find1( array::begin( out->samplers ), (u32)out->samplers.size(), ShaderReflection::FunctorSampler(hashed_name) );
+                if( found != u32(~0) )
+                {
+                    out->samplers[found].stage_mask |= ( 1 << stage );
+                    continue;
+                }
+                out->samplers.push_back( ShaderSamplerDesc() );
+                ShaderSamplerDesc& sdesc = out->samplers.back();
+                sdesc.hashed_name = util::hash( rdesc.Name );
+                sdesc.slot = rdesc.BindPoint;
+                sdesc.stage_mask = ( 1 << stage );
+            }
+        }
+
+        u16 input_mask = 0;
+        for( u32 i = 0; i < sdesc.InputParameters; ++i )
+        {
+            D3D11_SIGNATURE_PARAMETER_DESC idesc;
+            reflector->GetInputParameterDesc( i, &idesc );
+
+            VertexInputSlot::Enum slot = VertexInputSlot::from_string( idesc.SemanticName );
+            if( slot >= VertexInputSlot::eCOUNT )
+            {
+                //log_error( "Unknown semantic: '%s'", idesc.SemanticName );
+                continue;
+            }
+            input_mask |= ( 1 << (slot + idesc.SemanticIndex) );
+        }
+        out->input_mask = input_mask;
+        reflector->Release();
+    }
+
 }///
 
 

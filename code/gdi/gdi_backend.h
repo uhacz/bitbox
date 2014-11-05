@@ -203,10 +203,10 @@ namespace bxGdi
     }
 };
 
-
+//////////////////////////////////////////////////////////////////////////
+/// dx11 structs
 struct ID3D11Resource;
 struct ID3D11DeviceChild;
-
 struct ID3D11Buffer;
 struct ID3D11VertexShader;
 struct ID3D11PixelShader;
@@ -224,6 +224,7 @@ struct ID3D11ShaderResourceView;
 struct ID3D11RenderTargetView;
 struct ID3D11DepthStencilView;
 struct ID3D11UnorderedAccessView;
+//////////////////////////////////////////////////////////////////////////
 
 struct bxGdiVertexBuffer
 {
@@ -293,8 +294,8 @@ union bxGdiTexture
     i16 width;
     i16 height;
     i16 depth;
-    i16 dataType;
-    i16 numElements;
+    i8 dataType;
+    i8 numPixelComponents;
 };
 union bxGdiInputLayout
 {
