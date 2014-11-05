@@ -80,6 +80,7 @@
   <ItemGroup>
     <ClInclude Include="dx11\DDSTextureLoader.h" />
     <ClInclude Include="gdi_backend.h" />
+    <ClInclude Include="gdi_shader_reflection.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dx11\DDSTextureLoader.cpp" />
