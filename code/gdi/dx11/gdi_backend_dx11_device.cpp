@@ -1,11 +1,14 @@
 #include "../gdi_backend.h"
 #include "../gdi_shader_reflection.h"
 #include <util/hash.h>
+#include <util/memory.h>
 
 #include "gdi_backend_dx11.h"
 #include <d3d11shader.h>
 #include <D3Dcompiler.h>
 #include "DDSTextureLoader.h"
+
+#include "gdi_backend_dx11_startup.h"
 
 namespace bxGdi
 {
@@ -146,10 +149,16 @@ namespace bxGdi
     }
 
 }///
-
-
 struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 {
+    bxGdiDeviceBackend_dx11()
+        : _device(0)
+    {}
+
+    ~bxGdiDeviceBackend_dx11()
+    {
+        _device->Release();
+    }
     virtual bxGdiVertexBuffer createVertexBuffer( const bxGdiVertexStreamDesc& desc, u32 numElements, const void* data )
     {
         const u32 MAX_DESCS = 16;
@@ -779,3 +788,66 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
     ID3D11Device* _device;
 };
+
+namespace bxGdi
+{
+    bxGdiDeviceBackend* newDeveice_dx11( ID3D11Device* deviceDx11 )
+    {
+        bxGdiDeviceBackend_dx11* dev = BX_NEW( bxDefaultAllocator(), bxGdiDeviceBackend_dx11 );
+        dev->_device = deviceDx11;
+        return dev;
+    }
+
+    int startup_dx11( bxGdiDeviceBackend** dev, uptr hWnd, int winWidth, int winHeight, int fullScreen )
+    {
+        DXGI_SWAP_CHAIN_DESC sd;
+	    ZeroMemory( &sd, sizeof(sd) );
+	    sd.BufferCount = 1;
+	    sd.BufferDesc.Width = winWidth;
+	    sd.BufferDesc.Height = winHeight;
+	    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	    sd.BufferDesc.RefreshRate.Numerator = 0;
+	    sd.BufferDesc.RefreshRate.Denominator = 0;
+	    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	    sd.OutputWindow = (HWND)hWnd;
+	    sd.SampleDesc.Count = 1;
+	    sd.SampleDesc.Quality = 0;
+	    sd.Windowed = ( fullScreen ) ? FALSE : TRUE;
+	    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+	    //sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+        UINT flags = 0;//D3D11_CREATE_DEVICE_SINGLETHREADED;
+    #ifdef _DEBUG
+	    flags |= D3D11_CREATE_DEVICE_DEBUG;
+    #endif
+
+	    IDXGISwapChain* dx11SwapChain = 0;
+	    ID3D11Device* dx11Dev = 0;
+	    ID3D11DeviceContext* dx11Ctx = 0;
+
+
+        HRESULT hres = D3D11CreateDeviceAndSwapChain( 
+		    NULL, 
+		    D3D_DRIVER_TYPE_HARDWARE, 
+		    NULL, 
+		    flags, 
+		    NULL, 
+		    0, 
+		    D3D11_SDK_VERSION, 
+		    &sd, 
+		    &dx11SwapChain, 
+		    &dx11Dev, 
+		    NULL, 
+		    &dx11Ctx );
+
+	    if( FAILED( hres ) )
+	    {
+		    return -1;
+	    }
+
+        dev[0] = newDeveice_dx11( dx11Dev );
+        dev[0]->ctx = newContext_dx11( dx11Ctx, dx11SwapChain );
+
+        return 0;
+    }
+}///

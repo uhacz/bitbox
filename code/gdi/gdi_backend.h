@@ -65,6 +65,7 @@ namespace bxGdi
     };
     static const int typeStride[] = 
     {
+        0, //
         1, //eBYTE,
         1, //eUBYTE,
         2, //eSHORT,
@@ -680,6 +681,7 @@ struct bxGdiDeviceBackend
 
 struct bxGdiContextBackend
 {
+    virtual ~bxGdiContextBackend() {}
     virtual void clearState             () = 0;
     virtual void setViewport            ( const bxGdiViewport& vp ) = 0;
     virtual void setVertexBuffers       ( bxGdiVertexBuffer* vbuffers, unsigned start, unsigned n ) = 0;
@@ -706,8 +708,8 @@ struct bxGdiContextBackend
     virtual void drawInstanced          ( unsigned numVertices, unsigned startIndex, unsigned numInstances ) = 0;
     virtual void drawIndexedInstanced   ( unsigned numIndices , unsigned startIndex, unsigned numInstances, unsigned baseVertex ) = 0;
 
-    virtual unsigned char* mapVertices  ( bxGdiVertexBuffer vbuffer, int offsetInBytes, int mapType ) = 0;
-    virtual unsigned char* mapIndices   ( bxGdiIndexBuffer ibuffer, int offsetInBytes, int mapType ) = 0;
+    virtual unsigned char* mapVertices  ( bxGdiVertexBuffer vbuffer, int firstElement, int numElements, int mapType ) = 0;
+    virtual unsigned char* mapIndices   ( bxGdiIndexBuffer ibuffer, int firstElement, int numElements, int mapType ) = 0;
     virtual void unmapVertices          ( bxGdiVertexBuffer vbuffer ) = 0;
     virtual void unmapIndices           ( bxGdiIndexBuffer ibuffer ) = 0;
     virtual void updateCBuffer          ( bxGdiBuffer cbuffer, const void* data ) = 0;
@@ -715,9 +717,9 @@ struct bxGdiContextBackend
     virtual void generateMipmaps        ( bxGdiTexture texture ) = 0;
 };
 
-namespace bxGdiBackend
+namespace bxGdi
 {
-    int  startup( bxGdiDeviceBackend** dev, uptr hWnd, int winWidth, int winHeight, int fullScreen );
-    void shutdown( bxGdiDeviceBackend** dev );
+    int  backendStartup( bxGdiDeviceBackend** dev, uptr hWnd, int winWidth, int winHeight, int fullScreen );
+    void backendShutdown( bxGdiDeviceBackend** dev );
    
 }///

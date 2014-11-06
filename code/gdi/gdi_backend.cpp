@@ -49,3 +49,18 @@ namespace bxGdi
     }
 
 }///
+
+#include "dx11/gdi_backend_dx11_startup.h"
+#include <util/memory.h>
+namespace bxGdi
+{
+    int backendStartup( bxGdiDeviceBackend** dev, uptr hWnd, int winWidth, int winHeight, int fullScreen )
+    {
+        return startup_dx11( dev, hWnd, winWidth, winHeight, fullScreen );
+    }
+    void backendShutdown( bxGdiDeviceBackend** dev )
+    {
+        BX_DELETE0( bxDefaultAllocator(), dev[0]->ctx );
+        BX_DELETE0( bxDefaultAllocator(), dev[0] );
+    }
+}///
