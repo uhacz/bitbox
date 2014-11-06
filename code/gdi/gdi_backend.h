@@ -50,7 +50,8 @@ namespace bxGdi
 
     enum EDataType
     {
-        eTYPE_BYTE = 0,
+        eTYPE_UNKNOWN = 0,
+        eTYPE_BYTE,
         eTYPE_UBYTE,
         eTYPE_SHORT,
         eTYPE_USHORT,
@@ -217,6 +218,51 @@ namespace bxGdi
 		eCOLOR_MASK_ALL   = eCOLOR_MASK_RED|eCOLOR_MASK_GREEN|eCOLOR_MASK_BLUE|eCOLOR_MASK_ALPHA,
 	};
 
+    enum ESamplerFilter
+    {
+        eFILTER_NEAREST = 0,
+        eFILTER_LINEAR,
+        eFILTER_BILINEAR,
+        eFILTER_TRILINEAR,
+        eFILTER_BILINEAR_ANISO,
+        eFILTER_TRILINEAR_ANISO,
+    };
+    static const char* name[] = 
+    {
+        "NEAREST",
+        "LINEAR",
+        "BILINEAR",
+        "TRILINEAR",
+        "BILINEAR_ANISO",
+        "TRILINEAR_ANISO",
+    };
+    inline int hasMipmaps( ESamplerFilter filter)	{ return (filter >= eFILTER_BILINEAR); }
+    inline int hasAniso( ESamplerFilter filter)		{ return (filter >= eFILTER_BILINEAR_ANISO); }
+
+    enum ESamplerDepthCompare
+    {
+        eDEPTH_CMP_NONE = 0,
+        eDEPTH_CMP_GREATER,
+        eDEPTH_CMP_GEQUAL,
+        eDEPTH_CMP_LESS,
+        eDEPTH_CMP_LEQUAL,
+        eDEPTH_CMP_ALWAYS,
+        eDEPTH_CMP_NEVER,
+        eDEPTH_CMP_COUNT
+    };
+
+    enum EAddressMode
+    {
+        eADDRESS_WRAP,
+        eADDRESS_CLAMP,
+        eADDRESS_BORDER,
+    };
+    static const char* addressModeName[] = 
+    {
+        "WRAP",
+        "CLAMP",
+        "BORDER",
+    };
 
     static const u32 cMAX_RENDER_TARGETS = 8;
     static const u32 cMAX_CBUFFERS = 8;
@@ -290,6 +336,46 @@ struct bxGdiFormat
     {}
 };
 
+union bxGdiSamplerDesc
+{
+    bxGdiSamplerDesc()
+        : filter( bxGdi::eFILTER_TRILINEAR_ANISO )
+        , addressU( bxGdi::eADDRESS_WRAP )
+        , addressV( bxGdi::eADDRESS_WRAP )
+        , addressT( bxGdi::eADDRESS_WRAP )
+        , depthCmpMode( bxGdi::eDEPTH_CMP_NONE )
+        , aniso( 16 )
+    {}
+    bxGdiSamplerDesc( bxGdi::ESamplerFilter f, bxGdi::EAddressMode u, bxGdi::EAddressMode v, bxGdi::EAddressMode t, bxGdi::ESamplerDepthCompare cmp, u32 a )
+        : filter( u8(f) )
+        , addressU( u8(u) )
+        , addressV( u8(v) )
+        , addressT( u8(t) )
+        , depthCmpMode( u8(cmp) )
+        , aniso( u8(a) )
+    {}
+    bxGdiSamplerDesc( bxGdi::ESamplerFilter f, bxGdi::EAddressMode uvt = bxGdi::eADDRESS_CLAMP, bxGdi::ESamplerDepthCompare cmp = bxGdi::eDEPTH_CMP_NONE, u32 a = 16 )
+        : filter( u8(f) )
+        , addressU( u8(uvt) )
+        , addressV( u8(uvt) )
+        , addressT( u8(uvt) )
+        , depthCmpMode( u8(cmp) )
+        , aniso( u8(a) )
+    {}
+
+    u64 key;
+    struct
+    {
+        u8 filter;
+        u8 addressU;
+        u8 addressV;
+        u8 addressT;
+        u8 depthCmpMode;
+        u8 aniso;
+        u16 _padding;
+    };
+};
+
 struct bxGdiHwState
 {
     union Blend
@@ -300,10 +386,10 @@ struct bxGdiHwState
 		    u64 enable           : 1;
 		    u64 color_mask       : 4;
             u64 equation         : 4;
-            u64 src_factor       : 4;
-            u64 dst_factor       : 4;
-		    u64 src_factor_alpha : 4;
-		    u64 dst_factor_alpha : 4;
+            u64 srcFactor       : 4;
+            u64 dstFactor       : 4;
+		    u64 srcFactorAlpha : 4;
+		    u64 dstFactorAlpha : 4;
 	    };
     };
 
@@ -323,10 +409,10 @@ struct bxGdiHwState
 	    u32 key;
 	    struct  
 	    {
-		    u32 cull_mode        : 2;
-		    u32 fill_mode        : 2;
+		    u32 cullMode        : 2;
+		    u32 fillMode        : 2;
 		    u32 multisample      : 1;
-		    u32 antialiased_line : 1;
+		    u32 antialiasedLine : 1;
 		    u32 scissor          : 1;
 	    };
     };
@@ -335,20 +421,20 @@ struct bxGdiHwState
 	{
 		blend.enable = 0;
 		blend.color_mask = bxGdi::eCOLOR_MASK_ALL;
-		blend.src_factor_alpha = bxGdi::eBLEND_ONE;
-		blend.dst_factor_alpha = bxGdi::eBLEND_ZERO;
-        blend.src_factor = bxGdi::eBLEND_ONE;
-        blend.dst_factor = bxGdi::eBLEND_ZERO;
+		blend.srcFactorAlpha = bxGdi::eBLEND_ONE;
+		blend.dstFactorAlpha = bxGdi::eBLEND_ZERO;
+        blend.srcFactor = bxGdi::eBLEND_ONE;
+        blend.dstFactor = bxGdi::eBLEND_ZERO;
         blend.equation = bxGdi::eBLEND_ADD;
 
 		depth.function = bxGdi::eDEPTH_FUNC_LEQUAL;
 		depth.test = 1;
 		depth.write = 1;
 
-		raster.cull_mode = bxGdi::eCULL_BACK;
-		raster.fill_mode = bxGdi::eFILL_SOLID;
+		raster.cullMode = bxGdi::eCULL_BACK;
+		raster.fillMode = bxGdi::eFILL_SOLID;
 		raster.multisample = 1;
-		raster.antialiased_line = 0;
+		raster.antialiasedLine = 0;
 		raster.scissor = 0;
 	}
 	Blend blend;
@@ -423,44 +509,52 @@ struct bxGdiBuffer
 };
 union bxGdiShader
 {
-    struct 
+    union 
     {
-        union 
+        uptr id;
+        struct 
         {
-            ID3D11DeviceChild*      object;
-            ID3D11VertexShader*     vertex;
-            ID3D11PixelShader*      pixel;
-            ID3D11ComputeShader*    compute;
-        };
-        void* inputSignature;
-        size_t inputSignatureSize;
-    } dx;
+            union 
+            {
+                ID3D11DeviceChild*      object;
+                ID3D11VertexShader*     vertex;
+                ID3D11PixelShader*      pixel;
+                ID3D11ComputeShader*    compute;
+            };
+            void* inputSignature;
+        } dx;
+    };
 
     i32 stage;
-
 };
 struct bxGdiTexture
 {
-    struct
+    union
     {
-        union 
+        uptr id;
+        struct
         {
-            ID3D11Resource*   resource;
-            ID3D11Texture1D* _1D;
-            ID3D11Texture2D* _2D;
-            ID3D11Texture3D* _3D;
-        };
+            union 
+            {
+                ID3D11Resource*   resource;
+                ID3D11Texture1D* _1D;
+                ID3D11Texture2D* _2D;
+                ID3D11Texture3D* _3D;
+            };
 
-        ID3D11ShaderResourceView*   viewSH;
-        ID3D11RenderTargetView*     viewRT;
-        ID3D11DepthStencilView*     viewDS;
-        ID3D11UnorderedAccessView*  viewUA;
-    } dx;
+            ID3D11ShaderResourceView*   viewSH;
+            ID3D11RenderTargetView*     viewRT;
+            ID3D11DepthStencilView*     viewDS;
+            ID3D11UnorderedAccessView*  viewUA;
+        } dx;
+    };
 
     i16 width;
     i16 height;
     i16 depth;
     bxGdiFormat format;
+
+
 };
 union bxGdiInputLayout
 {
@@ -494,11 +588,55 @@ union bxGdiSampler
 {
     struct  
     {
-        ID3D11RasterizerState* state;
+        ID3D11SamplerState* state;
     } dx;
 };
 
+namespace bxGdi
+{
+    inline bxGdiSamplerDesc nullSamplerDesc() 
+    { 
+        bxGdiSamplerDesc sd; 
+        sd.key = u64(~0); 
+        return sd; 
+    }
+    
+    inline bxGdiIndexBuffer nullIndexBuffer() 
+    { 
+        bxGdiIndexBuffer buff;
+        buff.id = 0;
+        buff.dataType = 0;
+        buff.numElements = 0;
+        return buff;
+    }
+    inline bxGdiShader nullShader()
+    {
+        bxGdiShader shader = { 0 };
+        return shader;
+    }
+    inline bxGdiTexture nullTexture()
+    {
+        bxGdiTexture texture;
+        texture.id = 0;
+        texture.dx.viewSH = 0;
+        texture.dx.viewRT = 0;
+        texture.dx.viewDS = 0;
+        texture.dx.viewUA = 0;
+        return texture;
+    }
+    inline bxGdiSampler nullSampler()
+    {
+        bxGdiSampler s = { 0 };
+        return s;
+    }
+    inline bxGdiBuffer nullBuffer()
+    {
+        bxGdiBuffer buffer = { 0 };
+        return buffer;
+    }
 
+
+}//
 
 
 
@@ -520,6 +658,7 @@ struct bxGdiDeviceBackend
     virtual bxGdiTexture createTexture2Ddepth( int w, int h, int mips, bxGdi::EDataType dataType, unsigned bindFlags ) = 0;
     virtual bxGdiTexture createTexture3D() = 0;
     virtual bxGdiTexture createTextureCube() = 0;
+    virtual bxGdiSampler createSampler( const bxGdiSamplerDesc& desc ) = 0;
     
     virtual bxGdiInputLayout createInputLayout( const bxGdiVertexStreamDesc* descs, int ndescs, bxGdiShader vertex_shader ) = 0;
     virtual bxGdiBlendState  createBlendState( bxGdiHwState::Blend blend ) = 0;
@@ -543,8 +682,8 @@ struct bxGdiContextBackend
 {
     virtual void clearState             () = 0;
     virtual void setViewport            ( const bxGdiViewport& vp ) = 0;
-    virtual void setVertexBuffers       ( bxGdiVertexBuffer* vbuffers, const bxGdiVertexStreamDesc* descs, unsigned start, unsigned n ) = 0;
-    virtual void setIndexBuffer         ( bxGdiIndexBuffer ibuffer, int data_type ) = 0;
+    virtual void setVertexBuffers       ( bxGdiVertexBuffer* vbuffers, unsigned start, unsigned n ) = 0;
+    virtual void setIndexBuffer         ( bxGdiIndexBuffer ibuffer ) = 0;
     virtual void setShaderPrograms      ( bxGdiShader* shaders, int n ) = 0;
     virtual void setInputLayout         ( const bxGdiInputLayout ilay ) = 0;
 
