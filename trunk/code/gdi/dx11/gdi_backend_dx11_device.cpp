@@ -1,134 +1,14 @@
 #include "../gdi_backend.h"
 #include "../gdi_shader_reflection.h"
 #include <util/hash.h>
-//#include <util/pool_allocator.h>
 
-#include <dxgi.h>
-#include <d3d11.h>
+#include "gdi_backend_dx11.h"
 #include <d3d11shader.h>
 #include <D3Dcompiler.h>
 #include "DDSTextureLoader.h"
 
 namespace bxGdi
 {
-    static DXGI_FORMAT to_DXGI_FORMAT( int dtype, int num_elements, int norm = 0, int srgb = 0 )
-    {
-        DXGI_FORMAT result = DXGI_FORMAT_UNKNOWN;
-        if ( dtype == eTYPE_BYTE )
-        {
-            if      ( num_elements == 1 ) result = DXGI_FORMAT_R8_SINT;
-            else if ( num_elements == 2 ) result = DXGI_FORMAT_R8G8_SINT;
-            else if ( num_elements == 4 ) result = DXGI_FORMAT_R8G8B8A8_SINT;
-        }
-        else if ( dtype == eTYPE_UBYTE )
-        {
-            if( norm )
-            {
-                if      ( num_elements == 1 ) result = DXGI_FORMAT_R8_UNORM;
-                else if ( num_elements == 2 ) result = DXGI_FORMAT_R8G8_UNORM;
-                else if ( num_elements == 4 ) 
-                {
-                    if( srgb )
-                        result = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-                    else
-                        result = DXGI_FORMAT_R8G8B8A8_UNORM;
-                }
-            }
-            else if ( num_elements == 1 ) result = DXGI_FORMAT_R8_UINT;
-            else if ( num_elements == 2 ) result = DXGI_FORMAT_R8G8_UINT;
-            else if ( num_elements == 4 ) result = DXGI_FORMAT_R8G8B8A8_UINT;
-        }
-        else if ( dtype == eTYPE_SHORT )
-        {
-            if      ( num_elements == 1 ) result = DXGI_FORMAT_R16_SINT;
-            else if ( num_elements == 4 ) result = DXGI_FORMAT_R16G16B16A16_SINT;
-        }
-        else if ( dtype == eTYPE_USHORT )
-        {
-            if      ( num_elements == 1 ) result = DXGI_FORMAT_R16_UINT;
-            else if ( num_elements == 4 ) result = DXGI_FORMAT_R16G16B16A16_UINT;
-        }
-        else if ( dtype == eTYPE_INT )
-        {
-            if      ( num_elements == 1 ) result = DXGI_FORMAT_R32_SINT;        
-            else if ( num_elements == 2 ) result = DXGI_FORMAT_R32G32_SINT;     
-            else if ( num_elements == 3 ) result = DXGI_FORMAT_R32G32B32_SINT;
-            else if ( num_elements == 4 ) result = DXGI_FORMAT_R32G32B32A32_SINT;
-        }
-        else if ( dtype == eTYPE_UINT )
-        {
-            if      ( num_elements == 1 ) result = DXGI_FORMAT_R32_UINT;        
-            else if ( num_elements == 2 ) result = DXGI_FORMAT_R32G32_UINT;     
-            else if ( num_elements == 3 ) result = DXGI_FORMAT_R32G32B32_UINT;
-            else if ( num_elements == 4 ) result = DXGI_FORMAT_R32G32B32A32_UINT;
-        }
-        else if ( dtype == eTYPE_FLOAT )
-        {
-            if      ( num_elements == 1 ) result = DXGI_FORMAT_R32_FLOAT;
-            else if ( num_elements == 2 ) result = DXGI_FORMAT_R32G32_FLOAT;
-            else if ( num_elements == 3 ) result = DXGI_FORMAT_R32G32B32_FLOAT;
-            else if ( num_elements == 4 ) result = DXGI_FORMAT_R32G32B32A32_FLOAT;
-        }
-        else if ( dtype == eTYPE_DOUBLE )
-        {
-
-        }
-        else if ( dtype == eTYPE_DEPTH16 )
-        {
-            result = DXGI_FORMAT_D16_UNORM;
-        }
-        else if ( dtype == eTYPE_DEPTH24_STENCIL8 )
-        {
-            result = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        }
-        else if ( dtype == eTYPE_DEPTH32F )
-        {
-            result = DXGI_FORMAT_D32_FLOAT;
-        }
-
-        SYS_ASSERT( result != DXGI_FORMAT_UNKNOWN );
-        return result;
-    }
-    inline bool isDepthFormat( DXGI_FORMAT format )
-    {
-        return format == DXGI_FORMAT_D16_UNORM || format == DXGI_FORMAT_D24_UNORM_S8_UINT || format == DXGI_FORMAT_D32_FLOAT;
-    }
-
-    static u32 to_D3D11_BIND_FLAG( u32 bind_flags )
-    {
-        u32 result = 0;
-        if( bind_flags & eBIND_VERTEX_BUFFER	 ) result |= D3D11_BIND_VERTEX_BUFFER;
-        if( bind_flags & eBIND_INDEX_BUFFER	 ) result |= D3D11_BIND_INDEX_BUFFER;     
-        if( bind_flags & eBIND_CONSTANT_BUFFER ) result |= D3D11_BIND_CONSTANT_BUFFER;  
-        if( bind_flags & eBIND_SHADER_RESOURCE ) result |= D3D11_BIND_SHADER_RESOURCE;  
-        if( bind_flags & eBIND_STREAM_OUTPUT   ) result |= D3D11_BIND_STREAM_OUTPUT;    
-        if( bind_flags & eBIND_RENDER_TARGET   ) result |= D3D11_BIND_RENDER_TARGET;    
-        if( bind_flags & eBIND_DEPTH_STENCIL   ) result |= D3D11_BIND_DEPTH_STENCIL;    
-        if( bind_flags & eBIND_UNORDERED_ACCESS) result |= D3D11_BIND_UNORDERED_ACCESS;    
-        return result;
-    }
-
-    static u32 to_D3D11_CPU_ACCESS_FLAG( u32 cpua_flags )
-    {
-        u32 result = 0;
-        if( cpua_flags & eCPU_READ  ) result |= D3D11_CPU_ACCESS_READ;
-        if( cpua_flags & eCPU_WRITE ) result |= D3D11_CPU_ACCESS_WRITE;
-        return result;
-    }
-    int to_D3D_SHADER_MACRO_array( D3D_SHADER_MACRO* output, int output_capacity, const char** shader_macro )
-    {
-        int counter = 0;
-        while( *shader_macro )
-        {
-            SYS_ASSERT( counter < output_capacity );
-            output[counter].Name = shader_macro[0];
-            output[counter].Definition = shader_macro[1];
-
-            ++counter;
-            shader_macro += 2;
-        }
-        return counter;
-    }
     void _FetchShaderReflection( bxGdi::ShaderReflection* out, const void* code_blob, size_t code_blob_size, int stage )
     {
         ID3D11ShaderReflection* reflector = NULL;
@@ -438,7 +318,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     {
         bxGdiShader shader;    
     
-        ID3DBlob* input_signature = 0;
+        ID3DBlob* inputSignature = 0;
 
         HRESULT hres;
         switch ( stage )
@@ -446,7 +326,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         case bxGdi::eSTAGE_VERTEX:
             hres = _device->CreateVertexShader( codeBlob, codeBlobSizee, 0, &shader.dx.vertex );
             SYS_ASSERT( SUCCEEDED( hres ) );
-            hres = D3DGetInputSignatureBlob( codeBlob, codeBlobSizee, &input_signature );
+            hres = D3DGetInputSignatureBlob( codeBlob, codeBlobSizee, &inputSignature );
             SYS_ASSERT( SUCCEEDED( hres ) );
             break;
         case bxGdi::eSTAGE_PIXEL:
@@ -476,8 +356,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
             bxGdi::_FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
         }
     
-        shader.dx.inputSignature = input_signature->GetBufferPointer();
-        shader.dx.inputSignatureSize = input_signature->GetBufferSize();
+        shader.dx.inputSignature = (void*)inputSignature;
         shader.stage = stage;
 
         return shader;
@@ -689,9 +568,43 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         SYS_NOT_IMPLEMENTED;
         return bxGdiTexture();
     }
+    
+    virtual bxGdiSampler createSampler( const bxGdiSamplerDesc& desc )
+    {
+        D3D11_SAMPLER_DESC dxDesc;
+        dxDesc.Filter = ( desc.depthCmpMode == bxGdi::eDEPTH_CMP_NONE ) ? bxGdi::filters[desc.filter] : bxGdi::comparisionFilters[desc.filter];
+        dxDesc.ComparisonFunc = bxGdi::comparision[desc.depthCmpMode];
 
+        dxDesc.AddressU = bxGdi::addressMode[desc.addressU];
+        dxDesc.AddressV = bxGdi::addressMode[desc.addressV];
+        dxDesc.AddressW = bxGdi::addressMode[desc.addressT];
+
+        dxDesc.MaxAnisotropy = ( bxGdi::hasAniso((bxGdi::ESamplerFilter)desc.filter) ) ? desc.aniso: 1;
+
+        {
+            dxDesc.BorderColor[0] = 0.f;
+            dxDesc.BorderColor[1] = 0.f;
+            dxDesc.BorderColor[2] = 0.f;
+            dxDesc.BorderColor[3] = 0.f;
+        }
+        dxDesc.MipLODBias = 0.f;
+        dxDesc.MinLOD = 0;
+        dxDesc.MaxLOD = D3D11_FLOAT32_MAX;
+        //desc.MaxLOD = ( SamplerFilter::has_mipmaps((SamplerFilter::Enum)state.filter) ) ? D3D11_FLOAT32_MAX : 0;
+
+        ID3D11SamplerState* dxState = 0;
+        HRESULT hres = _device->CreateSamplerState( &dxDesc, &dxState );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+
+        bxGdiSampler result;
+        result.dx.state = dxState;
+        return result;
+    }
+    
     virtual bxGdiInputLayout createInputLayout( const bxGdiVertexStreamDesc* descs, int ndescs, bxGdiShader vertexShader )
     {
+        SYS_ASSERT( vertexShader.stage == bxGdi::eSTAGE_VERTEX );
+
         const int MAX_IEDESCS = bxGdi::cMAX_VERTEX_BUFFERS;
         D3D11_INPUT_ELEMENT_DESC d3d_iedescs[MAX_IEDESCS];
         int num_d3d_iedescs = 0;
@@ -718,9 +631,8 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         }
 
         ID3D11InputLayout *dxLayout = 0;
-        const void* signature = vertexShader.dx.inputSignature;
-        const size_t signature_size = vertexShader.dx.inputSignatureSize;
-        HRESULT hres = _device->CreateInputLayout( d3d_iedescs, num_d3d_iedescs, signature, signature_size, &dxLayout );
+        ID3DBlob* signatureBlob = (ID3DBlob*)vertexShader.dx.inputSignature;
+        HRESULT hres = _device->CreateInputLayout( d3d_iedescs, num_d3d_iedescs, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), &dxLayout );
         SYS_ASSERT( SUCCEEDED( hres ) );
 
         bxGdiInputLayout iLay;
@@ -728,35 +640,142 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
         return iLay;
     }
-    virtual bxGdiBlendState createBlendState( bxGdiHwState::Blend blend )
-    {}
-    virtual bxGdiDepthState createDepthState( bxGdiHwState::Depth depth )
-    {}
-    virtual bxGdiRasterState createRasterState( bxGdiHwState::Raster raster )
-    {}
+    virtual bxGdiBlendState createBlendState( bxGdiHwState::Blend state )
+    {
+        D3D11_BLEND_DESC bdesc;
+        memset( &bdesc, 0, sizeof(bdesc) );
+
+        bdesc.AlphaToCoverageEnable = FALSE;
+        bdesc.IndependentBlendEnable = FALSE;
+        bdesc.RenderTarget[0].BlendEnable = state.enable;
+        bdesc.RenderTarget[0].SrcBlend  = bxGdi::blendFactor[state.srcFactor];
+        bdesc.RenderTarget[0].DestBlend = bxGdi::blendFactor[state.dstFactor];
+        bdesc.RenderTarget[0].BlendOp   = bxGdi::blendEquation[state.equation];
+        bdesc.RenderTarget[0].SrcBlendAlpha  = bxGdi::blendFactor[state.srcFactorAlpha];
+        bdesc.RenderTarget[0].DestBlendAlpha = bxGdi::blendFactor[state.dstFactorAlpha];
+        bdesc.RenderTarget[0].BlendOpAlpha   = bxGdi::blendEquation[state.equation];
+
+        u8 mask = 0;
+        mask |= (state.color_mask & bxGdi::eCOLOR_MASK_RED)	    ? D3D11_COLOR_WRITE_ENABLE_RED : 0;
+        mask |= (state.color_mask & bxGdi::eCOLOR_MASK_GREEN)	? D3D11_COLOR_WRITE_ENABLE_GREEN : 0;
+        mask |= (state.color_mask & bxGdi::eCOLOR_MASK_BLUE)	? D3D11_COLOR_WRITE_ENABLE_BLUE : 0;
+        mask |= (state.color_mask & bxGdi::eCOLOR_MASK_ALPHA)	? D3D11_COLOR_WRITE_ENABLE_ALPHA : 0;
+
+        bdesc.RenderTarget[0].RenderTargetWriteMask = mask;
+
+        ID3D11BlendState* dx_state = 0;
+        HRESULT hres = _device->CreateBlendState( &bdesc, &dx_state );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+
+        bxGdiBlendState result;
+        result.dx.state = dx_state;
+        return result;
+    }
+    virtual bxGdiDepthState createDepthState( bxGdiHwState::Depth state )
+    {
+        D3D11_DEPTH_STENCIL_DESC dsdesc;
+        memset( &dsdesc, 0, sizeof(dsdesc) );
+
+        dsdesc.DepthEnable = state.test;
+        dsdesc.DepthWriteMask = ( state.write ) ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+        dsdesc.DepthFunc = bxGdi::depthCmpFunc[state.function];
+
+        dsdesc.StencilEnable = FALSE;
+        dsdesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+        dsdesc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+
+        dsdesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+        dsdesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        dsdesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+        dsdesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+
+        dsdesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+        dsdesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        dsdesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+        dsdesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+
+        ID3D11DepthStencilState* dx_state = 0;
+        HRESULT hres = _device->CreateDepthStencilState( &dsdesc, &dx_state );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+        
+        bxGdiDepthState result;
+        result.dx.state = dx_state;
+        return result;
+    }
+    virtual bxGdiRasterState createRasterState( bxGdiHwState::Raster state )
+    {
+        D3D11_RASTERIZER_DESC rdesc;
+        memset( &rdesc, 0, sizeof(rdesc) );
+
+        rdesc.FillMode = bxGdi::fillMode[state.fillMode];
+        rdesc.CullMode = bxGdi::cullMode[state.cullMode];
+        rdesc.FrontCounterClockwise = TRUE;
+        rdesc.DepthBias = 0;
+        rdesc.SlopeScaledDepthBias = 0.f;
+        rdesc.DepthBiasClamp = 0.f;
+        rdesc.DepthClipEnable = TRUE;
+        rdesc.ScissorEnable = state.scissor;
+        rdesc.MultisampleEnable = FALSE;
+        rdesc.AntialiasedLineEnable = state.antialiasedLine;
+
+        ID3D11RasterizerState* dx_state = 0;
+        HRESULT hres = _device->CreateRasterizerState( &rdesc, &dx_state );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+
+        bxGdiRasterState result;
+        result.dx.state = dx_state;
+        return result;
+    }
+
+#define BX_RELEASE_DX_RESOURCE_SAFE0( resource ) if( resource ) { resource->Release(); resource = 0; }
 
     virtual void releaseVertexBuffer( bxGdiVertexBuffer* id )
-    {}
+    {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx11Buffer );
+    }
     virtual void releaseIndexBuffer( bxGdiIndexBuffer* id )
-    {}
+    {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx11Buffer );
+    }
     virtual void releaseBuffer( bxGdiBuffer* id )
-    {}
+    {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx11Buffer );
+    }
     virtual void releaseShader( bxGdiShader* id )
-    {}
+    {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.object );
+
+        if( id->dx.inputSignature )
+        {
+            ID3DBlob* blob = (ID3DBlob*)id->dx.inputSignature;
+            blob->Release();
+            id->dx.inputSignature = 0;
+        }
+    }
     virtual void releaseTexture( bxGdiTexture* id )
-    {}
+    {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.resource );
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewSH );
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewRT );
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewDS );
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewUA );
+    }
     virtual void releaseInputLayout( bxGdiInputLayout * id )
-    {}
+    {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.lay );
+    }
     virtual void releaseBlendState ( bxGdiBlendState  * id )
-    {}
+    {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.state );
+    }
     virtual void releaseDepthState ( bxGdiDepthState  * id )
-    {}
+    {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.state );
+    }
     virtual void releaseRasterState( bxGdiRasterState * id )
-    {}
+    {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.state );
+    }
 
     ID3D11Device* _device;
-
-
-    //bxPoolAllocator _textureAllocator;
-    //bxPoolAllocator _shaderAllocator;
 };
