@@ -1,6 +1,39 @@
 #include "../gdi_backend.h"
-
+#include <util/debug.h>
+#include <util/memory.h>
 #include "gdi_backend_dx11.h"
+
+namespace bxGdi
+{
+    unsigned _FetchRenderTargetTextures( ID3D11RenderTargetView** rtv, ID3D11DepthStencilView** dsv, bxGdiTexture* colorTex, unsigned nColorTex, bxGdiTexture depthTex, unsigned slotCount )
+    {
+        *dsv = depthTex.dx.viewDS;
+
+        for( unsigned i = 0; i < nColorTex; ++i )
+        {
+            rtv[i] = colorTex[i].dx.viewRT;
+        }
+        
+        for( unsigned i = nColorTex; i < slotCount; ++i )
+        {
+            rtv[i] = 0;
+        }
+        
+        return nColorTex;
+    }
+
+    unsigned char* _MapResource( ID3D11DeviceContext* ctx, ID3D11Resource* resource, D3D11_MAP dxMapType, int offsetInBytes )
+    {
+        D3D11_MAPPED_SUBRESOURCE mappedRes;
+        mappedRes.pData = NULL;
+        mappedRes.RowPitch = 0;
+        mappedRes.DepthPitch = 0;
+
+        ctx->Map( resource, 0, dxMapType, 0, &mappedRes );
+        return (u8*)mappedRes.pData + offsetInBytes;
+    }
+}///
+
 
 struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
 {
@@ -226,22 +259,112 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
         _context->OMSetRenderTargets(1, &_mainFramebuffer, 0);
         _context->RSSetViewports(1, &vp);
     }
+    
+    virtual void changeRenderTargets( bxGdiTexture* colorTex, unsigned nColor, bxGdiTexture depthTex ) 
+    {
+        const int SLOT_COUNT = bxGdi::cMAX_RENDER_TARGETS;
+	    SYS_ASSERT(nColor < SLOT_COUNT);
 
-    virtual void changeRenderTargets( bxGdiTexture* colorTex, unsigned nColor, bxGdiTexture depthTex ) {}
-    virtual void clearBuffers( bxGdiTexture* colorTex, unsigned nColor, bxGdiTexture depthTex, float rgbad[5], int flag_color, int flag_depth ) {}
+	    ID3D11RenderTargetView *rtv[SLOT_COUNT];
+	    ID3D11DepthStencilView *dsv = 0;
+        bxGdi::_FetchRenderTargetTextures( rtv, &dsv, colorTex, nColor, depthTex, SLOT_COUNT );
 
-    virtual void draw( unsigned numVertices, unsigned startIndex ) {}
-    virtual void drawIndexed( unsigned numIndices , unsigned startIndex, unsigned baseVertex ) {}
-    virtual void drawInstanced( unsigned numVertices, unsigned startIndex, unsigned numInstances ) {}
-    virtual void drawIndexedInstanced( unsigned numIndices , unsigned startIndex, unsigned numInstances, unsigned baseVertex ) {}
+	    _context->OMSetRenderTargets(SLOT_COUNT, rtv, dsv);
+    }
+    virtual void clearBuffers( bxGdiTexture* colorTex, unsigned nColor, bxGdiTexture depthTex, float rgbad[5], int flag_color, int flag_depth ) 
+    {
+        const int SLOT_COUNT = bxGdi::cMAX_RENDER_TARGETS;
+	    SYS_ASSERT(nColor < SLOT_COUNT);
 
-    virtual unsigned char* mapVertices( bxGdiVertexBuffer vbuffer, int offsetInBytes, int mapType ) {}
-    virtual unsigned char* mapIndices( bxGdiIndexBuffer ibuffer, int offsetInBytes, int mapType ) {}
-    virtual void unmapVertices( bxGdiVertexBuffer vbuffer ) {}
-    virtual void unmapIndices( bxGdiIndexBuffer ibuffer ) {}
-    virtual void updateCBuffer( bxGdiBuffer cbuffer, const void* data ) {}
-    virtual void swap() {}
-    virtual void generateMipmaps( bxGdiTexture texture ) {}
+	    ID3D11RenderTargetView *rtv[SLOT_COUNT];
+	    ID3D11DepthStencilView *dsv = 0;
+        bxGdi::_FetchRenderTargetTextures( rtv, &dsv, colorTex, nColor, depthTex, SLOT_COUNT );
+
+        if( flag_depth && dsv )
+        {
+            _context->ClearDepthStencilView( dsv, D3D11_CLEAR_DEPTH, rgbad[4], 0 );
+        }
+
+        if( flag_color && nColor )
+        {
+            for( unsigned i = 0; i < nColor; ++i )
+            {
+                _context->ClearRenderTargetView( rtv[i], rgbad );
+            }
+        }
+    }
+
+    virtual void draw( unsigned numVertices, unsigned startIndex ) 
+    {
+        _context->Draw( numVertices, startIndex );
+    }
+    virtual void drawIndexed( unsigned numIndices , unsigned startIndex, unsigned baseVertex ) 
+    {
+        _context->DrawIndexed( numIndices, startIndex, baseVertex );
+    }
+    virtual void drawInstanced( unsigned numVertices, unsigned startIndex, unsigned numInstances ) 
+    {
+        _context->DrawInstanced( numVertices, numInstances, startIndex, 0 );
+    }
+    virtual void drawIndexedInstanced( unsigned numIndices , unsigned startIndex, unsigned numInstances, unsigned baseVertex ) 
+    {
+        _context->DrawIndexedInstanced( numIndices, numInstances, startIndex, baseVertex, 0 );
+    }
+
+    virtual unsigned char* mapVertices( bxGdiVertexBuffer vbuffer, int firstElement, int numElements, int mapType ) 
+    {
+        SYS_ASSERT( (u32)( firstElement + numElements ) <= vbuffer.numElements );
+        
+        const int offsetInBytes = firstElement * bxGdi::streamStride( vbuffer.desc );
+        const D3D11_MAP dxMapType = ( mapType == bxGdi::eMAP_WRITE ) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE;
+        
+        return bxGdi::_MapResource( _context, vbuffer.dx11Buffer, dxMapType, offsetInBytes );
+    }
+    virtual unsigned char* mapIndices( bxGdiIndexBuffer ibuffer, int firstElement, int numElements, int mapType ) 
+    {
+        SYS_ASSERT( (u32)( firstElement + numElements ) <= ibuffer.numElements );
+        SYS_ASSERT( ibuffer.dataType == bxGdi::eTYPE_USHORT || ibuffer.dataType == bxGdi::eTYPE_UINT );
+
+        const int offsetInBytes = firstElement * bxGdi::typeStride[ ibuffer.dataType ];
+        const D3D11_MAP dxMapType = ( mapType == bxGdi::eMAP_WRITE ) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE;
+        
+        return bxGdi::_MapResource( _context, ibuffer.dx11Buffer, dxMapType, offsetInBytes );
+    }
+    virtual void unmapVertices( bxGdiVertexBuffer vbuffer ) 
+    {
+        _context->Unmap( vbuffer.dx11Buffer, 0 );
+    }
+    virtual void unmapIndices( bxGdiIndexBuffer ibuffer ) 
+    {
+        _context->Unmap( ibuffer.dx11Buffer, 0 );
+    }
+    virtual void updateCBuffer( bxGdiBuffer cbuffer, const void* data ) 
+    {
+        _context->UpdateSubresource( cbuffer.dx11Buffer, 0, NULL, data, 0, 0 );
+    }
+    virtual void swap() 
+    {
+        _swapChain->Present( 0, 0 );
+    }
+    virtual void generateMipmaps( bxGdiTexture texture ) 
+    {
+        _context->GenerateMips( texture.dx.viewSH );
+    }
+
+    bxGdiContextBackend_dx11()
+        : _swapChain(0)
+        , _context(0)
+        , _mainFramebuffer(0)
+        , _mainFramebufferWidth(0)
+        , _mainFramebufferHeight(0)
+    {}
+
+    ~bxGdiContextBackend_dx11()
+    {
+        _mainFramebuffer->Release();
+        _context->Release();
+        _swapChain->Release();
+    }
 
     IDXGISwapChain*		 _swapChain;
     ID3D11DeviceContext* _context;
@@ -250,3 +373,36 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
     i32 _mainFramebufferWidth;
     i32 _mainFramebufferHeight;
 };
+
+
+namespace bxGdi
+{
+    bxGdiContextBackend* newContext_dx11( ID3D11DeviceContext* contextDx11, IDXGISwapChain* swapChain )
+    {
+        bxGdiContextBackend_dx11* ctx = BX_NEW( bxDefaultAllocator(), bxGdiContextBackend_dx11 );
+        ctx->_context = contextDx11;
+        ctx->_swapChain = swapChain;
+
+        ID3D11Device* deviceDx11 = 0;
+        contextDx11->GetDevice( &deviceDx11 );
+
+        ID3D11Texture2D* backBuffer = NULL;
+	    HRESULT hres = swapChain->GetBuffer( 0, __uuidof( ID3D11Texture2D ), ( LPVOID* )&backBuffer );
+	    SYS_ASSERT( SUCCEEDED(hres) );
+
+	    ID3D11RenderTargetView* viewRT = 0;
+	    hres = deviceDx11->CreateRenderTargetView( backBuffer, NULL, &viewRT );
+	    SYS_ASSERT( SUCCEEDED(hres) );
+	    ctx->_mainFramebuffer = viewRT;
+
+	    D3D11_TEXTURE2D_DESC bbdesc;
+	    backBuffer->GetDesc( &bbdesc );
+        ctx->_mainFramebufferWidth  = bbdesc.Width;
+        ctx->_mainFramebufferHeight = bbdesc.Height;
+        
+        backBuffer->Release();
+        deviceDx11->Release();
+
+        return ctx;
+    }
+}//
