@@ -280,16 +280,23 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
 	    ID3D11DepthStencilView *dsv = 0;
         bxGdi::_FetchRenderTargetTextures( rtv, &dsv, colorTex, nColor, depthTex, SLOT_COUNT );
 
-        if( flag_depth && dsv )
+        if( ( ( !colorTex || !nColor ) && !depthTex.dx.resource ) && flag_color )
         {
-            _context->ClearDepthStencilView( dsv, D3D11_CLEAR_DEPTH, rgbad[4], 0 );
+            _context->ClearRenderTargetView( _mainFramebuffer, rgbad );
         }
-
-        if( flag_color && nColor )
+        else
         {
-            for( unsigned i = 0; i < nColor; ++i )
+            if( flag_depth && dsv )
             {
-                _context->ClearRenderTargetView( rtv[i], rgbad );
+                _context->ClearDepthStencilView( dsv, D3D11_CLEAR_DEPTH, rgbad[4], 0 );
+            }
+
+            if( flag_color && nColor )
+            {
+                for( unsigned i = 0; i < nColor; ++i )
+                {
+                    _context->ClearRenderTargetView( rtv[i], rgbad );
+                }
             }
         }
     }
@@ -359,7 +366,7 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
         , _mainFramebufferHeight(0)
     {}
 
-    ~bxGdiContextBackend_dx11()
+    virtual ~bxGdiContextBackend_dx11()
     {
         _mainFramebuffer->Release();
         _context->Release();
