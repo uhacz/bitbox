@@ -635,11 +635,7 @@ namespace bxGdi
         bxGdiBuffer buffer = { 0 };
         return buffer;
     }
-
-    bxGdiRenderStreams
 }//
-
-
 
 struct bxGdiContextBackend;
 struct bxGdiDeviceBackend
