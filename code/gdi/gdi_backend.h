@@ -636,7 +636,7 @@ namespace bxGdi
         return buffer;
     }
 
-
+    bxGdiRenderStreams
 }//
 
 

@@ -151,14 +151,7 @@ namespace bxGdi
 }///
 struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 {
-    bxGdiDeviceBackend_dx11()
-        : _device(0)
-    {}
-
-    ~bxGdiDeviceBackend_dx11()
-    {
-        _device->Release();
-    }
+    
     virtual bxGdiVertexBuffer createVertexBuffer( const bxGdiVertexStreamDesc& desc, u32 numElements, const void* data )
     {
         const u32 MAX_DESCS = 16;
@@ -784,6 +777,15 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     virtual void releaseRasterState( bxGdiRasterState * id )
     {
         BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.state );
+    }
+
+    bxGdiDeviceBackend_dx11()
+        : _device(0)
+    {}
+
+    virtual ~bxGdiDeviceBackend_dx11()
+    {
+        _device->Release();
     }
 
     ID3D11Device* _device;

@@ -63,4 +63,16 @@ namespace bxGdi
         BX_DELETE0( bxDefaultAllocator(), dev[0]->ctx );
         BX_DELETE0( bxDefaultAllocator(), dev[0] );
     }
+
+    EVertexSlot vertexSlotFromString( const char* n )
+    {
+        for( int i = 0; i < eSLOT_COUNT; ++i )
+        {
+            if( !strcmp( n, slotName[i] ) )
+                return (EVertexSlot)i;
+        }
+
+        return eSLOT_COUNT;
+    }
+
 }///
