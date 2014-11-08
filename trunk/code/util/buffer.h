@@ -29,3 +29,5 @@ void buffer_delete( struct buffer_t** buff, bxAllocator* alloc );
 #define buffer_count( type, buff ) ( buff ? buff->sizeInBytes / sizeof(type) : 0 )
 #define buffer_pget(type, buff, i )(type*)( buff->data + i*sizeof(type) )
 #define buffer_vget(type, buff, i ) *buffer_pget(type, buff, i )
+
+

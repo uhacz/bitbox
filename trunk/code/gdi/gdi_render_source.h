@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gdi_backend.h"
+#include <util/array.h>
 
 struct bxGdiRenderSurface
 {
@@ -29,13 +30,4 @@ struct bxGdiRenderSource
         , istream( bxGdi::nullIndexBuffer() )
         , numStreams(0)
     {}
-};
-
-struct bxGdiRenderSourceDesc
-{
-    bxGdiVertexStreamDesc vdescs[ bxGdi::cMAX_VERTEX_BUFFERS ];
-    void* vdata[ bxGdi::cMAX_VERTEX_BUFFERS ];
-
-    i32 indicesDataType;
-    void* idata;
 };

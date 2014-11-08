@@ -11,6 +11,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "system", "code\system\syste
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gdi", "code\gdi\gdi.vcxproj", "{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{B7E1E07F-7431-4C42-B994-C5B0E3182C80}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fx_compiler", "code\tools\fx_compiler\fx_compiler.vcxproj", "{18B49F0B-C441-4267-94E1-1E71E803B040}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "resource_manager", "code\resource_manager\resource_manager.vcxproj", "{117290A3-4A22-4C58-9AC0-ED1C8EFA49E3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -33,8 +39,19 @@ Global
 		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Debug|x64.Build.0 = Debug|x64
 		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Release|x64.ActiveCfg = Release|x64
 		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Release|x64.Build.0 = Release|x64
+		{18B49F0B-C441-4267-94E1-1E71E803B040}.Debug|x64.ActiveCfg = Debug|x64
+		{18B49F0B-C441-4267-94E1-1E71E803B040}.Debug|x64.Build.0 = Debug|x64
+		{18B49F0B-C441-4267-94E1-1E71E803B040}.Release|x64.ActiveCfg = Release|x64
+		{18B49F0B-C441-4267-94E1-1E71E803B040}.Release|x64.Build.0 = Release|x64
+		{117290A3-4A22-4C58-9AC0-ED1C8EFA49E3}.Debug|x64.ActiveCfg = Debug|x64
+		{117290A3-4A22-4C58-9AC0-ED1C8EFA49E3}.Debug|x64.Build.0 = Debug|x64
+		{117290A3-4A22-4C58-9AC0-ED1C8EFA49E3}.Release|x64.ActiveCfg = Release|x64
+		{117290A3-4A22-4C58-9AC0-ED1C8EFA49E3}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{18B49F0B-C441-4267-94E1-1E71E803B040} = {B7E1E07F-7431-4C42-B994-C5B0E3182C80}
 	EndGlobalSection
 EndGlobal

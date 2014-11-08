@@ -11,9 +11,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}</ProjectGuid>
+    <ProjectGuid>{18B49F0B-C441-4267-94E1-1E71E803B040}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>gdi</RootNamespace>
+    <RootNamespace>fx_compiler</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -34,13 +34,13 @@
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\props\static_lib.props" />
-    <Import Project="..\..\props\x64.props" />
+    <Import Project="..\..\..\props\static_lib.props" />
+    <Import Project="..\..\..\props\x64.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\props\static_lib.props" />
-    <Import Project="..\..\props\x64.props" />
+    <Import Project="..\..\..\props\static_lib.props" />
+    <Import Project="..\..\..\props\x64.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />
@@ -80,20 +80,12 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="dx11\DDSTextureLoader.h" />
-    <ClInclude Include="gdi_backend.h" />
-    <ClInclude Include="dx11\gdi_backend_dx11.h" />
-    <ClInclude Include="dx11\gdi_backend_dx11_startup.h" />
-    <ClInclude Include="gdi_render_source.h" />
-    <ClInclude Include="gdi_shader.h" />
-    <ClInclude Include="gdi_shader_reflection.h" />
+    <ClCompile Include="fx_compiler.cpp" />
+    <ClCompile Include="hwstate_util.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dx11\DDSTextureLoader.cpp" />
-    <ClCompile Include="dx11\gdi_backend_dx11_context.cpp" />
-    <ClCompile Include="dx11\gdi_backend_dx11_device.cpp" />
-    <ClCompile Include="gdi_backend.cpp" />
-    <ClCompile Include="gdi_shader.cpp" />
+    <ClInclude Include="fx_compiler.h" />
+    <ClInclude Include="hwstate_util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

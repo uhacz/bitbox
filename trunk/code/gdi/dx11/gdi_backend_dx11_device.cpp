@@ -270,9 +270,9 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         {
             "vs_4_0",
             "ps_4_0",
-            "gs_4_0",
-            "hs_5_0",
-            "ds_5_0",
+            //"gs_4_0",
+            //"hs_5_0",
+            //"ds_5_0",
             "cs_5_0"
         };
     
