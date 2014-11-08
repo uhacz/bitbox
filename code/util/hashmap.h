@@ -7,6 +7,8 @@ namespace hashmap
 
     void erase( hashmap_t& hmap, hashmap_t::cell_t* cell);
     void clear( hashmap_t& hmap );
+
+    bool empty( hashmap_t& hmap ) { return hmap.size == 0; }
     
     inline void erase( hashmap_t& hmap, size_t key)
     {

@@ -93,6 +93,9 @@
     <ProjectReference Include="..\system\system.vcxproj">
       <Project>{02eab815-4288-477b-a47d-982eb8a15c1f}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\tools\fx_compiler\fx_compiler.vcxproj">
+      <Project>{18b49f0b-c441-4267-94e1-1e71e803b040}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\util\util.vcxproj">
       <Project>{c72ded4c-e82a-4e26-b7a8-715f4747ccec}</Project>
     </ProjectReference>

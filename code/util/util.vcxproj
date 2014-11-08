@@ -82,14 +82,22 @@
   <ItemGroup>
     <ClInclude Include="array.h" />
     <ClInclude Include="buffer.h" />
+    <ClInclude Include="buffer_utils.h" />
     <ClInclude Include="containers.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="dlmalloc.h" />
+    <ClInclude Include="filesystem.h" />
     <ClInclude Include="hash.h" />
     <ClInclude Include="hashmap.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="pool_allocator.h" />
     <ClInclude Include="string_util.h" />
+    <ClInclude Include="thread\atomic.h" />
+    <ClInclude Include="thread\mutex.h" />
+    <ClInclude Include="thread\semaphore.h" />
+    <ClInclude Include="thread\spin_lock.h" />
+    <ClInclude Include="thread\thread.h" />
+    <ClInclude Include="thread\thread_event.h" />
     <ClInclude Include="type.h" />
     <ClInclude Include="vector.h" />
   </ItemGroup>
@@ -97,11 +105,17 @@
     <ClCompile Include="buffer.cpp" />
     <ClCompile Include="debug.c" />
     <ClCompile Include="dlmalloc.c" />
+    <ClCompile Include="filesystem.cpp" />
     <ClCompile Include="hash.cpp" />
     <ClCompile Include="hashmap.cpp" />
     <ClCompile Include="memory.cpp" />
     <ClCompile Include="pool_allocator.cpp" />
     <ClCompile Include="string_util.cpp" />
+    <ClCompile Include="thread\mutex.cpp" />
+    <ClCompile Include="thread\semaphore.cpp" />
+    <ClCompile Include="thread\spin_lock.cpp" />
+    <ClCompile Include="thread\thread.cpp" />
+    <ClCompile Include="thread\thread_event.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

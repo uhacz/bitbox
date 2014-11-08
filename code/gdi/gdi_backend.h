@@ -9,29 +9,20 @@ namespace bxGdi
     {
         eSTAGE_VERTEX = 0,
         eSTAGE_PIXEL,
-        eSTAGE_GEOMETRY,
-        eSTAGE_HULL,
-        eSTAGE_DOMAIN,
         eSTAGE_COMPUTE,
         eSTAGE_COUNT,
-        eDRAW_STAGES_COUNT = eSTAGE_DOMAIN + 1,
+        eDRAW_STAGES_COUNT = eSTAGE_PIXEL + 1,
 
         eALL_STAGES_MASK = 0xFF,
 
         eSTAGE_MASK_VERTEX  = BIT_OFFSET( eSTAGE_VERTEX ),
         eSTAGE_MASK_PIXEL   = BIT_OFFSET( eSTAGE_PIXEL    ),
-        eSTAGE_MASK_GEOMETRY= BIT_OFFSET( eSTAGE_GEOMETRY ),
-        eSTAGE_MASK_HULL    = BIT_OFFSET( eSTAGE_HULL     ),
-        eSTAGE_MASK_DOMAIN  = BIT_OFFSET( eSTAGE_DOMAIN   ),
         eSTAGE_MASK_COMPUTE = BIT_OFFSET( eSTAGE_COMPUTE  ),
     };
     static const char* stageName[eSTAGE_COUNT] =
     {
         "vertex",
         "pixel",
-        "geometry",
-        "hull",
-        "domain",
         "compute",
     };
 
@@ -266,9 +257,9 @@ namespace bxGdi
     };
 
     static const u32 cMAX_RENDER_TARGETS = 8;
-    static const u32 cMAX_CBUFFERS = 8;
-    static const u32 cMAX_TEXTURES = 16;
-    static const u32 cMAX_SAMPLERS = 16;
+    static const u32 cMAX_CBUFFERS = 6;
+    static const u32 cMAX_TEXTURES = 8;
+    static const u32 cMAX_SAMPLERS = 8;
     static const u32 cMAX_VERTEX_BUFFERS = 6;
     static const u32 cMAX_SHADER_MACRO = 32;
 
@@ -296,9 +287,9 @@ union bxGdiVertexStreamBlock
 };
 struct bxGdiVertexStreamDesc
 {
-    enum { eMAX_BLOCKS = 6 };
+    enum { eMAX_BLOCKS = 5 };
     bxGdiVertexStreamBlock blocks[eMAX_BLOCKS];
-    i32 count;
+    i16 count;
 
     bxGdiVertexStreamDesc();
     void addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements );
@@ -310,14 +301,13 @@ namespace bxGdi
     unsigned streamSlotMask( const bxGdiVertexStreamDesc& vdesc );
     inline int streamEqual( const bxGdiVertexStreamDesc& a, const bxGdiVertexStreamDesc& b )
     {
-        SYS_STATIC_ASSERT( bxGdiVertexStreamDesc::eMAX_BLOCKS == 6 );
-        return ( a.count == b.count ) 
+        SYS_STATIC_ASSERT( bxGdiVertexStreamDesc::eMAX_BLOCKS == 5 );
+        return ( a.count == b.count )
             && ( a.blocks[0].hash == b.blocks[0].hash )
             && ( a.blocks[1].hash == b.blocks[1].hash )
             && ( a.blocks[2].hash == b.blocks[2].hash )
             && ( a.blocks[3].hash == b.blocks[3].hash )
-            && ( a.blocks[4].hash == b.blocks[4].hash )
-            && ( a.blocks[5].hash == b.blocks[5].hash );
+            && ( a.blocks[4].hash == b.blocks[4].hash );
     }
 };
 
@@ -485,6 +475,11 @@ struct bxGdiVertexBuffer
     };
     bxGdiVertexStreamDesc desc;
     u32 numElements;
+
+    bxGdiVertexBuffer()
+        : id(0)
+        , numElements(0)
+    {}
 };
 struct bxGdiIndexBuffer
 {
@@ -495,6 +490,12 @@ struct bxGdiIndexBuffer
     };
     u32 dataType;
     u32 numElements;
+
+    bxGdiIndexBuffer()
+        : id(0)
+        , dataType(0)
+        , numElements(0)
+    {}
 };
 
 struct bxGdiBuffer
@@ -507,6 +508,12 @@ struct bxGdiBuffer
 
     u32 sizeInBytes;
     u32 bindFlags;
+
+    bxGdiBuffer()
+        : id(0)
+        , sizeInBytes(0)
+        , bindFlags(0)
+    {}
 };
 union bxGdiShader
 {
@@ -527,6 +534,11 @@ union bxGdiShader
     };
 
     i32 stage;
+
+    bxGdiShader()
+        : id(0)
+        , stage(-1)
+    {}
 };
 struct bxGdiTexture
 {
@@ -555,87 +567,115 @@ struct bxGdiTexture
     i16 depth;
     bxGdiFormat format;
 
-
+    bxGdiTexture()
+        : id(0)
+        , width(0), height(0), depth(0)
+    {}
 };
 union bxGdiInputLayout
 {
+    uptr id;
     struct  
     {
         ID3D11InputLayout* lay;
     } dx;
+
+    bxGdiInputLayout()
+        : id(0)
+    {}
 };
 union bxGdiBlendState 
 {
+    uptr id;
     struct  
     {
         ID3D11BlendState* state;
     } dx;
+
+    bxGdiBlendState()
+        : id(0)
+    {}
 };
 union bxGdiDepthState 
 {
+    uptr id;
     struct  
     {
         ID3D11DepthStencilState* state;
     } dx;
+
+    bxGdiDepthState()
+        : id(0)
+    {}
 };
 union bxGdiRasterState
 {
+    uptr id;
     struct  
     {
         ID3D11RasterizerState* state;
     } dx;
+
+    bxGdiRasterState()
+        : id(0)
+    {}
 };
 union bxGdiSampler    
 {
+    uptr id;
     struct  
     {
         ID3D11SamplerState* state;
     } dx;
+
+    bxGdiSampler()
+        : id(0)
+    {}
 };
 
-namespace bxGdi
-{
-    inline bxGdiSamplerDesc nullSamplerDesc() 
-    { 
-        bxGdiSamplerDesc sd; 
-        sd.key = u64(~0); 
-        return sd; 
-    }
-    
-    inline bxGdiIndexBuffer nullIndexBuffer() 
-    { 
-        bxGdiIndexBuffer buff;
-        buff.id = 0;
-        buff.dataType = 0;
-        buff.numElements = 0;
-        return buff;
-    }
-    inline bxGdiShader nullShader()
-    {
-        bxGdiShader shader = { 0 };
-        return shader;
-    }
-    inline bxGdiTexture nullTexture()
-    {
-        bxGdiTexture texture;
-        texture.id = 0;
-        texture.dx.viewSH = 0;
-        texture.dx.viewRT = 0;
-        texture.dx.viewDS = 0;
-        texture.dx.viewUA = 0;
-        return texture;
-    }
-    inline bxGdiSampler nullSampler()
-    {
-        bxGdiSampler s = { 0 };
-        return s;
-    }
-    inline bxGdiBuffer nullBuffer()
-    {
-        bxGdiBuffer buffer = { 0 };
-        return buffer;
-    }
-}//
+//namespace bxGdi
+//{
+//    inline bxGdiSamplerDesc nullSamplerDesc() 
+//    { 
+//        bxGdiSamplerDesc sd; 
+//        sd.key = u64(~0); 
+//        return sd; 
+//    }
+//    
+//    inline bxGdiIndexBuffer nullIndexBuffer() 
+//    { 
+//        bxGdiIndexBuffer buff;
+//        buff.id = 0;
+//        buff.dataType = 0;
+//        buff.numElements = 0;
+//        return buff;
+//    }
+//    inline bxGdiShader nullShader()
+//    {
+//        bxGdiShader shader = { 0 };
+//        return shader;
+//    }
+//    inline bxGdiTexture nullTexture()
+//    {
+//        bxGdiTexture texture;
+//        texture.id = 0;
+//        texture.dx.viewSH = 0;
+//        texture.dx.viewRT = 0;
+//        texture.dx.viewDS = 0;
+//        texture.dx.viewUA = 0;
+//        return texture;
+//    }
+//    inline bxGdiSampler nullSampler()
+//    {
+//        bxGdiSampler s = { 0 };
+//        return s;
+//    }
+//    inline bxGdiBuffer nullBuffer()
+//    {
+//        bxGdiBuffer buffer = { 0 };
+//        return buffer;
+//    }
+//}//
 
 struct bxGdiContextBackend;
 struct bxGdiDeviceBackend
