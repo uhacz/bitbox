@@ -21,13 +21,28 @@ struct bxGdiRenderSurface
 
 struct bxGdiRenderSource
 {
-    bxGdiVertexBuffer* vstreams;
-    bxGdiIndexBuffer istream;
-    i8 numStreams;
+    i32 numVertexBuffers;
+    bxGdiIndexBuffer indexBuffer;
+    bxGdiVertexBuffer vertexBuffers[1];
 
     bxGdiRenderSource()
-        : vstreams(0)
-        , istream( bxGdi::nullIndexBuffer() )
-        , numStreams(0)
+        : numVertexBuffers(0)
     {}
 };
+
+namespace bxGdi
+{
+    bxGdiRenderSource* renderSource_new( int numStreams, bxAllocator* allocator = bxDefaultAllocator() );
+    void renderSource_free( bxGdiRenderSource** rsource, bxAllocator* allocator = bxDefaultAllocator() );
+    void renderSource_release( bxGdiDeviceBackend* dev, bxGdiRenderSource* rsource );
+    inline void renderSource_releaseAndFree( bxGdiDeviceBackend* dev, bxGdiRenderSource** rsource, bxAllocator* allocator = bxDefaultAllocator() )
+    {
+        renderSource_release( dev, rsource[0] );
+        renderSource_free( rsource, allocator );
+    }
+
+
+    void renderSource_setVertexBuffer( bxGdiRenderSource* rsource, bxGdiVertexBuffer vBuffer, int idx );
+    void renderSource_setIndexBuffer( bxGdiRenderSource* rsource, bxGdiIndexBuffer iBuffer );
+}///
+

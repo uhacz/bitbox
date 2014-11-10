@@ -515,7 +515,7 @@ struct bxGdiBuffer
         , bindFlags(0)
     {}
 };
-union bxGdiShader
+struct bxGdiShader
 {
     union 
     {

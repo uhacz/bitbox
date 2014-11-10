@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gdi_backend.h"
+#include <util/memory.h>
 
 struct bxGdiShaderPass
 {
@@ -71,6 +72,7 @@ struct bxGdiShaderFx
     bxGdiShaderPass* _passes;
     u32* _passHashedNames;
     i32 _numPasses;
+    i32 _numInstances;
 
     ///
     ///
@@ -101,7 +103,7 @@ struct bxGdiShaderFx_Instance
 
     ///
     ///
-    bxGdiShaderFx* shaderFx();
+    bxGdiShaderFx* shaderFx() { return _fx; }
     int findPass( const char* name );
 
     ///
@@ -122,7 +124,6 @@ struct bxGdiShaderFx_Instance
     ///
     void setTexture( const char* name, bxGdiTexture tex );
 	void setSampler( const char* name, const bxGdiSamplerDesc& sampler );
-	void setCBuffer( const char* name, const void* data, unsigned size );
 	void setUniform( const char* name, const void* data, unsigned size );
     template< class T > void setUniform( const char* name, const T& value )	{ setUniform( shi, name, &value, sizeof(T) ); }
 
@@ -138,7 +139,23 @@ struct bxGdiShaderFx_Instance
     ///
     u32 sortHash() const { return _sortHash; }
 
-private:
+    int isBufferDirty( int index ) const 
+    {
+        SYS_ASSERT( index < 32 );
+	    return _flag_cbuffeDirty & ( 1 << index );
+    }
+    void _SetBufferDirty( int index )
+    {
+        SYS_ASSERT( index < 32 );
+	    _flag_cbuffeDirty |= ( 1 << index );
+    }
+    void _MarkBufferAsClean( int index )
+    {
+        SYS_ASSERT( index < 32 );
+        _flag_cbuffeDirty &= ~( 1 << index );
+    }
+
+public:
     bxGdiShaderFx*    _fx; // weakRef
     bxGdiTexture*     _textures;
     bxGdiSamplerDesc* _samplers;
@@ -154,13 +171,19 @@ private:
 class bxResourceManager;
 namespace bxGdi
 {
-    int shaderFx_initParams( bxGdiShaderFx* fx, const ShaderReflection& reflection, const char* materialCBufferName = "MaterialData" );
+    int  shaderFx_initParams( bxGdiShaderFx* fx, const ShaderReflection& reflection, const char* materialCBufferName = "MaterialData" );
     void shaderFx_deinitParams( bxGdiShaderFx* fx );
+    bxGdiShaderFx* shaderFx_createFromFile( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator = bxDefaultAllocator() );
+    bxGdiShaderFx_Instance* shaderFx_createInstance( bxGdiDeviceBackend* dev, bxGdiShaderFx* fx, bxAllocator* allocator = bxDefaultAllocator() );
+    
+    void shaderFx_release( bxGdiDeviceBackend* dev, bxGdiShaderFx** fx, bxAllocator* allocator = bxDefaultAllocator() );
+    void shaderFx_releaseInstance( bxGdiDeviceBackend* dev, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator = bxDefaultAllocator() );
+    
+    
+    const bxGdiShaderFx::TextureDesc* shaderFx_findTexture( const bxGdiShaderFx* fx, u32 hashedName, int startIndex );
+    const bxGdiShaderFx::SamplerDesc* shaderFx_findSampler( const bxGdiShaderFx* fx, u32 hashedName, int startIndex );
+    const bxGdiShaderFx::UniformDesc* shaderFx_findUniform( const bxGdiShaderFx* fx, u32 hashedName );
 
-    int shaderFx_createFromFile( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx* fx, const char* fileNameWithoutExt );
-    void shaderFx_release( bxGdiDeviceBackend* dev, bxGdiShaderFx* fx );
-
-    int shaderFx_createInstance( bxGdiShaderFx_Instance* fxInstance, bxGdiShaderFx* fx );
-    void shaderFx_releaseInstance( bxGdiShaderFx_Instance* fxInstance );
+    
 
 }///
