@@ -24,6 +24,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hlsl", "code\shaders\hlsl\h
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gfx", "code\gfx\gfx.vcxproj", "{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{003D57C0-1648-4695-B5FC-16BDF0A2CBA9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -68,5 +70,6 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{18B49F0B-C441-4267-94E1-1E71E803B040} = {B7E1E07F-7431-4C42-B994-C5B0E3182C80}
+		{752EE42B-6767-4D1C-8CE2-227E00965D51} = {003D57C0-1648-4695-B5FC-16BDF0A2CBA9}
 	EndGlobalSection
 EndGlobal
