@@ -1,8 +1,8 @@
 #include "gdi_shader.h"
 #include "gdi_shader_reflection.h"
 
-#include <util/memory.h>
 #include <util/hash.h>
+#include <util/array_util.h>
 #include <util/buffer_utils.h>
 #include <resource_manager/resource_manager.h>
 #include <tools/fx_compiler/fx_compiler.h>
@@ -26,6 +26,102 @@ bxGdiShaderFx_Instance::~bxGdiShaderFx_Instance()
 {
     SYS_ASSERT( _textures == 0 );
 }
+
+namespace bxGdi
+{
+    const bxGdiShaderFx::TextureDesc* shaderFx_findTexture( const bxGdiShaderFx* fx, u32 hashedName, int startIndex )
+    {
+        const u32* begin = fx->_hashedNames + fx->_nameTextures_begin + startIndex;
+        const u32* end = begin + fx->_numTextures;
+        if( end >= begin )
+            return 0;
+
+        int index = array::find1( begin, end, array::OpEqual<u32>( hashedName ) );
+        index += startIndex;
+        SYS_ASSERT( index >= fx->_nameTextures_begin && index < ( fx->_nameTextures_begin + fx->_numTextures ) );
+
+        return fx->_textures + index;
+    }
+
+    const bxGdiShaderFx::SamplerDesc* shaderFx_findSampler( const bxGdiShaderFx* fx, u32 hashedName, int startIndex )
+    {
+        const u32* begin = fx->_hashedNames + fx->_nameSamplers_begin + startIndex;
+        const u32* end = begin + fx->_numSamplers;
+        if( end >= begin )
+            return 0;
+
+        int index = array::find1( begin, end, array::OpEqual<u32>( hashedName ) );
+        index += startIndex;
+        SYS_ASSERT( index >= fx->_nameSamplers_begin && index < ( fx->_nameSamplers_begin + fx->_numSamplers ) );
+
+        return fx->_samplers + index;
+    }
+    const bxGdiShaderFx::UniformDesc* shaderFx_findUniform( const bxGdiShaderFx* fx, u32 hashedName )
+    {
+        const u32* begin = fx->_hashedNames + fx->_nameUniforms_begin;
+        const u32* end = begin + fx->_numUniforms;
+        if( end >= begin )
+            return 0;
+
+        int index = array::find1( begin, end, array::OpEqual<u32>( hashedName ) );
+        SYS_ASSERT( index >= fx->_nameUniforms_begin && index < ( fx->_nameUniforms_begin + fx->_numUniforms ) );
+
+        return fx->_uniforms + index;
+    }
+}
+
+void bxGdiShaderFx_Instance::setTexture( const char* name, bxGdiTexture tex )
+{
+    bxGdiShaderFx* fx = _fx;
+    int done = 0;
+    int index = 0;
+    const u32 hashedName = simple_hash( name );
+    do
+    {
+        const bxGdiShaderFx::TextureDesc* param = bxGdi::shaderFx_findTexture( fx, hashedName, index );
+        if( !param )
+            break;
+
+        _textures[param->index] = tex;
+        _flag_texturesDirty |= 1;
+
+        index = param->index + 1;
+    } while( !done );
+}
+void bxGdiShaderFx_Instance::setSampler( const char* name, const bxGdiSamplerDesc& sampler )
+{
+    bxGdiShaderFx* fx = _fx;
+    int done = 0;
+    int index = 0;
+    const u32 hashedName = simple_hash( name );
+    do
+    {
+        const bxGdiShaderFx::SamplerDesc* param = bxGdi::shaderFx_findSampler( fx, hashedName, index );
+        if( !param )
+            break;
+
+        _samplers[param->index] = sampler;
+        index = param->index + 1;
+    } while( !done );
+}
+
+void bxGdiShaderFx_Instance::setUniform( const char* name, const void* data, unsigned size )
+{
+    const u32 hashedName = simple_hash( name );
+    const bxGdiShaderFx::UniformDesc* desc = bxGdi::shaderFx_findUniform( _fx, hashedName );
+    if( !desc )
+        return;
+
+    const u32 s = ( size < desc->size ) ? size : desc->size;
+    const u32 offset = desc->offset;
+    SYS_ASSERT( offset + size <= _sizeDataCBuffers );
+
+	u8* dst = _dataCBuffers + offset;
+	memcpy( dst, data, size );
+
+    _SetBufferDirty( desc->buffer_index );
+}
+
 
 namespace bxGdi
 {
@@ -175,7 +271,7 @@ namespace bxGdi
         fx->_numUniforms = 0;
     }
 
-    int shaderFx_createFromFile( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx* fx, const char* fileNameWithoutExt )
+    bxGdiShaderFx* shaderFx_createFromFile( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator )
     {
         const char* shaderApiExt[] = 
         {
@@ -190,7 +286,7 @@ namespace bxGdi
         bxFS::File shaderFile = resourceManager->readTextFileSync( fullFilename );
         if( !shaderFile.ok() )
         {
-            return -1;
+            return 0;
         }
         
         using namespace fxTool;
@@ -201,19 +297,20 @@ namespace bxGdi
         int ierr = parse_header( &fxSrc, shaderTxt, shaderTxtLen );
         if( ierr != 0 )
         {
-            return -1;
+            return 0;
         }
     
         const unsigned numPasses = (unsigned)fxSrc.passes.size();
         u32 memSize = 0;
+        memSize += sizeof( bxGdiShaderFx );
         memSize += numPasses * sizeof(bxGdiShaderPass);
         memSize += numPasses * sizeof(u32);
 
-        void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, sizeof( void* ) );
+        void* mem = BX_MALLOC( allocator, memSize, sizeof( void* ) );
         memset( mem, 0, memSize );
 
         bxBufferChunker chunker( mem, memSize );
-
+        bxGdiShaderFx* fx = chunker.add< bxGdiShaderFx >();
         fx->_passes = chunker.add< bxGdiShaderPass >( numPasses );
         fx->_passHashedNames = chunker.add< u32 >( numPasses );
         chunker.check();
@@ -260,7 +357,7 @@ namespace bxGdi
             {
                 const ShaderCBufferDesc& local_cbuffer = local_reflection.cbuffers[ibuffer];
                 ShaderCBufferDesc* found = array::find( array::begin( global_reflection.cbuffers ), array::end( global_reflection.cbuffers ), ShaderReflection::FunctorCBuffer( local_cbuffer.hashed_name ) );
-                if( !found )
+                if( found == array::end( global_reflection.cbuffers ) )
                 {
                     //index = (int)array::size( global_reflection.cbuffers );
                     global_reflection.cbuffers.push_back( local_cbuffer );
@@ -293,11 +390,104 @@ namespace bxGdi
         shaderFx_initParams( fx, global_reflection );
 
         fxTool::release( &fxSrc );
-        return 0;
+        return fx;
     }
-    void shaderFx_release( bxGdiDeviceBackend* dev, bxGdiShaderFx* fx );
+    void shaderFx_release( bxGdiDeviceBackend* dev, bxGdiShaderFx** fxPtr, bxAllocator* allocator )
+    {
+        if( !fxPtr[0] )
+        {
+            return;
+        }
 
-    int shaderFx_createInstance( bxGdiShaderFx_Instance* fxInstance, bxGdiShaderFx* fx );
-    void shaderFx_releaseInstance( bxGdiShaderFx_Instance* fxInstance );
+
+        bxGdiShaderFx* fx = fxPtr[0];
+        SYS_ASSERT( fx->_numInstances == 0 );
+        shaderFx_deinitParams( fx );
+
+        for( int ipass = 0; ipass < fx->_numPasses; ++ipass )
+        {
+            bxGdiShaderPass& pass = fx->_passes[ipass];
+            for( int istage = 0; istage < bxGdi::eDRAW_STAGES_COUNT; ++istage )
+            {
+                dev->releaseShader( &pass.progs[istage] );
+            }
+        }
+
+        BX_FREE0( allocator, fx );
+        fxPtr[0] = 0;
+    }
+
+    int _ShaderFx_calculateBufferMemorySize( bxGdiShaderFx* fx )
+    {
+        int size = 0;
+        const int n = fx->_numCBuffers;
+        for( int i = 0; i < n; ++i )
+        {
+            size += fx->_cbuffers[i].size;
+        }
+        return size;
+    }
+    
+    bxGdiShaderFx_Instance* shaderFx_createInstance( bxGdiDeviceBackend* dev, bxGdiShaderFx* fx, bxAllocator* allocator )
+    {
+        const int cbuffersSize = _ShaderFx_calculateBufferMemorySize( fx );
+
+	    u32 memSize = 0;
+        memSize += sizeof( bxGdiShaderFx_Instance );
+	    memSize += fx->_numTextures * sizeof(bxGdiTexture);
+	    memSize += fx->_numSamplers * sizeof(bxGdiSamplerDesc);
+	    memSize += fx->_numCBuffers * sizeof(bxGdiBuffer);
+	    memSize += cbuffersSize;
+
+        if( !memSize )
+            return 0;
+
+        void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, sizeof(void*) ); // util::default_allocator()->allocate( mem_size, sizeof( void* ) );
+        memset( mem, 0, memSize );
+
+        bxBufferChunker chunker( mem, memSize )
+            ;
+        bxGdiShaderFx_Instance* fxInstance = chunker.add< bxGdiShaderFx_Instance >();
+        fxInstance->_textures = chunker.add<bxGdiTexture>( fx->_numTextures );
+        fxInstance->_samplers = chunker.add<bxGdiSamplerDesc>( fx->_numSamplers );
+        fxInstance->_cbuffers = chunker.add<bxGdiBuffer>( fx->_numCBuffers );
+        fxInstance->_dataCBuffers = chunker.add<u8>( cbuffersSize );
+        fxInstance->_sizeDataCBuffers = cbuffersSize;
+        chunker.check();
+
+        fxInstance->_sortHash = 0;
+        fxInstance->_flag_cbuffeDirty = 0;
+        fxInstance->_flag_texturesDirty = 0;
+
+        for( int i = 0; i < fx->_numCBuffers; ++i )
+        {
+            const bxGdiShaderFx::CBufferDesc& desc = fx->_cbuffers[i];
+            fxInstance->_cbuffers[i] = dev->createBuffer( desc.size, bxGdi::eBIND_CONSTANT_BUFFER );
+        }
+
+        fxInstance->_fx = fx;
+        ++fx->_numInstances;
+
+        return fxInstance;
+    }
+    void shaderFx_releaseInstance( bxGdiDeviceBackend* dev, bxGdiShaderFx_Instance** fxInstancePtr, bxAllocator* allocator )
+    {
+        if( !fxInstancePtr[0] )
+            return;
+
+        bxGdiShaderFx_Instance* fxInstance = fxInstancePtr[0];
+        bxGdiShaderFx* fx = fxInstance->shaderFx();
+        SYS_ASSERT( fx->_numInstances > 0 );
+        --fx->_numInstances;
+
+        for( int i = 0; i < fx->_numCBuffers; ++i )
+        {
+            dev->releaseBuffer( &fxInstance->_cbuffers[i] );
+        }
+
+        BX_FREE( allocator, fxInstance );
+
+        fxInstancePtr[0] = 0;
+    }
 
 }///

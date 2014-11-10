@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 12.0.30723.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo", "code\demo\demo.vcxproj", "{5F629FF1-027F-46DE-9FD9-FFB264626895}"
+	ProjectSection(ProjectDependencies) = postProject
+		{752EE42B-6767-4D1C-8CE2-227E00965D51} = {752EE42B-6767-4D1C-8CE2-227E00965D51}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "util", "code\util\util.vcxproj", "{C72DED4C-E82A-4E26-B7A8-715F4747CCEC}"
 EndProject
@@ -16,6 +19,10 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fx_compiler", "code\tools\fx_compiler\fx_compiler.vcxproj", "{18B49F0B-C441-4267-94E1-1E71E803B040}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "resource_manager", "code\resource_manager\resource_manager.vcxproj", "{117290A3-4A22-4C58-9AC0-ED1C8EFA49E3}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hlsl", "code\shaders\hlsl\hlsl.vcxproj", "{752EE42B-6767-4D1C-8CE2-227E00965D51}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gfx", "code\gfx\gfx.vcxproj", "{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -47,6 +54,14 @@ Global
 		{117290A3-4A22-4C58-9AC0-ED1C8EFA49E3}.Debug|x64.Build.0 = Debug|x64
 		{117290A3-4A22-4C58-9AC0-ED1C8EFA49E3}.Release|x64.ActiveCfg = Release|x64
 		{117290A3-4A22-4C58-9AC0-ED1C8EFA49E3}.Release|x64.Build.0 = Release|x64
+		{752EE42B-6767-4D1C-8CE2-227E00965D51}.Debug|x64.ActiveCfg = Debug|x64
+		{752EE42B-6767-4D1C-8CE2-227E00965D51}.Debug|x64.Build.0 = Debug|x64
+		{752EE42B-6767-4D1C-8CE2-227E00965D51}.Release|x64.ActiveCfg = Release|x64
+		{752EE42B-6767-4D1C-8CE2-227E00965D51}.Release|x64.Build.0 = Release|x64
+		{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}.Debug|x64.ActiveCfg = Debug|x64
+		{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}.Debug|x64.Build.0 = Debug|x64
+		{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}.Release|x64.ActiveCfg = Release|x64
+		{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

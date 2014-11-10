@@ -100,4 +100,5 @@ namespace array
         if( newCapacity > arr.size )
             array_internal::_Grow( arr, newCapacity );
     }
+
 }

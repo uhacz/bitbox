@@ -169,10 +169,12 @@ bxResourceManager* bxResourceManager::startup( const char* root )
 	impl->startup( root );
 	return impl;
 }
-void bxResourceManager::shutdown( bxResourceManager* resuorceManager )
+void bxResourceManager::shutdown( bxResourceManager** resourceManager )
 {
-	bxResourceManagerImpl* impl = (bxResourceManagerImpl*)resuorceManager;
+	bxResourceManagerImpl* impl = (bxResourceManagerImpl*)resourceManager[0];
 	impl->shutdown();
 	BX_DELETE( bxDefaultAllocator(), impl );
+
+    resourceManager[0] = 0;
 }
 

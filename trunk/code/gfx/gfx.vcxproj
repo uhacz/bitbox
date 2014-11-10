@@ -11,9 +11,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{C72DED4C-E82A-4E26-B7A8-715F4747CCEC}</ProjectGuid>
+    <ProjectGuid>{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>util</RootNamespace>
+    <RootNamespace>gfx</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -67,7 +67,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -80,51 +80,10 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="array.h" />
-    <ClInclude Include="array_util.h" />
-    <ClInclude Include="buffer.h" />
-    <ClInclude Include="buffer_utils.h" />
-    <ClInclude Include="containers.h" />
-    <ClInclude Include="debug.h" />
-    <ClInclude Include="dlmalloc.h" />
-    <ClInclude Include="filesystem.h" />
-    <ClInclude Include="hash.h" />
-    <ClInclude Include="hashmap.h" />
-    <ClInclude Include="memory.h" />
-    <ClInclude Include="pool_allocator.h" />
-    <ClInclude Include="string_util.h" />
-    <ClInclude Include="thread\atomic.h" />
-    <ClInclude Include="thread\mutex.h" />
-    <ClInclude Include="thread\semaphore.h" />
-    <ClInclude Include="thread\spin_lock.h" />
-    <ClInclude Include="thread\thread.h" />
-    <ClInclude Include="thread\thread_event.h" />
-    <ClInclude Include="type.h" />
-    <ClInclude Include="vector.h" />
-    <ClInclude Include="vectormath\SSE\boolInVec.h" />
-    <ClInclude Include="vectormath\SSE\floatInVec.h" />
-    <ClInclude Include="vectormath\SSE\mat_aos.h" />
-    <ClInclude Include="vectormath\SSE\quat_aos.h" />
-    <ClInclude Include="vectormath\SSE\vecidx_aos.h" />
-    <ClInclude Include="vectormath\SSE\vectormath_aos.h" />
-    <ClInclude Include="vectormath\SSE\vec_aos.h" />
-    <ClInclude Include="vectormath\vectormath.h" />
+    <ClInclude Include="gfx.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="buffer.cpp" />
-    <ClCompile Include="debug.c" />
-    <ClCompile Include="dlmalloc.c" />
-    <ClCompile Include="filesystem.cpp" />
-    <ClCompile Include="hash.cpp" />
-    <ClCompile Include="hashmap.cpp" />
-    <ClCompile Include="memory.cpp" />
-    <ClCompile Include="pool_allocator.cpp" />
-    <ClCompile Include="string_util.cpp" />
-    <ClCompile Include="thread\mutex.cpp" />
-    <ClCompile Include="thread\semaphore.cpp" />
-    <ClCompile Include="thread\spin_lock.cpp" />
-    <ClCompile Include="thread\thread.cpp" />
-    <ClCompile Include="thread\thread_event.cpp" />
+    <ClCompile Include="gfx.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

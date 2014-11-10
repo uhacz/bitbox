@@ -42,19 +42,4 @@ namespace array
     template< typename T > const T& front   ( const vector_t<T>& arr ) { return arrfront(); }
     template< typename T > T&       back    ( vector_t<T>& arr )       { return arr.back(); }
     template< typename T > const T& back    ( const vector_t<T>& arr ) { return arr.back(); }
-
-    template< typename T, typename Top > 
-    inline T* find( T* first, T* last, Top op )
-    {
-        while (first!=last) 
-        {
-            if (op(*first)) 
-            {
-                return first;
-            }
-            ++first;
-        }
-        return last;
-    }
-
 }///

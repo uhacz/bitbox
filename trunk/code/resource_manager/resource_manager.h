@@ -10,7 +10,7 @@ class bxResourceManager
 {
 public:
     static bxResourceManager* startup( const char* root );
-	static void shutdown( bxResourceManager* resourceManager );
+	static void shutdown( bxResourceManager** resourceManager );
     
     virtual ~bxResourceManager() {}
 

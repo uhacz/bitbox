@@ -2,6 +2,7 @@
 #include "../gdi_shader_reflection.h"
 #include <util/hash.h>
 #include <util/memory.h>
+#include <util/array_util.h>
 
 #include "gdi_backend_dx11.h"
 #include <d3d11shader.h>
