@@ -9,7 +9,6 @@ struct bxGfxCameraMatrix
     Matrix4 view;
     Matrix4 proj;
     Matrix4 viewProj;
-    Matrix4 worldViewProj;
 
     Vector3 worldEye() const { return world.getTranslation(); }
     Vector3 worldDir() const { return -world.getCol2().getXYZ(); }
@@ -35,17 +34,15 @@ struct bxGfxCameraParams
 
 namespace bxGfx
 {
-    const Matrix4 cameraMatrix_projection    ( float aspect, float fov, float znear, float zfar, int rtWidth, int rtHeight );
-	const Matrix4 cameraMatrix_projection    ( const bxGfxCameraParams& params, int rtWidth, int rtHeight );
-    const Matrix4 cameraMatrix_ortho         ( const bxGfxCameraParams& params, int rtWidth, int rtHeight );
-    const Matrix4 cameraMatrix_ortho         ( float orthoWidth, float orthoHeight, float znear, float zfar, int rtWidth, int rtHeight );
-	const Matrix4 cameraMatrix_view          ( const Matrix4& world );
-	const bxGdiViewport cameraParams_viewport( const bxGfxCameraParams& params, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
-    void  cameraMatrix_compute               ( bxGfxCameraMatrix* mtx, const bxGfxCameraParams& params, const Matrix4& world );
+    Matrix4 cameraMatrix_projection    ( float aspect, float fov, float znear, float zfar, int rtWidth, int rtHeight );
+	Matrix4 cameraMatrix_projection    ( const bxGfxCameraParams& params, int rtWidth, int rtHeight );
+    Matrix4 cameraMatrix_ortho         ( const bxGfxCameraParams& params, int rtWidth, int rtHeight );
+    Matrix4 cameraMatrix_ortho         ( float orthoWidth, float orthoHeight, float znear, float zfar, int rtWidth, int rtHeight );
+	Matrix4 cameraMatrix_view          ( const Matrix4& world );
+	bxGdiViewport cameraParams_viewport( const bxGfxCameraParams& params, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
+    void  cameraMatrix_compute               ( bxGfxCameraMatrix* mtx, const bxGfxCameraParams& params, const Matrix4& world, int rtWidth, int rtHeight );
 
-	float cameraParams_aspect ( float haperture, float vaperture );
-	float cameraParams_fov    ( float haperture, float focalLength );
-	float camera_depth        ( const Matrix4& cameraWorld, const Vector3& worldPosition );
+	floatInVec camera_depth        ( const Matrix4& cameraWorld, const Vector3& worldPosition );
 	inline int camera_filmFit ( int width, int height ) { return ( width > height ) ? 1 : 2; }
 }///
 
