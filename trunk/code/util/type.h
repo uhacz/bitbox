@@ -23,6 +23,10 @@ typedef intptr_t  iptr;
 
 typedef volatile long		atomic32;
 typedef volatile __int64	atomic64;
+
+typedef float f32;
+typedef double f64;
+
 #ifdef x86
 typedef atomic32 atomic;
 #elif x64

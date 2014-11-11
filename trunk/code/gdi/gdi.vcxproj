@@ -84,6 +84,8 @@
     <ClInclude Include="gdi_backend.h" />
     <ClInclude Include="dx11\gdi_backend_dx11.h" />
     <ClInclude Include="dx11\gdi_backend_dx11_startup.h" />
+    <ClInclude Include="gdi_backend_struct.h" />
+    <ClInclude Include="gdi_backend_type.h" />
     <ClInclude Include="gdi_render_source.h" />
     <ClInclude Include="gdi_shader.h" />
     <ClInclude Include="gdi_shader_reflection.h" />
