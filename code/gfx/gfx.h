@@ -4,19 +4,22 @@
 #include <gdi/gdi_shader.h>
 #include <util/vectormath/vectormath.h>
 
-struct bxGfxContext
+struct bxGfxRenderEffect
 {
-    
+    virtual ~bxGfxRenderEffect() {}
+    virtual void draw() = 0;
 };
 
 struct bxGfxRenderListItem
 {
-    bxGdiRenderSource* renderSourceIdx;
-    bxGdiShaderFx_Instance* shaderInstance;
-    u32 spatialDataIdx;
+    u32 renderListHandle;
+    i32 renderDataIndex;
+    i32 spatialDataIndex;
     u16 passIndex;
-    u16 renderMask;    
+    u8 renderMask;
+    u8 renderLayer;
 };
+
 
 struct AABB
 {
@@ -29,16 +32,30 @@ struct bxGfxRenderList
     bxGfxRenderListItem* items;
     Matrix4* worldMatrices;
     AABB* localAABBs;
+
+    i32 capacity;
+    i32 size;
+
+    u32 handle;
+};
+
+struct bxGfxSortItem
+{
+    u64 hash;
+    bxGfxRenderListItem* item;
 };
 
 struct bxGfxSortBuffer
 {
-    struct Item
-    {
-        u64 hash;
-        bxGfxRenderListItem* item;
-    };
+    
 };
 
 struct bxGfxView
-{};
+{
+
+};
+
+struct bxGfxContext
+{
+    
+};

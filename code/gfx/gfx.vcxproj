@@ -81,9 +81,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gfx.h" />
+    <ClInclude Include="gfx_camera.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="gfx.cpp" />
+    <ClCompile Include="gfx_camera.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
