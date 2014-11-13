@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gdi_backend.h"
+#include <memory.h>
 
 namespace bxGdi
 {
@@ -137,7 +138,7 @@ struct bxGdiContext
     void setSamplers               ( bxGdiSamplerDesc* samplers, unsigned start_slot, unsigned n, int stage );
     void setCbuffer                ( bxGdiBuffer cbuffer, int slot, unsigned stage_mask );
     void setTexture                ( bxGdiTexture texture, int slot, unsigned stage_mask );
-    void setSampler                ( const SamplerState& sampler, int slot, unsigned stage_mask );
+    void setSampler                ( const bxGdiSamplerDesc& sampler, int slot, unsigned stage_mask );
     void setHwState                ( const bxGdiHwState& hwstate );
     void setTopology               ( int topology );
 
