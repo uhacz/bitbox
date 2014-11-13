@@ -86,6 +86,7 @@
     <ClInclude Include="dx11\gdi_backend_dx11_startup.h" />
     <ClInclude Include="gdi_backend_struct.h" />
     <ClInclude Include="gdi_backend_type.h" />
+    <ClInclude Include="gdi_context.h" />
     <ClInclude Include="gdi_render_source.h" />
     <ClInclude Include="gdi_shader.h" />
     <ClInclude Include="gdi_shader_reflection.h" />
@@ -95,6 +96,7 @@
     <ClCompile Include="dx11\gdi_backend_dx11_context.cpp" />
     <ClCompile Include="dx11\gdi_backend_dx11_device.cpp" />
     <ClCompile Include="gdi_backend.cpp" />
+    <ClCompile Include="gdi_context.cpp" />
     <ClCompile Include="gdi_render_source.cpp" />
     <ClCompile Include="gdi_shader.cpp" />
   </ItemGroup>
