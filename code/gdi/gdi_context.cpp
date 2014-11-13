@@ -13,10 +13,10 @@ namespace bxGdi
         diff.vertexFormat = memcmp( current._vstreamBlocks, pending._vstreamBlocks, sizeof(current._vstreamBlocks) );
         diff.vertexFormat |= current._vertex_input_mask != pending._vertex_input_mask;
 
-        diff.istream = current._istream != pending._istream;
+        diff.istream = current._istream.id != pending._istream.id;
 
         diff.shaders = memcmp( current._shaders, pending._shaders, sizeof(current._shaders) );
-        diff.vertexFormat |= current.shaders[eSTAGE_VERTEX] != pending._shaders[eSTAGE_VERTEX];
+        diff.vertexFormat |= current._shaders[eSTAGE_VERTEX].id != pending._shaders[eSTAGE_VERTEX].id;
 
         for( int istage = 0; istage < eSTAGE_COUNT; ++istage )
         {
@@ -54,8 +54,8 @@ namespace bxGdi
         for( int i = 0; i < eSTAGE_COUNT; ++i )
         {
             const bxGdiShader program = sdata._shaders[i];
-            const unsigned bit = program != 0;
-            const unsigned stage = (program) ? i : 0;
+            const unsigned bit = program.id != 0;
+            const unsigned stage = (program.id) ? i : 0;
             sinfo.activeStageMask |= bit << stage;
         }
 
