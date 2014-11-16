@@ -643,7 +643,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
         return iLay;
     }
-    virtual bxGdiBlendState createBlendState( bxGdiHwState::Blend state )
+    virtual bxGdiBlendState createBlendState( bxGdiHwStateDesc::Blend state )
     {
         D3D11_BLEND_DESC bdesc;
         memset( &bdesc, 0, sizeof(bdesc) );
@@ -674,7 +674,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         result.dx.state = dx_state;
         return result;
     }
-    virtual bxGdiDepthState createDepthState( bxGdiHwState::Depth state )
+    virtual bxGdiDepthState createDepthState( bxGdiHwStateDesc::Depth state )
     {
         D3D11_DEPTH_STENCIL_DESC dsdesc;
         memset( &dsdesc, 0, sizeof(dsdesc) );
@@ -705,7 +705,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         result.dx.state = dx_state;
         return result;
     }
-    virtual bxGdiRasterState createRasterState( bxGdiHwState::Raster state )
+    virtual bxGdiRasterState createRasterState( bxGdiHwStateDesc::Raster state )
     {
         D3D11_RASTERIZER_DESC rdesc;
         memset( &rdesc, 0, sizeof(rdesc) );
@@ -762,6 +762,10 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewRT );
         BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewDS );
         BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewUA );
+    }
+    virtual void releaseSampler( bxGdiSampler* id )
+    {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.state );
     }
     virtual void releaseInputLayout( bxGdiInputLayout * id )
     {

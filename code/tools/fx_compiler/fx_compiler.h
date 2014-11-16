@@ -20,7 +20,7 @@ namespace fxTool
         const char* entry_points[bxGdi::eDRAW_STAGES_COUNT];
         const char* versions[bxGdi::eDRAW_STAGES_COUNT];
 
-       bxGdiHwState hwstate;
+       bxGdiHwStateDesc hwstate;
         MacroDefine defs[bxGdi::cMAX_SHADER_MACRO+1];
     };
     struct BinaryPass
@@ -40,7 +40,7 @@ namespace fxTool
         };
 
         std::string name;
-        bxGdiHwState hwstate;
+        bxGdiHwStateDesc hwstate;
 
         Blob bytecode[bxGdi::eDRAW_STAGES_COUNT];
         Blob disassembly[bxGdi::eDRAW_STAGES_COUNT];

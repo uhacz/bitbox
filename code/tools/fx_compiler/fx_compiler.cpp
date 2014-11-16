@@ -76,7 +76,7 @@ namespace
         return ok;
     }
     
-    void _extract_hwstate( bxGdiHwState* hwstate, config_setting_t* hwstate_setting )
+    void _extract_hwstate( bxGdiHwStateDesc* hwstate, config_setting_t* hwstate_setting )
     {
         //blend.enable = 0;
         //blend.color_mask = ColorMask::eALL;
@@ -188,7 +188,7 @@ namespace
                 defs[n_defs].def = "1";
             }
 
-            bxGdiHwState hwstate;
+            bxGdiHwStateDesc hwstate;
             config_setting_t* hwstate_setting = config_setting_get_member( cfgpass, "hwstate" );
             if( hwstate_setting )
             {

@@ -12,6 +12,15 @@ struct bxGdiViewport
         : x(xx), y(yy), w(ww), h(hh) {}
 };
 
+namespace bxGdi
+{
+	inline int equal( const bxGdiViewport& a, const bxGdiViewport& b )
+	{
+		return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
+
+	}
+}
+
 union bxGdiVertexStreamBlock
 {
     u16 hash;
@@ -88,7 +97,7 @@ union bxGdiSamplerDesc
     };
 };
 
-struct bxGdiHwState
+struct bxGdiHwStateDesc
 {
     union Blend
     {
@@ -129,7 +138,7 @@ struct bxGdiHwState
 	    };
     };
 
-    bxGdiHwState()
+    bxGdiHwStateDesc()
 	{
 		blend.enable = 0;
 		blend.color_mask = bxGdi::eCOLOR_MASK_ALL;
@@ -153,13 +162,13 @@ struct bxGdiHwState
 	Depth depth;
 	Raster raster;
 };
-inline bool operator == ( const bxGdiHwState&  a, const bxGdiHwState& b )
+inline bool operator == ( const bxGdiHwStateDesc&  a, const bxGdiHwStateDesc& b )
 {
     return a.blend.key == b.blend.key &&
            a.depth.key == b.depth.key &&
            a.raster.key == b.raster.key;
 }
-inline bool operator != ( const bxGdiHwState&  a, const bxGdiHwState& b )
+inline bool operator != ( const bxGdiHwStateDesc&  a, const bxGdiHwStateDesc& b )
 {
     return !(a == b);
 }
