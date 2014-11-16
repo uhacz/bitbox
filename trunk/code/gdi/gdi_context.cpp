@@ -3,6 +3,39 @@
 
 namespace bxGdi
 {
+    ///
+    ///
+    inline void inputLayout_create( InputLayout* il, bxGdiVertexStreamDesc* descs, int nDescs )
+    {
+        il->hash._0 = 0; il->hash._1 = 0; il->hash._2 = 0; il->hash._3 = 0;
+        for ( int i = 0; i < nDescs; ++i )
+        {
+            const bxGdiVertexStreamDesc& streamDesc = descs[i];
+            for ( int iblock = 0; iblock < streamDesc.count; ++iblock )
+            {
+                const bxGdiVertexStreamBlock block = streamDesc.blocks[iblock];
+                InputLayout_SlotDesc& slot = il->slots[block.slot];
+                SYS_ASSERT( slot.hash == 0 );
+
+                slot.dataType = block.dataType;
+                slot.nElement = block.numElements;
+                slot.bufferIdx = i;
+            }
+        }
+    }
+    inline bool operator == (const InputLayout& iLay0, const InputLayout& iLay1)
+    {
+        return iLay0.hash._0 == iLay1.hash._0 &&
+            iLay0.hash._1 == iLay1.hash._1 &&
+            iLay0.hash._2 == iLay1.hash._2 &&
+            iLay0.hash._3 == iLay1.hash._3;
+    }
+    inline bool operator != (const InputLayout& iLay0, const InputLayout& iLay1)
+    {
+        return !(iLay0 == iLay1);
+    }
+    ///
+    ///
     StateDiff _StateDiff( const StateData& current, const StateData& pending )
     {
         StateDiff diff;
@@ -10,13 +43,14 @@ namespace bxGdi
         diff.vstreams = memcmp( current._vstreams, pending._vstreams, sizeof(current._vstreams) );
         diff.vstreams |= current._count.vstreams != pending._count.vstreams;
 
-        diff.vertexFormat = memcmp( current._vstreamBlocks, pending._vstreamBlocks, sizeof(current._vstreamBlocks) );
+        //diff.vertexFormat = current._inputLayout != pending._inputLayout;
         diff.vertexFormat |= current._vertex_input_mask != pending._vertex_input_mask;
+        diff.vertexFormat |= diff.vstreams;
 
         diff.istream = current._istream.id != pending._istream.id;
 
         diff.shaders = memcmp( current._shaders, pending._shaders, sizeof(current._shaders) );
-        diff.vertexFormat |= current._shaders[eSTAGE_VERTEX].id != pending._shaders[eSTAGE_VERTEX].id;
+        //diff.vertexFormat |= current._shaders[eSTAGE_VERTEX].id != pending._shaders[eSTAGE_VERTEX].id;
 
         for( int istage = 0; istage < eSTAGE_COUNT; ++istage )
         {
@@ -40,7 +74,7 @@ namespace bxGdi
         diff.colorRT = current._mainFramebuffer != pending._mainFramebuffer;
         diff.depthRT = current._mainFramebuffer != pending._mainFramebuffer;
         diff.colorRT |= memcmp( current._color_rt, pending._color_rt, sizeof( current._color_rt ) );
-        diff.depthRT |= current._depth_rt != pending._depth_rt;
+        diff.depthRT |= current._depth_rt.id != pending._depth_rt.id;
         diff.viewport = !equal( current._viewport, pending._viewport );
         diff.clearColor = pending._clear_color.flags != 0;
 
@@ -64,13 +98,14 @@ namespace bxGdi
         return sinfo;
     }
 
-    void _SubmitState( bxGdiContextBackend* ctx, const StateData& current, const StateData& pending, StateDiff diff, StateInfo sinfo )
+    void _SubmitState( bxGdiContext* ctx, const StateData& current, const StateData& pending, StateDiff diff, StateInfo sinfo )
     {
+        bxGdiContextBackend* ctxBackend = ctx->_ctx;
         if( diff.colorRT || diff.depthRT )
         {
             if( pending._mainFramebuffer )
             {
-                ctx->changeToMainFramebuffer();
+                ctxBackend->changeToMainFramebuffer();
             }
             else
             {
@@ -78,14 +113,14 @@ namespace bxGdi
 
                 for( int icolor = 0; icolor < pending._count.color_rt; ++icolor )
                 {
-                    const bxGdiTexture rt_id = pending._color_rt[icolor];
+                    const bxGdiTexture rt = pending._color_rt[icolor];
                     for( int istage = 0; istage < eSTAGE_COUNT; ++istage )
                     {
                         const unsigned stage_mask = BIT_OFFSET( istage );
                         for( int islot = 0; islot < cMAX_TEXTURES; ++islot )
                         {
-                            const bxGdiTexture tex_id = current._textures[istage][islot];
-                            found_stages |= ( ( tex_id == rt_id ) || ( tex_id == pending._depth_rt ) ) * stage_mask;
+                            const bxGdiTexture tex = current._textures[istage][islot];
+                            found_stages |= ( ( tex.id == rt.id ) || ( tex.id == pending._depth_rt.id ) ) * stage_mask;
                             if( found_stages & stage_mask )
                             {
                                 break;
@@ -100,142 +135,416 @@ namespace bxGdi
                         const unsigned stage_mask = BIT_OFFSET( istage );
                         if( found_stages & stage_mask )
                         {
-                            ctx->setTextures( 0, 0,
-                            backend::set_textures( ctx, 0, 0, cMAX_TEXTURES, istage );
+                            ctxBackend->setTextures( 0, 0, cMAX_TEXTURES, istage );
                             diff.textures |= stage_mask;
                         }
                     }
                 }
-
-                backend::change_render_targets( ctx, (bxGdiTexture*)pending._color_rt, pending._count.color_rt, pending._depth_rt );
+				ctx->changeRenderTargets((bxGdiTexture*)pending._color_rt, pending._count.color_rt, pending._depth_rt);
             }
-
         }
 
         if( diff.viewport )
         {
-            backend::set_viewport( ctx, pending._viewport.x, pending._viewport.y, pending._viewport.w, pending._viewport.h );
+			ctx->setViewport( pending._viewport );
         }
 
-        if( diff.clear_color )
+        if( diff.clearColor )
         {
             const ClearColorData& ccd = pending._clear_color;
-            backend::clear_buffers( ctx, (bxGdiTexture*)pending._color_rt, pending._count.color_rt, pending._depth_rt, (float*)ccd.rgbad, ccd.flag_clear_color, ccd.flag_clear_depth );
+            ctxBackend->clearBuffers( (bxGdiTexture*)pending._color_rt, pending._count.color_rt, pending._depth_rt, (float*)ccd.rgbad, ccd.flag_clearColor, ccd.flag_clearDepth );
         }
 
         if( diff.shaders )
         {
-            backend::set_shader_programs( ctx, (ShaderID*)pending._shader_programs, Pipeline::eSTAGE_COUNT );
+            ctxBackend->setShaderPrograms( (bxGdiShader*)pending._shaders, eSTAGE_COUNT );
         }
 
-        if( diff.vstreams || diff.vertex_format )
+        if( diff.vstreams || diff.vertexFormat )
         {
-            VertexBufferID vbuffers[cMAX_VERTEX_BUFFERS];
-            VertexStreamDesc descs[cMAX_VERTEX_BUFFERS];
-            VertexStreamDesc null_desc;
-            MEMZERO( &null_desc, sizeof( VertexStreamDesc ) );
+            bxGdiVertexBuffer vbuffers[cMAX_VERTEX_BUFFERS];
             for( int i = 0; i < cMAX_VERTEX_BUFFERS; ++i )
             {
-                const VertexBufferID vstream = pending._vstreams[i];
-                const VertexStreamDesc desc = pending._vstream_descs[i];
-                const unsigned stream_slot_mask = (vstream) ? vertex_stream_slot_mask( desc ) : 0;
-                const unsigned bit = sinfo.active_vertex_slot_mask & stream_slot_mask;
-                vbuffers[i] = (bit) ? vstream : 0;
-                descs[i] = (bit) ?  desc : null_desc;
+                const bxGdiVertexBuffer vstream = pending._vstreams[i];
+                const unsigned stream_slot_mask = (vstream.id) ? bxGdi::streamSlotMask( vstream.desc ) : 0;
+                const unsigned bit = sinfo.activeVertexSlotMask & stream_slot_mask;
+                vbuffers[i] = (bit) ? vstream : bxGdiVertexBuffer();
             }
-
-            gdi::backend::set_vertex_buffers( ctx, vbuffers, descs, 0, cMAX_VERTEX_BUFFERS );
+            ctxBackend->setVertexBuffers( vbuffers, 0, cMAX_VERTEX_BUFFERS );
         }
 
         if( diff.istream )
         {
-            gdi::backend::set_index_buffer( ctx, pending._istream, pending._istream_data_type );
+            ctxBackend->setIndexBuffer( pending._istream );
         }
 
-        if( diff.vertex_format )
+        if( diff.vertexFormat )
         {
-            gdi::VertexStreamDesc descs[cMAX_VERTEX_BUFFERS];
+            bxGdiVertexStreamDesc descs[cMAX_VERTEX_BUFFERS];
             int counter = 0;
-            for( unsigned i = 0; i < pending._count.vstreams; ++i )
+            for ( unsigned i = 0; i < pending._count.vstreams; ++i )
             {
-                const gdi::VertexStreamDesc& d = pending._vstream_descs[i];
-                int block_count = 0;
-                for( int iblock = 0; iblock < d.count; ++iblock )
+                const bxGdiVertexStreamDesc& d = pending._vstreams[i].desc;
+                int blockCount = 0;
+                for ( int iblock = 0; iblock < d.count; ++iblock )
                 {
-                    gdi::VertexStreamDesc::Block block = d.blocks[iblock];
-                    if( ( 1<<block.slot) & sinfo.active_vertex_slot_mask )
+                    bxGdiVertexStreamBlock block = d.blocks[iblock];
+                    if ( (1 << block.slot) & sinfo.activeVertexSlotMask )
                     {
-                        descs[counter].blocks[block_count++] = block;
+                        descs[counter].blocks[blockCount++] = block;
                     }
                 }
-                SYS_ASSERT( block_count < gdi::VertexStreamDesc::eMAX_BLOCKS );
-                descs[counter].count = block_count;
-                counter += block_count > 0;
+                SYS_ASSERT( blockCount < bxGdiVertexStreamDesc::eMAX_BLOCKS );
+                descs[counter].count = blockCount;
+                counter += blockCount > 0;
             }
-            gdi::backend::set_vertex_format( ctx, descs, counter, pending._shader_programs[Pipeline::eSTAGE_VERTEX] );
+
+            InputLayout inputLayout;
+            inputLayout_create( &inputLayout, descs, counter );
+
+            if( inputLayout != current._inputLayout )
+            {
+                int found = -1;
+                for ( int ilayout = 0; ilayout < ctx->_numInLayouts; ++ilayout )
+                {
+                    if ( ctx->_inLayoytsKey[ilayout] == pending._inputLayout )
+                    {
+                        found = ilayout;
+                        break;
+                    }
+                }
+
+                if ( found == -1 )
+                {
+                    SYS_ASSERT( ctx->_numInLayouts < eMAX_INPUT_LAYOUTS );
+                    bxGdiInputLayout inputLayoutValue = ctx->_dev->createInputLayout( descs, counter, pending._shaders[bxGdi::eSTAGE_VERTEX] );
+                    found = ctx->_numInLayouts++;
+                    ctx->_inLayoytsKey[found] = inputLayout;
+                    ctx->_inLayoutsValue[found] = inputLayoutValue;
+                }
+                ctxBackend->setInputLayout( ctx->_inLayoutsValue[found] );
+            }
         }
 
         if( diff.textures )
         {
-            for( int istage = 0; istage < Pipeline::eSTAGE_COUNT; ++istage )
+            for( int istage = 0; istage < eSTAGE_COUNT; ++istage )
             {
                 const u16 stage_mask = BIT_OFFSET( istage );
                 if( ( stage_mask & diff.textures ) == 0 )
                     continue;
 
-                backend::set_textures( ctx, (bxGdiTexture*)pending._textures[istage], 0, cMAX_TEXTURES, istage );
+                ctx->setTextures( (bxGdiTexture*)pending._textures[istage], 0, cMAX_TEXTURES, istage );
             }
         }
 
         if( diff.samplers )
         {
-            for( int istage = 0; istage < Pipeline::eSTAGE_COUNT; ++istage )
+            for( int istage = 0; istage < eSTAGE_COUNT; ++istage )
             {
                 const u16 stage_mask = BIT_OFFSET( istage );
                 if( ( stage_mask & diff.samplers ) == 0 )
                     continue;
 
-                backend::set_samplers( ctx, (SamplerState*)pending._samplers[istage], 0, cMAX_SAMPLERS, istage );
+                bxGdiSampler samplers[cMAX_SAMPLERS];
+                for( int isampler = 0; isampler < cMAX_SAMPLERS; ++isampler )
+                {
+                    const bxGdiSamplerDesc desc = pending._samplers[istage][isampler];
+                    if( desc.key == 0 )
+                    {
+                        samplers[isampler].id = 0;
+                        continue;
+                    }
+
+                    hashmap_t::cell_t* found = hashmap::lookup( ctx->_map_samplers, desc.key );
+                    if (!found)
+                    {
+                        bxGdiSampler s = ctx->_dev->createSampler( desc );
+                        found = hashmap::insert( ctx->_map_samplers, desc.key );
+                        found->value = s.id;
+                    }
+
+                    samplers[isampler].id = found->value;
+                }
+                ctxBackend->setSamplers( samplers, 0, cMAX_SAMPLERS, istage );
             }
         }
 
         if( diff.cbuffers )
         {
-            for( int istage = 0; istage < Pipeline::eSTAGE_COUNT; ++istage )
+            for( int istage = 0; istage < eSTAGE_COUNT; ++istage )
             {
                 const u16 stage_mask = BIT_OFFSET( istage );
                 if( ( stage_mask & diff.cbuffers ) == 0 )
                     continue;
 
-                backend::set_cbuffers( ctx, (BufferID*)pending._cbuffers[istage], 0, cMAX_CBUFFERS, istage );
+                ctx->setCbuffers( (bxGdiBuffer*)pending._cbuffers[istage], 0, cMAX_CBUFFERS, istage );
             }
         }
 
-        if( diff.hwstate_blend || diff.hwstate_depth || diff.hwstate_raster )
+        if( diff.hwState_blend )
         {
-            HwState hwstate;
-            hwstate.blend.key = ( diff.hwstate_blend ) ? pending._hwstate.blend.key : 0;
-            hwstate.depth.key = ( diff.hwstate_depth ) ? pending._hwstate.depth.key : 0;
-            hwstate.raster.key= ( diff.hwstate_raster ) ? pending._hwstate.raster.key : 0;
+            bxGdiHwStateDesc::Blend stateDesc = pending._hwstate.blend;
+            hashmap_t::cell_t* cell = hashmap::lookup( ctx->_map_blendState, u64( stateDesc.key ) );
+            if( !cell )
+            {
+                bxGdiBlendState state = ctx->_dev->createBlendState( stateDesc );
+                cell = hashmap::insert( ctx->_map_blendState, u64( stateDesc.key ) );
+                cell->value = state.id;
+            }
 
-            backend::set_hw_state( ctx, hwstate );
+            bxGdiBlendState state;
+            state.id = cell->value;
+            ctxBackend->setBlendState( state );
+        }
+
+        if (diff.hwState_depth )
+        {
+            bxGdiHwStateDesc::Depth stateDesc = pending._hwstate.depth;
+            hashmap_t::cell_t* cell = hashmap::lookup( ctx->_map_depthState, stateDesc.key );
+            if( !cell )
+            {
+                bxGdiDepthState state = ctx->_dev->createDepthState( stateDesc );
+                cell = hashmap::insert( ctx->_map_depthState, stateDesc.key );
+                cell->value = state.id;
+            }
+
+            bxGdiDepthState state;
+            state.id = cell->value;
+            ctxBackend->setDepthState( state );
+        }
+
+        if( diff.hwState_raster )
+        {
+            bxGdiHwStateDesc::Raster stateDesc = pending._hwstate.raster;
+            hashmap_t::cell_t* cell = hashmap::lookup( ctx->_map_rasterState, stateDesc.key );
+            if( !cell )
+            {
+                bxGdiRasterState state = ctx->_dev->createRasterState( stateDesc );
+                cell = hashmap::insert( ctx->_map_rasterState, stateDesc.key );
+                cell->value = state.id;
+            }
+
+            bxGdiRasterState state;
+            state.id = cell->value;
+            ctxBackend->setRasterState( state );
         }
     }
-
-    void prepare_draw( CtxState* ctx )
+    ///
+    ///
+    void prepare_draw( bxGdiContext* ctx )
     {
-        const StateDiff sdiff = state_diff( ctx->current, ctx->pending );
+        const StateDiff sdiff = _StateDiff( ctx->current, ctx->pending );
         const StateInfo sinfo = state_info( ctx->pending );
 
-        submit_state( ctx->backend, ctx->current, ctx->pending, sdiff, sinfo );  
+        _SubmitState( ctx, ctx->current, ctx->pending, sdiff, sinfo );  
 
         if( ctx->pending._topology != ctx->current._topology )
         {
-            backend::set_topology( ctx->backend, ctx->pending._topology );
+            ctx->_ctx->setTopology( ctx->pending._topology );
         }
 
         ctx->pending._clear_color.reset();
         ctx->current = ctx->pending;
-
     }
+    ///
+    ///
+}
+
+void bxGdiContext::_Startup(bxGdiDeviceBackend* dev)
+{
+    _dev = dev;
+    _ctx = dev->ctx;
+}
+
+void bxGdiContext::_Shutdown()
+{
+    {
+        hashmap::iterator it( _map_samplers );
+        while ( it.next() )
+        {
+            bxGdiSampler resource;
+            resource.id = it->value;
+            _dev->releaseSampler( &resource );
+        }
+        hashmap::clear( _map_samplers );
+    }
+    {
+        hashmap::iterator it( _map_rasterState );
+        while ( it.next() )
+        {
+            bxGdiRasterState resource;
+            resource.id = it->value;
+            _dev->releaseRasterState( &resource );
+        }
+        hashmap::clear( _map_rasterState );
+    }
+    {
+        hashmap::iterator it( _map_depthState );
+        while ( it.next() )
+        {
+            bxGdiDepthState resource;
+            resource.id = it->value;
+            _dev->releaseDepthState( &resource );
+        }
+        hashmap::clear( _map_depthState );
+    }
+    {
+        hashmap::iterator it( _map_blendState );
+        while ( it.next() )
+        {
+            bxGdiBlendState resource;
+            resource.id = it->value;
+            _dev->releaseBlendState( &resource );
+        }
+        hashmap::clear( _map_blendState );
+    }
+    {
+        for ( int i = 0; i < _numInLayouts; ++i )
+        {
+            _dev->releaseInputLayout( &_inLayoutsValue[i] );
+        }
+        memset( _inLayoytsKey, 0, sizeof( _inLayoytsKey ) );
+        _numInLayouts = 0;
+    }
+}
+
+void bxGdiContext::clear()
+{
+
+}
+
+void bxGdiContext::setViewport(const bxGdiViewport& vp)
+{
+}
+
+void bxGdiContext::setVertexBuffers(bxGdiVertexBuffer* vbuffers, unsigned n)
+{
+}
+
+void bxGdiContext::setIndexBuffer(bxGdiIndexBuffer ibuffer)
+{
+}
+
+void bxGdiContext::setShaders(bxGdiShader* shaders, int n, unsigned vertex_input_mask)
+{
+}
+
+void bxGdiContext::setCbuffers(bxGdiBuffer* cbuffers, unsigned start_slot, unsigned n, int stage)
+{
+}
+
+void bxGdiContext::setTextures(bxGdiTexture* textures, unsigned start_slot, unsigned n, int stage)
+{
+}
+
+void bxGdiContext::setSamplers(bxGdiSamplerDesc* samplers, unsigned start_slot, unsigned n, int stage)
+{
+}
+
+void bxGdiContext::setCbuffer(bxGdiBuffer cbuffer, int slot, unsigned stage_mask)
+{
+}
+
+void bxGdiContext::setTexture(bxGdiTexture texture, int slot, unsigned stage_mask)
+{
+}
+
+void bxGdiContext::setSampler(const bxGdiSamplerDesc& sampler, int slot, unsigned stage_mask)
+{
+}
+
+void bxGdiContext::setHwState(const bxGdiHwStateDesc& hwstate)
+{
+}
+
+void bxGdiContext::setTopology(int topology)
+{
+}
+
+void bxGdiContext::clearTextures()
+{
+}
+
+void bxGdiContext::clearSamplers()
+{
+}
+
+void bxGdiContext::changeToMainFramebuffer()
+{
+}
+
+void bxGdiContext::changeRenderTargets(bxGdiTexture* color_rts, unsigned n_rt, bxGdiTexture depth_rt)
+{
+}
+
+void bxGdiContext::clearBuffers(float rgbad[5], int flag_color, int flag_depth)
+{
+}
+
+void bxGdiContext::clearBuffers(float r, float g, float b, float a, float d, int flag_color, int flag_depth)
+{
+}
+
+void bxGdiContext::draw(unsigned num_vertices, unsigned start_index)
+{
+}
+
+void bxGdiContext::drawIndexed(unsigned num_indices, unsigned start_index, unsigned base_vertex)
+{
+}
+
+void bxGdiContext::drawInstanced(unsigned num_vertices, unsigned start_index, unsigned num_instances)
+{
+}
+
+void bxGdiContext::drawIndexedInstanced(unsigned num_indices, unsigned start_index, unsigned num_instances, unsigned base_vertex)
+{
+}
+
+///
+///
+void bxGdiDrawCall::setVertexBuffers(bxGdiVertexBuffer* buffers, int nBuffers)
+{
+}
+
+void bxGdiDrawCall::setIndexBuffer(bxGdiIndexBuffer ibuffer)
+{
+}
+
+void bxGdiDrawCall::setShaders(bxGdiShader* shaders, int n)
+{
+}
+
+void bxGdiDrawCall::setCbuffers(bxGdiBuffer* cbuffers, unsigned startSlot, unsigned n, int stage)
+{
+}
+
+void bxGdiDrawCall::setTextures(bxGdiTexture* textures, unsigned startSlot, unsigned n, int stage)
+{
+}
+
+void bxGdiDrawCall::setSamplers(bxGdiSamplerDesc* samplers, unsigned startSlot, unsigned n, int stage)
+{
+}
+
+void bxGdiDrawCall::setHwState(const bxGdiHwStateDesc& hwState)
+{
+}
+///
+///
+bxGdiDrawCall* bxGdiCommandBuffer::newDrawCall()
+{
+}
+
+void bxGdiCommandBuffer::submitDrawCall(const bxGdiDrawCall* dcall, const void* key)
+{
+}
+
+void bxGdiCommandBuffer::sort()
+{
+}
+
+void bxGdiCommandBuffer::flush(bxGdiContext* ctx)
+{
 }

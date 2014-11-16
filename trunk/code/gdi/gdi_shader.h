@@ -6,7 +6,7 @@
 struct bxGdiShaderPass
 {
     bxGdiShader progs[bxGdi::eDRAW_STAGES_COUNT];
-    bxGdiHwState hwState;
+    bxGdiHwStateDesc hwState;
     u16 vertexInputMask;
     u16 padding0__[1];
 
@@ -127,8 +127,8 @@ struct bxGdiShaderFx_Instance
 	void setUniform( const char* name, const void* data, unsigned size );
     template< class T > void setUniform( const char* name, const T& value )	{ setUniform( shi, name, &value, sizeof(T) ); }
 
-    const bxGdiHwState hwState( int passIndex ) const;
-    void setHwState( int passIndex, const bxGdiHwState& hwstate );
+    const bxGdiHwStateDesc hwState( int passIndex ) const;
+    void setHwState( int passIndex, const bxGdiHwStateDesc& hwstate );
 
     ///
     ///

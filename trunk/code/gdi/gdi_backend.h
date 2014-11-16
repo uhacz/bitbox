@@ -197,6 +197,7 @@ union bxGdiRasterState
         : id(0)
     {}
 };
+
 union bxGdiSampler    
 {
     uptr id;
@@ -231,16 +232,17 @@ struct bxGdiDeviceBackend
     virtual bxGdiSampler createSampler( const bxGdiSamplerDesc& desc ) = 0;
     
     virtual bxGdiInputLayout createInputLayout( const bxGdiVertexStreamDesc* descs, int ndescs, bxGdiShader vertex_shader ) = 0;
-    virtual bxGdiBlendState  createBlendState( bxGdiHwState::Blend blend ) = 0;
-    virtual bxGdiDepthState  createDepthState( bxGdiHwState::Depth depth ) = 0;
-    virtual bxGdiRasterState createRasterState( bxGdiHwState::Raster raster ) = 0;
+    virtual bxGdiBlendState  createBlendState( bxGdiHwStateDesc::Blend blend ) = 0;
+    virtual bxGdiDepthState  createDepthState( bxGdiHwStateDesc::Depth depth ) = 0;
+    virtual bxGdiRasterState createRasterState( bxGdiHwStateDesc::Raster raster ) = 0;
 
     virtual void releaseVertexBuffer( bxGdiVertexBuffer* id ) = 0;
     virtual void releaseIndexBuffer( bxGdiIndexBuffer* id ) = 0;
+    virtual void releaseInputLayout( bxGdiInputLayout * id ) = 0;
     virtual void releaseBuffer( bxGdiBuffer* id ) = 0;
     virtual void releaseShader( bxGdiShader* id ) = 0;
     virtual void releaseTexture( bxGdiTexture* id ) = 0;
-    virtual void releaseInputLayout( bxGdiInputLayout * id ) = 0;
+    virtual void releaseSampler( bxGdiSampler* id ) = 0;
     virtual void releaseBlendState ( bxGdiBlendState  * id ) = 0;
     virtual void releaseDepthState ( bxGdiDepthState  * id ) = 0;
     virtual void releaseRasterState( bxGdiRasterState * id ) = 0;
