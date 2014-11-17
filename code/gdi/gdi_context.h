@@ -232,19 +232,16 @@ public:
     void setSamplers     ( bxGdiSamplerDesc* samplers, unsigned startSlot, unsigned n, int stage );
     void setHwState      ( const bxGdiHwStateDesc& hwState );
 
-private:
     u16 _size;
-
-    friend class bxGdiCommandBuffer;
-
 };
 class bxGdiCommandBuffer
 {
 public:
-    static bxGdiCommandBuffer* commandBuffer_new(  );
+    static bxGdiCommandBuffer* create( u32 numBitsPerKey, u32 maxDrawCalls, bxAllocator* allocator );
+    static void release( bxGdiCommandBuffer** cmdBuffer, bxAllocator* allocator );
 
     bxGdiDrawCall* newDrawCall();
-    void submitDrawCall( const bxGdiDrawCall* dcall, const void* key );
+    void submitDrawCall( bxGdiDrawCall** dcall, const void* key );
     
     void sort();
     void flush( bxGdiContext* ctx );
@@ -257,6 +254,10 @@ private:
     u32 _size_sortStream;
     u32 _capacity_commandStream;
     u32 _capacity_sortStream;
+
+    u8 _stride_sortKey;
+    u8 _flag_activeDrawCall;
+
 };
 
 
