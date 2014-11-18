@@ -172,3 +172,16 @@ inline bool operator != ( const bxGdiHwStateDesc&  a, const bxGdiHwStateDesc& b 
 {
     return !(a == b);
 }
+
+namespace bxGdi
+{
+    struct VertexP
+    {
+        f32 pos[3];
+    };
+    struct VertexNUV
+    {
+        f32 nrm[3];
+        f32 uv[2];
+    };
+}///

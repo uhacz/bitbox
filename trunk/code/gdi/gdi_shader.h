@@ -21,16 +21,16 @@ struct bxGdiShaderFx
         {
             i8 index;
 	        u8 slot;
-	        u8 stage_mask;
-	        i8 pass_index;
+	        u8 stageMask;
+	        i8 passIndex;
 	
 	        const bool is_null() const { return index == -1; }
 
             ResourceDesc()
                 : index(-1)
                 , slot(0)
-                , stage_mask(0)
-                , pass_index(-1)
+                , stageMask(0)
+                , passIndex(-1)
             {}
         };
 
@@ -45,7 +45,7 @@ struct bxGdiShaderFx
             u16 size;
 	        i16 index;
 	        u8 slot;
-	        u8 stage_mask;
+	        u8 stageMask;
 
 	        const bool is_null() const { return offset == 0xffff; }
 	        static CBufferDesc null() { CBufferDesc sb = { 0xffff }; return sb; }
@@ -54,7 +54,7 @@ struct bxGdiShaderFx
         {
 	        u16 offset;
             u16 size;
-	        u16 buffer_index;
+	        u16 bufferIndex;
 	        u16 index;
 
 	        const bool is_null() const { return offset == 0xffff; }
@@ -126,14 +126,16 @@ struct bxGdiShaderFx_Instance
 	void setUniform( const char* name, const void* data, unsigned size );
     template< class T > void setUniform( const char* name, const T& value )	{ setUniform( shi, name, &value, sizeof(T) ); }
 
-    const bxGdiHwStateDesc hwState( int passIndex ) const;
-    void setHwState( int passIndex, const bxGdiHwStateDesc& hwstate );
+    const bxGdiHwStateDesc hwState( int passIndex ) const { return _fx->_passes[passIndex].hwState; }
+    void setHwState( int passIndex, const bxGdiHwStateDesc& hwstate ) { _fx->_passes[passIndex].hwState = hwstate;  }
 
     ///
     ///
-    u16 vertexInputMask( int passIndex );
-    const bxGdiShader* programs( int passIndex ) const;
+    u16                vertexInputMask( int passIndex ) const { return _fx->_passes[passIndex].vertexInputMask; }
+    const bxGdiShader* programs       ( int passIndex ) const { return _fx->_passes[passIndex].progs;  }
     
+    void uploadCBuffers( bxGdiContextBackend* ctx );
+
     ///
     ///
     u32 sortHash() const { return _sortHash; }
@@ -168,6 +170,8 @@ public:
 
 
 class bxResourceManager;
+struct bxGdiContext;
+struct bxGdiDrawCall;
 namespace bxGdi
 {
     int  shaderFx_initParams( bxGdiShaderFx* fx, const ShaderReflection& reflection, const char* materialCBufferName = "MaterialData" );
@@ -186,6 +190,6 @@ namespace bxGdi
 
     void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName );
     void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, int passIndex );
-    
-
+    void shaderFx_enable( bxGdiDrawCall* dcall, bxGdiShaderFx_Instance, const char* passName );
+    void shaderFx_enable( bxGdiDrawCall* dcall, bxGdiShaderFx_Instance, int passIndex );
 }///

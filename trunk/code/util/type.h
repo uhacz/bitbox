@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <float.h>
 
 #ifdef _MSC_VER
 #pragma warning( disable: 4512 )
