@@ -247,6 +247,7 @@ struct bxGdiDeviceBackend
     virtual void releaseDepthState ( bxGdiDepthState  * id ) = 0;
     virtual void releaseRasterState( bxGdiRasterState * id ) = 0;
 
+
     bxGdiContextBackend* ctx;
 };
 
@@ -286,6 +287,9 @@ struct bxGdiContextBackend
     virtual void updateCBuffer          ( bxGdiBuffer cbuffer, const void* data ) = 0;
     virtual void swap                   () = 0;
     virtual void generateMipmaps        ( bxGdiTexture texture ) = 0;
+
+    virtual bxGdiTexture backBufferTexture() = 0;
+
 };
 
 namespace bxGdi

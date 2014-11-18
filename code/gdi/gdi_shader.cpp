@@ -29,6 +29,16 @@ bxGdiShaderFx_Instance::~bxGdiShaderFx_Instance()
 
 namespace bxGdi
 {
+    int shaderFx_findPass( const bxGdiShaderFx* fx, const char* passName )
+    {
+        const u32 passHashedName = simple_hash( passName );
+        const int index = array::find1( fx->_passHashedNames, fx->_passHashedNames + fx->_numPasses, OpEqual( passHashedName ) );
+        if( index == -1 )
+        {
+            bxLogError( "Pass '%s' not found", passName );
+        }
+        return index;
+    }
     const bxGdiShaderFx::TextureDesc* shaderFx_findTexture( const bxGdiShaderFx* fx, u32 hashedName, int startIndex )
     {
         const u32* begin = fx->_hashedNames + fx->_nameTextures_begin + startIndex;
@@ -121,6 +131,8 @@ void bxGdiShaderFx_Instance::setUniform( const char* name, const void* data, uns
 
     _SetBufferDirty( desc->buffer_index );
 }
+
+
 
 
 namespace bxGdi
@@ -489,5 +501,24 @@ namespace bxGdi
 
         fxInstancePtr[0] = 0;
     }
+
+    void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName )
+    {
+        int passIndex = shaderFx_findPass( fxI->shaderFx(), passName );
+        if( passIndex == -1 )
+        {
+            return;
+        }
+
+        shaderFx_enable( ctx, fxI, passIndex );
+    }
+
+    void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, int passIndex )
+    {
+        ctx->setShaders( fxI->programs( passIndex ), bxGdi::eDRAW_STAGES_COUNT, fxI->vertexInputMask( passIndex ) );
+        
+    }
+
+
 
 }///

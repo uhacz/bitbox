@@ -784,6 +784,8 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.state );
     }
 
+    
+
     bxGdiDeviceBackend_dx11()
         : _device(0)
     {}

@@ -1,4 +1,5 @@
 #include "gdi_render_source.h"
+#include "gdi_context.h"
 
 namespace bxGdi
 {
@@ -56,4 +57,36 @@ namespace bxGdi
         SYS_ASSERT( rsource->indexBuffer.id == 0 );
         rsource->indexBuffer = iBuffer;
     }
+
+    
+    void renderSource_enable( bxGdiContext* ctx, bxGdiRenderSource* rsource )
+    {
+        ctx->setVertexBuffers( rsource->vertexBuffers, rsource->numVertexBuffers );
+        ctx->setIndexBuffer( rsource->indexBuffer );
+    }
+
+    void renderSurface_draw( bxGdiContext* ctx, const bxGdiRenderSurface& surf )
+    {
+        ctx->setTopology( surf.topology );
+        ctx->draw( surf.count, surf.begin );
+    }
+
+    void renderSurface_drawIndexed( bxGdiContext* ctx, const bxGdiRenderSurface& surf, int baseVertex )
+    {
+        ctx->setTopology( surf.topology );
+        ctx->drawIndexed( surf.count, surf.begin, baseVertex );
+    }
+
+    void renderSurface_drawInstanced( bxGdiContext* ctx, const bxGdiRenderSurface& surf, int numInstances )
+    {
+        ctx->setTopology( surf.topology );
+        ctx->drawInstanced( surf.count, surf.begin, numInstances );
+    }
+
+    void renderSurface_drawIndexedInstanced( bxGdiContext* ctx, const bxGdiRenderSurface& surf, int numInstances, int baseVertex )
+    {
+        ctx->setTopology( surf.topology );
+        ctx->drawIndexedInstanced( surf.count, surf.begin, numInstances, baseVertex );
+    }
+
 }///
