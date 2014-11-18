@@ -45,6 +45,48 @@ namespace bxGdi
         }
     }
 
+    bxGdiRenderSource* renderSource_createFromPolyShape( bxGdiDeviceBackend* dev, const bxPolyShape& shape )
+    {
+        const int nVertices = shape.nvertices();
+        const int nIndices = shape.ntriangles() * 3;
+
+        bxGdi::VertexNUV* nrmUV = (bxGdi::VertexNUV*)BX_MALLOC( bxDefaultAllocator(), shape.nvertices() * sizeof( bxGdi::VertexNUV ), 4 );
+        const float* pos = shape.positions;
+        const u32* indices = shape.indices;
+
+        for( int ivertex = 0; ivertex < shape.nvertices(); ++ivertex )
+        {
+            const float* nrm = shape.normal( ivertex );
+            const float* uv = shape.texcoord( ivertex );
+            bxGdi::VertexNUV* dst = nrmUV + ivertex;
+            dst->nrm[0] = nrm[0];
+            dst->nrm[1] = nrm[1];
+            dst->nrm[2] = nrm[2];
+            dst->uv[0] = uv[0];
+            dst->uv[1] = uv[1];
+        }
+
+        bxGdiVertexStreamDesc vsDescP;
+        vsDescP.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
+
+        bxGdiVertexStreamDesc vsDescNUV;
+        vsDescNUV.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3 );
+        vsDescNUV.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 );
+
+        bxGdiVertexBuffer vBufferP = dev->createVertexBuffer( vsDescP, nVertices, pos );
+        bxGdiVertexBuffer vBufferNUV = dev->createVertexBuffer( vsDescNUV, nVertices, nrmUV );
+        bxGdiIndexBuffer iBuffer = dev->createIndexBuffer( bxGdi::eTYPE_UINT, nIndices, indices );
+
+        bxGdiRenderSource* rsource = renderSource_new( 2 );
+        renderSource_setVertexBuffer( rsource, vBufferP, 0 );
+        renderSource_setVertexBuffer( rsource, vBufferNUV, 1 );
+        renderSource_setIndexBuffer( rsource, iBuffer );
+
+        BX_FREE0( bxDefaultAllocator(), nrmUV );
+
+        return rsource;
+    }
+
     void renderSource_setVertexBuffer( bxGdiRenderSource* rsource, bxGdiVertexBuffer vBuffer, int idx )
     {
         SYS_ASSERT( idx <= rsource->numVertexBuffers );

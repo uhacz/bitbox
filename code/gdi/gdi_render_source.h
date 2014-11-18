@@ -2,6 +2,7 @@
 
 #include "gdi_backend.h"
 #include <util/array.h>
+#include <util/poly/poly_shape.h>
 
 struct bxGdiContext;
 struct bxGdiRenderSurface
@@ -41,7 +42,7 @@ namespace bxGdi
         renderSource_release( dev, rsource[0] );
         renderSource_free( rsource, allocator );
     }
-
+    bxGdiRenderSource* renderSource_createFromPolyShape( bxGdiDeviceBackend* dev, const bxPolyShape& shape );
 
     void renderSource_setVertexBuffer( bxGdiRenderSource* rsource, bxGdiVertexBuffer vBuffer, int idx );
     void renderSource_setIndexBuffer( bxGdiRenderSource* rsource, bxGdiIndexBuffer iBuffer );

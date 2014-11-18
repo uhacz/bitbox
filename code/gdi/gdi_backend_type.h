@@ -4,7 +4,7 @@
 
 namespace bxGdi
 {
-        enum EStage
+    enum EStage
     {
         eSTAGE_VERTEX = 0,
         eSTAGE_PIXEL,

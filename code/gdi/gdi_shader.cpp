@@ -1,6 +1,6 @@
 #include "gdi_shader.h"
 #include "gdi_shader_reflection.h"
-
+#include "gdi_context.h"
 #include <util/hash.h>
 #include <util/array_util.h>
 #include <util/buffer_utils.h>
@@ -32,7 +32,7 @@ namespace bxGdi
     int shaderFx_findPass( const bxGdiShaderFx* fx, const char* passName )
     {
         const u32 passHashedName = simple_hash( passName );
-        const int index = array::find1( fx->_passHashedNames, fx->_passHashedNames + fx->_numPasses, OpEqual( passHashedName ) );
+        const int index = array::find1( fx->_passHashedNames, fx->_passHashedNames + fx->_numPasses, array::OpEqual<u32>( passHashedName ) );
         if( index == -1 )
         {
             bxLogError( "Pass '%s' not found", passName );
@@ -129,10 +129,25 @@ void bxGdiShaderFx_Instance::setUniform( const char* name, const void* data, uns
 	u8* dst = _dataCBuffers + offset;
 	memcpy( dst, data, size );
 
-    _SetBufferDirty( desc->buffer_index );
+    _SetBufferDirty( desc->bufferIndex );
 }
 
+void bxGdiShaderFx_Instance::uploadCBuffers(bxGdiContextBackend* ctx)
+{
+    for( int ibuffer = 0; ibuffer < numCBuffers(); ++ibuffer )
+    {
+        if ( !isBufferDirty( ibuffer ) )
+            continue;
 
+        bxGdiBuffer cbuffer = cbuffers()[ibuffer];
+
+        const bxGdiShaderFx::CBufferDesc desc = cbufferDescs()[ibuffer];
+        const u8* data = _dataCBuffers + desc.offset;
+
+        ctx->updateCBuffer( cbuffer, data );
+        _MarkBufferAsClean( ibuffer );
+    }
+}
 
 
 namespace bxGdi
@@ -211,8 +226,8 @@ namespace bxGdi
 		    bxGdiShaderFx::TextureDesc& param = fx->_textures[i];
             param.index = i;
             param.slot = desc.slot;
-            param.pass_index = desc.pass_index;
-		    param.stage_mask = desc.stage_mask;
+            param.passIndex = desc.pass_index;
+		    param.stageMask = desc.stage_mask;
         }
         for( u32 i = 0; i < reflection.samplers.size(); ++i, ++paramIndex )
         {
@@ -222,8 +237,8 @@ namespace bxGdi
             bxGdiShaderFx::SamplerDesc& param = fx->_samplers[i];
             param.index = i;
             param.slot = desc.slot;
-            param.pass_index = desc.pass_index;
-		    param.stage_mask = desc.stage_mask;
+            param.passIndex = desc.pass_index;
+		    param.stageMask = desc.stage_mask;
         }
 
         u16 offset = 0;
@@ -236,7 +251,7 @@ namespace bxGdi
             param.offset = offset;
             param.slot = desc.slot;
             param.size = desc.size;
-		    param.stage_mask = (u8)desc.stage_mask;
+		    param.stageMask = (u8)desc.stage_mask;
 		    param.index = i;
             offset += (u16)desc.size;
         }
@@ -257,7 +272,7 @@ namespace bxGdi
                 param.offset = offset + desc.offset;
                 param.size = desc.size;
 			    param.index = uniform_index;
-			    param.buffer_index = (u16)i;
+			    param.bufferIndex = (u16)i;
             }
 
             offset += (u16)cbdesc.size;
@@ -515,8 +530,42 @@ namespace bxGdi
 
     void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, int passIndex )
     {
-        ctx->setShaders( fxI->programs( passIndex ), bxGdi::eDRAW_STAGES_COUNT, fxI->vertexInputMask( passIndex ) );
-        
+        ctx->setShaders( (bxGdiShader*)fxI->programs( passIndex ), bxGdi::eDRAW_STAGES_COUNT, fxI->vertexInputMask( passIndex ) );
+        ctx->setHwState( fxI->hwState( passIndex ) );
+
+        {
+            fxI->uploadCBuffers( ctx->_ctx );
+            const bxGdiShaderFx::CBufferDesc* descs = fxI->cbufferDescs();
+            const bxGdiBuffer* resources = fxI->cbuffers();
+            const int nResources = fxI->numCBuffers();
+            for( int iresource = 0; iresource < nResources; ++iresource )
+            {
+                ctx->setCbuffer( resources[iresource], descs[iresource].slot, descs[iresource].stageMask );
+            }
+        }
+
+        {
+            const bxGdiShaderFx::TextureDesc* descs = fxI->textureDescs();
+            const bxGdiTexture* resources = fxI->textures();
+            const int nResources = fxI->numTextures();
+            for ( int iresource = 0; iresource < nResources; ++iresource )
+            {
+                if ( descs[iresource].passIndex == passIndex )
+                     ctx->setTexture( resources[iresource], descs[iresource].slot, descs[iresource].stageMask );
+            }
+        }
+
+        {
+            const bxGdiShaderFx::SamplerDesc* descs = fxI->samplerDescs();
+            const bxGdiSamplerDesc* resources = fxI->samplers();
+            const int nResources = fxI->numSamplers();
+            for ( int iresource = 0; iresource < nResources; ++iresource )
+            {
+                if ( descs[iresource].passIndex == passIndex )
+                    ctx->setSampler( resources[iresource], descs[iresource].slot, descs[iresource].stageMask );
+            }
+        }
+     
     }
 
 
