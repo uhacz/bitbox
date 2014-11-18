@@ -83,19 +83,18 @@ namespace bxGdi
         bxGdiSamplerDesc   _samplers[eSTAGE_COUNT][cMAX_SAMPLERS];
         bxGdiBuffer        _cbuffers[eSTAGE_COUNT][cMAX_CBUFFERS];
         bxGdiHwStateDesc   _hwstate;
-        bxGdiTexture       _color_rt[cMAX_RENDER_TARGETS];
-        bxGdiTexture       _depth_rt;
-        ClearColorData     _clear_color;
+        bxGdiTexture       _colorRT[cMAX_RENDER_TARGETS];
+        bxGdiTexture       _depthRT;
+        ClearColorData     _clearColor;
         bxGdiViewport	   _viewport;
         u32                _mainFramebuffer;
         i32				   _topology;
-        u32                _vertex_input_mask;
+        u32                _vertexInputMask;
 
         struct  
         {
             u8 vstreams;
-            u8 vstreamBlocks;
-            u8 color_rt;
+            u8 colorRT;
         } _count;
 
         StateData()
@@ -184,43 +183,37 @@ struct bxGdiContext
 
     ///
     ///
-    void clear                     ();
-    void setViewport               ( const bxGdiViewport& vp );
-    void setVertexBuffers          ( bxGdiVertexBuffer* vbuffers, unsigned n );
-    void setIndexBuffer            ( bxGdiIndexBuffer ibuffer );
-    void setShaders                ( bxGdiShader* shaders, int n, unsigned vertex_input_mask );
-    void setCbuffers               ( bxGdiBuffer* cbuffers, unsigned start_slot, unsigned n, int stage );
-    void setTextures               ( bxGdiTexture* textures, unsigned start_slot, unsigned n, int stage );
-    void setSamplers               ( bxGdiSamplerDesc* samplers, unsigned start_slot, unsigned n, int stage );
-    void setCbuffer                ( bxGdiBuffer cbuffer, int slot, unsigned stage_mask );
-    void setTexture                ( bxGdiTexture texture, int slot, unsigned stage_mask );
-    void setSampler                ( const bxGdiSamplerDesc& sampler, int slot, unsigned stage_mask );
-    void setHwState                ( const bxGdiHwStateDesc& hwstate );
-    void setTopology               ( int topology );
+    void clear                  ();
+    void setViewport            ( const bxGdiViewport& vp );
+    void setVertexBuffers       ( bxGdiVertexBuffer* vbuffers, unsigned n );
+    void setIndexBuffer         ( bxGdiIndexBuffer ibuffer );
+    void setShaders             ( bxGdiShader* shaders, int n, unsigned vertex_input_mask );
+    void setCbuffers            ( bxGdiBuffer* cbuffers, unsigned start_slot, unsigned n, int stage );
+    void setTextures            ( bxGdiTexture* textures, unsigned start_slot, unsigned n, int stage );
+    void setSamplers            ( bxGdiSamplerDesc* samplers, unsigned start_slot, unsigned n, int stage );
+    void setCbuffer             ( bxGdiBuffer cbuffer, int slot, unsigned stage_mask );
+    void setTexture             ( bxGdiTexture texture, int slot, unsigned stage_mask );
+    void setSampler             ( const bxGdiSamplerDesc& sampler, int slot, unsigned stage_mask );
+    void setHwState             ( const bxGdiHwStateDesc& hwstate );
+    void setTopology            ( int topology );
 
-    void clearTextures             ();
-    void clearSamplers             ();
+    void clearTextures          ();
+    void clearSamplers          ();
 
-    void changeToMainFramebuffer   ();
-    void changeRenderTargets       ( bxGdiTexture* color_rts, unsigned n_rt, bxGdiTexture depth_rt );
-    void clearBuffers              ( float rgbad[5], int flag_color, int flag_depth );
-    void clearBuffers              ( float r, float g, float b, float a, float d, int flag_color, int flag_depth );
+    void changeToMainFramebuffer();
+    void changeRenderTargets    ( bxGdiTexture* color_rts, unsigned n_rt, bxGdiTexture depth_rt );
+    void clearBuffers           ( float rgbad[5], int flag_color, int flag_depth );
+    void clearBuffers           ( float r, float g, float b, float a, float d, int flag_color, int flag_depth );
 
-    void draw                      ( unsigned num_vertices, unsigned start_index );
-    void drawIndexed               ( unsigned num_indices, unsigned start_index, unsigned base_vertex );
-    void drawInstanced             ( unsigned num_vertices, unsigned start_index, unsigned num_instances );
-    void drawIndexedInstanced      ( unsigned num_indices, unsigned start_index, unsigned num_instances, unsigned base_vertex );
+    void draw                   ( unsigned num_vertices, unsigned start_index );
+    void drawIndexed            ( unsigned num_indices, unsigned start_index, unsigned base_vertex );
+    void drawInstanced          ( unsigned num_vertices, unsigned start_index, unsigned num_instances );
+    void drawIndexedInstanced   ( unsigned num_indices, unsigned start_index, unsigned num_instances, unsigned base_vertex );
 };
 
 
-//struct bxGdiCommand
-//{
-//    u32 begin;
-//    u32 end;
-//    u32 consumed;
-//};
-//
-
+///
+///
 class bxGdiDrawCall
 {
 public:
@@ -234,6 +227,7 @@ public:
 
     u16 _size;
 };
+
 class bxGdiCommandBuffer
 {
 public:

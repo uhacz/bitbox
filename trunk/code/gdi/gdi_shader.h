@@ -104,7 +104,6 @@ struct bxGdiShaderFx_Instance
     ///
     ///
     bxGdiShaderFx* shaderFx() { return _fx; }
-    int findPass( const char* name );
 
     ///
     ///
@@ -179,11 +178,14 @@ namespace bxGdi
     void shaderFx_release( bxGdiDeviceBackend* dev, bxGdiShaderFx** fx, bxAllocator* allocator = bxDefaultAllocator() );
     void shaderFx_releaseInstance( bxGdiDeviceBackend* dev, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator = bxDefaultAllocator() );
     
-    
+    int shaderFx_findPass( const bxGdiShaderFx* fx, const char* passName );
     const bxGdiShaderFx::TextureDesc* shaderFx_findTexture( const bxGdiShaderFx* fx, u32 hashedName, int startIndex );
     const bxGdiShaderFx::SamplerDesc* shaderFx_findSampler( const bxGdiShaderFx* fx, u32 hashedName, int startIndex );
     const bxGdiShaderFx::UniformDesc* shaderFx_findUniform( const bxGdiShaderFx* fx, u32 hashedName );
 
+
+    void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName );
+    void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, int passIndex );
     
 
 }///

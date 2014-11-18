@@ -3,6 +3,7 @@
 #include "gdi_backend.h"
 #include <util/array.h>
 
+struct bxGdiContext;
 struct bxGdiRenderSurface
 {
     u32 topology;
@@ -44,5 +45,13 @@ namespace bxGdi
 
     void renderSource_setVertexBuffer( bxGdiRenderSource* rsource, bxGdiVertexBuffer vBuffer, int idx );
     void renderSource_setIndexBuffer( bxGdiRenderSource* rsource, bxGdiIndexBuffer iBuffer );
+
+    void renderSource_enable( bxGdiContext* ctx, bxGdiRenderSource* rsource );
+    void renderSurface_draw( bxGdiContext* ctx, const bxGdiRenderSurface& surf );
+    void renderSurface_drawIndexed( bxGdiContext* ctx, const bxGdiRenderSurface& surf, int baseVertex = 0 );
+    
+    void renderSurface_drawInstanced( bxGdiContext* ctx, const bxGdiRenderSurface& surf, int numInstances );
+    void renderSurface_drawIndexedInstanced( bxGdiContext* ctx, const bxGdiRenderSurface& surf, int numInstances, int baseVertex = 0 );
+
 }///
 

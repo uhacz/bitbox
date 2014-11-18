@@ -44,7 +44,7 @@ namespace bxGdi
         diff.vstreams |= current._count.vstreams != pending._count.vstreams;
 
         //diff.vertexFormat = current._inputLayout != pending._inputLayout;
-        diff.vertexFormat |= current._vertex_input_mask != pending._vertex_input_mask;
+        diff.vertexFormat |= current._vertexInputMask != pending._vertexInputMask;
         diff.vertexFormat |= diff.vstreams;
 
         diff.istream = current._istream.id != pending._istream.id;
@@ -73,15 +73,15 @@ namespace bxGdi
 
         diff.colorRT = current._mainFramebuffer != pending._mainFramebuffer;
         diff.depthRT = current._mainFramebuffer != pending._mainFramebuffer;
-        diff.colorRT |= memcmp( current._color_rt, pending._color_rt, sizeof( current._color_rt ) );
-        diff.depthRT |= current._depth_rt.id != pending._depth_rt.id;
+        diff.colorRT |= memcmp( current._colorRT, pending._colorRT, sizeof( current._colorRT ) );
+        diff.depthRT |= current._depthRT.id != pending._depthRT.id;
         diff.viewport = !equal( current._viewport, pending._viewport );
-        diff.clearColor = pending._clear_color.flags != 0;
+        diff.clearColor = pending._clearColor.flags != 0;
 
         return diff;
     }
 
-    StateInfo state_info( const StateData& sdata )
+    StateInfo _StateInfo( const StateData& sdata )
     {
         StateInfo sinfo;
 
@@ -93,7 +93,7 @@ namespace bxGdi
             sinfo.activeStageMask |= bit << stage;
         }
 
-        sinfo.activeVertexSlotMask = sdata._vertex_input_mask;
+        sinfo.activeVertexSlotMask = sdata._vertexInputMask;
 
         return sinfo;
     }
@@ -111,16 +111,16 @@ namespace bxGdi
             {
                 unsigned found_stages = 0;
 
-                for( int icolor = 0; icolor < pending._count.color_rt; ++icolor )
+                for( int icolor = 0; icolor < pending._count.colorRT; ++icolor )
                 {
-                    const bxGdiTexture rt = pending._color_rt[icolor];
+                    const bxGdiTexture rt = pending._colorRT[icolor];
                     for( int istage = 0; istage < eSTAGE_COUNT; ++istage )
                     {
                         const unsigned stage_mask = BIT_OFFSET( istage );
                         for( int islot = 0; islot < cMAX_TEXTURES; ++islot )
                         {
                             const bxGdiTexture tex = current._textures[istage][islot];
-                            found_stages |= ( ( tex.id == rt.id ) || ( tex.id == pending._depth_rt.id ) ) * stage_mask;
+                            found_stages |= ( ( tex.id == rt.id ) || ( tex.id == pending._depthRT.id ) ) * stage_mask;
                             if( found_stages & stage_mask )
                             {
                                 break;
@@ -140,7 +140,7 @@ namespace bxGdi
                         }
                     }
                 }
-				ctx->changeRenderTargets((bxGdiTexture*)pending._color_rt, pending._count.color_rt, pending._depth_rt);
+				ctx->changeRenderTargets((bxGdiTexture*)pending._colorRT, pending._count.colorRT, pending._depthRT);
             }
         }
 
@@ -151,8 +151,8 @@ namespace bxGdi
 
         if( diff.clearColor )
         {
-            const ClearColorData& ccd = pending._clear_color;
-            ctxBackend->clearBuffers( (bxGdiTexture*)pending._color_rt, pending._count.color_rt, pending._depth_rt, (float*)ccd.rgbad, ccd.flag_clearColor, ccd.flag_clearDepth );
+            const ClearColorData& ccd = pending._clearColor;
+            ctxBackend->clearBuffers( (bxGdiTexture*)pending._colorRT, pending._count.colorRT, pending._depthRT, (float*)ccd.rgbad, ccd.flag_clearColor, ccd.flag_clearDepth );
         }
 
         if( diff.shaders )
@@ -332,10 +332,10 @@ namespace bxGdi
     }
     ///
     ///
-    void prepare_draw( bxGdiContext* ctx )
+    void _PrepareDraw( bxGdiContext* ctx )
     {
         const StateDiff sdiff = _StateDiff( ctx->current, ctx->pending );
-        const StateInfo sinfo = state_info( ctx->pending );
+        const StateInfo sinfo = _StateInfo( ctx->pending );
 
         _SubmitState( ctx, ctx->current, ctx->pending, sdiff, sinfo );  
 
@@ -344,7 +344,7 @@ namespace bxGdi
             ctx->_ctx->setTopology( ctx->pending._topology );
         }
 
-        ctx->pending._clear_color.reset();
+        ctx->pending._clearColor.reset();
         ctx->current = ctx->pending;
     }
     ///
@@ -411,95 +411,174 @@ void bxGdiContext::_Shutdown()
 
 void bxGdiContext::clear()
 {
+    pending.clear();
+    current.clear();
 
+    _ctx->clearState();
 }
 
 void bxGdiContext::setViewport(const bxGdiViewport& vp)
 {
+    pending._viewport = vp;
 }
 
 void bxGdiContext::setVertexBuffers(bxGdiVertexBuffer* vbuffers, unsigned n)
 {
+    SYS_ASSERT( n <= bxGdi::cMAX_VERTEX_BUFFERS );
+
+    memset( pending._vstreams, 0, sizeof( pending._vstreams ) );
+    memcpy( pending._vstreams, vbuffers, n * sizeof(*vbuffers) );
+
+    pending._count.vstreams = n;
 }
 
 void bxGdiContext::setIndexBuffer(bxGdiIndexBuffer ibuffer)
 {
+    pending._istream = ibuffer;
 }
 
 void bxGdiContext::setShaders(bxGdiShader* shaders, int n, unsigned vertex_input_mask)
 {
+    SYS_ASSERT( n < bxGdi::eSTAGE_COUNT );
+    memset( pending._shaders, 0, sizeof( pending._shaders ) );
+    memcpy( pending._shaders, shaders, n * sizeof(*shaders) );
+    pending._vertexInputMask = vertex_input_mask;
 }
 
 void bxGdiContext::setCbuffers(bxGdiBuffer* cbuffers, unsigned start_slot, unsigned n, int stage)
 {
+    SYS_ASSERT( start_slot + n <= bxGdi::cMAX_CBUFFERS );
+    bxGdiBuffer* begin = &pending._cbuffers[stage][start_slot];
+    memcpy( begin, cbuffers, n * sizeof(*cbuffers) );
 }
 
 void bxGdiContext::setTextures(bxGdiTexture* textures, unsigned start_slot, unsigned n, int stage)
 {
+    SYS_ASSERT( start_slot + n <= bxGdi::cMAX_TEXTURES );
+    bxGdiTexture* begin = &pending._textures[stage][start_slot];
+    memcpy( begin, textures, n * sizeof(*textures) );
 }
 
 void bxGdiContext::setSamplers(bxGdiSamplerDesc* samplers, unsigned start_slot, unsigned n, int stage)
 {
+    SYS_ASSERT( start_slot + n <= bxGdi::cMAX_SAMPLERS );
+    bxGdiSamplerDesc* begin = &pending._samplers[stage][start_slot];
+    memcpy( begin, samplers, n * sizeof(*samplers) );
 }
 
 void bxGdiContext::setCbuffer(bxGdiBuffer cbuffer, int slot, unsigned stage_mask)
 {
+    SYS_ASSERT( slot < bxGdi::cMAX_CBUFFERS );
+    for( int istage = 0; istage < bxGdi::eSTAGE_COUNT; ++istage )
+    {
+        const u32 currentStageMask = BIT_OFFSET( istage );
+        if( stage_mask & currentStageMask )
+        {
+            pending._cbuffers[istage][slot] = cbuffer;
+        }
+    }
 }
 
 void bxGdiContext::setTexture(bxGdiTexture texture, int slot, unsigned stage_mask)
 {
+    SYS_ASSERT( slot < bxGdi::cMAX_TEXTURES );
+    for( int istage = 0; istage < bxGdi::eSTAGE_COUNT; ++istage )
+    {
+        const u32 currentStageMask = BIT_OFFSET( istage );
+        if( stage_mask & currentStageMask )
+        {
+            pending._textures[istage][slot] = texture;
+        }
+    }
 }
 
 void bxGdiContext::setSampler(const bxGdiSamplerDesc& sampler, int slot, unsigned stage_mask)
 {
+    SYS_ASSERT( slot < bxGdi::cMAX_SAMPLERS );
+    for( int istage = 0; istage < bxGdi::eSTAGE_COUNT; ++istage )
+    {
+        const u32 currentStageMask = BIT_OFFSET( istage );
+        if( stage_mask & currentStageMask )
+        {
+            pending._samplers[istage][slot] = sampler;
+        }
+    }
 }
 
 void bxGdiContext::setHwState(const bxGdiHwStateDesc& hwstate)
 {
+    pending._hwstate = hwstate;
 }
 
 void bxGdiContext::setTopology(int topology)
 {
+    pending._topology = topology;
 }
 
 void bxGdiContext::clearTextures()
 {
+    memset( pending._textures, 0, sizeof( pending._textures ) );
 }
 
 void bxGdiContext::clearSamplers()
 {
+    memset( pending._samplers, 0, sizeof( pending._samplers ) );
 }
 
 void bxGdiContext::changeToMainFramebuffer()
 {
+    memset( pending._colorRT, 0, sizeof( pending._colorRT ) );
+    pending._depthRT.id = 0;
+    pending._count.colorRT = 0;
+    pending._mainFramebuffer = 1;
+
+    bxGdiTexture backBuffer = _ctx->backBufferTexture();
+    pending._viewport = bxGdiViewport( 0, 0, backBuffer.width, backBuffer.height );
 }
 
 void bxGdiContext::changeRenderTargets(bxGdiTexture* color_rts, unsigned n_rt, bxGdiTexture depth_rt)
 {
+    SYS_ASSERT( n_rt <= bxGdi::cMAX_RENDER_TARGETS );
+    memset( pending._colorRT, 0, sizeof(pending._colorRT) );
+
+    memcpy( pending._colorRT, color_rts, n_rt * sizeof(*color_rts) );
+    pending._depthRT = depth_rt;
+    pending._count.colorRT = n_rt;
+    pending._mainFramebuffer = 0;
 }
 
 void bxGdiContext::clearBuffers(float rgbad[5], int flag_color, int flag_depth)
 {
+    pending._clearColor.set( rgbad, flag_color, flag_depth );
 }
 
 void bxGdiContext::clearBuffers(float r, float g, float b, float a, float d, int flag_color, int flag_depth)
 {
+    pending._clearColor.set( r, g, b, a, d, flag_color, flag_depth );
 }
 
 void bxGdiContext::draw(unsigned num_vertices, unsigned start_index)
 {
+    bxGdi::_PrepareDraw( this );
+    _ctx->draw( num_vertices, start_index );
 }
 
 void bxGdiContext::drawIndexed(unsigned num_indices, unsigned start_index, unsigned base_vertex)
 {
+    bxGdi::_PrepareDraw( this );
+    _ctx->drawIndexed( num_indices, start_index, base_vertex );
 }
 
 void bxGdiContext::drawInstanced(unsigned num_vertices, unsigned start_index, unsigned num_instances)
 {
+    bxGdi::_PrepareDraw( this );
+    _ctx->drawInstanced( num_vertices, start_index, num_instances );
 }
 
 void bxGdiContext::drawIndexedInstanced(unsigned num_indices, unsigned start_index, unsigned num_instances, unsigned base_vertex)
 {
+    bxGdi::_PrepareDraw( this );
+    _ctx->drawIndexedInstanced( num_indices, start_index, num_instances, base_vertex );
 }
 
 ///

@@ -358,6 +358,17 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
         _context->GenerateMips( texture.dx.viewSH );
     }
 
+    virtual bxGdiTexture backBufferTexture()
+    {
+        bxGdiTexture tex;
+        tex.id = 0;
+        tex.dx.viewRT = _mainFramebuffer;
+        tex.width = _mainFramebufferWidth;
+        tex.height = _mainFramebufferHeight;
+
+        return tex;
+    }
+
     bxGdiContextBackend_dx11()
         : _swapChain(0)
         , _context(0)
