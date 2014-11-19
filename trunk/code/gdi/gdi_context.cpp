@@ -36,7 +36,9 @@ namespace bxGdi
     }
     ///
     ///
-    StateDiff _StateDiff( const StateData& current, const StateData& pending )
+struct ContextPriv
+{
+    static StateDiff _StateDiff( const StateData& current, const StateData& pending )
     {
         StateDiff diff;
 
@@ -81,7 +83,7 @@ namespace bxGdi
         return diff;
     }
 
-    StateInfo _StateInfo( const StateData& sdata )
+    static StateInfo _StateInfo( const StateData& sdata )
     {
         StateInfo sinfo;
 
@@ -98,7 +100,7 @@ namespace bxGdi
         return sinfo;
     }
 
-    void _SubmitState( bxGdiContext* ctx, const StateData& current, const StateData& pending, StateDiff diff, StateInfo sinfo )
+    static void _SubmitState( bxGdiContext* ctx, const StateData& current, const StateData& pending, StateDiff diff, StateInfo sinfo )
     {
         bxGdiContextBackend* ctxBackend = ctx->_ctx;
         if( diff.colorRT || diff.depthRT )
@@ -332,7 +334,7 @@ namespace bxGdi
     }
     ///
     ///
-    void _PrepareDraw( bxGdiContext* ctx )
+    static void _PrepareDraw( bxGdiContext* ctx )
     {
         const StateDiff sdiff = _StateDiff( ctx->current, ctx->pending );
         const StateInfo sinfo = _StateInfo( ctx->pending );
@@ -347,9 +349,8 @@ namespace bxGdi
         ctx->pending._clearColor.reset();
         ctx->current = ctx->pending;
     }
-    ///
-    ///
-}
+};
+}///
 
 void bxGdiContext::_Startup(bxGdiDeviceBackend* dev)
 {
@@ -559,25 +560,25 @@ void bxGdiContext::clearBuffers(float r, float g, float b, float a, float d, int
 
 void bxGdiContext::draw(unsigned num_vertices, unsigned start_index)
 {
-    bxGdi::_PrepareDraw( this );
+    bxGdi::ContextPriv::_PrepareDraw( this );
     _ctx->draw( num_vertices, start_index );
 }
 
 void bxGdiContext::drawIndexed(unsigned num_indices, unsigned start_index, unsigned base_vertex)
 {
-    bxGdi::_PrepareDraw( this );
+    bxGdi::ContextPriv::_PrepareDraw( this );
     _ctx->drawIndexed( num_indices, start_index, base_vertex );
 }
 
 void bxGdiContext::drawInstanced(unsigned num_vertices, unsigned start_index, unsigned num_instances)
 {
-    bxGdi::_PrepareDraw( this );
+    bxGdi::ContextPriv::_PrepareDraw( this );
     _ctx->drawInstanced( num_vertices, start_index, num_instances );
 }
 
 void bxGdiContext::drawIndexedInstanced(unsigned num_indices, unsigned start_index, unsigned num_instances, unsigned base_vertex)
 {
-    bxGdi::_PrepareDraw( this );
+    bxGdi::ContextPriv::_PrepareDraw( this );
     _ctx->drawIndexedInstanced( num_indices, start_index, num_instances, base_vertex );
 }
 
