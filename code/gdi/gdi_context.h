@@ -145,10 +145,14 @@ namespace bxGdi
             , activeStageMask(0)
         {}
     };
+
+    struct ContextPriv;
 }///
+
 
 struct bxGdiContext
 {
+private:
     ///
     ///
     bxGdiDeviceBackend* _dev;
@@ -167,6 +171,8 @@ struct bxGdiContext
 
     i32 _numInLayouts;
     
+    friend struct bxGdi::ContextPriv;
+public:
     /// 
     ///
     bxGdiContext()
@@ -180,6 +186,8 @@ struct bxGdiContext
 
     void _Startup( bxGdiDeviceBackend* dev );
     void _Shutdown();
+
+    bxGdiContextBackend* backend() { return _ctx; }
 
     ///
     ///

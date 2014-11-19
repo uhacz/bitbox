@@ -1,15 +1,6 @@
 #include "gfx.h"
 
-struct bxGfxRenderList::Item
-{
-    u32 renderListHandle;
-    i32 renderDataIndex;
-    i32 spatialDataIndex;
-    u16 renderMask;
-    u16 renderLayer;
-};
-
-union bxGfxSortKey
+union bxGfxSortKey_Color
 {
     u64 hash;
     struct
@@ -20,18 +11,48 @@ union bxGfxSortKey
         u64 layer   : 8;
     };
 };
-
-struct bxGfxSortItem
+union bxGfxSortKey_Depth
 {
-    u64 hash;
-    bxGfxRenderList::Item* item;
+    u16 hash;
+    struct
+    {
+        u16 depth;
+    };
 };
 
-struct bxGfxSortList
+////
+////
+bxGfxContext::bxGfxContext()
 {
-    bxGfxSortItem* items;
-    i32 capacity;
-    i32 size;
 
-    int itemAdd( u64 hash, bxGfxRenderList::Item* item );
-};
+}
+
+bxGfxContext::~bxGfxContext()
+{
+
+}
+int bxGfxContext::startup( bxGdiDeviceBackend* dev )
+{
+
+
+}
+
+void bxGfxContext::shutdown( bxGdiDeviceBackend* dev )
+{
+
+}
+
+void bxGfxContext::frameBegin(  )
+{
+
+}
+void bxGfxContext::frameDraw( bxGdiContext* ctx )
+{
+
+}
+void bxGfxContext::frameEnd()
+{
+
+}
+
+
