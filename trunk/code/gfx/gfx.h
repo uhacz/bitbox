@@ -90,15 +90,6 @@ namespace bxGfx
 
 ////
 ////
-struct bxGfxView
-{
-    bxGfxCamera* camera;
-    bxGdiTexture output;
-    u16 renderMask;
-};
-
-////
-////
 struct bxGfxContext
 {
     bxGfxContext();
@@ -108,10 +99,9 @@ struct bxGfxContext
     void shutdown( bxGdiDeviceBackend* dev );
     
     void renderListSubmit( bxGfxRenderList** rLists, int numLists );
-    void viewSubmit( bxGfxCamera* camera, unsigned renderMask, bxGdiTexture outputTexture );
 
     void frameBegin( bxGdiContext* ctx );
-    void frameDraw( bxGdiContext* ctx );
+    void frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera );
     void frameEnd( bxGdiContext* ctx );
 
 private:
@@ -123,5 +113,4 @@ private:
     bxGdiTexture _framebuffer_depth;
 
     array_t< bxGfxRenderList* > _renderLists;
-    array_t< bxGfxView > _views;
 };

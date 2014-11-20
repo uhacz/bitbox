@@ -242,19 +242,23 @@ public:
     static bxGdiCommandBuffer* create( u32 numBitsPerKey, u32 maxDrawCalls, bxAllocator* allocator );
     static void release( bxGdiCommandBuffer** cmdBuffer, bxAllocator* allocator );
 
-    bxGdiDrawCall* newDrawCall();
-    void submitDrawCall( bxGdiDrawCall** dcall, const void* key );
+    bxGdiDrawCall* beginDrawCall();
+    void submitDrawCall( bxGdiDrawCall* dcall, const void* key, const Matrix4* worldMatrices, int nInstances );
+    void endDrawCall( bxGdiDrawCall** dcall );
     
     void sort();
     void flush( bxGdiContext* ctx );
 
 private:
     u8* _commandStream;
+    u8* _submitStream;
     u8* _sortStream;
 
     u32 _size_commandStream;
+    u32 _size_submitStream;
     u32 _size_sortStream;
     u32 _capacity_commandStream;
+    u32 _capacity_submitStream;
     u32 _capacity_sortStream;
 
     u8 _stride_sortKey;
