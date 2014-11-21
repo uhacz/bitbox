@@ -609,13 +609,13 @@ namespace bxGdi
         };
     };
 
-    struct DrawCall_Submit
-    {
-        u8* begin;
-        u32 numInstances;
-        u32 __padding[1];
-        Matrix4 worldMatrices[1];
-    };
+    //struct DrawCall_Submit
+    //{
+    //    u8* begin;
+    //    u32 numInstances;
+    //    u32 __padding[1];
+    //    Matrix4 worldMatrices[1];
+    //};
 
     inline u8* _DrawCall_cmdBegin( bxGdiDrawCall* dcall )
     {
@@ -759,25 +759,25 @@ bxGdiDrawCall* bxGdiCommandBuffer::beginDrawCall()
     return dcall;
 }
 
-void bxGdiCommandBuffer::submitDrawCall( bxGdiDrawCall* dcall, const void* key, const Matrix4* worldMatrices, int nInstances )
-{
-    SYS_ASSERT( _flag_activeDrawCall == 1 );
-    
-    u32 dcallSize = sizeof( bxGdiDrawCall ) + dcall->_size;
-    
-    a
-
-    SYS_ASSERT( _size_commandStream + dcallSize <= _capacity_commandStream );
-    SYS_ASSERT( ( _size_sortStream + _stride_sortKey + sizeof( void* ) ) <= _capacity_sortStream );
-    
-    memcpy( _sortStream + _size_sortStream, key, _stride_sortKey );
-    _size_sortStream += _stride_sortKey;
-    memcpy( _sortStream + _size_sortStream, &dcall, sizeof( void* ) );
-    _size_sortStream += _stride_sortKey;
-
-
-
-}
+//void bxGdiCommandBuffer::submitDrawCall( bxGdiDrawCall* dcall, const void* key, const Matrix4* worldMatrices, int nInstances )
+//{
+//    SYS_ASSERT( _flag_activeDrawCall == 1 );
+//    
+//    u32 dcallSize = sizeof( bxGdiDrawCall ) + dcall->_size;
+//    
+//    a
+//
+//    SYS_ASSERT( _size_commandStream + dcallSize <= _capacity_commandStream );
+//    SYS_ASSERT( ( _size_sortStream + _stride_sortKey + sizeof( void* ) ) <= _capacity_sortStream );
+//    
+//    memcpy( _sortStream + _size_sortStream, key, _stride_sortKey );
+//    _size_sortStream += _stride_sortKey;
+//    memcpy( _sortStream + _size_sortStream, &dcall, sizeof( void* ) );
+//    _size_sortStream += _stride_sortKey;
+//
+//
+//
+//}
 
 
 void bxGdiCommandBuffer::endDrawCall( bxGdiDrawCall** dcall )
@@ -786,7 +786,7 @@ void bxGdiCommandBuffer::endDrawCall( bxGdiDrawCall** dcall )
     _flag_activeDrawCall = 0;
     dcall[0] = 0;
 
-    b
+    
 }
 
 

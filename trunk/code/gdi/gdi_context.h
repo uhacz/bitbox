@@ -243,7 +243,7 @@ public:
     static void release( bxGdiCommandBuffer** cmdBuffer, bxAllocator* allocator );
 
     bxGdiDrawCall* beginDrawCall();
-    void submitDrawCall( bxGdiDrawCall* dcall, const void* key, const Matrix4* worldMatrices, int nInstances );
+    //void submitDrawCall( bxGdiDrawCall* dcall, const void* key, const Matrix4* worldMatrices, int nInstances );
     void endDrawCall( bxGdiDrawCall** dcall );
     
     void sort();
