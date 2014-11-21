@@ -45,8 +45,8 @@ namespace bxGfx
     inline int instanceData_setMatrix( InstanceData* idata, int index, const Matrix4& world )
     {
         SYS_ASSERT( index < cMAX_WORLD_MATRICES );
-        idata->world = world;
-        idata->worldIT = transpose( inverse( world ) );
+        idata->world[index] = world;
+        idata->worldIT[index] = transpose( inverse( world ) );
         return index + 1;
     }
 
@@ -60,31 +60,50 @@ struct bxGfxRenderEffect
     virtual void draw() = 0;
 };
 
-struct bxGfxRenderData
+struct bxGfxShadingPass
 {
-    bxGdiRenderSource* rsource;
     bxGdiShaderFx_Instance* fxI;
-    bxGdiRenderSurface surface;
     i32 passIndex;
+};
+
+struct bxGfxRenderItem
+{
+    u16 index_renderData;
+    u16 index_instances;
+    u16 count_instances;
+    u8 mask_render;
+    u8 layer;
 };
 
 struct bxGfxRenderList
 {
-    bxGfxRenderData* renderData;
-    Matrix4* worldMatrices;
-    bxAABB* localAABBs;
+    bxGdiRenderSource** _rsources;
+    bxGfxShadingPass* _shaders;
+    bxAABB* _localAABBs;
+    
+    bxGfxRenderItem* _items;
+    Matrix4* _worldMatrices;
 
-    i32 capacity;
-    i32 size;
+    i32 _capacity_renderData;
+    i32 _capacity_items;
+    i32 _capacity_instances;
+
+    i32 _size_renderData;
+    i32 _size_items;
+    i32 _size_instances;
 
     bxGfxRenderList* next;
 
-    int itemAdd( const bxGfxRenderData& renderData, const Matrix4& worldMatrix, const bxAABB& localAABB, u16 renderMask = bxGfx::eRENDER_MASK_ALL, u16 renderLayer = bxGfx::eRENDER_LAYER_MIDDLE );
-    int renderListAdd( bxGfxRenderList* rList );
+    int renderDataAdd( bxGdiRenderSource* rsource, bxGdiShaderFx_Instance* fxI, int passIndex, const bxAABB& localAABB );
+    int itemSubmit( int renderDataIndex, const Matrix4* worldMatrices, int nMatrices, u8 renderMask = bxGfx::eRENDER_MASK_ALL, u8 renderLayer = bxGfx::eRENDER_LAYER_MIDDLE );
+
+    int renderListAppend( bxGfxRenderList* rList );
+
+    bxGfxRenderList();
 };
 namespace bxGfx
 {
-    bxGfxRenderList* renderList_new( int maxItems, bxAllocator* allocator );
+    bxGfxRenderList* renderList_new( int maxItems, int maxInstances, bxAllocator* allocator );
     void renderList_delete( bxGfxRenderList** rList, bxAllocator* allocator );
 }///
 
@@ -98,10 +117,8 @@ struct bxGfxContext
     int startup( bxGdiDeviceBackend* dev );
     void shutdown( bxGdiDeviceBackend* dev );
     
-    void renderListSubmit( bxGfxRenderList** rLists, int numLists );
-
     void frameBegin( bxGdiContext* ctx );
-    void frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera );
+    void frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
     void frameEnd( bxGdiContext* ctx );
 
 private:
@@ -111,6 +128,4 @@ private:
 
     bxGdiTexture _framebuffer_color;
     bxGdiTexture _framebuffer_depth;
-
-    array_t< bxGfxRenderList* > _renderLists;
 };
