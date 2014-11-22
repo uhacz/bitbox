@@ -77,11 +77,15 @@ struct bxGfxRenderItem
 
 struct bxGfxRenderList
 {
+    //// renderData
     bxGdiRenderSource** _rsources;
     bxGfxShadingPass* _shaders;
     bxAABB* _localAABBs;
     
+    //// items
     bxGfxRenderItem* _items;
+    
+    //// instances
     Matrix4* _worldMatrices;
 
     i32 _capacity_renderData;
@@ -109,6 +113,18 @@ namespace bxGfx
 
 ////
 ////
+namespace bxGfx
+{
+    enum EFramebuffer
+    {
+        eFRAMEBUFFER_COLOR = 0,
+        eFRAMEBUFFER_DEPTH,
+        eFRAMEBUFFER_COUNT,
+    };
+
+}///
+
+
 struct bxGfxContext
 {
     bxGfxContext();
@@ -126,6 +142,5 @@ private:
     bxGdiBuffer _cbuffer_instanceData;
     bxGdiBuffer _cbuffer_shadingData;
 
-    bxGdiTexture _framebuffer_color;
-    bxGdiTexture _framebuffer_depth;
+    bxGdiTexture _framebuffer[bxGfx::eFRAMEBUFFER_COUNT];
 };
