@@ -171,16 +171,19 @@ public:
 
 class bxResourceManager;
 struct bxGdiContext;
-struct bxGdiDrawCall;
+class bxGdiDrawCall;
 namespace bxGdi
 {
-    int  shaderFx_initParams( bxGdiShaderFx* fx, const ShaderReflection& reflection, const char* materialCBufferName = "MaterialData" );
-    void shaderFx_deinitParams( bxGdiShaderFx* fx );
+    int  _ShaderFx_initParams( bxGdiShaderFx* fx, const ShaderReflection& reflection, const char* materialCBufferName = "MaterialData" );
+    void _ShaderFx_deinitParams( bxGdiShaderFx* fx );
+    
     bxGdiShaderFx* shaderFx_createFromFile( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator = bxDefaultAllocator() );
     bxGdiShaderFx_Instance* shaderFx_createInstance( bxGdiDeviceBackend* dev, bxGdiShaderFx* fx, bxAllocator* allocator = bxDefaultAllocator() );
-    
     void shaderFx_release( bxGdiDeviceBackend* dev, bxGdiShaderFx** fx, bxAllocator* allocator = bxDefaultAllocator() );
     void shaderFx_releaseInstance( bxGdiDeviceBackend* dev, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator = bxDefaultAllocator() );
+
+    bxGdiShaderFx_Instance* shaderFx_createWithInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator = bxDefaultAllocator() );
+    void shaderFx_releaseWithInstance( bxGdiDeviceBackend* dev, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator = bxDefaultAllocator() );
     
     int shaderFx_findPass( const bxGdiShaderFx* fx, const char* passName );
     const bxGdiShaderFx::TextureDesc* shaderFx_findTexture( const bxGdiShaderFx* fx, u32 hashedName, int startIndex );
