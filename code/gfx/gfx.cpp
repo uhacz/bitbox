@@ -133,5 +133,26 @@ bxGfxRenderList* bxGfx::renderList_new(int maxItems, int maxInstances, bxAllocat
 
     bxBufferChunker chunker( memHandle, memSize );
 
+    bxGfxRenderList* rlist = chunker.add< bxGfxRenderList >();
+    new(rlist) bxGfxRenderList();
+    rlist->_capacity_renderData = maxItems;
+    rlist->_capacity_items = maxItems;
+    rlist->_capacity_instances = maxInstances;
 
+
+    rlist->_localAABBs = chunker.add<bxAABB>( maxItems );
+    rlist->_worldMatrices = chunker.add<Matrix4>( maxInstances );
+    rlist->_rsources = chunker.add< bxGdiRenderSource*>( maxItems );
+    rlist->_shaders = chunker.add< bxGfxShadingPass >( maxItems );
+    rlist->_items = chunker.add< bxGfxRenderItem >( maxItems );
+
+    chunker.check();
+
+    return rlist;
+}
+
+void bxGfx::renderList_delete(bxGfxRenderList** rList, bxAllocator* allocator)
+{
+    rList[0]->~bxGfxRenderList();
+    BX_FREE0( allocator, rList[0] );
 }
