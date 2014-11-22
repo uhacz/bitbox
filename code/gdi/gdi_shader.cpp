@@ -152,7 +152,7 @@ void bxGdiShaderFx_Instance::uploadCBuffers(bxGdiContextBackend* ctx)
 
 namespace bxGdi
 {
-    int shaderFx_initParams( bxGdiShaderFx* fx, const ShaderReflection& reflection, const char* materialCBufferName )
+    int _ShaderFx_initParams( bxGdiShaderFx* fx, const ShaderReflection& reflection, const char* materialCBufferName )
     {
         SYS_ASSERT( fx->_hashedNames == 0 );
 
@@ -280,7 +280,7 @@ namespace bxGdi
 
         return 0;
     }
-    void shaderFx_deinitParams( bxGdiShaderFx* fx )
+    void _ShaderFx_deinitParams( bxGdiShaderFx* fx )
     {
         BX_FREE( bxDefaultAllocator(), fx->_hashedNames );
         fx->_hashedNames = 0;
@@ -414,7 +414,7 @@ namespace bxGdi
             pass.hwState = cpass.hwstate;
         }
 
-        shaderFx_initParams( fx, global_reflection );
+        _ShaderFx_initParams( fx, global_reflection );
 
         fxTool::release( &fxSrc );
         return fx;
@@ -429,7 +429,7 @@ namespace bxGdi
 
         bxGdiShaderFx* fx = fxPtr[0];
         SYS_ASSERT( fx->_numInstances == 0 );
-        shaderFx_deinitParams( fx );
+        _ShaderFx_deinitParams( fx );
 
         for( int ipass = 0; ipass < fx->_numPasses; ++ipass )
         {
@@ -517,6 +517,22 @@ namespace bxGdi
         fxInstancePtr[0] = 0;
     }
 
+    bxGdiShaderFx_Instance* shaderFx_createWithInstance(bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator)
+    {
+        bxGdiShaderFx* fx = shaderFx_createFromFile( dev, resourceManager, fileNameWithoutExt, allocator );
+        if ( !fx )
+            return 0;
+
+        return shaderFx_createInstance( dev, fx, allocator );
+    }
+
+    void shaderFx_releaseWithInstance(bxGdiDeviceBackend* dev, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator)
+    {
+        bxGdiShaderFx* fx = fxInstance[0]->shaderFx();
+        shaderFx_releaseInstance( dev, fxInstance, allocator );
+        shaderFx_release( dev, &fx, allocator );
+    }
+
     void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName )
     {
         int passIndex = shaderFx_findPass( fxI->shaderFx(), passName );
@@ -534,7 +550,7 @@ namespace bxGdi
         ctx->setHwState( fxI->hwState( passIndex ) );
 
         {
-            fxI->uploadCBuffers( ctx->_ctx );
+            fxI->uploadCBuffers( ctx->backend() );
             const bxGdiShaderFx::CBufferDesc* descs = fxI->cbufferDescs();
             const bxGdiBuffer* resources = fxI->cbuffers();
             const int nResources = fxI->numCBuffers();

@@ -101,7 +101,7 @@ struct bxGfxRenderList
     int renderDataAdd( bxGdiRenderSource* rsource, bxGdiShaderFx_Instance* fxI, int passIndex, const bxAABB& localAABB );
     int itemSubmit( int renderDataIndex, const Matrix4* worldMatrices, int nMatrices, u8 renderMask = bxGfx::eRENDER_MASK_ALL, u8 renderLayer = bxGfx::eRENDER_LAYER_MIDDLE );
 
-    int renderListAppend( bxGfxRenderList* rList );
+    void renderListAppend( bxGfxRenderList* rList );
 
     bxGfxRenderList();
 };
@@ -122,6 +122,21 @@ namespace bxGfx
         eFRAMEBUFFER_COUNT,
     };
 
+    struct Shared
+    {
+        struct
+        {
+            bxGdiShaderFx_Instance* utils;
+            bxGdiShaderFx_Instance* texUtils;
+        } shader;
+
+        struct
+        {
+            bxGdiRenderSource* sphere;
+            bxGdiRenderSource* box;
+        } rsource;
+    };
+
 }///
 
 
@@ -130,12 +145,15 @@ struct bxGfxContext
     bxGfxContext();
     ~bxGfxContext();
 
-    int startup( bxGdiDeviceBackend* dev );
-    void shutdown( bxGdiDeviceBackend* dev );
+    int startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     
     void frameBegin( bxGdiContext* ctx );
     void frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
     void frameEnd( bxGdiContext* ctx );
+
+    
+    static bxGfx::Shared* shared() { return &_shared; }
 
 private:
     bxGdiBuffer _cbuffer_frameData;
@@ -143,4 +161,6 @@ private:
     bxGdiBuffer _cbuffer_shadingData;
 
     bxGdiTexture _framebuffer[bxGfx::eFRAMEBUFFER_COUNT];
+
+    static bxGfx::Shared _shared;
 };

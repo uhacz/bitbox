@@ -31,15 +31,36 @@ bxGfxContext::~bxGfxContext()
 {
 
 }
-int bxGfxContext::startup( bxGdiDeviceBackend* dev )
+
+bxGfx::Shared bxGfxContext::_shared;
+int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
+    const int fbWidth = 1920;
+    const int fbHeight = 1080;
 
+    _cbuffer_frameData = dev->createBuffer( sizeof( bxGfx::FrameData ), bxGdi::eBIND_CONSTANT_BUFFER );
+    _cbuffer_instanceData = dev->createBuffer( sizeof( bxGfx::InstanceData ), bxGdi::eBIND_CONSTANT_BUFFER );
 
+    _framebuffer[bxGfx::eFRAMEBUFFER_COLOR] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+    
+    {
+        _shared.shader.utils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "utils" );
+        _shared.shader.texUtils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "texutils" );
+    }
+
+    return 0;
 }
 
-void bxGfxContext::shutdown( bxGdiDeviceBackend* dev )
+void bxGfxContext::shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
-
+    for( int itexture = 0; itexture < bxGfx::eFRAMEBUFFER_COUNT; ++itexture )
+    {
+        dev->releaseTexture( &_framebuffer[itexture] );
+    }
+        
+    dev->releaseBuffer( &_cbuffer_instanceData );
+    dev->releaseBuffer( &_cbuffer_frameData );
 }
 
 void bxGfxContext::frameBegin( bxGdiContext* ctx )
@@ -109,7 +130,7 @@ int bxGfxRenderList::itemSubmit(int renderDataIndex, const Matrix4* worldMatrice
     return renderItemIndex;
 }
 
-int bxGfxRenderList::renderListAppend(bxGfxRenderList* rList)
+void bxGfxRenderList::renderListAppend(bxGfxRenderList* rList)
 {
     bxGfxRenderList* tail = this;
     while ( tail->next )
