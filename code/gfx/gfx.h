@@ -66,14 +66,26 @@ struct bxGfxShadingPass
     i32 passIndex;
 };
 
+struct bxGfxRenderItem_Bucket
+{
+    u16 index;
+    u16 count;
+};
+
 struct bxGfxRenderItem
 {
     u16 index_renderData;
-    u16 index_instances;
-    u16 count_instances;
     u8 mask_render;
     u8 layer;
+    bxGfxRenderItem_Bucket bucket_surfaces;
+    bxGfxRenderItem_Bucket bucket_instances;
 };
+namespace bxGfx
+{
+    inline bxGfxRenderItem_Bucket renderItem_invalidBucket() { bxGfxRenderItem_Bucket b; b.count = 0xFFFF; b.index = 0xFFFF; return b; }
+    inline int rebderItem_isValidBucket( const bxGfxRenderItem_Bucket b ) { return b.index != 0xFFFF && b.count != 0xFFFF; }
+
+}///
 
 struct bxGfxRenderList
 {
@@ -82,6 +94,9 @@ struct bxGfxRenderList
     bxGfxShadingPass* _shaders;
     bxAABB* _localAABBs;
     
+    /// surfaces
+    bxGdiRenderSurface* _surfaces;
+
     //// items
     bxGfxRenderItem* _items;
     
@@ -90,21 +105,55 @@ struct bxGfxRenderList
 
     i32 _capacity_renderData;
     i32 _capacity_items;
+    i32 _capacity_surfaces;
     i32 _capacity_instances;
 
     i32 _size_renderData;
     i32 _size_items;
+    i32 _size_surfaces;
     i32 _size_instances;
 
     bxGfxRenderList* next;
 
     int renderDataAdd( bxGdiRenderSource* rsource, bxGdiShaderFx_Instance* fxI, int passIndex, const bxAABB& localAABB );
-    int itemSubmit( int renderDataIndex, const Matrix4* worldMatrices, int nMatrices, u8 renderMask = bxGfx::eRENDER_MASK_ALL, u8 renderLayer = bxGfx::eRENDER_LAYER_MIDDLE );
+    bxGfxRenderItem_Bucket surfacesAdd( const bxGdiRenderSurface* surfaces, int count );
+    bxGfxRenderItem_Bucket instancesAdd( const Matrix4* matrices, int count );
+    int itemSubmit( int renderDataIndex, bxGfxRenderItem_Bucket surfaces, bxGfxRenderItem_Bucket instances, u8 renderMask = bxGfx::eRENDER_MASK_ALL, u8 renderLayer = bxGfx::eRENDER_LAYER_MIDDLE );
 
     void renderListAppend( bxGfxRenderList* rList );
 
     bxGfxRenderList();
 };
+struct bxGfxRenderItem_Iterator
+{
+    bxGfxRenderItem_Iterator( bxGfxRenderList* rList )
+        : _rList( rList )
+        , _currentItem( rList->_items )
+        , _endItem( rList->_items + rList->_size_items )
+    {}
+
+    int ok() const { return _currentItem < _endItem; }
+    void next() { ++_currentItem; }
+
+    bxGdiRenderSource* renderSource  ()       { return _rList->_rsources[ _currentItem->index_renderData ]; }
+    bxGfxShadingPass   shadingPass   () const { return _rList->_shaders[ _currentItem->index_renderData ]; }
+    const bxAABB&      aabb          () const { return _rList->_localAABBs[ _currentItem->index_renderData ]; }
+    
+    const bxGdiRenderSurface* surfaces() const { return _rList->_surfaces +  _currentItem->bucket_surfaces.index; }
+    int nSurfaces                     () const { return _currentItem->bucket_surfaces.count; }
+    
+    const Matrix4*     worldMatrices () const { return _rList->_worldMatrices + _currentItem->bucket_instances.index; }
+    int                nWorldMatrices() const { return _currentItem->bucket_instances.count; }
+    
+    u8                 renderMask    () const { return _currentItem->mask_render; }
+    u8                 renderLayer   () const { return _currentItem->layer; }
+
+    bxGfxRenderList* _rList;
+    bxGfxRenderItem* _currentItem;
+    bxGfxRenderItem* _endItem;
+};
+
+
 namespace bxGfx
 {
     bxGfxRenderList* renderList_new( int maxItems, int maxInstances, bxAllocator* allocator );

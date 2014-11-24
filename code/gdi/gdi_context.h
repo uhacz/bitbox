@@ -188,6 +188,8 @@ public:
     void _Shutdown();
 
     bxGdiContextBackend* backend() { return _ctx; }
+    
+    int indicesBound() const { return pending._istream.id != 0; }
 
     ///
     ///
