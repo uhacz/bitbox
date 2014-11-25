@@ -57,6 +57,7 @@ struct bxGdiFormat
     {}
 };
 
+
 union bxGdiSamplerDesc
 {
     bxGdiSamplerDesc()
