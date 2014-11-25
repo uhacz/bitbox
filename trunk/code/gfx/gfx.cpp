@@ -50,12 +50,52 @@ int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceM
         _shared.shader.utils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "utils" );
         _shared.shader.texUtils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "texutils" );
     }
+    
+    {//// fullScreenQuad
+        const float vertices[] = 
+        {
+           -1.f, -1.f, 0.f, 0.f, 0.f,
+            1.f, -1.f, 0.f, 1.f, 0.f,
+            1.f,  1.f, 0.f, 1.f, 1.f,
+
+           -1.f, -1.f, 0.f, 0.f, 0.f,
+            1.f,  1.f, 0.f, 1.f, 1.f,
+           -1.f,  1.f, 0.f, 0.f, 1.f,
+        };
+        bxGdiVertexStreamDesc vsDesc;
+        vsDesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
+        vsDesc.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 );
+        bxGdiVertexBuffer vBuffer = dev->createVertexBuffer( vsDesc, 6, vertices );
+        
+        _shared.rsource.fullScreenQuad = bxGdi::renderSource_new( 1 );
+        bxGdi::renderSource_setVertexBuffer( _shared.rsource.fullScreenQuad, vBuffer, 0 );
+    }
+    {//// poly shapes
+        bxPolyShape polyShape;
+        bxPolyShape_createBox( &polyShape, 1 );
+        _shared.rsource.box = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
+        bxPolyShape_deallocateShape( &polyShape );
+
+        bxPolyShape_createShpere( &polyShape, 4 );
+        _shared.rsource.sphere = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
+        bxPolyShape_deallocateShape( &polyShape );
+    }
 
     return 0;
 }
 
 void bxGfxContext::shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
+    {
+        bxGdi::renderSource_releaseAndFree( dev, &_shared.rsource.sphere );
+        bxGdi::renderSource_releaseAndFree( dev, &_shared.rsource.box );
+        bxGdi::renderSource_releaseAndFree( dev, &_shared.rsource.fullScreenQuad );
+    }
+    {
+        bxGdi::shaderFx_releaseWithInstance( dev, &_shared.shader.texUtils );
+        bxGdi::shaderFx_releaseWithInstance( dev, &_shared.shader.utils );
+    }
+    
     for( int itexture = 0; itexture < bxGfx::eFRAMEBUFFER_COUNT; ++itexture )
     {
         dev->releaseTexture( &_framebuffer[itexture] );
@@ -75,6 +115,7 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
     ctx->setCbuffer( _cbuffer_instanceData, 0, bxGdi::eALL_STAGES_MASK );
         
     ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
+    ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
 
     bxGfx::InstanceData instanceData;
     int numInstances = 0;
@@ -131,7 +172,20 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
     ctx->changeToMainFramebuffer();
 
     {
-        
+        bxGdiTexture colorTexture = _framebuffer[bxGfx::eFRAMEBUFFER_COLOR];
+        bxGdiTexture backBuffer = ctx->backend()->backBufferTexture();
+        bxGdiViewport viewport = bxGfx::cameraParams_viewport( camera.params, backBuffer.width, backBuffer.height, colorTexture.width, colorTexture.height );
+
+        ctx->setViewport( viewport );
+        ctx->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 0 );
+
+        bxGdiShaderFx_Instance* fxI = _shared.shader.texUtils;
+        fxI->setTexture( "gtexture", colorTexture );
+        fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+
+        bxGdi::renderSource_enable( ctx, _shared.rsource.fullScreenQuad );
+        bxGdi::shaderFx_enable( ctx, fxI, "copy_rgba" );
+        ctx->draw( _shared.rsource.fullScreenQuad->vertexBuffers->numElements, 0 );
     }
 }
 void bxGfxContext::frameEnd( bxGdiContext* ctx  )
@@ -146,12 +200,18 @@ bxGfxRenderList::bxGfxRenderList()
 {
     memset( this, 0, sizeof( *this ) );
 }
+
+void bxGfxRenderList::clear()
+{
+    memset( &_size, 0, sizeof( _size ) );
+}
+
 int bxGfxRenderList::renderDataAdd( bxGdiRenderSource* rsource, bxGdiShaderFx_Instance* fxI, int passIndex, const bxAABB& localAABB )
 {
-    if ( _size_renderData > _capacity_renderData )
+    if ( _size.renderData > _capacity.renderData )
         return -1;
 
-    const int renderDataIndex = _size_renderData++;
+    const int renderDataIndex = _size.renderData++;
     
     _rsources[renderDataIndex] = rsource;
 
@@ -167,13 +227,13 @@ int bxGfxRenderList::renderDataAdd( bxGdiRenderSource* rsource, bxGdiShaderFx_In
 
 bxGfxRenderItem_Bucket bxGfxRenderList::surfacesAdd( const bxGdiRenderSurface* surfaces, int count )
 {
-    if( (_size_surfaces + count) >= _capacity_surfaces )
+    if( (_size.surfaces + count) >= _capacity.surfaces )
         return bxGfx::renderItem_invalidBucket();
 
-    const int index = _size_surfaces;
+    const int index = _size.surfaces;
 
     memcpy( _surfaces + index, surfaces, sizeof(*surfaces) * count );
-    _size_surfaces += count;
+    _size.surfaces += count;
 
     bxGfxRenderItem_Bucket bucket;
     bucket.index = u16( index );
@@ -183,11 +243,11 @@ bxGfxRenderItem_Bucket bxGfxRenderList::surfacesAdd( const bxGdiRenderSurface* s
 
 bxGfxRenderItem_Bucket bxGfxRenderList::instancesAdd( const Matrix4* matrices, int count )
 {
-    if ( _size_instances + count > _capacity_instances )
+    if ( _size.instances + count > _capacity.instances )
         return bxGfx::renderItem_invalidBucket();
 
-    const int index = _size_instances;
-    _size_instances += count;
+    const int index = _size.instances;
+    _size.instances += count;
 
     memcpy( _worldMatrices + index, matrices, sizeof( *_worldMatrices ) * count );
     
@@ -199,16 +259,16 @@ bxGfxRenderItem_Bucket bxGfxRenderList::instancesAdd( const Matrix4* matrices, i
 
 int bxGfxRenderList::itemSubmit( int renderDataIndex, bxGfxRenderItem_Bucket surfaces, bxGfxRenderItem_Bucket instances, u8 renderMask, u8 renderLayer)
 {
-    SYS_ASSERT( renderDataIndex < _size_renderData );
+    SYS_ASSERT( renderDataIndex < _size.renderData );
     if ( renderDataIndex == -1 )
         return -1;
 
-    if ( _size_items >= _capacity_items )
+    if ( _size.items >= _capacity.items )
         return -1;
 
     
 
-    const int renderItemIndex = _size_items++;
+    const int renderItemIndex = _size.items++;
 
     bxGfxRenderItem& item = _items[renderItemIndex];
     item.index_renderData = renderDataIndex;
@@ -250,10 +310,10 @@ bxGfxRenderList* bxGfx::renderList_new(int maxItems, int maxInstances, bxAllocat
 
     bxGfxRenderList* rlist = chunker.add< bxGfxRenderList >();
     new(rlist) bxGfxRenderList();
-    rlist->_capacity_renderData = maxItems;
-    rlist->_capacity_items = maxItems;
-    rlist->_capacity_instances = maxInstances;
-    rlist->_capacity_surfaces = maxItems;
+    rlist->_capacity.renderData = maxItems;
+    rlist->_capacity.items = maxItems;
+    rlist->_capacity.instances = maxInstances;
+    rlist->_capacity.surfaces = maxItems;
 
 
     rlist->_localAABBs = chunker.add<bxAABB>( maxItems );

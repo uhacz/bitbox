@@ -87,7 +87,7 @@ namespace bxGfx
 
 }///
 
-struct bxGfxRenderList
+struct BIT_ALIGNMENT_16 bxGfxRenderList
 {
     //// renderData
     bxGdiRenderSource** _rsources;
@@ -103,15 +103,21 @@ struct bxGfxRenderList
     //// instances
     Matrix4* _worldMatrices;
 
-    i32 _capacity_renderData;
-    i32 _capacity_items;
-    i32 _capacity_surfaces;
-    i32 _capacity_instances;
-
-    i32 _size_renderData;
-    i32 _size_items;
-    i32 _size_surfaces;
-    i32 _size_instances;
+    struct
+    {
+        i32 renderData;
+        i32 items;
+        i32 surfaces;
+        i32 instances;
+    } _capacity;
+    
+    struct
+    {
+        i32 renderData;
+        i32 items;
+        i32 surfaces;
+        i32 instances;
+    } _size;
 
     bxGfxRenderList* next;
 
@@ -122,6 +128,7 @@ struct bxGfxRenderList
 
     void renderListAppend( bxGfxRenderList* rList );
 
+    void clear();
     bxGfxRenderList();
 };
 struct bxGfxRenderItem_Iterator
@@ -129,7 +136,7 @@ struct bxGfxRenderItem_Iterator
     bxGfxRenderItem_Iterator( bxGfxRenderList* rList )
         : _rList( rList )
         , _currentItem( rList->_items )
-        , _endItem( rList->_items + rList->_size_items )
+        , _endItem( rList->_items + rList->_size.items )
     {}
 
     int ok() const { return _currentItem < _endItem; }
@@ -181,6 +188,7 @@ namespace bxGfx
 
         struct
         {
+            bxGdiRenderSource* fullScreenQuad;
             bxGdiRenderSource* sphere;
             bxGdiRenderSource* box;
         } rsource;

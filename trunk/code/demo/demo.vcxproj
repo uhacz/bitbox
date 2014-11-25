@@ -90,6 +90,9 @@
     <ProjectReference Include="..\gdi\gdi.vcxproj">
       <Project>{6c37bb51-ecab-42a3-8eb3-30e45503b92d}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\gfx\gfx.vcxproj">
+      <Project>{f3b3bc37-9aaa-4b41-af4e-144c1317f283}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\resource_manager\resource_manager.vcxproj">
       <Project>{117290a3-4a22-4c58-9ac0-ed1c8efa49e3}</Project>
     </ProjectReference>

@@ -1,14 +1,15 @@
 #include <system/application.h>
 #include <system/window.h>
 
-#include <gdi/gdi_shader.h>
-#include <gdi/gdi_render_source.h>
+#include <gdi/gdi_context.h>
 #include <resource_manager/resource_manager.h>
+#include <gfx/gfx.h>
 
 
 static bxGdiShaderFx* fx = 0;
 static bxGdiShaderFx_Instance* fxI = 0;
 static bxGdiRenderSource* rsource = 0;
+static bxGfxRenderList* rList = 0;
 
 class bxDemoApp : public bxApplication
 {
@@ -16,20 +17,34 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
-        fx = bxGdi::shaderFx_createFromFile( _gdiDevice, _resourceManager, "test" );
-        fxI = bxGdi::shaderFx_createInstance( _gdiDevice, fx );
-        rsource = bxGdi::renderSource_new( 3 );
+        _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
+        _gdiContext->_Startup( _gdiDevice );
+
+        _gfxContext = BX_NEW( bxDefaultAllocator(), bxGfxContext );
+        _gfxContext->startup( _gdiDevice, _resourceManager );
+
+        fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "test" );
+        rsource = bxGfxContext::shared()->rsource.box;
+
+        rList = bxGfx::renderList_new( 128, 256, bxDefaultAllocator() );
 
         return true;
     }
     virtual void shutdown()
     {
-        bxGdi::renderSource_releaseAndFree( _gdiDevice, &rsource );
-        bxGdi::shaderFx_releaseInstance( _gdiDevice, &fxI );
-        bxGdi::shaderFx_release( _gdiDevice, &fx );
+        bxGfx::renderList_delete( &rList, bxDefaultAllocator() );
+        rsource = 0;
+        bxGdi::shaderFx_releaseWithInstance( _gdiDevice, &fxI );
+
+        _gfxContext->shutdown( _gdiDevice, _resourceManager );
+        BX_DELETE0( bxDefaultAllocator(), _gfxContext );
+        
+        _gdiContext->_Shutdown();
+        BX_DELETE0( bxDefaultAllocator(), _gdiContext );
 
         bxGdi::backendShutdown( &_gdiDevice );
         bxResourceManager::shutdown( &_resourceManager );
@@ -41,6 +56,14 @@ public:
         {
             return false;
         }
+
+        rList->clear();
+
+        {
+            int dataIndex = rList->renderDataAdd( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
+            bxGfxRenderItem_Bucket 
+        }
+
 
         bxGdiContextBackend* gdiContext = _gdiDevice->ctx;
 
@@ -54,6 +77,8 @@ public:
     }
 
     bxGdiDeviceBackend* _gdiDevice;
+    bxGdiContext* _gdiContext;
+    bxGfxContext* _gfxContext;
     bxResourceManager* _resourceManager;
 };
 
