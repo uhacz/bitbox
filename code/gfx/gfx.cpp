@@ -115,6 +115,7 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
     ctx->setCbuffer( _cbuffer_instanceData, 0, bxGdi::eALL_STAGES_MASK );
         
     ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
     ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
 
     bxGfx::InstanceData instanceData;
@@ -154,6 +155,7 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
                 for( int isurface = 0; isurface < nSurfaces; ++isurface )
                 {
                     const bxGdiRenderSurface& surf = surfaces[isurface];
+                    ctx->setTopology( surf.topology );
                     ctx->drawIndexedInstanced( surf.count, surf.begin, grab, 0 );
                 }
             }
@@ -225,7 +227,7 @@ int bxGfxRenderList::renderDataAdd( bxGdiRenderSource* rsource, bxGdiShaderFx_In
     return renderDataIndex;
 }
 
-bxGfxRenderItem_Bucket bxGfxRenderList::surfacesAdd( const bxGdiRenderSurface* surfaces, int count )
+u32 bxGfxRenderList::surfacesAdd( const bxGdiRenderSurface* surfaces, int count )
 {
     if( (_size.surfaces + count) >= _capacity.surfaces )
         return bxGfx::renderItem_invalidBucket();
@@ -238,10 +240,10 @@ bxGfxRenderItem_Bucket bxGfxRenderList::surfacesAdd( const bxGdiRenderSurface* s
     bxGfxRenderItem_Bucket bucket;
     bucket.index = u16( index );
     bucket.count = u16( count );
-    return bucket;
+    return bucket.hash;
 }
 
-bxGfxRenderItem_Bucket bxGfxRenderList::instancesAdd( const Matrix4* matrices, int count )
+u32 bxGfxRenderList::instancesAdd( const Matrix4* matrices, int count )
 {
     if ( _size.instances + count > _capacity.instances )
         return bxGfx::renderItem_invalidBucket();
@@ -254,10 +256,10 @@ bxGfxRenderItem_Bucket bxGfxRenderList::instancesAdd( const Matrix4* matrices, i
     bxGfxRenderItem_Bucket bucket;
     bucket.index = u16( index );
     bucket.count = u16( count );
-    return bucket;
+    return bucket.hash;
 }
 
-int bxGfxRenderList::itemSubmit( int renderDataIndex, bxGfxRenderItem_Bucket surfaces, bxGfxRenderItem_Bucket instances, u8 renderMask, u8 renderLayer)
+int bxGfxRenderList::itemSubmit( int renderDataIndex, u32 surfaces, u32 instances, u8 renderMask, u8 renderLayer)
 {
     SYS_ASSERT( renderDataIndex < _size.renderData );
     if ( renderDataIndex == -1 )
@@ -275,8 +277,11 @@ int bxGfxRenderList::itemSubmit( int renderDataIndex, bxGfxRenderItem_Bucket sur
     item.mask_render = renderMask;
     item.layer = renderLayer;
 
-    item.bucket_surfaces = surfaces;
-    item.bucket_instances = instances;
+    item.bucket_surfaces.hash = surfaces;
+    item.bucket_instances.hash = instances;
+
+    SYS_ASSERT( item.bucket_surfaces.index + item.bucket_surfaces.count <= _size.surfaces );
+    SYS_ASSERT( item.bucket_instances.index + item.bucket_instances.count <= _size.instances );
 
     return renderItemIndex;
 }

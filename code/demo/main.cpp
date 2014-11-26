@@ -10,6 +10,7 @@ static bxGdiShaderFx* fx = 0;
 static bxGdiShaderFx_Instance* fxI = 0;
 static bxGdiRenderSource* rsource = 0;
 static bxGfxRenderList* rList = 0;
+static bxGfxCamera camera;
 
 class bxDemoApp : public bxApplication
 {
@@ -27,7 +28,8 @@ public:
         _gfxContext = BX_NEW( bxDefaultAllocator(), bxGfxContext );
         _gfxContext->startup( _gdiDevice, _resourceManager );
 
-        fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "test" );
+        fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "native" );
+        
         rsource = bxGfxContext::shared()->rsource.box;
 
         rList = bxGfx::renderList_new( 128, 256, bxDefaultAllocator() );
@@ -60,18 +62,26 @@ public:
         rList->clear();
 
         {
+            const Matrix4 world = Matrix4::identity();
+            const bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
             int dataIndex = rList->renderDataAdd( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
-            bxGfxRenderItem_Bucket 
+            u32 surfaceIndex = rList->surfacesAdd( &surf, 1 );
+            u32 instanceIndex = rList->instancesAdd( &world, 1 );
+            rList->itemSubmit( dataIndex, surfaceIndex, instanceIndex );
         }
 
 
-        bxGdiContextBackend* gdiContext = _gdiDevice->ctx;
+        //bxGdiContextBackend* gdiContext = _gdiDevice->ctx;
 
-        float clearColor[5] = { 1.f, 0.f, 0.f, 1.f, 1.f };
-        gdiContext->clearBuffers( 0, 0, bxGdiTexture(), clearColor, 1, 1 );
+        //float clearColor[5] = { 1.f, 0.f, 0.f, 1.f, 1.f };
+        //_gdiContext->clearBuffers( clearColor, 1, 1 );
+        //gdiContext->clearBuffers( 0, 0, bxGdiTexture(), clearColor, 1, 1 );
 
+        _gfxContext->frameBegin( _gdiContext );
 
-        gdiContext->swap();
+        _gfxContext->frameDraw( _gdiContext, camera, &rList, 1 );
+
+        _gfxContext->frameEnd( _gdiContext );
 
         return true;
     }

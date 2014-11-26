@@ -142,13 +142,13 @@ struct ContextPriv
                         }
                     }
                 }
-				ctx->changeRenderTargets((bxGdiTexture*)pending._colorRT, pending._count.colorRT, pending._depthRT);
+				ctxBackend->changeRenderTargets((bxGdiTexture*)pending._colorRT, pending._count.colorRT, pending._depthRT);
             }
         }
 
         if( diff.viewport )
         {
-			ctx->setViewport( pending._viewport );
+			ctxBackend->setViewport( pending._viewport );
         }
 
         if( diff.clearColor )
@@ -202,6 +202,7 @@ struct ContextPriv
             }
 
             InputLayout inputLayout;
+            memset( &inputLayout, 0, sizeof(InputLayout) );
             inputLayout_create( &inputLayout, descs, counter );
 
             if( inputLayout != current._inputLayout )
@@ -236,7 +237,7 @@ struct ContextPriv
                 if( ( stage_mask & diff.textures ) == 0 )
                     continue;
 
-                ctx->setTextures( (bxGdiTexture*)pending._textures[istage], 0, cMAX_TEXTURES, istage );
+                ctxBackend->setTextures( (bxGdiTexture*)pending._textures[istage], 0, cMAX_TEXTURES, istage );
             }
         }
 
@@ -280,7 +281,7 @@ struct ContextPriv
                 if( ( stage_mask & diff.cbuffers ) == 0 )
                     continue;
 
-                ctx->setCbuffers( (bxGdiBuffer*)pending._cbuffers[istage], 0, cMAX_CBUFFERS, istage );
+                ctxBackend->setCbuffers( (bxGdiBuffer*)pending._cbuffers[istage], 0, cMAX_CBUFFERS, istage );
             }
         }
 
@@ -343,7 +344,7 @@ struct ContextPriv
 
         if( ctx->pending._topology != ctx->current._topology )
         {
-            ctx->_ctx->setTopology( ctx->pending._topology );
+            ctx->backend()->setTopology( ctx->pending._topology );
         }
 
         ctx->pending._clearColor.reset();

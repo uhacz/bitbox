@@ -54,5 +54,14 @@ namespace bxGdi
     void renderSurface_drawInstanced( bxGdiContext* ctx, const bxGdiRenderSurface& surf, int numInstances );
     void renderSurface_drawIndexedInstanced( bxGdiContext* ctx, const bxGdiRenderSurface& surf, int numInstances, int baseVertex = 0 );
 
+    inline bxGdiRenderSurface renderSource_surface( const bxGdiRenderSource* rsource, int topology )
+    {
+        bxGdiRenderSurface surf;
+        surf.topology = topology;
+        surf.begin = 0;
+        surf.count = ( rsource->indexBuffer.id ) ? rsource->indexBuffer.numElements : rsource->vertexBuffers[0].numElements;
+        return surf;
+    }
+
 }///
 
