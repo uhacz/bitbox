@@ -66,10 +66,14 @@ struct bxGfxShadingPass
     i32 passIndex;
 };
 
-struct bxGfxRenderItem_Bucket
+union bxGfxRenderItem_Bucket
 {
-    u16 index;
-    u16 count;
+    u32 hash;
+    struct
+    {
+        u16 index;
+        u16 count;
+    };
 };
 
 struct bxGfxRenderItem
@@ -82,8 +86,8 @@ struct bxGfxRenderItem
 };
 namespace bxGfx
 {
-    inline bxGfxRenderItem_Bucket renderItem_invalidBucket() { bxGfxRenderItem_Bucket b; b.count = 0xFFFF; b.index = 0xFFFF; return b; }
-    inline int rebderItem_isValidBucket( const bxGfxRenderItem_Bucket b ) { return b.index != 0xFFFF && b.count != 0xFFFF; }
+    inline u32 renderItem_invalidBucket() { return 0xFFFFFFFF; }
+    inline int rebderItem_isValidBucket( const bxGfxRenderItem_Bucket b ) { return b.hash != 0xFFFFFFFF; }
 
 }///
 
@@ -122,9 +126,9 @@ struct BIT_ALIGNMENT_16 bxGfxRenderList
     bxGfxRenderList* next;
 
     int renderDataAdd( bxGdiRenderSource* rsource, bxGdiShaderFx_Instance* fxI, int passIndex, const bxAABB& localAABB );
-    bxGfxRenderItem_Bucket surfacesAdd( const bxGdiRenderSurface* surfaces, int count );
-    bxGfxRenderItem_Bucket instancesAdd( const Matrix4* matrices, int count );
-    int itemSubmit( int renderDataIndex, bxGfxRenderItem_Bucket surfaces, bxGfxRenderItem_Bucket instances, u8 renderMask = bxGfx::eRENDER_MASK_ALL, u8 renderLayer = bxGfx::eRENDER_LAYER_MIDDLE );
+    u32 surfacesAdd( const bxGdiRenderSurface* surfaces, int count );
+    u32 instancesAdd( const Matrix4* matrices, int count );
+    int itemSubmit( int renderDataIndex, u32 surfaces, u32 instances, u8 renderMask = bxGfx::eRENDER_MASK_ALL, u8 renderLayer = bxGfx::eRENDER_LAYER_MIDDLE );
 
     void renderListAppend( bxGfxRenderList* rList );
 

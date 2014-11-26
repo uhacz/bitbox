@@ -56,9 +56,9 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
     }
     virtual void setVertexBuffers( bxGdiVertexBuffer* vbuffers, unsigned start, unsigned n )
     {
-        ID3D11Buffer* buffers[bxGdi::eSLOT_COUNT];
-        unsigned strides[bxGdi::eSLOT_COUNT];
-        unsigned offsets[bxGdi::eSLOT_COUNT];
+        ID3D11Buffer* buffers[bxGdi::cMAX_VERTEX_BUFFERS];
+        unsigned strides[bxGdi::cMAX_VERTEX_BUFFERS];
+        unsigned offsets[bxGdi::cMAX_VERTEX_BUFFERS];
         memset( buffers, 0, sizeof(buffers) );
         memset( strides, 0, sizeof(strides) );
         memset( offsets, 0, sizeof(offsets) );
