@@ -34,7 +34,7 @@ namespace bxGfx
         Vector4 eyePos;
         Vector4 viewDir;
     };
-    void frameData_fill( FrameData* frameData, const bxGfxCamera& camera );
+    void frameData_fill( FrameData* frameData, const bxGfxCamera& camera, int rtWidth, int rtHeight );
 
     static const int cMAX_WORLD_MATRICES = 16;
     struct InstanceData
@@ -213,7 +213,10 @@ struct bxGfxContext
     void frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
     void frameEnd( bxGdiContext* ctx );
 
-    
+    int framebufferWidth() const { return _framebuffer->width; }
+    int framebufferHeight() const { return _framebuffer->height; }
+
+
     static bxGfx::Shared* shared() { return &_shared; }
 
 private:

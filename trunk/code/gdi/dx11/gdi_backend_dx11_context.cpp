@@ -84,6 +84,8 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
         for( int i = 0; i < n; ++i )
         {
             bxGdiShader& shader = shaders[i];
+            if( !shader.id )
+                continue;
 
             switch( shader.stage )
             {

@@ -42,41 +42,28 @@ namespace bxGdi
     const bxGdiShaderFx::TextureDesc* shaderFx_findTexture( const bxGdiShaderFx* fx, u32 hashedName, int startIndex )
     {
         const u32* begin = fx->_hashedNames + fx->_nameTextures_begin + startIndex;
-        const u32* end = begin + fx->_numTextures;
-        if( end >= begin )
-            return 0;
-
-        int index = array::find1( begin, end, array::OpEqual<u32>( hashedName ) );
-        index += startIndex;
-        SYS_ASSERT( index >= fx->_nameTextures_begin && index < ( fx->_nameTextures_begin + fx->_numTextures ) );
-
-        return fx->_textures + index;
+        const u32* end = fx->_hashedNames + fx->_nameTextures_begin + fx->_numTextures;
+        
+        const int index = array::find1( begin, end, array::OpEqual<u32>( hashedName ) );
+        return ( index == -1 ) ? 0 : fx->_textures + index + startIndex;
     }
 
     const bxGdiShaderFx::SamplerDesc* shaderFx_findSampler( const bxGdiShaderFx* fx, u32 hashedName, int startIndex )
     {
         const u32* begin = fx->_hashedNames + fx->_nameSamplers_begin + startIndex;
-        const u32* end = begin + fx->_numSamplers;
-        if( end >= begin )
-            return 0;
-
-        int index = array::find1( begin, end, array::OpEqual<u32>( hashedName ) );
-        index += startIndex;
-        SYS_ASSERT( index >= fx->_nameSamplers_begin && index < ( fx->_nameSamplers_begin + fx->_numSamplers ) );
-
-        return fx->_samplers + index;
+        const u32* end = fx->_hashedNames + fx->_nameSamplers_begin + fx->_numSamplers;
+        
+        const int index = array::find1( begin, end, array::OpEqual<u32>( hashedName ) );
+        return ( index == -1 ) ? 0 : fx->_samplers + index + startIndex;
+        
     }
     const bxGdiShaderFx::UniformDesc* shaderFx_findUniform( const bxGdiShaderFx* fx, u32 hashedName )
     {
         const u32* begin = fx->_hashedNames + fx->_nameUniforms_begin;
         const u32* end = begin + fx->_numUniforms;
-        if( end >= begin )
-            return 0;
-
+        
         int index = array::find1( begin, end, array::OpEqual<u32>( hashedName ) );
-        SYS_ASSERT( index >= fx->_nameUniforms_begin && index < ( fx->_nameUniforms_begin + fx->_numUniforms ) );
-
-        return fx->_uniforms + index;
+        return ( index == -1 ) ? 0 : fx->_uniforms + index;
     }
 }
 

@@ -22,6 +22,33 @@ union bxGfxSortKey_Depth
     };
 };
 
+namespace bxGfx
+{
+    void frameData_fill( FrameData* frameData, const bxGfxCamera& camera, int rtWidth, int rtHeight )
+    {
+        frameData->viewMatrix = camera.matrix.view;
+        frameData->projMatrix = camera.matrix.proj;
+        frameData->viewProjMatrix = camera.matrix.viewProj;
+        frameData->cameraWorldMatrix = camera.matrix.world;
+
+        const float fov = camera.params.fov();
+        const float aspect = camera.params.aspect();
+        frameData->cameraParams = Vector4( fov, aspect, camera.params.zNear, camera.params.zFar );
+        {
+            const float a = camera.matrix.proj.getElem( 0, 0 ).getAsFloat();//getCol0().getX().getAsFloat();
+            const float b = camera.matrix.proj.getElem( 1, 1 ).getAsFloat();//getCol1().getY().getAsFloat();
+            const float c = camera.matrix.proj.getElem( 2, 2 ).getAsFloat();//getCol2().getZ().getAsFloat();
+            const float d = camera.matrix.proj.getElem( 3, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+
+            frameData->projParams = Vector4( 1.f/a, 1.f/b, c, -d );
+        }
+
+        frameData->eyePos = Vector4( camera.matrix.worldEye(), oneVec );
+        frameData->viewDir = Vector4( camera.matrix.worldDir(), zeroVec );
+        frameData->renderTargetSizeRcp = Vector4( 1.f / float(rtWidth), 1.f / float(rtHeight), 0.f, 0.f );
+    }
+}///
+
 ////
 ////
 bxGfxContext::bxGfxContext()
@@ -111,8 +138,12 @@ void bxGfxContext::frameBegin( bxGdiContext* ctx )
 }
 void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
 {
+    bxGfx::FrameData fdata;
+    bxGfx::frameData_fill( &fdata, camera, _framebuffer[0].width, _framebuffer[0].height );
+    ctx->backend()->updateCBuffer( _cbuffer_frameData, &fdata );
+
     ctx->setCbuffer( _cbuffer_frameData, 0, bxGdi::eALL_STAGES_MASK );
-    ctx->setCbuffer( _cbuffer_instanceData, 0, bxGdi::eALL_STAGES_MASK );
+    ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
         
     ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
