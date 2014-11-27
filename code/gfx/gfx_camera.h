@@ -52,3 +52,25 @@ struct bxGfxCamera
     bxGfxCameraMatrix matrix;
     bxGfxCameraParams params;
 };
+
+struct bxGfxCameraInputContext
+{
+    f32 leftInputX;
+    f32 leftInputY; 
+    f32 rightInputX; 
+    f32 rightInputY;
+    f32 upDown;
+
+    bxGfxCameraInputContext()
+        : leftInputX(0.f), leftInputY(0.f)
+        , rightInputX(0.f), rightInputY(0.f)
+    {}
+};
+
+struct bxInput;
+namespace bxGfx
+{
+    void cameraUtil_updateInput( bxGfxCameraInputContext* cameraCtx, const bxInput* input );
+    Matrix4 cameraUtil_movement( const Matrix4& world, float leftInputX, float leftInputY, float rightInputX, float rightInputY );
+
+}///

@@ -102,7 +102,8 @@ struct bxInput_Mouse
     bxInput_MouseState state[2];
     i32 currentStateIndex;
 
-    bxInput_MouseState* currentState() { return &state[currentStateIndex]; }
+    bxInput_MouseState*       currentState()       { return &state[currentStateIndex]; }
+    const bxInput_MouseState* currentState() const { return &state[currentStateIndex]; }
     const bxInput_MouseState& prevState() const { return state[!currentStateIndex]; }
 };
 
