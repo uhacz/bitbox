@@ -210,7 +210,7 @@ struct ContextPriv
                 int found = -1;
                 for ( int ilayout = 0; ilayout < ctx->_numInLayouts; ++ilayout )
                 {
-                    if ( ctx->_inLayoytsKey[ilayout] == pending._inputLayout )
+                    if ( ctx->_inLayoytsKey[ilayout] == inputLayout )
                     {
                         found = ilayout;
                         break;

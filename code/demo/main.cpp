@@ -34,6 +34,8 @@ public:
 
         rList = bxGfx::renderList_new( 128, 256, bxDefaultAllocator() );
 
+        camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.5f, 15.f ) );
+
         return true;
     }
     virtual void shutdown()
@@ -62,11 +64,17 @@ public:
         rList->clear();
 
         {
-            const Matrix4 world = Matrix4::identity();
+            const Matrix4 world[] = 
+            {
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, 0.f ) ), Vector3( -2.f, 0.f, 0.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f, 2.f, 0.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f,-2.f, 0.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f, 0.f ) ),
+            };
             const bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
             int dataIndex = rList->renderDataAdd( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
             u32 surfaceIndex = rList->surfacesAdd( &surf, 1 );
-            u32 instanceIndex = rList->instancesAdd( &world, 1 );
+            u32 instanceIndex = rList->instancesAdd( world, 4 );
             rList->itemSubmit( dataIndex, surfaceIndex, instanceIndex );
         }
 
@@ -76,6 +84,8 @@ public:
         //float clearColor[5] = { 1.f, 0.f, 0.f, 1.f, 1.f };
         //_gdiContext->clearBuffers( clearColor, 1, 1 );
         //gdiContext->clearBuffers( 0, 0, bxGdiTexture(), clearColor, 1, 1 );
+
+        bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
         _gfxContext->frameBegin( _gdiContext );
 

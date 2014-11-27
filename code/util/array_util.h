@@ -32,6 +32,6 @@ namespace array
     inline int find1( T* first, T* last, Top op )
     {
         T* found = find( first, last, op );
-        return ( found ) ? int( found - first ) : -1;
+        return ( found < last ) ? int( found - first ) : -1;
     }
 }///
