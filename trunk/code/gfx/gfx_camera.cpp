@@ -189,3 +189,54 @@ namespace bxGfx
 	    return -dot( cameraWorld.getCol2().getXYZ(), inCameraSpace );
     }
 }
+
+#include <system/input.h>
+namespace bxGfx
+{
+    void cameraUtil_updateInput(bxGfxCameraInputContext* cameraCtx, const bxInput* input)
+    {
+        const int fwd   = bxInput_isKeyPressed( &input->kbd, 'W' );
+        const int back  = bxInput_isKeyPressed( &input->kbd, 'S' );
+        const int left  = bxInput_isKeyPressed( &input->kbd, 'A' );
+        const int right = bxInput_isKeyPressed( &input->kbd, 'D' );
+        const int up    = bxInput_isKeyPressed( &input->kbd, 'Q' );
+        const int down  = bxInput_isKeyPressed( &input->kbd, 'Z' );
+
+        const int mouse_lbutton = input->mouse.currentState()->lbutton;
+        const int mouse_dx = (mouse_lbutton) ? input->mouse.currentState()->dx : 0;
+        const int mouse_dy = (mouse_lbutton) ? input->mouse.currentState()->dy : 0;
+
+        const float leftInputY = -float( back ) + float( fwd );
+        const float leftInputX = -float( left ) + float( right );
+        const float upDown     = -float( down ) + float( up );
+
+
+
+
+    }
+
+    Matrix4 cameraUtil_movement( const Matrix4& world, float leftInputX, float leftInputY, float rightInputX, float rightInputY, float upDown )
+    {
+        Vector3 localPosDispl( 0.f );
+        localPosDispl -= Vector3::zAxis() * leftInputY;
+        localPosDispl += Vector3::xAxis() * leftInputX;
+        localPosDispl += Vector3::yAxis() * upDown;
+
+        
+        const floatInVec rotDx( rightInputX );
+        const floatInVec rotDy( rightInputY );
+
+        const Matrix3 wmatrixRot( world.getUpper3x3() );
+
+        const Quat worldRotYdispl = Quat::rotationY( -rotDx );
+        const Quat worldRotXdispl = Quat::rotation( -rotDy, wmatrixRot.getCol0() );
+        const Quat worldRotDispl = worldRotYdispl * worldRotXdispl;
+
+        const Quat curr_world_rot( wmatrixRot );
+
+        const Quat world_rot = normalize( worldRotDispl * curr_world_rot );
+        const Vector3 world_pos = mulAsVec4( world, localPosDispl );
+
+        return Matrix4( world_rot, world_pos );
+    }
+}
