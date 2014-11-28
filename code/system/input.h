@@ -90,36 +90,27 @@ struct bxInput_Pad
 
 struct bxInput_Keyboard
 {
-    bxInput_KeyboardState state[2];
-    i32 currentStateIndex;
+    bxInput_KeyboardState prevState;
+    bxInput_KeyboardState currState;
 
-    bxInput_KeyboardState* currentState() { return &state[currentStateIndex]; }
+    bxInput_KeyboardState* currentState() { return &currState; }
 };
 
 
 struct bxInput_Mouse
 {
-    bxInput_MouseState state[2];
-    i32 currentStateIndex;
+    bxInput_MouseState prevState;
+    bxInput_MouseState currState;
 
-    bxInput_MouseState*       currentState()       { return &state[currentStateIndex]; }
-    const bxInput_MouseState* currentState() const { return &state[currentStateIndex]; }
-    const bxInput_MouseState& prevState() const { return state[!currentStateIndex]; }
+    bxInput_MouseState*       currentState()       { return &currState; }
+    const bxInput_MouseState* currentState() const { return &currState; }
+    const bxInput_MouseState& previousState() const { return prevState; }
 };
 
 /////////////////////////////////////////////////////////////////
-inline void bxInput_swap( bxInput_Pad* pad )
-{
-    pad->currentStateIndex = !pad->currentStateIndex;
-}
-inline void bxInput_swap( bxInput_Keyboard* kbd )
-{
-    kbd->currentStateIndex = !kbd->currentStateIndex;
-}
-inline void bxInput_swap( bxInput_Mouse* mouse )
-{
-    mouse->currentStateIndex = !mouse->currentStateIndex;
-}
+void bxInput_swap( bxInput_Pad* pad );
+void bxInput_swap( bxInput_Keyboard* kbd );
+void bxInput_swap( bxInput_Mouse* mouse );
 
 /////////////////////////////////////////////////////////////////
 /// input
@@ -155,20 +146,16 @@ void bxInput_updatePad( bxInput_PadState* pad_states, u32 n );
 //////////////////////////////////////////////////////////////////////////
 inline bool bxInput_isKeyPressed( const bxInput_Keyboard* input, unsigned char key )
 {
-    return input->state[input->currentStateIndex].keys[key] > 0;
+    return input->currState.keys[key] > 0;
 }
 inline bool bxInput_isPeyPressedOnce( const bxInput_Keyboard* input, unsigned char key )
 {
-    const unsigned char curr_state = input->state[!input->currentStateIndex].keys[key];
-    const unsigned char prev_state = input->state[ input->currentStateIndex].keys[key];
+    const unsigned char curr_state = input->currState.keys[key];
+    const unsigned char prev_state = input->prevState.keys[key];
 
     return !prev_state && curr_state;
 }
-inline void bxInput_computeMouseDelta( bxInput_MouseState* curr, const bxInput_MouseState& prev )
-{
-	curr->dx = curr->x - prev.x;
-	curr->dy = curr->y - prev.y;
-}
+void bxInput_computeMouseDelta( bxInput_MouseState* curr, const bxInput_MouseState& prev );
 inline const bxInput_Pad& bxInput_getPad( const bxInput& input ) 
 { 
 	return input.pad; 

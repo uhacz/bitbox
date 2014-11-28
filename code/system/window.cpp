@@ -165,9 +165,6 @@ bxWindow* bxWindow_create( const char* name, unsigned width, unsigned height, bo
 
     win->width = width;
 	win->height = height;
-
-    
-
 	return __window;
 }
 
@@ -216,7 +213,7 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
 		{
 			if ( wParam < 256 )
 			{
-				kbdState->keys[wParam] = true;
+                kbdState->keys[wParam] = true;
 			}
 			break;
 		}
@@ -237,8 +234,12 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
 
 	case WM_MOUSEMOVE:
 		{
-			const unsigned short x = LOWORD(lParam);
-			const unsigned short y = HIWORD(lParam);
+			POINTS pt = MAKEPOINTS( lParam );
+            //const unsigned short x = GET_X_LPARAM(lParam);
+			//const unsigned short y = GET_Y_LPARAM(lParam);
+            const unsigned short x = pt.x;
+            const unsigned short y = pt.y;
+
 			mouseState->x = x;
 			mouseState->y = y;
 			

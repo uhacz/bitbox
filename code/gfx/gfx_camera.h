@@ -64,13 +64,14 @@ struct bxGfxCameraInputContext
     bxGfxCameraInputContext()
         : leftInputX(0.f), leftInputY(0.f)
         , rightInputX(0.f), rightInputY(0.f)
+        , upDown(0.f)
     {}
 };
 
 struct bxInput;
 namespace bxGfx
 {
-    void cameraUtil_updateInput( bxGfxCameraInputContext* cameraCtx, const bxInput* input );
-    Matrix4 cameraUtil_movement( const Matrix4& world, float leftInputX, float leftInputY, float rightInputX, float rightInputY );
+    void cameraUtil_updateInput( bxGfxCameraInputContext* cameraCtx, const bxInput* input, float mouseSensitivityInPix, float dt );
+    Matrix4 cameraUtil_movement( const Matrix4& world, float leftInputX, float leftInputY, float rightInputX, float rightInputY, float upDown );
 
 }///

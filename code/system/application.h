@@ -1,5 +1,7 @@
 #pragma once
 
+#include <util/type.h>
+
 struct bxWindow;
 class bxApplication
 {
@@ -8,7 +10,7 @@ public:
 
     virtual bool startup( int argc, const char** argv ) = 0;
     virtual void shutdown() = 0;
-    virtual bool update() = 0;
+    virtual bool update( u64 deltaTimeUS ) = 0;
     
 };
 
