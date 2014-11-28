@@ -4,13 +4,14 @@
 #include <gdi/gdi_context.h>
 #include <resource_manager/resource_manager.h>
 #include <gfx/gfx.h>
-
+#include "util/time.h"
 
 static bxGdiShaderFx* fx = 0;
 static bxGdiShaderFx_Instance* fxI = 0;
 static bxGdiRenderSource* rsource = 0;
 static bxGfxRenderList* rList = 0;
 static bxGfxCamera camera;
+static bxGfxCameraInputContext cameraInputCtx;
 
 class bxDemoApp : public bxApplication
 {
@@ -53,14 +54,27 @@ public:
         bxGdi::backendShutdown( &_gdiDevice );
         bxResourceManager::shutdown( &_resourceManager );
     }
-    virtual bool update()
+    virtual bool update( u64 deltaTimeUS )
     {
+        const double deltaTimeS = bxTime::toSeconds( deltaTimeUS );
+        const float deltaTime = (float)deltaTimeS;
+
+
         bxWindow* win = bxWindow_get();
         if( bxInput_isPeyPressedOnce( &win->input.kbd, bxInput::eKEY_ESC ) )
         {
             return false;
         }
 
+        bxGfx::cameraUtil_updateInput( &cameraInputCtx, &win->input, 1.f, deltaTime );
+        camera.matrix.world = bxGfx::cameraUtil_movement( camera.matrix.world
+            , cameraInputCtx.leftInputX
+            , cameraInputCtx.leftInputY
+            , cameraInputCtx.rightInputX * deltaTime * 10.f
+            , cameraInputCtx.rightInputY * deltaTime * 10.f
+            , cameraInputCtx.upDown * deltaTime );
+        
+        
         rList->clear();
 
         {
@@ -100,6 +114,7 @@ public:
     bxGdiContext* _gdiContext;
     bxGfxContext* _gfxContext;
     bxResourceManager* _resourceManager;
+
 };
 
 int main( int argc, const char* argv[] )

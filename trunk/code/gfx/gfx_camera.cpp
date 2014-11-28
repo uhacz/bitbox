@@ -1,5 +1,6 @@
 #include "gfx_camera.h"
 #include <math.h>
+#include "util/debug.h"
 
 bxGfxCameraMatrix::bxGfxCameraMatrix()
     : world( Matrix4::identity() )
@@ -191,9 +192,11 @@ namespace bxGfx
 }
 
 #include <system/input.h>
+#include <util/common.h>
+#include <util/signal_filter.h>
 namespace bxGfx
 {
-    void cameraUtil_updateInput(bxGfxCameraInputContext* cameraCtx, const bxInput* input)
+    void cameraUtil_updateInput(bxGfxCameraInputContext* cameraCtx, const bxInput* input, float mouseSensitivityInPix, float dt )
     {
         const int fwd   = bxInput_isKeyPressed( &input->kbd, 'W' );
         const int back  = bxInput_isKeyPressed( &input->kbd, 'S' );
@@ -202,17 +205,31 @@ namespace bxGfx
         const int up    = bxInput_isKeyPressed( &input->kbd, 'Q' );
         const int down  = bxInput_isKeyPressed( &input->kbd, 'Z' );
 
+        //bxLogInfo( "%d", fwd );
+
         const int mouse_lbutton = input->mouse.currentState()->lbutton;
         const int mouse_dx = (mouse_lbutton) ? input->mouse.currentState()->dx : 0;
         const int mouse_dy = (mouse_lbutton) ? input->mouse.currentState()->dy : 0;
+
+        if( mouse_lbutton )
+        {
+            int a = 0;
+        }
 
         const float leftInputY = -float( back ) + float( fwd );
         const float leftInputX = -float( left ) + float( right );
         const float upDown     = -float( down ) + float( up );
 
+        const float rightInputX = mouse_dx; // / mouseSensitivityInPix;
+        const float rightInputY = mouse_dy; // / mouseSensitivityInPix;
 
+        const float rc = 0.1f;
 
-
+        cameraCtx->leftInputX  = signalFilter_lowPass( leftInputX , cameraCtx->leftInputX , rc, dt );
+        cameraCtx->leftInputY  = signalFilter_lowPass( leftInputY , cameraCtx->leftInputY , rc, dt );
+        cameraCtx->rightInputX = signalFilter_lowPass( rightInputX, cameraCtx->rightInputX, rc, dt );
+        cameraCtx->rightInputY = signalFilter_lowPass( rightInputY, cameraCtx->rightInputY, rc, dt );
+        cameraCtx->upDown      = signalFilter_lowPass( upDown     , cameraCtx->upDown     , rc, dt );
     }
 
     Matrix4 cameraUtil_movement( const Matrix4& world, float leftInputX, float leftInputY, float rightInputX, float rightInputY, float upDown )
@@ -223,6 +240,8 @@ namespace bxGfx
         localPosDispl += Vector3::yAxis() * upDown;
 
         
+        //bxLogInfo( "%f; %f", rightInputX, rightInputY );
+
         const floatInVec rotDx( rightInputX );
         const floatInVec rotDy( rightInputY );
 
@@ -232,11 +251,11 @@ namespace bxGfx
         const Quat worldRotXdispl = Quat::rotation( -rotDy, wmatrixRot.getCol0() );
         const Quat worldRotDispl = worldRotYdispl * worldRotXdispl;
 
-        const Quat curr_world_rot( wmatrixRot );
+        const Quat curWorldRot( wmatrixRot );
 
-        const Quat world_rot = normalize( worldRotDispl * curr_world_rot );
-        const Vector3 world_pos = mulAsVec4( world, localPosDispl );
+        const Quat worldRot = normalize( worldRotDispl * curWorldRot );
+        const Vector3 worldPos = mulAsVec4( world, localPosDispl );
 
-        return Matrix4( world_rot, world_pos );
+        return Matrix4( worldRot, worldPos );
     }
 }

@@ -1,5 +1,6 @@
 #include "application.h"
 #include "window.h"
+#include <util\time.h>
 
 bool bxApplication_startup( bxApplication* app, int argc, const char** argv )
 {
@@ -15,12 +16,15 @@ int bxApplication_run( bxApplication* app )
 	
     bxWindow* win = bxWindow_get();
 
+    bxTimeQuery timeQuery = bxTimeQuery::begin();
 	do 
 	{
-        bxInput_swap( &win->input );
-		bxInput_clear( &win->input, false, false, true );
+        bxTimeQuery::end( &timeQuery );        
+        const u64 deltaTimeUS = timeQuery.durationUS;
+        timeQuery = bxTimeQuery::begin();
 
-		//win->input.prev = win->input.curr;
+        
+
 		MSG msg = {0};
 		while( PeekMessage(&msg, win->hwnd, 0U, 0U, PM_REMOVE) != 0 )
 		{
@@ -29,9 +33,12 @@ int bxApplication_run( bxApplication* app )
 		}
 		
 		bxInput_updatePad( win->input.pad.currentState(), 1 );
-		bxInput_computeMouseDelta( win->input.mouse.currentState(), win->input.mouse.prevState() );
+		bxInput_computeMouseDelta( win->input.mouse.currentState(), win->input.mouse.previousState() );
 
-		ret = app->update();
+		ret = app->update( deltaTimeUS );
+
+        bxInput_swap( &win->input );
+        bxInput_clear( &win->input, true, false, true );
 
 	} while ( ret );
 

@@ -95,13 +95,16 @@
     <ClInclude Include="memory.h" />
     <ClInclude Include="poly\poly_shape.h" />
     <ClInclude Include="pool_allocator.h" />
+    <ClInclude Include="signal_filter.h" />
     <ClInclude Include="string_util.h" />
+    <ClInclude Include="tag.h" />
     <ClInclude Include="thread\atomic.h" />
     <ClInclude Include="thread\mutex.h" />
     <ClInclude Include="thread\semaphore.h" />
     <ClInclude Include="thread\spin_lock.h" />
     <ClInclude Include="thread\thread.h" />
     <ClInclude Include="thread\thread_event.h" />
+    <ClInclude Include="time.h" />
     <ClInclude Include="type.h" />
     <ClInclude Include="vector.h" />
     <ClInclude Include="vectormath\SSE\boolInVec.h" />
@@ -124,11 +127,13 @@
     <ClCompile Include="poly\poly_shape.cpp" />
     <ClCompile Include="pool_allocator.cpp" />
     <ClCompile Include="string_util.cpp" />
+    <ClCompile Include="tag.cpp" />
     <ClCompile Include="thread\mutex.cpp" />
     <ClCompile Include="thread\semaphore.cpp" />
     <ClCompile Include="thread\spin_lock.cpp" />
     <ClCompile Include="thread\thread.cpp" />
     <ClCompile Include="thread\thread_event.cpp" />
+    <ClCompile Include="time.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
