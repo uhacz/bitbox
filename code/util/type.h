@@ -28,6 +28,23 @@ typedef volatile __int64	atomic64;
 typedef float f32;
 typedef double f64;
 
+union float2_t
+{
+    f32 xy[2];
+    struct { f32 x, y; };
+};
+union float3_t
+{
+    f32 xyz[3];
+    struct { f32 x, y, z; };
+};
+union float4_t
+{
+    f32 xyzw[4];
+    struct { f32 x, y, z, w; };
+};
+
+
 #ifdef x86
 typedef atomic32 atomic;
 #elif x64
