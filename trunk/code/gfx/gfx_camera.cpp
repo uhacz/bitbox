@@ -211,11 +211,6 @@ namespace bxGfx
         const int mouse_dx = (mouse_lbutton) ? input->mouse.currentState()->dx : 0;
         const int mouse_dy = (mouse_lbutton) ? input->mouse.currentState()->dy : 0;
 
-        if( mouse_lbutton )
-        {
-            int a = 0;
-        }
-
         const float leftInputY = -float( back ) + float( fwd );
         const float leftInputX = -float( left ) + float( right );
         const float upDown     = -float( down ) + float( up );
