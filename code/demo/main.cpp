@@ -6,6 +6,8 @@
 #include <gfx/gfx.h>
 #include "util/time.h"
 
+#include <util/handle_manager.h>
+
 static bxGdiShaderFx* fx = 0;
 static bxGdiShaderFx_Instance* fxI = 0;
 static bxGdiRenderSource* rsource = 0;
@@ -18,6 +20,14 @@ class bxDemoApp : public bxApplication
 public:
     virtual bool startup( int argc, const char** argv )
     {
+        bxHandleManager< u32 > u32Handles;
+        
+
+
+
+
+
+
         bxWindow* win = bxWindow_get();
         _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
         //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
