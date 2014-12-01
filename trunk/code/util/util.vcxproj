@@ -90,6 +90,7 @@
     <ClInclude Include="debug.h" />
     <ClInclude Include="dlmalloc.h" />
     <ClInclude Include="filesystem.h" />
+    <ClInclude Include="handle_manager.h" />
     <ClInclude Include="hash.h" />
     <ClInclude Include="hashmap.h" />
     <ClInclude Include="memory.h" />
