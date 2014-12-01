@@ -14,9 +14,15 @@ struct bxGfxLight_Point
 class bxGfxLights
 {
 public:
-    struct Instance
+    union Instance
     {
         u32 id;
+        struct
+        {
+            u32 type  : 4;
+            u32 magic : 16;
+            u32 index : 12;
+        };
     };
 
 public:
@@ -29,14 +35,36 @@ public:
     Instance createSpotLight( /*not implemented*/ );
     void releaseLight( Instance i );
 
+    
     bxGfxLight_Point pointLight( Instance i );
     void setPointLight( Instance i, const bxGfxLight_Point& light );
+    inline int hasPointLight( Instance i ) const{
+        const Index& idx = _pointLight_indices[i.index];
+        return idx.i.magic == i.magic && idx.index != 0xFFFF;
+    }
+
 
 private:
+    struct Index
+    {
+        Instance i;
+        u16 index;
+        u16 next;
+    };
+
+    enum
+    {
+        eTYPE_POINT = 0,
+    };
+
     void* _memoryHandle;
-    Vector4* _pointLight_position_radius;
-    Vector4* _pointLight_color_intensity;
+    Index*    _pointLight_indices;
+    Vector4*  _pointLight_position_radius;
+    Vector4*  _pointLight_color_intensity;
 
     i32 _count_pointLights;
     i32 _capacity_lights;
+
+    u16 _pointLight_freelistEnqueue;
+    u16 _pointLight_freelistDequeue;
 };

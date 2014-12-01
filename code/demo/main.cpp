@@ -6,7 +6,7 @@
 #include <gfx/gfx.h>
 #include "util/time.h"
 
-#include <util/handle_manager.h>
+#include <util/indexer_packed.h>
 
 static bxGdiShaderFx* fx = 0;
 static bxGdiShaderFx_Instance* fxI = 0;
@@ -20,13 +20,17 @@ class bxDemoApp : public bxApplication
 public:
     virtual bool startup( int argc, const char** argv )
     {
-        bxHandleManager< u32 > u32Handles;
-        
+        bxIndexer_Packed indexer;
 
+        u32 idx0 = indexer.add();
+        u32 idx1 = indexer.add();
+        u32 idx2 = indexer.add();
+        u32 idx3 = indexer.add();
+        u32 idx4 = indexer.add();
 
+        indexer.remove( idx2 );
 
-
-
+        idx2 = indexer.add();
 
         bxWindow* win = bxWindow_get();
         _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
