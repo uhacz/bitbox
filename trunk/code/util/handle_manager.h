@@ -2,9 +2,11 @@
 
 #include "type.h"
 #include "common.h"
+#include "debug.h"
 #include "memory.h"
+#include <memory.h>
 
-template<class TpType, u32 TpGranularity = 32, u32 TpNIndexBits = 14>
+template<class TpType, u32 TpGranularity = 32, u32 TpNIndexBits = 16>
 class bxHandleManager
 {
 private:
@@ -176,7 +178,7 @@ public:
     ////
     const TpType& get( const Handle& handle ) const
     {
-        return _entries[handle.index]._entry;
+        return _entries[handle._index]._entry;
     }
     
     ////
@@ -197,7 +199,7 @@ public:
     }
     ////
     ////
-    Handle getByIndex( u32 index ) const
+    Handle getHandleByIndex( u32 index ) const
     {
         SYS_ASSERT( index < eABSOLUTE_MAX_ENTRIES-1 );
         const Entry& e = _entries[index];
@@ -206,13 +208,13 @@ public:
     }
     ////
     ////
-    uint32_t getCount() const
+    uint32_t size() const
     {
         return _activeEntryCount;
     }
     ////
     ////
-    int isValid( Handle handle )
+    int isValid( Handle handle ) const 
     {
         const uint32_t index = handle._index;
 

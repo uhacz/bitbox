@@ -7,6 +7,7 @@
 #include "util/time.h"
 
 #include <util/handle_manager.h>
+#include <gfx/lights.h>
 
 static bxGdiShaderFx* fx = 0;
 static bxGdiShaderFx_Instance* fxI = 0;
@@ -14,6 +15,9 @@ static bxGdiRenderSource* rsource = 0;
 static bxGfxRenderList* rList = 0;
 static bxGfxCamera camera;
 static bxGfxCameraInputContext cameraInputCtx;
+static bxGfxLights::PointInstance pointLight0 = { 0 };
+static bxGfxLights::PointInstance pointLight1 = { 0 };
+static bxGfxLights::PointInstance pointLight2 = { 0 };
 
 class bxDemoApp : public bxApplication
 {
@@ -30,6 +34,33 @@ public:
 
         _gfxContext = BX_NEW( bxDefaultAllocator(), bxGfxContext );
         _gfxContext->startup( _gdiDevice, _resourceManager );
+        
+        _gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
+        _gfxLights->startup( 64 );
+
+        bxGfxLight_Point pl;
+        pl.position = float3_t( 0.f, 0.f, 0.f );
+        pl.radius = 2.f;
+        pl.color = float3_t( 1.f, 1.f, 1.f );
+        pl.intensity = 1.f;
+        pointLight0 = _gfxLights->createPointLight( pl );
+
+        pl.position.y = 5.f;
+        pl.color = float3_t( 0.f, 1.f, 0.f );
+        pointLight1 = _gfxLights->createPointLight( pl );
+
+        pl.intensity = 2.f;
+        pl.radius = 10.f;
+        pointLight2 = _gfxLights->createPointLight( pl );
+
+        _gfxLights->releaseLight( pointLight1 );
+        _gfxLights->releaseLight( pointLight2 );
+
+        pl.intensity = 1.f;
+        pl.radius = 9.f;
+        pointLight1 = _gfxLights->createPointLight( pl );
+
+
 
         fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "native" );
         
@@ -46,6 +77,12 @@ public:
         bxGfx::renderList_delete( &rList, bxDefaultAllocator() );
         rsource = 0;
         bxGdi::shaderFx_releaseWithInstance( _gdiDevice, &fxI );
+
+        _gfxLights->releaseLight( pointLight1 );
+        _gfxLights->releaseLight( pointLight0 );
+
+        _gfxLights->shutdown();
+        BX_DELETE0( bxDefaultAllocator(), _gfxLights );
 
         _gfxContext->shutdown( _gdiDevice, _resourceManager );
         BX_DELETE0( bxDefaultAllocator(), _gfxContext );
@@ -115,6 +152,7 @@ public:
     bxGdiDeviceBackend* _gdiDevice;
     bxGdiContext* _gdiContext;
     bxGfxContext* _gfxContext;
+    bxGfxLights* _gfxLights;
     bxResourceManager* _resourceManager;
 
 };

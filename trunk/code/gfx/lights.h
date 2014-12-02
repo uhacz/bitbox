@@ -2,6 +2,7 @@
 
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
+#include <util/handle_manager.h>
 
 struct bxGfxLight_Point
 {
@@ -14,16 +15,8 @@ struct bxGfxLight_Point
 class bxGfxLights
 {
 public:
-    union Instance
-    {
-        u32 id;
-        struct
-        {
-            u32 type  : 4;
-            u32 magic : 16;
-            u32 index : 12;
-        };
-    };
+    struct PointInstance{ u32 id; };
+    struct SpotInstance { u32 id; };
 
 public:
     bxGfxLights();
@@ -31,40 +24,26 @@ public:
     void startup( int maxLights );
     void shutdown();
 
-    Instance createPointLight( const bxGfxLight_Point& light );
-    Instance createSpotLight( /*not implemented*/ );
-    void releaseLight( Instance i );
+    PointInstance createPointLight( const bxGfxLight_Point& light );
+    SpotInstance createSpotLight( /*not implemented*/ );
+    void releaseLight( PointInstance i );
 
     
-    bxGfxLight_Point pointLight( Instance i );
-    void setPointLight( Instance i, const bxGfxLight_Point& light );
-    inline int hasPointLight( Instance i ) const{
-        const Index& idx = _pointLight_indices[i.index];
-        return idx.i.magic == i.magic && idx.index != 0xFFFF;
+    bxGfxLight_Point pointLight( PointInstance i );
+    void setPointLight( PointInstance i, const bxGfxLight_Point& light );
+    inline int hasPointLight( PointInstance i ) const{
+        return _pointLight_indices.isValid( Indices::Handle( i.id ) );
     }
 
 
 private:
-    struct Index
-    {
-        Instance i;
-        u16 index;
-        u16 next;
-    };
+    typedef bxHandleManager<u32> Indices;
 
-    enum
-    {
-        eTYPE_POINT = 0,
-    };
-
+    Indices _pointLight_indices;
     void* _memoryHandle;
-    Index*    _pointLight_indices;
     Vector4*  _pointLight_position_radius;
     Vector4*  _pointLight_color_intensity;
 
-    i32 _count_pointLights;
-    i32 _capacity_lights;
-
-    u16 _pointLight_freelistEnqueue;
-    u16 _pointLight_freelistDequeue;
+    u32 _count_pointLights;
+    u32 _capacity_lights;
 };

@@ -32,16 +32,26 @@ union float2_t
 {
     f32 xy[2];
     struct { f32 x, y; };
+
+    float2_t() {}
+    float2_t( f32 vx, f32 vy ) 
+        : x(vx), y(vy) {}
 };
 union float3_t
 {
     f32 xyz[3];
     struct { f32 x, y, z; };
+
+    float3_t() {}
+    float3_t( f32 vx, f32 vy, f32 vz ) : x( vx ), y( vy ), z(vz) {}
 };
 union float4_t
 {
     f32 xyzw[4];
     struct { f32 x, y, z, w; };
+    
+    float4_t() {}
+    float4_t( f32 vx, f32 vy, f32 vz, f32 vw ) : x( vx ), y( vy ), z( vz ), w( vw ) {}
 };
 
 
