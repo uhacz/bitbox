@@ -170,7 +170,7 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
         int instancesDrawn = 0;
         while( instancesLeft > 0 )
         {
-            const int grab = minOfpair( bxGfx::cMAX_WORLD_MATRICES, instancesLeft );
+            const int grab = minOfPair( bxGfx::cMAX_WORLD_MATRICES, instancesLeft );
             for( int imatrix = 0; imatrix < grab; ++imatrix )
             {
                 bxGfx::instanceData_setMatrix( &instanceData, imatrix, worldMatrices[ instancesDrawn + imatrix] );

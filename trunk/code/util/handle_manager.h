@@ -4,10 +4,14 @@
 #include "common.h"
 #include "memory.h"
 
-template<class TpType, u32 TpGranularity = 32, u32 TpNIndexBits = 14, u32 TtypeBits = 4>
+template<class TpType, u32 TpGranularity = 32, u32 TpNIndexBits = 14>
 class bxHandleManager
 {
 private:
+    enum 
+    {
+        eHANDLE_BITS = 30,
+    };
     struct Entry
     {
         Entry()
@@ -15,7 +19,7 @@ private:
             , _counter(1)
             , _active(0)
             , _endOfList(0)
-            , _entry(NULL)
+            , _entry(0)
         {
         }
 
@@ -24,15 +28,14 @@ private:
             , _counter(1)
             , _active(0)
             , _endOfList(0)
-            , _entry(NULL)
+            , _entry(0)
         {}
 
-        u32 _type          : TtypeBits;
         u32 _nextFreeIndex : TpNIndexBits;
-        u32 _counter       : (32-(TpNIndexBits + TtypeBits));
-        u32 _active        : 16;
-        u32 _endOfList     : 16;
-        TpType* _entry;
+        u32 _counter       : (eHANDLE_BITS-(TpNIndexBits));
+        u32 _active        : 1;
+        u32 _endOfList     : 1;
+        TpType _entry;
     };
 
 public:
@@ -42,20 +45,19 @@ public:
         u32 _hash;
         struct
         {
-            u32 _type : TtypeBits;
             u32 _index : TpNIndexBits;
-            u32 _counter : (32 - ( TpNIndexBits + TtypeBits ) );
+            u32 _counter : (eHANDLE_BITS - ( TpNIndexBits ) );
         };
 
 
     public:
         Handle()
-            : _index(0), _counter(0), _type(0)
+            : _index(0), _counter(0)
         {
         }
 
-        Handle(u32 index, u32 counter, u32 type )
-            : _index(index), _counter(counter), _type(type)
+        Handle(u32 index, u32 counter )
+            : _index(index), _counter(counter)
         {}
 
         explicit Handle( u32 h )
@@ -83,11 +85,6 @@ public:
         , _activeEntryCount( 0 )
         , _firstFreeEntry( 0 )
     {
-#ifdef x64
-        SYS_STATIC_ASSERT( sizeof(Entry) == 16 );
-#else
-        SYS_STATIC_ASSERT( sizeof(Entry) == 12 );
-#endif //
         SYS_STATIC_ASSERT( sizeof(Handle) == 4 );
     }
     ~bxHandleManager()
@@ -108,10 +105,8 @@ public:
     }
     ////
     ////
-    Handle add( TpType* p, u32 type )
+    Handle add( const TpType& p )
     {
-        SYS_ASSERT( type >= 0 && type < ( 1 << TtypeBits ));
-
         if ( _activeEntryCount+1 >= _capacity )
             _AllocateMore( bxDefaultAllocator() );
 
@@ -136,11 +131,11 @@ public:
 
         ++ _activeEntryCount;
 
-        return Handle( newIndex, _entries[newIndex]._counter, type );
+        return Handle( newIndex, _entries[newIndex]._counter );
     }
     ////
     ////
-    void update( Handle handle, TpType* p )
+    void update( Handle handle, const TpType p )
     {
         const u32 index = handle._index;
         SYS_ASSERT(_entries[index]._counter == handle._counter);
@@ -153,11 +148,11 @@ public:
     {
         const u32 index = handle._index;
         SYS_ASSERT( _entries[index]._counter == handle._counter );
-        SYS_ASSERT( _entries[index]._type == handle._type );
         SYS_ASSERT( _entries[index]._active == 1);
 
         _entries[index]._nextFreeIndex = _firstFreeEntry;
         _entries[index]._active = 0;
+        _entries[index]._counter += 1;
         _firstFreeEntry = index;
 
         --_activeEntryCount;
@@ -172,23 +167,21 @@ public:
 
         _entries[index]._nextFreeIndex = _firstFreeEntry;
         _entries[index]._active = 0;
+        _entries[index]._counter += 1;
         _firstFreeEntry = index;
 
         --_activeEntryCount;
     }
     ////
     ////
-    TpType* get( const Handle& handle ) const
+    const TpType& get( const Handle& handle ) const
     {
-        TpType* p = NULL;
-        if ( ! get(handle, p) )
-            return NULL;
-
-        return p;
+        return _entries[handle.index]._entry;
     }
+    
     ////
     ////
-    int get( Handle handle, TpType** out ) const
+    int get( Handle handle, TpType* out ) const
     {
         const uint32_t index = handle._index;
 
@@ -196,7 +189,7 @@ public:
             return 0;
 
         const Entry& e = _entries[index];
-        if ( e._counter != handle._counter || e._active == 0 || e._type != handle._type )
+        if ( e._counter != handle._counter || e._active == 0 )
             return 0;
 
         out = e._entry;
@@ -208,7 +201,7 @@ public:
     {
         SYS_ASSERT( index < eABSOLUTE_MAX_ENTRIES-1 );
         const Entry& e = _entries[index];
-        Handle h( index, e._counter, e._type );
+        Handle h( index, e._counter );
         return h;
     }
     ////
@@ -227,10 +220,7 @@ public:
             return 0;
 
         const Entry& e = _entries[index];
-        if ( e._counter != handle._counter || e._active == 0 || e._type != handle._type )
-            return 0;
-
-        return 1;
+        return ( e._counter != handle._counter || e._active == 0 ) ? 0 : 1;
     }
 
 
@@ -247,7 +237,7 @@ private:
     void _AllocateMore( bxAllocator* allocator )
     {
         uint32_t newCount = minOfPair( _capacity + TpGranularity, (u32)(eABSOLUTE_MAX_ENTRIES-1) );
-        Entry* newEntries = BX_MALLOC( allocator, sizeof(Entry)*newCount, 64 ); //reinterpret_cast<Entry*>( picoMallocAligned(, 64) );
+        Entry* newEntries = (Entry*)BX_MALLOC( allocator, sizeof(Entry)*newCount, 64 ); //reinterpret_cast<Entry*>( picoMallocAligned(, 64) );
         if ( _capacity )
         {
             memcpy( newEntries, _entries, sizeof(Entry) * (_capacity-1) );

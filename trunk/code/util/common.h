@@ -5,15 +5,15 @@
 #define PI 3.14159265358979323846f
 
 template<typename Type>
-inline Type minOfpair( const Type& a, const Type& b ) {	return ( a < b ) ? a : b; }
+inline Type minOfPair( const Type& a, const Type& b ) {	return ( a < b ) ? a : b; }
 
 template<typename Type>
-inline Type maxOfpair( const Type& a, const Type& b ) {	return ( a < b ) ? b : a; }
+inline Type maxOfPair( const Type& a, const Type& b ) {	return ( a < b ) ? b : a; }
 
 template<typename Type>
 inline Type clamp( const Type& x, const Type& a, const Type& b )
 {
-    return maxOfpair( a, minOfpair(b,x) );
+    return maxOfPair( a, minOfPair(b,x) );
 }
 inline float saturate( float x )
 {

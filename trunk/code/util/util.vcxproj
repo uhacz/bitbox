@@ -87,7 +87,6 @@
     <ClInclude Include="buffer_utils.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="containers.h" />
-    <ClInclude Include="indexer_packed.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="dlmalloc.h" />
     <ClInclude Include="filesystem.h" />
@@ -97,6 +96,7 @@
     <ClInclude Include="memory.h" />
     <ClInclude Include="poly\poly_shape.h" />
     <ClInclude Include="pool_allocator.h" />
+    <ClInclude Include="range_splitter.h" />
     <ClInclude Include="signal_filter.h" />
     <ClInclude Include="string_util.h" />
     <ClInclude Include="tag.h" />
