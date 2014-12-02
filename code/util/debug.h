@@ -1,6 +1,5 @@
 #pragma once
 
-#include "type.h"
 #include <stdio.h>
 
 #define LOGGER_ENABLED 1

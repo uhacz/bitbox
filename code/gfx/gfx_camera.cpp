@@ -215,8 +215,8 @@ namespace bxGfx
         const float leftInputX = -float( left ) + float( right );
         const float upDown     = -float( down ) + float( up );
 
-        const float rightInputX = mouse_dx; // / mouseSensitivityInPix;
-        const float rightInputY = mouse_dy; // / mouseSensitivityInPix;
+        const float rightInputX = (float)mouse_dx; // / mouseSensitivityInPix;
+        const float rightInputY = (float)mouse_dy; // / mouseSensitivityInPix;
 
         const float rc = 0.1f;
 
