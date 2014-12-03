@@ -66,7 +66,8 @@ void bxGfxLights::releaseLight( PointInstance i )
     SYS_ASSERT( _pointLight_indices.isValid( handle ) );
     
     const u32 index = _pointLight_indices.get( handle );
-    Indices::Handle lastHandle = _pointLight_indices.getHandleByIndex( --_count_pointLights );
+    Indices::Handle lastHandle = _pointLight_indices.findHandleByValue( --_count_pointLights );
+    SYS_ASSERT( _pointLight_indices.isValid( lastHandle ) );
     _pointLight_indices.update( lastHandle, index );
     _pointLight_indices.remove( handle );
 
