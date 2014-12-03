@@ -6,7 +6,7 @@
 #include "memory.h"
 #include <memory.h>
 
-template<class TpType, u32 TpGranularity = 32, u32 TpNIndexBits = 16>
+template<class TpType, u32 TpGranularity = 32, u32 TpNIndexBits = 14>
 class bxHandleManager
 {
 private:
@@ -49,17 +49,18 @@ public:
         {
             u32 _index : TpNIndexBits;
             u32 _counter : (eHANDLE_BITS - ( TpNIndexBits ) );
+            u32 _padding : 2;
         };
 
 
     public:
         Handle()
-            : _index(0), _counter(0)
+            : _index(0), _counter(0), _padding(0)
         {
         }
 
         Handle(u32 index, u32 counter )
-            : _index(index), _counter(counter)
+            : _index(index), _counter(counter), _padding(0)
         {}
 
         explicit Handle( u32 h )
@@ -197,6 +198,29 @@ public:
         out = e._entry;
         return 1;
     }
+
+    Handle findHandleByValue( const TpType& v )
+    {
+        unsigned ientry = 0;
+        unsigned activeCount = 0;
+        while( ientry < _capacity && activeCount < _activeEntryCount )
+        {
+            const Entry& e = _entries[ientry];
+            if( e._active )
+            {
+                ++activeCount;
+                if( e._entry == v )
+                {
+                    return Handle( ientry, e._counter );
+                }
+            }
+
+            ++ientry;
+        }
+
+        return Handle();
+    }
+
     ////
     ////
     Handle getHandleByIndex( u32 index ) const

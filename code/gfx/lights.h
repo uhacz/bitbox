@@ -35,12 +35,16 @@ public:
         return _pointLight_indices.isValid( Indices::Handle( i.id ) );
     }
 
+    int maxLights() const { return _capacity_lights; }
+
+    void cullPointLights( Vector4* data, unsigned* nLights, unsigned dataCapacity, const bxGfxCamera& camera, int rtWidth, int rtHeight, int tileSizeInPixels );
+
 
 private:
     typedef bxHandleManager<u32> Indices;
 
-    Indices _pointLight_indices;
-    void* _memoryHandle;
+    Indices   _pointLight_indices;
+    void*     _memoryHandle;
     Vector4*  _pointLight_position_radius;
     Vector4*  _pointLight_color_intensity;
 
