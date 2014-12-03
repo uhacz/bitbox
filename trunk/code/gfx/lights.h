@@ -36,9 +36,7 @@ public:
     }
 
     int maxLights() const { return _capacity_lights; }
-
-    void cullPointLights( Vector4* data, unsigned* nLights, unsigned dataCapacity, const bxGfxCamera& camera, int rtWidth, int rtHeight, int tileSizeInPixels );
-
+    int countPointLights() const { return _count_pointLights; }
 
 private:
     typedef bxHandleManager<u32> Indices;
@@ -50,4 +48,24 @@ private:
 
     u32 _count_pointLights;
     u32 _capacity_lights;
+};
+
+
+class bxGfxLightList
+{
+public:
+
+private:
+    union Item
+    {
+        u32 hash;
+        struct
+        {
+            u16 lightIndex;
+            u16 nextItem;
+        };
+    };
+
+    u32* _items;
+
 };
