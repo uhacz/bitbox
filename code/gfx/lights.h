@@ -12,6 +12,8 @@ struct bxGfxLight_Point
     f32 intensity;
 };
 
+class bxGfxLightList;
+struct bxGfxCamera;
 class bxGfxLights
 {
 public:
@@ -37,6 +39,7 @@ public:
 
     int maxLights() const { return _capacity_lights; }
     int countPointLights() const { return _count_pointLights; }
+    int cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, const bxGfxCamera& camera );
 
 private:
     typedef bxHandleManager<u32> Indices;
@@ -50,22 +53,46 @@ private:
     u32 _capacity_lights;
 };
 
-
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 class bxGfxLightList
 {
 public:
+    void startup( int nTilesX, int nTilesY, int nLights, bxAllocator* allocator );
+    void shutdown( bxAllocator* allocator );
+
+    void clear();
+
+    int appendLight( int tileX, int tileY, int lightIndex );
+
+    const u32* items() const { return _items; }
+    const u32* tiles() const { return _tiles; }
 
 private:
     union Item
     {
         u32 hash;
-        struct
+        struct  
         {
-            u16 lightIndex;
-            u16 nextItem;
+            u32 lightIndex;
         };
     };
 
-    u32* _items;
+    union Tile
+    {
+        u32 hash;
+        struct
+        {
+            u16 itemIndex;
+            u16 itemCount;
+        };
+    };
 
+    u32* _tiles; // 2D grid of tiles
+    u32* _items; // 1D list of lights for each tile
+    i32 _numItems;
+    i32 _numTilesX;
+    i32 _numTilesY;
 };

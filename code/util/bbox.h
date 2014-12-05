@@ -34,4 +34,22 @@ struct bxAABB
     {
         return bxAABB( minPerElem( a.min, b.min ), maxPerElem( a.max, b.max ) );
     }
+
+    static inline bxAABB transform( const Matrix4& matrix, const bxAABB& bbox )
+    {
+        Vector4 xa = matrix.getCol0() * bbox.min.getX();
+        Vector4 xb = matrix.getCol0() * bbox.max.getX();
+
+        Vector4 ya = matrix.getCol1() * bbox.min.getY();
+        Vector4 yb = matrix.getCol1() * bbox.max.getY();
+
+        Vector4 za = matrix.getCol2() * bbox.min.getZ();
+        Vector4 zb = matrix.getCol2() * bbox.max.getZ();
+
+        bxAABB result;
+        result.min = ( minPerElem( xa, xb ) + minPerElem( ya, yb ) + minPerElem( za, zb ) ).getXYZ() + transform.getTranslation();
+        result.max = ( maxPerElem( xa, xb ) + maxPerElem( ya, yb ) + maxPerElem( za, zb ) ).getXYZ() + transform.getTranslation();
+
+        return result;
+    }
 };

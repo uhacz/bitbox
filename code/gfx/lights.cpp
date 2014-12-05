@@ -105,3 +105,8 @@ void bxGfxLights::setPointLight( PointInstance i, const bxGfxLight_Point& light 
     _pointLight_color_intensity[index] = Vector4( light.color.x, light.color.y, light.color.z, light.intensity );
 }
 
+int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, const bxGfxCamera& camera )
+{
+    
+}
+

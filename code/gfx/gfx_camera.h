@@ -42,8 +42,17 @@ namespace bxGfx
 	bxGdiViewport cameraParams_viewport( const bxGfxCameraParams& params, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
     void  cameraMatrix_compute               ( bxGfxCameraMatrix* mtx, const bxGfxCameraParams& params, const Matrix4& world, int rtWidth, int rtHeight );
 
-	floatInVec camera_depth        ( const Matrix4& cameraWorld, const Vector3& worldPosition );
-	inline int camera_filmFit ( int width, int height ) { return ( width > height ) ? 1 : 2; }
+	floatInVec camera_depth  ( const Matrix4& cameraWorld, const Vector3& worldPosition );
+	inline int camera_filmFit( int width, int height ) { return ( width > height ) ? 1 : 2; }
+
+    inline Vector3 camera_unprojectNormalized( const Vector3& screenPos01, const Matrix4& inverseMatrix )
+    {
+        Vector4 hpos = Vector4( screenPos01, oneVec );
+        hpos = mulPerElem( hpos, Vector4(2.0f) ) - Vector4(oneVec);
+        Vector4 worldPos = inverseMatrix * hpos;
+        worldPos /= worldPos.getW();
+        return worldPos.getXYZ();
+    }
 }///
 
 
@@ -74,4 +83,27 @@ namespace bxGfx
     void cameraUtil_updateInput( bxGfxCameraInputContext* cameraCtx, const bxInput* input, float mouseSensitivityInPix, float dt );
     Matrix4 cameraUtil_movement( const Matrix4& world, float leftInputX, float leftInputY, float rightInputX, float rightInputY, float upDown );
 
+}///
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct bxGfxViewFrustum
+{
+    Vector4 xPlaneLRBT, yPlaneLRBT, zPlaneLRBT, wPlaneLRBT;
+    Vector4 xPlaneNFNF, yPlaneNFNF, zPlaneNFNF, wPlaneNFNF;
+};
+
+namespace bxGfx
+{
+    void viewFrustum_extractCorners( Vector3 frustumCorners[8], const Matrix4& viewProjection );
+    void viewFrustum_extractPlanes( Vector4 planesLRBTNF[6], const Matrix4& viewProjection );
+    bxGfxViewFrustum viewFrustum_extract( const Matrix4& viewProjection );
+
+    inline int viewFrustum_AABBIntersectLRTB( const bxGfxViewFrustum& frustum, const Vector3& minc, const Vector3& maxc, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );
+    inline boolInVec viewFrustum_AABBIntersect( const bxGfxViewFrustum& frustum, const Vector3& minc, const Vector3& maxc, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );
+
+#include "view_frustum.inl"
 }///
