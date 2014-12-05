@@ -7,7 +7,8 @@
 #include "util/time.h"
 
 #include <util/handle_manager.h>
-#include <gfx/lights.h>
+#include <gfx/gfx_lights.h>
+#include <gfx/gfx_debug_draw.h>
 
 static bxGdiShaderFx* fx = 0;
 static bxGdiShaderFx_Instance* fxI = 0;
@@ -25,12 +26,14 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
         _gdiContext->_Startup( _gdiDevice );
+
+        bxGfxDebugDraw::startup( _gdiDevice, _resourceManager );
 
         _gfxContext = BX_NEW( bxDefaultAllocator(), bxGfxContext );
         _gfxContext->startup( _gdiDevice, _resourceManager );
@@ -87,6 +90,8 @@ public:
         _gfxContext->shutdown( _gdiDevice, _resourceManager );
         BX_DELETE0( bxDefaultAllocator(), _gfxContext );
         
+        bxGfxDebugDraw::shutdown( _gdiDevice, _resourceManager );
+
         _gdiContext->_Shutdown();
         BX_DELETE0( bxDefaultAllocator(), _gdiContext );
 
@@ -131,6 +136,22 @@ public:
             rList->itemSubmit( dataIndex, surfaceIndex, instanceIndex );
         }
 
+        bxGfxDebugDraw::addSphere( Vector4( 0.f, 0.f, 0.f, 1.f ), 0xFF0000FF, true );
+        bxGfxDebugDraw::addSphere( Vector4( 4.f, 0.f, 0.f, 0.5f ), 0xFF00FFFF, true );
+        bxGfxDebugDraw::addSphere( Vector4( -4.f, 0.f, 0.f, 0.25f ), 0xFF0000FF, true );
+        bxGfxDebugDraw::addSphere( Vector4( 0.f, 0.f,-4.f, 0.75f ), 0xFF0F00FF, true );
+        bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.2f, 1.f, 0.5f ) ), Vector3(0.f,0.f,1.f) ), Vector3( 0.5f ), 0x00FF00FF, true );
+        bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.75f ) ), Vector3( 3.f, 0.f, 1.f ) ), Vector3( 0.5f ), 0x11FF00FF, true );
+        bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.3f, .2f, 0.15f ) ), Vector3( 0.f, 0.f,-1.f ) ), Vector3( 0.15f ), 0x66FF00FF, true );
+        bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, .7f, 0.35f ) ), Vector3( 0.f, 3.f, 1.f ) ), Vector3( 0.25f ), 0x99FF00FF, true );
+        bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.9f, 0.f, 0.0f ) ), Vector3( 0.f, -3.f, 1.f ) ), Vector3( 0.35f ), 0xFFFF00FF, true );
+
+        bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3( 0.f, 1.f, 0.f ), 0xFF0000FF, true );
+        bxGfxDebugDraw::addLine( Vector3( 0.f,1.f,0.f ), Vector3( 1.f, 1.f, 0.f ), 0x00FF00FF, true );
+        bxGfxDebugDraw::addLine( Vector3( 1.f, 1.f, 0.f ), Vector3( 1.f, 1.f, 1.f ), 0x0000FFFF, true );
+        bxGfxDebugDraw::addLine( Vector3( 1.f, 1.f, 1.f ), Vector3( 1.f,-1.f, 1.f ), 0xFF6666FF, true );
+        bxGfxDebugDraw::addLine( Vector3( 1.f, -1.f, 1.f ), Vector3( 1.f, -1.f,-1.f ), 0xFFFFFFFF, true );
+
 
         //bxGdiContextBackend* gdiContext = _gdiDevice->ctx;
 
@@ -144,6 +165,9 @@ public:
 
         _gfxContext->frameDraw( _gdiContext, camera, &rList, 1 );
 
+        bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
+        
+        _gfxContext->rasterizeFramebuffer( _gdiContext, camera );
         _gfxContext->frameEnd( _gdiContext );
 
         return true;

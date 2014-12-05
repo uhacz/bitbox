@@ -156,7 +156,7 @@ struct bxGdiHwStateDesc
 		raster.cullMode = bxGdi::eCULL_BACK;
 		raster.fillMode = bxGdi::eFILL_SOLID;
 		raster.multisample = 1;
-		raster.antialiasedLine = 0;
+		raster.antialiasedLine = 1;
 		raster.scissor = 0;
 	}
 	Blend blend;

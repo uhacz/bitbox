@@ -28,6 +28,17 @@ typedef volatile __int64	atomic64;
 typedef float f32;
 typedef double f64;
 
+union TypeReinterpert
+{
+    u32 u;
+    i32 i;
+    f32 f;
+
+    explicit TypeReinterpert( u32 v ) : u( v ) {}
+    explicit TypeReinterpert( i32 v ) : i( v ) {}
+    explicit TypeReinterpert( f32 v ) : f( v ) {}
+};
+
 union float2_t
 {
     f32 xy[2];

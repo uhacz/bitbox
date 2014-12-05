@@ -97,7 +97,7 @@ namespace array
 
     template< typename T > void reserve ( array_t<T>& arr, int newCapacity )
     {
-        if( newCapacity > arr.size )
+        if( newCapacity > (int)arr.size )
             array_internal::_Grow( arr, newCapacity );
     }
 
