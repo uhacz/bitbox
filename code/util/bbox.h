@@ -47,8 +47,8 @@ struct bxAABB
         Vector4 zb = matrix.getCol2() * bbox.max.getZ();
 
         bxAABB result;
-        result.min = ( minPerElem( xa, xb ) + minPerElem( ya, yb ) + minPerElem( za, zb ) ).getXYZ() + transform.getTranslation();
-        result.max = ( maxPerElem( xa, xb ) + maxPerElem( ya, yb ) + maxPerElem( za, zb ) ).getXYZ() + transform.getTranslation();
+        result.min = ( minPerElem( xa, xb ) + minPerElem( ya, yb ) + minPerElem( za, zb ) ).getXYZ() + matrix.getTranslation();
+        result.max = ( maxPerElem( xa, xb ) + maxPerElem( ya, yb ) + maxPerElem( za, zb ) ).getXYZ() + matrix.getTranslation();
 
         return result;
     }

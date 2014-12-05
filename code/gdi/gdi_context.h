@@ -50,7 +50,7 @@ namespace bxGdi
 
     union InputLayout_SlotDesc
     {
-        u64 hash;
+        u16 hash;
         struct
         {
             u16 dataType : 4;

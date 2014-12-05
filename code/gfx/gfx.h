@@ -211,6 +211,9 @@ struct bxGfxContext
     
     void frameBegin( bxGdiContext* ctx );
     void frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
+    
+    void rasterizeFramebuffer( bxGdiContext* ctx, const bxGfxCamera& camera );
+
     void frameEnd( bxGdiContext* ctx );
 
     int framebufferWidth() const { return _framebuffer->width; }

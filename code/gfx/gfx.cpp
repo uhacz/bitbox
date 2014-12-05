@@ -202,25 +202,29 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
         itemIt.next();
     }
 
+    
+}
+
+void bxGfxContext::rasterizeFramebuffer( bxGdiContext* ctx, const bxGfxCamera& camera )
+{
     ctx->changeToMainFramebuffer();
 
-    {
-        bxGdiTexture colorTexture = _framebuffer[bxGfx::eFRAMEBUFFER_COLOR];
-        bxGdiTexture backBuffer = ctx->backend()->backBufferTexture();
-        bxGdiViewport viewport = bxGfx::cameraParams_viewport( camera.params, backBuffer.width, backBuffer.height, colorTexture.width, colorTexture.height );
+    bxGdiTexture colorTexture = _framebuffer[bxGfx::eFRAMEBUFFER_COLOR];
+    bxGdiTexture backBuffer = ctx->backend()->backBufferTexture();
+    bxGdiViewport viewport = bxGfx::cameraParams_viewport( camera.params, backBuffer.width, backBuffer.height, colorTexture.width, colorTexture.height );
 
-        ctx->setViewport( viewport );
-        ctx->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 0 );
+    ctx->setViewport( viewport );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 0 );
 
-        bxGdiShaderFx_Instance* fxI = _shared.shader.texUtils;
-        fxI->setTexture( "gtexture", colorTexture );
-        fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+    bxGdiShaderFx_Instance* fxI = _shared.shader.texUtils;
+    fxI->setTexture( "gtexture", colorTexture );
+    fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
 
-        bxGdi::renderSource_enable( ctx, _shared.rsource.fullScreenQuad );
-        bxGdi::shaderFx_enable( ctx, fxI, "copy_rgba" );
-        ctx->draw( _shared.rsource.fullScreenQuad->vertexBuffers->numElements, 0 );
-    }
+    bxGdi::renderSource_enable( ctx, _shared.rsource.fullScreenQuad );
+    bxGdi::shaderFx_enable( ctx, fxI, "copy_rgba" );
+    ctx->draw( _shared.rsource.fullScreenQuad->vertexBuffers->numElements, 0 );
 }
+
 void bxGfxContext::frameEnd( bxGdiContext* ctx  )
 {
     ctx->backend()->swap();

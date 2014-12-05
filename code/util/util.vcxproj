@@ -85,6 +85,7 @@
     <ClInclude Include="bbox.h" />
     <ClInclude Include="buffer.h" />
     <ClInclude Include="buffer_utils.h" />
+    <ClInclude Include="color.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="containers.h" />
     <ClInclude Include="debug.h" />

@@ -124,7 +124,7 @@ struct bxGdiShaderFx_Instance
     void setTexture( const char* name, bxGdiTexture tex );
 	void setSampler( const char* name, const bxGdiSamplerDesc& sampler );
 	void setUniform( const char* name, const void* data, unsigned size );
-    template< class T > void setUniform( const char* name, const T& value )	{ setUniform( shi, name, &value, sizeof(T) ); }
+    template< class T > void setUniform( const char* name, const T& value )	{ setUniform( name, &value, sizeof(T) ); }
 
     const bxGdiHwStateDesc hwState( int passIndex ) const { return _fx->_passes[passIndex].hwState; }
     void setHwState( int passIndex, const bxGdiHwStateDesc& hwstate ) { _fx->_passes[passIndex].hwState = hwstate;  }

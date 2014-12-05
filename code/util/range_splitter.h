@@ -13,10 +13,10 @@ public:
     static inline bxRangeSplitter splitByTask( u32 nElements, u32 nTasks )   { return bxRangeSplitter( nElements, 1 + ( (nElements-1) / nTasks ) ); }
     static inline bxRangeSplitter splitByGrab( u32 nElements, u32 grabSize ) { return bxRangeSplitter( nElements, grabSize ); }
 
-    inline u32 elements_left() const { return nElements - grabbedElements; }
-    inline u32 next_grab()
+    inline u32 elementsLeft() const { return nElements - grabbedElements; }
+    inline u32 nextGrab()
     {
-        const u32 eleft = elements_left();
+        const u32 eleft = elementsLeft();
         const u32 grab = ( eleft < grabSize ) ? eleft : grabSize;
         grabbedElements += grab;
         SYS_ASSERT( grabbedElements <= nElements );

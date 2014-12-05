@@ -1,4 +1,4 @@
-#include "lights.h"
+#include "gfx_lights.h"
 #include <util/memory.h>
 #include <util/buffer_utils.h>
 
@@ -107,6 +107,6 @@ void bxGfxLights::setPointLight( PointInstance i, const bxGfxLight_Point& light 
 
 int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, const bxGfxCamera& camera )
 {
-    
+    return 0;
 }
 
