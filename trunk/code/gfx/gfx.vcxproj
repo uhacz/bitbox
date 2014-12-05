@@ -89,6 +89,9 @@
     <ClCompile Include="gfx_camera.cpp" />
     <ClCompile Include="lights.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="view_frustum.inl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
