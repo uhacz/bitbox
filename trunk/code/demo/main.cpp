@@ -159,7 +159,30 @@ public:
         //bxGfxDebugDraw::addLine( Vector3( 1.f, -1.f, 1.f ), Vector3( 1.f, -1.f,-1.f ), 0xFFFFFFFF, true );
 
         bxGfx::viewFrustum_debugDraw( camera1.matrix.viewProj, 0x00FF00FF );
+        {
+            const Matrix4 projInv = inverse( camera1.matrix.viewProj );
+            const int tileSize = 128;
+            const int numTilesX = iceil( 1920, tileSize );
+            const int numTilesY = iceil( 1080, tileSize );
 
+            const u32 colors[] =
+            {
+                0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
+                0xFFFF00FF, 0x00FFFFFF, 0xFFFFFFFF,
+            };
+
+            for ( int itileY = 0; itileY < 5; ++itileY )
+            {
+                for( int itileX = 1; itileX < 3; ++itileX )
+                {
+                    Vector3 corners[8];
+                    bxGfx::viewFrustum_computeCorners( corners, projInv, itileX, itileY, numTilesX, numTilesY, tileSize );
+                    bxGfx::viewFrustum_debugDraw( corners, colors[(numTilesX*itileY + itileX) % 6] );
+                }
+
+            }
+
+        }
         //bxGdiContextBackend* gdiContext = _gdiDevice->ctx;
 
         //float clearColor[5] = { 1.f, 0.f, 0.f, 1.f, 1.f };

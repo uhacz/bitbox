@@ -360,15 +360,50 @@ namespace bxGfx
         return f;
     }
 
-    inline Vector3 convertProjToView( const Matrix4& projInv, const Vector4 hPos )
+    void viewFrustum_computeCorners( Vector3 corners[8], const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize )
     {
-        const Vector4 vPos = projInv * hPos; // mul( p, g_mProjectionInv );
-        return vPos.getXYZ() / vPos.getW();
+        const float pxm = (float)( tileSize * tileX );
+        const float pym = (float)( tileSize * tileY );
+        const float pxp = (float)( tileSize * (tileX + 1) );
+        const float pyp = (float)( tileSize * (tileY + 1) );
+        
+        const float winWidth  = (float)tileSize*numTilesX;
+        const float winHeight = (float)tileSize*numTilesY;
+
+
+
+        // four corners of the tile, clockwise from top-left
+        corners[0] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pym) / winHeight, 0.f ), projInv );
+        corners[1] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pym) / winHeight, 1.f ), projInv );
+                                                                                                            
+        corners[2] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pym) / winHeight, 0.f ), projInv );
+        corners[3] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pym) / winHeight, 1.f ), projInv );
+                                                                                                            
+        corners[4] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pyp) / winHeight, 0.f ), projInv );
+        corners[5] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pyp) / winHeight, 1.f ), projInv );
+                                                                                                            
+        corners[6] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pyp) / winHeight, 0.f ), projInv );
+        corners[7] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pyp) / winHeight, 1.f ), projInv );
     }
 
-    void viewFrustum_computeCorners( int tileSize, int tileX, int tileY, int numTilesX, int numTilesY,  )
-    {a
-        
+    bxGfxViewFrustum viewFrustum_tile(const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize)
+    {
+        const float pxm = (float)(tileSize * tileX);
+        const float pym = (float)(tileSize * tileY);
+        const float pxp = (float)(tileSize * (tileX + 1));
+        const float pyp = (float)(tileSize * (tileY + 1));
+
+        const float winWidth = (float)tileSize*numTilesX;
+        const float winHeight = (float)tileSize*numTilesY;
+
+        Vector3 nearCorners[4];
+        nearCorners[0] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pym) / winHeight, 0.f ), projInv );
+        nearCorners[2] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pym) / winHeight, 0.f ), projInv );
+        nearCorners[4] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pyp) / winHeight, 0.f ), projInv );
+        nearCorners[6] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pyp) / winHeight, 0.f ), projInv );
+
+        aa
+
     }
 
     void viewFrustum_debugDraw(const Matrix4& viewProj, u32 colorRGBA)

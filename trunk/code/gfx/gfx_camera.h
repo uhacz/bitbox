@@ -48,7 +48,7 @@ namespace bxGfx
     inline Vector3 camera_unprojectNormalized( const Vector3& screenPos01, const Matrix4& inverseMatrix )
     {
         Vector4 hpos = Vector4( screenPos01, oneVec );
-        hpos = mulPerElem( hpos, Vector4(2.0f) ) - Vector4(oneVec);
+        hpos = mulPerElem( hpos, Vector4(2.0f) ) - Vector4(1.f);
         Vector4 worldPos = inverseMatrix * hpos;
         worldPos /= worldPos.getW();
         return worldPos.getXYZ();
@@ -101,7 +101,8 @@ namespace bxGfx
     void viewFrustum_extractCorners( Vector3 frustumCorners[8], const Matrix4& viewProjection );
     void viewFrustum_extractPlanes( Vector4 planesLRBTNF[6], const Matrix4& viewProjection );
     bxGfxViewFrustum viewFrustum_extract( const Matrix4& viewProjection );
-    void viewFrustum_computeCorners();
+    void viewFrustum_computeCorners( Vector3 corners[8], const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize );
+    bxGfxViewFrustum viewFrustum_tile( const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize );
     
 
 
