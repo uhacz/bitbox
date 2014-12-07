@@ -15,6 +15,7 @@ static bxGdiShaderFx_Instance* fxI = 0;
 static bxGdiRenderSource* rsource = 0;
 static bxGfxRenderList* rList = 0;
 static bxGfxCamera camera;
+static bxGfxCamera camera1;
 static bxGfxCameraInputContext cameraInputCtx;
 static bxGfxLights::PointInstance pointLight0 = { 0 };
 static bxGfxLights::PointInstance pointLight1 = { 0 };
@@ -72,6 +73,11 @@ public:
         rList = bxGfx::renderList_new( 128, 256, bxDefaultAllocator() );
 
         camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.5f, 15.f ) );
+        camera1.matrix.world = Matrix4::translation( Vector3( 0.f ) );
+        camera1.params.zNear = 1.f;
+        camera1.params.zFar = 20.f;
+
+        bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
         return true;
     }
@@ -116,7 +122,7 @@ public:
             , cameraInputCtx.leftInputY
             , cameraInputCtx.rightInputX * deltaTime * 10.f
             , cameraInputCtx.rightInputY * deltaTime * 10.f
-            , cameraInputCtx.upDown * deltaTime );
+            , cameraInputCtx.upDown );
         
         
         rList->clear();
@@ -136,22 +142,23 @@ public:
             rList->itemSubmit( dataIndex, surfaceIndex, instanceIndex );
         }
 
-        bxGfxDebugDraw::addSphere( Vector4( 0.f, 0.f, 0.f, 1.f ), 0xFF0000FF, true );
-        bxGfxDebugDraw::addSphere( Vector4( 4.f, 0.f, 0.f, 0.5f ), 0xFF00FFFF, true );
-        bxGfxDebugDraw::addSphere( Vector4( -4.f, 0.f, 0.f, 0.25f ), 0xFF0000FF, true );
-        bxGfxDebugDraw::addSphere( Vector4( 0.f, 0.f,-4.f, 0.75f ), 0xFF0F00FF, true );
-        bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.2f, 1.f, 0.5f ) ), Vector3(0.f,0.f,1.f) ), Vector3( 0.5f ), 0x00FF00FF, true );
-        bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.75f ) ), Vector3( 3.f, 0.f, 1.f ) ), Vector3( 0.5f ), 0x11FF00FF, true );
-        bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.3f, .2f, 0.15f ) ), Vector3( 0.f, 0.f,-1.f ) ), Vector3( 0.15f ), 0x66FF00FF, true );
-        bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, .7f, 0.35f ) ), Vector3( 0.f, 3.f, 1.f ) ), Vector3( 0.25f ), 0x99FF00FF, true );
-        bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.9f, 0.f, 0.0f ) ), Vector3( 0.f, -3.f, 1.f ) ), Vector3( 0.35f ), 0xFFFF00FF, true );
+        //bxGfxDebugDraw::addSphere( Vector4( 0.f, 0.f, 0.f, 1.f ), 0xFF0000FF, true );
+        //bxGfxDebugDraw::addSphere( Vector4( 4.f, 0.f, 0.f, 0.5f ), 0xFF00FFFF, true );
+        //bxGfxDebugDraw::addSphere( Vector4( -4.f, 0.f, 0.f, 0.25f ), 0xFF0000FF, true );
+        //bxGfxDebugDraw::addSphere( Vector4( 0.f, 0.f,-4.f, 0.75f ), 0xFF0F00FF, true );
+        //bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.2f, 1.f, 0.5f ) ), Vector3(0.f,0.f,1.f) ), Vector3( 0.5f ), 0x00FF00FF, true );
+        //bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.75f ) ), Vector3( 3.f, 0.f, 1.f ) ), Vector3( 0.5f ), 0x11FF00FF, true );
+        //bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.3f, .2f, 0.15f ) ), Vector3( 0.f, 0.f,-1.f ) ), Vector3( 0.15f ), 0x66FF00FF, true );
+        //bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, .7f, 0.35f ) ), Vector3( 0.f, 3.f, 1.f ) ), Vector3( 0.25f ), 0x99FF00FF, true );
+        //bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.9f, 0.f, 0.0f ) ), Vector3( 0.f, -3.f, 1.f ) ), Vector3( 0.35f ), 0xFFFF00FF, true );
 
-        bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3( 0.f, 1.f, 0.f ), 0xFF0000FF, true );
-        bxGfxDebugDraw::addLine( Vector3( 0.f,1.f,0.f ), Vector3( 1.f, 1.f, 0.f ), 0x00FF00FF, true );
-        bxGfxDebugDraw::addLine( Vector3( 1.f, 1.f, 0.f ), Vector3( 1.f, 1.f, 1.f ), 0x0000FFFF, true );
-        bxGfxDebugDraw::addLine( Vector3( 1.f, 1.f, 1.f ), Vector3( 1.f,-1.f, 1.f ), 0xFF6666FF, true );
-        bxGfxDebugDraw::addLine( Vector3( 1.f, -1.f, 1.f ), Vector3( 1.f, -1.f,-1.f ), 0xFFFFFFFF, true );
+        //bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3( 0.f, 1.f, 0.f ), 0xFF0000FF, true );
+        //bxGfxDebugDraw::addLine( Vector3( 0.f,1.f,0.f ), Vector3( 1.f, 1.f, 0.f ), 0x00FF00FF, true );
+        //bxGfxDebugDraw::addLine( Vector3( 1.f, 1.f, 0.f ), Vector3( 1.f, 1.f, 1.f ), 0x0000FFFF, true );
+        //bxGfxDebugDraw::addLine( Vector3( 1.f, 1.f, 1.f ), Vector3( 1.f,-1.f, 1.f ), 0xFF6666FF, true );
+        //bxGfxDebugDraw::addLine( Vector3( 1.f, -1.f, 1.f ), Vector3( 1.f, -1.f,-1.f ), 0xFFFFFFFF, true );
 
+        bxGfx::viewFrustum_debugDraw( camera1.matrix.viewProj, 0x00FF00FF );
 
         //bxGdiContextBackend* gdiContext = _gdiDevice->ctx;
 
