@@ -221,8 +221,6 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
 	case WM_LBUTTONDOWN:
 		{
 			mouseState->lbutton = 1;
-			mouseState->x = LOWORD(lParam);
-			mouseState->y = HIWORD(lParam);
 			break;
 		}
 
@@ -231,6 +229,29 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
 			mouseState->lbutton = 0;
 			break;
 		}
+    case WM_MBUTTONDOWN:
+    {
+        mouseState->mbutton = 1;
+        break;
+    }
+
+    case WM_RBUTTONUP:
+    {
+        mouseState->rbutton = 0;
+        break;
+    }
+
+    case WM_RBUTTONDOWN:
+    {
+        mouseState->rbutton = 1;
+        break;
+    }
+
+    case WM_MBUTTONUP:
+    {
+        mouseState->mbutton = 0;
+        break;
+    }
 
 	case WM_MOUSEMOVE:
 		{

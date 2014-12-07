@@ -101,9 +101,15 @@ namespace bxGfx
     void viewFrustum_extractCorners( Vector3 frustumCorners[8], const Matrix4& viewProjection );
     void viewFrustum_extractPlanes( Vector4 planesLRBTNF[6], const Matrix4& viewProjection );
     bxGfxViewFrustum viewFrustum_extract( const Matrix4& viewProjection );
+    void viewFrustum_computeCorners();
+    
+
 
     inline int viewFrustum_AABBIntersectLRTB( const bxGfxViewFrustum& frustum, const Vector3& minc, const Vector3& maxc, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );
     inline boolInVec viewFrustum_AABBIntersect( const bxGfxViewFrustum& frustum, const Vector3& minc, const Vector3& maxc, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );
+
+    void viewFrustum_debugDraw( const Matrix4& viewProj, u32 colorRGBA );
+    void viewFrustum_debugDraw( const Vector3 corners[4], u32 colorRGBA );
 
 #include "view_frustum.inl"
 }///

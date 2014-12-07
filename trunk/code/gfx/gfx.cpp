@@ -1,7 +1,7 @@
 #include "gfx.h"
 #include "gdi/gdi_context.h"
 #include <util/common.h>
-
+#include <util/range_splitter.h>
 union bxGfxSortKey_Color
 {
     u64 hash;
@@ -166,39 +166,37 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
         const Matrix4* worldMatrices = itemIt.worldMatrices();
         const bxGdiRenderSurface* surfaces = itemIt.surfaces();
 
-        int instancesLeft = nInstances;
-        int instancesDrawn = 0;
-        while( instancesLeft > 0 )
+        bxRangeSplitter split = bxRangeSplitter::splitByGrab( nInstances, bxGfx::cMAX_WORLD_MATRICES );
+        while( split.elementsLeft() )
         {
-            const int grab = minOfPair( bxGfx::cMAX_WORLD_MATRICES, instancesLeft );
-            for( int imatrix = 0; imatrix < grab; ++imatrix )
+            const int offset = split.grabbedElements;
+            const int grab = split.nextGrab();
+
+            for ( int imatrix = 0; imatrix < grab; ++imatrix )
             {
-                bxGfx::instanceData_setMatrix( &instanceData, imatrix, worldMatrices[ instancesDrawn + imatrix] );
+                bxGfx::instanceData_setMatrix( &instanceData, imatrix, worldMatrices[offset + imatrix] );
             }
 
-            instancesDrawn += grab;
-            instancesLeft -= grab;
-
             ctx->backend()->updateCBuffer( _cbuffer_instanceData, &instanceData );
-            
-            if( ctx->indicesBound() )
+
+            if ( ctx->indicesBound() )
             {
-                for( int isurface = 0; isurface < nSurfaces; ++isurface )
+                for ( int isurface = 0; isurface < nSurfaces; ++isurface )
                 {
                     const bxGdiRenderSurface& surf = surfaces[isurface];
-                    ctx->setTopology( surf.topology );
-                    ctx->drawIndexedInstanced( surf.count, surf.begin, grab, 0 );
+                    bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, grab );
                 }
             }
             else
             {
-                for( int isurface = 0; isurface < nSurfaces; ++isurface )
+                for ( int isurface = 0; isurface < nSurfaces; ++isurface )
                 {
                     const bxGdiRenderSurface& surf = surfaces[isurface];
-                    ctx->drawInstanced( surf.count, surf.begin, grab );
+                    bxGdi::renderSurface_drawInstanced( ctx, surf, grab );
                 }
             }
         }
+
         itemIt.next();
     }
 
@@ -222,6 +220,7 @@ void bxGfxContext::rasterizeFramebuffer( bxGdiContext* ctx, const bxGfxCamera& c
 
     bxGdi::renderSource_enable( ctx, _shared.rsource.fullScreenQuad );
     bxGdi::shaderFx_enable( ctx, fxI, "copy_rgba" );
+    ctx->setTopology( bxGdi::eTRIANGLES );
     ctx->draw( _shared.rsource.fullScreenQuad->vertexBuffers->numElements, 0 );
 }
 

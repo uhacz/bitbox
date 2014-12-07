@@ -1,6 +1,8 @@
 #include "gfx_camera.h"
+#include "gfx_debug_draw.h"
+
 #include <math.h>
-#include "util/debug.h"
+#include <util/debug.h>
 
 bxGfxCameraMatrix::bxGfxCameraMatrix()
     : world( Matrix4::identity() )
@@ -208,17 +210,22 @@ namespace bxGfx
         //bxLogInfo( "%d", fwd );
 
         const int mouse_lbutton = input->mouse.currentState()->lbutton;
-        const int mouse_dx = (mouse_lbutton) ? input->mouse.currentState()->dx : 0;
-        const int mouse_dy = (mouse_lbutton) ? input->mouse.currentState()->dy : 0;
+        const int mouse_mbutton = input->mouse.currentState()->mbutton;
+        const int mouse_rbutton = input->mouse.currentState()->rbutton;
 
-        const float leftInputY = -float( back ) + float( fwd );
-        const float leftInputX = -float( left ) + float( right );
-        const float upDown     = -float( down ) + float( up );
+        const int mouse_dx = input->mouse.currentState()->dx;
+        const int mouse_dy = input->mouse.currentState()->dy;
+        const float mouse_dxF = (float)mouse_dx;
+        const float mouse_dyF = (float)mouse_dy;
 
-        const float rightInputX = (float)mouse_dx; // / mouseSensitivityInPix;
-        const float rightInputY = (float)mouse_dy; // / mouseSensitivityInPix;
+        const float leftInputY = (mouse_dyF+mouse_dxF) * mouse_rbutton; // -float( back ) + float( fwd );
+        const float leftInputX = mouse_dxF * mouse_mbutton; //-float( left ) + float( right );
+        const float upDown     = mouse_dyF * mouse_mbutton; //-float( down ) + float( up );
 
-        const float rc = 0.1f;
+        const float rightInputX = mouse_dxF * mouse_lbutton; // / mouseSensitivityInPix;
+        const float rightInputY = mouse_dyF * mouse_lbutton; // / mouseSensitivityInPix;
+
+        const float rc = 0.05f;
 
         cameraCtx->leftInputX  = signalFilter_lowPass( leftInputX , cameraCtx->leftInputX , rc, dt );
         cameraCtx->leftInputY  = signalFilter_lowPass( leftInputY , cameraCtx->leftInputY , rc, dt );
@@ -230,9 +237,9 @@ namespace bxGfx
     Matrix4 cameraUtil_movement( const Matrix4& world, float leftInputX, float leftInputY, float rightInputX, float rightInputY, float upDown )
     {
         Vector3 localPosDispl( 0.f );
-        localPosDispl -= Vector3::zAxis() * leftInputY;
-        localPosDispl += Vector3::xAxis() * leftInputX;
-        localPosDispl += Vector3::yAxis() * upDown;
+        localPosDispl += Vector3::zAxis() * leftInputY * 0.15f;
+        localPosDispl += Vector3::xAxis() * leftInputX * 0.15f;
+        localPosDispl -= Vector3::yAxis() * upDown     * 0.15f;
 
         
         //bxLogInfo( "%f; %f", rightInputX, rightInputY );
@@ -351,5 +358,52 @@ namespace bxGfx
             planes[4], planes[5], planes[4], planes[5] );
 
         return f;
+    }
+
+    inline Vector3 convertProjToView( const Matrix4& projInv, const Vector4 hPos )
+    {
+        const Vector4 vPos = projInv * hPos; // mul( p, g_mProjectionInv );
+        return vPos.getXYZ() / vPos.getW();
+    }
+
+    void viewFrustum_computeCorners( int tileSize, int tileX, int tileY, int numTilesX, int numTilesY,  )
+    {a
+        
+    }
+
+    void viewFrustum_debugDraw(const Matrix4& viewProj, u32 colorRGBA)
+    {
+        Vector3 corners[8];
+        viewFrustum_extractCorners( corners, viewProj );
+        viewFrustum_debugDraw( corners, colorRGBA );
+        
+        //const Vector3 leftUpperNear = Vector3( 0.f, 1.f, 0.f );
+        //const Vector3 leftUpperFar = Vector3( 0.f, 1.f, 1.f );
+        //const Vector3 leftLowerNear = Vector3( 0.f, 0.f, 0.f );
+        //const Vector3 leftLowerFar = Vector3( 0.f, 0.f, 1.f );
+
+        //const Vector3 rightLowerNear = Vector3( 1.f, 0.f, 0.f );
+        //const Vector3 rightLowerFar = Vector3( 1.f, 0.f, 1.f );
+        //const Vector3 rightUpperNear = Vector3( 1.f, 1.f, 0.f );
+        //const Vector3 rightUpperFar = Vector3( 1.f, 1.f, 1.f );
+
+    }
+
+    void viewFrustum_debugDraw(const Vector3 corners[4], u32 colorRGBA)
+    {
+        bxGfxDebugDraw::addLine( corners[0], corners[1], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[2], corners[3], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[4], corners[5], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[6], corners[7], colorRGBA, true );
+
+        bxGfxDebugDraw::addLine( corners[0], corners[2], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[2], corners[4], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[4], corners[6], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[6], corners[0], colorRGBA, true );
+
+        bxGfxDebugDraw::addLine( corners[1], corners[3], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[3], corners[5], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[5], corners[7], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[7], corners[1], colorRGBA, true );
     }
 }///
