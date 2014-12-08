@@ -360,30 +360,42 @@ namespace bxGfx
         return f;
     }
 
-    void viewFrustum_computeCorners( Vector3 corners[8], const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize )
+    void viewFrustum_computeTileCorners( Vector3 corners[8], const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize )
     {
-        const float pxm = (float)( tileSize * tileX );
-        const float pym = (float)( tileSize * tileY );
-        const float pxp = (float)( tileSize * (tileX + 1) );
-        const float pyp = (float)( tileSize * (tileY + 1) );
-        
-        const float winWidth  = (float)tileSize*numTilesX;
+        const float pxm = (float)(tileSize * tileX);
+        const float pym = (float)(tileSize * tileY);
+        const float pxp = (float)(tileSize * (tileX + 1));
+        const float pyp = (float)(tileSize * (tileY + 1));
+
+        const float winWidth = (float)tileSize*numTilesX;
         const float winHeight = (float)tileSize*numTilesY;
 
+        const float winWidthInv = 1.f / winWidth;
+        const float winHeightInv = 1.f / winHeight;
 
+        const float x0 = pxm * winWidthInv;
+        const float x1 = pxp * winWidthInv;
 
-        // four corners of the tile, clockwise from top-left
-        corners[0] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pym) / winHeight, 0.f ), projInv );
-        corners[1] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pym) / winHeight, 1.f ), projInv );
-                                                                                                            
-        corners[2] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pym) / winHeight, 0.f ), projInv );
-        corners[3] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pym) / winHeight, 1.f ), projInv );
-                                                                                                            
-        corners[4] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pyp) / winHeight, 0.f ), projInv );
-        corners[5] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pyp) / winHeight, 1.f ), projInv );
-                                                                                                            
-        corners[6] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pyp) / winHeight, 0.f ), projInv );
-        corners[7] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pyp) / winHeight, 1.f ), projInv );
+        const float y0 = pym * winHeightInv;
+        const float y1 = pyp * winHeightInv;
+
+        const Vector3 leftUpperNear  = Vector3(x0, y1, 0.f);
+        const Vector3 leftUpperFar   = Vector3(x0, y1, 1.f);
+        const Vector3 leftLowerNear  = Vector3(x0, y0, 0.f);
+        const Vector3 leftLowerFar   = Vector3(x0, y0, 1.f);
+        const Vector3 rightLowerNear = Vector3(x1, y0, 0.f);
+        const Vector3 rightLowerFar  = Vector3(x1, y0, 1.f);
+        const Vector3 rightUpperNear = Vector3(x1, y1, 0.f);
+        const Vector3 rightUpperFar  = Vector3(x1, y1, 1.f);
+
+        corners[0] = camera_unprojectNormalized( leftUpperNear , projInv );
+        corners[1] = camera_unprojectNormalized( leftUpperFar  , projInv );
+        corners[2] = camera_unprojectNormalized( leftLowerNear , projInv );
+        corners[3] = camera_unprojectNormalized( leftLowerFar  , projInv );
+        corners[4] = camera_unprojectNormalized( rightLowerNear, projInv );
+        corners[5] = camera_unprojectNormalized( rightLowerFar , projInv );
+        corners[6] = camera_unprojectNormalized( rightUpperNear, projInv );
+        corners[7] = camera_unprojectNormalized( rightUpperFar , projInv );
     }
 
     bxGfxViewFrustum viewFrustum_tile(const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize)
@@ -396,14 +408,44 @@ namespace bxGfx
         const float winWidth = (float)tileSize*numTilesX;
         const float winHeight = (float)tileSize*numTilesY;
 
-        Vector3 nearCorners[4];
-        nearCorners[0] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pym) / winHeight, 0.f ), projInv );
-        nearCorners[2] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pym) / winHeight, 0.f ), projInv );
-        nearCorners[4] = camera_unprojectNormalized( Vector3( pxp / winWidth, (winHeight - pyp) / winHeight, 0.f ), projInv );
-        nearCorners[6] = camera_unprojectNormalized( Vector3( pxm / winWidth, (winHeight - pyp) / winHeight, 0.f ), projInv );
+        const float winWidthInv = 1.f / winWidth;
+        const float winHeightInv = 1.f / winHeight;
 
-        aa
+        const float x0 = pxm * winWidthInv;
+        const float x1 = pxp * winWidthInv;
+        
+        const float y0 = pym * winHeightInv;
+        const float y1 = pyp * winHeightInv;
 
+        const Vector3 leftUpperFar  = Vector3(x0, y1, 1.f);
+        const Vector3 leftLowerFar  = Vector3(x0, y0, 1.f);
+        const Vector3 rightLowerFar = Vector3(x1, y0, 1.f);
+        const Vector3 rightUpperFar = Vector3(x1, y1, 1.f);
+
+        const Vector3 leftTop  = camera_unprojectNormalized( leftUpperFar, projInv );
+        const Vector3 leftBtm  = camera_unprojectNormalized( leftLowerFar, projInv );
+        const Vector3 rightBtm = camera_unprojectNormalized( rightLowerFar, projInv );
+        const Vector3 rightTop = camera_unprojectNormalized( rightUpperFar, projInv );
+
+        plaszczyzny trzeba obliczyc na podstawie wszystkich 8 plaszczyzn
+
+        const Vector4 L = makePlane( normalize( rightBtm - leftBtm ), leftBtm );
+        const Vector4 R = makePlane( normalize( leftBtm - rightBtm ), rightBtm );
+        const Vector4 B = makePlane( normalize( leftTop - leftBtm ), leftBtm );
+        const Vector4 T = makePlane( normalize( leftBtm - leftTop ), leftTop );
+
+        //bxGfxDebugDraw::addLine( lerp( 0.5f, leftTop, leftBtm ), lerp( 0.5f, leftTop, leftBtm ) + L.getXYZ() * 0.5f, 0x0000FFFF, true );
+        //bxGfxDebugDraw::addLine( lerp( 0.5f, rightTop, rightBtm ), lerp( 0.5f, rightTop, rightBtm ) + R.getXYZ() * 0.5f, 0x0000FFFF, true );
+        //bxGfxDebugDraw::addLine( lerp( 0.5f, leftBtm, rightBtm ), lerp( 0.5f, leftBtm, rightBtm ) + B.getXYZ() * 0.5f, 0x0000FFFF, true );
+        //bxGfxDebugDraw::addLine( lerp( 0.5f, leftTop, rightTop ), lerp( 0.5f, leftTop, rightTop ) + T.getXYZ() * 0.5f, 0x0000FFFF, true );
+
+        const Vector4 N(0.f);
+        const Vector4 F(0.f);
+
+        bxGfxViewFrustum f;
+        toSoa( f.xPlaneLRBT, f.yPlaneLRBT, f.zPlaneLRBT, f.wPlaneLRBT, L, R, T, B );
+        toSoa( f.xPlaneNFNF, f.yPlaneNFNF, f.zPlaneNFNF, f.wPlaneNFNF, N, F, N, F );
+        return f;
     }
 
     void viewFrustum_debugDraw(const Matrix4& viewProj, u32 colorRGBA)

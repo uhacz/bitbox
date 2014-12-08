@@ -280,3 +280,25 @@ inline floatInVec fastPow_01Approx( const floatInVec& x_vec, const floatInVec& y
     const floatInVec b = y_vec * halfVec;
     return a * recipf( b - a*b + a );
 }
+
+inline Vector4 makePlane( const Vector3& planeNormal, const Vector3& pointOnPlane )
+{
+    return Vector4( planeNormal,  -dot( planeNormal, pointOnPlane ) );	
+}
+
+inline Vector3 projectPointOnPlane( const Vector3& point, const Vector4& plane )
+{
+    const Vector3& n = plane.getXYZ();
+    const Vector3& Q = point;
+
+    const Vector3 Qp = Q - (dot(Q,n) + plane.getW()) * n;
+    return Qp;
+}
+
+inline Vector3 projectVectorOnPlane( const Vector3& vec, const Vector4& plane )
+{
+    const Vector3& n = plane.getXYZ();
+    const Vector3& V = vec;
+    const Vector3 W = V - dot(V,n) * n;
+    return W;
+}
