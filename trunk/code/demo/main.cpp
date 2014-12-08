@@ -27,8 +27,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -118,11 +118,11 @@ public:
 
         bxGfx::cameraUtil_updateInput( &cameraInputCtx, &win->input, 1.f, deltaTime );
         camera.matrix.world = bxGfx::cameraUtil_movement( camera.matrix.world
-            , cameraInputCtx.leftInputX
-            , cameraInputCtx.leftInputY
-            , cameraInputCtx.rightInputX * deltaTime * 10.f
-            , cameraInputCtx.rightInputY * deltaTime * 10.f
-            , cameraInputCtx.upDown );
+            , cameraInputCtx.leftInputX * 0.25f 
+            , cameraInputCtx.leftInputY * 0.25f 
+            , cameraInputCtx.rightInputX * deltaTime * 5.f
+            , cameraInputCtx.rightInputY * deltaTime * 5.f
+            , cameraInputCtx.upDown * 0.25f );
         
         
         rList->clear();
@@ -164,7 +164,7 @@ public:
         bxGfx::viewFrustum_debugDraw( camera1.matrix.viewProj, 0x00FF00FF );
         {
             const Matrix4 projInv = inverse( camera1.matrix.viewProj );
-            const int tileSize = 128;
+            const int tileSize = 32;
             const int numTilesX = iceil( 1920, tileSize );
             const int numTilesY = iceil( 1080, tileSize );
 
@@ -174,13 +174,13 @@ public:
                 0xFFFF00FF, 0x00FFFFFF, 0xFFFFFFFF,
             };
 
-            for ( int itileY = 3; itileY < 4; ++itileY )
+            for ( int itileY = 0; itileY < numTilesY; ++itileY )
             {
-                for( int itileX = 3; itileX < 4; ++itileX )
+                for( int itileX = 0; itileX < numTilesX; ++itileX )
                 {
-                    bxGfxViewFrustum vF = bxGfx::viewFrustum_tile( projInv, itileX, itileY, numTilesX, numTilesY, tileSize );
-                    int collision = bxGfx::viewFrustum_SphereIntersectLRTB( vF, sphere );
-                    //if( collision )
+                    bxGfxViewFrustumLRBT vF = bxGfx::viewFrustum_tile( projInv, itileX, itileY, numTilesX, numTilesY, tileSize );
+                    int collision = bxGfx::viewFrustum_SphereIntersectLRBT( vF, sphere );
+                    if( collision )
                     {
                         Vector3 corners[8];
                         bxGfx::viewFrustum_computeTileCorners( corners, projInv, itileX, itileY, numTilesX, numTilesY, tileSize );
