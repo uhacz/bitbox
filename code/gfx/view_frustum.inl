@@ -5,7 +5,7 @@ inline __m128 dotSoa( const __m128& xxxx, const __m128& yyyy, const __m128& zzzz
     return vec_madd( zzzz,zzzz1, vec_madd(xxxx,xxxx1, vec_mul(yyyy,yyyy1)) );
 }
 
-inline int viewFrustum_SphereIntersectLRTB( const bxGfxViewFrustum& f, const Vector4& sphere, const floatInVec& tolerance )
+inline int viewFrustum_SphereIntersectLRBT( const bxGfxViewFrustumLRBT& f, const Vector4& sphere, const floatInVec& tolerance )
 {
     const __m128 zero4 = _mm_set_ps1( 0.0f );
     const __m128 tolerance4 = ( tolerance.get128() );
@@ -20,16 +20,16 @@ inline int viewFrustum_SphereIntersectLRTB( const bxGfxViewFrustum& f, const Vec
     const __m128 xxxxSphere = vec_splat( sphereXYZW, 0 );
     const __m128 yyyySphere = vec_splat( sphereXYZW, 1 );
     const __m128 zzzzSphere = vec_splat( sphereXYZW, 2 );
-    const __m128 wwwwSphere = _mm_set_ps1( 1.f );
+    const __m128 wwwwSphere = _mm_set_ps1( 0.f );
     const __m128 rrrrSphere = vec_splat( sphereXYZW, 3 );
 
     const __m128 dotLRBT = dotSoa( xPlaneLRBT, yPlaneLRBT, zPlaneLRBT, xxxxSphere, yyyySphere, zzzzSphere );
 
     // add plane offset (distance from origin)
-    __m128 dotwLRBT = vec_add(dotLRBT, vec_add( rrrrSphere, wPlaneLRBT ) );
-    __m128 cmpgtLRBT = vec_cmpgt(dotwLRBT, tolerance4);
+    __m128 dotwLRBT = vec_add( dotLRBT, wPlaneLRBT );
+    dotwLRBT = vec_add( dotwLRBT, rrrrSphere );
 
-    const __m128 dotPositive = vec_cmpgt( cmpgtLRBT, zero4 );
+    const __m128 dotPositive = vec_cmpgt( dotwLRBT, tolerance4 );
 
     const int maskBits = _mm_movemask_ps( dotPositive );
     const int res = maskBits == 0xF;

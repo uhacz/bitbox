@@ -90,11 +90,16 @@ namespace bxGfx
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-struct bxGfxViewFrustum
+struct bxGfxViewFrustumLRBT
 {
     Vector4 xPlaneLRBT, yPlaneLRBT, zPlaneLRBT, wPlaneLRBT;
+};
+
+struct bxGfxViewFrustum : public bxGfxViewFrustumLRBT
+{
     Vector4 xPlaneNFNF, yPlaneNFNF, zPlaneNFNF, wPlaneNFNF;
 };
+
 
 namespace bxGfx
 {
@@ -102,9 +107,9 @@ namespace bxGfx
     void viewFrustum_extractPlanes( Vector4 planesLRBTNF[6], const Matrix4& viewProjection );
     bxGfxViewFrustum viewFrustum_extract( const Matrix4& viewProjection );
     void viewFrustum_computeTileCorners( Vector3 corners[8], const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize );
-    bxGfxViewFrustum viewFrustum_tile( const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize );
+    bxGfxViewFrustumLRBT viewFrustum_tile( const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize );
     
-    inline int viewFrustum_SphereIntersectLRTB( const bxGfxViewFrustum& frustum, const Vector4& sphere, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );
+    inline int viewFrustum_SphereIntersectLRBT( const bxGfxViewFrustumLRBT& frustum, const Vector4& sphere, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );
 
     inline int viewFrustum_AABBIntersectLRTB( const bxGfxViewFrustum& frustum, const Vector3& minc, const Vector3& maxc, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );
     inline boolInVec viewFrustum_AABBIntersect( const bxGfxViewFrustum& frustum, const Vector3& minc, const Vector3& maxc, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );

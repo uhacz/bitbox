@@ -183,7 +183,7 @@ namespace bxGfxDebugDraw
                     for( int iobj = 0; iobj < grab; ++iobj )
                     {
                         const bxGfxDebugDraw_Shpere& sph = __dd->spheres[offset + iobj];
-                        ibuffer.worldMatrix[iobj] = appendScale( Matrix4::translation( sph.pos_radius.getXYZ() ), Vector3( sph.pos_radius.getW() ) );
+                        ibuffer.worldMatrix[iobj] = appendScale( Matrix4::translation( sph.pos_radius.getXYZ() ), Vector3( sph.pos_radius.getW() * twoVec ) );
                         bxColor::u32ToFloat4( sph.colorRGBA, ibuffer.colorRGBA[iobj].xyzw );
                     }
 
