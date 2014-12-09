@@ -21,6 +21,10 @@ static bxGfxLights::PointInstance pointLight0 = { 0 };
 static bxGfxLights::PointInstance pointLight1 = { 0 };
 static bxGfxLights::PointInstance pointLight2 = { 0 };
 
+static bxGfxLightList* lList = 0;
+static bxGfxViewFrustum_Tiles* frustumTiles = 0;
+
+
 class bxDemoApp : public bxApplication
 {
 public:
@@ -78,6 +82,9 @@ public:
         camera1.params.zFar = 20.f;
 
         bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
+
+        lList = BX_NEW( bxDefaultAllocator(), bxGfxLightList );
+        frustumTiles = BX_NEW( bxDefaultAllocator(), bxGfxViewFrustum_Tiles );
 
         return true;
     }
@@ -158,39 +165,40 @@ public:
         //bxGfxDebugDraw::addLine( Vector3( 1.f, 1.f, 1.f ), Vector3( 1.f,-1.f, 1.f ), 0xFF6666FF, true );
         //bxGfxDebugDraw::addLine( Vector3( 1.f, -1.f, 1.f ), Vector3( 1.f, -1.f,-1.f ), 0xFFFFFFFF, true );
 
-        const Vector4 sphere( -5.f, -1.f, -5.f, 1.0f );
-        bxGfxDebugDraw::addSphere( sphere, 0xFFFF00FF, true );
+        //const Vector4 sphere( -5.f, -1.f, -5.f, 1.0f );
 
-        bxGfx::viewFrustum_debugDraw( camera1.matrix.viewProj, 0x00FF00FF );
-        {
-            const Matrix4 projInv = inverse( camera1.matrix.viewProj );
-            const int tileSize = 32;
-            const int numTilesX = iceil( 1920, tileSize );
-            const int numTilesY = iceil( 1080, tileSize );
+        
 
-            const u32 colors[] =
-            {
-                0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
-                0xFFFF00FF, 0x00FFFFFF, 0xFFFFFFFF,
-            };
+        //bxGfx::viewFrustum_debugDraw( camera1.matrix.viewProj, 0x00FF00FF );
+        //{
+        //    const Matrix4 projInv = inverse( camera1.matrix.viewProj );
+        //    const int tileSize = 32;
+        //    const int numTilesX = iceil( 1920, tileSize );
+        //    const int numTilesY = iceil( 1080, tileSize );
 
-            for ( int itileY = 0; itileY < numTilesY; ++itileY )
-            {
-                for( int itileX = 0; itileX < numTilesX; ++itileX )
-                {
-                    bxGfxViewFrustumLRBT vF = bxGfx::viewFrustum_tile( projInv, itileX, itileY, numTilesX, numTilesY, tileSize );
-                    int collision = bxGfx::viewFrustum_SphereIntersectLRBT( vF, sphere );
-                    if( collision )
-                    {
-                        Vector3 corners[8];
-                        bxGfx::viewFrustum_computeTileCorners( corners, projInv, itileX, itileY, numTilesX, numTilesY, tileSize );
-                        bxGfx::viewFrustum_debugDraw( corners, colors[(numTilesX*itileY + itileX) % 6] );
-                    }
-                }
+        //    const u32 colors[] =
+        //    {
+        //        0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
+        //        0xFFFF00FF, 0x00FFFFFF, 0xFFFFFFFF,
+        //    };
 
-            }
+        //    for ( int itileY = 0; itileY < numTilesY; ++itileY )
+        //    {
+        //        for( int itileX = 0; itileX < numTilesX; ++itileX )
+        //        {
+        //            bxGfxViewFrustumLRBT vF = bxGfx::viewFrustum_tile( projInv, itileX, itileY, numTilesX, numTilesY, tileSize );
+        //            int collision = bxGfx::viewFrustum_SphereIntersectLRBT( vF, sphere );
+        //            if( collision )
+        //            {
+        //                Vector3 corners[8];
+        //                bxGfx::viewFrustum_computeTileCorners( corners, projInv, itileX, itileY, numTilesX, numTilesY, tileSize );
+        //                bxGfx::viewFrustum_debugDraw( corners, colors[(numTilesX*itileY + itileX) % 6] );
+        //            }
+        //        }
 
-        }
+        //    }
+
+        //}
         //bxGdiContextBackend* gdiContext = _gdiDevice->ctx;
 
         //float clearColor[5] = { 1.f, 0.f, 0.f, 1.f, 1.f };
@@ -198,6 +206,19 @@ public:
         //gdiContext->clearBuffers( 0, 0, bxGdiTexture(), clearColor, 1, 1 );
 
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
+
+        const int tileSize = 128;
+        const int numTilesX = iceil( 1920, tileSize );
+        const int numTilesY = iceil( 1080, tileSize );
+
+        lList->setup( numTilesX, numTilesY, _gfxLights->maxLights() );
+        frustumTiles->setup( camera.matrix.viewProj, numTilesX, numTilesY, tileSize );
+
+        _gfxLights->cullPointLights( lList, 0, 0, frustumTiles, camera.matrix.viewProj );
+
+        bxGfxLight_Point light = _gfxLights->pointLight( pointLight0 );
+
+        bxGfxDebugDraw::addSphere( Vector4( light.position.x, light.position.y, light.position.z, light.radius ), 0xFFFF00FF, true );
 
         _gfxContext->frameBegin( _gdiContext );
 

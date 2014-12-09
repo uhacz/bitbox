@@ -428,7 +428,7 @@ namespace bxGfx
         viewFrustum_debugDraw( corners, colorRGBA );
     }
 
-    void viewFrustum_debugDraw(const Vector3 corners[4], u32 colorRGBA)
+    void viewFrustum_debugDraw(const Vector3 corners[8], u32 colorRGBA)
     {
         bxGfxDebugDraw::addLine( corners[0], corners[1], colorRGBA, true );
         bxGfxDebugDraw::addLine( corners[2], corners[3], colorRGBA, true );
