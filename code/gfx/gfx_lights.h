@@ -40,7 +40,7 @@ public:
 
     int maxLights() const { return _capacity_lights; }
     int countPointLights() const { return _count_pointLights; }
-    int cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles );
+    int cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles, const Matrix4& viewProj );
 
 private:
     typedef bxHandleManager<u32> Indices;

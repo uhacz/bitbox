@@ -1,6 +1,7 @@
 #include "gfx_lights.h"
 #include <util/memory.h>
 #include <util/buffer_utils.h>
+#include "gfx_camera.h"
 
 bxGfxLights::bxGfxLights()
     : _memoryHandle( 0 )
@@ -105,16 +106,52 @@ void bxGfxLights::setPointLight( PointInstance i, const bxGfxLight_Point& light 
     _pointLight_color_intensity[index] = Vector4( light.color.x, light.color.y, light.color.z, light.intensity );
 }
 
-int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles )
+int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles, const Matrix4& viewProj )
 {
     const int nX = frustumTiles->numTilesX();
     const int nY = frustumTiles->numTilesY();
+    const int tileSize = frustumTiles->tileSize();
+    const float nX_rcp = 1.f / nX;
+    const float nY_rcp = 1.f / nY;
+
+    const int rtWidth = 1920;
+    const int rtHeight = 1080;
+
+    const Vector3 rtWH_rcp( 1.f / rtWidth, 1.f / rtHeight, 1.f );
+    const Vector3 rtWH( rtWidth, rtHeight, 1.f );
+    const Vector3 nXY_rcp( 1.f / tileSize, 1.f / tileSize, 1.f );
 
     const int nPointLights = _count_pointLights;
 
+    const bxGfxViewFrustum mainFrustum = bxGfx::viewFrustum_extract( viewProj );
+
     for( int ilight = 0; ilight < nPointLights; ++ilight )
     {
-        aa
+        const Vector4& pointLightSphere = _pointLight_position_radius[ilight];
+        
+        const int isInMainFrustum = bxGfx::viewFrustum_SphereIntersectLRBT( mainFrustum, pointLightSphere );
+        if ( !isInMainFrustum )
+            continue;
+
+        const Vector4 hpos_ = viewProj * Vector4( pointLightSphere.getXYZ(), oneVec );
+        const Vector3 hpos = clampv( ( (hpos_.getXYZ() / hpos_.getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) );
+
+        const Vector3 screenPos = mulPerElem( hpos, rtWH );
+        
+        const Vector3 tileXY = mulPerElem( screenPos, nXY_rcp );
+
+        const int tileX = (int)tileXY.getX().getAsFloat();
+        const int tileY = (int)tileXY.getY().getAsFloat();
+
+        const bxGfxViewFrustumLRBT tileFrustum = frustumTiles->frustum( tileX, tileY );
+        int inTileFrustum = bxGfx::viewFrustum_SphereIntersectLRBT( tileFrustum, pointLightSphere );
+        if( inTileFrustum )
+        {
+            Vector3 corners[8];
+            bxGfx::viewFrustum_computeTileCorners( corners, inverse( viewProj ), tileX, tileY, nX, nY, frustumTiles->tileSize() );
+            bxGfx::viewFrustum_debugDraw( corners, 0x00FF00FF );
+        }
+
     }
 
     
@@ -125,7 +162,7 @@ int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuf
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-#include "gfx_camera.h"
+
 
 bxGfxViewFrustum_Tiles::bxGfxViewFrustum_Tiles( bxAllocator* allocator )
     : _viewProjInv( Matrix4::identity() )
