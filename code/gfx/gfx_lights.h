@@ -13,6 +13,7 @@ struct bxGfxLight_Point
 };
 
 class bxGfxLightList;
+class bxGfxViewFrustum_Tiles;
 struct bxGfxCamera;
 class bxGfxLights
 {
@@ -39,7 +40,7 @@ public:
 
     int maxLights() const { return _capacity_lights; }
     int countPointLights() const { return _count_pointLights; }
-    int cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, const bxGfxCamera& camera );
+    int cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles );
 
 private:
     typedef bxHandleManager<u32> Indices;
@@ -57,15 +58,47 @@ private:
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+struct bxGfxViewFrustumLRBT;
+class bxGfxViewFrustum_Tiles
+{
+public:
+    bxGfxViewFrustum_Tiles( bxAllocator* allocator = bxDefaultAllocator() );
+    ~bxGfxViewFrustum_Tiles();
+
+    void setup( const Matrix4& viewProjInv, int numTilesX, int numTilesY, int tileSize );
+    const bxGfxViewFrustumLRBT& frustum( int tileX, int tileY ) const;
+
+    int numTilesX() const { return _numTilesX; }
+    int numTilesY() const { return _numTilesY; }
+    int tileSize () const { return _tileSize; }
+
+private:
+    Matrix4 _viewProjInv;
+
+    bxAllocator* _allocator;
+    void*   _memoryHandle;
+    bxGfxViewFrustumLRBT* _frustums;
+    u8*     _validFlags;
+
+    i32 _numTilesX;
+    i32 _numTilesY;
+    i32 _tileSize;
+    i32 _memorySize;
+};
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 class bxGfxLightList
 {
 public:
-    void startup( int nTilesX, int nTilesY, int nLights, bxAllocator* allocator );
-    void shutdown( bxAllocator* allocator );
+    bxGfxLightList( bxAllocator* allocator = bxDefaultAllocator() );
+    ~bxGfxLightList();
 
-    void clear();
+    void setup( int nTilesX, int nTilesY, int nLights );
 
-    int appendLight( int tileX, int tileY, int lightIndex );
+    int appendPointLight( int tileX, int tileY, int lightIndex );
 
     const u32* items() const { return _items; }
     const u32* tiles() const { return _tiles; }
@@ -76,7 +109,8 @@ private:
         u32 hash;
         struct  
         {
-            u32 lightIndex;
+            u16 index_pointLight;
+            u16 index_spotLight;
         };
     };
 
@@ -85,14 +119,18 @@ private:
         u32 hash;
         struct
         {
-            u16 itemIndex;
-            u16 itemCount;
+            u16 count_pointLight;
+            u16 count_spotLight;
         };
     };
-
+    
+    bxAllocator* _allocator;
+    void* _memoryHandle;
+    
     u32* _tiles; // 2D grid of tiles
     u32* _items; // 1D list of lights for each tile
-    i32 _numItems;
     i32 _numTilesX;
     i32 _numTilesY;
+    i32 _numLights;
+    i32 _memorySize;
 };

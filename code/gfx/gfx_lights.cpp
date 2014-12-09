@@ -105,8 +105,155 @@ void bxGfxLights::setPointLight( PointInstance i, const bxGfxLight_Point& light 
     _pointLight_color_intensity[index] = Vector4( light.color.x, light.color.y, light.color.z, light.intensity );
 }
 
-int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, const bxGfxCamera& camera )
+int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles )
 {
+    const int nX = frustumTiles->numTilesX();
+    const int nY = frustumTiles->numTilesY();
+
+    const int nPointLights = _count_pointLights;
+
+    for( int ilight = 0; ilight < nPointLights; ++ilight )
+    {
+        aa
+    }
+
+    
     return 0;
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+#include "gfx_camera.h"
+
+bxGfxViewFrustum_Tiles::bxGfxViewFrustum_Tiles( bxAllocator* allocator )
+    : _viewProjInv( Matrix4::identity() )
+    , _allocator( allocator )
+    , _memoryHandle(0)
+    , _frustums(0)
+    , _validFlags(0)
+    , _numTilesX(0), _numTilesY(0), _tileSize(0)
+    , _memorySize(0)
+{}
+
+bxGfxViewFrustum_Tiles::~bxGfxViewFrustum_Tiles()
+{
+    BX_FREE0( _allocator, _memoryHandle );
+}
+
+void bxGfxViewFrustum_Tiles::setup( const Matrix4& viewProjInv, int numTilesX, int numTilesY, int tileSize )
+{
+    _viewProjInv = viewProjInv;
+    
+    const int numTiles = numTilesX * numTilesY;
+
+    int memSize = 0;
+    memSize += numTiles * sizeof( *_validFlags );
+    memSize += numTiles * sizeof( *_frustums );
+
+    if( memSize > _memorySize )
+    {
+        BX_FREE0( _allocator, _memoryHandle );
+        _memoryHandle = BX_MALLOC( _allocator, memSize, 16 );
+        _memorySize = memSize;
+
+        bxBufferChunker chunker( _memoryHandle, _memorySize );
+        _frustums = chunker.add< bxGfxViewFrustumLRBT >( numTiles );
+        _validFlags = chunker.add< u8 >( numTiles );
+        chunker.check();
+    }
+
+    memset( _memoryHandle, 0x00, _memorySize );
+
+    _numTilesX = numTilesX;
+    _numTilesY = numTilesY;
+    _tileSize = tileSize;
+}
+
+const bxGfxViewFrustumLRBT& bxGfxViewFrustum_Tiles::frustum( int tileX, int tileY ) const
+{
+    const int index = _numTilesX * tileY + tileX;
+    SYS_ASSERT( index < (_numTilesX*_numTilesY) );
+
+    if( !_validFlags[index] )
+    {
+        _frustums[index] = bxGfx::viewFrustum_tile( _viewProjInv, tileX, tileY, _numTilesX, _numTilesY, _tileSize );
+        _validFlags[index] = 1;
+    }
+    return _frustums[index];
+}
+
+
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+bxGfxLightList::bxGfxLightList( bxAllocator* allocator /*= bxDefaultAllocator() */ )
+    : _allocator(allocator)
+    , _memoryHandle(0)
+    , _tiles(0)
+    , _items(0)
+    , _numTilesX(0)
+    , _numTilesY(0)
+    , _numLights(0)
+    , _memorySize(0)
+{}
+
+bxGfxLightList::~bxGfxLightList()
+{
+    BX_FREE( _allocator, _memoryHandle );
+}
+
+void bxGfxLightList::setup( int nTilesX, int nTilesY, int nLights )
+{
+    const int numTiles = nTilesX * nTilesY;
+    int memSize = 0;
+    memSize += numTiles * sizeof( *_tiles );
+    memSize += numTiles * nLights * sizeof( *_items );
+
+    if( memSize > _memorySize )
+    {
+        BX_FREE0( _allocator, _memoryHandle );
+        _memoryHandle = BX_MALLOC( _allocator, memSize, 4 );
+        _memorySize = memSize;
+    }
+
+    memset( _memoryHandle, 0, _memorySize );
+
+    bxBufferChunker chunker( _memoryHandle, _memorySize );
+    _tiles = chunker.add< u32 >( numTiles );
+    _items = chunker.add< u32 >( numTiles * nLights );
+    chunker.check();
+
+    _numTilesX = nTilesX;
+    _numTilesY = nTilesY;
+    _numLights = nLights;
+}
+
+int bxGfxLightList::appendPointLight( int tileX, int tileY, int lightIndex )
+{
+    const int tileIndex = _numTilesX * tileY + tileX;
+    const int firstItemIndex = _numLights * tileIndex;
+
+    SYS_ASSERT( tileIndex < (_numTilesX*_numTilesY) );
+    SYS_ASSERT( firstItemIndex < (_numTilesX*_numTilesY*_numLights) );
+
+    Tile tile = { _tiles[tileIndex] };
+    
+    const int itemIndex = firstItemIndex + tile.count_pointLight;
+    SYS_ASSERT( itemIndex < (_numTilesX*_numTilesY*_numLights) );
+    Item item = { _items[itemIndex] };
+
+    item.index_pointLight = lightIndex;
+    tile.count_pointLight += 1;
+    SYS_ASSERT( tile.count_pointLight <= _numLights );
+
+    _tiles[tileIndex] = tile.hash;
+    _items[itemIndex] = item.hash;
+
+    return tile.count_pointLight;
+}

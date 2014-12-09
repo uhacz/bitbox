@@ -107,7 +107,7 @@ namespace bxGfx
     void viewFrustum_extractPlanes( Vector4 planesLRBTNF[6], const Matrix4& viewProjection );
     bxGfxViewFrustum viewFrustum_extract( const Matrix4& viewProjection );
     void viewFrustum_computeTileCorners( Vector3 corners[8], const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize );
-    bxGfxViewFrustumLRBT viewFrustum_tile( const Matrix4& projInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize );
+    bxGfxViewFrustumLRBT viewFrustum_tile( const Matrix4& viewProjInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize );
     
     inline int viewFrustum_SphereIntersectLRBT( const bxGfxViewFrustumLRBT& frustum, const Vector4& sphere, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );
 
