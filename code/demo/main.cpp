@@ -31,8 +31,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -48,7 +48,7 @@ public:
 
         bxGfxLight_Point pl;
         pl.position = float3_t( 0.f, 0.f, 0.f );
-        pl.radius = 2.f;
+        pl.radius = 1.f;
         pl.color = float3_t( 1.f, 1.f, 1.f );
         pl.intensity = 1.f;
         pointLight0 = _gfxLights->createPointLight( pl );
@@ -64,9 +64,9 @@ public:
         _gfxLights->releaseLight( pointLight1 );
         _gfxLights->releaseLight( pointLight2 );
 
-        pl.intensity = 1.f;
-        pl.radius = 9.f;
-        pointLight1 = _gfxLights->createPointLight( pl );
+        //pl.intensity = 1.f;
+        //pl.radius = 9.f;
+        //pointLight1 = _gfxLights->createPointLight( pl );
 
 
 
