@@ -7,11 +7,11 @@ namespace bxGdi
 {
     unsigned _FetchRenderTargetTextures( ID3D11RenderTargetView** rtv, ID3D11DepthStencilView** dsv, bxGdiTexture* colorTex, unsigned nColorTex, bxGdiTexture depthTex, unsigned slotCount )
     {
-        *dsv = depthTex.dx.viewDS;
+        *dsv = depthTex.dx11ViewDS;
 
         for( unsigned i = 0; i < nColorTex; ++i )
         {
-            rtv[i] = colorTex[i].dx.viewRT;
+            rtv[i] = colorTex[i].dx11ViewRT;
         }
         
         for( unsigned i = nColorTex; i < slotCount; ++i )
@@ -153,6 +153,48 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
             }
         }
     }
+    
+    virtual void setResourcesRO( bxGdiResource* resources, unsigned startSlot, unsigned n, int stage )
+    {
+        const int SLOT_COUNT = bxGdi::cMAX_RESOURCES_RO;
+        SYS_ASSERT( n <= SLOT_COUNT );
+
+        ID3D11ShaderResourceView* views[SLOT_COUNT];
+        memset( views, 0, sizeof( views ) );
+
+        if ( resources )
+        {
+            for ( unsigned i = 0; i < n; ++i )
+            {
+                views[i] = resources[i].dx11ViewSH;
+            }
+        }
+
+        switch ( stage )
+        {
+            case bxGdi::eSTAGE_VERTEX:
+            {
+                _context->VSSetShaderResources( startSlot, n, views );
+                break;
+            }
+            case bxGdi::eSTAGE_PIXEL:
+            {
+                _context->PSSetShaderResources( startSlot, n, views );
+                break;
+            }
+            case bxGdi::eSTAGE_COMPUTE:
+            {
+                _context->CSSetShaderResources( startSlot, n, views );
+                break;
+            }
+            default:
+            {
+                SYS_ASSERT( false );
+                break;
+            }
+        }
+    }
+
     virtual void setTextures( bxGdiTexture* textures, unsigned startSlot, unsigned n, int stage ) 
     {
         const int SLOT_COUNT = bxGdi::cMAX_TEXTURES;
@@ -165,7 +207,7 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
         {
             for( unsigned i = 0; i < n; ++i )
             {
-                views[i] = textures[i].dx.viewSH;
+                views[i] = textures[i].rs.dx11ViewSH;
             }
         }
 
@@ -282,7 +324,7 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
 	    ID3D11DepthStencilView *dsv = 0;
         bxGdi::_FetchRenderTargetTextures( rtv, &dsv, colorTex, nColor, depthTex, SLOT_COUNT );
 
-        if( ( ( !colorTex || !nColor ) && !depthTex.dx.resource ) && flag_color )
+        if( ( ( !colorTex || !nColor ) && !depthTex.rs.dx11Resource ) && flag_color )
         {
             _context->ClearRenderTargetView( _mainFramebuffer, rgbad );
         }
@@ -357,14 +399,14 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
     }
     virtual void generateMipmaps( bxGdiTexture texture ) 
     {
-        _context->GenerateMips( texture.dx.viewSH );
+        _context->GenerateMips( texture.rs.dx11ViewSH );
     }
 
     virtual bxGdiTexture backBufferTexture()
     {
         bxGdiTexture tex;
         tex.id = 0;
-        tex.dx.viewRT = _mainFramebuffer;
+        tex.dx11ViewRT = _mainFramebuffer;
         tex.width = _mainFramebufferWidth;
         tex.height = _mainFramebufferHeight;
 

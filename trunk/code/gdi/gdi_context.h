@@ -79,7 +79,8 @@ namespace bxGdi
         bxGdiIndexBuffer    _istream;
 
         bxGdiShader        _shaders[eSTAGE_COUNT];
-        bxGdiTexture       _textures[eSTAGE_COUNT][cMAX_TEXTURES];
+        //bxGdiTexture       _textures[eSTAGE_COUNT][cMAX_TEXTURES];
+        bxGdiResource      _resourcesRO[eSTAGE_COUNT][cMAX_RESOURCES_RO];
         bxGdiSamplerDesc   _samplers[eSTAGE_COUNT][cMAX_SAMPLERS];
         bxGdiBuffer        _cbuffers[eSTAGE_COUNT][cMAX_CBUFFERS];
         bxGdiHwStateDesc   _hwstate;
@@ -125,7 +126,7 @@ namespace bxGdi
             u32 hwState_raster : 1;
             u32 viewport       : 1;
             u32 clearColor     : 1;
-            u32 textures       : eSTAGE_COUNT;
+            u32 resourcesRO    : eSTAGE_COUNT;
             u32 samplers       : eSTAGE_COUNT;
             u32 cbuffers       : eSTAGE_COUNT;
         };
@@ -199,15 +200,17 @@ public:
     void setIndexBuffer         ( bxGdiIndexBuffer ibuffer );
     void setShaders             ( bxGdiShader* shaders, int n, unsigned vertex_input_mask );
     void setCbuffers            ( bxGdiBuffer* cbuffers, unsigned start_slot, unsigned n, int stage );
+    void setBuffersRO           ( bxGdiBuffer* cbuffers, unsigned start_slot, unsigned n, int stage );
     void setTextures            ( bxGdiTexture* textures, unsigned start_slot, unsigned n, int stage );
     void setSamplers            ( bxGdiSamplerDesc* samplers, unsigned start_slot, unsigned n, int stage );
     void setCbuffer             ( bxGdiBuffer cbuffer, int slot, unsigned stage_mask );
+    void setBufferRO            ( bxGdiBuffer cbuffer, int slot, unsigned stage_mask );
     void setTexture             ( bxGdiTexture texture, int slot, unsigned stage_mask );
     void setSampler             ( const bxGdiSamplerDesc& sampler, int slot, unsigned stage_mask );
     void setHwState             ( const bxGdiHwStateDesc& hwstate );
     void setTopology            ( int topology );
 
-    void clearTextures          ();
+    void clearResourcesRO       ();
     void clearSamplers          ();
 
     void changeToMainFramebuffer();

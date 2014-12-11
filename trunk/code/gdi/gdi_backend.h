@@ -43,6 +43,17 @@ struct ID3D11DepthStencilView;
 struct ID3D11UnorderedAccessView;
 //////////////////////////////////////////////////////////////////////////
 
+union bxGdiResource
+{
+    uptr id;
+    struct
+    {
+        ID3D11Resource* dx11Resource;
+        ID3D11ShaderResourceView* dx11ViewSH;
+        ID3D11UnorderedAccessView* dx11ViewUA;
+    };
+};
+
 struct bxGdiVertexBuffer
 {
     union 
@@ -80,12 +91,8 @@ struct bxGdiBuffer
     union
     {
         uptr id;
-        struct  
-        {
-            ID3D11Buffer* dx11Buffer;
-            ID3D11ShaderResourceView* dx11ViewSH;
-            ID3D11UnorderedAccessView* dx11ViewUA;
-        };
+        ID3D11Buffer* dx11Buffer;
+        bxGdiResource rs;
     };
 
     u32 sizeInBytes;
@@ -93,12 +100,40 @@ struct bxGdiBuffer
 
     bxGdiBuffer()
         : id(0)
-        , dx11ViewSH(0)
-        , dx11ViewUA(0)
         , sizeInBytes(0)
         , bindFlags(0)
+    {
+        rs.dx11ViewSH = 0;
+        rs.dx11ViewUA = 0;
+    }
+};
+struct bxGdiTexture
+{
+    union
+    {
+        uptr id;
+        bxGdiResource rs;
+        union
+        {
+            ID3D11Texture1D* dx11Tex1D;
+            ID3D11Texture2D* dx11Tex2D;
+            ID3D11Texture3D* dx11Tex3D;
+        };
+    };
+    ID3D11RenderTargetView*     dx11ViewRT;
+    ID3D11DepthStencilView*     dx11ViewDS;
+
+    i16 width;
+    i16 height;
+    i16 depth;
+    bxGdiFormat format;
+
+    bxGdiTexture()
+        : id( 0 )
+        , width( 0 ), height( 0 ), depth( 0 )
     {}
 };
+
 struct bxGdiShader
 {
     union 
@@ -124,38 +159,7 @@ struct bxGdiShader
         , stage(-1)
     {}
 };
-struct bxGdiTexture
-{
-    union
-    {
-        uptr id;
-        struct
-        {
-            union 
-            {
-                ID3D11Resource*   resource;
-                ID3D11Texture1D* _1D;
-                ID3D11Texture2D* _2D;
-                ID3D11Texture3D* _3D;
-            };
 
-            ID3D11ShaderResourceView*   viewSH;
-            ID3D11RenderTargetView*     viewRT;
-            ID3D11DepthStencilView*     viewDS;
-            ID3D11UnorderedAccessView*  viewUA;
-        } dx;
-    };
-
-    i16 width;
-    i16 height;
-    i16 depth;
-    bxGdiFormat format;
-
-    bxGdiTexture()
-        : id(0)
-        , width(0), height(0), depth(0)
-    {}
-};
 union bxGdiInputLayout
 {
     uptr id;
@@ -269,7 +273,8 @@ struct bxGdiContextBackend
     virtual void setShaderPrograms      ( bxGdiShader* shaders, int n ) = 0;
     virtual void setInputLayout         ( const bxGdiInputLayout ilay ) = 0;
 
-    virtual void setCbuffers            ( bxGdiBuffer* cbuffers , unsigned startSlot, unsigned n, int stage ) = 0;
+    virtual void setCbuffers            ( bxGdiBuffer* cbuffers, unsigned startSlot, unsigned n, int stage ) = 0;
+    virtual void setResourcesRO         ( bxGdiResource* resources, unsigned startSlot, unsigned n, int stage ) = 0;
     virtual void setTextures            ( bxGdiTexture* textures, unsigned startSlot, unsigned n, int stage ) = 0;
     virtual void setSamplers            ( bxGdiSampler* samplers, unsigned startSlot, unsigned n, int stage ) = 0;
 

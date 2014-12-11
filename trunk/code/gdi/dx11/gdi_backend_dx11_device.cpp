@@ -395,8 +395,8 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         tex2D->GetDesc( &desc );
 
         bxGdiTexture tex;
-        tex.dx.resource = resource;
-        tex.dx.viewSH = srv;
+        tex.rs.dx11Resource = resource;
+        tex.rs.dx11ViewSH = srv;
 
         tex.width = (u16)desc.Width;
         tex.height = (u16)desc.Height;
@@ -482,11 +482,11 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         }
 
         bxGdiTexture tex;
-        tex.dx._2D = tex2D;
-        tex.dx.viewSH = view_sh;
-        tex.dx.viewRT = view_rt;
-        tex.dx.viewUA = view_ua;
-        tex.dx.viewDS = 0;
+        tex.dx11Tex2D = tex2D;
+        tex.rs.dx11ViewSH = view_sh;
+        tex.rs.dx11ViewUA = view_ua;
+        tex.dx11ViewRT = view_rt;
+        tex.dx11ViewDS = 0;
         tex.width = w;
         tex.height = h;
         tex.depth = 0;
@@ -565,11 +565,11 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         }
 
         bxGdiTexture tex;
-        tex.dx._2D = tex2d;
-        tex.dx.viewDS = view_ds;
-        tex.dx.viewSH = view_sh;
-        tex.dx.viewRT = 0;
-        tex.dx.viewUA = 0;
+        tex.dx11Tex2D = tex2d;
+        tex.dx11ViewDS = view_ds;
+        tex.rs.dx11ViewSH = view_sh;
+        tex.rs.dx11ViewUA = 0;
+        tex.dx11ViewRT = 0;
         tex.width = w;
         tex.height = h;
         tex.depth = 0;
@@ -773,11 +773,11 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     }
     virtual void releaseTexture( bxGdiTexture* id )
     {
-        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.resource );
-        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewSH );
-        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewRT );
-        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewDS );
-        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.viewUA );
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->rs.dx11Resource );
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->rs.dx11ViewSH );
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->rs.dx11ViewUA );
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx11ViewRT );
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->dx11ViewDS );
     }
     virtual void releaseSampler( bxGdiSampler* id )
     {

@@ -24,6 +24,7 @@ static bxGfxLights::PointInstance pointLight2 = { 0 };
 static bxGfxLightList* lList = 0;
 static bxGfxViewFrustum_Tiles* frustumTiles = 0;
 
+static const int MAX_LIGHTS = 16;
 
 class bxDemoApp : public bxApplication
 {
@@ -31,8 +32,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -44,7 +45,7 @@ public:
         _gfxContext->startup( _gdiDevice, _resourceManager );
         
         _gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
-        _gfxLights->startup( 64 );
+        _gfxLights->startup( MAX_LIGHTS );
 
         bxGfxLight_Point pl;
         pl.position = float3_t( 0.f, 0.f, 0.f );
