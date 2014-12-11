@@ -56,6 +56,10 @@ struct bxGdiFormat
         : type(0), numElements(0), normalized(0), srgb(0) 
     {}
 };
+namespace bxGdi
+{
+    inline int formatByteWidth( const bxGdiFormat fmt ) { return typeStride[fmt.type] * fmt.numElements; }
+}///
 
 
 union bxGdiSamplerDesc

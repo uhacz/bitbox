@@ -80,7 +80,12 @@ struct bxGdiBuffer
     union
     {
         uptr id;
-        ID3D11Buffer* dx11Buffer;
+        struct  
+        {
+            ID3D11Buffer* dx11Buffer;
+            ID3D11ShaderResourceView* dx11ViewSH;
+            ID3D11UnorderedAccessView* dx11ViewUA;
+        };
     };
 
     u32 sizeInBytes;
@@ -88,6 +93,8 @@ struct bxGdiBuffer
 
     bxGdiBuffer()
         : id(0)
+        , dx11ViewSH(0)
+        , dx11ViewUA(0)
         , sizeInBytes(0)
         , bindFlags(0)
     {}
@@ -218,7 +225,8 @@ struct bxGdiDeviceBackend
 
     virtual bxGdiVertexBuffer createVertexBuffer( const bxGdiVertexStreamDesc& desc, u32 numElements, const void* data = 0 ) = 0;
     virtual bxGdiIndexBuffer  createIndexBuffer( int dataType, u32 numElements, const void* data = 0  ) = 0;
-    virtual bxGdiBuffer createBuffer( u32 sizeInBytes, u32 bindFlags ) = 0;
+    virtual bxGdiBuffer createBuffer( u32 sizeInBytes, u32 bindFlags, bxGdiFormat format = bxGdiFormat(), u32 cpuAccess = 0 ) = 0;
+    
     
     virtual bxGdiShader createShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdi::ShaderReflection* reflection = 0) = 0;
     virtual bxGdiShader createShader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdi::ShaderReflection* reflection = 0  ) = 0;
