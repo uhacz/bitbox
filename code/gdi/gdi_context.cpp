@@ -56,8 +56,8 @@ struct ContextPriv
 
         for( int istage = 0; istage < eSTAGE_COUNT; ++istage )
         {
-            const u8 difference = memcmp( current._textures[istage], pending._textures[istage], sizeof(current._textures[istage] ) ) != 0;
-            diff.textures |= difference * BIT_OFFSET( istage );
+            const u8 difference = memcmp( current._resourcesRO[istage], pending._resourcesRO[istage], sizeof( current._resourcesRO[istage] ) ) != 0;
+            diff.resourcesRO |= difference * BIT_OFFSET( istage );
         }
         for( int istage = 0; istage < eSTAGE_COUNT; ++istage )
         {
@@ -121,7 +121,7 @@ struct ContextPriv
                         const unsigned stage_mask = BIT_OFFSET( istage );
                         for( int islot = 0; islot < cMAX_TEXTURES; ++islot )
                         {
-                            const bxGdiTexture tex = current._textures[istage][islot];
+                            const bxGdiResource tex = current._resourcesRO[istage][islot];
                             found_stages |= ( ( tex.id == rt.id ) || ( tex.id == pending._depthRT.id ) ) * stage_mask;
                             if( found_stages & stage_mask )
                             {
@@ -138,7 +138,7 @@ struct ContextPriv
                         if( found_stages & stage_mask )
                         {
                             ctxBackend->setTextures( 0, 0, cMAX_TEXTURES, istage );
-                            diff.textures |= stage_mask;
+                            diff.resourcesRO |= stage_mask;
                         }
                     }
                 }
@@ -229,15 +229,15 @@ struct ContextPriv
             }
         }
 
-        if( diff.textures )
+        if( diff.resourcesRO )
         {
             for( int istage = 0; istage < eSTAGE_COUNT; ++istage )
             {
                 const u16 stage_mask = BIT_OFFSET( istage );
-                if( ( stage_mask & diff.textures ) == 0 )
+                if ( (stage_mask & diff.resourcesRO) == 0 )
                     continue;
 
-                ctxBackend->setTextures( (bxGdiTexture*)pending._textures[istage], 0, cMAX_TEXTURES, istage );
+                ctxBackend->setResourcesRO( (bxGdiResource*)pending._resourcesRO[istage], 0, cMAX_TEXTURES, istage );
             }
         }
 
@@ -454,11 +454,24 @@ void bxGdiContext::setCbuffers(bxGdiBuffer* cbuffers, unsigned start_slot, unsig
     memcpy( begin, cbuffers, n * sizeof(*cbuffers) );
 }
 
+void bxGdiContext::setBuffersRO(bxGdiBuffer* cbuffers, unsigned start_slot, unsigned n, int stage)
+{
+    SYS_ASSERT( start_slot + n <= bxGdi::cMAX_RESOURCES_RO );
+    bxGdiResource* resources = &pending._resourcesRO[stage][start_slot];
+
+    for ( u32 islot = 0; islot < n; ++islot )
+        resources[islot] = cbuffers[islot].rs;
+}
+
 void bxGdiContext::setTextures(bxGdiTexture* textures, unsigned start_slot, unsigned n, int stage)
 {
-    SYS_ASSERT( start_slot + n <= bxGdi::cMAX_TEXTURES );
-    bxGdiTexture* begin = &pending._textures[stage][start_slot];
-    memcpy( begin, textures, n * sizeof(*textures) );
+    SYS_ASSERT( start_slot + n <= bxGdi::cMAX_RESOURCES_RO );
+    bxGdiResource* resources = &pending._resourcesRO[stage][start_slot];
+
+    for ( u32 islot = 0; islot < n; ++islot )
+        resources[islot] = textures[islot].rs;
+
+    //memcpy( begin, textures, n * sizeof(*textures) );
 }
 
 void bxGdiContext::setSamplers(bxGdiSamplerDesc* samplers, unsigned start_slot, unsigned n, int stage)
@@ -481,15 +494,28 @@ void bxGdiContext::setCbuffer(bxGdiBuffer cbuffer, int slot, unsigned stage_mask
     }
 }
 
+void bxGdiContext::setBufferRO(bxGdiBuffer cbuffer, int slot, unsigned stage_mask)
+{
+    SYS_ASSERT( slot < bxGdi::cMAX_RESOURCES_RO );
+    for ( int istage = 0; istage < bxGdi::eSTAGE_COUNT; ++istage )
+    {
+        const u32 currentStageMask = BIT_OFFSET( istage );
+        if ( stage_mask & currentStageMask )
+        {
+            pending._resourcesRO[istage][slot] = cbuffer.rs;
+        }
+    }
+}
+
 void bxGdiContext::setTexture(bxGdiTexture texture, int slot, unsigned stage_mask)
 {
-    SYS_ASSERT( slot < bxGdi::cMAX_TEXTURES );
+    SYS_ASSERT( slot < bxGdi::cMAX_RESOURCES_RO );
     for( int istage = 0; istage < bxGdi::eSTAGE_COUNT; ++istage )
     {
         const u32 currentStageMask = BIT_OFFSET( istage );
         if( stage_mask & currentStageMask )
         {
-            pending._textures[istage][slot] = texture;
+            pending._resourcesRO[istage][slot] = texture.rs;
         }
     }
 }
@@ -517,9 +543,9 @@ void bxGdiContext::setTopology(int topology)
     pending._topology = topology;
 }
 
-void bxGdiContext::clearTextures()
+void bxGdiContext::clearResourcesRO()
 {
-    memset( pending._textures, 0, sizeof( pending._textures ) );
+    memset( pending._resourcesRO, 0, sizeof( pending._resourcesRO ) );
 }
 
 void bxGdiContext::clearSamplers()

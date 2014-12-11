@@ -76,6 +76,18 @@ void bxGfxLights::releaseLight( PointInstance i )
     _pointLight_color_intensity[index] = _pointLight_color_intensity[_count_pointLights];
 }
 
+namespace
+{
+    void toPointLight( bxGfxLight_Point* pLight, const Vector4& pos_rad, const Vector4& col_int )
+    {
+        m128_to_xyz( pLight->position.xyz, pos_rad.get128() );
+        m128_to_xyz( pLight->color.xyz, col_int.get128() );
+        pLight->radius = pos_rad.getW().getAsFloat();
+        pLight->intensity = col_int.getW().getAsFloat();
+    }
+
+}
+
 bxGfxLight_Point bxGfxLights::pointLight( PointInstance i )
 {
     bxGfxLight_Point result;
@@ -88,10 +100,7 @@ bxGfxLight_Point bxGfxLights::pointLight( PointInstance i )
     const Vector4& pos_rad = _pointLight_position_radius[index];
     const Vector4& col_int = _pointLight_color_intensity[index];
 
-    m128_to_xyz( result.position.xyz, pos_rad.get128() );
-    m128_to_xyz( result.color.xyz, col_int.get128() );
-    result.radius = pos_rad.getW().getAsFloat();
-    result.intensity = col_int.getW().getAsFloat();
+    toPointLight( &result, pos_rad, col_int );
     
     return result;
 }
@@ -133,22 +142,29 @@ int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuf
     const int rtHeight = 1080;
 
     const Vector3 rtWH_rcp( 1.f / rtWidth, 1.f / rtHeight, 1.f );
-    const Vector3 rtWH( rtWidth, rtHeight, 1.f );
+    const Vector3 rtWH( (float)rtWidth, (float)rtHeight, 1.f );
     const Vector3 nXY_rcp( 1.f / tileSize, 1.f / tileSize, 1.f );
 
-    const Vector4 viewport( 0.f, 0.f, 1920.f, 1080.f );
+    //const Vector4 viewport( 0.f, 0.f, 1920.f, 1080.f );
 
     const int nPointLights = _count_pointLights;
 
     const bxGfxViewFrustum mainFrustum = bxGfx::viewFrustum_extract( viewProj );
 
-    for( int ilight = 0; ilight < nPointLights; ++ilight )
+    int dstLightCount = 0;
+
+    for( int ilight = 0; ilight < nPointLights && dstLightCount < dstBufferSize; ++ilight )
     {
         const Vector4& pointLightSphere = _pointLight_position_radius[ilight];
-        
+        const Vector4& col_int = _pointLight_color_intensity[ilight];
+        toPointLight( dstBuffer + dstLightCount, pointLightSphere, col_int );
+        ++dstLightCount;
+
         const int isInMainFrustum = bxGfx::viewFrustum_SphereIntersectLRBT( mainFrustum, pointLightSphere );
         if ( !isInMainFrustum )
             continue;
+
+
 
         const Vector3 max = pointLightSphere.getXYZ() + Vector3( pointLightSphere.getW() );
         const Vector3 min = pointLightSphere.getXYZ() - Vector3( pointLightSphere.getW() );
@@ -170,8 +186,8 @@ int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuf
         const int maxTileX = clamp( int( maxTileXY.getX().getAsFloat() ), 0, nX - 1 );
         const int maxTileY = clamp( int( maxTileXY.getY().getAsFloat() ), 0, nY - 1 );
 
-        const Vector3 a = projectXY( viewProj, min, viewport );
-        const Vector3 b = projectXY( viewProj, max, viewport );
+        //const Vector3 a = projectXY( viewProj, min, viewport );
+        //const Vector3 b = projectXY( viewProj, max, viewport );
 
         for( int itileY = minTileY; itileY <= maxTileY; ++itileY )
         {
@@ -184,32 +200,10 @@ int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuf
                 list->appendPointLight( itileX, itileY, ilight );
             }
         }
-
-        //const Vector4 hpos_m11 = viewProj * Vector4( pointLightSphere.getXYZ(), oneVec );
-        //const Vector3 hpos01 = clampv( ( (hpos_m11.getXYZ() / hpos_m11.getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) );
-
-
-
-        //const Vector3 screenPos = mulPerElem( hpos01, rtWH );
-        //
-        //const Vector3 tileXY = mulPerElem( screenPos, nXY_rcp );
-
-        //const int tileX = (int)tileXY.getX().getAsFloat();
-        //const int tileY = (int)tileXY.getY().getAsFloat();
-
-        //const bxGfxViewFrustumLRBT tileFrustum = frustumTiles->frustum( tileX, tileY );
-        //int inTileFrustum = bxGfx::viewFrustum_SphereIntersectLRBT( tileFrustum, pointLightSphere );
-        //if( inTileFrustum )
-        //{
-        //    Vector3 corners[8];
-        //    bxGfx::viewFrustum_computeTileCorners( corners, inverse( viewProj ), tileX, tileY, nX, nY, frustumTiles->tileSize() );
-        //    bxGfx::viewFrustum_debugDraw( corners, 0x00FF00FF );
-        //}
-
     }
 
     
-    return 0;
+    return dstLightCount;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -319,6 +313,8 @@ void bxGfxLightList::setup( int nTilesX, int nTilesY, int nLights )
     _tiles = chunker.add< u32 >( numTiles );
     _items = chunker.add< u32 >( numTiles * nLights );
     chunker.check();
+
+    memset( _items, 0xFF, numTiles * nLights * sizeof( *_items ) );
 
     _numTilesX = nTilesX;
     _numTilesY = nTilesY;
