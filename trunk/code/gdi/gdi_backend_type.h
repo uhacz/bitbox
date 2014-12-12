@@ -74,6 +74,13 @@ namespace bxGdi
         eCPU_READ = BIT_OFFSET(0),
         eCPU_WRITE = BIT_OFFSET(1),
     };
+    enum EGpuAccess
+    {
+        eGPU_READ = BIT_OFFSET(1),
+        eGPU_WRITE = BIT_OFFSET(2), 
+        eGPU_READ_WRITE = eGPU_READ | eGPU_WRITE,
+    };
+
     enum EMapType
     {
         eMAP_WRITE = 0,

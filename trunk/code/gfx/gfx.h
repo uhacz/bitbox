@@ -217,7 +217,7 @@ struct bxGfxContext
     bxGfxContext();
     ~bxGfxContext();
 
-    int startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, int maxLights );
+    int startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     
     void frameBegin( bxGdiContext* ctx );
@@ -237,8 +237,6 @@ private:
     bxGdiBuffer _cbuffer_frameData;
     bxGdiBuffer _cbuffer_instanceData;
     bxGdiBuffer _cbuffer_shadingData;
-    bxGdiBuffer _buffer_lightsData;
-    bxGdiBuffer _buffer_lightsTileIndices;
 
     bxGdiTexture _framebuffer[bxGfx::eFRAMEBUFFER_COUNT];
 

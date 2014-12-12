@@ -234,52 +234,83 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
         return iBuffer;
     }
-    virtual bxGdiBuffer createBuffer( u32 sizeInBytes, u32 bindFlags, bxGdiFormat format, u32 cpuAccess )
+    virtual bxGdiBuffer createConstantBuffer( u32 sizeInBytes )
     {
-        const u32 dxBindFlags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
-        const u32 dxCpuAccessFlag = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuAccess );
-        
         D3D11_BUFFER_DESC bdesc;
         memset( &bdesc, 0, sizeof(bdesc) );
         bdesc.ByteWidth = sizeInBytes;
         bdesc.Usage = D3D11_USAGE_DEFAULT;
+        bdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        bdesc.CPUAccessFlags = 0;
+
+        ID3D11Buffer* buffer = 0;
+        HRESULT hres = _device->CreateBuffer( &bdesc, 0, &buffer );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+
+        bxGdiBuffer b;
+        b.dx11Buffer = buffer;
+        b.sizeInBytes = sizeInBytes;
+        b.bindFlags = bxGdi::eBIND_CONSTANT_BUFFER;
+
+        return b;
+    }
+
+    virtual bxGdiBuffer createBuffer( int numElements, bxGdiFormat format, unsigned bindFlags, unsigned cpuAccessFlag, unsigned gpuAccessFlag )
+    {
+        const u32 dxBindFlags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
+        const u32 dxCpuAccessFlag = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuAccessFlag );
+
+        D3D11_USAGE dxUsage = D3D11_USAGE_DEFAULT;
+        if ( gpuAccessFlag == bxGdi::eGPU_READ && ( cpuAccessFlag & bxGdi::eCPU_WRITE ) )
+        {
+            dxUsage = D3D11_USAGE_DYNAMIC;
+        }
+        
+
+        D3D11_BUFFER_DESC bdesc;
+        memset( &bdesc, 0, sizeof( bdesc ) );
+        bdesc.ByteWidth = numElements * bxGdi::formatByteWidth( format );
+        bdesc.Usage = dxUsage;
         bdesc.BindFlags = dxBindFlags;
         bdesc.CPUAccessFlags = dxCpuAccessFlag;
 
         ID3D11Buffer* buffer = 0;
         HRESULT hres = _device->CreateBuffer( &bdesc, 0, &buffer );
         SYS_ASSERT( SUCCEEDED( hres ) );
-
+        
         ID3D11ShaderResourceView* viewSH = 0;
 
-        if( dxBindFlags & D3D11_BIND_SHADER_RESOURCE )
+        if ( dxBindFlags & D3D11_BIND_SHADER_RESOURCE )
         {
             const DXGI_FORMAT dxFormat = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
             const int formatByteWidth = bxGdi::formatByteWidth( format );
             SYS_ASSERT( formatByteWidth > 0 );
 
             D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
-            memset( &srvdesc, 0, sizeof(srvdesc) );
+            memset( &srvdesc, 0, sizeof( srvdesc ) );
             srvdesc.Format = dxFormat;
             srvdesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
             srvdesc.BufferEx.FirstElement = 0;
-            srvdesc.BufferEx.NumElements = sizeInBytes / formatByteWidth;
+            srvdesc.BufferEx.NumElements = numElements;
             srvdesc.BufferEx.Flags = 0;
             hres = _device->CreateShaderResourceView( buffer, &srvdesc, &viewSH );
-            SYS_ASSERT( SUCCEEDED(hres) );
+            SYS_ASSERT( SUCCEEDED( hres ) );
         }
-        if( dxBindFlags & D3D11_BIND_UNORDERED_ACCESS )
+
+        if ( dxBindFlags & D3D11_BIND_UNORDERED_ACCESS )
         {
         }
 
         bxGdiBuffer b;
         b.dx11Buffer = buffer;
-        b.sizeInBytes = sizeInBytes;
+        b.rs.dx11ViewSH = viewSH;
+        b.rs.dx11ViewUA = 0;
+        b.sizeInBytes = bdesc.ByteWidth;
         b.bindFlags = bindFlags;
 
         return b;
     }
-
+    
     virtual bxGdiShader createShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdi::ShaderReflection* reflection = 0)
     {
         SYS_ASSERT( stage < bxGdi::eSTAGE_COUNT );

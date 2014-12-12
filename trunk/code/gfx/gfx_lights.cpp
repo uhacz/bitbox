@@ -358,8 +358,8 @@ void bxGfxLightsContext::startup( bxGdiDeviceBackend* dev, int maxLights, int ti
 
     const int numTiles = numTilesX * numTilesY;
 
-    buffer_lightsData = dev->createBuffer( maxLights * sizeof(bxGfxLight_Point), bxGdi::eBIND_SHADER_RESOURCE, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eCPU_WRITE );
-    buffer_lightsTileIndices = dev->createBuffer( numTiles * maxLights * sizeof(u32), bxGdi::eBIND_SHADER_RESOURCE, bxGdiFormat( bxGdi::eTYPE_UINT, 1 ), bxGdi::eCPU_WRITE );
+    buffer_lightsData = dev->createBuffer( maxLights, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+    buffer_lightsTileIndices = dev->createBuffer( numTiles * maxLights, bxGdiFormat( bxGdi::eTYPE_UINT, 1 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
     
     culledPointLightsBuffer = (bxGfxLight_Point*)BX_MALLOC( bxDefaultAllocator(), maxLights * sizeof(*culledPointLightsBuffer), 4 );
 }
