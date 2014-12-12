@@ -229,7 +229,8 @@ struct bxGdiDeviceBackend
 
     virtual bxGdiVertexBuffer createVertexBuffer( const bxGdiVertexStreamDesc& desc, u32 numElements, const void* data = 0 ) = 0;
     virtual bxGdiIndexBuffer  createIndexBuffer( int dataType, u32 numElements, const void* data = 0  ) = 0;
-    virtual bxGdiBuffer createBuffer( u32 sizeInBytes, u32 bindFlags, bxGdiFormat format = bxGdiFormat(), u32 cpuAccess = 0 ) = 0;
+    virtual bxGdiBuffer createConstantBuffer( u32 sizeInBytes ) = 0;
+    virtual bxGdiBuffer createBuffer( int numElements, bxGdiFormat format, unsigned bindFlags, unsigned cpuAccessFlag, unsigned gpuAccessFlag ) = 0;
     
     
     virtual bxGdiShader createShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdi::ShaderReflection* reflection = 0) = 0;

@@ -476,7 +476,7 @@ namespace bxGdi
         for( int i = 0; i < fx->_numCBuffers; ++i )
         {
             const bxGdiShaderFx::CBufferDesc& desc = fx->_cbuffers[i];
-            fxInstance->_cbuffers[i] = dev->createBuffer( desc.size, bxGdi::eBIND_CONSTANT_BUFFER );
+            fxInstance->_cbuffers[i] = dev->createConstantBuffer( desc.size, bxGdi::eBIND_CONSTANT_BUFFER );
         }
 
         fxInstance->_fx = fx;
