@@ -2,6 +2,8 @@
 #include "gdi/gdi_context.h"
 #include <util/common.h>
 #include <util/range_splitter.h>
+#include "gfx_lights.h"
+
 union bxGfxSortKey_Color
 {
     u64 hash;
@@ -62,13 +64,15 @@ bxGfxContext::~bxGfxContext()
 }
 
 bxGfx::Shared bxGfxContext::_shared;
-int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, int maxLights )
 {
     const int fbWidth = 1920;
     const int fbHeight = 1080;
 
     _cbuffer_frameData = dev->createBuffer( sizeof( bxGfx::FrameData ), bxGdi::eBIND_CONSTANT_BUFFER );
     _cbuffer_instanceData = dev->createBuffer( sizeof( bxGfx::InstanceData ), bxGdi::eBIND_CONSTANT_BUFFER );
+    _buffer_lightsData = dev->createBuffer( maxLights * sizeof(bxGfxLight_Point), bxGdi::eBIND_SHADER_RESOURCE, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eCPU_WRITE );
+    _buffer_lightsTileIndices = dev->createBuffer( maxLights * sizeof(bxGfxLight_Point), bxGdi::eBIND_SHADER_RESOURCE, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eCPU_WRITE );
 
     _framebuffer[bxGfx::eFRAMEBUFFER_COLOR] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );

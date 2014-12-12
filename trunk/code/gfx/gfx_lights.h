@@ -3,6 +3,8 @@
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
 #include <util/handle_manager.h>
+#include <gdi/gdi_backend.h>
+#include <gdi/gdi_context.h>
 
 struct bxGfxLight_Point
 {
@@ -134,3 +136,29 @@ private:
     i32 _numLights;
     i32 _memorySize;
 };
+
+////
+////
+struct bxGfxLightsContext
+{
+    bxGfxLights lightManager;
+    bxGfxLightList lightList;
+    bxGfxViewFrustum_Tiles frustumTiles;
+
+    i32 numTilesX;
+    i32 numTilesY;
+    i32 tileSize;
+
+    bxGdiBuffer buffer_lightsData;
+    bxGdiBuffer buffer_lightsTileIndices;
+
+    bxGfxLight_Point* culledPointLightsBuffer;
+
+    void startup( bxGdiDeviceBackend* dev, int maxLights, int tileSize, int rtWidth, int rtHeight, bxAllocator* allocator = bxDefaultAllocator() );
+    void shutdown( bxGdiDeviceBackend* dev );
+
+    void cullLights( const Matrix4& viewProj );
+    void bind( bxGdiContext* ctx );
+};
+
+
