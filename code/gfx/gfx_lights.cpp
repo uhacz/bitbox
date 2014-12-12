@@ -1,7 +1,8 @@
 #include "gfx_lights.h"
+#include "gfx_camera.h"
+#include "gfx.h"
 #include <util/memory.h>
 #include <util/buffer_utils.h>
-#include "gfx_camera.h"
 
 bxGfxLights::bxGfxLights()
     : _memoryHandle( 0 )
@@ -343,4 +344,41 @@ int bxGfxLightList::appendPointLight( int tileX, int tileY, int lightIndex )
     _items[itemIndex] = item.hash;
 
     return tile.count_pointLight;
+}
+
+////
+////
+void bxGfxLightsContext::startup( bxGdiDeviceBackend* dev, int maxLights, int tileSiz, int rtWidth, int rtHeight, bxAllocator* allocator )
+{
+    lightManager.startup( maxLights );
+        
+    numTilesX = iceil( rtWidth, tileSize );
+    numTilesY = iceil( rtHeight, tileSize );
+    tileSize = tileSiz;
+
+    const int numTiles = numTilesX * numTilesY;
+
+    buffer_lightsData = dev->createBuffer( maxLights * sizeof(bxGfxLight_Point), bxGdi::eBIND_SHADER_RESOURCE, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eCPU_WRITE );
+    buffer_lightsTileIndices = dev->createBuffer( numTiles * maxLights * sizeof(u32), bxGdi::eBIND_SHADER_RESOURCE, bxGdiFormat( bxGdi::eTYPE_UINT, 1 ), bxGdi::eCPU_WRITE );
+    
+    culledPointLightsBuffer = (bxGfxLight_Point*)BX_MALLOC( bxDefaultAllocator(), maxLights * sizeof(*culledPointLightsBuffer), 4 );
+}
+
+void bxGfxLightsContext::shutdown( bxGdiDeviceBackend* dev )
+{
+    BX_FREE0( bxDefaultAllocator(), culledPointLightsBuffer );
+    dev->releaseBuffer( &buffer_lightsTileIndices );
+    dev->releaseBuffer( &buffer_lightsData );
+}
+
+void bxGfxLightsContext::cullLights( const Matrix4& viewProj )
+{
+    lightList.setup( numTilesX, numTilesY, lightManager.maxLights() );
+    frustumTiles.setup( inverse( viewProj ), numTilesX, numTilesY, tileSize );
+    lightManager.cullPointLights( &lightList, culledPointLightsBuffer, lightManager.maxLights(), &frustumTiles, viewProj );
+}
+
+void bxGfxLightsContext::bind( bxGdiContext* ctx )
+{
+    
 }

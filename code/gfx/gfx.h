@@ -182,6 +182,17 @@ namespace bxGfx
         eFRAMEBUFFER_COUNT,
     };
 
+    enum EBindSlot
+    {
+        eBIND_SLOT_FRAME_DATA = 0,
+        eBIND_SLOT_INSTANCE_DATA = 1,
+        eBIND_SLOT_LIGHTNING_DATA = 2,
+
+        eBIND_SLOT_LIGHTS_DATA_BUFFER = 0,
+        eBIND_SLOT_LIGHTS_TILE_INDICES_BUFFER = 1,
+    };
+
+
     struct Shared
     {
         struct
@@ -206,7 +217,7 @@ struct bxGfxContext
     bxGfxContext();
     ~bxGfxContext();
 
-    int startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    int startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, int maxLights );
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     
     void frameBegin( bxGdiContext* ctx );
@@ -226,6 +237,8 @@ private:
     bxGdiBuffer _cbuffer_frameData;
     bxGdiBuffer _cbuffer_instanceData;
     bxGdiBuffer _cbuffer_shadingData;
+    bxGdiBuffer _buffer_lightsData;
+    bxGdiBuffer _buffer_lightsTileIndices;
 
     bxGdiTexture _framebuffer[bxGfx::eFRAMEBUFFER_COUNT];
 

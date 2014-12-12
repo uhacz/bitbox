@@ -11,12 +11,22 @@ passes:
 #include <sys/instance_data.hlsl>
 #include <sys/types.hlsl>
 
+shared cbuffer LighningData : register(b2)
+{
+    uint numTilesX;
+    uint numTilesY;
+    uint tileSize;
+};
+
 shared cbuffer MaterialData : register(b3)
 {
 	float3 diffuse_color;
 	float fresnel_coeff;
 	float rough_coeff;
 };
+
+Buffer<float4> _lightsData    : register(t0);
+Buffer<uint>   _lightsIndices : register(t1);
 
 struct in_VS
 {
