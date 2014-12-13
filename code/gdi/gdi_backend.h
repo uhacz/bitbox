@@ -294,6 +294,9 @@ struct bxGdiContextBackend
     virtual void drawInstanced          ( unsigned numVertices, unsigned startIndex, unsigned numInstances ) = 0;
     virtual void drawIndexedInstanced   ( unsigned numIndices , unsigned startIndex, unsigned numInstances, unsigned baseVertex ) = 0;
 
+    virtual unsigned char* map          ( bxGdiResource resource, int offsetInBytes, int mapType = bxGdi::eMAP_WRITE ) = 0;
+    virtual void unmap                  ( bxGdiResource resource ) = 0;
+
     virtual unsigned char* mapVertices  ( bxGdiVertexBuffer vbuffer, int firstElement, int numElements, int mapType ) = 0;
     virtual unsigned char* mapIndices   ( bxGdiIndexBuffer ibuffer, int firstElement, int numElements, int mapType ) = 0;
     virtual void unmapVertices          ( bxGdiVertexBuffer vbuffer ) = 0;

@@ -362,6 +362,16 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
         _context->DrawIndexedInstanced( numIndices, numInstances, startIndex, baseVertex, 0 );
     }
 
+    virtual unsigned char* map( bxGdiResource resource, int offsetInBytes, int mapType = bxGdi::eMAP_WRITE )
+    {
+        const D3D11_MAP dxMapType = (mapType == bxGdi::eMAP_WRITE) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE;
+        return bxGdi::_MapResource( _context, resource.dx11Resource, dxMapType, offsetInBytes );
+    }
+    virtual void unmap( bxGdiResource resource )
+    {
+        _context->Unmap( resource.dx11Resource, 0 );
+    }
+
     virtual unsigned char* mapVertices( bxGdiVertexBuffer vbuffer, int firstElement, int numElements, int mapType ) 
     {
         SYS_ASSERT( (u32)( firstElement + numElements ) <= vbuffer.numElements );
