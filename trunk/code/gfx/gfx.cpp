@@ -47,7 +47,7 @@ namespace bxGfx
 
         frameData->eyePos = Vector4( camera.matrix.worldEye(), oneVec );
         frameData->viewDir = Vector4( camera.matrix.worldDir(), zeroVec );
-        frameData->renderTargetSizeRcp = Vector4( 1.f / float(rtWidth), 1.f / float(rtHeight), 0.f, 0.f );
+        frameData->renderTargetSizeRcp = Vector4( 1.f / float( rtWidth ), 1.f / float( rtHeight ), float( rtWidth ), float( rtHeight ) );
     }
 }///
 

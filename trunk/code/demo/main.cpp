@@ -21,11 +21,11 @@ static bxGfxLights::PointInstance pointLight0 = { 0 };
 static bxGfxLights::PointInstance pointLight1 = { 0 };
 static bxGfxLights::PointInstance pointLight2 = { 0 };
 
-static bxGfxLightList* lList = 0;
-static bxGfxViewFrustum_Tiles* frustumTiles = 0;
+//static bxGfxLightList* lList = 0;
+//static bxGfxViewFrustum_Tiles* frustumTiles = 0;
 
 static const int MAX_LIGHTS = 16;
-
+static const int TILE_SIZE = 128;
 class bxDemoApp : public bxApplication
 {
 public:
@@ -44,26 +44,26 @@ public:
         _gfxContext = BX_NEW( bxDefaultAllocator(), bxGfxContext );
         _gfxContext->startup( _gdiDevice, _resourceManager );
         
-        _gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
-        _gfxLights->startup( MAX_LIGHTS );
+        _gfxLightsCtx = BX_NEW( bxDefaultAllocator(), bxGfxLightsContext );
+        _gfxLightsCtx->startup( _gdiDevice, MAX_LIGHTS, TILE_SIZE, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
         bxGfxLight_Point pl;
-        pl.position = float3_t( 0.f, 0.f, 0.f );
+        pl.position = float3_t( 0.f, 2.f, 0.f );
         pl.radius = 1.f;
         pl.color = float3_t( 1.f, 1.f, 1.f );
         pl.intensity = 1.f;
-        pointLight0 = _gfxLights->createPointLight( pl );
+        pointLight0 = _gfxLightsCtx->lightManager.createPointLight( pl );
 
         pl.position.y = 5.f;
         pl.color = float3_t( 0.f, 1.f, 0.f );
-        pointLight1 = _gfxLights->createPointLight( pl );
+        pointLight1 = _gfxLightsCtx->lightManager.createPointLight( pl );
 
         pl.intensity = 2.f;
         pl.radius = 10.f;
-        pointLight2 = _gfxLights->createPointLight( pl );
+        pointLight2 = _gfxLightsCtx->lightManager.createPointLight( pl );
 
-        _gfxLights->releaseLight( pointLight1 );
-        _gfxLights->releaseLight( pointLight2 );
+        _gfxLightsCtx->lightManager.releaseLight( pointLight1 );
+        _gfxLightsCtx->lightManager.releaseLight( pointLight2 );
 
         //pl.intensity = 1.f;
         //pl.radius = 9.f;
@@ -84,9 +84,6 @@ public:
 
         bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
-        lList = BX_NEW( bxDefaultAllocator(), bxGfxLightList );
-        frustumTiles = BX_NEW( bxDefaultAllocator(), bxGfxViewFrustum_Tiles );
-
         return true;
     }
     virtual void shutdown()
@@ -95,11 +92,11 @@ public:
         rsource = 0;
         bxGdi::shaderFx_releaseWithInstance( _gdiDevice, &fxI );
 
-        _gfxLights->releaseLight( pointLight1 );
-        _gfxLights->releaseLight( pointLight0 );
+        _gfxLightsCtx->lightManager.releaseLight( pointLight1 );
+        _gfxLightsCtx->lightManager.releaseLight( pointLight0 );
 
-        _gfxLights->shutdown();
-        BX_DELETE0( bxDefaultAllocator(), _gfxLights );
+        _gfxLightsCtx->shutdown( _gdiDevice );
+        BX_DELETE0( bxDefaultAllocator(), _gfxLightsCtx );
 
         _gfxContext->shutdown( _gdiDevice, _resourceManager );
         BX_DELETE0( bxDefaultAllocator(), _gfxContext );
@@ -208,20 +205,14 @@ public:
 
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
-        const int tileSize = 128;
-        const int numTilesX = iceil( 1920, tileSize );
-        const int numTilesY = iceil( 1080, tileSize );
-
-        lList->setup( numTilesX, numTilesY, _gfxLights->maxLights() );
-        frustumTiles->setup( camera.matrix.viewProj, numTilesX, numTilesY, tileSize );
-
-        _gfxLights->cullPointLights( lList, 0, 0, frustumTiles, camera.matrix.viewProj );
-
-        bxGfxLight_Point light = _gfxLights->pointLight( pointLight0 );
-
+        bxGfxLight_Point light = _gfxLightsCtx->lightManager.pointLight( pointLight0 );
         bxGfxDebugDraw::addSphere( Vector4( light.position.x, light.position.y, light.position.z, light.radius ), 0xFFFF00FF, true );
 
+        _gfxLightsCtx->cullLights( camera.matrix.viewProj );
+        
         _gfxContext->frameBegin( _gdiContext );
+
+        _gfxLightsCtx->bind( _gdiContext );
 
         _gfxContext->frameDraw( _gdiContext, camera, &rList, 1 );
 
@@ -236,7 +227,7 @@ public:
     bxGdiDeviceBackend* _gdiDevice;
     bxGdiContext* _gdiContext;
     bxGfxContext* _gfxContext;
-    bxGfxLights* _gfxLights;
+    bxGfxLightsContext* _gfxLightsCtx;
     bxResourceManager* _resourceManager;
 
 };

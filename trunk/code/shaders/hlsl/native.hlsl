@@ -15,6 +15,7 @@ shared cbuffer LighningData : register(b2)
 {
     uint numTilesX;
     uint numTilesY;
+    uint numTiles;
     uint tileSize;
 };
 
@@ -48,6 +49,7 @@ struct out_PS
 	float4 rgba : SV_Target0;
 };
 
+
 in_PS vs_main( in_VS input )
 {
     in_PS output;
@@ -61,14 +63,40 @@ in_PS vs_main( in_VS input )
     output.h_pos = hpos;
 	output.w_pos = world_pos.xyz;
     output.w_normal = mul( (float3x3)wmit, input.normal );
-    output.winpos = hpos.xy;
+    output.winpos = hpos.xy / hpos.w;
     return output;
+}
+
+uint2 computeTileXY( in float2 uv, in float2 rtSize )
+{
+    return (uint2)( (uv * rtSize) / float2( tileSize, tileSize ) );
 }
 
 out_PS ps_main( in_PS input )
 {
 	out_PS OUT;
-    OUT.rgba = float4( 1.0, 1.0, 1.0, 1.0 );
+    OUT.rgba = float4( 1.0, 0.0, 0.0, 0.0 );
 
+    float2 uv = (input.winpos + 1) * 0.5f;
+    //uv.y = 1.f - uv.y;
+    //uv.x *= camera_params.y; // apect
+    uint2 tileXY = computeTileXY( uv, render_target_size_rcp.zw );
+    uint tileIdx = numTilesX * tileXY.y + tileXY.x;
+
+    uint lIndices = _lightsIndices[tileIdx];
+    if( lIndices != 0xFFFFFFFF )
+    {
+        OUT.rgba = float4(1.0, 1.0, 1.0, 1.0);
+    }
+
+    //float3 tmpColors[] =
+    //{
+    //    float3(1.f, 0.f, 0.f), float3(0.f, 1.f, 0.f), float3(0.f, 0.f, 1.f),
+    //    float3(1.f, 1.f, 0.f), float3(0.f, 1.f, 1.f), float3(0.1f, 0.1f, 0.1f),
+    //};
+
+    //OUT.rgba.xyz = tmpColors[tileIdx % 6];
+    //OUT.rgba.xy = uv;
+    //OUT.rgba.z = 0.f;
     return OUT;
 }

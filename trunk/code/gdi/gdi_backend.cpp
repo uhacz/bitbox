@@ -48,6 +48,19 @@ namespace bxGdi
         return mask;
     }
 
+
+}///
+
+namespace bxGdi
+{
+    unsigned char* buffer_map( bxGdiContextBackend* ctx, bxGdiBuffer buffer, int firstElement, int numElements, int mapType )
+    {
+        SYS_ASSERT( (buffer.bindFlags & eBIND_CONSTANT_BUFFER) == 0 );
+        SYS_ASSERT( ( firstElement + numElements ) * formatByteWidth(buffer.format) <= (int)buffer.sizeInBytes );
+
+        const int offsetInBytes = firstElement * formatByteWidth( buffer.format );
+        return ctx->map( buffer.rs, offsetInBytes, mapType );
+    }
 }///
 
 #include "dx11/gdi_backend_dx11_startup.h"
