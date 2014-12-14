@@ -97,6 +97,7 @@ struct bxGdiBuffer
 
     u32 sizeInBytes;
     u32 bindFlags;
+    bxGdiFormat format;
 
     bxGdiBuffer()
         : id(0)
@@ -306,8 +307,13 @@ struct bxGdiContextBackend
     virtual void generateMipmaps        ( bxGdiTexture texture ) = 0;
 
     virtual bxGdiTexture backBufferTexture() = 0;
-
 };
+
+namespace bxGdi
+{
+    unsigned char* buffer_map( bxGdiContextBackend* ctx, bxGdiBuffer buffer, int firstElement, int numElements, int mapType = eMAP_WRITE );
+}///
+
 
 namespace bxGdi
 {

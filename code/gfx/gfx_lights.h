@@ -139,20 +139,31 @@ private:
 
 ////
 ////
+namespace bxGfx
+{
+    struct LightningData
+    {
+        u32 numTilesX;
+        u32 numTilesY;
+        u32 numTiles;
+        u32 tileSize;
+    };
+}///
+
 struct bxGfxLightsContext
 {
     bxGfxLights lightManager;
     bxGfxLightList lightList;
     bxGfxViewFrustum_Tiles frustumTiles;
 
-    i32 numTilesX;
-    i32 numTilesY;
-    i32 tileSize;
+    bxGfx::LightningData data;
 
     bxGdiBuffer buffer_lightsData;
     bxGdiBuffer buffer_lightsTileIndices;
+    bxGdiBuffer cbuffer_lightningData;
 
     bxGfxLight_Point* culledPointLightsBuffer;
+
 
     void startup( bxGdiDeviceBackend* dev, int maxLights, int tileSize, int rtWidth, int rtHeight, bxAllocator* allocator = bxDefaultAllocator() );
     void shutdown( bxGdiDeviceBackend* dev );

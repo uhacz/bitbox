@@ -352,33 +352,54 @@ void bxGfxLightsContext::startup( bxGdiDeviceBackend* dev, int maxLights, int ti
 {
     lightManager.startup( maxLights );
         
-    numTilesX = iceil( rtWidth, tileSize );
-    numTilesY = iceil( rtHeight, tileSize );
-    tileSize = tileSiz;
+    data.numTilesX = iceil( rtWidth, tileSiz );
+    data.numTilesY = iceil( rtHeight, tileSiz );
+    data.numTiles = data.numTilesX * data.numTilesY;
+    data.tileSize = tileSiz;
 
-    const int numTiles = numTilesX * numTilesY;
+    const int numTiles = data.numTiles;
 
-    buffer_lightsData = dev->createBuffer( maxLights, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+    buffer_lightsData = dev->createBuffer( maxLights * 2, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
     buffer_lightsTileIndices = dev->createBuffer( numTiles * maxLights, bxGdiFormat( bxGdi::eTYPE_UINT, 1 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+    cbuffer_lightningData = dev->createConstantBuffer( sizeof( bxGfx::LightningData ) );
     
     culledPointLightsBuffer = (bxGfxLight_Point*)BX_MALLOC( bxDefaultAllocator(), maxLights * sizeof(*culledPointLightsBuffer), 4 );
 }
 
 void bxGfxLightsContext::shutdown( bxGdiDeviceBackend* dev )
 {
+    
     BX_FREE0( bxDefaultAllocator(), culledPointLightsBuffer );
+    dev->releaseBuffer( &cbuffer_lightningData );
     dev->releaseBuffer( &buffer_lightsTileIndices );
     dev->releaseBuffer( &buffer_lightsData );
 }
 
 void bxGfxLightsContext::cullLights( const Matrix4& viewProj )
 {
-    lightList.setup( numTilesX, numTilesY, lightManager.maxLights() );
-    frustumTiles.setup( inverse( viewProj ), numTilesX, numTilesY, tileSize );
+    lightList.setup( data.numTilesX, data.numTilesY, lightManager.maxLights() );
+    frustumTiles.setup( inverse( viewProj ), data.numTilesX, data.numTilesY, data.tileSize );
     lightManager.cullPointLights( &lightList, culledPointLightsBuffer, lightManager.maxLights(), &frustumTiles, viewProj );
 }
 
 void bxGfxLightsContext::bind( bxGdiContext* ctx )
 {
-    
+    {
+        u8* mappedData = bxGdi::buffer_map( ctx->backend(), buffer_lightsData, 0, lightManager.maxLights() );
+        memcpy( mappedData, culledPointLightsBuffer, lightManager.maxLights() * sizeof( *culledPointLightsBuffer ) );
+        ctx->backend()->unmap( buffer_lightsData.rs );
+    }
+    {
+        const int maxItems = lightManager.maxLights() * data.numTiles;
+        u8* mappedData = bxGdi::buffer_map( ctx->backend(), buffer_lightsTileIndices, 0, maxItems );
+        memcpy( mappedData, lightList.items(), maxItems * sizeof( u32 ) );
+        ctx->backend()->unmap( buffer_lightsTileIndices.rs );
+    }
+    {
+        ctx->backend()->updateCBuffer( cbuffer_lightningData, &data );
+    }
+
+    ctx->setBufferRO( buffer_lightsData, bxGfx::eBIND_SLOT_LIGHTS_DATA_BUFFER, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setBufferRO( buffer_lightsTileIndices, bxGfx::eBIND_SLOT_LIGHTS_TILE_INDICES_BUFFER, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setCbuffer( cbuffer_lightningData, bxGfx::eBIND_SLOT_LIGHTNING_DATA, bxGdi::eSTAGE_MASK_PIXEL );
 }

@@ -72,7 +72,7 @@ namespace bxGfxDebugDraw
     {
         __dd = BX_NEW( bxDefaultAllocator(), bxGfxDebugDrawContext );
 
-        __dd->cbuffer_instances = dev->createConstantBuffer( sizeof( bxGfxDebugDraw_InstanceBuffer ), bxGdi::eBIND_CONSTANT_BUFFER );
+        __dd->cbuffer_instances = dev->createConstantBuffer( sizeof( bxGfxDebugDraw_InstanceBuffer ) );
 
         __dd->fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "debug" );
         SYS_ASSERT( __dd->fxI != 0 );

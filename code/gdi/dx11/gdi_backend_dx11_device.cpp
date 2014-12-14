@@ -251,6 +251,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         b.dx11Buffer = buffer;
         b.sizeInBytes = sizeInBytes;
         b.bindFlags = bxGdi::eBIND_CONSTANT_BUFFER;
+        b.format = bxGdiFormat( bxGdi::eTYPE_UBYTE, sizeInBytes );
 
         return b;
     }
@@ -307,6 +308,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         b.rs.dx11ViewUA = 0;
         b.sizeInBytes = bdesc.ByteWidth;
         b.bindFlags = bindFlags;
+        b.format = format;
 
         return b;
     }
