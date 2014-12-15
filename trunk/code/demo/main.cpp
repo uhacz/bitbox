@@ -24,7 +24,7 @@ static bxGfxLights::PointInstance pointLight2 = { 0 };
 //static bxGfxLightList* lList = 0;
 //static bxGfxViewFrustum_Tiles* frustumTiles = 0;
 
-static const int MAX_LIGHTS = 16;
+static const int MAX_LIGHTS = 8;
 static const int TILE_SIZE = 128;
 class bxDemoApp : public bxApplication
 {
@@ -32,8 +32,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -48,13 +48,13 @@ public:
         _gfxLightsCtx->startup( _gdiDevice, MAX_LIGHTS, TILE_SIZE, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
         bxGfxLight_Point pl;
-        pl.position = float3_t( 0.f, 2.f, 0.f );
-        pl.radius = 1.f;
-        pl.color = float3_t( 1.f, 1.f, 1.f );
+        pl.position = float3_t( 0.5f, 0.f, 0.f );
+        pl.radius = 2.f;
+        pl.color = float3_t( 0.f, 1.f, 0.f );
         pl.intensity = 1.f;
         pointLight0 = _gfxLightsCtx->lightManager.createPointLight( pl );
 
-        pl.position.y = 5.f;
+        pl.position.y = 3.f;
         pl.color = float3_t( 0.f, 1.f, 0.f );
         pointLight1 = _gfxLightsCtx->lightManager.createPointLight( pl );
 
@@ -73,7 +73,7 @@ public:
 
         fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "native" );
         
-        rsource = bxGfxContext::shared()->rsource.box;
+        rsource = bxGfxContext::shared()->rsource.sphere;
 
         rList = bxGfx::renderList_new( 128, 256, bxDefaultAllocator() );
 

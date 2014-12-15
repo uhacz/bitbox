@@ -147,6 +147,10 @@ namespace bxGfx
         u32 numTilesY;
         u32 numTiles;
         u32 tileSize;
+        u32 maxLights;
+        
+        f32 tileSizeRcp;
+        u32 __padding[2];
     };
 }///
 
