@@ -356,6 +356,7 @@ void bxGfxLightsContext::startup( bxGdiDeviceBackend* dev, int maxLights, int ti
     data.numTilesY = iceil( rtHeight, tileSiz );
     data.numTiles = data.numTilesX * data.numTilesY;
     data.tileSize = tileSiz;
+    data.maxLights = maxLights;
 
     const int numTiles = data.numTiles;
 
