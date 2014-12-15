@@ -145,7 +145,7 @@ int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuf
     const Vector3 rtWH_rcp( 1.f / rtWidth, 1.f / rtHeight, 1.f );
     const Vector3 rtWH( (float)rtWidth, (float)rtHeight, 1.f );
     const Vector3 nXY_rcp( 1.f / tileSize, 1.f / tileSize, 1.f );
-
+    const Vector3 aspect( 1.f, (float)rtWidth / rtHeight, 1.f );
     //const Vector4 viewport( 0.f, 0.f, 1920.f, 1080.f );
 
     const int nPointLights = _count_pointLights;
@@ -153,6 +153,23 @@ int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuf
     const bxGfxViewFrustum mainFrustum = bxGfx::viewFrustum_extract( viewProj );
 
     int dstLightCount = 0;
+
+    //for( int itileY = 0; itileY < nY; ++itileY )
+    //{
+    //    for ( int itileX = 0; itileX < nX; ++itileX )
+    //    {
+    //        const bxGfxViewFrustumLRBT tileFrustum = frustumTiles->frustum( itileX, itileY );
+    //        for ( int ilight = 0; ilight < nPointLights && dstLightCount < dstBufferSize; ++ilight )
+    //        {
+    //            const Vector4& pointLightSphere = _pointLight_position_radius[ilight];
+
+    //            if ( bxGfx::viewFrustum_SphereIntersectLRBT( tileFrustum, pointLightSphere ) )
+    //            {
+    //                list->appendPointLight( itileX, itileY, ilight );
+    //            }
+    //        }
+    //    }
+    //}
 
     for( int ilight = 0; ilight < nPointLights && dstLightCount < dstBufferSize; ++ilight )
     {
@@ -165,16 +182,17 @@ int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuf
         if ( !isInMainFrustum )
             continue;
 
-
-
         const Vector3 max = pointLightSphere.getXYZ() + Vector3( pointLightSphere.getW() );
         const Vector3 min = pointLightSphere.getXYZ() - Vector3( pointLightSphere.getW() );
 
         Vector4 minHPos4 = viewProj * Vector4( min, oneVec );
         Vector4 maxHPos4 = viewProj * Vector4( max, oneVec );
 
-        const Vector3 minHPos = clampv( ( (minHPos4.getXYZ() / minHPos4.getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) );
-        const Vector3 maxHPos = clampv( ( (maxHPos4.getXYZ() / maxHPos4.getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) );
+        const Vector3 minHPos0 = clampv( ( (minHPos4.getXYZ() / minHPos4.getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) );
+        const Vector3 maxHPos0 = clampv( ( (maxHPos4.getXYZ() / maxHPos4.getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) );
+
+        const Vector3 minHPos = minPerElem( minHPos0, maxHPos0 );
+        const Vector3 maxHPos = maxPerElem( minHPos0, maxHPos0 );
         
         const Vector3 minSPos = mulPerElem( minHPos, rtWH );
         const Vector3 maxSPos = mulPerElem( maxHPos, rtWH );

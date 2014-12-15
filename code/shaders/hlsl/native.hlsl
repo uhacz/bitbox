@@ -99,22 +99,23 @@ out_PS ps_main( in_PS input )
         float d = length( l );
         float3 L = l * rcp( d );
 
-        float denom = ( d / lightPosRad.w ) - 1.f;
+        //float denom = 1.f - smoothstep( 0.f, lightPosRad.w, d ); // (d / lightPosRad.w) - 1.f;
+        float denom = saturate(d / lightPosRad.w) - 1.f;
         float att = ( denom * denom );
         
-        OUT.rgba += saturate( dot(N,L) ) * att; // * float4( lightColInt.xyz, 1.f );
+        OUT.rgba += saturate( dot(N,L) ) * att * 2.f; // * float4( lightColInt.xyz, 1.f );
         
         pointLightIndex++;
         pointLightDataIndex = _lightsIndices[pointLightIndex] & 0xFFFF;
     }
 
-    //float3 tmpColors[] =
-    //{
-    //    float3(1.f, 0.f, 0.f), float3(0.f, 1.f, 0.f), float3(0.f, 0.f, 1.f),
-    //    float3(1.f, 1.f, 0.f), float3(0.f, 1.f, 1.f), float3(0.1f, 0.1f, 0.1f),
-    //};
+    float3 tmpColors[] =
+    {
+        float3(1.f, 0.f, 0.f), float3(0.f, 1.f, 0.f), float3(0.f, 0.f, 1.f),
+        float3(1.f, 1.f, 0.f), float3(0.f, 1.f, 1.f), float3(0.1f, 0.1f, 0.1f),
+    };
 
-    //OUT.rgba.xyz = tmpColors[tileIdx % 6];
+    //OUT.rgba.xyz += tmpColors[tileIdx % 6] * 0.01f;
     //OUT.rgba.xy = uv;
     //OUT.rgba.z = 0.f;
     return OUT;
