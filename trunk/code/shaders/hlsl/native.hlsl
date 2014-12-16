@@ -72,7 +72,7 @@ in_PS vs_main( in_VS input )
 
 uint2 computeTileXY( in float2 uv, in float2 rtSize )
 {
-    const uint2 unclamped = (uint2)( (uv * rtSize) / float2( tileSize, tileSize ) );
+    const uint2 unclamped = (uint2)( ( saturate(uv) * rtSize) / float2( tileSize, tileSize ) );
     return clamp( unclamped, uint2(0,0), uint2( numTilesX-1, numTilesY-1) );
 }
 
@@ -81,12 +81,14 @@ out_PS ps_main( in_PS input )
 	out_PS OUT;
     OUT.rgba = float4( 0.0, 0.0, 0.0, 0.0 );
 
+    const float2 realRtSize = render_target_size_rcp.zw; // float2(numTilesX, numTilesY) * tileSize;
+
     const float3 N = normalize( input.w_normal );
 
     float2 uv = (input.winpos + 1) * 0.5f;
     //uv.y = 1.f - uv.y;
     //uv.x *= camera_params.y; // apect
-    uint2 tileXY = computeTileXY( uv, render_target_size_rcp.zw );
+    uint2 tileXY = computeTileXY( uv, realRtSize );
     uint tileIdx = ( numTilesX * tileXY.y + tileXY.x ) * maxLights;
 
     uint pointLightIndex = tileIdx;
@@ -103,7 +105,7 @@ out_PS ps_main( in_PS input )
         float denom = saturate(d / lightPosRad.w) - 1.f;
         float att = ( denom * denom );
         
-        OUT.rgba += saturate( dot(N,L) ) * att * 2.f; // * float4( lightColInt.xyz, 1.f );
+        OUT.rgba += saturate( dot(N,L) ) * att * float4( lightColInt.xyz, 1.f );
         
         pointLightIndex++;
         pointLightDataIndex = _lightsIndices[pointLightIndex] & 0xFFFF;
@@ -115,7 +117,7 @@ out_PS ps_main( in_PS input )
         float3(1.f, 1.f, 0.f), float3(0.f, 1.f, 1.f), float3(0.1f, 0.1f, 0.1f),
     };
 
-    OUT.rgba.xyz += tmpColors[tileIdx % 6] * 0.01f;
+    OUT.rgba.xyz += tmpColors[tileIdx % 6] * 0.001f;
     //OUT.rgba.xy = uv;
     //OUT.rgba.z = 0.f;
     return OUT;
