@@ -3,6 +3,7 @@
 #include "gfx.h"
 #include <util/memory.h>
 #include <util/buffer_utils.h>
+#include "gfx_debug_draw.h"
 
 bxGfxLights::bxGfxLights()
     : _memoryHandle( 0 )
@@ -131,7 +132,7 @@ namespace
 }
 
 
-int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles, const Matrix4& viewProj )
+int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles, const bxGfxCamera& camera )
 {
     const int nX = frustumTiles->numTilesX();
     const int nY = frustumTiles->numTilesY();
@@ -150,7 +151,7 @@ int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuf
 
     const int nPointLights = _count_pointLights;
 
-    const bxGfxViewFrustum mainFrustum = bxGfx::viewFrustum_extract( viewProj );
+    const bxGfxViewFrustum mainFrustum = bxGfx::viewFrustum_extract( camera.matrix.viewProj );
 
     int dstLightCount = 0;
 
@@ -182,28 +183,93 @@ int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuf
         if ( !isInMainFrustum )
             continue;
 
-        const Vector3 max = pointLightSphere.getXYZ() + Vector3( pointLightSphere.getW() );
-        const Vector3 min = pointLightSphere.getXYZ() - Vector3( pointLightSphere.getW() );
+        const Vector3 spherePos = pointLightSphere.getXYZ();
+        const Vector3 spherePosV = mulAsVec4( camera.matrix.view, spherePos );
+        const floatInVec sphereRadius = pointLightSphere.getW();
 
-        Vector4 minHPos4 = viewProj * Vector4( min, oneVec );
-        Vector4 maxHPos4 = viewProj * Vector4( max, oneVec );
+        const Vector3 vertices[4] = 
+        {
+            mulAsVec4( camera.matrix.view, spherePos + Vector3( -sphereRadius, -sphereRadius, sphereRadius ) ),
+            mulAsVec4( camera.matrix.view, spherePos + Vector3(  sphereRadius, -sphereRadius, sphereRadius ) ),
+            mulAsVec4( camera.matrix.view, spherePos + Vector3(  sphereRadius,  sphereRadius, sphereRadius ) ),
+            mulAsVec4( camera.matrix.view, spherePos + Vector3( -sphereRadius,  sphereRadius, sphereRadius ) ),
+        };
 
-        const Vector3 minHPos0 = clampv( ( (minHPos4.getXYZ() / minHPos4.getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) );
-        const Vector3 maxHPos0 = clampv( ( (maxHPos4.getXYZ() / maxHPos4.getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) );
+        {
+            const Vector3 max = spherePos + Vector3( sphereRadius, sphereRadius, sphereRadius);
+            const Vector3 min = spherePos - Vector3( sphereRadius, sphereRadius, sphereRadius );
+            bxGfxDebugDraw::addBox( Matrix4( Matrix3::identity(), lerp( 0.5f, min, max ) ), ( max-min)*0.5f, 0xFF0000FF, true );
+        }
 
-        const Vector3 minHPos = minPerElem( minHPos0, maxHPos0 );
-        const Vector3 maxHPos = maxPerElem( minHPos0, maxHPos0 );
-        
-        const Vector3 minSPos = mulPerElem( minHPos, rtWH );
-        const Vector3 maxSPos = mulPerElem( maxHPos, rtWH );
+        const Vector4 hPos4[4] = 
+        {
+            camera.matrix.proj * Vector4( vertices[0], oneVec ),  
+            camera.matrix.proj * Vector4( vertices[1], oneVec ),
+            camera.matrix.proj * Vector4( vertices[2], oneVec ),
+            camera.matrix.proj * Vector4( vertices[3], oneVec ),
+        };
 
-        const Vector3 minTileXY = mulPerElem( minSPos, nXY_rcp );
-        const Vector3 maxTileXY = mulPerElem( maxSPos, nXY_rcp );
+        const Vector3 hPos[4] = 
+        {
+            clampv( ( (hPos4[0].getXYZ() / hPos4[0].getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) ),
+            clampv( ( (hPos4[1].getXYZ() / hPos4[1].getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) ),
+            clampv( ( (hPos4[2].getXYZ() / hPos4[2].getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) ),
+            clampv( ( (hPos4[3].getXYZ() / hPos4[3].getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) ),
+        };
 
-        const int minTileX = clamp( int( minTileXY.getX().getAsFloat() ), 0, nX - 1 );
-        const int minTileY = clamp( int( minTileXY.getY().getAsFloat() ), 0, nY - 1 );
-        const int maxTileX = clamp( int( maxTileXY.getX().getAsFloat() ), 0, nX - 1 );
-        const int maxTileY = clamp( int( maxTileXY.getY().getAsFloat() ), 0, nY - 1 );
+        const Vector3 sPos[4] = 
+        {
+            mulPerElem( hPos[0], rtWH ),
+            mulPerElem( hPos[1], rtWH ),
+            mulPerElem( hPos[2], rtWH ),
+            mulPerElem( hPos[3], rtWH ),
+        };
+
+        const Vector3 tileXY[4] = 
+        {
+            mulPerElem( sPos[0], nXY_rcp ),
+            mulPerElem( sPos[1], nXY_rcp ),
+            mulPerElem( sPos[2], nXY_rcp ),
+            mulPerElem( sPos[3], nXY_rcp ),
+        };
+
+        const int minTileX0 = clamp( int( tileXY[0].getX().getAsFloat() ), 0, nX - 1 );
+        const int minTileX1 = clamp( int( tileXY[3].getX().getAsFloat() ), 0, nX - 1 );
+
+        const int minTileY0 = clamp( int( tileXY[0].getY().getAsFloat() ), 0, nY - 1 );
+        const int minTileY1 = clamp( int( tileXY[1].getY().getAsFloat() ), 0, nY - 1 );
+
+        const int maxTileX0 = clamp( int( tileXY[1].getX().getAsFloat() ), 0, nX - 1 );
+        const int maxTileX1 = clamp( int( tileXY[2].getX().getAsFloat() ), 0, nX - 1 );
+
+        const int maxTileY0 = clamp( int( tileXY[2].getY().getAsFloat() ), 0, nY - 1 );
+        const int maxTileY1 = clamp( int( tileXY[3].getY().getAsFloat() ), 0, nY - 1 );
+
+        const int minTileX = minOfPair( minTileX0, minTileX1 );
+        const int maxTileX = maxOfPair( maxTileX0, maxTileX1 );
+        const int minTileY = minOfPair( minTileY0, minTileY1 );
+        const int maxTileY = maxOfPair( maxTileY0, maxTileY1 );
+
+
+        //Vector4 minHPos4 = camera.matrix.viewProj * Vector4( min, oneVec );
+        //Vector4 maxHPos4 = camera.matrix.viewProj * Vector4( max, oneVec );
+
+        //const Vector3 minHPos0 = clampv( ( (minHPos4.getXYZ() / minHPos4.getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) );
+        //const Vector3 maxHPos0 = clampv( ( (maxHPos4.getXYZ() / maxHPos4.getW()) + Vector3( 1.f ) ) * halfVec, Vector3(0.f), Vector3(1.f) );
+
+        //const Vector3 minHPos = minPerElem( minHPos0, maxHPos0 );
+        //const Vector3 maxHPos = maxPerElem( minHPos0, maxHPos0 );
+        //
+        //const Vector3 minSPos = mulPerElem( minHPos, rtWH );
+        //const Vector3 maxSPos = mulPerElem( maxHPos, rtWH );
+
+        //const Vector3 minTileXY = mulPerElem( minSPos, nXY_rcp );
+        //const Vector3 maxTileXY = mulPerElem( maxSPos, nXY_rcp );
+
+        //const int minTileX = clamp( int( minTileXY.getX().getAsFloat() ), 0, nX - 1 );
+        //const int minTileY = clamp( int( minTileXY.getY().getAsFloat() ), 0, nY - 1 );
+        //const int maxTileX = clamp( int( maxTileXY.getX().getAsFloat() ), 0, nX - 1 );
+        //const int maxTileY = clamp( int( maxTileXY.getY().getAsFloat() ), 0, nY - 1 );
 
         //const Vector3 a = projectXY( viewProj, min, viewport );
         //const Vector3 b = projectXY( viewProj, max, viewport );
@@ -213,7 +279,7 @@ int bxGfxLights::cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuf
             for( int itileX = minTileX; itileX <= maxTileX; ++itileX )
             {
                 Vector3 corners[8];
-                bxGfx::viewFrustum_computeTileCorners( corners, inverse( viewProj ), itileX, itileY, nX, nY, frustumTiles->tileSize() );
+                bxGfx::viewFrustum_computeTileCorners( corners, inverse( camera.matrix.viewProj ), itileX, itileY, nX, nY, frustumTiles->tileSize() );
                 bxGfx::viewFrustum_debugDraw( corners, 0x00FF00FF );
 
                 list->appendPointLight( itileX, itileY, ilight );
@@ -394,11 +460,11 @@ void bxGfxLightsContext::shutdown( bxGdiDeviceBackend* dev )
     dev->releaseBuffer( &buffer_lightsData );
 }
 
-void bxGfxLightsContext::cullLights( const Matrix4& viewProj )
+void bxGfxLightsContext::cullLights( const bxGfxCamera& camera )
 {
     lightList.setup( data.numTilesX, data.numTilesY, lightManager.maxLights() );
-    frustumTiles.setup( inverse( viewProj ), data.numTilesX, data.numTilesY, data.tileSize );
-    lightManager.cullPointLights( &lightList, culledPointLightsBuffer, lightManager.maxLights(), &frustumTiles, viewProj );
+    frustumTiles.setup( inverse( camera.matrix.viewProj ), data.numTilesX, data.numTilesY, data.tileSize );
+    lightManager.cullPointLights( &lightList, culledPointLightsBuffer, lightManager.maxLights(), &frustumTiles, camera );
 }
 
 void bxGfxLightsContext::bind( bxGdiContext* ctx )

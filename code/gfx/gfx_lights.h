@@ -42,7 +42,7 @@ public:
 
     int maxLights() const { return _capacity_lights; }
     int countPointLights() const { return _count_pointLights; }
-    int cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles, const Matrix4& viewProj );
+    int cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles, const bxGfxCamera& camera );
 
 private:
     typedef bxHandleManager<u32> Indices;
@@ -172,7 +172,7 @@ struct bxGfxLightsContext
     void startup( bxGdiDeviceBackend* dev, int maxLights, int tileSize, int rtWidth, int rtHeight, bxAllocator* allocator = bxDefaultAllocator() );
     void shutdown( bxGdiDeviceBackend* dev );
 
-    void cullLights( const Matrix4& viewProj );
+    void cullLights( const bxGfxCamera& camera );
     void bind( bxGdiContext* ctx );
 };
 
