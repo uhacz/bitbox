@@ -115,7 +115,7 @@ out_PS ps_main( in_PS input )
         float3(1.f, 1.f, 0.f), float3(0.f, 1.f, 1.f), float3(0.1f, 0.1f, 0.1f),
     };
 
-    //OUT.rgba.xyz += tmpColors[tileIdx % 6] * 0.01f;
+    OUT.rgba.xyz += tmpColors[tileIdx % 6] * 0.01f;
     //OUT.rgba.xy = uv;
     //OUT.rgba.z = 0.f;
     return OUT;

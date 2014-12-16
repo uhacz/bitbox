@@ -32,8 +32,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -147,6 +147,16 @@ public:
             rList->itemSubmit( dataIndex, surfaceIndex, instanceIndex );
         }
 
+        {
+            const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, -0.5f ) ), Vector3( 10.f, 10.f, 0.1f ) );
+            bxGdiRenderSource* box = _gfxContext->shared()->rsource.box;
+            const bxGdiRenderSurface surf = bxGdi::renderSource_surface( box, bxGdi::eTRIANGLES );
+            int dataIndex = rList->renderDataAdd( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
+            u32 surfaceIndex = rList->surfacesAdd( &surf, 1 );
+            u32 instanceIndex = rList->instancesAdd( &world, 1 );
+            //rList->itemSubmit( dataIndex, surfaceIndex, instanceIndex );
+        }
+
         //bxGfxDebugDraw::addSphere( Vector4( 0.f, 0.f, 0.f, 1.f ), 0xFF0000FF, true );
         //bxGfxDebugDraw::addSphere( Vector4( 4.f, 0.f, 0.f, 0.5f ), 0xFF00FFFF, true );
         //bxGfxDebugDraw::addSphere( Vector4( -4.f, 0.f, 0.f, 0.25f ), 0xFF0000FF, true );
@@ -208,7 +218,7 @@ public:
         bxGfxLight_Point light = _gfxLightsCtx->lightManager.pointLight( pointLight0 );
         bxGfxDebugDraw::addSphere( Vector4( light.position.x, light.position.y, light.position.z, light.radius ), 0xFFFF00FF, true );
 
-        _gfxLightsCtx->cullLights( camera.matrix.viewProj );
+        _gfxLightsCtx->cullLights( camera );
         
         _gfxContext->frameBegin( _gdiContext );
 
