@@ -24,16 +24,16 @@ static bxGfxLights::PointInstance pointLight2 = { 0 };
 //static bxGfxLightList* lList = 0;
 //static bxGfxViewFrustum_Tiles* frustumTiles = 0;
 
-static const int MAX_LIGHTS = 8;
-static const int TILE_SIZE = 256;
+static const int MAX_LIGHTS = 64;
+static const int TILE_SIZE = 64;
 class bxDemoApp : public bxApplication
 {
 public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -54,15 +54,17 @@ public:
         pl.intensity = 1.f;
         pointLight0 = _gfxLightsCtx->lightManager.createPointLight( pl );
 
-        pl.position.y = 3.f;
-        pl.color = float3_t( 0.f, 1.f, 0.f );
+        pl.position.x = -3.f;
+        pl.position.z = 2.f;
+        pl.color = float3_t( 1.f, 0.f, 0.f );
+        pl.radius = 5.f;
         pointLight1 = _gfxLightsCtx->lightManager.createPointLight( pl );
 
         pl.intensity = 2.f;
         pl.radius = 10.f;
         pointLight2 = _gfxLightsCtx->lightManager.createPointLight( pl );
 
-        _gfxLightsCtx->lightManager.releaseLight( pointLight1 );
+        //_gfxLightsCtx->lightManager.releaseLight( pointLight1 );
         _gfxLightsCtx->lightManager.releaseLight( pointLight2 );
 
         //pl.intensity = 1.f;
