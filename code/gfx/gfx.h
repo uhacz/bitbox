@@ -236,7 +236,6 @@ struct bxGfxContext
 private:
     bxGdiBuffer _cbuffer_frameData;
     bxGdiBuffer _cbuffer_instanceData;
-    bxGdiBuffer _cbuffer_shadingData;
 
     bxGdiTexture _framebuffer[bxGfx::eFRAMEBUFFER_COUNT];
 

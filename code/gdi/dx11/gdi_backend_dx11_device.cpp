@@ -791,6 +791,8 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     }
     virtual void releaseBuffer( bxGdiBuffer* id )
     {
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->rs.dx11ViewSH );
+        BX_RELEASE_DX_RESOURCE_SAFE0( id->rs.dx11ViewUA );
         BX_RELEASE_DX_RESOURCE_SAFE0( id->dx11Buffer );
     }
     virtual void releaseShader( bxGdiShader* id )
@@ -833,14 +835,20 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         BX_RELEASE_DX_RESOURCE_SAFE0( id->dx.state );
     }
 
-    
-
     bxGdiDeviceBackend_dx11()
         : _device(0)
     {}
 
     virtual ~bxGdiDeviceBackend_dx11()
     {
+        //ID3D11Debug* dx11_debug = 0;
+        //_device->QueryInterface(__uuidof(ID3D11Debug), reinterpret_cast<void**>(&dx11_debug));
+        //if( dx11_debug )
+        //{
+        //    dx11_debug->ReportLiveDeviceObjects( D3D11_RLDO_DETAIL );
+        //}
+        //dx11_debug->Release();
+        
         _device->Release();
     }
 

@@ -22,6 +22,18 @@ namespace bxColor
 		a = clamp( a, 0U, 255U );
 		return toRGBA( r, g, b, a );
 	}
+    inline u32 float3ToU32( const f32* f )
+    {
+        u32 r = static_cast<u32>( f[0] * 255.f );
+        u32 g = static_cast<u32>( f[1] * 255.f );
+        u32 b = static_cast<u32>( f[2] * 255.f );
+        u32 a = 255;
+        r = clamp( r, 0U, 255U );
+        g = clamp( g, 0U, 255U );
+        b = clamp( b, 0U, 255U );
+        a = clamp( a, 0U, 255U );
+        return toRGBA( r, g, b, a );
+    }
 		
     inline void float4ToU32( const f32* f4, u32* ui32 )
 	{
@@ -39,4 +51,10 @@ namespace bxColor
 		f4[2] = static_cast<f32>( b );
 		f4[3] = static_cast<f32>( a );
 	}
+    inline void u32ToFloat3( const u32 rgb, f32* f4 )
+    {
+        f4[0] = (f32)((rgb & 0xFF000000) >> 24 ) / 255.f;
+        f4[1] = (f32)((rgb & 0x00FF0000) >> 16 ) / 255.f;
+        f4[2] = (f32)((rgb & 0x0000FF00) >> 8  ) / 255.f;
+    }
 }//

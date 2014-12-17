@@ -6,6 +6,21 @@
 #include <gdi/gdi_backend.h>
 #include <gdi/gdi_context.h>
 
+namespace bxGfx
+{
+    struct LightningData
+    {
+        u32 numTilesX;
+        u32 numTilesY;
+        u32 numTiles;
+        u32 tileSize;
+        u32 maxLights;
+
+        f32 tileSizeRcp;
+        u32 __padding[2];
+    };
+}///
+
 struct bxGfxLight_Point
 {
     float3_t position;
@@ -17,14 +32,14 @@ struct bxGfxLight_Point
 class bxGfxLightList;
 class bxGfxViewFrustum_Tiles;
 struct bxGfxCamera;
-class bxGfxLights
+class bxGfxLightManager
 {
 public:
     struct PointInstance{ u32 id; };
     struct SpotInstance { u32 id; };
 
 public:
-    bxGfxLights();
+    bxGfxLightManager();
 
     void startup( int maxLights );
     void shutdown();
@@ -33,7 +48,6 @@ public:
     SpotInstance createSpotLight( /*not implemented*/ );
     void releaseLight( PointInstance i );
 
-    
     bxGfxLight_Point pointLight( PointInstance i );
     void setPointLight( PointInstance i, const bxGfxLight_Point& light );
     inline int hasPointLight( PointInstance i ) const{
@@ -42,7 +56,7 @@ public:
 
     int maxLights() const { return _capacity_lights; }
     int countPointLights() const { return _count_pointLights; }
-    int cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, bxGfxViewFrustum_Tiles* frustumTiles, const bxGfxCamera& camera );
+    int cullPointLights( bxGfxLightList* list, bxGfxLight_Point* dstBuffer, int dstBufferSize, const bxGfx::LightningData& lightData, const bxGfxCamera& camera );
 
 private:
     typedef bxHandleManager<u32> Indices;
@@ -95,8 +109,11 @@ private:
 class bxGfxLightList
 {
 public:
-    bxGfxLightList( bxAllocator* allocator = bxDefaultAllocator() );
+    bxGfxLightList();
     ~bxGfxLightList();
+
+    void startup( bxAllocator* allocator = bxDefaultAllocator() );
+    void shutdown();
 
     void setup( int nTilesX, int nTilesY, int nLights );
 
@@ -139,26 +156,10 @@ private:
 
 ////
 ////
-namespace bxGfx
+struct bxGfxLights
 {
-    struct LightningData
-    {
-        u32 numTilesX;
-        u32 numTilesY;
-        u32 numTiles;
-        u32 tileSize;
-        u32 maxLights;
-        
-        f32 tileSizeRcp;
-        u32 __padding[2];
-    };
-}///
-
-struct bxGfxLightsContext
-{
-    bxGfxLights lightManager;
+    bxGfxLightManager lightManager;
     bxGfxLightList lightList;
-    bxGfxViewFrustum_Tiles frustumTiles;
 
     bxGfx::LightningData data;
 
@@ -167,7 +168,6 @@ struct bxGfxLightsContext
     bxGdiBuffer cbuffer_lightningData;
 
     bxGfxLight_Point* culledPointLightsBuffer;
-
 
     void startup( bxGdiDeviceBackend* dev, int maxLights, int tileSize, int rtWidth, int rtHeight, bxAllocator* allocator = bxDefaultAllocator() );
     void shutdown( bxGdiDeviceBackend* dev );

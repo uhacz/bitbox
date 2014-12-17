@@ -42,9 +42,9 @@ struct in_VS
 struct in_PS
 {
     float4 h_pos	: SV_Position;
-    float2 winpos   : TEXCOORD0;
+    float4 s_pos    : TEXCOORD0;
 	float3 w_pos	: TEXCOORD1;
-	nointerpolation float3 w_normal:TEXCOORD2;
+	/*nointerpolation*/ float3 w_normal:TEXCOORD2;
 };
 
 struct out_PS
@@ -61,18 +61,18 @@ in_PS vs_main( in_VS input )
 	float4 world_pos = mul( wm, input.pos );
     world_pos.w = 1.f;
     
-    float4 hpos = mul( view_proj_matrix, world_pos );
+    float4 hpos = mul( view_proj_matrix, float4( world_pos.xyz, 1.f ) );
     
     output.h_pos = hpos;
 	output.w_pos = world_pos.xyz;
     output.w_normal = mul( (float3x3)wmit, input.normal );
-    output.winpos = hpos.xy / hpos.w;
+    output.s_pos = hpos;
     return output;
 }
 
 uint2 computeTileXY( in float2 uv, in float2 rtSize )
 {
-    const uint2 unclamped = (uint2)( ( saturate(uv) * rtSize) / float2( tileSize, tileSize ) );
+    const uint2 unclamped = (uint2)( ( (uv) * rtSize) / float2( tileSize, tileSize ) );
     return clamp( unclamped, uint2(0,0), uint2( numTilesX-1, numTilesY-1) );
 }
 
@@ -81,14 +81,9 @@ out_PS ps_main( in_PS input )
 	out_PS OUT;
     OUT.rgba = float4( 0.0, 0.0, 0.0, 0.0 );
 
-    const float2 realRtSize = render_target_size_rcp.zw; // float2(numTilesX, numTilesY) * tileSize;
-
     const float3 N = normalize( input.w_normal );
-
-    float2 uv = (input.winpos + 1) * 0.5f;
-    //uv.y = 1.f - uv.y;
-    //uv.x *= camera_params.y; // apect
-    uint2 tileXY = computeTileXY( uv, realRtSize );
+    float2 uv = (input.s_pos.xy/input.s_pos.w + 1.f) * 0.5f;
+    uint2 tileXY = computeTileXY( uv, render_target_size_rcp.zw );
     uint tileIdx = ( numTilesX * tileXY.y + tileXY.x ) * maxLights;
 
     uint pointLightIndex = tileIdx;
@@ -117,7 +112,7 @@ out_PS ps_main( in_PS input )
         float3(1.f, 1.f, 0.f), float3(0.f, 1.f, 1.f), float3(0.1f, 0.1f, 0.1f),
     };
 
-    OUT.rgba.xyz += tmpColors[tileIdx % 6] * 0.001f;
+    OUT.rgba.xyz += tmpColors[tileIdx % 6] * 0.01f;
     //OUT.rgba.xy = uv;
     //OUT.rgba.z = 0.f;
     return OUT;

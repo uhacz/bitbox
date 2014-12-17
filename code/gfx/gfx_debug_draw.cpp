@@ -104,6 +104,9 @@ namespace bxGfxDebugDraw
     }
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
+        if( !__dd )
+            return;
+
         bxGdi::renderSource_releaseAndFree( dev, &__dd->rSource_lines );
         bxGdi::renderSource_releaseAndFree( dev, &__dd->rSource_box );
         bxGdi::renderSource_releaseAndFree( dev, &__dd->rSource_sphere );
@@ -115,6 +118,9 @@ namespace bxGfxDebugDraw
 
     void addSphere( const Vector4& pos_radius, u32 colorRGBA, int depth )
     {
+        if( !__dd )
+            return;
+
         bxScopeBenaphore lock( __dd->lock );
 
         bxGfxDebugDraw_Shpere sphere;
@@ -126,6 +132,9 @@ namespace bxGfxDebugDraw
     }
     void addBox( const Matrix4& pose, const Vector3& ext, u32 colorRGBA, int depth )
     {
+        if( !__dd )
+            return;
+
         bxScopeBenaphore lock( __dd->lock );
 
         bxGfxDebugDraw_Box box;
@@ -138,6 +147,9 @@ namespace bxGfxDebugDraw
     }
     void addLine( const Vector3& pointA, const Vector3& pointB, u32 colorRGBA, int depth )
     {
+        if( !__dd )
+            return;
+
         bxScopeBenaphore lock( __dd->lock );
 
         bxGfxDebugDraw_Line line;
@@ -151,6 +163,9 @@ namespace bxGfxDebugDraw
 
     void flush( bxGdiContext* ctx, const Matrix4& viewProj )
     {
+        if( !__dd )
+            return;
+
         bxScopeBenaphore lock( __dd->lock );
         
         bxGdiHwStateDesc hwState;

@@ -402,7 +402,7 @@ namespace bxGdi
         }
 
         _ShaderFx_initParams( fx, global_reflection );
-
+        shaderFile.release();
         fxTool::release( &fxSrc );
         return fx;
     }
