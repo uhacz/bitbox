@@ -54,14 +54,10 @@ namespace bxGfx
 ////
 ////
 bxGfxContext::bxGfxContext()
-{
-
-}
+{}
 
 bxGfxContext::~bxGfxContext()
-{
-
-}
+{}
 
 bxGfx::Shared bxGfxContext::_shared;
 int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
@@ -105,7 +101,7 @@ int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceM
         _shared.rsource.box = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
         bxPolyShape_deallocateShape( &polyShape );
 
-        bxPolyShape_createShpere( &polyShape, 4 );
+        bxPolyShape_createShpere( &polyShape, 6 );
         _shared.rsource.sphere = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
         bxPolyShape_deallocateShape( &polyShape );
     }

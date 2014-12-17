@@ -9,6 +9,10 @@
 #include <util/handle_manager.h>
 #include <gfx/gfx_lights.h>
 #include <gfx/gfx_debug_draw.h>
+#include "util/color.h"
+
+static const int MAX_LIGHTS = 64;
+static const int TILE_SIZE = 64;
 
 static bxGdiShaderFx* fx = 0;
 static bxGdiShaderFx_Instance* fxI = 0;
@@ -17,23 +21,23 @@ static bxGfxRenderList* rList = 0;
 static bxGfxCamera camera;
 static bxGfxCamera camera1;
 static bxGfxCameraInputContext cameraInputCtx;
-static bxGfxLights::PointInstance pointLight0 = { 0 };
-static bxGfxLights::PointInstance pointLight1 = { 0 };
-static bxGfxLights::PointInstance pointLight2 = { 0 };
-
+//static bxGfxLightManager::PointInstance pointLight0 = { 0 };
+//static bxGfxLightManager::PointInstance pointLight1 = { 0 };
+//static bxGfxLightManager::PointInstance pointLight2 = { 0 };
+static bxGfxLightManager::PointInstance pointLights[MAX_LIGHTS];
+static int nPointLights = 0;
 //static bxGfxLightList* lList = 0;
 //static bxGfxViewFrustum_Tiles* frustumTiles = 0;
 
-static const int MAX_LIGHTS = 64;
-static const int TILE_SIZE = 64;
+
 class bxDemoApp : public bxApplication
 {
 public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -44,32 +48,68 @@ public:
         _gfxContext = BX_NEW( bxDefaultAllocator(), bxGfxContext );
         _gfxContext->startup( _gdiDevice, _resourceManager );
         
-        _gfxLightsCtx = BX_NEW( bxDefaultAllocator(), bxGfxLightsContext );
-        _gfxLightsCtx->startup( _gdiDevice, MAX_LIGHTS, TILE_SIZE, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
+        _gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
+        _gfxLights->startup( _gdiDevice, MAX_LIGHTS, TILE_SIZE, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
-        bxGfxLight_Point pl;
-        pl.position = float3_t( 0.5f, 0.f, 0.f );
-        pl.radius = 2.f;
-        pl.color = float3_t( 0.f, 1.f, 0.f );
-        pl.intensity = 1.f;
-        pointLight0 = _gfxLightsCtx->lightManager.createPointLight( pl );
-
-        pl.position.x = -3.f;
-        pl.position.z = 2.f;
-        pl.color = float3_t( 1.f, 0.f, 0.f );
-        pl.radius = 5.f;
-        pointLight1 = _gfxLightsCtx->lightManager.createPointLight( pl );
-
-        pl.intensity = 2.f;
-        pl.radius = 10.f;
-        pointLight2 = _gfxLightsCtx->lightManager.createPointLight( pl );
-
-        //_gfxLightsCtx->lightManager.releaseLight( pointLight1 );
-        _gfxLightsCtx->lightManager.releaseLight( pointLight2 );
-
+        //bxGfxLight_Point pl;
+        //pl.position = float3_t( 0.5f, 0.f, 0.f );
+        //pl.radius = 2.f;
+        //pl.color = float3_t( 0.f, 1.f, 0.f );
         //pl.intensity = 1.f;
-        //pl.radius = 9.f;
-        //pointLight1 = _gfxLights->createPointLight( pl );
+        //pointLight0 = _gfxLights->lightManager.createPointLight( pl );
+
+        //pl.position.x = -3.f;
+        //pl.position.z = 2.f;
+        //pl.color = float3_t( 1.f, 0.f, 0.f );
+        //pl.radius = 5.f;
+        //pointLight1 = _gfxLights->lightManager.createPointLight( pl );
+
+        //pl.intensity = 2.f;
+        //pl.radius = 10.f;
+        //pointLight2 = _gfxLights->lightManager.createPointLight( pl );
+
+        ////_gfxLightsCtx->lightManager.releaseLight( pointLight1 );
+        //_gfxLights->lightManager.releaseLight( pointLight2 );
+
+        ////pl.intensity = 1.f;
+        ////pl.radius = 9.f;
+        ////pointLight1 = _gfxLights->createPointLight( pl );
+
+        {
+            
+            const float r = 5.f;
+
+            bxPolyShape shape;
+            bxPolyShape_createShpere( &shape, 2 );
+
+            const u32 colors[] = 
+            {
+                0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
+                0xFFFF00FF, 0x00FFFFFF, 0xFFFFFFFF,
+            };
+            const int nColors = sizeof(colors) / sizeof(*colors);
+
+            for( int ivertex = 0; ivertex < shape.num_vertices; ++ivertex )
+            {
+                const float* vertex = shape.position( ivertex );
+
+                const Vector3 v( vertex[0], vertex[1], vertex[2] );
+
+                const Vector3 pos = normalize( v ) * r;
+
+                bxGfxLight_Point l;
+                m128_to_xyz( l.position.xyz, pos.get128() );
+                l.radius = 5.5f;
+                bxColor::u32ToFloat3( colors[ivertex%nColors], l.color.xyz );
+                l.intensity = 1.f;
+
+                pointLights[ivertex] = _gfxLights->lightManager.createPointLight( l );
+                ++nPointLights;
+            }
+
+            
+            bxPolyShape_deallocateShape( &shape );
+        }
 
 
 
@@ -94,11 +134,19 @@ public:
         rsource = 0;
         bxGdi::shaderFx_releaseWithInstance( _gdiDevice, &fxI );
 
-        _gfxLightsCtx->lightManager.releaseLight( pointLight1 );
-        _gfxLightsCtx->lightManager.releaseLight( pointLight0 );
+        {
+            for( int ilight = 0; ilight < nPointLights; ++ilight )
+            {
+                _gfxLights->lightManager.releaseLight( pointLights[ilight] );
+            }
+            nPointLights = 0;
+        }
 
-        _gfxLightsCtx->shutdown( _gdiDevice );
-        BX_DELETE0( bxDefaultAllocator(), _gfxLightsCtx );
+        //_gfxLights->lightManager.releaseLight( pointLight1 );
+        //_gfxLights->lightManager.releaseLight( pointLight0 );
+
+        _gfxLights->shutdown( _gdiDevice );
+        BX_DELETE0( bxDefaultAllocator(), _gfxLights );
 
         _gfxContext->shutdown( _gdiDevice, _resourceManager );
         BX_DELETE0( bxDefaultAllocator(), _gfxContext );
@@ -150,81 +198,34 @@ public:
         }
 
         {
-            const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, -0.5f ) ), Vector3( 10.f, 10.f, 0.1f ) );
+            const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 100.f, 0.1f, 100.f ) );
             bxGdiRenderSource* box = _gfxContext->shared()->rsource.box;
             const bxGdiRenderSurface surf = bxGdi::renderSource_surface( box, bxGdi::eTRIANGLES );
             int dataIndex = rList->renderDataAdd( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
             u32 surfaceIndex = rList->surfacesAdd( &surf, 1 );
             u32 instanceIndex = rList->instancesAdd( &world, 1 );
-            //rList->itemSubmit( dataIndex, surfaceIndex, instanceIndex );
+            rList->itemSubmit( dataIndex, surfaceIndex, instanceIndex );
         }
-
-        //bxGfxDebugDraw::addSphere( Vector4( 0.f, 0.f, 0.f, 1.f ), 0xFF0000FF, true );
-        //bxGfxDebugDraw::addSphere( Vector4( 4.f, 0.f, 0.f, 0.5f ), 0xFF00FFFF, true );
-        //bxGfxDebugDraw::addSphere( Vector4( -4.f, 0.f, 0.f, 0.25f ), 0xFF0000FF, true );
-        //bxGfxDebugDraw::addSphere( Vector4( 0.f, 0.f,-4.f, 0.75f ), 0xFF0F00FF, true );
-        //bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.2f, 1.f, 0.5f ) ), Vector3(0.f,0.f,1.f) ), Vector3( 0.5f ), 0x00FF00FF, true );
-        //bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.75f ) ), Vector3( 3.f, 0.f, 1.f ) ), Vector3( 0.5f ), 0x11FF00FF, true );
-        //bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.3f, .2f, 0.15f ) ), Vector3( 0.f, 0.f,-1.f ) ), Vector3( 0.15f ), 0x66FF00FF, true );
-        //bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, .7f, 0.35f ) ), Vector3( 0.f, 3.f, 1.f ) ), Vector3( 0.25f ), 0x99FF00FF, true );
-        //bxGfxDebugDraw::addBox( Matrix4( Matrix3::rotationZYX( Vector3( 0.9f, 0.f, 0.0f ) ), Vector3( 0.f, -3.f, 1.f ) ), Vector3( 0.35f ), 0xFFFF00FF, true );
-
-        //bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3( 0.f, 1.f, 0.f ), 0xFF0000FF, true );
-        //bxGfxDebugDraw::addLine( Vector3( 0.f,1.f,0.f ), Vector3( 1.f, 1.f, 0.f ), 0x00FF00FF, true );
-        //bxGfxDebugDraw::addLine( Vector3( 1.f, 1.f, 0.f ), Vector3( 1.f, 1.f, 1.f ), 0x0000FFFF, true );
-        //bxGfxDebugDraw::addLine( Vector3( 1.f, 1.f, 1.f ), Vector3( 1.f,-1.f, 1.f ), 0xFF6666FF, true );
-        //bxGfxDebugDraw::addLine( Vector3( 1.f, -1.f, 1.f ), Vector3( 1.f, -1.f,-1.f ), 0xFFFFFFFF, true );
-
-        //const Vector4 sphere( -5.f, -1.f, -5.f, 1.0f );
-
-        
-
-        //bxGfx::viewFrustum_debugDraw( camera1.matrix.viewProj, 0x00FF00FF );
-        //{
-        //    const Matrix4 projInv = inverse( camera1.matrix.viewProj );
-        //    const int tileSize = 32;
-        //    const int numTilesX = iceil( 1920, tileSize );
-        //    const int numTilesY = iceil( 1080, tileSize );
-
-        //    const u32 colors[] =
-        //    {
-        //        0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
-        //        0xFFFF00FF, 0x00FFFFFF, 0xFFFFFFFF,
-        //    };
-
-        //    for ( int itileY = 0; itileY < numTilesY; ++itileY )
-        //    {
-        //        for( int itileX = 0; itileX < numTilesX; ++itileX )
-        //        {
-        //            bxGfxViewFrustumLRBT vF = bxGfx::viewFrustum_tile( projInv, itileX, itileY, numTilesX, numTilesY, tileSize );
-        //            int collision = bxGfx::viewFrustum_SphereIntersectLRBT( vF, sphere );
-        //            if( collision )
-        //            {
-        //                Vector3 corners[8];
-        //                bxGfx::viewFrustum_computeTileCorners( corners, projInv, itileX, itileY, numTilesX, numTilesY, tileSize );
-        //                bxGfx::viewFrustum_debugDraw( corners, colors[(numTilesX*itileY + itileX) % 6] );
-        //            }
-        //        }
-
-        //    }
-
-        //}
-        //bxGdiContextBackend* gdiContext = _gdiDevice->ctx;
-
-        //float clearColor[5] = { 1.f, 0.f, 0.f, 1.f, 1.f };
-        //_gdiContext->clearBuffers( clearColor, 1, 1 );
-        //gdiContext->clearBuffers( 0, 0, bxGdiTexture(), clearColor, 1, 1 );
 
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
-        bxGfxLight_Point light = _gfxLightsCtx->lightManager.pointLight( pointLight0 );
-        bxGfxDebugDraw::addSphere( Vector4( light.position.x, light.position.y, light.position.z, light.radius ), 0xFFFF00FF, true );
+        //for( int ilight = 0; ilight < nPointLights; ++ilight )
+        //{
+        //    bxGfxLight_Point l = _gfxLights->lightManager.pointLight( pointLights[ilight] );
 
-        _gfxLightsCtx->cullLights( camera );
+        //    const u32 color = bxColor::float3ToU32( l.color.xyz );
+        //    const Vector3 pos( xyz_to_m128( l.position.xyz ) );
+        //    bxGfxDebugDraw::addSphere( Vector4( pos, floatInVec( l.radius*0.1f ) ), color, true );
+        //}
+
+        //bxGfxLight_Point light = _gfxLights->lightManager.pointLight( pointLight0 );
+        //bxGfxDebugDraw::addSphere( Vector4( light.position.x, light.position.y, light.position.z, light.radius ), 0xFFFF00FF, true );
+
+        _gfxLights->cullLights( camera );
         
         _gfxContext->frameBegin( _gdiContext );
 
-        _gfxLightsCtx->bind( _gdiContext );
+        _gfxLights->bind( _gdiContext );
 
         _gfxContext->frameDraw( _gdiContext, camera, &rList, 1 );
 
@@ -239,7 +240,7 @@ public:
     bxGdiDeviceBackend* _gdiDevice;
     bxGdiContext* _gdiContext;
     bxGfxContext* _gfxContext;
-    bxGfxLightsContext* _gfxLightsCtx;
+    bxGfxLights* _gfxLights;
     bxResourceManager* _resourceManager;
 
 };
