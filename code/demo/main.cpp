@@ -36,8 +36,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -114,7 +114,9 @@ public:
 
 
         fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "native" );
-        
+        fxI->setUniform( "fresnel_coeff", 0.65f );
+        fxI->setUniform( "rough_coeff", 0.15f );
+
         rsource = bxGfxContext::shared()->rsource.sphere;
 
         rList = bxGfx::renderList_new( 128, 256, bxDefaultAllocator() );

@@ -377,6 +377,7 @@ void bxGfxLights::startup( bxGdiDeviceBackend* dev, int maxLights, int tileSiz, 
     data.numTiles = data.numTilesX * data.numTilesY;
     data.tileSize = tileSiz;
     data.maxLights = maxLights;
+    data.tileSizeRcp = 1.f / (float)tileSiz;
 
     const int numTiles = data.numTiles;
 
