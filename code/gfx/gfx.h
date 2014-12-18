@@ -91,6 +91,8 @@ namespace bxGfx
 
 }///
 
+////
+////
 struct BIT_ALIGNMENT_16 bxGfxRenderList
 {
     //// renderData
@@ -135,6 +137,77 @@ struct BIT_ALIGNMENT_16 bxGfxRenderList
     void clear();
     bxGfxRenderList();
 };
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct bxGfxRenderListItemDesc
+{
+    bxAABB _localAABB;
+    bxGdiRenderSource* _rsource;
+    bxGdiShaderFx_Instance* _fxI;
+    i32 _passIndex;
+    i32 _dataIndex;
+    
+    bxGfxRenderListItemDesc( bxGdiRenderSource* rsource, bxGdiShaderFx_Instance* fxI, int passIndex, const bxAABB& localAABB )
+        : _localAABB( localAABB )
+        , _rsource( rsource )
+        , _fxI( fxI )
+        , _passIndex( passIndex )
+        , _dataIndex(-1)
+    {}
+
+    void setRenderSource( bxGdiRenderSource* rsource )
+    {
+        _rsource = rsource;
+        _dataIndex = -1;
+    }
+    void setShader( bxGdiShaderFx_Instance* fxI, int passIndex )
+    {
+        _fxI = fxI;
+        _passIndex = passIndex;
+        _dataIndex = -1;
+    }
+    void setLocalAABB( const bxAABB& aabb )
+    {
+        _localAABB = aabb;
+        _dataIndex = -1;
+    }
+};
+namespace bxGfx
+{
+    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderListItemDesc* itemDesc, int topology, const Matrix4* matrices, int nMatrices )
+    {
+        if( itemDesc->_dataIndex < 0 )
+        {
+            itemDesc->_dataIndex = rList->renderDataAdd( itemDesc->_rsource, itemDesc->_fxI, itemDesc->_passIndex, itemDesc->_localAABB );
+        }
+        const bxGdiRenderSurface surf = bxGdi::renderSource_surface( itemDesc->_rsource, topology );
+        u32 surfaceIndex = rList->surfacesAdd( &surf, 1 );
+        u32 instanceIndex = rList->instancesAdd( matrices, nMatrices );
+        rList->itemSubmit( itemDesc->_dataIndex, surfaceIndex, instanceIndex );
+    }
+    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderListItemDesc* itemDesc, int topology, const Matrix4& matrix )
+    {
+        renderList_pushBack( rList, itemDesc, topology, &matrix, 1 );
+    }
+    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderListItemDesc* itemDesc, const bxGdiRenderSurface& surf, const Matrix4& matrix )
+    {
+        if( itemDesc->_dataIndex < 0 )
+        {
+            itemDesc->_dataIndex = rList->renderDataAdd( itemDesc->_rsource, itemDesc->_fxI, itemDesc->_passIndex, itemDesc->_localAABB );
+        }
+        u32 surfaceIndex = rList->surfacesAdd( &surf, 1 );
+        u32 instanceIndex = rList->instancesAdd( &matrix, 1 );
+        rList->itemSubmit( itemDesc->_dataIndex, surfaceIndex, instanceIndex );
+    }
+}///
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 struct bxGfxRenderItem_Iterator
 {
     bxGfxRenderItem_Iterator( bxGfxRenderList* rList )

@@ -36,8 +36,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -191,22 +191,31 @@ public:
                 Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f, 2.f, 0.f ) ),
                 Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f,-2.f, 0.f ) ),
                 Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f, 0.f ) ),
+
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, 0.f ) ), Vector3( -2.f, 0.f - 0.5f, -2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f, 2.f - 0.5f, -2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f,-2.f - 0.5f, -2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f - 0.5f, -2.f ) ),
+
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, 0.f ) ), Vector3( -2.f, 0.f + 0.5f, 2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f, 2.f + 0.5f, 2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f,-2.f + 0.5f, 2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f + 0.5f, 2.f ) ),
             };
-            const bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
-            int dataIndex = rList->renderDataAdd( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
-            u32 surfaceIndex = rList->surfacesAdd( &surf, 1 );
-            u32 instanceIndex = rList->instancesAdd( world, 4 );
-            rList->itemSubmit( dataIndex, surfaceIndex, instanceIndex );
+
+            bxGfxRenderListItemDesc itemDesc( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
+            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world + 4, 8 );
+
+            itemDesc.setRenderSource( _gfxContext->shared()->rsource.box );
+            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world, 4 );
         }
 
         {
-            const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 100.f, 0.1f, 100.f ) );
+            const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 10.f, 0.1f, 10.f ) );
             bxGdiRenderSource* box = _gfxContext->shared()->rsource.box;
-            const bxGdiRenderSurface surf = bxGdi::renderSource_surface( box, bxGdi::eTRIANGLES );
-            int dataIndex = rList->renderDataAdd( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
-            u32 surfaceIndex = rList->surfacesAdd( &surf, 1 );
-            u32 instanceIndex = rList->instancesAdd( &world, 1 );
-            rList->itemSubmit( dataIndex, surfaceIndex, instanceIndex );
+            
+            bxGfxRenderListItemDesc itemDesc( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
+            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
         }
 
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
@@ -220,8 +229,6 @@ public:
         //    bxGfxDebugDraw::addSphere( Vector4( pos, floatInVec( l.radius*0.1f ) ), color, true );
         //}
 
-        //bxGfxLight_Point light = _gfxLights->lightManager.pointLight( pointLight0 );
-        //bxGfxDebugDraw::addSphere( Vector4( light.position.x, light.position.y, light.position.z, light.radius ), 0xFFFF00FF, true );
 
         _gfxLights->cullLights( camera );
         
