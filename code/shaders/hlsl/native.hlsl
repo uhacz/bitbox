@@ -83,10 +83,10 @@ out_PS ps_main( in_PS input )
         float att;
         pointLight_computeParams( L, att, lightPosRad.xyz, lightPosRad.w, input.w_pos );
 
-        float2 brdf = BRDF( L, V, N, fresnel_coeff, rough_coeff );
+        float2 brdf = BRDF( L, V, N, rough_coeff, fresnel_coeff );
 
         float ambient_base = -min( 0.f, brdf.x );
-        float ambient_factor = (0.1f - (ambient_base * 0.05));
+        float ambient_factor = (0.05f - (ambient_base * 0.05));
         
         colorFromLights += ( brdf.x + ambient_factor + brdf.y ) * att * lightColInt.w * lightColInt.xyz;
         
