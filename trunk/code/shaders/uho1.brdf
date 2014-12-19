@@ -1,0 +1,84 @@
+analytic
+
+# variables go here...
+# only floats supported right now.
+# [type] [name] [min val] [max val] [default val]
+
+::begin parameters
+float rough 0.0 1.0 0.5
+float reflectance 0.0 1.0 0.5
+::end parameters
+
+# Then comes the shader. This should be GLSL code
+# that defines a function called BRDF (although you can
+# add whatever other functions you want too).
+
+::begin shader
+
+const float PI = 3.14159265358979323846;
+
+float saturate( float x )
+{
+	return clamp( x, 0.f, 1.f );
+}
+
+float lerp( float a, float b, float x )
+{
+    return mix( a, b, x );
+}
+
+float F_Schlick ( float f0 , float f90 , float u )
+{
+    return f0 + ( f90 - f0 ) * pow (1.f - u , 5.f);
+}
+
+float Diffuse( float NdotV , float NdotL , float LdotH , float linearRough )
+{
+    float energyBias = lerp( 0, 0.5, linearRough );
+    float energyFactor = lerp( 1.0, 1.f / 1.51f, linearRough );
+    float fd90 = energyBias + 2.0 * LdotH * LdotH * linearRough;
+    float f0 = 1.0f;
+    float lightScatter = F_Schlick( f0, fd90, NdotL );
+    float viewScatter  = F_Schlick( f0, fd90, NdotV );
+
+    return ( lightScatter * viewScatter * energyFactor);
+}
+
+float V_SmithGGXCorrelated ( float NdotL , float NdotV , float alphaG )
+{
+    float alphaG2 = alphaG * alphaG;
+    float lambda_GGXL = NdotL * sqrt(( - NdotV * alphaG2 + NdotV ) * NdotV + alphaG2 );
+    float lambda_GGXV = NdotV * sqrt(( - NdotL * alphaG2 + NdotL ) * NdotL + alphaG2 );
+    return 0.5f / ( lambda_GGXL + lambda_GGXV );
+}
+
+float D_GGX( float NdotH, float m )
+{
+    float m2 = m*m;
+    float f = ( NdotH * m2 - NdotH ) * NdotH + 1;
+    return m2 / (f*f);
+}
+
+vec3 BRDF( vec3 L, vec3 V, vec3 N, vec3 X, vec3 Y )
+{
+    vec3 H = normalize( L + V );
+
+    float NdotH = saturate( dot(N, H) );
+    float VdotH = saturate( dot(V, H) );
+    float NdotL = saturate( dot(N, L) );
+    float NdotV = abs( dot(N, V) ) + 1e-5f;
+    float LdotH = saturate( dot(L, H) );
+
+    float linearRough = sqrt( rough );
+    
+    float F = F_Schlick( reflectance, 1.0f, VdotH );
+    float Vis = V_SmithGGXCorrelated ( NdotV , NdotL , rough );
+    float D = D_GGX ( NdotH , rough );
+    float Fr = D * F * Vis ;
+
+    float Fd = Diffuse( NdotV, NdotL, LdotH, linearRough );
+	
+    return vec3( Fd + Fr ) / PI;
+}
+
+::end shader
