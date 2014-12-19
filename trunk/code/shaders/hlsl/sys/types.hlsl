@@ -8,5 +8,5 @@
 #define PI_DIV_360		(0.00872664f)
 #define _180_DIV_PI		(57.2957795130f)
 #define ONE_OVER_TWO_PI (0.159154943f)
-
+#define PI_RCP (0.31830988618379067154f)
 #endif

@@ -35,70 +35,57 @@ void pointLight_computeParams( out float3 L, out float attenuation, in float3 li
 
 ////
 ////
-float Fresnel( in float f0, in float f90, float u )
+float F_Schlick( float f0, float f90, float u )
 {
-    return f0 + (f90 - f0) * pow( 1 - u, 5.f );
+    return f0 + (f90 - f0) * pow( 1.f - u, 5.f );
 }
 
-float Fr_DisneyDiffuse( float NdotV, float NdotL, float LdotH, float linearRoughness )
+float Diffuse( float NdotV, float NdotL, float LdotH, float linearRough )
 {
-    float energyBias = lerp( 0, 0.5, linearRoughness );
-    float energyFactor = lerp( 1.0, 1.0 / 1.51, linearRoughness );
-    float fd90 = energyBias + 2.0 * LdotH * LdotH * linearRoughness;
-    float f0 = 1.f;
-    float lightScatter = Fresnel( f0, fd90, NdotL );
-    float viewScatter = Fresnel( f0, fd90, NdotV );
-    return lightScatter * viewScatter * energyFactor;
-}float V_SmithGGXCorrelated( float NdotL, float NdotV, float alphaG )
-{
-    // Original formulation of G_SmithGGX Correlated
-    // lambda_v = ( -1 + sqrt ( alphaG2 * (1 - NdotL2 ) / NdotL2 + 1)) * 0.5 f;
-    // lambda_l = ( -1 + sqrt ( alphaG2 * (1 - NdotV2 ) / NdotV2 + 1)) * 0.5 f;
-    // G_SmithGGXCorrelated = 1 / (1 + lambda_v + lambda_l );
-    // V_SmithGGXCorrelated = G_SmithGGXCorrelated / (4.0 f * NdotL * NdotV );
+    float energyBias = lerp( 0, 0.5, linearRough );
+    float energyFactor = lerp( 1.0, 1.f / 1.51f, linearRough );
+    float fd90 = energyBias + 2.0 * LdotH * LdotH * linearRough;
+    float f0 = 1.0f;
+    float lightScatter = F_Schlick( f0, fd90, NdotL );
+    float viewScatter = F_Schlick( f0, fd90, NdotV );
 
-    // This is the optimize version
+    return (lightScatter * viewScatter * energyFactor);
+}
+
+float V_SmithGGXCorrelated( float NdotL, float NdotV, float alphaG )
+{
     float alphaG2 = alphaG * alphaG;
-    // Caution : the " NdotL *" and " NdotV *" are explicitely inversed , this is not a mistake .
-    float Lambda_GGXV = NdotL * sqrt( (-NdotV * alphaG2 + NdotV) * NdotV + alphaG2 );
-    float Lambda_GGXL = NdotV * sqrt( (-NdotL * alphaG2 + NdotL) * NdotL + alphaG2 );
-
-    return 0.5f / (Lambda_GGXV + Lambda_GGXL);
+    float lambda_GGXL = NdotL * sqrt( (-NdotV * alphaG2 + NdotV) * NdotV + alphaG2 );
+    float lambda_GGXV = NdotV * sqrt( (-NdotL * alphaG2 + NdotL) * NdotL + alphaG2 );
+    return 0.5f / (lambda_GGXL + lambda_GGXV);
 }
 
 float D_GGX( float NdotH, float m )
 {
-    // Divide by PI is apply later
-    float m2 = m * m;
+    float m2 = m*m;
     float f = (NdotH * m2 - NdotH) * NdotH + 1;
-    return m2 / (f * f);
+    return m2 / (f*f);
 }
 
-float2 BRDF( in float3 L, in float3 V, in float3 N, in float f0, in float linearRoughness )
+float2 BRDF( float3 L, float3 V, float3 N, float rough, float reflectance )
 {
-    float NdotV = abs( dot( N, V ) ) + 1e-5f; // avoid artifact
-    float3 H = normalize( V + L );
-    float LdotH = saturate( dot( L, H ) );
+    float3 H = normalize( L + V );
+
     float NdotH = saturate( dot( N, H ) );
+    float VdotH = saturate( dot( V, H ) );
     float NdotL = saturate( dot( N, L ) );
-    
-    float diffuse = NdotL;
-    float specular = pow( NdotH, 64 * f0 );
+    float NdotV = abs( dot( N, V ) ) + 1e-5f;
+    float LdotH = saturate( dot( L, H ) );
 
-    return float2(diffuse, specular);
-    
-    //
-    //// Specular BRDF
-    //float roughness = linearRoughness * linearRoughness;
-    //float F = Fresnel( f0, 1.f, LdotH );
-    //float Vis = V_SmithGGXCorrelated( NdotV, NdotL, roughness );
-    //float D = D_GGX( NdotH, roughness );
-    //float denom = 1.f / 4.0f * NdotL*NdotV;
-    //float Fr = D * F * Vis * denom / PI;
-    //
-    //// Diffuse BRDF
-    //float Fd = Fr_DisneyDiffuse( NdotV, NdotL, LdotH, linearRoughness ) / PI;
+    float linearRough = sqrt( rough );
 
-    //return float2(Fd, Fr);
+    float F = F_Schlick( reflectance, 1.0f, VdotH );
+    float Vis = V_SmithGGXCorrelated( NdotV, NdotL, rough );
+    float D = D_GGX( NdotH, rough );
+    float Fr = D * F * Vis;
+
+    float Fd = Diffuse( NdotV, NdotL, LdotH, linearRough );
+
+    return float2( Fd, Fr ) * PI_RCP * NdotL;
 }
 #endif

@@ -10,6 +10,7 @@
 #include <gfx/gfx_lights.h>
 #include <gfx/gfx_debug_draw.h>
 #include "util/color.h"
+#include "test_console.h"
 
 static const int MAX_LIGHTS = 64;
 static const int TILE_SIZE = 64;
@@ -35,9 +36,11 @@ class bxDemoApp : public bxApplication
 public:
     virtual bool startup( int argc, const char** argv )
     {
+        //testBRDF();
+        
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -50,30 +53,6 @@ public:
         
         _gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
         _gfxLights->startup( _gdiDevice, MAX_LIGHTS, TILE_SIZE, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
-
-        //bxGfxLight_Point pl;
-        //pl.position = float3_t( 0.5f, 0.f, 0.f );
-        //pl.radius = 2.f;
-        //pl.color = float3_t( 0.f, 1.f, 0.f );
-        //pl.intensity = 1.f;
-        //pointLight0 = _gfxLights->lightManager.createPointLight( pl );
-
-        //pl.position.x = -3.f;
-        //pl.position.z = 2.f;
-        //pl.color = float3_t( 1.f, 0.f, 0.f );
-        //pl.radius = 5.f;
-        //pointLight1 = _gfxLights->lightManager.createPointLight( pl );
-
-        //pl.intensity = 2.f;
-        //pl.radius = 10.f;
-        //pointLight2 = _gfxLights->lightManager.createPointLight( pl );
-
-        ////_gfxLightsCtx->lightManager.releaseLight( pointLight1 );
-        //_gfxLights->lightManager.releaseLight( pointLight2 );
-
-        ////pl.intensity = 1.f;
-        ////pl.radius = 9.f;
-        ////pointLight1 = _gfxLights->createPointLight( pl );
 
         {
             
@@ -89,7 +68,7 @@ public:
             };
             const int nColors = sizeof(colors) / sizeof(*colors);
 
-            for( int ivertex = 0; ivertex < shape.num_vertices; ++ivertex )
+            for( int ivertex = 0; ivertex < 1; ++ivertex )
             {
                 const float* vertex = shape.position( ivertex );
 
@@ -99,7 +78,7 @@ public:
 
                 bxGfxLight_Point l;
                 m128_to_xyz( l.position.xyz, pos.get128() );
-                l.radius = 5.5f;
+                l.radius = 9.5f;
                 bxColor::u32ToFloat3( colors[ivertex%nColors], l.color.xyz );
                 l.intensity = 1.f;
 
@@ -114,8 +93,8 @@ public:
 
 
         fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "native" );
-        fxI->setUniform( "fresnel_coeff", 0.65f );
-        fxI->setUniform( "rough_coeff", 0.15f );
+        fxI->setUniform( "fresnel_coeff", 0.9f );
+        fxI->setUniform( "rough_coeff", 0.5f );
 
         rsource = bxGfxContext::shared()->rsource.sphere;
 
