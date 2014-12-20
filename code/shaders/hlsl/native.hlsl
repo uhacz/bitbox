@@ -10,6 +10,7 @@ passes:
 #include <sys/frame_data.hlsl>
 #include <sys/instance_data.hlsl>
 #include <sys/types.hlsl>
+#include <sys/brdf.hlsl>
 #include <sys/lights.hlsl>
 
 shared cbuffer MaterialData : register(b3)
@@ -31,7 +32,7 @@ struct in_PS
     float4 h_pos	: SV_Position;
     float4 s_pos    : TEXCOORD0;
 	float3 w_pos	: TEXCOORD1;
-	/*nointerpolation*/ float3 w_normal:TEXCOORD2;
+	/*nointerpolation */float3 w_normal:TEXCOORD2;
 };
 
 struct out_PS
@@ -79,21 +80,27 @@ out_PS ps_main( in_PS input )
         float4 lightPosRad = _lightsData[pointLightDataIndex * 2];
         float4 lightColInt = _lightsData[pointLightDataIndex * 2 + 1];
 
-        float3 L;
-        float att;
-        pointLight_computeParams( L, att, lightPosRad.xyz, lightPosRad.w, input.w_pos );
-
+        const float3 unormalizedLightVector = lightPosRad.xyz - input.w_pos;
+        const float distanceToLight = length( unormalizedLightVector );
+        const float3 L = normalize( unormalizedLightVector );
+        const float att = getDistanceAtt( unormalizedLightVector, 1.f / (lightPosRad.w*lightPosRad.w) );
+        
         float2 brdf = BRDF( L, V, N, rough_coeff, fresnel_coeff );
 
         float ambient_base = -min( 0.f, brdf.x );
         float ambient_factor = (0.05f - (ambient_base * 0.05));
         
-        colorFromLights += ( brdf.x + ambient_factor + brdf.y ) * att * lightColInt.w * lightColInt.xyz;
+        colorFromLights += (brdf.x + ambient_factor + brdf.y) * att * lightColInt.xyz * lightColInt.w;
         
         pointLightIndex++;
         pointLightDataIndex = _lightsIndices[pointLightIndex] & 0xFFFF;
     }
 
+    float2 sunIlluminance = evaluateSunLight( V, N, _sunDirection, _sunAngularRadius, _sunIlluminanceInLux, input.w_pos, rough_coeff, fresnel_coeff );
+    float ambient_base = -min( 0.f, sunIlluminance.x );
+    float ambient_factor = (0.05f - (ambient_base * 0.05));
+
+    OUT.rgba.xyz += _sunColor * (sunIlluminance.x + sunIlluminance.y + ambient_factor);
     OUT.rgba.xyz += colorFromLights;
 
     //float3 tmpColors[] =

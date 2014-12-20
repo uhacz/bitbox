@@ -84,12 +84,15 @@
     <ClInclude Include="gfx.h" />
     <ClInclude Include="gfx_camera.h" />
     <ClInclude Include="gfx_lights.h" />
+    <ClInclude Include="gfx_render_list.h" />
+    <ClInclude Include="gfx_type.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="gfx_debug_draw.cpp" />
     <ClCompile Include="gfx.cpp" />
     <ClCompile Include="gfx_camera.cpp" />
     <ClCompile Include="gfx_lights.cpp" />
+    <ClCompile Include="gfx_render_list.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="view_frustum.inl" />

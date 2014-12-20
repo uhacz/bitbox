@@ -1,6 +1,8 @@
-#ifndef LIGHTS
-#define LIGHTS
+#ifndef LIGHTS_HLSL
+#define LIGHTS_HLSL
 
+////
+////
 shared cbuffer LighningData : register(b2)
 {
     uint2 _numTilesXY;
@@ -8,84 +10,56 @@ shared cbuffer LighningData : register(b2)
     uint  _tileSize;
     uint  _maxLights;
     float _tileSizeRcp;
+
+    float _sunAngularRadius;
+    float _sunIlluminanceInLux;
+    float __padding0;
+    float3 _sunDirection;
+    float3 _sunColor;
+    float __padding1;
 };
 
 Buffer<float4> _lightsData    : register(t0);
 Buffer<uint>   _lightsIndices : register(t1);
-
-////
-////
 uint2 computeTileXY( in float2 screenPos, in uint2 numTilesXY, in float2 rtSize, in float tileSizeRcp )
 {
     const uint2 unclamped = (uint2)(screenPos * rtSize * tileSizeRcp);
     return clamp( unclamped, uint2(0, 0), numTilesXY - uint2(1,1) );
 }
 
-////
-////
-void pointLight_computeParams( out float3 L, out float attenuation, in float3 lightPos, in float lightRad, in float3 surfPos )
+float2 evaluateSunLight( float3 V, float3 N, float3 sunDirection, float sunAngRad, float sunLux, float3 surfPos, in float rough, in float reflectance )
 {
-    float3 surfToLight = lightPos - surfPos;
-    float dist = length( surfToLight );
-    L = surfToLight * rcp( dist );
+    const float r = sin( sunAngRad );
+    const float d = cos( sunAngRad );
+    const float3 D = -sunDirection;
+    const float3 R = normalize( D - normalize( surfPos ) );
+    const float DdotR = dot( D, R );
+    const float3 S = R - DdotR * D;    const float3 L = DdotR < d ? normalize( d * D + normalize( S ) * r ) : R;
+    const float illuminance = sunLux * saturate( dot( N, D ) );
 
-    float denom = saturate( dist / lightRad ) - 1.f;
-    attenuation = (denom * denom);
+    const float Fd = BRDF_Diffuse( D, V, N, rough );
+    const float Fr = BRDF_Specular( L, V, N, rough, reflectance );
+
+    return float2(Fd, Fr) * illuminance;
 }
 
 ////
 ////
-float F_Schlick( float f0, float f90, float u )
+
+////
+////
+float smoothDistanceAtt( float squaredDistance, float invSqrAttRadius )
 {
-    return f0 + (f90 - f0) * pow( 1.f - u, 5.f );
+    float factor = squaredDistance * invSqrAttRadius;
+    float smoothFactor = saturate( 1.0 - factor * factor );
+    return smoothFactor * smoothFactor;
 }
-
-float Diffuse( float NdotV, float NdotL, float LdotH, float linearRough )
+float getDistanceAtt( float3 unormalizedLightVector, float invSqrAttRadius )
 {
-    float energyBias = lerp( 0, 0.5, linearRough );
-    float energyFactor = lerp( 1.0, 1.f / 1.51f, linearRough );
-    float fd90 = energyBias + 2.0 * LdotH * LdotH * linearRough;
-    float f0 = 1.0f;
-    float lightScatter = F_Schlick( f0, fd90, NdotL );
-    float viewScatter = F_Schlick( f0, fd90, NdotV );
+    float sqrDist = dot( unormalizedLightVector, unormalizedLightVector );
+    float attenuation = 1.0 / (max( sqrDist, 0.01*0.01 ));
+    attenuation *= smoothDistanceAtt( sqrDist, invSqrAttRadius );
 
-    return (lightScatter * viewScatter * energyFactor);
-}
-
-float V_SmithGGXCorrelated( float NdotL, float NdotV, float alphaG )
-{
-    float alphaG2 = alphaG * alphaG;
-    float lambda_GGXL = NdotL * sqrt( (-NdotV * alphaG2 + NdotV) * NdotV + alphaG2 );
-    float lambda_GGXV = NdotV * sqrt( (-NdotL * alphaG2 + NdotL) * NdotL + alphaG2 );
-    return 0.5f / (lambda_GGXL + lambda_GGXV);
-}
-
-float D_GGX( float NdotH, float m )
-{
-    float m2 = m*m;
-    float f = (NdotH * m2 - NdotH) * NdotH + 1;
-    return m2 / (f*f);
-}
-
-float2 BRDF( float3 L, float3 V, float3 N, float rough, float reflectance )
-{
-    float3 H = normalize( L + V );
-
-    float NdotH = saturate( dot( N, H ) );
-    float VdotH = saturate( dot( V, H ) );
-    float NdotL = saturate( dot( N, L ) );
-    float NdotV = abs( dot( N, V ) ) + 1e-5f;
-    float LdotH = saturate( dot( L, H ) );
-
-    float linearRough = sqrt( rough );
-
-    float F = F_Schlick( reflectance, 1.0f, VdotH );
-    float Vis = V_SmithGGXCorrelated( NdotV, NdotL, rough );
-    float D = D_GGX( NdotH, rough );
-    float Fr = D * F * Vis;
-
-    float Fd = Diffuse( NdotV, NdotL, LdotH, linearRough );
-
-    return float2( Fd, Fr ) * PI_RCP * NdotL;
-}
+    return attenuation;
+}
 #endif

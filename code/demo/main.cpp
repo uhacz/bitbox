@@ -1,15 +1,20 @@
 #include <system/application.h>
 #include <system/window.h>
 
-#include <gdi/gdi_context.h>
-#include <resource_manager/resource_manager.h>
-#include <gfx/gfx.h>
-#include "util/time.h"
-
+#include <util/time.h>
+#include <util/color.h>
 #include <util/handle_manager.h>
+
+#include <resource_manager/resource_manager.h>
+
+#include <gdi/gdi_shader.h>
+#include <gdi/gdi_context.h>
+
+#include <gfx/gfx.h>
+#include <gfx/gfx_camera.h>
 #include <gfx/gfx_lights.h>
 #include <gfx/gfx_debug_draw.h>
-#include "util/color.h"
+
 #include "test_console.h"
 
 static const int MAX_LIGHTS = 64;
@@ -56,10 +61,10 @@ public:
 
         {
             
-            const float r = 5.f;
+            //const float r = 5.f;
 
-            bxPolyShape shape;
-            bxPolyShape_createShpere( &shape, 2 );
+            //bxPolyShape shape;
+            //bxPolyShape_createShpere( &shape, 2 );
 
             const u32 colors[] = 
             {
@@ -68,33 +73,60 @@ public:
             };
             const int nColors = sizeof(colors) / sizeof(*colors);
 
-            for( int ivertex = 0; ivertex < 1; ++ivertex )
+            //for( int ivertex = 0; ivertex < 1; ++ivertex )
+            //{
+            //    const float* vertex = shape.position( ivertex );
+
+            //    const Vector3 v( vertex[0], vertex[1], vertex[2] );
+
+            //    const Vector3 pos = normalize( v ) * r;
+
+            //    bxGfxLight_Point l;
+            //    m128_to_xyz( l.position.xyz, pos.get128() );
+            //    l.radius = 9.5f;
+            //    bxColor::u32ToFloat3( colors[ivertex%nColors], l.color.xyz );
+            //    l.intensity = 1.f;
+
+            //    pointLights[ivertex] = _gfxLights->lightManager.createPointLight( l );
+            //    ++nPointLights;
+            //}
+
+            const float a = 5.f;
+            const Vector3 corners[] =
             {
-                const float* vertex = shape.position( ivertex );
+                //Vector3( -a, -0.f, -a ),
+                //Vector3(  a, -0.f, -a ),
+                //Vector3(  a,  a, -a ),
+                //Vector3( -a,  a, -a ),
 
-                const Vector3 v( vertex[0], vertex[1], vertex[2] );
-
-                const Vector3 pos = normalize( v ) * r;
-
+                //Vector3( -a, -0.f, a ),
+                //Vector3(  a, -0.f, a ),
+                Vector3(  a,  a, a ),
+                Vector3( -a,  a, a ),
+            };
+            const int nCorners = sizeof( corners ) / sizeof( *corners );
+            for ( int icorner = 0; icorner < nCorners; ++icorner )
+            {
                 bxGfxLight_Point l;
-                m128_to_xyz( l.position.xyz, pos.get128() );
-                l.radius = 9.5f;
-                bxColor::u32ToFloat3( colors[ivertex%nColors], l.color.xyz );
-                l.intensity = 1.f;
-
-                pointLights[ivertex] = _gfxLights->lightManager.createPointLight( l );
+                m128_to_xyz( l.position.xyz, corners[icorner].get128() );
+                l.radius = 15.f;
+                bxColor::u32ToFloat3( colors[icorner%nColors], l.color.xyz );
+                l.intensity = 15.f;
+                pointLights[icorner] = _gfxLights->lightManager.createPointLight( l );
                 ++nPointLights;
             }
 
             
-            bxPolyShape_deallocateShape( &shape );
+
+            
+            //bxPolyShape_deallocateShape( &shape );
         }
 
 
 
         fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "native" );
-        fxI->setUniform( "fresnel_coeff", 0.9f );
-        fxI->setUniform( "rough_coeff", 0.5f );
+        fxI->setUniform( "fresnel_coeff", 0.95f );
+        fxI->setUniform( "rough_coeff", 0.1f );
 
         rsource = bxGfxContext::shared()->rsource.sphere;
 
@@ -190,7 +222,7 @@ public:
         }
 
         {
-            const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 10.f, 0.1f, 10.f ) );
+            const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 100.f, 0.1f, 100.f ) );
             bxGdiRenderSource* box = _gfxContext->shared()->rsource.box;
             
             bxGfxRenderListItemDesc itemDesc( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
@@ -199,14 +231,14 @@ public:
 
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
-        //for( int ilight = 0; ilight < nPointLights; ++ilight )
-        //{
-        //    bxGfxLight_Point l = _gfxLights->lightManager.pointLight( pointLights[ilight] );
+        for( int ilight = 0; ilight < nPointLights; ++ilight )
+        {
+            bxGfxLight_Point l = _gfxLights->lightManager.pointLight( pointLights[ilight] );
 
-        //    const u32 color = bxColor::float3ToU32( l.color.xyz );
-        //    const Vector3 pos( xyz_to_m128( l.position.xyz ) );
-        //    bxGfxDebugDraw::addSphere( Vector4( pos, floatInVec( l.radius*0.1f ) ), color, true );
-        //}
+            const u32 color = bxColor::float3ToU32( l.color.xyz );
+            const Vector3 pos( xyz_to_m128( l.position.xyz ) );
+            bxGfxDebugDraw::addSphere( Vector4( pos, floatInVec( l.radius*0.1f ) ), color, true );
+        }
 
 
         _gfxLights->cullLights( camera );

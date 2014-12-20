@@ -3,6 +3,7 @@
 #include "gfx.h"
 #include <util/memory.h>
 #include <util/buffer_utils.h>
+#include <util/color.h>
 #include "gfx_debug_draw.h"
 
 bxGfxLightManager::bxGfxLightManager()
@@ -369,6 +370,8 @@ int bxGfxLightList::appendPointLight( int tileX, int tileY, int lightIndex )
 ////
 void bxGfxLights::startup( bxGdiDeviceBackend* dev, int maxLights, int tileSiz, int rtWidth, int rtHeight, bxAllocator* allocator )
 {
+    SYS_STATIC_ASSERT( sizeof( bxGfx::LightningData ) == 64 );
+    
     lightManager.startup( maxLights );
     lightList.startup( allocator );
         
@@ -378,6 +381,11 @@ void bxGfxLights::startup( bxGdiDeviceBackend* dev, int maxLights, int tileSiz, 
     data.tileSize = tileSiz;
     data.maxLights = maxLights;
     data.tileSizeRcp = 1.f / (float)tileSiz;
+
+    data.sunAngularRadius = 0.00942477796076937972f;
+    setSunDir( Vector3( 1.f, -1.f, 0.f ) );
+    setSunIlluminance( 1.f );
+    setSunColor( float3_t( 0.8f, .8f, .7f ) );
 
     const int numTiles = data.numTiles;
 
@@ -397,6 +405,21 @@ void bxGfxLights::shutdown( bxGdiDeviceBackend* dev )
 
     lightList.shutdown();
     lightManager.shutdown();
+}
+
+void bxGfxLights::setSunDir(const Vector3& dir)
+{
+    m128_to_xyz( data.sunDirection.xyz, dir.get128() );
+}
+
+void bxGfxLights::setSunColor(const float3_t& rgb)
+{
+    data.sunColor = rgb;
+}
+
+void bxGfxLights::setSunIlluminance(float lux)
+{
+    data.sunIlluminanceInLux = lux;
 }
 
 void bxGfxLights::cullLights( const bxGfxCamera& camera )
