@@ -17,7 +17,13 @@ namespace bxGfx
         u32 maxLights;
 
         f32 tileSizeRcp;
-        u32 __padding[2];
+        
+        f32 sunAngularRadius;
+        f32 sunIlluminanceInLux;
+        u32 __padding0;
+        float3_t sunDirection;
+        float3_t sunColor;
+        u32 __padding1;
     };
 }///
 
@@ -172,6 +178,10 @@ struct bxGfxLights
     void startup( bxGdiDeviceBackend* dev, int maxLights, int tileSize, int rtWidth, int rtHeight, bxAllocator* allocator = bxDefaultAllocator() );
     void shutdown( bxGdiDeviceBackend* dev );
 
+    void setSunDir( const Vector3& dir );
+    void setSunColor( const float3_t& rgb );
+    void setSunIlluminance( float lux );
+    
     void cullLights( const bxGfxCamera& camera );
     void bind( bxGdiContext* ctx );
 };
