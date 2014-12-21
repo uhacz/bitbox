@@ -125,8 +125,8 @@ public:
 
 
         fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "native" );
-        fxI->setUniform( "fresnel_coeff", 0.95f );
-        fxI->setUniform( "rough_coeff", 0.1f );
+        fxI->setUniform( "fresnel_coeff", 0.095f );
+        fxI->setUniform( "rough_coeff", 0.92f );
 
         rsource = bxGfxContext::shared()->rsource.sphere;
 

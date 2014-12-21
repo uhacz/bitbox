@@ -90,7 +90,7 @@ out_PS ps_main( in_PS input )
         float ambient_base = -min( 0.f, brdf.x );
         float ambient_factor = (0.05f - (ambient_base * 0.05));
         
-        colorFromLights += (brdf.x + ambient_factor + brdf.y) * att * lightColInt.xyz * lightColInt.w;
+        colorFromLights += (brdf.x + brdf.y) * att * lightColInt.xyz * lightColInt.w;
         
         pointLightIndex++;
         pointLightDataIndex = _lightsIndices[pointLightIndex] & 0xFFFF;
