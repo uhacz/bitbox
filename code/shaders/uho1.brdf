@@ -69,14 +69,16 @@ vec3 BRDF( vec3 L, vec3 V, vec3 N, vec3 X, vec3 Y )
     float NdotV = abs( dot(N, V) ) + 1e-5f;
     float LdotH = saturate( dot(L, H) );
 
-    float linearRough = sqrt( rough );
-    
-    float F = F_Schlick( reflectance, 1.0f, VdotH );
+    float linearRough = rough * rough;
+    float f0 = reflectance;
+
+    float F = F_Schlick( f0, 1.0f, VdotH );
     float Vis = V_SmithGGXCorrelated ( NdotV , NdotL , rough );
     float D = D_GGX ( NdotH , rough );
     float Fr = D * F * Vis ;
 
-    float Fd = Diffuse( NdotV, NdotL, LdotH, linearRough );
+    float Fdiff = F_Schlick( f0, 1.f, VdotH );
+    float Fd = ( 1.f - Fdiff ) * Diffuse( NdotV, NdotL, LdotH, linearRough );
 	
     return vec3( Fd + Fr ) / PI;
 }

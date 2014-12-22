@@ -37,7 +37,7 @@ float2 evaluateSunLight( float3 V, float3 N, float3 sunDirection, float sunAngRa
     const float3 S = R - DdotR * D;    const float3 L = DdotR < d ? normalize( d * D + normalize( S ) * r ) : R;
     const float illuminance = sunLux * saturate( dot( N, D ) );
 
-    const float Fd = BRDF_Diffuse( D, V, N, rough );
+    const float Fd = BRDF_Diffuse( D, V, N, rough, reflectance );
     const float Fr = BRDF_Specular( L, V, N, rough, reflectance );
 
     return float2(Fd, Fr) * illuminance;

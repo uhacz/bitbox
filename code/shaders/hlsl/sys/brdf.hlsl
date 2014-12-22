@@ -10,14 +10,13 @@ float F_Schlick( float f0, float f90, float u )
 
 float Diffuse( float NdotV, float NdotL, float LdotH, float linearRough )
 {
-    //float energyBias = lerp( 0, 0.5, linearRough );
-    //float energyFactor = lerp( 1.0, 1.f / 1.51f, linearRough );
-    float fd90 = /*energyBias + */2.0 * LdotH * LdotH * linearRough;
+    float energyBias = lerp( 0, 0.5, linearRough );
+    float energyFactor = lerp( 1.0, 1.f / 1.51f, linearRough );
+    float fd90 = energyBias + 2.0 * LdotH * LdotH * linearRough;
     float f0 = 1.0f;
     float lightScatter = F_Schlick( f0, fd90, NdotL );
     float viewScatter = F_Schlick( f0, fd90, NdotV );
-
-    return (lightScatter * viewScatter /** energyFactor*/);
+    return (lightScatter * viewScatter * energyFactor );
 }
 
 float V_SmithGGXCorrelated( float NdotL, float NdotV, float alphaG )
@@ -55,22 +54,23 @@ float2 BRDF( in float3 L, in float3 V, in float3 N, in float rough, in float ref
         
     float Fr = Specular( VdotH, NdotV, NdotL, NdotH, rough, reflectance  );
     
-    float linearRough = sqrt( rough );
-    float Fd = Diffuse( NdotV, NdotL, LdotH, linearRough );
+    float linearRough = rough * rough;
+    float Fd = (1.f - F_Schlick( reflectance, 1.f, VdotH ));//  Diffuse( NdotV, NdotL, LdotH, linearRough );
 
     return float2( Fd, Fr ) * PI_RCP * NdotL;
 }
 
-float BRDF_Diffuse( in float3 L, in float3 V, in float3 N, in float rough )
+float BRDF_Diffuse( in float3 L, in float3 V, in float3 N, in float rough, in float reflectance )
 {
     float3 H = normalize( L + V );
 
     float NdotL = saturate( dot( N, L ) );
     float NdotV = abs( dot( N, V ) ) + 1e-5f;
     float LdotH = saturate( dot( L, H ) );
+    float VdotH = saturate( dot( V, H ) );
     
-    float linearRough = sqrt( rough );
-    float Fd = Diffuse( NdotV, NdotL, LdotH, linearRough );
+    float linearRough = rough * rough;
+    float Fd = (1.f - F_Schlick( reflectance, 1.f, VdotH ));//  Diffuse( NdotV, NdotL, LdotH, linearRough );
 
     return Fd * PI_RCP * NdotL;
 }
