@@ -155,26 +155,26 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     
     virtual bxGdiVertexBuffer createVertexBuffer( const bxGdiVertexStreamDesc& desc, u32 numElements, const void* data )
     {
-        const u32 MAX_DESCS = 16;
-        D3D11_INPUT_ELEMENT_DESC descs[MAX_DESCS];
-        memset( descs, 0, sizeof(descs) );
+        //const u32 MAX_DESCS = 16;
+        //D3D11_INPUT_ELEMENT_DESC descs[MAX_DESCS];
+        //memset( descs, 0, sizeof(descs) );
 
-        int stream_stride = 0;
-        for( int i = 0; i < desc.count; ++i )
-        {
-            const bxGdiVertexStreamBlock& block = desc.blocks[i];
-            D3D11_INPUT_ELEMENT_DESC& d11_desc = descs[i];
+        //int stream_stride = 0;
+        //for( int i = 0; i < desc.count; ++i )
+        //{
+        //    const bxGdiVertexStreamBlock& block = desc.blocks[i];
+        //    D3D11_INPUT_ELEMENT_DESC& d11_desc = descs[i];
 
-            d11_desc.SemanticName = bxGdi::slotName[block.slot];
-            d11_desc.SemanticIndex = bxGdi::slotSemanticIndex[block.slot];
-            d11_desc.Format = bxGdi::to_DXGI_FORMAT( block.dataType, block.numElements );
-            d11_desc.InputSlot = block.slot;
-            d11_desc.AlignedByteOffset = stream_stride;
-            d11_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-            d11_desc.InstanceDataStepRate = 0;
+        //    d11_desc.SemanticName = bxGdi::slotName[block.slot];
+        //    d11_desc.SemanticIndex = bxGdi::slotSemanticIndex[block.slot];
+        //    d11_desc.Format = bxGdi::to_DXGI_FORMAT( block.dataType, block.numElements );
+        //    d11_desc.InputSlot = block.slot;
+        //    d11_desc.AlignedByteOffset = stream_stride;
+        //    d11_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+        //    d11_desc.InstanceDataStepRate = 0;
 
-            stream_stride += bxGdi::blockStride( block );//vertex_stream_block_stride( desc, i );
-        }
+        //    stream_stride += bxGdi::blockStride( block );//vertex_stream_block_stride( desc, i );
+        //}
 
         const u32 stride = bxGdi::streamStride( desc );
         const u32 num_descs = desc.count;
