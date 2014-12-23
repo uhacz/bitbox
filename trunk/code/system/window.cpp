@@ -310,3 +310,27 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
 	return DefWindowProc( hwnd, msg, wParam, lParam );
 }
 
+int bxWindow_addWinMsgCallback( bxWindow* win, bxWindow_MsgCallbackPtr ptr )
+{
+    if( win->numWinMsgCallbacks >= bxWindow::eMAX_MSG_CALLBACKS )
+        return -1;
+
+    int index = win->numWinMsgCallbacks++;
+    win->winMsgCallbacks[ index ] = ptr;
+    return index;
+}
+
+void bxWindod_removeWinMsgCallback( bxWindow* win, bxWindow_MsgCallbackPtr ptr )
+{
+    for( int i = 0 ; i < win->numWinMsgCallbacks; ++i )
+    {
+        if( ptr == win->winMsgCallbacks[i] )
+        {
+            SYS_ASSERT( win->numWinMsgCallbacks > 0 );
+            win->winMsgCallbacks[ i ] = 0;
+            win->winMsgCallbacks[ i ] = win->winMsgCallbacks[ --win->numWinMsgCallbacks ];
+            break;
+        }
+    }
+}
+
