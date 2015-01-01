@@ -12,6 +12,8 @@ passes:
     };
 };#~header
 
+#include <sys/types.hlsl>
+
 #define MAX_WORLD_MATRICES 16
 shared cbuffer InstanceData : register(b1)
 {
@@ -55,21 +57,9 @@ in_PS vs_lines( in_VS input )
 {
 	in_PS output;
 	uint color_u32 = asuint( input.pos.w );
-	
-	uint ir = ( color_u32 >> 24 ) & 0xFF;
-	uint ig = ( color_u32 >> 16 ) & 0xFF;
-	uint ib = ( color_u32 >> 8  ) & 0xFF;
-	uint ia = ( color_u32 >> 0  ) & 0xFF;
-	
-	const float scaler = 0.00392156862745098039; // 1/255
-	float r = (float)ir * scaler;
-	float g = (float)ig * scaler;
-	float b = (float)ib * scaler;
-	float a = (float)ia * scaler;
-	
-	float4 world_pos = float4( input.pos.xyz, 1.0 );
+    float4 world_pos = float4( input.pos.xyz, 1.0 );
 	output.h_pos = mul( view_proj_matrix, world_pos );
-	output.color = float4( r, g, b, a ); //float4(1.0, 1.0, 1.0, 1.0);
+    output.color = colorU32toFloat4_RGBA( color_u32 );
 	return output;
 }
 

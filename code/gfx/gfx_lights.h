@@ -186,4 +186,12 @@ struct bxGfxLights
     void bind( bxGdiContext* ctx );
 };
 
+struct bxGfxLightsGUI
+{
+    u32 flag_isVisible;
+
+    bxGfxLightsGUI();
+    void show( bxGfxLights* lights, const bxGfxLightManager::PointInstance* instances, int nInstances );
+};
+
 

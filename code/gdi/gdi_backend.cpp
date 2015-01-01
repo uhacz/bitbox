@@ -6,7 +6,7 @@ bxGdiVertexStreamDesc::bxGdiVertexStreamDesc()
     count = 0;
     memset( blocks, 0, sizeof( blocks ) );
 }
-void bxGdiVertexStreamDesc::addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements )
+void bxGdiVertexStreamDesc::addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements, int norm )
 {
     if( count >= eMAX_BLOCKS )
     {
@@ -17,6 +17,7 @@ void bxGdiVertexStreamDesc::addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType 
         const int index = count;
         blocks[index].slot = slot;
         blocks[index].dataType = type;
+        blocks[index].typeNorm = norm;
         blocks[index].numElements = numElements;
         ++count;
     }

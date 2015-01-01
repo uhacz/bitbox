@@ -153,11 +153,13 @@ struct bxGdiShader
         } dx;
     };
 
-    i32 stage;
+    i16 stage;
+    u16 vertexInputMask;
 
     bxGdiShader()
         : id(0)
         , stage(-1)
+        , vertexInputMask(0)
     {}
 };
 
@@ -223,6 +225,16 @@ union bxGdiSampler
     {}
 };
 
+struct bxGdiRect
+{
+    i32 left, top, right, bottom;
+
+    bxGdiRect() {}
+    bxGdiRect( int l, int t, int r, int b )
+        : left(l), top(t), right(r), bottom(b)
+    {}
+};
+
 struct bxGdiContextBackend;
 struct bxGdiDeviceBackend
 {
@@ -283,7 +295,7 @@ struct bxGdiContextBackend
     virtual void setDepthState          ( const bxGdiDepthState state ) = 0;
     virtual void setBlendState          ( const bxGdiBlendState state ) = 0;
     virtual void setRasterState         ( const bxGdiRasterState state ) = 0;
-
+    virtual void setScissorRects        ( const bxGdiRect* rects, int n ) = 0;
     virtual void setTopology            ( int topology ) = 0;
 
     virtual void changeToMainFramebuffer() = 0;

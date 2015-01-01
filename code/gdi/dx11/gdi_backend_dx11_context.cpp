@@ -19,7 +19,7 @@ namespace bxGdi
             rtv[i] = 0;
         }
         
-        return nColorTex;
+        return nColorTex; 
     }
 
     unsigned char* _MapResource( ID3D11DeviceContext* ctx, ID3D11Resource* resource, D3D11_MAP dxMapType, int offsetInBytes )
@@ -283,6 +283,23 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
     virtual void setRasterState( const bxGdiRasterState state )
     {
         _context->RSSetState( state.dx.state );
+    }
+    virtual void setScissorRects( const bxGdiRect* rects, int n )
+    {
+        const int cMAX_RECTS = 4;
+        D3D11_RECT dx11Rects[cMAX_RECTS];
+        SYS_ASSERT( n <= cMAX_RECTS );
+
+        for ( int i = 0; i < cMAX_RECTS; ++i )
+        {
+            D3D11_RECT& r = dx11Rects[i];
+            r.left = rects[i].left;
+            r.top = rects[i].top;
+            r.right = rects[i].right;
+            r.bottom = rects[i].bottom;
+        }
+
+        _context->RSSetScissorRects( n, dx11Rects );
     }
 
     virtual void setTopology( int topology )

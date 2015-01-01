@@ -26,8 +26,9 @@ union bxGdiVertexStreamBlock
     u16 hash;
     struct
     {
-        u16 slot        : 8;
+        u16 slot        : 7;
         u16 dataType    : 4;
+        u16 typeNorm    : 1;
         u16 numElements : 4;
     };
 };
@@ -38,7 +39,7 @@ struct bxGdiVertexStreamDesc
     i16 count;
 
     bxGdiVertexStreamDesc();
-    void addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements );
+    void addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements, int norm = 0 );
 };
 
 struct bxGdiFormat

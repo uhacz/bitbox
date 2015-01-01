@@ -13,6 +13,7 @@
 #include <gfx/gfx.h>
 #include <gfx/gfx_camera.h>
 #include <gfx/gfx_lights.h>
+#include <gfx/gfx_gui.h>
 #include <gfx/gfx_debug_draw.h>
 
 #include "test_console.h"
@@ -44,18 +45,20 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
         _gdiContext->_Startup( _gdiDevice );
 
-        bxGfxDebugDraw::startup( _gdiDevice, _resourceManager );
+        bxGfxGUI::startup( _gdiDevice, _resourceManager, win );
 
         _gfxContext = BX_NEW( bxDefaultAllocator(), bxGfxContext );
         _gfxContext->startup( _gdiDevice, _resourceManager );
-        
+
+        bxGfxDebugDraw::startup( _gdiDevice, _resourceManager );
+
         _gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
         _gfxLights->startup( _gdiDevice, MAX_LIGHTS, TILE_SIZE, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
@@ -161,10 +164,12 @@ public:
         _gfxLights->shutdown( _gdiDevice );
         BX_DELETE0( bxDefaultAllocator(), _gfxLights );
 
+        bxGfxDebugDraw::shutdown( _gdiDevice, _resourceManager );
+        
         _gfxContext->shutdown( _gdiDevice, _resourceManager );
         BX_DELETE0( bxDefaultAllocator(), _gfxContext );
         
-        bxGfxDebugDraw::shutdown( _gdiDevice, _resourceManager );
+        bxGfxGUI::shutdown( _gdiDevice, _resourceManager, bxWindow_get() );
 
         _gdiContext->_Shutdown();
         BX_DELETE0( bxDefaultAllocator(), _gdiContext );
@@ -183,6 +188,10 @@ public:
         {
             return false;
         }
+
+        bxGfxGUI::newFrame( (float)deltaTimeS );
+
+        _gui_lights.show( _gfxLights, pointLights, nPointLights );
 
         bxGfx::cameraUtil_updateInput( &cameraInputCtx, &win->input, 1.f, deltaTime );
         camera.matrix.world = bxGfx::cameraUtil_movement( camera.matrix.world
@@ -231,15 +240,14 @@ public:
 
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
-        for( int ilight = 0; ilight < nPointLights; ++ilight )
-        {
-            bxGfxLight_Point l = _gfxLights->lightManager.pointLight( pointLights[ilight] );
+        //for( int ilight = 0; ilight < nPointLights; ++ilight )
+        //{
+        //    bxGfxLight_Point l = _gfxLights->lightManager.pointLight( pointLights[ilight] );
 
-            const u32 color = bxColor::float3ToU32( l.color.xyz );
-            const Vector3 pos( xyz_to_m128( l.position.xyz ) );
-            bxGfxDebugDraw::addSphere( Vector4( pos, floatInVec( l.radius*0.1f ) ), color, true );
-        }
-
+        //    const u32 color = bxColor::float3ToU32( l.color.xyz );
+        //    const Vector3 pos( xyz_to_m128( l.position.xyz ) );
+        //    bxGfxDebugDraw::addSphere( Vector4( pos, floatInVec( l.radius*0.1f ) ), color, true );
+        //}
 
         _gfxLights->cullLights( camera );
         
@@ -250,8 +258,10 @@ public:
         _gfxContext->frameDraw( _gdiContext, camera, &rList, 1 );
 
         bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
-        
+
         _gfxContext->rasterizeFramebuffer( _gdiContext, camera );
+        
+        bxGfxGUI::draw( _gdiContext );
         _gfxContext->frameEnd( _gdiContext );
 
         return true;
@@ -261,6 +271,7 @@ public:
     bxGdiContext* _gdiContext;
     bxGfxContext* _gfxContext;
     bxGfxLights* _gfxLights;
+    bxGfxLightsGUI _gui_lights;
     bxResourceManager* _resourceManager;
 
 };

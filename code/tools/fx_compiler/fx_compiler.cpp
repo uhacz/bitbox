@@ -141,6 +141,8 @@ namespace
 
             if( _read_config_string( &sval, hwstate_setting, "fill_mode" ) )
                 hwstate->raster.fillMode = Fillmode::fromString( sval );
+            if ( _read_config_int( &ival, hwstate_setting, "scissor" ) )
+                hwstate->raster.scissor = ival;
         }
 
 

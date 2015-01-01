@@ -10,7 +10,7 @@
 #include <windows.h>
 #include "input.h"
 
-typedef void (*bxWindow_MsgCallbackPtr)( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam );
+typedef int (*bxWindow_MsgCallbackPtr)( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam );
 
 struct bxWindow
 {
@@ -51,4 +51,4 @@ void bxWindow_release();
 
 void bxWindow_setSize( bxWindow* win, unsigned width, unsigned height );
 int bxWindow_addWinMsgCallback( bxWindow* win, bxWindow_MsgCallbackPtr ptr );
-void bxWindod_removeWinMsgCallback( bxWindow* win, bxWindow_MsgCallbackPtr ptr );
+void bxWindow_removeWinMsgCallback( bxWindow* win, bxWindow_MsgCallbackPtr ptr );

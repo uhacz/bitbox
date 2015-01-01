@@ -7,12 +7,6 @@ struct bxGdiShaderPass
 {
     bxGdiShader progs[bxGdi::eDRAW_STAGES_COUNT];
     bxGdiHwStateDesc hwState;
-    u16 vertexInputMask;
-    u16 padding0__[1];
-
-    bxGdiShaderPass()
-        : vertexInputMask(0)
-    {}
 };
 
 struct bxGdiShaderFx
@@ -131,7 +125,7 @@ struct bxGdiShaderFx_Instance
 
     ///
     ///
-    u16                vertexInputMask( int passIndex ) const { return _fx->_passes[passIndex].vertexInputMask; }
+    u16                vertexInputMask( int passIndex ) const { return _fx->_passes[passIndex].progs[bxGdi::eSTAGE_VERTEX].vertexInputMask; }
     const bxGdiShader* programs       ( int passIndex ) const { return _fx->_passes[passIndex].progs;  }
     
     void uploadCBuffers( bxGdiContextBackend* ctx );

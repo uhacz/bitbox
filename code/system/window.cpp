@@ -194,6 +194,18 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
         return DefWindowProc( hwnd, msg, wParam, lParam );
     }
 
+    int processed = 0;
+    for( int i = 0; i < __window->numWinMsgCallbacks && !processed; ++i )
+    {
+        processed = (*__window->winMsgCallbacks[i])(hwnd, msg, wParam, lParam);
+    }
+    if( processed )
+    {
+        return DefWindowProc( hwnd, msg, wParam, lParam );
+    }
+        
+
+
     static bool lButtonPressed = false;
     bxInput* input = &__window->input;
     bxInput_KeyboardState* kbdState = input->kbd.currentState();
@@ -320,7 +332,7 @@ int bxWindow_addWinMsgCallback( bxWindow* win, bxWindow_MsgCallbackPtr ptr )
     return index;
 }
 
-void bxWindod_removeWinMsgCallback( bxWindow* win, bxWindow_MsgCallbackPtr ptr )
+void bxWindow_removeWinMsgCallback( bxWindow* win, bxWindow_MsgCallbackPtr ptr )
 {
     for( int i = 0 ; i < win->numWinMsgCallbacks; ++i )
     {
