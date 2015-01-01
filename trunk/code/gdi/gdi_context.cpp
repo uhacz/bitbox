@@ -18,6 +18,7 @@ namespace bxGdi
                 SYS_ASSERT( slot.hash == 0 );
 
                 slot.dataType = block.dataType;
+                slot.typeNorm = block.typeNorm;
                 slot.nElement = block.numElements;
                 slot.bufferIdx = i;
             }

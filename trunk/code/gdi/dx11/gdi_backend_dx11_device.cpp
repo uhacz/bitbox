@@ -406,6 +406,10 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         if( reflection )
         {
             bxGdi::_FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
+            if( stage == bxGdi::eSTAGE_VERTEX )
+            {
+                shader.vertexInputMask = reflection->input_mask;
+            }
         }
     
         shader.dx.inputSignature = (void*)inputSignature;
@@ -465,8 +469,19 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
             desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
         }
 
+        D3D11_SUBRESOURCE_DATA* subResourcePtr = 0;
+        D3D11_SUBRESOURCE_DATA subResource;
+        memset( &subResource, 0, sizeof( D3D11_SUBRESOURCE_DATA ) );
+        if( data )
+        {
+            subResource.pSysMem = data;
+            subResource.SysMemPitch = w * bxGdi::formatByteWidth( format );
+            subResource.SysMemSlicePitch = 0;
+            subResourcePtr = &subResource;
+        }
+
         ID3D11Texture2D* tex2D = 0;
-        HRESULT hres = _device->CreateTexture2D( &desc, 0, &tex2D );
+        HRESULT hres = _device->CreateTexture2D( &desc, subResourcePtr, &tex2D );
         SYS_ASSERT( SUCCEEDED( hres ) );
 
         ID3D11ShaderResourceView* view_sh = 0;
@@ -673,7 +688,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
                 d3d_desc.SemanticName = bxGdi::slotName[block.slot];
                 d3d_desc.SemanticIndex = bxGdi::slotSemanticIndex[block.slot];
-                d3d_desc.Format = bxGdi::to_DXGI_FORMAT( block.dataType, block.numElements );
+                d3d_desc.Format = bxGdi::to_DXGI_FORMAT( block.dataType, block.numElements, block.typeNorm );
                 d3d_desc.InputSlot = idesc;
                 d3d_desc.AlignedByteOffset = offset;
                 d3d_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;

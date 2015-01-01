@@ -54,8 +54,9 @@ namespace bxGdi
         struct
         {
             u16 dataType : 4;
+            u16 typeNorm : 1;
             u16 nElement : 4;
-            u16 bufferIdx : 8;
+            u16 bufferIdx : 7;
         };
     };
 

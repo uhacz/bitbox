@@ -450,3 +450,47 @@ void bxGfxLights::bind( bxGdiContext* ctx )
     ctx->setBufferRO( buffer_lightsTileIndices, bxGfx::eBIND_SLOT_LIGHTS_TILE_INDICES_BUFFER, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setCbuffer( cbuffer_lightningData, bxGfx::eBIND_SLOT_LIGHTNING_DATA, bxGdi::eSTAGE_MASK_PIXEL );
 }
+
+
+#include "gfx_gui.h"
+bxGfxLightsGUI::bxGfxLightsGUI()
+    : flag_isVisible(0)
+{
+}
+
+void bxGfxLightsGUI::show( bxGfxLights* lights, const bxGfxLightManager::PointInstance* instances, int nInstances )
+{
+    ImGui::Begin( "Points lights", (bool*)&flag_isVisible );
+
+    for( int i = 0; i < nInstances; ++i )
+    {
+        bxGfxLightManager::PointInstance instance = instances[i];
+
+        char instanceName[32];
+        sprintf( instanceName, "%u", instance.id );
+
+        if ( ImGui::TreeNode( instanceName ) )
+        {
+
+            bxGfxLight_Point data = lights->lightManager.pointLight( instance );
+
+            bool changed = false;
+
+            changed |= ImGui::InputFloat3( "position", data.position.xyz, 3 );
+            changed |= ImGui::InputFloat( "radius", &data.radius, 0.1f, 1.f );
+            changed |= ImGui::ColorEdit3( "color", data.color.xyz );
+            changed |= ImGui::InputFloat( "intensity", &data.intensity, 0.1f, 1.f );
+
+            if ( changed )
+            {
+                lights->lightManager.setPointLight( instance, data );
+            }
+            ImGui::TreePop();
+        }
+
+    }
+
+
+
+    ImGui::End();
+}

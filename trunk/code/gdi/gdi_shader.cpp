@@ -360,10 +360,10 @@ namespace bxGdi
 
                 pass.progs[j] = id_shader;
 
-                if( j == bxGdi::eSTAGE_VERTEX )
-                {
-                    pass.vertexInputMask = local_reflection.input_mask;
-                }
+                //if( j == bxGdi::eSTAGE_VERTEX )
+                //{
+                //    pass.vertexInputMask = local_reflection.input_mask;
+                //}
                 codeFile.release();
     	    }
 
