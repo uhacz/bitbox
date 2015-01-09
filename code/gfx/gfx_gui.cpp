@@ -9,6 +9,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "gui/imgui/stb_image.h"
 #include <util/common.h>
+#include <util/hash.h>
 
 struct bxGfxGUI_Impl
 {
@@ -77,8 +78,6 @@ namespace
         const float R = ImGui::GetIO().DisplaySize.x;
         const float B = ImGui::GetIO().DisplaySize.y;
         const float T = 0.0f;
-
-        const Matrix4 mvp4 = bxGfx::cameraMatrix_ortho( R, B, 0.f, 1.f, R, B );
 
         const float mvp[4][4] =
         {
@@ -280,3 +279,186 @@ void bxGfxGUI::draw( bxGdiContext* ctx )
     __gdiCtx = 0;
 }
 
+////
+////
+////
+////
+bxGfxShaderFxGUI::bxGfxShaderFxGUI()
+    : flag_isVisible(0)
+{}
+
+u32 bxGfxShaderFxGUI::beginFx(const char* fxName)
+{
+    u32 id = 0;
+    if ( ImGui::Begin( "Shaders", (bool*)&flag_isVisible ) )
+    {
+        if( ImGui::TreeNode( fxName ) )
+        {
+            id |= 1 << 1;
+        }
+    }
+    return id;
+}
+
+void bxGfxShaderFxGUI::endFx( u32 id )
+{
+    if( id & ( 1<<1) )
+    {
+        ImGui::TreePop();
+    }
+
+    {
+        ImGui::End();
+    }
+}
+
+namespace
+{
+    inline const bxGdiShaderFx::UniformDesc* findUniform( bxGdiShaderFx_Instance* fxI, const char* varName )
+    {
+        const u32 hashedVarName = simple_hash( varName );
+        const bxGdiShaderFx::UniformDesc* desc = bxGdi::shaderFx_findUniform( fxI->_fx, hashedVarName );
+        return desc;
+    }
+}
+
+void bxGfxShaderFxGUI::addInt(bxGdiShaderFx_Instance* fxI, const char* varName, int min, int max)
+{
+    const bxGdiShaderFx::UniformDesc* desc = findUniform( fxI, varName );
+    if ( !desc )
+        return;
+    
+    bool changed = false;
+    //if ( ImGui::Begin( "Shaders", (bool*)&flag_isVisible ) )
+    {
+        {
+            u8* uniformData = fxI->_dataCBuffers + desc->offset;
+ 
+            if( min == max )
+            {
+                changed = ImGui::InputInt( varName, (int*)uniformData );
+            }
+            else
+            {
+                changed = ImGui::SliderInt( varName, (int*)uniformData, min, max );
+            }
+        }
+        //ImGui::End();
+    }
+
+    if ( changed )
+    {
+        fxI->_SetBufferDirty( desc->bufferIndex );
+    }
+
+}
+
+void bxGfxShaderFxGUI::addFloat(bxGdiShaderFx_Instance* fxI, const char* varName, float min, float max)
+{
+    const bxGdiShaderFx::UniformDesc* desc = findUniform( fxI, varName );
+    if ( !desc )
+        return;
+
+    const int nElem = desc->size / sizeof( float );
+
+    bool changed = false;
+
+    //if ( ImGui::Begin( "Shaders", (bool*)&flag_isVisible ) )
+    {
+        {
+            float* uniformData = (float*)( fxI->_dataCBuffers + desc->offset );
+
+            if ( min == max )
+            {
+                switch (nElem )
+                {
+                case 1:
+                    changed = ImGui::InputFloat( varName, uniformData );
+                    break;
+                case 2:
+                    changed = ImGui::InputFloat2( varName, uniformData );
+                    break;
+                case 3:
+                    changed = ImGui::InputFloat3( varName, uniformData );
+                    break;
+                case 4:
+                    changed = ImGui::InputFloat4( varName, uniformData );
+                    break;
+                default:
+                    bxLogWarning( "GUI: Unsupported variable" );
+                    break;
+                }
+            }
+            else
+            {
+                switch ( nElem )
+                {
+                case 1:
+                    changed = ImGui::SliderFloat( varName, uniformData, min, max );
+                    break;
+                case 2:
+                    changed = ImGui::SliderFloat2( varName, uniformData, min, max );
+                    break;
+                case 3:
+                    changed = ImGui::SliderFloat3( varName, uniformData, min, max );
+                    break;
+                case 4:
+                    changed = ImGui::SliderFloat4( varName, uniformData, min, max );
+                    break;
+                default:
+                    bxLogWarning( "GUI: Unsupported variable" );
+                    break;
+                }
+            }
+
+        }
+        //ImGui::End();
+    }
+
+    if( changed )
+    {
+        fxI->_SetBufferDirty( desc->bufferIndex );
+    }
+}
+
+void bxGfxShaderFxGUI::addColor(bxGdiShaderFx_Instance* fxI, const char* varName)
+{
+    const bxGdiShaderFx::UniformDesc* desc = findUniform( fxI, varName );
+    if ( !desc )
+        return;
+
+    const int nElem = desc->size / sizeof( float );
+    if( nElem < 3 )
+    {
+        bxLogWarning( "GUI: color variable must have at least 3 components!" );
+        return;
+    }
+    bool changed = false;
+    //if ( ImGui::Begin( "Shaders", (bool*)&flag_isVisible ) )
+    {
+        //if ( ImGui::TreeNode( fxName ) )
+        {
+            float* uniformData = (float*)(fxI->_dataCBuffers + desc->offset);
+
+            switch ( nElem )
+            {
+            case 3:
+                changed = ImGui::ColorEdit3( varName, uniformData );
+                break;
+            case 4:
+                changed = ImGui::ColorEdit4( varName, uniformData );
+                break;
+            default:
+                bxLogWarning( "GUI: Unsupported color variable" );
+                break;
+            }
+
+            //ImGui::TreePop();
+        }
+        //ImGui::End();
+    }
+    if ( changed )
+    {
+        fxI->_SetBufferDirty( desc->bufferIndex );
+    }
+}

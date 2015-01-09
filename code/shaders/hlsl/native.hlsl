@@ -7,17 +7,16 @@ passes:
     };
 }; #~header
 
+#include <sys/types.hlsl>
 #include <sys/frame_data.hlsl>
 #include <sys/instance_data.hlsl>
-#include <sys/types.hlsl>
+#include <sys/material.hlsl>
 #include <sys/brdf.hlsl>
 #include <sys/lights.hlsl>
 
-shared cbuffer MaterialData : register(b3)
+shared cbuffer MaterialData: register(b3)
 {
-	float3 diffuse_color;
-	float fresnel_coeff;
-	float rough_coeff;
+    MATERIAL_VARIABLES;
 };
 
 struct in_VS
@@ -62,6 +61,9 @@ out_PS ps_main( in_PS input )
 	out_PS OUT;
     OUT.rgba = float4( 0.0, 0.0, 0.0, 1.0 );
 
+    Material mat;
+    ASSIGN_MATERIAL_FROM_CBUFFER( mat );
+
     const float3 N = normalize( input.w_normal );
     const float3 V = -view_dir.xyz;
 
@@ -85,23 +87,16 @@ out_PS ps_main( in_PS input )
         const float3 L = normalize( unormalizedLightVector );
         const float att = getDistanceAtt( unormalizedLightVector, 1.f / (lightPosRad.w*lightPosRad.w) );
         
-        float2 brdf = BRDF( L, V, N, rough_coeff, fresnel_coeff );
-
-        float ambient_base = -min( 0.f, brdf.x );
-        float ambient_factor = (0.05f - (ambient_base * 0.05));
-        
-        colorFromLights += (brdf.x + brdf.y) * att * lightColInt.xyz * lightColInt.w;
+        float3 brdf = BRDF( L, V, N, mat );
+        colorFromLights += brdf * att * lightColInt.xyz * lightColInt.w;
         
         pointLightIndex++;
         pointLightDataIndex = _lightsIndices[pointLightIndex] & 0xFFFF;
     }
 
-    float2 sunIlluminance = evaluateSunLight( V, N, _sunDirection, _sunAngularRadius, _sunIlluminanceInLux, input.w_pos, rough_coeff, fresnel_coeff );
-    float ambient_base = -min( 0.f, sunIlluminance.x );
-    float ambient_factor = (0.05f - (ambient_base * 0.05));
-
-    OUT.rgba.xyz += _sunColor * (sunIlluminance.x + sunIlluminance.y + ambient_factor);
-    OUT.rgba.xyz += colorFromLights;
+    float3 sunIlluminance = evaluateSunLight( V, N, _sunDirection, _sunAngularRadius, _sunIlluminanceInLux, input.w_pos, mat );
+    colorFromLights += _sunColor * sunIlluminance;
+    OUT.rgba.xyz = colorFromLights;
 
     //float3 tmpColors[] =
     //{

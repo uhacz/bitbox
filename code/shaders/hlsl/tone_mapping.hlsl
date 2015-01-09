@@ -42,11 +42,11 @@ passes:
         };
     };
 
-    composite = 
+    composite =
     {
         vertex = "vs_screenquad";
         pixel = "PS_composite";
-        hwstate = 
+        hwstate =
         {
             depth_test = 0;
             depth_write = 0;
@@ -87,7 +87,7 @@ Texture2D _tex_input2 : register( t2 );
 SamplerState _samp_point  : register( s0 );
 SamplerState _samp_linear : register( s1 );
 
-shared cbuffer Constants : register(b4)
+shared cbuffer MaterialData : register(b3)
 {
     float2 input_size0           : packoffset(c0.x);
     float delta_time             : packoffset(c0.z);
@@ -215,13 +215,14 @@ void PS_composite(in out_VS_screenquad input,
     float3 color = _tex_input0.Sample( _samp_point, input.uv ).rgb;
     float exposure = 0;
 	color = Tone_map(color, avg_luminance, 0, exposure);
-
+#ifdef WITH_BLOOM
     // Sample the bloom
     float3 bloom = _tex_input2.Sample( _samp_linear, input.uv ).rgb;
     bloom = bloom * bloom_magnitude;
 
     // Add in the bloom
 	color = color + bloom;
+#endif
     output_color = float4(color, 1.0f);
 }
 

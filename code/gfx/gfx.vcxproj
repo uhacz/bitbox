@@ -85,6 +85,7 @@
     <ClInclude Include="gfx_camera.h" />
     <ClInclude Include="gfx_gui.h" />
     <ClInclude Include="gfx_lights.h" />
+    <ClInclude Include="gfx_material.h" />
     <ClInclude Include="gfx_render_list.h" />
     <ClInclude Include="gfx_type.h" />
     <ClInclude Include="gui\imgui\imconfig.h" />
@@ -98,6 +99,7 @@
     <ClCompile Include="gfx_camera.cpp" />
     <ClCompile Include="gfx_gui.cpp" />
     <ClCompile Include="gfx_lights.cpp" />
+    <ClCompile Include="gfx_material.cpp" />
     <ClCompile Include="gfx_render_list.cpp" />
     <ClCompile Include="gui\imgui\imgui.cpp" />
   </ItemGroup>

@@ -54,6 +54,7 @@ union float3_t
     struct { f32 x, y, z; };
 
     float3_t() {}
+    float3_t( f32 vxyz ) : x( vxyz ), y( vxyz ), z( vxyz ) {}
     float3_t( f32 vx, f32 vy, f32 vz ) : x( vx ), y( vy ), z(vz) {}
 };
 union float4_t

@@ -259,7 +259,8 @@ namespace bxGdi
                 param.offset = offset + desc.offset;
                 param.size = desc.size;
 			    param.index = uniform_index;
-			    param.bufferIndex = (u16)i;
+			    param.bufferIndex = (u8)i;
+                param.type = (u8)desc.type;
             }
 
             offset += (u16)cbdesc.size;

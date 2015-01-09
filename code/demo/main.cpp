@@ -13,6 +13,7 @@
 #include <gfx/gfx.h>
 #include <gfx/gfx_camera.h>
 #include <gfx/gfx_lights.h>
+#include <gfx/gfx_material.h>
 #include <gfx/gfx_gui.h>
 #include <gfx/gfx_debug_draw.h>
 
@@ -21,8 +22,8 @@
 static const int MAX_LIGHTS = 64;
 static const int TILE_SIZE = 64;
 
-static bxGdiShaderFx* fx = 0;
-static bxGdiShaderFx_Instance* fxI = 0;
+//static bxGdiShaderFx* fx = 0;
+//static bxGdiShaderFx_Instance* fxI = 0;
 static bxGdiRenderSource* rsource = 0;
 static bxGfxRenderList* rList = 0;
 static bxGfxCamera camera;
@@ -62,6 +63,9 @@ public:
         _gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
         _gfxLights->startup( _gdiDevice, MAX_LIGHTS, TILE_SIZE, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
+        _gfxMaterials = BX_NEW( bxDefaultAllocator(), bxGfxMaterialManager );
+        _gfxMaterials->_Startup( _gdiDevice, _resourceManager );
+        
         {
             
             //const float r = 5.f;
@@ -127,9 +131,14 @@ public:
 
 
 
-        fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "native" );
-        fxI->setUniform( "fresnel_coeff", 0.95f );
-        fxI->setUniform( "rough_coeff", 0.152f );
+        //fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "native" );
+
+        //fxI->setUniform( "diffuseColor", float3_t( 1.0f, 0.0f, 0.0f ) );
+        //fxI->setUniform( "fresnelColor", float3_t( 0.549585f, 0.556114f, 0.554256f ) );
+        //fxI->setUniform( "diffuseCoeff", 0.5f );
+        //fxI->setUniform( "roughnessCoeff", 0.5f );
+        //fxI->setUniform( "specularCoeff", 0.5f );
+        //fxI->setUniform( "ambientCoeff", 0.005f );
 
         rsource = bxGfxContext::shared()->rsource.sphere;
 
@@ -148,7 +157,7 @@ public:
     {
         bxGfx::renderList_delete( &rList, bxDefaultAllocator() );
         rsource = 0;
-        bxGdi::shaderFx_releaseWithInstance( _gdiDevice, &fxI );
+        //bxGdi::shaderFx_releaseWithInstance( _gdiDevice, &fxI );
 
         {
             for( int ilight = 0; ilight < nPointLights; ++ilight )
@@ -160,6 +169,9 @@ public:
 
         //_gfxLights->lightManager.releaseLight( pointLight1 );
         //_gfxLights->lightManager.releaseLight( pointLight0 );
+
+        _gfxMaterials->_Shutdown( _gdiDevice, _resourceManager );
+        BX_DELETE0( bxDefaultAllocator(), _gfxMaterials );
 
         _gfxLights->shutdown( _gdiDevice );
         BX_DELETE0( bxDefaultAllocator(), _gfxLights );
@@ -192,6 +204,20 @@ public:
         bxGfxGUI::newFrame( (float)deltaTimeS );
 
         _gui_lights.show( _gfxLights, pointLights, nPointLights );
+        
+        //u32 shaderGUIid = _gui_shaderFx.beginFx( "native" );
+        //if( shaderGUIid )             
+        //{
+        //    _gui_shaderFx.addColor( fxI, "fresnelColor" );
+        //    _gui_shaderFx.addColor( fxI, "diffuseColor" );
+        //    _gui_shaderFx.addFloat( fxI, "diffuseCoeff", 0.f, 1.f );
+        //    _gui_shaderFx.addFloat( fxI, "roughnessCoeff", 0.f, 1.f );
+        //    _gui_shaderFx.addFloat( fxI, "specularCoeff", 0.f, 1.f );
+        //    _gui_shaderFx.addFloat( fxI, "ambientCoeff", 0.005f, 0.2f );
+        //}
+        //_gui_shaderFx.endFx( shaderGUIid );
+
+
 
         bxGfx::cameraUtil_updateInput( &cameraInputCtx, &win->input, 1.f, deltaTime );
         camera.matrix.world = bxGfx::cameraUtil_movement( camera.matrix.world
@@ -223,10 +249,14 @@ public:
                 Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f + 0.5f, 2.f ) ),
             };
 
+            bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );
+
             bxGfxRenderListItemDesc itemDesc( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
             bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world + 4, 8 );
 
+            fxI = _gfxMaterials->findMaterial( "green" );
             itemDesc.setRenderSource( _gfxContext->shared()->rsource.box );
+            itemDesc.setShader( fxI, 0 );
             bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world, 4 );
         }
 
@@ -234,6 +264,7 @@ public:
             const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 100.f, 0.1f, 100.f ) );
             bxGdiRenderSource* box = _gfxContext->shared()->rsource.box;
             
+            bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "blue" );
             bxGfxRenderListItemDesc itemDesc( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
             bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
         }
@@ -271,9 +302,12 @@ public:
     bxGdiContext* _gdiContext;
     bxGfxContext* _gfxContext;
     bxGfxLights* _gfxLights;
-    bxGfxLightsGUI _gui_lights;
+    bxGfxMaterialManager* _gfxMaterials;
+    
     bxResourceManager* _resourceManager;
 
+    bxGfxLightsGUI _gui_lights;
+    bxGfxShaderFxGUI _gui_shaderFx;
 };
 
 int main( int argc, const char* argv[] )
