@@ -27,7 +27,7 @@ uint2 computeTileXY( in float2 screenPos, in uint2 numTilesXY, in float2 rtSize,
     return clamp( unclamped, uint2(0, 0), numTilesXY - uint2(1,1) );
 }
 
-float2 evaluateSunLight( float3 V, float3 N, float3 sunDirection, float sunAngRad, float sunLux, float3 surfPos, in float rough, in float reflectance )
+float3 evaluateSunLight( float3 V, float3 N, float3 sunDirection, float sunAngRad, float sunLux, float3 surfPos, in Material mat )
 {
     const float r = sin( sunAngRad );
     const float d = cos( sunAngRad );
@@ -37,10 +37,10 @@ float2 evaluateSunLight( float3 V, float3 N, float3 sunDirection, float sunAngRa
     const float3 S = R - DdotR * D;    const float3 L = DdotR < d ? normalize( d * D + normalize( S ) * r ) : R;
     const float illuminance = sunLux * saturate( dot( N, D ) );
 
-    const float Fd = BRDF_Diffuse( D, V, N, rough, reflectance );
-    const float Fr = BRDF_Specular( L, V, N, rough, reflectance );
+    const float3 Fd = BRDF_diffuseOnly( D, V, N, mat );
+    const float3 Fr = BRDF_specularOnly( L, V, N, mat );
 
-    return float2(Fd, Fr) * illuminance;
+    return (Fd + Fr) * illuminance;
 }
 
 ////

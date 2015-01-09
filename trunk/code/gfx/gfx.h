@@ -26,6 +26,7 @@ struct bxGfxContext
 
 
     static bxGfx::Shared* shared() { return &_shared; }
+    static void submitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName );
 
 private:
     bxGdiBuffer _cbuffer_frameData;
@@ -34,4 +35,34 @@ private:
     bxGdiTexture _framebuffer[bxGfx::eFRAMEBUFFER_COUNT];
 
     static bxGfx::Shared _shared;
+};
+
+////
+////
+struct bxGfxPostprocess
+{
+    void toneMapping( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, int fbWidth, int fbHeight, float deltaTime );
+
+    bxGfxPostprocess();
+    void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void _Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+
+private:
+
+    struct ToneMapping
+    {
+        u32 currentLuminanceTexture;
+        f32 tau;
+        f32 autoExposureKeyValue;
+
+        bxGdiTexture adaptedLuminance[2];
+        bxGdiTexture initialLuminance;
+
+        ToneMapping()
+            : currentLuminanceTexture(0), tau( 1.25f ), autoExposureKeyValue( 0.18f )
+        {}
+    } _toneMapping;
+
+    bxGdiShaderFx_Instance* _fxI;
+
 };

@@ -52,6 +52,8 @@ namespace bxGdi
         eTYPE_DEPTH16,
         eTYPE_DEPTH24_STENCIL8,
         eTYPE_DEPTH32F,
+
+        eTYPE_COUNT,
     };
     static const int typeStride[] = 
     {
@@ -68,6 +70,25 @@ namespace bxGdi
         4, //eDEPTH24_STENCIL8,
         4, //eDEPTH32F,
     };
+    static const char* typeName[] =
+    {
+        "none",
+        "byte",
+        "ubyte",
+        "short",
+        "ushort",
+        "int",
+        "uint",
+        "float",
+        "double",
+        "depth16",
+        "depth24_stencil8",
+        "depth32F",
+    };
+
+
+    EDataType typeFromName( const char* name );
+    EDataType findBaseType( const char* name );
 
     enum ECpuAccess
     {

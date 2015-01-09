@@ -48,7 +48,8 @@ struct bxGdiShaderFx
         {
 	        u16 offset;
             u16 size;
-	        u16 bufferIndex;
+            u8 type;
+            u8 bufferIndex;
 	        u16 index;
 
 	        const bool is_null() const { return offset == 0xffff; }

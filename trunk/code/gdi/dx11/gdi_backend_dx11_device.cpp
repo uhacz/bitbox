@@ -56,14 +56,19 @@ namespace bxGdi
             for( u32 j = 0; j < sb_desc.Variables; ++j )
             {
                 ID3D11ShaderReflectionVariable* var_reflector = cbuffer_reflector->GetVariableByIndex(j);
+                ID3D11ShaderReflectionType* var_reflector_type = var_reflector->GetType();
                 D3D11_SHADER_VARIABLE_DESC sv_desc;
+                D3D11_SHADER_TYPE_DESC typeDesc;
+
                 var_reflector->GetDesc( &sv_desc );
+                var_reflector_type->GetDesc( &typeDesc );
 
                 cb.variables.push_back( ShaderVariableDesc() );
                 ShaderVariableDesc& vdesc = cb.variables.back();
                 vdesc.hashed_name = simple_hash( sv_desc.Name );
                 vdesc.offset = sv_desc.StartOffset;
                 vdesc.size = sv_desc.Size;
+                vdesc.type = bxGdi::findBaseType( typeDesc.Name );
             }
         }
 

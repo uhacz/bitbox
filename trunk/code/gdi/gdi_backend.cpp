@@ -1,4 +1,5 @@
 #include "gdi_backend.h"
+#include <string.h>
 #include <memory.h>
 
 bxGdiVertexStreamDesc::bxGdiVertexStreamDesc()
@@ -25,6 +26,25 @@ void bxGdiVertexStreamDesc::addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType 
 
 namespace bxGdi
 {
+    EDataType typeFromName( const char* name )
+    {
+        for( int itype = 0; itype < eTYPE_COUNT; ++itype )
+        {   
+            if ( !strcmp( name, typeName[itype] ) )
+                return (EDataType)itype;
+        }
+        return eTYPE_UNKNOWN;
+    }
+    EDataType findBaseType( const char* name )
+    {
+        for ( int itype = 0; itype < eTYPE_COUNT; ++itype )
+        {
+            if ( strstr( name, typeName[itype] ) )
+                return (EDataType)itype;
+        }
+        return eTYPE_UNKNOWN;
+    }
+
     int blockStride( const bxGdiVertexStreamBlock& block )
     { 
         return typeStride[block.dataType] * block.numElements; 

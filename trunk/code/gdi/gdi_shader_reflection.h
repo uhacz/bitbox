@@ -8,10 +8,11 @@ namespace bxGdi
 
 struct ShaderVariableDesc
 {
-	ShaderVariableDesc(): hashed_name(hashed_name), offset(0), size(0) {}
+	ShaderVariableDesc(): hashed_name(hashed_name), offset(0), size(0), type(0) {}
 	u32 hashed_name;
 	u32 offset;
 	u32 size;
+    u32 type;
 };
 
 struct ShaderCBufferDesc
@@ -60,19 +61,19 @@ struct ShaderReflection
 	struct FunctorCBuffer{
 		u32 _hashed_name;
 
-		FunctorCBuffer( u32 hn ): _hashed_name( hn ) {}
+        explicit FunctorCBuffer( u32 hn ) : _hashed_name( hn ) {}
 		bool operator() ( const ShaderCBufferDesc& cbuffer ) const { return _hashed_name == cbuffer.hashed_name; }
 	};
     struct FunctorTexture{
         u32 _hashed_name;
 
-        FunctorTexture( u32 hn ): _hashed_name( hn ) {}
+        explicit FunctorTexture( u32 hn ): _hashed_name( hn ) {}
         bool operator() ( const ShaderTextureDesc& tex ) const { return _hashed_name == tex.hashed_name; }
     };
     struct FunctorSampler{
         u32 _hashed_name;
 
-        FunctorSampler( u32 hn ): _hashed_name( hn ) {}
+        explicit FunctorSampler( u32 hn ) : _hashed_name( hn ) {}
         bool operator() ( const ShaderSamplerDesc& sam ) const { return _hashed_name == sam.hashed_name; }
     };
 };

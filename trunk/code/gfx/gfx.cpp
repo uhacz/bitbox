@@ -219,10 +219,12 @@ void bxGfxContext::rasterizeFramebuffer( bxGdiContext* ctx, const bxGfxCamera& c
     fxI->setTexture( "gtexture", colorTexture );
     fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
 
-    bxGdi::renderSource_enable( ctx, _shared.rsource.fullScreenQuad );
-    bxGdi::shaderFx_enable( ctx, fxI, "copy_rgba" );
-    ctx->setTopology( bxGdi::eTRIANGLES );
-    ctx->draw( _shared.rsource.fullScreenQuad->vertexBuffers->numElements, 0 );
+    submitFullScreenQuad( ctx, fxI, "copy_rgba" );
+
+    //bxGdi::renderSource_enable( ctx, _shared.rsource.fullScreenQuad );
+    //bxGdi::shaderFx_enable( ctx, fxI, "copy_rgba" );
+    //ctx->setTopology( bxGdi::eTRIANGLES );
+    //ctx->draw( _shared.rsource.fullScreenQuad->vertexBuffers->numElements, 0 );
 }
 
 void bxGfxContext::frameEnd( bxGdiContext* ctx  )
@@ -230,5 +232,74 @@ void bxGfxContext::frameEnd( bxGdiContext* ctx  )
     ctx->backend()->swap();
 }
 
+void bxGfxContext::submitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName )
+{
+    bxGdi::renderSource_enable( ctx, _shared.rsource.fullScreenQuad );
+    bxGdi::shaderFx_enable( ctx, fxI, passName );
+    ctx->setTopology( bxGdi::eTRIANGLES );
+    ctx->draw( _shared.rsource.fullScreenQuad->vertexBuffers->numElements, 0 );
+}
+
 ////
 ////
+bxGfxPostprocess::bxGfxPostprocess()
+    : _fxI(0)
+{}
+
+void bxGfxPostprocess::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+{
+    _fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "tone_mapping" );
+
+    _toneMapping.adaptedLuminance[0] = dev->createTexture2D( 1024, 1024, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+    _toneMapping.adaptedLuminance[1] = dev->createTexture2D( 1024, 1024, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+    _toneMapping.initialLuminance = dev->createTexture2D( 1024, 1024, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+
+}
+
+void bxGfxPostprocess::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+{
+    dev->releaseTexture( &_toneMapping.initialLuminance );
+    dev->releaseTexture( &_toneMapping.adaptedLuminance[1] );
+    dev->releaseTexture( &_toneMapping.adaptedLuminance[0] );
+
+    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI );
+}
+
+void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, int fbWidth, int fbHeight, float deltaTime)
+{
+    _fxI->setUniform( "input_size0", float2_t( (f32)fbWidth, (f32)fbHeight ) );
+    _fxI->setUniform( "delta_time", deltaTime );
+
+    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 1, bxGdi::eSTAGE_MASK_PIXEL );
+
+    //
+    //
+    ctx->changeRenderTargets( &_toneMapping.initialLuminance, 1, bxGdiTexture() );
+    ctx->setViewport( bxGdiViewport( 0, 0, 1024, 1024 ) );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+    ctx->setTexture( inTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI, "luminance_map" );
+
+    //
+    //
+    ctx->changeRenderTargets( &_toneMapping.adaptedLuminance[_toneMapping.currentLuminanceTexture], 1, bxGdiTexture() );
+    ctx->setViewport( bxGdiViewport( 0, 0, 1024, 1024 ) );
+    ctx->setTexture( _toneMapping.adaptedLuminance[!_toneMapping.currentLuminanceTexture], 0, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setTexture( _toneMapping.initialLuminance, 1, bxGdi::eSTAGE_MASK_PIXEL );
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI, "adapt_luminance" );
+    ctx->backend()->generateMipmaps( _toneMapping.adaptedLuminance[_toneMapping.currentLuminanceTexture] );
+
+    //
+    //
+    ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
+    ctx->setViewport( bxGdiViewport( 0, 0, fbWidth, fbHeight ) );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+
+    ctx->setTexture( inTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setTexture( _toneMapping.adaptedLuminance[_toneMapping.currentLuminanceTexture], 1, bxGdi::eSTAGE_MASK_PIXEL );
+
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI, "composite" );
+
+}
+
