@@ -72,6 +72,7 @@ int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceM
     _cbuffer_instanceData = dev->createConstantBuffer( sizeof( bxGfx::InstanceData ) );
 
     _framebuffer[bxGfx::eFRAMEBUFFER_COLOR] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_SWAP]  = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
     
     {
@@ -204,11 +205,11 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
     
 }
 
-void bxGfxContext::rasterizeFramebuffer( bxGdiContext* ctx, const bxGfxCamera& camera )
+void bxGfxContext::rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera )
 {
     ctx->changeToMainFramebuffer();
 
-    bxGdiTexture colorTexture = _framebuffer[bxGfx::eFRAMEBUFFER_COLOR];
+    bxGdiTexture colorTexture = colorFB; // _framebuffer[bxGfx::eFRAMEBUFFER_COLOR];
     bxGdiTexture backBuffer = ctx->backend()->backBufferTexture();
     bxGdiViewport viewport = bxGfx::cameraParams_viewport( camera.params, backBuffer.width, backBuffer.height, colorTexture.width, colorTexture.height );
 
@@ -301,5 +302,6 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
 
     bxGfxContext::submitFullScreenQuad( ctx, _fxI, "composite" );
 
+    _toneMapping.currentLuminanceTexture = !_toneMapping.currentLuminanceTexture;
 }
 
