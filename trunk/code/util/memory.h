@@ -18,6 +18,7 @@ extern bxAllocator* bxDefaultAllocator();
 
 #include <new>
 #define BX_NEW(a, T, ...) (new ((a)->alloc(sizeof(T), ALIGNOF(T))) T(__VA_ARGS__))
+#define BX_NEW1( T, ... ) BX_NEW( bxDefaultAllocator(), T, __VA_ARGS__ )
 template<typename T>
 void BX_DELETE( bxAllocator* alloc, T* ptr )
 {
@@ -28,3 +29,4 @@ void BX_DELETE( bxAllocator* alloc, T* ptr )
     }
 }
 #define BX_DELETE0( a, ptr ) { BX_DELETE( a, ptr ); ptr = 0; }
+#define BX_DELETE01( ptr ) { BX_DELETE( bxDefaultAllocator(), ptr ); ptr = 0; }

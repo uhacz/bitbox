@@ -22,21 +22,14 @@
 static const int MAX_LIGHTS = 64;
 static const int TILE_SIZE = 64;
 
-//static bxGdiShaderFx* fx = 0;
-//static bxGdiShaderFx_Instance* fxI = 0;
 static bxGdiRenderSource* rsource = 0;
 static bxGfxRenderList* rList = 0;
 static bxGfxCamera camera;
 static bxGfxCamera camera1;
 static bxGfxCameraInputContext cameraInputCtx;
-//static bxGfxLightManager::PointInstance pointLight0 = { 0 };
-//static bxGfxLightManager::PointInstance pointLight1 = { 0 };
-//static bxGfxLightManager::PointInstance pointLight2 = { 0 };
+
 static bxGfxLightManager::PointInstance pointLights[MAX_LIGHTS];
 static int nPointLights = 0;
-//static bxGfxLightList* lList = 0;
-//static bxGfxViewFrustum_Tiles* frustumTiles = 0;
-
 
 class bxDemoApp : public bxApplication
 {
@@ -66,6 +59,9 @@ public:
         _gfxMaterials = BX_NEW( bxDefaultAllocator(), bxGfxMaterialManager );
         _gfxMaterials->_Startup( _gdiDevice, _resourceManager );
         
+        _gfxPostprocess = BX_NEW1( bxGfxPostprocess );
+        _gfxPostprocess->_Startup( _gdiDevice, _resourceManager );
+
         {
             
             //const float r = 5.f;
@@ -169,6 +165,9 @@ public:
 
         //_gfxLights->lightManager.releaseLight( pointLight1 );
         //_gfxLights->lightManager.releaseLight( pointLight0 );
+
+        _gfxPostprocess->_Shutdown( _gdiDevice, _resourceManager );
+        BX_DELETE01( _gfxPostprocess );
 
         _gfxMaterials->_Shutdown( _gdiDevice, _resourceManager );
         BX_DELETE0( bxDefaultAllocator(), _gfxMaterials );
@@ -288,9 +287,22 @@ public:
 
         _gfxContext->frameDraw( _gdiContext, camera, &rList, 1 );
 
-        bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
 
-        _gfxContext->rasterizeFramebuffer( _gdiContext, camera );
+        _gdiContext->clear();
+        {
+            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+            bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+            const int fbWidth = _gfxContext->framebufferWidth();
+            const int fbHeight = _gfxContext->framebufferHeight();
+            _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, fbWidth, fbHeight, deltaTime );
+        }
+        
+
+        bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
+        {
+            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+            _gfxContext->rasterizeFramebuffer( _gdiContext, colorTexture, camera );
+        }
         
         bxGfxGUI::draw( _gdiContext );
         _gfxContext->frameEnd( _gdiContext );
@@ -302,6 +314,7 @@ public:
     bxGdiContext* _gdiContext;
     bxGfxContext* _gfxContext;
     bxGfxLights* _gfxLights;
+    bxGfxPostprocess* _gfxPostprocess;
     bxGfxMaterialManager* _gfxMaterials;
     
     bxResourceManager* _resourceManager;

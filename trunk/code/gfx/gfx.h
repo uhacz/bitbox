@@ -17,9 +17,11 @@ struct bxGfxContext
     void frameBegin( bxGdiContext* ctx );
     void frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
     
-    void rasterizeFramebuffer( bxGdiContext* ctx, const bxGfxCamera& camera );
+    void rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera );
 
     void frameEnd( bxGdiContext* ctx );
+
+    bxGdiTexture framebuffer( int index ) { SYS_ASSERT( index < bxGfx::eFRAMEBUFFER_COUNT );  return _framebuffer[index]; }
 
     int framebufferWidth() const { return _framebuffer->width; }
     int framebufferHeight() const { return _framebuffer->height; }
@@ -39,6 +41,7 @@ private:
 
 ////
 ////
+
 struct bxGfxPostprocess
 {
     void toneMapping( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, int fbWidth, int fbHeight, float deltaTime );

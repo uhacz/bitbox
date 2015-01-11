@@ -60,6 +60,7 @@ namespace bxGfx
     enum EFramebuffer
     {
         eFRAMEBUFFER_COLOR = 0,
+        eFRAMEBUFFER_SWAP,
         eFRAMEBUFFER_DEPTH,
         eFRAMEBUFFER_COUNT,
     };
