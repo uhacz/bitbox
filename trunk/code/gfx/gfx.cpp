@@ -270,6 +270,8 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
 {
     _fxI->setUniform( "input_size0", float2_t( (f32)fbWidth, (f32)fbHeight ) );
     _fxI->setUniform( "delta_time", deltaTime );
+    _fxI->setUniform( "lum_tau", _toneMapping.tau );
+    _fxI->setUniform( "auto_exposure_key_value", _toneMapping.autoExposureKeyValue );
 
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 1, bxGdi::eSTAGE_MASK_PIXEL );

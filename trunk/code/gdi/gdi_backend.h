@@ -131,6 +131,8 @@ struct bxGdiTexture
 
     bxGdiTexture()
         : id( 0 )
+        , dx11ViewDS(0)
+        , dx11ViewRT(0)
         , width( 0 ), height( 0 ), depth( 0 )
     {}
 };

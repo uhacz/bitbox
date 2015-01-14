@@ -216,6 +216,7 @@ public:
 
     void changeToMainFramebuffer();
     void changeRenderTargets    ( bxGdiTexture* color_rts, unsigned n_rt, bxGdiTexture depth_rt );
+
     void clearBuffers           ( float rgbad[5], int flag_color, int flag_depth );
     void clearBuffers           ( float r, float g, float b, float a, float d, int flag_color, int flag_depth );
 
