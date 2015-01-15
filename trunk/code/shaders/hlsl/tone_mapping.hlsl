@@ -89,14 +89,44 @@ SamplerState _samp_linear : register( s1 );
 
 shared cbuffer MaterialData : register(b3)
 {
-    float2 input_size0           : packoffset(c0.x);
-    float delta_time             : packoffset(c0.z);
-    float bloom_thresh           : packoffset(c0.w);
-    float bloom_blur_sigma       : packoffset(c1.x);
-    float bloom_magnitude        : packoffset(c1.y);
-    float lum_tau                : packoffset(c1.z);
-    float auto_exposure_key_value: packoffset(c1.w);
+    float2 input_size0;
+    float delta_time;
+    float bloom_thresh;
+    float bloom_blur_sigma;
+    float bloom_magnitude;
+    float lum_tau;
+    float auto_exposure_key_value;
+
+    float camera_aperture;
+    float camera_shutterSpeed;
+    float camera_iso;
 };
+
+/*
+* Get an exposure using the Saturation-based Speed method.
+*/
+
+#define sqr( x ) ( x * x )
+float getSaturationBasedExposure(float aperture,
+                                 float shutterSpeed,
+                                 float iso)
+{
+    float l_max = (7800.0f / 65.0f) * sqr(aperture) / (iso * shutterSpeed);
+    return 1.0f / l_max;
+}
+ 
+/*
+* Get an exposure using the Standard Output Sensitivity method.
+* Accepts an additional parameter of the target middle grey.
+*/
+float getStandardOutputBasedExposure(float aperture,
+                                     float shutterSpeed,
+                                     float iso,
+                                     float middleGrey = 0.18f)
+{
+    float l_avg = (1000.0f / 65.0f) * sqr(aperture) / (iso * shutterSpeed);
+    return middleGrey / l_avg;
+}
 
 // Approximates luminance from an RGB value
 float Calc_luminance(float3 color)
@@ -126,7 +156,10 @@ float3 Calc_exposed_color( float3 color, float avg_luminance, float threshold, o
 {    
     avg_luminance = max(avg_luminance, 0.001f);
     float key_value = auto_exposure_key_value;// 1.03f - ( 2.0f / ( 2 + log10( avg_luminance + 1 ) ) );
-    float linear_exposure = ( key_value / avg_luminance );
+    
+    //float linear_exposure = ( key_value / avg_luminance );
+    float linear_exposure = getStandardOutputBasedExposure( camera_aperture, camera_shutterSpeed, camera_iso, key_value );
+
     exposure = log2( max( linear_exposure, 0.0001f ) );
 
     exposure -= threshold;

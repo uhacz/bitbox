@@ -9,7 +9,7 @@ struct out_VS_screenquad
 
 out_VS_screenquad vs_screenquad(
     in float4 IN_pos : POSITION,
-    in float2 IN_uv  : TEXCOORD0, // uv and corner index
+    in float2 IN_uv  : TEXCOORD0,
     out float4 OUT_hpos : SV_Position )
 {
     OUT_hpos = float4( IN_pos.xyz, 1.0 );

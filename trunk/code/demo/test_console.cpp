@@ -108,9 +108,9 @@ namespace brdf
 
     float Diffuse( float NdotV, float NdotL, float LdotH, float linearRough )
     {
-        float energyBias = lerp( 0, 0.5, linearRough );
-        float energyFactor = lerp( 1.0, 1.f / 1.51f, linearRough );
-        float fd90 = energyBias + 2.0 * LdotH * LdotH * linearRough;
+        float energyBias = lerp( 0.f, 0.5f, linearRough );
+        float energyFactor = lerp( 1.0f, 1.f / 1.51f, linearRough );
+        float fd90 = energyBias + 2.0f * LdotH * LdotH * linearRough;
         float f0 = 1.0f;
         float lightScatter = F_Schlick( f0, fd90, NdotL );
         float viewScatter = F_Schlick( f0, fd90, NdotV );
