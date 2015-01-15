@@ -384,7 +384,7 @@ void bxGfxLights::startup( bxGdiDeviceBackend* dev, int maxLights, int tileSiz, 
 
     data.sunAngularRadius = 0.00942477796076937972f;
     setSunDir( Vector3( 1.f, -1.f, 0.f ) );
-    setSunIlluminance( 1.f );
+    setSunIlluminance( 110000.f );
     setSunColor( float3_t( 1.0f, 1.f, .98f ) );
 
     const int numTiles = data.numTiles;

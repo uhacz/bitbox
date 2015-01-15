@@ -272,6 +272,9 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
     _fxI->setUniform( "delta_time", deltaTime );
     _fxI->setUniform( "lum_tau", _toneMapping.tau );
     _fxI->setUniform( "auto_exposure_key_value", _toneMapping.autoExposureKeyValue );
+    _fxI->setUniform( "camera_aperture" , _toneMapping.camera_aperture );                           
+    _fxI->setUniform( "camera_shutterSpeed" , _toneMapping.camera_shutterSpeed ); 
+    _fxI->setUniform( "camera_iso" , _toneMapping.camera_iso ); 
 
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 1, bxGdi::eSTAGE_MASK_PIXEL );
@@ -305,5 +308,66 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
     bxGfxContext::submitFullScreenQuad( ctx, _fxI, "composite" );
 
     _toneMapping.currentLuminanceTexture = !_toneMapping.currentLuminanceTexture;
+
+    _ShowGUI();
+}
+
+#include "gfx_gui.h"
+void bxGfxPostprocess::_ShowGUI()
+{
+    if( ImGui::Begin( "Postprocess" ) )
+    {
+        if( ImGui::TreeNode( "ToneMapping" ) )
+        {
+            ///
+            const char* itemName_aperture[] = 
+            {
+                "1.4", "2.0", "2.8", "4.0", "5.6", "8.0", "11.0", "16.0",
+            };
+            const float itemValue_aperture[] = 
+            {
+                1.4f, 2.0f, 2.8f, 4.0f, 5.6f, 8.0f, 11.0f, 16.0f,
+            };
+            static int currentItem_aperture = 0;
+            if( ImGui::Combo( "aperture", &currentItem_aperture, itemName_aperture, sizeof( itemValue_aperture ) / sizeof(*itemValue_aperture) )  )
+            {
+                _toneMapping.camera_aperture = itemValue_aperture[ currentItem_aperture ];
+            }
+            
+            ///
+            const char* itemName_shutterSpeed[] = 
+            { 
+                "1/1000", "1/500", "1/250", "1/125", "1/60", "1/30", "1/15", "1/8", "1/4", "1/2", "1/1",
+            };
+            const float itemValue_shutterSpeed[] = 
+            {
+                1.f/1000.f, 1.f/500.f, 1.f/250.f, 1.f/125.f, 1.f/60.f, 1.f/30.f, 1.f/15.f, 1.f/8.f, 1.f/4.f, 1.f/2.f, 1.f/1.f,
+            };
+            static int currentItem_shutterSpeed = 0;
+            if( ImGui::Combo( "shutter speed", &currentItem_shutterSpeed, itemName_shutterSpeed, sizeof( itemValue_shutterSpeed ) / sizeof(*itemValue_shutterSpeed) )  )
+            {
+                _toneMapping.camera_shutterSpeed = itemValue_shutterSpeed[ currentItem_shutterSpeed ];
+            }
+
+            ///
+            const char* itemName_iso[] = 
+            {
+                "100", "200", "400", "800", "1600", "3200", "6400",
+            };
+            const float itemValue_iso[] = 
+            {
+                100.f, 200.f, 400.f, 800.f, 1600.f, 3200.f, 6400.f,
+            };
+            static int currentItem_iso = 0;
+            if( ImGui::Combo( "ISO", &currentItem_iso, itemName_iso, sizeof( itemValue_iso ) / sizeof(*itemValue_iso) )  )
+            {
+                _toneMapping.camera_iso = itemValue_iso[ currentItem_iso ];
+            }
+
+            ImGui::TreePop();
+        }
+
+        ImGui::End();
+    }
 }
 
