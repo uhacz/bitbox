@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -94,16 +94,16 @@ public:
             //    ++nPointLights;
             //}
 
-            const float a = 5.f;
+            const float a = 15.f;
             const Vector3 corners[] =
             {
-                //Vector3( -a, -0.f, -a ),
-                //Vector3(  a, -0.f, -a ),
-                //Vector3(  a,  a, -a ),
-                //Vector3( -a,  a, -a ),
+                Vector3( -a, -0.f, -a ),
+                Vector3(  a, -0.f, -a ),
+                Vector3(  a,  a, -a ),
+                Vector3( -a,  a, -a ),
 
-                //Vector3( -a, -0.f, a ),
-                //Vector3(  a, -0.f, a ),
+                Vector3( -a, -0.f, a ),
+                Vector3(  a, -0.f, a ),
                 Vector3(  a,  a, a ),
                 Vector3( -a,  a, a ),
             };
@@ -112,9 +112,9 @@ public:
             {
                 bxGfxLight_Point l;
                 m128_to_xyz( l.position.xyz, corners[icorner].get128() );
-                l.radius = 15.f;
+                l.radius = 50.f;
                 bxColor::u32ToFloat3( colors[icorner%nColors], l.color.xyz );
-                l.intensity = 1200.f;
+                l.intensity = 100000.f;
                 pointLights[icorner] = _gfxLights->lightManager.createPointLight( l );
                 ++nPointLights;
             }
@@ -294,7 +294,7 @@ public:
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
             const int fbWidth = _gfxContext->framebufferWidth();
             const int fbHeight = _gfxContext->framebufferHeight();
-            _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, fbWidth, fbHeight, deltaTime );
+            _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, deltaTime );
         }
         
 

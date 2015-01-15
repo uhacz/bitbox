@@ -56,7 +56,7 @@ float3 BRDF( in float3 L, in float3 V, in float3 N, in Material mat )
     float ambientFactor = (mat.ambientCoeff - (ambientBase * mat.ambientCoeff));
     
     float3 diffuse = saturate( 1.f - (f + ambientBase) ) * mat.diffuseColor * mat.diffuseCoeff * PI_RCP;
-    float3 ambient = ambientFactor * mat.diffuseColor;
+        float3 ambient = ambientFactor * mat.diffuseColor * PI_RCP;
     return ( diffuse+specular ) * NdotL + ambient;
 }
 
@@ -73,8 +73,8 @@ float3 BRDF_diffuseOnly( in float3 L, in float3 V, in float3 N, in Material mat 
     float ambientFactor = (mat.ambientCoeff - (ambientBase * mat.ambientCoeff));
 
     float3 diffuse = saturate( 1.f - (f + ambientBase) ) * mat.diffuseColor * mat.diffuseCoeff * PI_RCP;
-    float3 ambient = ambientFactor * mat.diffuseColor;
-    return ( diffuse * NdotL * PI_RCP ) + ambient;
+        float3 ambient = ambientFactor * mat.diffuseColor * PI_RCP;
+    return ( diffuse * NdotL * PI_RCP ); + ambient;
 }
 float3 BRDF_specularOnly( in float3 L, in float3 V, in float3 N, in Material mat )
 {

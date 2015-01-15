@@ -266,15 +266,16 @@ void bxGfxPostprocess::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* re
     bxGdi::shaderFx_releaseWithInstance( dev, &_fxI );
 }
 
-void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, int fbWidth, int fbHeight, float deltaTime)
+void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime)
 {
-    _fxI->setUniform( "input_size0", float2_t( (f32)fbWidth, (f32)fbHeight ) );
+    _fxI->setUniform( "input_size0", float2_t( (f32)inTexture.width, (f32)inTexture.height ) );
     _fxI->setUniform( "delta_time", deltaTime );
     _fxI->setUniform( "lum_tau", _toneMapping.tau );
     _fxI->setUniform( "auto_exposure_key_value", _toneMapping.autoExposureKeyValue );
     _fxI->setUniform( "camera_aperture" , _toneMapping.camera_aperture );                           
     _fxI->setUniform( "camera_shutterSpeed" , _toneMapping.camera_shutterSpeed ); 
     _fxI->setUniform( "camera_iso" , _toneMapping.camera_iso ); 
+    _fxI->setUniform( "useAutoExposure", _toneMapping.useAutoExposure );
 
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 1, bxGdi::eSTAGE_MASK_PIXEL );
@@ -299,7 +300,7 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
     //
     //
     ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
-    ctx->setViewport( bxGdiViewport( 0, 0, fbWidth, fbHeight ) );
+    ctx->setViewport( bxGdiViewport( 0, 0, outTexture.width, outTexture.height) );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
 
     ctx->setTexture( inTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
@@ -328,7 +329,7 @@ void bxGfxPostprocess::_ShowGUI()
             {
                 1.4f, 2.0f, 2.8f, 4.0f, 5.6f, 8.0f, 11.0f, 16.0f,
             };
-            static int currentItem_aperture = 0;
+            static int currentItem_aperture = 7;
             if( ImGui::Combo( "aperture", &currentItem_aperture, itemName_aperture, sizeof( itemValue_aperture ) / sizeof(*itemValue_aperture) )  )
             {
                 _toneMapping.camera_aperture = itemValue_aperture[ currentItem_aperture ];
@@ -337,13 +338,13 @@ void bxGfxPostprocess::_ShowGUI()
             ///
             const char* itemName_shutterSpeed[] = 
             { 
-                "1/1000", "1/500", "1/250", "1/125", "1/60", "1/30", "1/15", "1/8", "1/4", "1/2", "1/1",
+                "1/2000", "1/1000", "1/500", "1/250", "1/125", "1/100", "1/60", "1/30", "1/15", "1/8", "1/4", "1/2", "1/1",
             };
             const float itemValue_shutterSpeed[] = 
             {
-                1.f/1000.f, 1.f/500.f, 1.f/250.f, 1.f/125.f, 1.f/60.f, 1.f/30.f, 1.f/15.f, 1.f/8.f, 1.f/4.f, 1.f/2.f, 1.f/1.f,
+                1.f/2000.f, 1.f/1000.f, 1.f/500.f, 1.f/250.f, 1.f/125.f, 1.f/100.f, 1.f/60.f, 1.f/30.f, 1.f/15.f, 1.f/8.f, 1.f/4.f, 1.f/2.f, 1.f/1.f,
             };
-            static int currentItem_shutterSpeed = 0;
+            static int currentItem_shutterSpeed = 5;
             if( ImGui::Combo( "shutter speed", &currentItem_shutterSpeed, itemName_shutterSpeed, sizeof( itemValue_shutterSpeed ) / sizeof(*itemValue_shutterSpeed) )  )
             {
                 _toneMapping.camera_shutterSpeed = itemValue_shutterSpeed[ currentItem_shutterSpeed ];
@@ -363,6 +364,8 @@ void bxGfxPostprocess::_ShowGUI()
             {
                 _toneMapping.camera_iso = itemValue_iso[ currentItem_iso ];
             }
+
+            ImGui::Checkbox( "useAutoExposure", (bool*)&_toneMapping.useAutoExposure );
 
             ImGui::TreePop();
         }

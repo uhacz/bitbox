@@ -44,7 +44,7 @@ private:
 
 struct bxGfxPostprocess
 {
-    void toneMapping( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, int fbWidth, int fbHeight, float deltaTime );
+    void toneMapping( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime );
 
     bxGfxPostprocess();
     void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
@@ -63,13 +63,15 @@ private:
         f32 camera_aperture;
         f32 camera_shutterSpeed;
         f32 camera_iso;
+        i32 useAutoExposure;
 
         bxGdiTexture adaptedLuminance[2];
         bxGdiTexture initialLuminance;
 
         ToneMapping()
             : currentLuminanceTexture(0), tau( 1.25f ), autoExposureKeyValue( 0.18f )
-            , camera_aperture( 16.f ), camera_shutterSpeed( 1.f/100.f ), camera_iso(100.f)
+            , camera_aperture( 16.f ), camera_shutterSpeed( 1.f / 100.f ), camera_iso(100.f)
+            , useAutoExposure(0)
         {}
     } _toneMapping;
 

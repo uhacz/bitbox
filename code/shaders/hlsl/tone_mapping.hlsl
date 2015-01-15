@@ -100,13 +100,14 @@ shared cbuffer MaterialData : register(b3)
     float camera_aperture;
     float camera_shutterSpeed;
     float camera_iso;
+    int useAutoExposure;
 };
 
 /*
 * Get an exposure using the Saturation-based Speed method.
 */
 
-#define sqr( x ) ( x * x )
+#define sqr( x ) ( (x) * (x) )
 float getSaturationBasedExposure(float aperture,
                                  float shutterSpeed,
                                  float iso)
@@ -127,6 +128,22 @@ float getStandardOutputBasedExposure(float aperture,
     float l_avg = (1000.0f / 65.0f) * sqr(aperture) / (iso * shutterSpeed);
     return middleGrey / l_avg;
 }
+
+
+float computeEV100( float aperture, float shutterTime, float ISO )
+{
+    return log2( sqr( aperture ) / shutterTime * 100.f / ISO );
+}
+float computeEV100FromAvgLuminance( float avgLuminance )
+{
+    return log2( avgLuminance * 100.0f / 12.5f );
+}
+
+float convertEV100ToExposure( float EV100 )
+{
+    float maxLuminance = 1.2f * pow( 2.0f, EV100 );    return 1.0f / maxLuminance;
+}
+
 
 // Approximates luminance from an RGB value
 float Calc_luminance(float3 color)
@@ -152,28 +169,32 @@ float3 Tone_map_filmic_ALU( float3 color )
 }
 
 // Determines the color based on exposure settings
-float3 Calc_exposed_color( float3 color, float avg_luminance, float threshold, out float exposure )
+float3 Calc_exposed_color( float3 color, float avgLuminance, float threshold, out float exposure )
 {    
-    avg_luminance = max(avg_luminance, 0.001f);
-    float key_value = auto_exposure_key_value;// 1.03f - ( 2.0f / ( 2 + log10( avg_luminance + 1 ) ) );
-    
-    //float linear_exposure = ( key_value / avg_luminance );
-    float linear_exposure = getStandardOutputBasedExposure( camera_aperture, camera_shutterSpeed, camera_iso, key_value );
+    float EV100 = computeEV100( camera_aperture, camera_shutterSpeed, camera_iso );    float autoEV100 = computeEV100FromAvgLuminance( avgLuminance );
+    float currentEV = (useAutoExposure) ? autoEV100 : EV100;
 
-    exposure = log2( max( linear_exposure, 0.0001f ) );
-
+    exposure = convertEV100ToExposure( currentEV );    
     exposure -= threshold;
-    return exp2(exposure) * color;
+    
+    return (exposure) * color;
+
+    // Use geometric mean
+    //avgLuminance = max( avgLuminance, 0.001f );
+    //float keyValue = auto_exposure_key_value;
+    //float linearExposure = (keyValue / avgLuminance);
+    //exposure = log2( max( linearExposure, 0.0001f ) );
+    //exposure -= threshold;
+    //return exp2( exposure ) * color;
 }
 
 // Applies exposure and tone mapping to the specific color, and applies
 // the threshold to the exposure value. 
 float3 Tone_map( float3 color, float avg_luminance, float threshold, out float exposure )
 {
-    float pixel_luminance = Calc_luminance( color );
-    color = Calc_exposed_color( color, avg_luminance, threshold, exposure );
-    color = Tone_map_filmic_ALU(color);
-    return color;
+    //float pixel_luminance = Calc_luminance( color );
+    float3 exposedColor = Calc_exposed_color( color, avg_luminance, threshold, exposure );
+    return Tone_map_filmic_ALU( exposedColor );
 }
 
 // Calculates the gaussian blur weight for a given distance and sigmas
