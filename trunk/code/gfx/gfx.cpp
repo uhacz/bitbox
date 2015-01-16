@@ -71,9 +71,10 @@ int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceM
     _cbuffer_frameData = dev->createConstantBuffer( sizeof( bxGfx::FrameData ) );
     _cbuffer_instanceData = dev->createConstantBuffer( sizeof( bxGfx::InstanceData ) );
 
-    _framebuffer[bxGfx::eFRAMEBUFFER_COLOR] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
-    _framebuffer[bxGfx::eFRAMEBUFFER_SWAP]  = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_COLOR] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_SWAP]  = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+    _framebuffer[bxGfx::eFRAMEBUFFER_LINEAR_DEPTH] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     
     {
         _shared.shader.utils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "utils" );
@@ -201,8 +202,6 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
 
         itemIt.next();
     }
-
-    
 }
 
 void bxGfxContext::rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera )
@@ -221,11 +220,6 @@ void bxGfxContext::rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB
     fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
 
     submitFullScreenQuad( ctx, fxI, "copy_rgba" );
-
-    //bxGdi::renderSource_enable( ctx, _shared.rsource.fullScreenQuad );
-    //bxGdi::shaderFx_enable( ctx, fxI, "copy_rgba" );
-    //ctx->setTopology( bxGdi::eTRIANGLES );
-    //ctx->draw( _shared.rsource.fullScreenQuad->vertexBuffers->numElements, 0 );
 }
 
 void bxGfxContext::frameEnd( bxGdiContext* ctx  )
@@ -251,9 +245,10 @@ void bxGfxPostprocess::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* res
 {
     _fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "tone_mapping" );
 
-    _toneMapping.adaptedLuminance[0] = dev->createTexture2D( 1024, 1024, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-    _toneMapping.adaptedLuminance[1] = dev->createTexture2D( 1024, 1024, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-    _toneMapping.initialLuminance = dev->createTexture2D( 1024, 1024, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+    const int lumiTexSize = 1024;
+    _toneMapping.adaptedLuminance[0] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+    _toneMapping.adaptedLuminance[1] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+    _toneMapping.initialLuminance    = dev->createTexture2D( lumiTexSize, lumiTexSize, 1 , bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
 
 }
 

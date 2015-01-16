@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -115,26 +115,11 @@ public:
                 l.radius = 50.f;
                 bxColor::u32ToFloat3( colors[icorner%nColors], l.color.xyz );
                 l.intensity = 100000.f;
-                pointLights[icorner] = _gfxLights->lightManager.createPointLight( l );
-                ++nPointLights;
+                //pointLights[icorner] = _gfxLights->lightManager.createPointLight( l );
+                //++nPointLights;
             }
-
-            
-
-            
             //bxPolyShape_deallocateShape( &shape );
         }
-
-
-
-        //fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "native" );
-
-        //fxI->setUniform( "diffuseColor", float3_t( 1.0f, 0.0f, 0.0f ) );
-        //fxI->setUniform( "fresnelColor", float3_t( 0.549585f, 0.556114f, 0.554256f ) );
-        //fxI->setUniform( "diffuseCoeff", 0.5f );
-        //fxI->setUniform( "roughnessCoeff", 0.5f );
-        //fxI->setUniform( "specularCoeff", 0.5f );
-        //fxI->setUniform( "ambientCoeff", 0.005f );
 
         rsource = bxGfxContext::shared()->rsource.sphere;
 
@@ -153,8 +138,6 @@ public:
     {
         bxGfx::renderList_delete( &rList, bxDefaultAllocator() );
         rsource = 0;
-        //bxGdi::shaderFx_releaseWithInstance( _gdiDevice, &fxI );
-
         {
             for( int ilight = 0; ilight < nPointLights; ++ilight )
             {
@@ -162,9 +145,6 @@ public:
             }
             nPointLights = 0;
         }
-
-        //_gfxLights->lightManager.releaseLight( pointLight1 );
-        //_gfxLights->lightManager.releaseLight( pointLight0 );
 
         _gfxPostprocess->_Shutdown( _gdiDevice, _resourceManager );
         BX_DELETE01( _gfxPostprocess );
