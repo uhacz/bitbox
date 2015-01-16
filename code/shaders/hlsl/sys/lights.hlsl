@@ -40,7 +40,8 @@ float3 evaluateSunLight( float3 V, float3 N, float3 sunDirection, float sunAngRa
     const float3 Fd = BRDF_diffuseOnly( D, V, N, mat );
     const float3 Fr = BRDF_specularOnly( L, V, N, mat );
 
-    return (Fd + Fr) * illuminance;
+    //return (Fd + Fr) * illuminance;
+    return Fd * sunLux;
 }
 
 ////

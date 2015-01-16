@@ -62,6 +62,7 @@ namespace bxGfx
         eFRAMEBUFFER_COLOR = 0,
         eFRAMEBUFFER_SWAP,
         eFRAMEBUFFER_DEPTH,
+        eFRAMEBUFFER_LINEAR_DEPTH,
         eFRAMEBUFFER_COUNT,
     };
 
