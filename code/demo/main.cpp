@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -94,7 +94,7 @@ public:
             //    ++nPointLights;
             //}
 
-            const float a = 15.f;
+            const float a = 10.f;
             const Vector3 corners[] =
             {
                 Vector3( -a, -0.f, -a ),
@@ -115,8 +115,8 @@ public:
                 l.radius = 50.f;
                 bxColor::u32ToFloat3( colors[icorner%nColors], l.color.xyz );
                 l.intensity = 100000.f;
-                //pointLights[icorner] = _gfxLights->lightManager.createPointLight( l );
-                //++nPointLights;
+                pointLights[icorner] = _gfxLights->lightManager.createPointLight( l );
+                ++nPointLights;
             }
             //bxPolyShape_deallocateShape( &shape );
         }

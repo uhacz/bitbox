@@ -71,7 +71,7 @@ private:
         ToneMapping()
             : currentLuminanceTexture(0), tau( 1.25f ), autoExposureKeyValue( 0.18f )
             , camera_aperture( 16.f ), camera_shutterSpeed( 1.f / 100.f ), camera_iso(100.f)
-            , useAutoExposure(0)
+            , useAutoExposure(1)
         {}
     } _toneMapping;
 

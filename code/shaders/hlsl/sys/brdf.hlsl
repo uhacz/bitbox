@@ -15,6 +15,11 @@ float GGX_V1( in float m2, in float nDotX )
     return 1.0f / (nDotX + sqrt( m2 + (1 - m2) * nDotX * nDotX ));
 }
 
+float wrappedLambert( float NdotL, float w, float n )
+{
+    return pow( saturate( (NdotL + w) / (1.0f + w) ), n ) * (n + 1) / (2 * (1 + w));
+}
+
 float3 computeSpecularBRDF( in float NdotH, in float NdotL, in float NdotV, in float LdotH, in Material mat )
 {
     float m = mat.roughnessCoeff;
@@ -45,8 +50,8 @@ float3 computeDiffuseBRDF( in float LdotH, in Material mat )
 float3 computeAmbientBRDF( in float NdotL, in Material mat )
 {
     float ambientBase = -NdotL;
-    float ambientFactor = ((ambientBase * mat.ambientCoeff));
-    float3 ambient = ambientFactor * mat.diffuseColor * PI_RCP;
+    float ambientFactor = (ambientBase * mat.ambientCoeff);
+    float3 ambient = ambientFactor * mat.diffuseColor;
     return ambient;
 }
 
@@ -63,10 +68,10 @@ float3 BRDF( in float3 L, in float3 V, in float3 N, in Material mat )
     float3 diffuse = computeDiffuseBRDF( LdotH, mat );
     float3 ambient = float3( 0.f, 0.f, 0.f );
     
-    if( NdotL_raw < 0.f )
-        ambient = computeAmbientBRDF( NdotL_raw, mat );
+    //if( NdotL_raw <= 0.f )
+        //ambient = computeAmbientBRDF( NdotL_raw, mat );
 
-    return ( diffuse + specular ) * NdotL + ambient;
+    return ( diffuse + specular ) * NdotL;
 }
 
 float3 BRDF_diffuseOnly( in float3 L, in float3 V, in float3 N, in Material mat )
@@ -79,10 +84,14 @@ float3 BRDF_diffuseOnly( in float3 L, in float3 V, in float3 N, in Material mat 
     float3 diffuse = computeDiffuseBRDF( LdotH, mat );
     float3 ambient = float3( 0.f, 0.f, 0.f );
     
-    if( NdotL_raw < 0.f )
-        ambient = computeAmbientBRDF( NdotL_raw, mat );
+    //if( NdotL_raw <= 0.f )
+        //ambient = computeAmbientBRDF( NdotL_raw, mat );
 
-    return diffuse * NdotL + ambient;
+    float w = mat.ambientCoeff;
+    float n = 1.f;
+    //float dif = pow( saturate( (NdotL + w) / (1.0f + w) ), n ) * (n + 1) / (2 * (1 + w));
+
+    return (diffuse) * wrappedLambert( NdotL, w, n ); // *dif + ambient;
     //return ambient;
 }
 

@@ -467,7 +467,7 @@ void bxGfxLightsGUI::show( bxGfxLights* lights, const bxGfxLightManager::PointIn
         bxGfxLightManager::PointInstance instance = instances[i];
 
         char instanceName[32];
-        sprintf( instanceName, "%u", instance.id );
+        sprintf_s( instanceName, "%u", instance.id );
 
         if ( ImGui::TreeNode( instanceName ) )
         {
