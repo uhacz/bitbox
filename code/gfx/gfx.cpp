@@ -141,11 +141,7 @@ void bxGfxContext::frameBegin( bxGdiContext* ctx )
 }
 void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
 {
-    bxGfx::FrameData fdata;
-    bxGfx::frameData_fill( &fdata, camera, _framebuffer[0].width, _framebuffer[0].height );
-    ctx->backend()->updateCBuffer( _cbuffer_frameData, &fdata );
-
-    ctx->setCbuffer( _cbuffer_frameData, 0, bxGdi::eALL_STAGES_MASK );
+    bindCamera( ctx, camera );
     ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
         
     ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
@@ -235,15 +231,27 @@ void bxGfxContext::submitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instan
     ctx->draw( _shared.rsource.fullScreenQuad->vertexBuffers->numElements, 0 );
 }
 
+
+void bxGfxContext::bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera )
+{
+    bxGfx::FrameData fdata;
+    bxGfx::frameData_fill( &fdata, camera, _framebuffer[0].width, _framebuffer[0].height );
+    ctx->backend()->updateCBuffer( _cbuffer_frameData, &fdata );
+
+    ctx->setCbuffer( _cbuffer_frameData, 0, bxGdi::eALL_STAGES_MASK );
+}
+
+
 ////
 ////
 bxGfxPostprocess::bxGfxPostprocess()
-    : _fxI(0)
+    : _fxI_toneMapping(0)
 {}
 
 void bxGfxPostprocess::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
-    _fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "tone_mapping" );
+    _fxI_toneMapping = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "tone_mapping" );
+    _fxI_fog = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "fog" );
 
     const int lumiTexSize = 1024;
     _toneMapping.adaptedLuminance[0] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
@@ -258,19 +266,20 @@ void bxGfxPostprocess::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* re
     dev->releaseTexture( &_toneMapping.adaptedLuminance[1] );
     dev->releaseTexture( &_toneMapping.adaptedLuminance[0] );
 
-    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI );
+    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_fog );
+    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_toneMapping );
 }
 
 void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime)
 {
-    _fxI->setUniform( "input_size0", float2_t( (f32)inTexture.width, (f32)inTexture.height ) );
-    _fxI->setUniform( "delta_time", deltaTime );
-    _fxI->setUniform( "lum_tau", _toneMapping.tau );
-    _fxI->setUniform( "auto_exposure_key_value", _toneMapping.autoExposureKeyValue );
-    _fxI->setUniform( "camera_aperture" , _toneMapping.camera_aperture );                           
-    _fxI->setUniform( "camera_shutterSpeed" , _toneMapping.camera_shutterSpeed ); 
-    _fxI->setUniform( "camera_iso" , _toneMapping.camera_iso ); 
-    _fxI->setUniform( "useAutoExposure", _toneMapping.useAutoExposure );
+    _fxI_toneMapping->setUniform( "input_size0", float2_t( (f32)inTexture.width, (f32)inTexture.height ) );
+    _fxI_toneMapping->setUniform( "delta_time", deltaTime );
+    _fxI_toneMapping->setUniform( "lum_tau", _toneMapping.tau );
+    _fxI_toneMapping->setUniform( "auto_exposure_key_value", _toneMapping.autoExposureKeyValue );
+    _fxI_toneMapping->setUniform( "camera_aperture" , _toneMapping.camera_aperture );                           
+    _fxI_toneMapping->setUniform( "camera_shutterSpeed" , _toneMapping.camera_shutterSpeed ); 
+    _fxI_toneMapping->setUniform( "camera_iso" , _toneMapping.camera_iso ); 
+    _fxI_toneMapping->setUniform( "useAutoExposure", _toneMapping.useAutoExposure );
 
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 1, bxGdi::eSTAGE_MASK_PIXEL );
@@ -281,7 +290,7 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
     ctx->setViewport( bxGdiViewport( 0, 0, 1024, 1024 ) );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
     ctx->setTexture( inTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
-    bxGfxContext::submitFullScreenQuad( ctx, _fxI, "luminance_map" );
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI_toneMapping, "luminance_map" );
 
     //
     //
@@ -289,7 +298,7 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
     ctx->setViewport( bxGdiViewport( 0, 0, 1024, 1024 ) );
     ctx->setTexture( _toneMapping.adaptedLuminance[!_toneMapping.currentLuminanceTexture], 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( _toneMapping.initialLuminance, 1, bxGdi::eSTAGE_MASK_PIXEL );
-    bxGfxContext::submitFullScreenQuad( ctx, _fxI, "adapt_luminance" );
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI_toneMapping, "adapt_luminance" );
     ctx->backend()->generateMipmaps( _toneMapping.adaptedLuminance[_toneMapping.currentLuminanceTexture] );
 
     //
@@ -301,12 +310,32 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
     ctx->setTexture( inTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( _toneMapping.adaptedLuminance[_toneMapping.currentLuminanceTexture], 1, bxGdi::eSTAGE_MASK_PIXEL );
 
-    bxGfxContext::submitFullScreenQuad( ctx, _fxI, "composite" );
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI_toneMapping, "composite" );
 
     _toneMapping.currentLuminanceTexture = !_toneMapping.currentLuminanceTexture;
 
+    ctx->setTexture( bxGdiTexture(), 0, bxGdi::eSTAGE_PIXEL );
+    ctx->setTexture( bxGdiTexture(), 1, bxGdi::eSTAGE_PIXEL );
+
     _ShowGUI();
 }
+
+
+void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture )
+{
+    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setTexture( depthTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setTexture( inTexture, 1, bxGdi::eSTAGE_MASK_PIXEL );
+
+    ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
+    ctx->setViewport( bxGdiViewport( 0, 0, outTexture.width, outTexture.height) );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI_fog, "fog" );
+
+    ctx->setTexture( bxGdiTexture(), 0, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setTexture( bxGdiTexture(), 1, bxGdi::eSTAGE_MASK_PIXEL );
+}
+
 
 #include "gfx_gui.h"
 void bxGfxPostprocess::_ShowGUI()

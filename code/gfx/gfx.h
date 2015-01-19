@@ -14,6 +14,7 @@ struct bxGfxContext
     int startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     
+    void bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera );
     void frameBegin( bxGdiContext* ctx );
     void frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
     
@@ -25,10 +26,10 @@ struct bxGfxContext
 
     int framebufferWidth() const { return _framebuffer->width; }
     int framebufferHeight() const { return _framebuffer->height; }
-
-
+    
     static bxGfx::Shared* shared() { return &_shared; }
     static void submitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName );
+    
 
 private:
     bxGdiBuffer _cbuffer_frameData;
@@ -45,6 +46,7 @@ private:
 struct bxGfxPostprocess
 {
     void toneMapping( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime );
+    void fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture );
 
     bxGfxPostprocess();
     void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
@@ -71,10 +73,11 @@ private:
         ToneMapping()
             : currentLuminanceTexture(0), tau( 1.25f ), autoExposureKeyValue( 0.18f )
             , camera_aperture( 16.f ), camera_shutterSpeed( 1.f / 100.f ), camera_iso(100.f)
-            , useAutoExposure(1)
+            , useAutoExposure(0)
         {}
     } _toneMapping;
 
-    bxGdiShaderFx_Instance* _fxI;
-
+    
+    bxGdiShaderFx_Instance* _fxI_toneMapping;
+    bxGdiShaderFx_Instance* _fxI_fog;
 };
