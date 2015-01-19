@@ -437,6 +437,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         tex2D->GetDesc( &desc );
 
         bxGdiTexture tex;
+        
         tex.rs.dx11Resource = resource;
         tex.rs.dx11ViewSH = srv;
 

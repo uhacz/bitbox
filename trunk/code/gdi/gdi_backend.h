@@ -52,6 +52,16 @@ union bxGdiResource
         ID3D11ShaderResourceView* dx11ViewSH;
         ID3D11UnorderedAccessView* dx11ViewUA;
     };
+
+    static bxGdiResource null() 
+    { 
+        bxGdiResource rs; 
+        rs.id = 0;
+        rs.dx11ViewSH = 0;
+        rs.dx11ViewUA = 0;
+        return rs;
+    }
+
 };
 
 struct bxGdiVertexBuffer
@@ -104,8 +114,7 @@ struct bxGdiBuffer
         , sizeInBytes(0)
         , bindFlags(0)
     {
-        rs.dx11ViewSH = 0;
-        rs.dx11ViewUA = 0;
+        rs = bxGdiResource::null();
     }
 };
 struct bxGdiTexture
@@ -134,7 +143,9 @@ struct bxGdiTexture
         , dx11ViewDS(0)
         , dx11ViewRT(0)
         , width( 0 ), height( 0 ), depth( 0 )
-    {}
+    {
+        rs = bxGdiResource::null();
+    }
 };
 
 struct bxGdiShader
