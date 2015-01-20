@@ -145,7 +145,7 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
     ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
         
     ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
-    ctx->clearBuffers( 600.f, 700.f, 8000.f, 0.f, 1.f, 1, 1 );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
     ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
 
     bxGfx::InstanceData instanceData;
@@ -321,8 +321,15 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
 }
 
 
-void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture )
+void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, const bxGfxLight_Sun& sunLight )
 {
+    _fxI_fog->setUniform( "_sunDir", sunLight.dir );
+    _fxI_fog->setUniform( "_sunColor", sunLight.color );
+    _fxI_fog->setUniform( "_sunIlluminance", sunLight.illuminance );
+    _fxI_fog->setUniform( "_skyIlluminance", 30000.f );
+    _fxI_fog->setUniform( "_fallOffExt", _fog.fallOffExt );
+    _fxI_fog->setUniform( "_fallOffIns", _fog.fallOffIns );
+    
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( depthTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( inTexture, 1, bxGdi::eSTAGE_MASK_PIXEL );
@@ -391,6 +398,13 @@ void bxGfxPostprocess::_ShowGUI()
 
             ImGui::Checkbox( "useAutoExposure", (bool*)&_toneMapping.useAutoExposure );
 
+            ImGui::TreePop();
+        }
+
+        if( ImGui::TreeNode( "Fog" ) )
+        {
+            ImGui::SliderFloat( "extintion", &_fog.fallOffExt, 0.f, 1.f );
+            ImGui::SliderFloat( "inscattering", &_fog.fallOffIns, 0.f, 1.f );
             ImGui::TreePop();
         }
 

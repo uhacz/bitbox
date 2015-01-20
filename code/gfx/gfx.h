@@ -42,11 +42,11 @@ private:
 
 ////
 ////
-
+struct bxGfxLight_Sun;
 struct bxGfxPostprocess
 {
     void toneMapping( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime );
-    void fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture );
+    void fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, const bxGfxLight_Sun& sunLight );
 
     bxGfxPostprocess();
     void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
@@ -73,11 +73,22 @@ private:
         ToneMapping()
             : currentLuminanceTexture(0), tau( 1.25f ), autoExposureKeyValue( 0.18f )
             , camera_aperture( 16.f ), camera_shutterSpeed( 1.f / 100.f ), camera_iso(100.f)
-            , useAutoExposure(0)
+            , useAutoExposure(1)
         {}
     } _toneMapping;
 
-    
+    struct Fog
+    {
+        f32 fallOffExt;
+        f32 fallOffIns;
+
+        Fog()
+            : fallOffExt(0.1f)
+            , fallOffIns(0.1f)
+        {}
+    } _fog;
+
+
     bxGdiShaderFx_Instance* _fxI_toneMapping;
     bxGdiShaderFx_Instance* _fxI_fog;
 };

@@ -35,6 +35,13 @@ struct bxGfxLight_Point
     f32 intensity;
 };
 
+struct bxGfxLight_Sun
+{
+    float3_t dir;
+    float3_t color;
+    f32 illuminance;
+};
+
 class bxGfxLightList;
 class bxGfxViewFrustum_Tiles;
 struct bxGfxCamera;
@@ -181,6 +188,8 @@ struct bxGfxLights
     void setSunDir( const Vector3& dir );
     void setSunColor( const float3_t& rgb );
     void setSunIlluminance( float lux );
+
+    bxGfxLight_Sun sunLight() const;
     
     void cullLights( const bxGfxCamera& camera );
     void bind( bxGdiContext* ctx );
