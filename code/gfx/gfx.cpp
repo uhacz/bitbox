@@ -403,8 +403,8 @@ void bxGfxPostprocess::_ShowGUI()
 
         if( ImGui::TreeNode( "Fog" ) )
         {
-            ImGui::SliderFloat( "extintion", &_fog.fallOffExt, 0.f, 1.f );
-            ImGui::SliderFloat( "inscattering", &_fog.fallOffIns, 0.f, 1.f );
+            ImGui::SliderFloat( "extintion", &_fog.fallOffExt, 0.f, 1.f, "%.3", 1.f );
+            ImGui::SliderFloat( "inscattering", &_fog.fallOffIns, 0.f, 1.f, "%.3", 1.f );
             ImGui::TreePop();
         }
 

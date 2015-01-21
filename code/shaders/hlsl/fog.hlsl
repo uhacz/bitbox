@@ -42,7 +42,14 @@ float3 applyFog( in float3 color, in float distance, in float3 rayDir )
     float sunAmount = saturate( dot( rayDir, _sunDir ) );
     float3 fogColor = lerp( skyColor, sunColor, pow( sunAmount, 8.0 ) );
 
-    return color * ( exp( -distance * _fallOffExt ) ) + fogColor*( 1.0 - exp( -distance * _fallOffIns ) ); //color*(alpha) + fogColor*(1.f - alpha);
+    float extinction = exp( -distance * _fallOffExt );
+    float inscattering = exp( -distance * _fallOffIns );
+
+    return color*(1.f - extinction) + fogColor*(inscattering);
+    //return lerp( color, fogColor, extinction );
+
+
+
 
     //return lerp( color, fogColor, fogAmount );
 }

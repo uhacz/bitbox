@@ -83,8 +83,8 @@ private:
         f32 fallOffIns;
 
         Fog()
-            : fallOffExt(0.1f)
-            , fallOffIns(0.1f)
+            : fallOffExt(0.01f)
+            , fallOffIns(0.01f)
         {}
     } _fog;
 
