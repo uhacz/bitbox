@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -262,6 +262,13 @@ public:
         _gfxLights->cullLights( camera );
         
         _gfxContext->frameBegin( _gdiContext );
+        
+        _gfxContext->bindCamera( _gdiContext, camera );
+        {
+            bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+            _gfxPostprocess->sky( _gdiContext, outputTexture, _gfxLights->sunLight() );
+        }
+
 
         _gfxLights->bind( _gdiContext );
 
@@ -270,18 +277,19 @@ public:
 
         _gdiContext->clear();
         _gfxContext->bindCamera( _gdiContext, camera );
+        
         {
             bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
             bxGdiTexture depthTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
             _gfxPostprocess->fog( _gdiContext, outputTexture, colorTexture, depthTexture, _gfxLights->sunLight() );
         }
-
         {
             bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, deltaTime );
         }
+        
         
 
         bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );

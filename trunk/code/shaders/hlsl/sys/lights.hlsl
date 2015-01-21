@@ -38,9 +38,13 @@ float3 evaluateSunLight( float3 V, float3 N, float3 sunDirection, float sunAngRa
 
     float w = mat.ambientCoeff;
     float n = 1.f;
-    const float illuminance = sunLux * wrappedLambert( saturate( dot( N, D ) ), w, n );
+    float ind = saturate( dot( N, -D ) ) * sunLux * w;
+    const float illuminance = sunLux * wrappedLambert( saturate( dot( N, D ) ), w, n ) + ind;
+    //const float illuminance = sunLux * saturate( dot( N, D ) ) + ind;
 
     const float3 Fd = BRDF_diffuseOnly( D, V, N, mat );
+
+
     const float3 Fr = BRDF_specularOnly( L, V, N, mat );
 
     return (Fd + Fr) * illuminance;

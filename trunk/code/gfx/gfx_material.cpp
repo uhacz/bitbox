@@ -25,7 +25,7 @@ int bxGfxMaterialManager::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* 
             params.diffuseCoeff = 0.4f;
             params.roughnessCoeff = 0.5f;
             params.specularCoeff = 0.5f;
-            params.ambientCoeff = 0.5f;
+            params.ambientCoeff = 0.2f;
 
             createMaterial( dev, "red", params );
         }

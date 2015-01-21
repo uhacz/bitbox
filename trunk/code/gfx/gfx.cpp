@@ -141,11 +141,11 @@ void bxGfxContext::frameBegin( bxGdiContext* ctx )
 }
 void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
 {
-    bindCamera( ctx, camera );
+    //bindCamera( ctx, camera );
     ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
         
     ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
-    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
     ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
 
     bxGfx::InstanceData instanceData;
@@ -320,15 +320,28 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
     _ShowGUI();
 }
 
-
-void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, const bxGfxLight_Sun& sunLight )
+void bxGfxPostprocess::sky(bxGdiContext* ctx, bxGdiTexture outTexture, const bxGfxLight_Sun& sunLight)
 {
     _fxI_fog->setUniform( "_sunDir", sunLight.dir );
     _fxI_fog->setUniform( "_sunColor", sunLight.color );
     _fxI_fog->setUniform( "_sunIlluminance", sunLight.illuminance );
-    _fxI_fog->setUniform( "_skyIlluminance", 30000.f );
-    _fxI_fog->setUniform( "_fallOffExt", _fog.fallOffExt );
-    _fxI_fog->setUniform( "_fallOffIns", _fog.fallOffIns );
+    _fxI_fog->setUniform( "_skyIlluminance", 20000.f );
+    _fxI_fog->setUniform( "_fallOff", _fog.fallOff );
+    _fxI_fog->setUniform( "_fallOffPower", _fog.fallOffPower);
+
+    ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
+    ctx->setViewport( bxGdiViewport( 0, 0, outTexture.width, outTexture.height ) );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI_fog, "sky" );
+}
+
+void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, const bxGfxLight_Sun& sunLight )
+{
+    //_fxI_fog->setUniform( "_sunDir", sunLight.dir );
+    //_fxI_fog->setUniform( "_sunColor", sunLight.color );
+    //_fxI_fog->setUniform( "_sunIlluminance", sunLight.illuminance );
+    //_fxI_fog->setUniform( "_skyIlluminance", 60000.f );
+    //_fxI_fog->setUniform( "_fallOff", _fog.fallOff );
     
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( depthTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
@@ -403,8 +416,8 @@ void bxGfxPostprocess::_ShowGUI()
 
         if( ImGui::TreeNode( "Fog" ) )
         {
-            ImGui::SliderFloat( "extintion", &_fog.fallOffExt, 0.f, 1.f, "%.3", 1.f );
-            ImGui::SliderFloat( "inscattering", &_fog.fallOffIns, 0.f, 1.f, "%.3", 1.f );
+            ImGui::SliderFloat( "fallOff", &_fog.fallOff, 0.f, 1.f, "%.3", 2.f );
+            //ImGui::SliderFloat( "inscattering", &_fog.fallOffPower, 0.f, 1.f, "%.3", 1.f );
             ImGui::TreePop();
         }
 
