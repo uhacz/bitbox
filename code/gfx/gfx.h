@@ -46,6 +46,8 @@ struct bxGfxLight_Sun;
 struct bxGfxPostprocess
 {
     void toneMapping( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime );
+
+    void sky( bxGdiContext* ctx, bxGdiTexture outTexture, const bxGfxLight_Sun& sunLight );
     void fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, const bxGfxLight_Sun& sunLight );
 
     bxGfxPostprocess();
@@ -79,12 +81,12 @@ private:
 
     struct Fog
     {
-        f32 fallOffExt;
-        f32 fallOffIns;
+        f32 fallOff;
+        f32 fallOffPower;
 
         Fog()
-            : fallOffExt(0.01f)
-            , fallOffIns(0.01f)
+            : fallOff(0.1f)
+            , fallOffPower(0.5f)
         {}
     } _fog;
 

@@ -20,7 +20,7 @@ namespace bxGfx
         
         f32 sunAngularRadius;
         f32 sunIlluminanceInLux;
-        u32 __padding0;
+        f32 skyIlluminanceInLux;
         float3_t sunDirection;
         float3_t sunColor;
         u32 __padding1;
