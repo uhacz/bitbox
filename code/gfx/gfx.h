@@ -85,8 +85,7 @@ private:
         f32 fallOffPower;
 
         Fog()
-            : fallOff(0.1f)
-            , fallOffPower(0.5f)
+            : fallOff(0.9f)
         {}
     } _fog;
 

@@ -15,15 +15,16 @@ namespace bxGfx
         u32 numTiles;
         u32 tileSize;
         u32 maxLights;
-
         f32 tileSizeRcp;
         
         f32 sunAngularRadius;
         f32 sunIlluminanceInLux;
         f32 skyIlluminanceInLux;
+
         float3_t sunDirection;
         float3_t sunColor;
-        u32 __padding1;
+        u32 padding__[1];
+        float3_t skyColor;
     };
 }///
 
@@ -38,8 +39,10 @@ struct bxGfxLight_Point
 struct bxGfxLight_Sun
 {
     float3_t dir;
-    float3_t color;
-    f32 illuminance;
+    float3_t sunColor;
+    float3_t skyColor;
+    f32 sunIlluminance;
+    f32 skyIlluminance;
 };
 
 class bxGfxLightList;
@@ -187,7 +190,9 @@ struct bxGfxLights
 
     void setSunDir( const Vector3& dir );
     void setSunColor( const float3_t& rgb );
+    void setSkyColor( const float3_t& rgb );
     void setSunIlluminance( float lux );
+    void setSkyIlluminance( float lux );
 
     bxGfxLight_Sun sunLight() const;
     

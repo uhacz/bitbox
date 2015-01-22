@@ -27,10 +27,10 @@ cbuffer MaterialData : register(b3)
 {
     float3 _sunDir;
     float3 _sunColor;
+    float3 _skyColor;
     float _sunIlluminance;
     float _skyIlluminance;
     float _fallOff;
-    float _fallOffPower;
 };
 
 Texture2D _tex_depth : register(t0);
@@ -54,7 +54,7 @@ float3 resolvePositionVS( float2 wpos, float linear_depth, float2 ab_inv )
 float3 computeSkyColor( in float3 rayDir )
 {
     float sunAmount = saturate( dot( rayDir, _sunDir ) );
-    const float3 skyColor = float3(0.4f, 0.5f, 1.0f) * _skyIlluminance;
+    const float3 skyColor = _skyColor * _skyIlluminance;
     const float3 sunColor = _sunColor * _sunIlluminance;
     return lerp( skyColor, sunColor, pow( sunAmount, 8.0 ) );
 }
@@ -63,10 +63,7 @@ float3 applyFog( in float3 color, in float distance, in float3 rayDir )
 {
     float3 fogColor = computeSkyColor( rayDir );
     float be = 1.f - exp( -distance * _fallOff*E );
-    //float bi = exp( -distance * _fallOffPower*E );
     return lerp( color, fogColor, be );
-
-    //return color*be + fogColor*bi;
 }
 
 float4 ps_fog( in out_VS_screenquad input ) : SV_Target0

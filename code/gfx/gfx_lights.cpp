@@ -370,7 +370,7 @@ int bxGfxLightList::appendPointLight( int tileX, int tileY, int lightIndex )
 ////
 void bxGfxLights::startup( bxGdiDeviceBackend* dev, int maxLights, int tileSiz, int rtWidth, int rtHeight, bxAllocator* allocator )
 {
-    SYS_STATIC_ASSERT( sizeof( bxGfx::LightningData ) == 64 );
+    SYS_STATIC_ASSERT( sizeof( bxGfx::LightningData ) == 76 );
     
     lightManager.startup( maxLights );
     lightList.startup( allocator );
@@ -385,7 +385,9 @@ void bxGfxLights::startup( bxGdiDeviceBackend* dev, int maxLights, int tileSiz, 
     data.sunAngularRadius = 0.00942477796076937972f;
     setSunDir( normalize( Vector3( 1.f, -1.f, 0.f ) ) );
     setSunIlluminance( 110000.f );
+    setSkyIlluminance( 30000.f );
     setSunColor( float3_t( 1.0f, 0.9f, 0.7f ) );
+    setSkyColor( float3_t(0.4f, 0.5f, 1.0f) );
 
     const int numTiles = data.numTiles;
 
@@ -416,18 +418,26 @@ void bxGfxLights::setSunColor(const float3_t& rgb)
 {
     data.sunColor = rgb;
 }
-
+void bxGfxLights::setSkyColor( const float3_t& rgb )
+{
+    data.skyColor = rgb;
+}
 void bxGfxLights::setSunIlluminance(float lux)
 {
     data.sunIlluminanceInLux = lux;
 }
-
+void bxGfxLights::setSkyIlluminance( float lux )
+{
+    data.skyIlluminanceInLux = lux;
+}
 bxGfxLight_Sun bxGfxLights::sunLight() const
 {
     bxGfxLight_Sun sun;
     sun.dir = data.sunDirection;
-    sun.color = data.sunColor;
-    sun.illuminance = data.sunIlluminanceInLux;
+    sun.sunColor = data.sunColor;
+    sun.sunIlluminance = data.sunIlluminanceInLux;
+    sun.skyColor = data.skyColor;
+    sun.skyIlluminance = data.skyIlluminanceInLux;
     return sun;
 }
 
@@ -462,6 +472,10 @@ void bxGfxLights::bind( bxGdiContext* ctx )
 }
 
 
+
+
+
+
 #include "gfx_gui.h"
 bxGfxLightsGUI::bxGfxLightsGUI()
     : flag_isVisible(0)
@@ -470,37 +484,38 @@ bxGfxLightsGUI::bxGfxLightsGUI()
 
 void bxGfxLightsGUI::show( bxGfxLights* lights, const bxGfxLightManager::PointInstance* instances, int nInstances )
 {
-    ImGui::Begin( "Points lights", (bool*)&flag_isVisible );
-
-    for( int i = 0; i < nInstances; ++i )
+    if( ImGui::Begin( "Lights" ) )
     {
-        bxGfxLightManager::PointInstance instance = instances[i];
-
-        char instanceName[32];
-        sprintf_s( instanceName, "%u", instance.id );
-
-        if ( ImGui::TreeNode( instanceName ) )
+        if( ImGui::TreeNode( "Point Lights" ) )
         {
-
-            bxGfxLight_Point data = lights->lightManager.pointLight( instance );
-
-            bool changed = false;
-
-            changed |= ImGui::InputFloat3( "position", data.position.xyz, 3 );
-            changed |= ImGui::InputFloat( "radius", &data.radius, 0.1f, 1.f );
-            changed |= ImGui::ColorEdit3( "color", data.color.xyz );
-            changed |= ImGui::InputFloat( "intensity", &data.intensity, 0.1f, 1.f );
-
-            if ( changed )
+            for( int i = 0; i < nInstances; ++i )
             {
-                lights->lightManager.setPointLight( instance, data );
-            }
+                bxGfxLightManager::PointInstance instance = instances[i];
+
+                char instanceName[32];
+                sprintf_s( instanceName, "%u", instance.id );
+
+                if ( ImGui::TreeNode( instanceName ) )
+                {
+
+                    bxGfxLight_Point data = lights->lightManager.pointLight( instance );
+
+                    bool changed = false;
+
+                    changed |= ImGui::InputFloat3( "position", data.position.xyz, 3 );
+                    changed |= ImGui::InputFloat( "radius", &data.radius, 0.1f, 1.f );
+                    changed |= ImGui::ColorEdit3( "color", data.color.xyz );
+                    changed |= ImGui::InputFloat( "intensity", &data.intensity, 0.1f, 1.f );
+
+                    if ( changed )
+                    {
+                        lights->lightManager.setPointLight( instance, data );
+                    }
+                    ImGui::TreePop();
+                }
+            }        
             ImGui::TreePop();
         }
-
+        ImGui::End();
     }
-
-
-
-    ImGui::End();
 }
