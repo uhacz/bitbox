@@ -38,6 +38,7 @@ passes:
 
 };#~header
 
+#include <sys/util.hlsl>
 #include <sys/frame_data.hlsl>
 #include <sys/instance_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
@@ -115,14 +116,6 @@ in_PS_shadow vs_shadow( in in_VS_shadow input )
     return output;
 }
 
-
-
-float3 resolve_position_vs( float2 wpos, float linear_depth, float2 ab_inv )
-{
-    float2 xy = wpos * ab_inv * -linear_depth;
-	return float3( xy, linear_depth );
-}
-
 float sample_shadow_map( float light_depth, float2 shadow_uv )
 {
     return gshadow_map.SampleCmpLevelZero( gsamp_shadow_map, shadow_uv.xy, light_depth );
@@ -185,19 +178,14 @@ float3 get_shadow_pos_offset(in float nDotL, in float3 normal )
     return texelSize * nmlOffsetScale * normal * 10.f;
 }
 
-float resolve_linear_depth( float hw_depth, float2 proj_params_cd )
-{
-    return proj_params_cd.y / ( hw_depth + proj_params_cd.x );
-}
-
 float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
     float pixel_depth  = gdepth_texture.SampleLevel( gsampler, input.uv, 0.0f ).r;
-    float linear_depth = resolve_linear_depth( pixel_depth, proj_params.zw );
+    float linear_depth = resolveLinearDepth( pixel_depth, proj_params.z, proj_params.w );
 
     float2 wpos = input.wpos01 * 2.0 - 1.0;
-    float3 vs_pos = resolve_position_vs( wpos, linear_depth, proj_params.xy );
+    float3 vs_pos = resolvePositionVS( wpos, linear_depth, proj_params.xy );
     
     int current_split = 0;
 

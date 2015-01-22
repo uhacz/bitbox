@@ -197,3 +197,27 @@ namespace bxGfx
     bxGfxRenderList* renderList_new( int maxItems, int maxInstances, bxAllocator* allocator );
     void renderList_delete( bxGfxRenderList** rList, bxAllocator* allocator );
 }///
+
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+struct bxGfxSortList
+{
+    u8* _sortData;
+    u32 _sortKeySizeInBytes;
+
+    u32 _size_sortData;
+    u32 _capacity_sortData;
+
+    void add( const void* keyData, bxGfxRenderList* rList, bxGfxRenderItem* item );
+    void clear();
+
+    bxGfxSortList();
+};
+
+namespace bxGfx
+{
+    bxGfxSortList* sortList_new( int maxItems, int keySizeInBytes, bxAllocator* allocator );
+    void sortList_delete( bxGfxSortList** rList, bxAllocator* allocator );
+}///

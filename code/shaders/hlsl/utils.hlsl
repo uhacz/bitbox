@@ -37,6 +37,7 @@ passes:
 #include <sys/frame_data.hlsl>
 #include <sys/instance_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
+#include <sys/util.hlsl>
 
 Texture2D<float> gtex_hwdepth;
 SamplerState gsamp_hwdepth;
@@ -85,17 +86,12 @@ out_PS ps_main( in_PS input )
 #endif
 
 
-float resolve_linear_depth_nf( float hw_depth, float2 znear_zfar )
-{
-    float c1 = znear_zfar.y / znear_zfar.x;
-    float c0 = 1.0 - c1;
-    return 1.0 / ( c0 * hw_depth + c1 );
-}
-
 float ps_linearize_depth( in out_VS_screenquad input ) : SV_Target0
 {
-    float hw_depth = gtex_hwdepth.SampleLevel( gsamp_hwdepth, input.uv, 0.f ).r;
-    return ( proj_params.w / ( hw_depth + proj_params.z ) );// *-0.01f;
+    float hwDepth = gtex_hwdepth.SampleLevel( gsamp_hwdepth, input.uv, 0.f ).r;
+    return resolveLinearDepth( hwDepth, proj_params.z, proj_params.w );
+
+    //return ( proj_params.w / ( hw_depth + proj_params.z ) );// *-0.01f;
 
     
     //float c1 = camera_params.w / camera_params.z;

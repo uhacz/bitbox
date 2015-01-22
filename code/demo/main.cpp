@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -210,22 +210,29 @@ public:
         rList->clear();
 
         {
+            static float phase = 0.f;
+            phase = fmodf( phase + deltaTime, 2.f * PI );
+
+            const float rot = sinf( phase + deltaTime );
+            const float posA = sinf( rot ) * 0.2f;
+            const float posB = cosf( posA * 2 * PI + rot ) * 0.2f;
+
             const Matrix4 world[] = 
             {
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, 0.f ) ), Vector3( -2.f, 0.f, 0.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f, 2.f, 0.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f,-2.f, 0.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f, 0.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, rot ) ), Vector3( -2.f, 0.f, posA ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  0.f, 2.f, posA ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  0.f,-2.f, posB ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f, posB ) ),
 
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, 0.f ) ), Vector3( -2.f, 0.f - 0.5f, -2.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f, 2.f - 0.5f, -2.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f,-2.f - 0.5f, -2.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f - 0.5f, -2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, 0.f ) ), Vector3( -2.f, posA - 0.5f, -2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posB, 2.f - 0.5f, -2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posB,-2.f - 0.5f, -2.f + posA ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, rot, 1.f ) ), Vector3(  2.f, 0.f - 0.5f, -2.f + posA ) ),
 
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, 0.f ) ), Vector3( -2.f, 0.f + 0.5f, 2.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f, 2.f + 0.5f, 2.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.0f, 0.f, 0.f ) ), Vector3(  0.f,-2.f + 0.5f, 2.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f + 0.5f, 2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, rot ) ), Vector3( -2.f, posB + 0.5f, 2.f + posA ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posA, 2.f + 0.5f, 2.f + posA ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( rot , rot, 0.f ) ), Vector3(  posA,-2.f + 0.5f, 2.f ) ),
+                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, rot, 1.f ) ), Vector3(  2.f, 0.f + 0.5f, 2.f ) ),
             };
 
             bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );
