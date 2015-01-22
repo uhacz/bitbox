@@ -13,10 +13,11 @@ shared cbuffer LighningData : register(b2)
 
     float _sunAngularRadius;
     float _sunIlluminanceInLux;
-    float __padding0;
+    float _skyIlluminanceInLux;
+    
     float3 _sunDirection;
     float3 _sunColor;
-    float __padding1;
+    float3 _skyColor;
 };
 
 Buffer<float4> _lightsData    : register(t0);

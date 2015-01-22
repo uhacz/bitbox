@@ -323,11 +323,11 @@ void bxGfxPostprocess::toneMapping(bxGdiContext* ctx, bxGdiTexture outTexture, b
 void bxGfxPostprocess::sky(bxGdiContext* ctx, bxGdiTexture outTexture, const bxGfxLight_Sun& sunLight)
 {
     _fxI_fog->setUniform( "_sunDir", sunLight.dir );
-    _fxI_fog->setUniform( "_sunColor", sunLight.color );
-    _fxI_fog->setUniform( "_sunIlluminance", sunLight.illuminance );
-    _fxI_fog->setUniform( "_skyIlluminance", 20000.f );
+    _fxI_fog->setUniform( "_sunColor", sunLight.sunColor );
+    _fxI_fog->setUniform( "_skyColor", sunLight.skyColor );
+    _fxI_fog->setUniform( "_sunIlluminance", sunLight.sunIlluminance );
+    _fxI_fog->setUniform( "_skyIlluminance", sunLight.skyIlluminance );
     _fxI_fog->setUniform( "_fallOff", _fog.fallOff );
-    _fxI_fog->setUniform( "_fallOffPower", _fog.fallOffPower);
 
     ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
     ctx->setViewport( bxGdiViewport( 0, 0, outTexture.width, outTexture.height ) );
@@ -417,7 +417,6 @@ void bxGfxPostprocess::_ShowGUI()
         if( ImGui::TreeNode( "Fog" ) )
         {
             ImGui::SliderFloat( "fallOff", &_fog.fallOff, 0.f, 1.f, "%.3", 2.f );
-            //ImGui::SliderFloat( "inscattering", &_fog.fallOffPower, 0.f, 1.f, "%.3", 1.f );
             ImGui::TreePop();
         }
 

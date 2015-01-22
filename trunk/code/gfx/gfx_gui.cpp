@@ -246,11 +246,9 @@ void bxGfxGUI::newFrame( float deltaTime )
 {
     ImGuiIO& io = ImGui::GetIO();
 
-    deltaTime = clamp( deltaTime, 1.f / 60.f, 0.1f );
+    deltaTime = clamp( deltaTime, 0.00001f, 0.1f );
 
     // Setup time step
-    INT64 current_time;
-    QueryPerformanceCounter( (LARGE_INTEGER *)&current_time );
     io.DeltaTime = deltaTime;
 
     // Setup inputs

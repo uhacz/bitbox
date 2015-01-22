@@ -243,7 +243,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     {
         D3D11_BUFFER_DESC bdesc;
         memset( &bdesc, 0, sizeof(bdesc) );
-        bdesc.ByteWidth = sizeInBytes;
+        bdesc.ByteWidth = TYPE_ALIGN( sizeInBytes, 16 );
         bdesc.Usage = D3D11_USAGE_DEFAULT;
         bdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
         bdesc.CPUAccessFlags = 0;
