@@ -416,7 +416,7 @@ void bxGfxPostprocess::_ShowGUI()
 
         if( ImGui::TreeNode( "Fog" ) )
         {
-            ImGui::SliderFloat( "fallOff", &_fog.fallOff, 0.f, 1.f, "%.3", 2.f );
+            ImGui::SliderFloat( "fallOff", &_fog.fallOff, 0.f, 1.f, "%.8", 4.f );
             ImGui::TreePop();
         }
 

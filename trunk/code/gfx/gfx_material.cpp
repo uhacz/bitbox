@@ -23,8 +23,8 @@ int bxGfxMaterialManager::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* 
             params.diffuseColor = float3_t( 1.f, 0.f, 0.f );
             params.fresnelColor = float3_t( 0.045593921f );
             params.diffuseCoeff = 0.4f;
-            params.roughnessCoeff = 0.5f;
-            params.specularCoeff = 0.5f;
+            params.roughnessCoeff = 0.2f;
+            params.specularCoeff = 0.9f;
             params.ambientCoeff = 0.2f;
 
             createMaterial( dev, "red", params );
@@ -33,12 +33,15 @@ int bxGfxMaterialManager::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* 
             params.diffuseColor = float3_t( 0.f, 1.f, 0.f );
             params.fresnelColor = float3_t( 0.171968833f );
             params.diffuseCoeff = 0.25f;
+            params.roughnessCoeff = 0.5f;
+            params.specularCoeff = 0.5f;
             createMaterial( dev, "green", params );
         }
         {
             params.diffuseColor = float3_t( 0.f, 0.f, 1.f );
             params.fresnelColor = float3_t( 0.171968833f );
             params.diffuseCoeff = 0.7f;
+            params.roughnessCoeff = 0.7f;
 
             createMaterial( dev, "blue", params );
         }
