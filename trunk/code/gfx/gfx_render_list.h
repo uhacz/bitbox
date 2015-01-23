@@ -202,22 +202,74 @@ namespace bxGfx
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
+
+template< class Tkey >
 struct bxGfxSortList
 {
-    u8* _sortData;
-    u32 _sortKeySizeInBytes;
+    struct Entry
+    {
+        Tkey key;
+        i32 offset_rList;
+        i32 offset_rItem;
+    };
 
-    u32 _size_sortData;
-    u32 _capacity_sortData;
+    struct EntryCmp_Ascending{
+        bool operator() ( const Entry& a, const Entry& b ) const { return a.key < b.key; }
+    };
+    struct EntryCmp_Descending{
+        bool operator() ( const Entry& a, const Entry& b ) const { return a.key > b.key; }
+    };
 
-    void add( const void* keyData, bxGfxRenderList* rList, bxGfxRenderItem* item );
-    void clear();
+    Entry* _sortData;
+    
+    i32 _size_sortData;
+    i32 _capacity_sortData;
 
-    bxGfxSortList();
+    int add( const Tkey key, bxGfxRenderList* rList, bxGfxRenderItem* rItem )
+    {
+        if( _size_sortData >= _capacity_sortData )
+            return -1;
+
+        const int index = _size_sortData++;
+
+        Entry& e = _sortData[index];
+        e.key = key;
+        e.offset_rList = TYPE_POINTER_GET_OFFSET( &e.offset_rList, rList );
+        e.offset_rItem = TYPE_POINTER_GET_OFFSET( &e.offset_rItem, rItem );
+        return index;
+    }
+    
+    void sortAscending()
+    {
+        std::sort( _sortData, _sortData + _size_sortData, EntryCmp_Ascending() );
+    }
+    void sortDescending()
+    {
+        std::sort( _sortData, _sortData + _size_sortData, EntryCmp_Descending() );
+    }
+    void clear()
+    {
+        _size_sortData = 0;  
+    }
+    
+    bxGfxSortList()
+        : _sortData(0)
+        , _size_sortData(0)
+        , _capacity_sortData(0)
+    {}
 };
 
 namespace bxGfx
 {
-    bxGfxSortList* sortList_new( int maxItems, int keySizeInBytes, bxAllocator* allocator );
-    void sortList_delete( bxGfxSortList** rList, bxAllocator* allocator );
+    template< class Tkey >
+    bxGfxSortList<Tkey>* sortList_new( int maxItems, bxAllocator* allocator )
+    {
+        
+    }
+    
+    template< class Tkey >
+    void sortList_delete( bxGfxSortList<Tkey>** rList, bxAllocator* allocator )
+    {
+        
+    }
 }///
