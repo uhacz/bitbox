@@ -148,6 +148,15 @@ struct bxGdiTexture
     }
 };
 
+namespace bxGdi
+{
+    inline bool texture_equal( const bxGdiTexture& a, const bxGdiTexture& b )
+    {
+        return a.id == b.id;
+    }
+}
+
+
 struct bxGdiShader
 {
     union 

@@ -1,13 +1,22 @@
 #include "gdi_render_source.h"
 #include "gdi_context.h"
+#include <util/hash.h>
 
 namespace bxGdi
 {
+    namespace
+    {
+        inline int _ComputeMemorySize( int numStreams )
+        {
+            int memSize = 0;
+            memSize += sizeof( bxGdiRenderSource );
+            memSize += (numStreams - 1) * sizeof( bxGdiVertexBuffer );
+            return memSize;
+        }
+    }
     bxGdiRenderSource* renderSource_new( int numStreams, bxAllocator* allocator )
     {
-        int memSize = 0;
-        memSize += sizeof( bxGdiRenderSource );
-        memSize += ( numStreams - 1 ) * sizeof( bxGdiVertexBuffer );
+        int memSize = _ComputeMemorySize( numStreams );
 
         void* mem = BX_MALLOC( allocator, memSize, 8 );
 
@@ -93,11 +102,13 @@ namespace bxGdi
         SYS_ASSERT( rsource->vertexBuffers[idx].id == 0 );
         
         rsource->vertexBuffers[idx] = vBuffer;
+        rsource->sortHash = murmur3_hash32( rsource, _ComputeMemorySize( rsource->numVertexBuffers ), rsource->numVertexBuffers );
     }
     void renderSource_setIndexBuffer( bxGdiRenderSource* rsource, bxGdiIndexBuffer iBuffer )
     {
         SYS_ASSERT( rsource->indexBuffer.id == 0 );
         rsource->indexBuffer = iBuffer;
+        rsource->sortHash = murmur3_hash32( rsource, _ComputeMemorySize( rsource->numVertexBuffers ), rsource->numVertexBuffers );
     }
 
     

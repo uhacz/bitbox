@@ -23,12 +23,14 @@ struct bxGdiRenderSurface
 
 struct bxGdiRenderSource
 {
+    u32 sortHash;
     i32 numVertexBuffers;
     bxGdiIndexBuffer indexBuffer;
     bxGdiVertexBuffer vertexBuffers[1];
 
     bxGdiRenderSource()
-        : numVertexBuffers(0)
+        : sortHash(0)
+        , numVertexBuffers(0)
     {}
 };
 

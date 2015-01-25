@@ -7,26 +7,6 @@
 #include "gfx_camera.h"
 #include "gfx_lights.h"
 
-union bxGfxSortKey_Color
-{
-    u64 hash;
-    struct
-    {
-        u64 rSource : 8;
-        u64 shader  : 32;
-        u64 depth   : 16;
-        u64 layer   : 8;
-    };
-};
-union bxGfxSortKey_Depth
-{
-    u16 hash;
-    struct
-    {
-        u16 depth;
-    };
-};
-
 namespace bxGfx
 {
     void frameData_fill( FrameData* frameData, const bxGfxCamera& camera, int rtWidth, int rtHeight )
@@ -57,6 +37,8 @@ namespace bxGfx
 ////
 ////
 bxGfxContext::bxGfxContext()
+    : _sortList_color(0)
+    , _sortList_depth(0)
 {}
 
 bxGfxContext::~bxGfxContext()
@@ -111,11 +93,17 @@ int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceM
         bxPolyShape_deallocateShape( &polyShape );
     }
 
+    const int nSortItems = 2048;
+    _sortList_color = bxGfx::sortList_new<bxGfxSortList_Color>( nSortItems, bxDefaultAllocator() );
+    _sortList_depth = bxGfx::sortList_new<bxGfxSortList_Depth>( nSortItems, bxDefaultAllocator() );
+
     return 0;
 }
 
 void bxGfxContext::shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
+    bxGfx::sortList_delete( &_sortList_depth, bxDefaultAllocator() );
+    bxGfx::sortList_delete( &_sortList_color, bxDefaultAllocator() );
     {
         bxGdi::renderSource_releaseAndFree( dev, &_shared.rsource.sphere );
         bxGdi::renderSource_releaseAndFree( dev, &_shared.rsource.box );
@@ -138,21 +126,14 @@ void bxGfxContext::shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourc
 void bxGfxContext::frameBegin( bxGdiContext* ctx )
 {
     ctx->clear();
+
+    _sortList_color->clear();
+    _sortList_depth->clear();
 }
-void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
+
+namespace
 {
-    //bindCamera( ctx, camera );
-    ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
-        
-    ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
-    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
-    ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
-
-    bxGfx::InstanceData instanceData;
-    int numInstances = 0;
-
-    bxGfxRenderItem_Iterator itemIt( rLists[0] );
-    while( itemIt.ok() )
+    void submitRenderItem( bxGdiContext* ctx, bxGfx::InstanceData* instanceData, bxGdiBuffer cbuffer_instanceData, bxGfxRenderItem_Iterator itemIt )
     {
         bxGfxShadingPass shadingPass = itemIt.shadingPass();
 
@@ -166,17 +147,17 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
         const bxGdiRenderSurface* surfaces = itemIt.surfaces();
 
         bxRangeSplitter split = bxRangeSplitter::splitByGrab( nInstances, bxGfx::cMAX_WORLD_MATRICES );
-        while( split.elementsLeft() )
+        while ( split.elementsLeft() )
         {
             const int offset = split.grabbedElements;
             const int grab = split.nextGrab();
 
             for ( int imatrix = 0; imatrix < grab; ++imatrix )
             {
-                bxGfx::instanceData_setMatrix( &instanceData, imatrix, worldMatrices[offset + imatrix] );
+                bxGfx::instanceData_setMatrix( instanceData, imatrix, worldMatrices[offset + imatrix] );
             }
 
-            ctx->backend()->updateCBuffer( _cbuffer_instanceData, &instanceData );
+            ctx->backend()->updateCBuffer( cbuffer_instanceData, instanceData );
 
             if ( ctx->indicesBound() )
             {
@@ -195,9 +176,41 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
                 }
             }
         }
-
-        itemIt.next();
     }
+
+    void submitSortList( bxGdiContext* ctx, bxGdiBuffer cbuffer_instanceData, bxGfxSortList_Color* sList )
+    {
+        const int nItems = sList->_size_sortData;
+        bxGfx::InstanceData instanceData;
+        memset( &instanceData, 0x00, sizeof( instanceData ) );
+        for( int iitem = 0; iitem < nItems; ++iitem )
+        {
+            bxGfxSortList_Color::Entry e = sList->_sortData[iitem];
+
+            bxGfxRenderItem_Iterator itemIt( e.rList, e.rItemIndex );
+            submitRenderItem( ctx, &instanceData, cbuffer_instanceData, itemIt );
+        }
+    }
+
+}///
+
+void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
+{
+    //bindCamera( ctx, camera );
+    ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
+        
+    ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
+    ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
+
+    for( int ilist = 0; ilist < numLists; ++ilist )
+    {
+        bxGfx::sortList_computeColor( _sortList_color, *rLists[ilist], camera );
+    }
+    _sortList_color->sortAscending();
+
+    submitSortList( ctx, _cbuffer_instanceData, _sortList_color );
+
 }
 
 void bxGfxContext::rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera )
@@ -360,67 +373,72 @@ void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTex
 #include "gfx_gui.h"
 void bxGfxPostprocess::_ShowGUI()
 {
-    if( ImGui::Begin( "Postprocess" ) )
+    if ( ImGui::Begin( "gfx" ) )
     {
-        if( ImGui::TreeNode( "ToneMapping" ) )
+        if ( ImGui::TreeNode( "Postprocess" ) )
         {
-            ///
-            const char* itemName_aperture[] = 
+            if ( ImGui::TreeNode( "ToneMapping" ) )
             {
-                "1.4", "2.0", "2.8", "4.0", "5.6", "8.0", "11.0", "16.0",
-            };
-            const float itemValue_aperture[] = 
-            {
-                1.4f, 2.0f, 2.8f, 4.0f, 5.6f, 8.0f, 11.0f, 16.0f,
-            };
-            static int currentItem_aperture = 7;
-            if( ImGui::Combo( "aperture", &currentItem_aperture, itemName_aperture, sizeof( itemValue_aperture ) / sizeof(*itemValue_aperture) )  )
-            {
-                _toneMapping.camera_aperture = itemValue_aperture[ currentItem_aperture ];
-            }
-            
-            ///
-            const char* itemName_shutterSpeed[] = 
-            { 
-                "1/2000", "1/1000", "1/500", "1/250", "1/125", "1/100", "1/60", "1/30", "1/15", "1/8", "1/4", "1/2", "1/1",
-            };
-            const float itemValue_shutterSpeed[] = 
-            {
-                1.f/2000.f, 1.f/1000.f, 1.f/500.f, 1.f/250.f, 1.f/125.f, 1.f/100.f, 1.f/60.f, 1.f/30.f, 1.f/15.f, 1.f/8.f, 1.f/4.f, 1.f/2.f, 1.f/1.f,
-            };
-            static int currentItem_shutterSpeed = 5;
-            if( ImGui::Combo( "shutter speed", &currentItem_shutterSpeed, itemName_shutterSpeed, sizeof( itemValue_shutterSpeed ) / sizeof(*itemValue_shutterSpeed) )  )
-            {
-                _toneMapping.camera_shutterSpeed = itemValue_shutterSpeed[ currentItem_shutterSpeed ];
+                ///
+                const char* itemName_aperture[] =
+                {
+                    "1.4", "2.0", "2.8", "4.0", "5.6", "8.0", "11.0", "16.0",
+                };
+                const float itemValue_aperture[] =
+                {
+                    1.4f, 2.0f, 2.8f, 4.0f, 5.6f, 8.0f, 11.0f, 16.0f,
+                };
+                static int currentItem_aperture = 7;
+                if ( ImGui::Combo( "aperture", &currentItem_aperture, itemName_aperture, sizeof( itemValue_aperture ) / sizeof( *itemValue_aperture ) ) )
+                {
+                    _toneMapping.camera_aperture = itemValue_aperture[currentItem_aperture];
+                }
+
+                ///
+                const char* itemName_shutterSpeed[] =
+                {
+                    "1/2000", "1/1000", "1/500", "1/250", "1/125", "1/100", "1/60", "1/30", "1/15", "1/8", "1/4", "1/2", "1/1",
+                };
+                const float itemValue_shutterSpeed[] =
+                {
+                    1.f / 2000.f, 1.f / 1000.f, 1.f / 500.f, 1.f / 250.f, 1.f / 125.f, 1.f / 100.f, 1.f / 60.f, 1.f / 30.f, 1.f / 15.f, 1.f / 8.f, 1.f / 4.f, 1.f / 2.f, 1.f / 1.f,
+                };
+                static int currentItem_shutterSpeed = 5;
+                if ( ImGui::Combo( "shutter speed", &currentItem_shutterSpeed, itemName_shutterSpeed, sizeof( itemValue_shutterSpeed ) / sizeof( *itemValue_shutterSpeed ) ) )
+                {
+                    _toneMapping.camera_shutterSpeed = itemValue_shutterSpeed[currentItem_shutterSpeed];
+                }
+
+                ///
+                const char* itemName_iso[] =
+                {
+                    "100", "200", "400", "800", "1600", "3200", "6400",
+                };
+                const float itemValue_iso[] =
+                {
+                    100.f, 200.f, 400.f, 800.f, 1600.f, 3200.f, 6400.f,
+                };
+                static int currentItem_iso = 0;
+                if ( ImGui::Combo( "ISO", &currentItem_iso, itemName_iso, sizeof( itemValue_iso ) / sizeof( *itemValue_iso ) ) )
+                {
+                    _toneMapping.camera_iso = itemValue_iso[currentItem_iso];
+                }
+
+                ImGui::Checkbox( "useAutoExposure", (bool*)&_toneMapping.useAutoExposure );
+
+                ImGui::TreePop();
             }
 
-            ///
-            const char* itemName_iso[] = 
+            if ( ImGui::TreeNode( "Fog" ) )
             {
-                "100", "200", "400", "800", "1600", "3200", "6400",
-            };
-            const float itemValue_iso[] = 
-            {
-                100.f, 200.f, 400.f, 800.f, 1600.f, 3200.f, 6400.f,
-            };
-            static int currentItem_iso = 0;
-            if( ImGui::Combo( "ISO", &currentItem_iso, itemName_iso, sizeof( itemValue_iso ) / sizeof(*itemValue_iso) )  )
-            {
-                _toneMapping.camera_iso = itemValue_iso[ currentItem_iso ];
+                ImGui::SliderFloat( "fallOff", &_fog.fallOff, 0.f, 1.f, "%.8", 4.f );
+                ImGui::TreePop();
             }
-
-            ImGui::Checkbox( "useAutoExposure", (bool*)&_toneMapping.useAutoExposure );
 
             ImGui::TreePop();
         }
-
-        if( ImGui::TreeNode( "Fog" ) )
-        {
-            ImGui::SliderFloat( "fallOff", &_fog.fallOff, 0.f, 1.f, "%.8", 4.f );
-            ImGui::TreePop();
-        }
-
         ImGui::End();
     }
+
 }
 

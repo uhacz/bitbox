@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -94,39 +94,39 @@ public:
             //    ++nPointLights;
             //}
 
-            const float a = 10.f;
-            const Vector3 corners[] =
-            {
-                Vector3( -a, -0.f, -a ),
-                Vector3(  a, -0.f, -a ),
-                Vector3(  a,  a, -a ),
-                Vector3( -a,  a, -a ),
+            //const float a = 100.f;
+            //const Vector3 corners[] =
+            //{
+            //    Vector3( -a, -0.f, -a ),
+            //    Vector3(  a, -0.f, -a ),
+            //    Vector3(  a,  a, -a ),
+            //    Vector3( -a,  a, -a ),
 
-                Vector3( -a, -0.f, a ),
-                Vector3(  a, -0.f, a ),
-                Vector3(  a,  a, a ),
-                Vector3( -a,  a, a ),
-            };
-            const int nCorners = sizeof( corners ) / sizeof( *corners );
-            for ( int icorner = 0; icorner < nCorners; ++icorner )
-            {
-                bxGfxLight_Point l;
-                m128_to_xyz( l.position.xyz, corners[icorner].get128() );
-                l.radius = 50.f;
-                bxColor::u32ToFloat3( colors[icorner%nColors], l.color.xyz );
-                l.intensity = 100000.f;
-                pointLights[icorner] = _gfxLights->lightManager.createPointLight( l );
-                ++nPointLights;
-            }
+            //    Vector3( -a, -0.f, a ),
+            //    Vector3(  a, -0.f, a ),
+            //    Vector3(  a,  a, a ),
+            //    Vector3( -a,  a, a ),
+            //};
+            //const int nCorners = sizeof( corners ) / sizeof( *corners );
+            //for ( int icorner = 0; icorner < nCorners; ++icorner )
+            //{
+            //    bxGfxLight_Point l;
+            //    m128_to_xyz( l.position.xyz, corners[icorner].get128() );
+            //    l.radius = 50.f;
+            //    bxColor::u32ToFloat3( colors[icorner%nColors], l.color.xyz );
+            //    l.intensity = 100000.f;
+            //    pointLights[icorner] = _gfxLights->lightManager.createPointLight( l );
+            //    ++nPointLights;
+            //}
             //bxPolyShape_deallocateShape( &shape );
         }
 
         rsource = bxGfxContext::shared()->rsource.sphere;
 
-        rList = bxGfx::renderList_new( 128, 256, bxDefaultAllocator() );
+        rList = bxGfx::renderList_new( 1024 * 4, 1024 * 8, bxDefaultAllocator() );
 
-        camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.5f, 15.f ) );
-        camera1.matrix.world = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.0f ) ), Vector3(0.f, 0.f, 5.f ) ); //Matrix4::translation( Vector3( 0.f ) );
+        camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.5f, 50.f ) );
+        camera1.matrix.world = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.0f ) ), Vector3(0.f, 0.f, 15.f ) ); //Matrix4::translation( Vector3( 0.f ) );
         camera1.params.zNear = 1.f;
         camera1.params.zFar = 20.f;
 
@@ -174,6 +174,7 @@ public:
         const float deltaTime = (float)deltaTimeS;
 
 
+
         bxWindow* win = bxWindow_get();
         if( bxInput_isPeyPressedOnce( &win->input.kbd, bxInput::eKEY_ESC ) )
         {
@@ -181,6 +182,12 @@ public:
         }
 
         bxGfxGUI::newFrame( (float)deltaTimeS );
+
+        if ( ImGui::Begin( "System" ) )
+        {
+            ImGui::Text( "deltaTime: %.5f", deltaTime );
+            ImGui::End();
+        }
 
         _gui_lights.show( _gfxLights, pointLights, nPointLights );
         
@@ -217,33 +224,74 @@ public:
             const float posA = sinf( rot ) * 0.2f;
             const float posB = cosf( posA * 2 * PI + rot ) * 0.2f;
 
-            const Matrix4 world[] = 
+            const int gridX = 7;
+            const int gridY = 5;
+            const int gridZ = 30;
+
+            const float cellSize = 3.f;
+            const float yOffset = 5.f;
+            bxGdiRenderSource* rsources[] =
             {
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, rot ) ), Vector3( -2.f, 0.f, posA ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  0.f, 2.f, posA ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  0.f,-2.f, posB ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f, posB ) ),
-
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, 0.f ) ), Vector3( -2.f, posA - 0.5f, -2.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posB, 2.f - 0.5f, -2.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posB,-2.f - 0.5f, -2.f + posA ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, rot, 1.f ) ), Vector3(  2.f, 0.f - 0.5f, -2.f + posA ) ),
-
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, rot ) ), Vector3( -2.f, posB + 0.5f, 2.f + posA ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posA, 2.f + 0.5f, 2.f + posA ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( rot , rot, 0.f ) ), Vector3(  posA,-2.f + 0.5f, 2.f ) ),
-                Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, rot, 1.f ) ), Vector3(  2.f, 0.f + 0.5f, 2.f ) ),
+                _gfxContext->shared()->rsource.box,
+                _gfxContext->shared()->rsource.sphere,
             };
+            bxGdiShaderFx_Instance* materials[] = 
+            {
+                _gfxMaterials->findMaterial( "red" ),
+                _gfxMaterials->findMaterial( "green" ),
+                _gfxMaterials->findMaterial( "blue" ),
+            };
+            int counter = 0;
+            for( int iz = 0; iz < gridZ; ++iz )
+            {
+                const float z = -gridZ * cellSize * 0.5f + iz*cellSize;
+                for( int iy = 0; iy < gridY; ++iy )
+                {
+                    const float y = -gridY * cellSize * 0.5f + iy*cellSize + yOffset;
+                    for( int ix = 0; ix < gridX; ++ix )
+                    {
+                        const float x = -gridX * cellSize * 0.5f + ix*cellSize;
+                        //const Matrix4 pose = Matrix4( Matrix3::rotationZYX( Vector3( rot, posA, posB ) ), Vector3( x, y, z ) );
+                        const Matrix4 pose = Matrix4( Matrix3::identity(), Vector3( x, y, z ) );
 
-            bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );
+                        bxGdiRenderSource* rs = rsources[counter % 2];
+                        bxGdiShaderFx_Instance* mat = materials[++counter % 3];
 
-            bxGfxRenderListItemDesc itemDesc( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
-            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world + 4, 8 );
+                        bxGfxRenderListItemDesc itemDesc( rs, mat, 0, bxAABB( Vector3( -0.5f ), Vector3( 0.5f ) ) );
+                        bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, &pose, 1 );
+                    }
+                }
+            }
 
-            fxI = _gfxMaterials->findMaterial( "green" );
-            itemDesc.setRenderSource( _gfxContext->shared()->rsource.box );
-            itemDesc.setShader( fxI, 0 );
-            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world, 4 );
+
+
+            //const Matrix4 world[] = 
+            //{
+            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, rot ) ), Vector3( -2.f, 0.f, posA ) ),
+            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  0.f, 2.f, posA ) ),
+            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  0.f,-2.f, posB ) ),
+            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f, posB ) ),
+
+            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, 0.f ) ), Vector3( -2.f, posA - 0.5f, -2.f ) ),
+            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posB, 2.f - 0.5f, -2.f ) ),
+            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posB,-2.f - 0.5f, -2.f + posA ) ),
+            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, rot, 1.f ) ), Vector3(  2.f, 0.f - 0.5f, -2.f + posA ) ),
+
+            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, rot ) ), Vector3( -2.f, posB + 0.5f, 2.f + posA ) ),
+            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posA, 2.f + 0.5f, 2.f + posA ) ),
+            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , rot, 0.f ) ), Vector3(  posA,-2.f + 0.5f, 2.f ) ),
+            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, rot, 1.f ) ), Vector3(  2.f, 0.f + 0.5f, 2.f ) ),
+            //};
+
+            //bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );
+
+            //bxGfxRenderListItemDesc itemDesc( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
+            //bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world + 4, 8 );
+
+            //fxI = _gfxMaterials->findMaterial( "green" );
+            //itemDesc.setRenderSource( _gfxContext->shared()->rsource.box );
+            //itemDesc.setShader( fxI, 0 );
+            //bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world, 4 );
         }
 
         {

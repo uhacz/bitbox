@@ -76,9 +76,11 @@ typedef atomic64 atomic;
 #endif
 
 #define BIT_OFFSET(n) (1<<n)
+#define PTR_TO_U32( p )   ((u32) (u32*) (p))
+#define U32_TO_PTR( ui )  ((void *)(u32*)((u32)ui))
 
 #define TYPE_OFFSET_GET_POINTER(type,offset) ( (offset)? (type*)((iptr)(&offset)+(iptr)(offset)) : (type*)0 )
-#define TYPE_POINTER_GET_OFFSET(base, address) ( (base) ? (u32)(PtrToUint32(address) - PtrToUint32(base)) : 0 )
+#define TYPE_POINTER_GET_OFFSET(base, address) ( (base) ? (u32)(PTR_TO_U32(address) - PTR_TO_U32(base)) : 0 )
 
 #ifdef _MSC_VER
 #define BIT_ALIGNMENT( alignment )	__declspec(align(alignment))	
