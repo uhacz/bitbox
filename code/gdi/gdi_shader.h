@@ -9,6 +9,11 @@ struct bxGdiShaderPass
     bxGdiHwStateDesc hwState;
 };
 
+namespace bxGdi
+{
+    u32 shaderPass_computeHash( const bxGdiShaderPass& pass );
+}
+
 struct bxGdiShaderFx
 {
         struct ResourceDesc
@@ -133,34 +138,34 @@ struct bxGdiShaderFx_Instance
 
     ///
     ///
-    u32 sortHash() const { return _sortHash; }
+    u32 sortHash( int passIndex );
 
     int isBufferDirty( int index ) const 
     {
         SYS_ASSERT( index < 32 );
-	    return _flag_cbuffeDirty & ( 1 << index );
+	    return _flag_cbufferDirty & ( 1 << index );
     }
     void _SetBufferDirty( int index )
     {
         SYS_ASSERT( index < 32 );
-	    _flag_cbuffeDirty |= ( 1 << index );
+	    _flag_cbufferDirty |= ( 1 << index );
     }
     void _MarkBufferAsClean( int index )
     {
         SYS_ASSERT( index < 32 );
-        _flag_cbuffeDirty &= ~( 1 << index );
+        _flag_cbufferDirty &= ~( 1 << index );
     }
 
 public:
     bxGdiShaderFx*    _fx; // weakRef
+    u32*              _sortHash;
     bxGdiTexture*     _textures;
     bxGdiSamplerDesc* _samplers;
     bxGdiBuffer*      _cbuffers;
     u8*				  _dataCBuffers;
 	u32				  _sizeDataCBuffers;
-	u32               _sortHash;
-    u32				  _flag_cbuffeDirty : 1;
-    u32               _flag_texturesDirty : 1;
+    u32               _flag_texturesDirty;
+    u32				  _flag_cbufferDirty;
 };
 
 

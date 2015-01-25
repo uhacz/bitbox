@@ -65,6 +65,12 @@ namespace bxGdi
         int index = array::find1( begin, end, array::OpEqual<u32>( hashedName ) );
         return ( index == -1 ) ? 0 : fx->_uniforms + index;
     }
+
+    u32 shaderPass_computeHash(const bxGdiShaderPass& pass)
+    {
+        const u32 seed = 0xBAADF00D;
+        return murmur3_hash32( &pass, sizeof( bxGdiShaderPass ), seed );
+    }
 }
 
 void bxGdiShaderFx_Instance::setTexture( const char* name, bxGdiTexture tex )
@@ -79,8 +85,10 @@ void bxGdiShaderFx_Instance::setTexture( const char* name, bxGdiTexture tex )
         if( !param )
             break;
 
+        SYS_ASSERT( param->passIndex < 31 );
+        
+        _flag_texturesDirty |= ( !bxGdi::texture_equal( _textures[param->index], tex ) ) << param->passIndex;
         _textures[param->index] = tex;
-        _flag_texturesDirty |= 1;
 
         index = param->index + 1;
     } while( !done );
@@ -136,6 +144,38 @@ void bxGdiShaderFx_Instance::uploadCBuffers(bxGdiContextBackend* ctx)
     }
 }
 
+u32 bxGdiShaderFx_Instance::sortHash(int passIndex)
+{
+    const u32 passMask = 1 << passIndex;
+    if( _flag_texturesDirty & passMask )
+    {
+        _flag_texturesDirty &= ~(passMask);
+
+        const u32 passHash = bxGdi::shaderPass_computeHash( _fx->_passes[passIndex] );
+
+        const bxGdiShaderFx::TextureDesc* textureDescs = _fx->_textures;
+        const int numTextures = _fx->_numTextures;
+
+        u32 textureHash = 0;
+
+        bxGdiTexture textures[bxGdi::cMAX_TEXTURES];
+        memset( textures, 0x00, sizeof( textures ) );
+
+        for( u8 itexture = 0; itexture < _fx->_numTextures; ++itexture )
+        {
+            const bxGdiShaderFx::TextureDesc desc = textureDescs[itexture];
+            if( textureDescs[itexture].passIndex == passIndex )
+            {
+                SYS_ASSERT( itexture == desc.index );
+                textures[desc.slot] = _textures[desc.index];
+            }
+        }
+
+        _sortHash[passIndex] = murmur3_hash32( textures, sizeof( textures ), passHash );
+    }
+
+    return _sortHash[passIndex];
+}
 
 namespace bxGdi
 {
@@ -449,6 +489,7 @@ namespace bxGdi
 
 	    u32 memSize = 0;
         memSize += sizeof( bxGdiShaderFx_Instance );
+        memSize += fx->_numPasses * sizeof( u32 );
 	    memSize += fx->_numTextures * sizeof(bxGdiTexture);
 	    memSize += fx->_numSamplers * sizeof(bxGdiSamplerDesc);
 	    memSize += fx->_numCBuffers * sizeof(bxGdiBuffer);
@@ -463,6 +504,7 @@ namespace bxGdi
         bxBufferChunker chunker( mem, memSize )
             ;
         bxGdiShaderFx_Instance* fxInstance = chunker.add< bxGdiShaderFx_Instance >();
+        fxInstance->_sortHash = chunker.add< u32 >( fx->_numPasses );
         fxInstance->_textures = chunker.add<bxGdiTexture>( fx->_numTextures );
         fxInstance->_samplers = chunker.add<bxGdiSamplerDesc>( fx->_numSamplers );
         fxInstance->_cbuffers = chunker.add<bxGdiBuffer>( fx->_numCBuffers );
@@ -470,9 +512,8 @@ namespace bxGdi
         fxInstance->_sizeDataCBuffers = cbuffersSize;
         chunker.check();
 
-        fxInstance->_sortHash = 0;
-        fxInstance->_flag_cbuffeDirty = 0;
-        fxInstance->_flag_texturesDirty = 0;
+        fxInstance->_flag_cbufferDirty = 0;
+        fxInstance->_flag_texturesDirty = 0xFFFFFFFF;
 
         for( int i = 0; i < fx->_numCBuffers; ++i )
         {

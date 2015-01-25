@@ -5,7 +5,8 @@
 #include <gdi/gdi_render_source.h>
 
 #include "gfx_type.h"
-
+#include <algorithm>
+#include <util/buffer_utils.h>
 ////
 ////
 struct bxGfxRenderEffect
@@ -164,29 +165,31 @@ namespace bxGfx
 //////////////////////////////////////////////////////////////////////////
 struct bxGfxRenderItem_Iterator
 {
-    bxGfxRenderItem_Iterator( bxGfxRenderList* rList )
+    bxGfxRenderItem_Iterator( const bxGfxRenderList* rList, u32 beginItemIndex = 0 )
         : _rList( rList )
-        , _currentItem( rList->_items )
+        , _currentItem( rList->_items + beginItemIndex )
         , _endItem( rList->_items + rList->_size.items )
     {}
 
-    int ok() const { return _currentItem < _endItem; }
-    void next() { ++_currentItem; }
+    int ok   () const { return _currentItem < _endItem; }
+    void next()       { ++_currentItem; }
 
     bxGdiRenderSource* renderSource()       { return _rList->_rsources[_currentItem->index_renderData]; }
-    bxGfxShadingPass   shadingPass() const { return _rList->_shaders[_currentItem->index_renderData]; }
-    const bxAABB&      aabb() const { return _rList->_localAABBs[_currentItem->index_renderData]; }
+    bxGfxShadingPass   shadingPass () const { return _rList->_shaders[_currentItem->index_renderData]; }
+    const bxAABB&      aabb        () const { return _rList->_localAABBs[_currentItem->index_renderData]; }
 
-    const bxGdiRenderSurface* surfaces() const { return _rList->_surfaces + _currentItem->bucket_surfaces.index; }
-    int nSurfaces() const { return _currentItem->bucket_surfaces.count; }
+    const bxGdiRenderSurface* surfaces () const { return _rList->_surfaces + _currentItem->bucket_surfaces.index; }
+    int                       nSurfaces() const { return _currentItem->bucket_surfaces.count; }
 
-    const Matrix4*     worldMatrices() const { return _rList->_worldMatrices + _currentItem->bucket_instances.index; }
-    int                nWorldMatrices() const { return _currentItem->bucket_instances.count; }
+    const Matrix4* worldMatrices () const { return _rList->_worldMatrices + _currentItem->bucket_instances.index; }
+    int            nWorldMatrices() const { return _currentItem->bucket_instances.count; }
 
-    u8                 renderMask() const { return _currentItem->mask_render; }
-    u8                 renderLayer() const { return _currentItem->layer; }
+    u8 renderMask () const { return _currentItem->mask_render; }
+    u8 renderLayer() const { return _currentItem->layer; }
 
-    bxGfxRenderList* _rList;
+    u32 itemIndex() const { SYS_ASSERT( (_currentItem - _rList->_items) < 0xFFFFFFFF );  return u32( _currentItem - _rList->_items ); }
+
+    const bxGfxRenderList* _rList;
     bxGfxRenderItem* _currentItem;
     bxGfxRenderItem* _endItem;
 };
@@ -206,18 +209,20 @@ namespace bxGfx
 template< class Tkey >
 struct bxGfxSortList
 {
+#pragma pack( push, 1 )
     struct Entry
     {
         Tkey key;
-        i32 offset_rList;
-        i32 offset_rItem;
+        u32 rItemIndex;
+        const bxGfxRenderList* rList;
     };
+#pragma pack(pop)
 
     struct EntryCmp_Ascending{
-        bool operator() ( const Entry& a, const Entry& b ) const { return a.key < b.key; }
+        bool operator() ( const Entry& a, const Entry& b ) const { return a.key.hash < b.key.hash; }
     };
     struct EntryCmp_Descending{
-        bool operator() ( const Entry& a, const Entry& b ) const { return a.key > b.key; }
+        bool operator() ( const Entry& a, const Entry& b ) const { return a.key.hash > b.key.hash; }
     };
 
     Entry* _sortData;
@@ -225,7 +230,7 @@ struct bxGfxSortList
     i32 _size_sortData;
     i32 _capacity_sortData;
 
-    int add( const Tkey key, bxGfxRenderList* rList, bxGfxRenderItem* rItem )
+    int add( const Tkey key, const bxGfxRenderList* rList, u32 rItemIndex )
     {
         if( _size_sortData >= _capacity_sortData )
             return -1;
@@ -234,8 +239,8 @@ struct bxGfxSortList
 
         Entry& e = _sortData[index];
         e.key = key;
-        e.offset_rList = TYPE_POINTER_GET_OFFSET( &e.offset_rList, rList );
-        e.offset_rItem = TYPE_POINTER_GET_OFFSET( &e.offset_rItem, rItem );
+        e.rItemIndex = rItemIndex;
+        e.rList = rList;
         return index;
     }
     
@@ -251,25 +256,64 @@ struct bxGfxSortList
     {
         _size_sortData = 0;  
     }
-    
-    bxGfxSortList()
-        : _sortData(0)
-        , _size_sortData(0)
-        , _capacity_sortData(0)
-    {}
 };
+
+union bxGfxSortKey_Color
+{
+    u64 hash;
+    struct
+    {
+        u64 mesh     : 24;
+        u64 shader   : 32;
+        //u64 depth  : 16;
+        u64 layer    : 8;
+    };
+};
+
+struct bxGfxSortKey_Depth
+{
+    u16 depth;
+};
+
+typedef bxGfxSortList< bxGfxSortKey_Color > bxGfxSortList_Color;
+typedef bxGfxSortList< bxGfxSortKey_Depth > bxGfxSortList_Depth;
+
 
 namespace bxGfx
 {
-    template< class Tkey >
-    bxGfxSortList<Tkey>* sortList_new( int maxItems, bxAllocator* allocator )
+    template< class Tlist >
+    Tlist* sortList_new( int maxItems, bxAllocator* allocator )
     {
-        
+        int memorySize = 0;
+        memorySize += sizeof( Tlist );
+        memorySize += maxItems * sizeof( Tlist::Entry );
+
+        void* memoryHandle = BX_MALLOC( allocator, memorySize, 16 );
+        memset( memoryHandle, 0x00, memorySize );
+
+        bxBufferChunker chunker( memoryHandle, memorySize );
+
+        Tlist* sList = chunker.add< Tlist >();
+        sList->_sortData = chunker.add< Tlist::Entry >( maxItems );
+
+        chunker.check();
+
+        sList->_size_sortData = 0;
+        sList->_capacity_sortData = maxItems;
+
+        return sList;
     }
     
-    template< class Tkey >
-    void sortList_delete( bxGfxSortList<Tkey>** rList, bxAllocator* allocator )
+    template< class Tlist >
+    void sortList_delete( Tlist** sList, bxAllocator* allocator )
     {
-        
+        BX_FREE0( allocator, sList[0] );
     }
 }///
+
+
+namespace bxGfx
+{
+    void sortList_computeColor( bxGfxSortList_Color* sList, const bxGfxRenderList& rList, const bxGfxCamera& camera, u8 renderMask = bxGfx::eRENDER_MASK_COLOR );
+    void sortList_computeDepth( bxGfxSortList_Depth* sList, const bxGfxRenderList& rList, const bxGfxCamera& camera, u8 renderMask = bxGfx::eRENDER_MASK_DEPTH );
+}

@@ -484,36 +484,40 @@ bxGfxLightsGUI::bxGfxLightsGUI()
 
 void bxGfxLightsGUI::show( bxGfxLights* lights, const bxGfxLightManager::PointInstance* instances, int nInstances )
 {
-    if( ImGui::Begin( "Lights" ) )
+    if( ImGui::Begin( "gfx" ) )
     {
-        if( ImGui::TreeNode( "Point Lights" ) )
+        if( ImGui::TreeNode( "Lightning" ) )
         {
-            for( int i = 0; i < nInstances; ++i )
+            if ( ImGui::TreeNode( "Point Lights" ) )
             {
-                bxGfxLightManager::PointInstance instance = instances[i];
-
-                char instanceName[32];
-                sprintf_s( instanceName, "%u", instance.id );
-
-                if ( ImGui::TreeNode( instanceName ) )
+                for ( int i = 0; i < nInstances; ++i )
                 {
+                    bxGfxLightManager::PointInstance instance = instances[i];
 
-                    bxGfxLight_Point data = lights->lightManager.pointLight( instance );
+                    char instanceName[32];
+                    sprintf_s( instanceName, "%u", instance.id );
 
-                    bool changed = false;
-
-                    changed |= ImGui::InputFloat3( "position", data.position.xyz, 3 );
-                    changed |= ImGui::InputFloat( "radius", &data.radius, 0.1f, 1.f );
-                    changed |= ImGui::ColorEdit3( "color", data.color.xyz );
-                    changed |= ImGui::InputFloat( "intensity", &data.intensity, 0.1f, 1.f );
-
-                    if ( changed )
+                    if ( ImGui::TreeNode( instanceName ) )
                     {
-                        lights->lightManager.setPointLight( instance, data );
+
+                        bxGfxLight_Point data = lights->lightManager.pointLight( instance );
+
+                        bool changed = false;
+
+                        changed |= ImGui::InputFloat3( "position", data.position.xyz, 3 );
+                        changed |= ImGui::InputFloat( "radius", &data.radius, 0.1f, 1.f );
+                        changed |= ImGui::ColorEdit3( "color", data.color.xyz );
+                        changed |= ImGui::InputFloat( "intensity", &data.intensity, 0.1f, 1.f );
+
+                        if ( changed )
+                        {
+                            lights->lightManager.setPointLight( instance, data );
+                        }
+                        ImGui::TreePop();
                     }
-                    ImGui::TreePop();
                 }
-            }        
+                ImGui::TreePop();
+            }
             ImGui::TreePop();
         }
         ImGui::End();

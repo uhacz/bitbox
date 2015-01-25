@@ -37,6 +37,9 @@ private:
 
     bxGdiTexture _framebuffer[bxGfx::eFRAMEBUFFER_COUNT];
 
+    bxGfxSortList_Color* _sortList_color;
+    bxGfxSortList_Depth* _sortList_depth;
+
     static bxGfx::Shared _shared;
 };
 
