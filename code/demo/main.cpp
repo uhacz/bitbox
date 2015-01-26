@@ -26,7 +26,7 @@ static bxGdiRenderSource* rsource = 0;
 static bxGfxRenderList* rList = 0;
 static bxGfxCamera camera;
 static bxGfxCamera camera1;
-static bxGfxCameraInputContext cameraInputCtx;
+static bxGfxCamera_InputContext cameraInputCtx;
 
 static bxGfxLightManager::PointInstance pointLights[MAX_LIGHTS];
 static int nPointLights = 0;
@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -186,25 +186,12 @@ public:
         if ( ImGui::Begin( "System" ) )
         {
             ImGui::Text( "deltaTime: %.5f", deltaTime );
+            ImGui::Text( "FPS: %.5f", 1.f / deltaTime );
             ImGui::End();
         }
 
         _gui_lights.show( _gfxLights, pointLights, nPointLights );
         
-        //u32 shaderGUIid = _gui_shaderFx.beginFx( "native" );
-        //if( shaderGUIid )             
-        //{
-        //    _gui_shaderFx.addColor( fxI, "fresnelColor" );
-        //    _gui_shaderFx.addColor( fxI, "diffuseColor" );
-        //    _gui_shaderFx.addFloat( fxI, "diffuseCoeff", 0.f, 1.f );
-        //    _gui_shaderFx.addFloat( fxI, "roughnessCoeff", 0.f, 1.f );
-        //    _gui_shaderFx.addFloat( fxI, "specularCoeff", 0.f, 1.f );
-        //    _gui_shaderFx.addFloat( fxI, "ambientCoeff", 0.005f, 0.2f );
-        //}
-        //_gui_shaderFx.endFx( shaderGUIid );
-
-
-
         bxGfx::cameraUtil_updateInput( &cameraInputCtx, &win->input, 1.f, deltaTime );
         camera.matrix.world = bxGfx::cameraUtil_movement( camera.matrix.world
             , cameraInputCtx.leftInputX * 0.25f 
@@ -212,7 +199,6 @@ public:
             , cameraInputCtx.rightInputX * deltaTime * 5.f
             , cameraInputCtx.rightInputY * deltaTime * 5.f
             , cameraInputCtx.upDown * 0.25f );
-        
         
         rList->clear();
 
@@ -262,36 +248,6 @@ public:
                     }
                 }
             }
-
-
-
-            //const Matrix4 world[] = 
-            //{
-            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, rot ) ), Vector3( -2.f, 0.f, posA ) ),
-            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  0.f, 2.f, posA ) ),
-            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  0.f,-2.f, posB ) ),
-            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 0.f, 1.f ) ), Vector3(  2.f, 0.f, posB ) ),
-
-            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, 0.f ) ), Vector3( -2.f, posA - 0.5f, -2.f ) ),
-            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posB, 2.f - 0.5f, -2.f ) ),
-            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posB,-2.f - 0.5f, -2.f + posA ) ),
-            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, rot, 1.f ) ), Vector3(  2.f, 0.f - 0.5f, -2.f + posA ) ),
-
-            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, 1.f, rot ) ), Vector3( -2.f, posB + 0.5f, 2.f + posA ) ),
-            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , 0.f, rot ) ), Vector3(  posA, 2.f + 0.5f, 2.f + posA ) ),
-            //    Matrix4( Matrix3::rotationZYX( Vector3( rot , rot, 0.f ) ), Vector3(  posA,-2.f + 0.5f, 2.f ) ),
-            //    Matrix4( Matrix3::rotationZYX( Vector3( 0.1f, rot, 1.f ) ), Vector3(  2.f, 0.f + 0.5f, 2.f ) ),
-            //};
-
-            //bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );
-
-            //bxGfxRenderListItemDesc itemDesc( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
-            //bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world + 4, 8 );
-
-            //fxI = _gfxMaterials->findMaterial( "green" );
-            //itemDesc.setRenderSource( _gfxContext->shared()->rsource.box );
-            //itemDesc.setShader( fxI, 0 );
-            //bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world, 4 );
         }
 
         {
@@ -324,11 +280,9 @@ public:
             _gfxPostprocess->sky( _gdiContext, outputTexture, _gfxLights->sunLight() );
         }
 
-
         _gfxLights->bind( _gdiContext );
 
         _gfxContext->frameDraw( _gdiContext, camera, &rList, 1 );
-
 
         _gdiContext->clear();
         _gfxContext->bindCamera( _gdiContext, camera );

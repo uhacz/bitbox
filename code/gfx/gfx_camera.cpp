@@ -4,14 +4,14 @@
 #include <math.h>
 #include <util/debug.h>
 
-bxGfxCameraMatrix::bxGfxCameraMatrix()
+bxGfxCamera_Matrix::bxGfxCamera_Matrix()
     : world( Matrix4::identity() )
     , view( Matrix4::identity() )
     , proj( Matrix4::identity() )
     , viewProj( Matrix4::identity() )
 {}
 
-bxGfxCameraParams::bxGfxCameraParams()
+bxGfxCamera_Params::bxGfxCamera_Params()
     : hAperture( 1.8f )
 	, vAperture( 1.f )
 	, focalLength( 50.f )
@@ -21,11 +21,11 @@ bxGfxCameraParams::bxGfxCameraParams()
     , orthoHeight( 10.f )
 {}
 
-float bxGfxCameraParams::aspect() const
+float bxGfxCamera_Params::aspect() const
 {
     return ( abs(vAperture) < 0.0001f ) ? hAperture : hAperture / vAperture;    
 }
-float bxGfxCameraParams::fov() const
+float bxGfxCamera_Params::fov() const
 {
     return 2.f * atan( ( 0.5f * hAperture ) / ( focalLength * 0.03937f ) ); 
 }
@@ -82,13 +82,13 @@ namespace bxGfx
 	    const Matrix4 newProj = sc * tr * proj;
 	    return newProj;
     }
-	Matrix4 cameraMatrix_projection( const bxGfxCameraParams& params, int rtWidth, int rtHeight )
+	Matrix4 cameraMatrix_projection( const bxGfxCamera_Params& params, int rtWidth, int rtHeight )
     {
         const float aspectCamera = params.aspect();
         const float fov = params.fov();
 	    return cameraMatrix_projection( aspectCamera, fov, params.zNear, params.zFar, rtWidth, rtHeight );
     }
-    Matrix4 cameraMatrix_ortho( const bxGfxCameraParams& params, int rtWidth, int rtHeight )
+    Matrix4 cameraMatrix_ortho( const bxGfxCamera_Params& params, int rtWidth, int rtHeight )
     {
         return cameraMatrix_ortho( params.orthoWidth, params.orthoHeight, params.zNear, params.zFar, rtWidth, rtHeight );
     }
@@ -137,7 +137,7 @@ namespace bxGfx
     {
         return inverse( world );
     }
-	bxGdiViewport cameraParams_viewport( const bxGfxCameraParams& params, int dstWidth, int dstHeight, int srcWidth, int srcHeight )
+	bxGdiViewport cameraParams_viewport( const bxGfxCamera_Params& params, int dstWidth, int dstHeight, int srcWidth, int srcHeight )
     {
     	const int windowWidth  = dstWidth;
 	    const int windowHeight = dstHeight;
@@ -178,7 +178,7 @@ namespace bxGfx
 
         return bxGdiViewport( offsetX, offsetY, imageWidth, imageHeight );
     }
-    void cameraMatrix_compute( bxGfxCameraMatrix* mtx, const bxGfxCameraParams& params, const Matrix4& world, int rtWidth, int rtHeight )
+    void cameraMatrix_compute( bxGfxCamera_Matrix* mtx, const bxGfxCamera_Params& params, const Matrix4& world, int rtWidth, int rtHeight )
     {
         mtx->view = cameraMatrix_view( world );
 	    mtx->proj = cameraMatrix_projection( params, rtWidth, rtHeight );
@@ -198,7 +198,7 @@ namespace bxGfx
 #include <util/signal_filter.h>
 namespace bxGfx
 {
-    void cameraUtil_updateInput(bxGfxCameraInputContext* cameraCtx, const bxInput* input, float mouseSensitivityInPix, float dt )
+    void cameraUtil_updateInput(bxGfxCamera_InputContext* cameraCtx, const bxInput* input, float mouseSensitivityInPix, float dt )
     {
         const int fwd   = bxInput_isKeyPressed( &input->kbd, 'W' );
         const int back  = bxInput_isKeyPressed( &input->kbd, 'S' );
@@ -398,7 +398,7 @@ namespace bxGfx
         corners[7] = camera_unprojectNormalized( rightUpperFar , viewProjInv );
     }
 
-    bxGfxViewFrustumLRBT viewFrustum_tile( const Matrix4& viewProjInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize )
+    bxGfxViewFrustum_LRBT viewFrustum_tile( const Matrix4& viewProjInv, int tileX, int tileY, int numTilesX, int numTilesY, int tileSize )
     {
         Vector3 corners[8];
         viewFrustum_computeTileCorners( corners, viewProjInv, tileX, tileY, numTilesX, numTilesY, tileSize );
@@ -416,7 +416,7 @@ namespace bxGfx
         const Vector4 N(0.f);
         const Vector4 F(0.f);
 
-        bxGfxViewFrustumLRBT f;
+        bxGfxViewFrustum_LRBT f;
         toSoa( f.xPlaneLRBT, f.yPlaneLRBT, f.zPlaneLRBT, f.wPlaneLRBT, L, R, B, T );
         return f;
     }

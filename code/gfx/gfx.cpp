@@ -131,69 +131,6 @@ void bxGfxContext::frameBegin( bxGdiContext* ctx )
     _sortList_depth->clear();
 }
 
-namespace
-{
-    void submitRenderItem( bxGdiContext* ctx, bxGfx::InstanceData* instanceData, bxGdiBuffer cbuffer_instanceData, bxGfxRenderItem_Iterator itemIt )
-    {
-        bxGfxShadingPass shadingPass = itemIt.shadingPass();
-
-        bxGdi::renderSource_enable( ctx, itemIt.renderSource() );
-        bxGdi::shaderFx_enable( ctx, shadingPass.fxI, shadingPass.passIndex );
-
-        const int nInstances = itemIt.nWorldMatrices();
-        const int nSurfaces = itemIt.nSurfaces();
-
-        const Matrix4* worldMatrices = itemIt.worldMatrices();
-        const bxGdiRenderSurface* surfaces = itemIt.surfaces();
-
-        bxRangeSplitter split = bxRangeSplitter::splitByGrab( nInstances, bxGfx::cMAX_WORLD_MATRICES );
-        while ( split.elementsLeft() )
-        {
-            const int offset = split.grabbedElements;
-            const int grab = split.nextGrab();
-
-            for ( int imatrix = 0; imatrix < grab; ++imatrix )
-            {
-                bxGfx::instanceData_setMatrix( instanceData, imatrix, worldMatrices[offset + imatrix] );
-            }
-
-            ctx->backend()->updateCBuffer( cbuffer_instanceData, instanceData );
-
-            if ( ctx->indicesBound() )
-            {
-                for ( int isurface = 0; isurface < nSurfaces; ++isurface )
-                {
-                    const bxGdiRenderSurface& surf = surfaces[isurface];
-                    bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, grab );
-                }
-            }
-            else
-            {
-                for ( int isurface = 0; isurface < nSurfaces; ++isurface )
-                {
-                    const bxGdiRenderSurface& surf = surfaces[isurface];
-                    bxGdi::renderSurface_drawInstanced( ctx, surf, grab );
-                }
-            }
-        }
-    }
-
-    void submitSortList( bxGdiContext* ctx, bxGdiBuffer cbuffer_instanceData, bxGfxSortList_Color* sList )
-    {
-        const int nItems = sList->_size_sortData;
-        bxGfx::InstanceData instanceData;
-        memset( &instanceData, 0x00, sizeof( instanceData ) );
-        for( int iitem = 0; iitem < nItems; ++iitem )
-        {
-            bxGfxSortList_Color::Entry e = sList->_sortData[iitem];
-
-            bxGfxRenderItem_Iterator itemIt( e.rList, e.rItemIndex );
-            submitRenderItem( ctx, &instanceData, cbuffer_instanceData, itemIt );
-        }
-    }
-
-}///
-
 void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
 {
     //bindCamera( ctx, camera );
@@ -209,7 +146,7 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
     }
     _sortList_color->sortAscending();
 
-    submitSortList( ctx, _cbuffer_instanceData, _sortList_color );
+    bxGfx::submitSortList( ctx, _cbuffer_instanceData, _sortList_color );
 
 }
 
@@ -379,6 +316,7 @@ void bxGfxPostprocess::_ShowGUI()
         {
             if ( ImGui::TreeNode( "ToneMapping" ) )
             {
+                ImGui::InputFloat( "adaptation speed", &_toneMapping.tau );
                 ///
                 const char* itemName_aperture[] =
                 {

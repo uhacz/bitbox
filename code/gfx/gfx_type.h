@@ -57,6 +57,12 @@ namespace bxGfx
 
 namespace bxGfx
 {
+    enum EShadow
+    {
+        eSHADOW_NUM_CASCADES = 4,
+        eSHADOW_CASCADE_SIZE = 1024,
+    };
+    
     enum EFramebuffer
     {
         eFRAMEBUFFER_COLOR = 0,
@@ -76,6 +82,12 @@ namespace bxGfx
         eBIND_SLOT_LIGHTS_TILE_INDICES_BUFFER = 1,
     };
 
+    enum ERenderItemMask
+    {
+        eRENDER_ITEM_USE_STREAMS = BIT_OFFSET(0),
+        eRENDER_ITEM_USE_FX = BIT_OFFSET(1),
+        eRENDER_ITEM_DEFAULT_MASK = eRENDER_ITEM_USE_STREAMS | eRENDER_ITEM_USE_FX,
+    };
 
     struct Shared
     {

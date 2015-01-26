@@ -255,7 +255,7 @@ void bxGfxViewFrustum_Tiles::setup( const Matrix4& viewProjInv, int numTilesX, i
         _memorySize = memSize;
 
         bxBufferChunker chunker( _memoryHandle, _memorySize );
-        _frustums = chunker.add< bxGfxViewFrustumLRBT >( numTiles );
+        _frustums = chunker.add< bxGfxViewFrustum_LRBT >( numTiles );
         _validFlags = chunker.add< u8 >( numTiles );
         chunker.check();
     }
@@ -267,7 +267,7 @@ void bxGfxViewFrustum_Tiles::setup( const Matrix4& viewProjInv, int numTilesX, i
     _tileSize = tileSize;
 }
 
-const bxGfxViewFrustumLRBT& bxGfxViewFrustum_Tiles::frustum( int tileX, int tileY ) const
+const bxGfxViewFrustum_LRBT& bxGfxViewFrustum_Tiles::frustum( int tileX, int tileY ) const
 {
     const int index = _numTilesX * tileY + tileX;
     SYS_ASSERT( index < (_numTilesX*_numTilesY) );

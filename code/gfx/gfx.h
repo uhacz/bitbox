@@ -1,10 +1,11 @@
 #pragma once
 
 #include "gfx_render_list.h"
-
+#include "gfx_sort_list.h"
 ////
 ////
 class bxResourceManager;
+struct bxGfxCamera_Params;
 
 struct bxGfxContext
 {
@@ -39,8 +40,32 @@ private:
 
     bxGfxSortList_Color* _sortList_color;
     bxGfxSortList_Depth* _sortList_depth;
+    bxGfxSortList_Shadow* _sortList_shadow;
 
     static bxGfx::Shared _shared;
+};
+
+struct bxGfxShadows_Cascade
+{
+    Matrix4 view;
+    Matrix4 proj;
+    Vector4 zNear_zFar;
+};
+
+struct bxGfxShadows 
+{
+    void splitDepth( float splits[ bxGfx::eSHADOW_NUM_CASCADES+1], const bxGfxCamera_Params& params, float zMax, float lambda );
+    void computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCADES+1], const bxGfxCamera& camera, const Vector3& lightDirection );
+       
+
+    bxGfxShadows();
+    void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void _Shurdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+
+public:
+    bxGfxShadows_Cascade _cascade[ bxGfx::eSHADOW_NUM_CASCADES ];
+    bxGdiTexture _depthTexture;
+    bxGdiShaderFx_Instance* _fxI;
 };
 
 ////
@@ -76,7 +101,7 @@ private:
         bxGdiTexture initialLuminance;
 
         ToneMapping()
-            : currentLuminanceTexture(0), tau( 1.25f ), autoExposureKeyValue( 0.18f )
+            : currentLuminanceTexture(0), tau( 5.f ), autoExposureKeyValue( 0.18f )
             , camera_aperture( 16.f ), camera_shutterSpeed( 1.f / 100.f ), camera_iso(100.f)
             , useAutoExposure(1)
         {}
