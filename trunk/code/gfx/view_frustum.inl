@@ -5,7 +5,7 @@ inline __m128 dotSoa( const __m128& xxxx, const __m128& yyyy, const __m128& zzzz
     return vec_madd( zzzz,zzzz1, vec_madd(xxxx,xxxx1, vec_mul(yyyy,yyyy1)) );
 }
 
-inline int viewFrustum_SphereIntersectLRBT( const bxGfxViewFrustumLRBT& f, const Vector4& sphere, const floatInVec& tolerance )
+inline int viewFrustum_SphereIntersectLRBT( const bxGfxViewFrustum_LRBT& f, const Vector4& sphere, const floatInVec& tolerance )
 {
     const __m128 zero4 = _mm_set_ps1( 0.0f );
     const __m128 tolerance4 = ( tolerance.get128() );

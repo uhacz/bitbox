@@ -31,7 +31,7 @@ struct in_PS
     float4 h_pos	: SV_Position;
     float4 s_pos    : TEXCOORD0;
 	float3 w_pos	: TEXCOORD1;
-	nointerpolation float3 w_normal:TEXCOORD2;
+	/*nointerpolation*/ float3 w_normal:TEXCOORD2;
 };
 
 struct out_PS

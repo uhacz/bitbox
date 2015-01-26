@@ -2,7 +2,10 @@
 
 #include <gdi/gdi_render_source.h>
 #include <gdi/gdi_shader.h>
+#include <gdi/gdi_context.h>
+
 #include <util/bbox.h>
+#include <util/range_splitter.h>
 
 
 bxGfxRenderList::bxGfxRenderList()
@@ -146,85 +149,55 @@ void bxGfx::renderList_delete( bxGfxRenderList** rList, bxAllocator* allocator )
     BX_FREE0( allocator, rList[0] );
 }
 
-#include "gfx_camera.h"
-
-namespace
+void bxGfx::submitRenderItem( bxGdiContext* ctx, InstanceData* instanceData, bxGdiBuffer cbuffer_instanceData, bxGfxRenderItem_Iterator itemIt, unsigned flags )
 {
-    u16 depthToBits( float depth )
+    bxGfxShadingPass shadingPass = itemIt.shadingPass();
+
+    if( flags & eRENDER_ITEM_USE_STREAMS )
     {
-        union { float f; unsigned i; } f2i;
-        f2i.f = depth;
-        unsigned b = f2i.i >> 22; // take highest 10 bits
-        return (u16)b;
+        bxGdi::renderSource_enable( ctx, itemIt.renderSource() );
     }
-}///
 
-void bxGfx::sortList_computeColor( bxGfxSortList_Color* sList, const bxGfxRenderList& rList, const bxGfxCamera& camera, u8 renderMask )
-{
-    const bxGfxViewFrustum frustum = bxGfx::viewFrustum_extract( camera.matrix.viewProj );
-    
-    bxGfxRenderItem_Iterator it( &rList );
-    while ( it.ok() )
+    if( flags & eRENDER_ITEM_USE_FX )
     {
-        const Matrix4& itemPose = it.worldMatrices()[0];
-        const bxAABB& itemLocalBBox = it.aabb();
+        bxGdi::shaderFx_enable( ctx, shadingPass.fxI, shadingPass.passIndex );
+    }
 
-        const bxAABB itemWorldBBox = bxAABB::transform( itemPose, itemLocalBBox );
+    const int nInstances = itemIt.nWorldMatrices();
+    const int nSurfaces = itemIt.nSurfaces();
 
-        const int inFrustum = bxGfx::viewFrustum_AABBIntersect( frustum, itemWorldBBox.min, itemWorldBBox.max ).getAsBool();
-        
-        const int itemValid = inFrustum && (renderMask & it.renderMask() );
-        if ( !itemValid )
+    const Matrix4* worldMatrices = itemIt.worldMatrices();
+    const bxGdiRenderSurface* surfaces = itemIt.surfaces();
+
+    bxRangeSplitter split = bxRangeSplitter::splitByGrab( nInstances, bxGfx::cMAX_WORLD_MATRICES );
+    while ( split.elementsLeft() )
+    {
+        const int offset = split.grabbedElements;
+        const int grab = split.nextGrab();
+
+        for ( int imatrix = 0; imatrix < grab; ++imatrix )
         {
-            it.next();
-            continue;
+            bxGfx::instanceData_setMatrix( instanceData, imatrix, worldMatrices[offset + imatrix] );
         }
-        
-        bxGfxShadingPass shPass = it.shadingPass();
-        const u8 itemLayer = it.renderLayer();
-        //const float depth = bxGfx::camera_depth( camera.matrix.world, itemPose.getTranslation() ).getAsFloat();
-        //const u16 depth16 = depthToBits( depth );
-        const u32 shaderHash = shPass.fxI->sortHash( shPass.passIndex );
-        
-        bxGfxSortKey_Color sortKey;
-        sortKey.shader = shaderHash;
-        sortKey.mesh = it.renderSource()->sortHash;
-        //sortKey.depth = depth16;
-        sortKey.layer = itemLayer;
 
-        sList->add( sortKey, &rList, it.itemIndex() );
+        ctx->backend()->updateCBuffer( cbuffer_instanceData, instanceData );
 
-        it.next();
-    }
-
-}
-
-void bxGfx::sortList_computeDepth( bxGfxSortList_Depth* sList, const bxGfxRenderList& rList, const bxGfxCamera& camera, u8 renderMask )
-{
-    const bxGfxViewFrustum frustum = bxGfx::viewFrustum_extract( camera.matrix.viewProj );
-
-    bxGfxRenderItem_Iterator it( &rList );
-    while ( it.ok() )
-    {
-        const Matrix4& itemPose = it.worldMatrices()[0];
-        const bxAABB& itemLocalBBox = it.aabb();
-
-        const bxAABB itemWorldBBox = bxAABB::transform( itemPose, itemLocalBBox );
-
-        const int inFrustum = bxGfx::viewFrustum_AABBIntersect( frustum, itemWorldBBox.min, itemWorldBBox.max ).getAsBool();
-
-        const int itemValid = inFrustum && (renderMask & it.renderMask());
-        if ( !itemValid )
-            continue;
-
-        const float depth = bxGfx::camera_depth( camera.matrix.world, itemPose.getTranslation() ).getAsFloat();
-        const u16 depth16 = depthToBits( depth );
-
-        bxGfxSortKey_Depth sortKey;
-        sortKey.depth = depth16;
-
-        sList->add( sortKey, &rList, it.itemIndex() );
-
-        it.next();
+        if ( ctx->indicesBound() )
+        {
+            for ( int isurface = 0; isurface < nSurfaces; ++isurface )
+            {
+                const bxGdiRenderSurface& surf = surfaces[isurface];
+                bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, grab );
+            }
+        }
+        else
+        {
+            for ( int isurface = 0; isurface < nSurfaces; ++isurface )
+            {
+                const bxGdiRenderSurface& surf = surfaces[isurface];
+                bxGdi::renderSurface_drawInstanced( ctx, surf, grab );
+            }
+        }
     }
 }
+

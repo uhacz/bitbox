@@ -90,7 +90,7 @@ private:
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-struct bxGfxViewFrustumLRBT;
+struct bxGfxViewFrustum_LRBT;
 class bxGfxViewFrustum_Tiles
 {
 public:
@@ -98,7 +98,7 @@ public:
     ~bxGfxViewFrustum_Tiles();
 
     void setup( const Matrix4& viewProjInv, int numTilesX, int numTilesY, int tileSize );
-    const bxGfxViewFrustumLRBT& frustum( int tileX, int tileY ) const;
+    const bxGfxViewFrustum_LRBT& frustum( int tileX, int tileY ) const;
 
     int numTilesX() const { return _numTilesX; }
     int numTilesY() const { return _numTilesY; }
@@ -109,7 +109,7 @@ private:
 
     bxAllocator* _allocator;
     void*   _memoryHandle;
-    bxGfxViewFrustumLRBT* _frustums;
+    bxGfxViewFrustum_LRBT* _frustums;
     u8*     _validFlags;
 
     i32 _numTilesX;
