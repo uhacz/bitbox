@@ -243,7 +243,7 @@ public:
                         bxGdiRenderSource* rs = rsources[counter % 2];
                         bxGdiShaderFx_Instance* mat = materials[++counter % 3];
 
-                        bxGfxRenderListItemDesc itemDesc( rs, mat, 0, bxAABB( Vector3( -0.5f ), Vector3( 0.5f ) ) );
+                        bxGfxRenderList_ItemDesc itemDesc( rs, mat, 0, bxAABB( Vector3( -0.5f ), Vector3( 0.5f ) ) );
                         bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, &pose, 1 );
                     }
                 }
@@ -255,7 +255,7 @@ public:
             bxGdiRenderSource* box = _gfxContext->shared()->rsource.box;
             
             bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "blue" );
-            bxGfxRenderListItemDesc itemDesc( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
+            bxGfxRenderList_ItemDesc itemDesc( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
             bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
         }
 

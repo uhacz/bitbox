@@ -45,28 +45,7 @@ private:
     static bxGfx::Shared _shared;
 };
 
-struct bxGfxShadows_Cascade
-{
-    Matrix4 view;
-    Matrix4 proj;
-    Vector4 zNear_zFar;
-};
 
-struct bxGfxShadows 
-{
-    void splitDepth( float splits[ bxGfx::eSHADOW_NUM_CASCADES+1], const bxGfxCamera_Params& params, float zMax, float lambda );
-    void computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCADES+1], const bxGfxCamera& camera, const Vector3& lightDirection );
-       
-
-    bxGfxShadows();
-    void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void _Shurdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-
-public:
-    bxGfxShadows_Cascade _cascade[ bxGfx::eSHADOW_NUM_CASCADES ];
-    bxGdiTexture _depthTexture;
-    bxGdiShaderFx_Instance* _fxI;
-};
 
 ////
 ////
@@ -121,3 +100,4 @@ private:
     bxGdiShaderFx_Instance* _fxI_toneMapping;
     bxGdiShaderFx_Instance* _fxI_fog;
 };
+

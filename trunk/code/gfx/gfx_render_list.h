@@ -3,10 +3,8 @@
 #include <util/type.h>
 #include <util/bbox.h>
 #include <gdi/gdi_render_source.h>
-
 #include "gfx_type.h"
-#include <algorithm>
-#include <util/buffer_utils.h>
+
 ////
 ////
 struct bxGfxRenderEffect
@@ -97,7 +95,7 @@ struct BIT_ALIGNMENT_16 bxGfxRenderList
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-struct bxGfxRenderListItemDesc
+struct bxGfxRenderList_ItemDesc
 {
     bxAABB _localAABB;
     bxGdiRenderSource* _rsource;
@@ -105,7 +103,7 @@ struct bxGfxRenderListItemDesc
     i32 _passIndex;
     i32 _dataIndex;
 
-    bxGfxRenderListItemDesc( bxGdiRenderSource* rsource, bxGdiShaderFx_Instance* fxI, int passIndex, const bxAABB& localAABB )
+    bxGfxRenderList_ItemDesc( bxGdiRenderSource* rsource, bxGdiShaderFx_Instance* fxI, int passIndex, const bxAABB& localAABB )
         : _localAABB( localAABB )
         , _rsource( rsource )
         , _fxI( fxI )
@@ -132,7 +130,7 @@ struct bxGfxRenderListItemDesc
 };
 namespace bxGfx
 {
-    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderListItemDesc* itemDesc, int topology, const Matrix4* matrices, int nMatrices )
+    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderList_ItemDesc* itemDesc, int topology, const Matrix4* matrices, int nMatrices )
     {
         if ( itemDesc->_dataIndex < 0 )
         {
@@ -143,11 +141,11 @@ namespace bxGfx
         u32 instanceIndex = rList->instancesAdd( matrices, nMatrices );
         rList->itemSubmit( itemDesc->_dataIndex, surfaceIndex, instanceIndex );
     }
-    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderListItemDesc* itemDesc, int topology, const Matrix4& matrix )
+    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderList_ItemDesc* itemDesc, int topology, const Matrix4& matrix )
     {
         renderList_pushBack( rList, itemDesc, topology, &matrix, 1 );
     }
-    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderListItemDesc* itemDesc, const bxGdiRenderSurface& surf, const Matrix4& matrix )
+    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderList_ItemDesc* itemDesc, const bxGdiRenderSurface& surf, const Matrix4& matrix )
     {
         if ( itemDesc->_dataIndex < 0 )
         {

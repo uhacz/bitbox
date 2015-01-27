@@ -6,7 +6,7 @@
 
 #include <util/bbox.h>
 #include <util/range_splitter.h>
-
+#include <util/buffer_utils.h>
 
 bxGfxRenderList::bxGfxRenderList()
 {

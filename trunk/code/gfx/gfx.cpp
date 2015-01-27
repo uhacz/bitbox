@@ -94,8 +94,9 @@ int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceM
     }
 
     const int nSortItems = 2048;
-    _sortList_color = bxGfx::sortList_new<bxGfxSortList_Color>( nSortItems, bxDefaultAllocator() );
-    _sortList_depth = bxGfx::sortList_new<bxGfxSortList_Depth>( nSortItems, bxDefaultAllocator() );
+    _sortList_color  = bxGfx::sortList_new<bxGfxSortList_Color>( nSortItems, bxDefaultAllocator() );
+    _sortList_depth  = bxGfx::sortList_new<bxGfxSortList_Depth>( nSortItems, bxDefaultAllocator() );
+    _sortList_shadow = bxGfx::sortList_new<bxGfxSortList_Shadow>( nSortItems, bxDefaultAllocator() );
 
     return 0;
 }
@@ -129,6 +130,7 @@ void bxGfxContext::frameBegin( bxGdiContext* ctx )
 
     _sortList_color->clear();
     _sortList_depth->clear();
+    _sortList_shadow->clear();
 }
 
 void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
@@ -144,6 +146,7 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
     {
         bxGfx::sortList_computeColor( _sortList_color, *rLists[ilist], camera );
     }
+
     _sortList_color->sortAscending();
 
     bxGfx::submitSortList( ctx, _cbuffer_instanceData, _sortList_color );
