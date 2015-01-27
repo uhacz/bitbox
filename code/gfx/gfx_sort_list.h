@@ -4,6 +4,7 @@
 #include <util/memory.h>
 #include "gfx_type.h"
 #include <gdi/gdi_context.h>
+#include <algorithm>
 
 struct bxGfxRenderList;
 struct bxGfxCamera;
@@ -76,19 +77,10 @@ struct bxGfxSortKey_Depth
     u16 depth;
 };
 
-union bxGfxSortKey_Shadow
-{
-    u32 hash;
-    struct  
-    {
-        u16 depth;
-        u8 cascade;
-    };
-};
 
 typedef bxGfxSortList< bxGfxSortKey_Color > bxGfxSortList_Color;
 typedef bxGfxSortList< bxGfxSortKey_Depth > bxGfxSortList_Depth;
-typedef bxGfxSortList< bxGfxSortKey_Shadow> bxGfxSortList_Shadow;
+
 
 namespace bxGfx
 {
@@ -141,5 +133,5 @@ namespace bxGfx
 {
     void sortList_computeColor( bxGfxSortList_Color* sList, const bxGfxRenderList& rList, const bxGfxCamera& camera, u8 renderMask = bxGfx::eRENDER_MASK_COLOR );
     void sortList_computeDepth( bxGfxSortList_Depth* sList, const bxGfxRenderList& rList, const bxGfxCamera& camera, u8 renderMask = bxGfx::eRENDER_MASK_DEPTH );
-    void sortList_computeDepth( bxGfxSortList_Shadow* sList, const bxGfxRenderList& rList, const bxGfxCamera* cameras, int nCameras , u8 renderMask = bxGfx::eRENDER_MASK_SHADOW );
+ 
 }

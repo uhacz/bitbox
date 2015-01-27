@@ -61,3 +61,10 @@ inline float lerp( float t, float a, float b )
     return a + t*( b - a );
 }
 
+inline u16 depthToBits( float depth )
+{
+    union { float f; unsigned i; } f2i;
+    f2i.f = depth;
+    unsigned b = f2i.i >> 22; // take highest 10 bits
+    return (u16)b;
+}
