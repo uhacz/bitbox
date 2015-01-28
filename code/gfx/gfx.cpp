@@ -45,7 +45,7 @@ bxGfxContext::~bxGfxContext()
 {}
 
 bxGfx::Shared bxGfxContext::_shared;
-int bxGfxContext::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+int bxGfxContext::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
     const int fbWidth = 1920;
     const int fbHeight = 1080;
@@ -124,7 +124,7 @@ void bxGfxContext::shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourc
     dev->releaseBuffer( &_cbuffer_frameData );
 }
 
-void bxGfxContext::frameBegin( bxGdiContext* ctx )
+void bxGfxContext::frame_begin( bxGdiContext* ctx )
 {
     ctx->clear();
 
@@ -133,9 +133,28 @@ void bxGfxContext::frameBegin( bxGdiContext* ctx )
     _sortList_shadow->clear();
 }
 
-void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
+void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, bxGfxRenderList** rLists, int numLists, const bxGfxCamera& camera, const bxGfxLights& lights )
 {
-    //bindCamera( ctx, camera );
+    const bxGfxLight_Sun sunLight = lights.sunLight();
+    const Vector3 sunLightDirection( xyz_to_m128( sunLight.dir.xyz ) );
+
+    float depthSplits[ bxGfx::eSHADOW_NUM_CASCADES + 1 ];
+    shadows->splitDepth( depthSplits, camera.params, camera.params.zFar, 0.9f );
+    shadows->computeCascades( depthSplits, camera, sunLightDirection );
+
+    for( int ilist = 0; ilist < numLists; ++ilist )
+    {
+        bxGfx::sortList_computeShadow( _sortList_shadow, *rLists[ilist], shadows->_cascade, bxGfx::eSHADOW_NUM_CASCADES );
+    }
+
+    _sortList_shadow->sortAscending();
+
+    shadows->shadowMapDraw( ctx, _sortList_shadow );
+}
+
+void bxGfxContext::frame_drawColor( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
+{
+    bindCamera( ctx, camera );
     ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
         
     ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
@@ -153,7 +172,7 @@ void bxGfxContext::frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGf
 
 }
 
-void bxGfxContext::rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera )
+void bxGfxContext::frame_rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera )
 {
     ctx->changeToMainFramebuffer();
 
@@ -171,7 +190,7 @@ void bxGfxContext::rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB
     submitFullScreenQuad( ctx, fxI, "copy_rgba" );
 }
 
-void bxGfxContext::frameEnd( bxGdiContext* ctx  )
+void bxGfxContext::frame_end( bxGdiContext* ctx  )
 {
     ctx->backend()->swap();
 }

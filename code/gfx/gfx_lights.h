@@ -185,8 +185,8 @@ struct bxGfxLights
 
     bxGfxLight_Point* culledPointLightsBuffer;
 
-    void startup( bxGdiDeviceBackend* dev, int maxLights, int tileSize, int rtWidth, int rtHeight, bxAllocator* allocator = bxDefaultAllocator() );
-    void shutdown( bxGdiDeviceBackend* dev );
+    void _Startup( bxGdiDeviceBackend* dev, int maxLights, int tileSize, int rtWidth, int rtHeight, bxAllocator* allocator = bxDefaultAllocator() );
+    void _Shutdown( bxGdiDeviceBackend* dev );
 
     void setSunDir( const Vector3& dir );
     void setSunColor( const float3_t& rgb );
