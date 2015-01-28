@@ -39,7 +39,7 @@ passes:
 };#~header
 
 #include <sys/util.hlsl>
-#include <sys/frame_data.hlsl>
+//#include <sys/frame_data.hlsl>
 #include <sys/instance_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
 
@@ -48,13 +48,19 @@ passes:
 
 shared cbuffer MaterialData : register(b3)
 {
+    matrix camera_viewProj;
+    matrix camera_world;
+    float2 camera_zNear_zFar;
+    float4 camera_projParams;
+
     matrix light_view_proj[NUM_CASCADES];
     float4 clip_planes[NUM_CASCADES];
     float3 light_direction_ws;
     float2 occlusion_texture_size;
     float2 shadow_map_size;
-
 };
+
+
 
 Texture2D<float> gshadow_map;
 Texture2D<float> gdepth_texture;
@@ -80,7 +86,7 @@ in_PS_depth vs_depth( in_VS_depth input )
 {
 	in_PS_depth output;
 	float4 wpos = mul( world_matrix[input.instanceID], input.pos );
-    float4 hpos = mul( view_proj_matrix, wpos );
+    float4 hpos = mul( camera_viewProj, wpos );
     output.hpos = hpos;
     return output;
 }
@@ -182,10 +188,10 @@ float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
     float pixel_depth  = gdepth_texture.SampleLevel( gsampler, input.uv, 0.0f ).r;
-    float linear_depth = resolveLinearDepth( pixel_depth, proj_params.z, proj_params.w );
+    float linear_depth = resolveLinearDepth( pixel_depth, camera_zNear_zFar.x, camera_zNear_zFar.y );
 
     float2 wpos = input.wpos01 * 2.0 - 1.0;
-    float3 vs_pos = resolvePositionVS( wpos, linear_depth, proj_params.xy );
+    float3 vs_pos = resolvePositionVS( wpos, linear_depth, camera_projParams.xy );
     
     int current_split = 0;
 

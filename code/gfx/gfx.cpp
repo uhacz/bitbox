@@ -149,7 +149,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
 
     _sortList_shadow->sortAscending();
 
-    shadows->shadowMapDraw( ctx, _sortList_shadow );
+    shadows->drawShadowMap( ctx, _sortList_shadow );
 }
 
 void bxGfxContext::frame_drawColor( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
