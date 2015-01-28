@@ -368,7 +368,7 @@ int bxGfxLightList::appendPointLight( int tileX, int tileY, int lightIndex )
 
 ////
 ////
-void bxGfxLights::startup( bxGdiDeviceBackend* dev, int maxLights, int tileSiz, int rtWidth, int rtHeight, bxAllocator* allocator )
+void bxGfxLights::_Startup( bxGdiDeviceBackend* dev, int maxLights, int tileSiz, int rtWidth, int rtHeight, bxAllocator* allocator )
 {
     SYS_STATIC_ASSERT( sizeof( bxGfx::LightningData ) == 76 );
     
@@ -398,7 +398,7 @@ void bxGfxLights::startup( bxGdiDeviceBackend* dev, int maxLights, int tileSiz, 
     culledPointLightsBuffer = (bxGfxLight_Point*)BX_MALLOC( bxDefaultAllocator(), maxLights * sizeof(*culledPointLightsBuffer), 4 );
 }
 
-void bxGfxLights::shutdown( bxGdiDeviceBackend* dev )
+void bxGfxLights::_Shutdown( bxGdiDeviceBackend* dev )
 {
     BX_FREE0( bxDefaultAllocator(), culledPointLightsBuffer );
     dev->releaseBuffer( &cbuffer_lightningData );

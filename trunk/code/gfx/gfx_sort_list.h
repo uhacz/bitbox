@@ -2,9 +2,12 @@
 
 #include <util/type.h>
 #include <util/memory.h>
-#include "gfx_type.h"
+#include <util/buffer_utils.h>
+
 #include <gdi/gdi_context.h>
 #include <algorithm>
+
+#include "gfx_type.h"
 
 struct bxGfxRenderList;
 struct bxGfxCamera;

@@ -46,15 +46,18 @@ public:
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
         _gdiContext->_Startup( _gdiDevice );
 
-        bxGfxGUI::startup( _gdiDevice, _resourceManager, win );
+        bxGfxGUI::_Startup( _gdiDevice, _resourceManager, win );
 
         _gfxContext = BX_NEW( bxDefaultAllocator(), bxGfxContext );
-        _gfxContext->startup( _gdiDevice, _resourceManager );
+        _gfxContext->_Startup( _gdiDevice, _resourceManager );
 
-        bxGfxDebugDraw::startup( _gdiDevice, _resourceManager );
+        bxGfxDebugDraw::_Startup( _gdiDevice, _resourceManager );
 
         _gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
-        _gfxLights->startup( _gdiDevice, MAX_LIGHTS, TILE_SIZE, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
+        _gfxLights->_Startup( _gdiDevice, MAX_LIGHTS, TILE_SIZE, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
+
+        _gfxShadows = BX_NEW( bxDefaultAllocator(), bxGfxShadows );
+        _gfxShadows->_Startup( _gdiDevice, _resourceManager );
 
         _gfxMaterials = BX_NEW( bxDefaultAllocator(), bxGfxMaterialManager );
         _gfxMaterials->_Startup( _gdiDevice, _resourceManager );
@@ -152,10 +155,13 @@ public:
         _gfxMaterials->_Shutdown( _gdiDevice, _resourceManager );
         BX_DELETE0( bxDefaultAllocator(), _gfxMaterials );
 
-        _gfxLights->shutdown( _gdiDevice );
+        _gfxShadows->_Shurdown( _gdiDevice, _resourceManager );
+        BX_DELETE0( bxDefaultAllocator(), _gfxShadows );
+
+        _gfxLights->_Shutdown( _gdiDevice );
         BX_DELETE0( bxDefaultAllocator(), _gfxLights );
 
-        bxGfxDebugDraw::shutdown( _gdiDevice, _resourceManager );
+        bxGfxDebugDraw::_Shutdown( _gdiDevice, _resourceManager );
         
         _gfxContext->shutdown( _gdiDevice, _resourceManager );
         BX_DELETE0( bxDefaultAllocator(), _gfxContext );
@@ -272,17 +278,18 @@ public:
 
         _gfxLights->cullLights( camera );
         
-        _gfxContext->frameBegin( _gdiContext );
+        _gfxContext->frame_begin( _gdiContext );
         
+        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera, *_gfxLights );
+
         _gfxContext->bindCamera( _gdiContext, camera );
         {
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             _gfxPostprocess->sky( _gdiContext, outputTexture, _gfxLights->sunLight() );
         }
-
         _gfxLights->bind( _gdiContext );
 
-        _gfxContext->frameDraw( _gdiContext, camera, &rList, 1 );
+        _gfxContext->frame_drawColor( _gdiContext, camera, &rList, 1 );
 
         _gdiContext->clear();
         _gfxContext->bindCamera( _gdiContext, camera );
@@ -304,11 +311,11 @@ public:
         bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
         {
             bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-            _gfxContext->rasterizeFramebuffer( _gdiContext, colorTexture, camera );
+            _gfxContext->frame_rasterizeFramebuffer( _gdiContext, colorTexture, camera );
         }
         
         bxGfxGUI::draw( _gdiContext );
-        _gfxContext->frameEnd( _gdiContext );
+        _gfxContext->frame_end( _gdiContext );
 
         return true;
     }
@@ -317,6 +324,7 @@ public:
     bxGdiContext* _gdiContext;
     bxGfxContext* _gfxContext;
     bxGfxLights* _gfxLights;
+    bxGfxShadows* _gfxShadows;
     bxGfxPostprocess* _gfxPostprocess;
     bxGfxMaterialManager* _gfxMaterials;
     

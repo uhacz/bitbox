@@ -194,7 +194,7 @@ namespace
     
 }
 
-void bxGfxGUI::startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxWindow* win )
+void bxGfxGUI::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxWindow* win )
 {
     SYS_ASSERT( __gui == 0 );
 

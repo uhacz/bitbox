@@ -2,6 +2,8 @@
 
 #include "gfx_render_list.h"
 #include "gfx_sort_list.h"
+#include "gfx_shadows.h"
+#include "gfx_lights.h"
 ////
 ////
 class bxResourceManager;
@@ -12,16 +14,16 @@ struct bxGfxContext
     bxGfxContext();
     ~bxGfxContext();
 
-    int startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    int _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     
     void bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera );
-    void frameBegin( bxGdiContext* ctx );
-    void frameDraw( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
     
-    void rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera );
-
-    void frameEnd( bxGdiContext* ctx );
+    void frame_begin               ( bxGdiContext* ctx );
+    void frame_drawShadows         ( bxGdiContext* ctx, bxGfxShadows* shadows, bxGfxRenderList** rLists, int numLists, const bxGfxCamera& camera, const bxGfxLights& lights );
+    void frame_drawColor           ( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
+    void frame_rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera );
+    void frame_end                 ( bxGdiContext* ctx );
 
     bxGdiTexture framebuffer( int index ) { SYS_ASSERT( index < bxGfx::eFRAMEBUFFER_COUNT );  return _framebuffer[index]; }
 

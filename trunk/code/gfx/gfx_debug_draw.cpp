@@ -68,7 +68,7 @@ namespace bxGfxDebugDraw
 {
     static bxGfxDebugDrawContext* __dd = 0;
 
-    void startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         __dd = BX_NEW( bxDefaultAllocator(), bxGfxDebugDrawContext );
 
@@ -102,7 +102,7 @@ namespace bxGfxDebugDraw
         array::reserve( __dd->spheres, bxGfxDebugDrawContext::eMAX_LINES );
 
     }
-    void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    void _Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         if( !__dd )
             return;
