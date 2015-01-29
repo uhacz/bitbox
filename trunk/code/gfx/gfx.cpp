@@ -53,10 +53,10 @@ int bxGfxContext::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resource
     _cbuffer_frameData = dev->createConstantBuffer( sizeof( bxGfx::FrameData ) );
     _cbuffer_instanceData = dev->createConstantBuffer( sizeof( bxGfx::InstanceData ) );
 
-    _framebuffer[bxGfx::eFRAMEBUFFER_COLOR] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
-    _framebuffer[bxGfx::eFRAMEBUFFER_SWAP]  = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
-    _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
-    _framebuffer[bxGfx::eFRAMEBUFFER_LINEAR_DEPTH] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_COLOR]   = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_SWAP]    = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH]   = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+    _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     
     {
         _shared.shader.utils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "utils" );
@@ -149,7 +149,87 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
 
     _sortList_shadow->sortAscending();
 
-    shadows->drawShadowMap( ctx, _sortList_shadow );
+    {
+        bxGfx::InstanceData instanceData;
+        memset( &instanceData, 0x00, sizeof( instanceData ) );
+
+        bxGdiViewport viewports[bxGfx::eSHADOW_NUM_CASCADES];
+        for ( int i = 0; i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
+        {
+            viewports[i] = bxGdiViewport( i * bxGfx::eSHADOW_CASCADE_SIZE, 0, bxGfx::eSHADOW_CASCADE_SIZE, bxGfx::eSHADOW_CASCADE_SIZE );
+        }
+
+        bxGdiTexture depthTexture = shadows->_depthTexture;
+        bxGdiShaderFx_Instance* shadowsFxI = shadows->_fxI;
+        bxGfxSortList_Shadow* sList = _sortList_shadow;
+
+        ctx->changeRenderTargets( 0, 0, depthTexture );
+        ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
+
+        bxGdi::shaderFx_enable( ctx, shadowsFxI, "depth" );
+
+        u8 currentCascade = 0xff;
+        for( int iitem = 0; iitem < sList->_size_sortData; ++iitem )
+        {
+            const bxGfxSortList_Shadow::Entry& e = sList->_sortData[iitem];
+            const bxGfxSortKey_Shadow key = e.key;
+
+            SYS_ASSERT( key.cascade < bxGfx::eSHADOW_NUM_CASCADES );
+
+            if( currentCascade != key.cascade )
+            {
+                currentCascade = key.cascade;
+                const bxGfxShadows_Cascade& cascade = shadows->_cascade[currentCascade];
+
+                bxGfxCamera cascadeCamera;
+                cascadeCamera.matrix.view = cascade.view;
+                cascadeCamera.matrix.proj = cascade.proj;
+                cascadeCamera.matrix.viewProj = cascade.proj * cascade.view;
+                cascadeCamera.matrix.world = inverse( cascade.view );
+                cascadeCamera.params.zNear = cascade.zNear_zFar.getX().getAsFloat();
+                cascadeCamera.params.zFar = cascade.zNear_zFar.getY().getAsFloat();
+
+                bindCamera( ctx, cascadeCamera );
+                ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
+                ctx->setViewport( viewports[key.cascade] );
+            }
+
+            bxGfxRenderItem_Iterator itemIt( e.rList, e.rItemIndex );
+            submitRenderItem( ctx, &instanceData, _cbuffer_instanceData, itemIt, bxGfx::eRENDER_ITEM_USE_STREAMS );
+        }
+
+        {
+            bxGdiTexture shadowsTexture = _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS];
+            
+
+            Matrix4 viewProj[bxGfx::eSHADOW_NUM_CASCADES];
+            Vector4 clipPlanes[bxGfx::eSHADOW_NUM_CASCADES];
+
+            for( int i = 0; i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
+            {
+                const bxGfxShadows_Cascade& cascade = shadows->_cascade[currentCascade];
+                viewProj[i] = cascade.proj * cascade.view;
+                clipPlanes[i] = -cascade.zNear_zFar;
+            }
+            shadowsFxI->setUniform( "light_view_proj", viewProj );
+            shadowsFxI->setUniform( "clip_planes", clipPlanes );
+            shadowsFxI->setUniform( "light_direction_ws", sunLightDirection );
+            shadowsFxI->setUniform( "occlusion_texture_size", float2_t( shadowsTexture.width, shadowsTexture.height ) );
+            shadowsFxI->setUniform( "shadow_map_size", float2_t( shadows->_depthTexture.width, shadows->_depthTexture.height ) );
+
+            shadowsFxI->setTexture( "shadowMap", shadows->_depthTexture );
+            shadowsFxI->setTexture( "sceneDepthTex", _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
+            shadowsFxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP ) );
+            shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
+
+            ctx->changeRenderTargets( &shadowsTexture, 1, bxGdiTexture() );
+            ctx->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
+            ctx->setViewport( bxGdiViewport( 0, 0, shadowsTexture.width, shadowsTexture.height ) );
+
+            submitFullScreenQuad( ctx, shadowsFxI, "shadow" );
+        }
+    }
+    ctx->clear();
 }
 
 void bxGfxContext::frame_drawColor( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
