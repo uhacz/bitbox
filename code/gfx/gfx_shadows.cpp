@@ -152,40 +152,6 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
 
 void bxGfxShadows::drawShadowMap( bxGdiContext* ctx, bxGfxSortList_Shadow* sList )
 {
-    bxGdiViewport viewports[bxGfx::eSHADOW_NUM_CASCADES];
-    for ( int i = 0; i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
-    {
-        viewports[i] = bxGdiViewport( i * bxGfx::eSHADOW_CASCADE_SIZE, 0, bxGfx::eSHADOW_CASCADE_SIZE, bxGfx::eSHADOW_CASCADE_SIZE );
-    }
     
-
-    ctx->changeRenderTargets( 0, 0, _depthTexture );
-    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
-    
-    bxGdi::shaderFx_enable( ctx, _fxI, "depth" );
-
-    u8 currentCascade = 0xff;
-    for( int iitem = 0; iitem < sList->_size_sortData; ++iitem )
-    {
-        const bxGfxSortList_Shadow::Entry& e = sList->_sortData[iitem];
-        const bxGfxSortKey_Shadow key = e.key;
-
-        SYS_ASSERT( key.cascade < bxGfx::eSHADOW_NUM_CASCADES );
-
-        if( currentCascade != key.cascade )
-        {
-            currentCascade = key.cascade;
-            
-            const bxGfxShadows_Cascade& cascade = _cascade[currentCascade];
-            _fxI->setUniform( "camera_viewProj", cascade.view * cascade.proj );
-            _fxI->uploadCBuffers( ctx->backend() );
-
-            ctx->setViewport( viewports[key.cascade] );
-        }
-         
-        bxGfxRenderItem_Iterator itemIt( e.rList, e.rItemIndex );
-        submitRenderItem( ctx, &instanceData, cbuffer_instanceData, itemIt );
-
-    }
 }
 

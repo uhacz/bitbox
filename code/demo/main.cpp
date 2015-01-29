@@ -282,35 +282,35 @@ public:
         
         _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera, *_gfxLights );
 
-        _gfxContext->bindCamera( _gdiContext, camera );
-        {
-            bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-            _gfxPostprocess->sky( _gdiContext, outputTexture, _gfxLights->sunLight() );
-        }
-        _gfxLights->bind( _gdiContext );
+        //_gfxContext->bindCamera( _gdiContext, camera );
+        //{
+        //    bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+        //    _gfxPostprocess->sky( _gdiContext, outputTexture, _gfxLights->sunLight() );
+        //}
+        //_gfxLights->bind( _gdiContext );
 
-        _gfxContext->frame_drawColor( _gdiContext, camera, &rList, 1 );
+        //_gfxContext->frame_drawColor( _gdiContext, camera, &rList, 1 );
 
-        _gdiContext->clear();
-        _gfxContext->bindCamera( _gdiContext, camera );
-        
-        {
-            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-            bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
-            bxGdiTexture depthTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
-            _gfxPostprocess->fog( _gdiContext, outputTexture, colorTexture, depthTexture, _gfxLights->sunLight() );
-        }
-        {
-            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
-            bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-            _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, deltaTime );
-        }
+        //_gdiContext->clear();
+        //_gfxContext->bindCamera( _gdiContext, camera );
+        //
+        //{
+        //    bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+        //    bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+        //    bxGdiTexture depthTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
+        //    _gfxPostprocess->fog( _gdiContext, outputTexture, colorTexture, depthTexture, _gfxLights->sunLight() );
+        //}
+        //{
+        //    bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+        //    bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+        //    _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, deltaTime );
+        //}
         
         
 
         bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
         {
-            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS );
             _gfxContext->frame_rasterizeFramebuffer( _gdiContext, colorTexture, camera );
         }
         

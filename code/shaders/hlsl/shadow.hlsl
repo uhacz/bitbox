@@ -39,7 +39,7 @@ passes:
 };#~header
 
 #include <sys/util.hlsl>
-//#include <sys/frame_data.hlsl>
+#include <sys/frame_data.hlsl>
 #include <sys/instance_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
 
@@ -48,11 +48,6 @@ passes:
 
 shared cbuffer MaterialData : register(b3)
 {
-    matrix camera_viewProj;
-    matrix camera_world;
-    float2 camera_zNear_zFar;
-    float4 camera_projParams;
-
     matrix light_view_proj[NUM_CASCADES];
     float4 clip_planes[NUM_CASCADES];
     float3 light_direction_ws;
@@ -62,12 +57,12 @@ shared cbuffer MaterialData : register(b3)
 
 
 
-Texture2D<float> gshadow_map;
-Texture2D<float> gdepth_texture;
-Texture2D gnormals_vs;
+Texture2D<float> shadowMap;
+Texture2D<float> sceneDepthTex;
+//Texture2D gnormals_vs;
 
-SamplerState gsampler;
-SamplerComparisonState gsamp_shadow_map;
+SamplerState sampl;
+SamplerComparisonState samplShadowMap;
 
 /////////////////////////////////////////////////////////////////
 struct in_VS_depth
@@ -86,7 +81,7 @@ in_PS_depth vs_depth( in_VS_depth input )
 {
 	in_PS_depth output;
 	float4 wpos = mul( world_matrix[input.instanceID], input.pos );
-    float4 hpos = mul( camera_viewProj, wpos );
+    float4 hpos = mul( view_proj_matrix, wpos );
     output.hpos = hpos;
     return output;
 }
@@ -124,7 +119,7 @@ in_PS_shadow vs_shadow( in in_VS_shadow input )
 
 float sample_shadow_map( float light_depth, float2 shadow_uv )
 {
-    return gshadow_map.SampleCmpLevelZero( gsamp_shadow_map, shadow_uv.xy, light_depth );
+    return shadowMap.SampleCmpLevelZero( samplShadowMap, shadow_uv.xy, light_depth );
 }
 
 float sample_shadow_pcf( float light_depth, float2 shadow_uv )
@@ -178,7 +173,7 @@ float sample_shadow_gauss5x5( float light_depth, float2 base_uv )
 float3 get_shadow_pos_offset(in float nDotL, in float3 normal )
 {
     float2 shadowMapSize;
-    gshadow_map.GetDimensions(shadowMapSize.x, shadowMapSize.y );
+    shadowMap.GetDimensions(shadowMapSize.x, shadowMapSize.y );
     float texelSize = 2.0f / shadowMapSize.x;
     float nmlOffsetScale = saturate(1.0f - nDotL);
     return texelSize * nmlOffsetScale * normal * 10.f;
@@ -187,11 +182,11 @@ float3 get_shadow_pos_offset(in float nDotL, in float3 normal )
 float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
-    float pixel_depth  = gdepth_texture.SampleLevel( gsampler, input.uv, 0.0f ).r;
-    float linear_depth = resolveLinearDepth( pixel_depth, camera_zNear_zFar.x, camera_zNear_zFar.y );
+    float pixel_depth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
+    float linear_depth = resolveLinearDepth( pixel_depth, camera_params.z, camera_params.w );
 
     float2 wpos = input.wpos01 * 2.0 - 1.0;
-    float3 vs_pos = resolvePositionVS( wpos, linear_depth, camera_projParams.xy );
+    float3 vs_pos = resolvePositionVS( wpos, linear_depth, proj_params.xy );
     
     int current_split = 0;
 
@@ -206,15 +201,15 @@ float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
     const float NUM_CASCADES_INV = 1.0f / (float)NUM_CASCADES;
     float offset = (float)current_split * NUM_CASCADES_INV ;
 
-    float3 N = gnormals_vs.SampleLevel( gsampler, input.uv, 0.f ).xyz;
+    //float3 N = gnormals_vs.SampleLevel( _samplerr, input.uv, 0.f ).xyz;
     float3 L = light_direction_ws;
     
     float4 ws_pos = mul( camera_world, float4( vs_pos, 1.0 ) );
-    float4 ws_nrm = mul( camera_world, float4( N, 1.0 ) );
+    //float4 ws_nrm = mul( camera_world, float4( N, 1.0 ) );
 
-    const float n_dot_l = saturate( dot( ws_nrm, L ) );
-    float3 shadow_offset = get_shadow_pos_offset( n_dot_l, ws_nrm );
-    ws_pos.xyz += shadow_offset;
+    //const float n_dot_l = saturate( dot( ws_nrm, L ) );
+    //float3 shadow_offset = get_shadow_pos_offset( n_dot_l, ws_nrm );
+    //ws_pos.xyz += shadow_offset;
 
     float4 light_hpos = mul( light_view_proj[current_split], ws_pos );
     
