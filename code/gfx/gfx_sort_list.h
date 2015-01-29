@@ -75,8 +75,9 @@ union bxGfxSortKey_Color
     };
 };
 
-struct bxGfxSortKey_Depth
+union bxGfxSortKey_Depth
 {
+    u16 hash;
     u16 depth;
 };
 
@@ -117,7 +118,7 @@ namespace bxGfx
     }
 
     template< class Tlist >
-    void submitSortList( bxGdiContext* ctx, bxGdiBuffer cbuffer_instanceData, Tlist* sList )
+    void submitSortList( bxGdiContext* ctx, bxGdiBuffer cbuffer_instanceData, Tlist* sList, unsigned renderItemFlags = bxGfx::eRENDER_ITEM_DEFAULT_MASK )
     {
         const int nItems = sList->_size_sortData;
         bxGfx::InstanceData instanceData;
@@ -127,7 +128,7 @@ namespace bxGfx
             Tlist::Entry e = sList->_sortData[iitem];
 
             bxGfxRenderItem_Iterator itemIt( e.rList, e.rItemIndex );
-            submitRenderItem( ctx, &instanceData, cbuffer_instanceData, itemIt );
+            submitRenderItem( ctx, &instanceData, cbuffer_instanceData, itemIt, renderItemFlags );
         }
     }
 }///

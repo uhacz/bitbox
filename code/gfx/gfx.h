@@ -20,6 +20,7 @@ struct bxGfxContext
     void bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera );
     
     void frame_begin               ( bxGdiContext* ctx );
+    void frame_zPrepass            ( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
     void frame_drawShadows         ( bxGdiContext* ctx, bxGfxShadows* shadows, bxGfxRenderList** rLists, int numLists, const bxGfxCamera& camera, const bxGfxLights& lights );
     void frame_drawColor           ( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
     void frame_rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera );
