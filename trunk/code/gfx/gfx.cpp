@@ -133,6 +133,23 @@ void bxGfxContext::frame_begin( bxGdiContext* ctx )
     _sortList_shadow->clear();
 }
 
+void bxGfxContext::frame_zPrepass(bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists)
+{
+    for ( int ilist = 0; ilist < numLists; ++ilist )
+    {
+        bxGfx::sortList_computeDepth( _sortList_depth, *rLists[ilist], camera );
+    }
+    _sortList_depth->sortAscending();
+    
+    ctx->changeRenderTargets( 0, 0, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
+    ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
+    ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
+
+    bxGdi::shaderFx_enable( ctx, _shared.shader.utils, "z_prepass" );
+    bxGfx::submitSortList( ctx, _cbuffer_instanceData, _sortList_depth, bxGfx::eRENDER_ITEM_USE_STREAMS );
+}
+
 void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, bxGfxRenderList** rLists, int numLists, const bxGfxCamera& camera, const bxGfxLights& lights )
 {
     const bxGfxLight_Sun sunLight = lights.sunLight();
@@ -199,6 +216,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
         }
 
         {
+            bindCamera( ctx, camera );
             bxGdiTexture shadowsTexture = _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS];
             
 
@@ -207,7 +225,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
 
             for( int i = 0; i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
             {
-                const bxGfxShadows_Cascade& cascade = shadows->_cascade[currentCascade];
+                const bxGfxShadows_Cascade& cascade = shadows->_cascade[i];
                 viewProj[i] = cascade.proj * cascade.view;
                 clipPlanes[i] = -cascade.zNear_zFar;
             }

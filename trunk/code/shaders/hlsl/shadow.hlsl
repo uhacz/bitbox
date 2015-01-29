@@ -8,7 +8,7 @@ passes:
 
     shadow =
     {
-        vertex = "vs_shadow";
+        vertex = "vs_screenquad";
         pixel = "ps_shadow";
 
         hwstate = 
@@ -92,30 +92,7 @@ out_PS_depth ps_depth( in_PS_depth input )
 	return output;
 }
 
-/////////////////////////////////////////////////////////////////
-struct in_VS_shadow
-{
-    float3 pos	  : POSITION;
-    float3 uv	  : TEXCOORD0; // uv and corner index
-};
-struct in_PS_shadow
-{
-    float4 hpos	 : SV_Position;
-	float2 uv	 : TEXCOORD0;
-    float2 wpos01: TEXCOORD1;
-};
-
-in_PS_shadow vs_shadow( in in_VS_shadow input )
-{
-    in_PS_shadow output;
-    output.hpos = float4( input.pos.xyz, 1.0 );
-    output.uv = input.uv.xy;
-    output.uv.y = 1.0f - output.uv.y;
-
-    output.wpos01 = input.uv.xy;
-
-    return output;
-}
+#define in_PS_shadow out_VS_screenquad
 
 float sample_shadow_map( float light_depth, float2 shadow_uv )
 {
@@ -179,7 +156,14 @@ float3 get_shadow_pos_offset(in float nDotL, in float3 normal )
     return texelSize * nmlOffsetScale * normal * 10.f;
 }
 
-float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
+float ld( float hwDepth, float zn, float zf )
+{
+    float c1 = zf / zn;
+    float c0 = 1.0 - c1;
+    return 1.0 / (c0 * hwDepth + c1);
+}
+
+float ps_shadow( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
     float pixel_depth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
@@ -223,11 +207,12 @@ float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
 	
     float light_depth = light_hpos.z / light_hpos.w;
 	
-    const float bias = ( 1.f + pow( 2.f, (float)current_split ) ) / shadow_map_size.y;
+    const float bias = 0;// (1.f + pow( 2.f, (float)current_split )) / shadow_map_size.y;
     float shadow_value = sample_shadow_gauss5x5( light_depth - bias, shadow_uv );
     //float shadow_value = sample_shadow_pcf( light_depth - bias, shadow_uv );
     
-    return float2( shadow_value, 1.f );
+    return shadow_value;
+    //return float2(offset, 1.f);
 }
 
 
