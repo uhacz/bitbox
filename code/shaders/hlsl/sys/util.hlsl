@@ -1,12 +1,13 @@
 #ifndef UTIL_HLSL
 #define UTIL_HLSL
 
-float resolveLinearDepth( float hwDepth, float zNear, float zFar )
+float resolveLinearDepth( float hwDepth )
 {
-    return -zFar * zNear / (hwDepth * (zFar - zNear) - zFar);
-    //float c1 = znear_zfar.y / znear_zfar.x;
+    return rcp(hwDepth * _reprojectDepthScale + _reprojectDepthBias);
+    //return -zFar * zNear / (hwDepth * (zFar - zNear) - zFar);
+    //float c1 = zFar / zNear;
     //float c0 = 1.0 - c1;
-    //return 1.0 / (c0 * hw_depth + c1);
+    //return 1.0 / (c0 * hwDepth + c1);
 }
 
 ///

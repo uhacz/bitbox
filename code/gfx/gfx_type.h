@@ -26,15 +26,20 @@ namespace bxGfx
 
     struct FrameData
     {
-        Matrix4 viewMatrix;
-        Matrix4 projMatrix;
-        Matrix4 viewProjMatrix;
-        Matrix4 cameraWorldMatrix;
-        Vector4 cameraParams;
-        Vector4 projParams;
-        Vector4 renderTargetSizeRcp;
-        Vector4 eyePos;
-        Vector4 viewDir;
+        Matrix4 _camera_view;
+        Matrix4 _camera_proj;
+        Matrix4 _camera_viewProj;
+        Matrix4 _camera_world;
+        float4_t _camera_eyePos;
+        float4_t _camera_viewDir;
+        float4_t _camera_projParams;
+        float _camera_fov;
+        float _camera_aspect;
+        float _camera_zNear;
+        float _camera_zFar;
+        float _reprojectDepthScale; // (g_zFar - g_zNear) / (-g_zFar * g_zNear)
+        float _reprojectDepthBias; // g_zFar / (g_zFar * g_zNear)
+        float4_t _renderTarget_rcp_size;
     };
     void frameData_fill( FrameData* frameData, const bxGfxCamera& camera, int rtWidth, int rtHeight );
 
