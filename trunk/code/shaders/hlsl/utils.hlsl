@@ -69,7 +69,7 @@ in_PS vs_main( in_VS input )
     in_PS output;
     float4 wpos = mul( world_matrix[input.instanceID], input.pos );
     //float3 wnrm = mul( (float3x3)world_it_matrix[input.instanceID], input.nrm.xyz );
-    float4 hpos = mul( view_proj_matrix, wpos );
+    float4 hpos = mul( _camera_viewProj, wpos );
     output.hpos = hpos;
     //output.wnrm = wnrm;
     return output;
@@ -89,7 +89,7 @@ out_PS ps_main( in_PS input )
 float ps_linearize_depth( in out_VS_screenquad input ) : SV_Target0
 {
     float hwDepth = gtex_hwdepth.SampleLevel( gsamp_hwdepth, input.uv, 0.f ).r;
-    return resolveLinearDepth( hwDepth, proj_params.z, proj_params.w );
+    return resolveLinearDepth( hwDepth );
 
     //return ( proj_params.w / ( hw_depth + proj_params.z ) );// *-0.01f;
 

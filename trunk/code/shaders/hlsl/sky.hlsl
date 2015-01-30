@@ -47,10 +47,10 @@ float opticalDepth(in float3 pos, in float3 ray)
 float4 ps_main( in_PS IN ) : SV_Target0
 {
     float2 uv_m11 = float2( IN.uv.x, 1.0 - IN.uv.y ) * 2.0 - 1.0;
-    uv_m11.x *= camera_params.y; // apect
+    uv_m11.x *= _camera_aspect; // apect
     float3 sun_vector =-( sun_dir.xyz );
     
-    float3 view_vec = normalize( mul( (float3x3)camera_world, float3( uv_m11, -2.0 ) ) );
+    float3 view_vec = normalize( mul( (float3x3)_camera_world, float3( uv_m11, -2.0 ) ) );
 
     float cos_theta = dot(view_vec, sun_vector);
  

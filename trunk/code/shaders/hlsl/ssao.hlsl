@@ -29,7 +29,7 @@ float _ssao( float2 uv, float2 wpos01, int num_samples )
 	float Cz = linearDepth;
 
 	float2 winPos = 2 * wpos01 - 1;
-	float2 Cxy = winPos * proj_params.xy * -Cz;
+	float2 Cxy = winPos * _camera_projParams.xy * -Cz;
 	float3 C = float3( Cxy, Cz );
 
 	float3 N = gtex_normal_vs.SampleLevel( gsamp_normals_vs, uv, 0 ).xyz;
@@ -45,7 +45,7 @@ float _ssao( float2 uv, float2 wpos01, int num_samples )
 		float ld = gtex_linear_depth.SampleLevel( gsamp_linear_depth, coord, 0 ).x;
 		float z = ld;
 
-		float2 xy = coordNormalized * proj_params.xy * -z;
+		float2 xy = coordNormalized * _camera_projParams.xy * -z;
 		float3 P = float3(xy, z);
 		float3 V = P - C;
 
@@ -61,7 +61,7 @@ float _ssao( float2 uv, float2 wpos01, int num_samples )
 		ld = gtex_linear_depth.SampleLevel( gsamp_linear_depth, coord, 0 ).x;
 		z = ld;
 
-		xy = coordNormalized * proj_params.xy * -z;
+		xy = coordNormalized * _camera_projParams.xy * -z;
 		P = float3(xy, z);
 		V = P - C;
 

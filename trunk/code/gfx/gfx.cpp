@@ -11,26 +11,38 @@ namespace bxGfx
 {
     void frameData_fill( FrameData* frameData, const bxGfxCamera& camera, int rtWidth, int rtHeight )
     {
-        frameData->viewMatrix = camera.matrix.view;
-        frameData->projMatrix = camera.matrix.proj;
-        frameData->viewProjMatrix = camera.matrix.viewProj;
-        frameData->cameraWorldMatrix = camera.matrix.world;
+        SYS_STATIC_ASSERT( sizeof( FrameData ) == 352 );
+        frameData->_camera_view = camera.matrix.view;
+        frameData->_camera_proj = camera.matrix.proj;
+        frameData->_camera_viewProj = camera.matrix.viewProj;
+        frameData->_camera_world = camera.matrix.world;
 
         const float fov = camera.params.fov();
         const float aspect = camera.params.aspect();
-        frameData->cameraParams = Vector4( fov, aspect, camera.params.zNear, camera.params.zFar );
+
+        frameData->_camera_fov = camera.params.fov();
+        frameData->_camera_aspect = camera.params.aspect();
+
+        const float zNear = camera.params.zNear;
+        const float zFar = camera.params.zFar;
+        frameData->_camera_zNear = zNear;
+        frameData->_camera_zFar = zFar;
+        frameData->_reprojectDepthScale = (zFar - zNear) / (-zFar * zNear);
+        frameData->_reprojectDepthBias = zFar / (zFar * zNear);
+
+        //frameData->cameraParams = Vector4( fov, aspect, camera.params.zNear, camera.params.zFar );
         {
             const float a = camera.matrix.proj.getElem( 0, 0 ).getAsFloat();//getCol0().getX().getAsFloat();
             const float b = camera.matrix.proj.getElem( 1, 1 ).getAsFloat();//getCol1().getY().getAsFloat();
             const float c = camera.matrix.proj.getElem( 2, 2 ).getAsFloat();//getCol2().getZ().getAsFloat();
             const float d = camera.matrix.proj.getElem( 3, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
 
-            frameData->projParams = Vector4( 1.f/a, 1.f/b, c, -d );
+            frameData->_camera_projParams = float4_t( 1.f/a, 1.f/b, c, -d );
         }
 
-        frameData->eyePos = Vector4( camera.matrix.worldEye(), oneVec );
-        frameData->viewDir = Vector4( camera.matrix.worldDir(), zeroVec );
-        frameData->renderTargetSizeRcp = Vector4( 1.f / float( rtWidth ), 1.f / float( rtHeight ), float( rtWidth ), float( rtHeight ) );
+        m128_to_xyzw( frameData->_camera_eyePos.xyzw, Vector4( camera.matrix.worldEye(), oneVec ).get128() );
+        m128_to_xyzw( frameData->_camera_viewDir.xyzw, Vector4( camera.matrix.worldDir(), zeroVec ).get128() );
+        m128_to_xyzw( frameData->_renderTarget_rcp_size.xyzw, Vector4( 1.f / float( rtWidth ), 1.f / float( rtHeight ), float( rtWidth ), float( rtHeight ) ).get128() );
     }
 }///
 
@@ -156,7 +168,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
     const Vector3 sunLightDirection( xyz_to_m128( sunLight.dir.xyz ) );
 
     float depthSplits[ bxGfx::eSHADOW_NUM_CASCADES + 1 ];
-    shadows->splitDepth( depthSplits, camera.params, camera.params.zFar, 0.9f );
+    shadows->splitDepth( depthSplits, camera.params, camera.params.zFar, 0.8f );
     shadows->computeCascades( depthSplits, camera, sunLightDirection );
 
     for( int ilist = 0; ilist < numLists; ++ilist )

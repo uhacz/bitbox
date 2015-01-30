@@ -89,6 +89,9 @@ namespace
 {
     void _ComputeCascade( bxGfxShadows_Cascade* cascade, const bxGfxCamera& camera, float zNear, float zFar, const Vector3& lightDirection )
     {
+        const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
+        const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
+        
         bxGfxCamera_Params params = camera.params;
         params.zNear = zNear;
         params.zFar = zFar;
@@ -106,7 +109,7 @@ namespace
         }
         frustumCentroid *= 1.f / 8.f;
 
-        const float distFromCentroid = maxOfPair( zFar - zNear, length( frustumCorners[4] - frustumCorners[5] ).getAsFloat() ) + 50.f;
+        const float distFromCentroid = maxOfPair( zFar - zNear, length( frustumCorners[7] - frustumCorners[3] ).getAsFloat() ) + 50.f;
         const Matrix4 viewMatrix = Matrix4::lookAt( Point3( frustumCentroid ) - ( lightDirection * distFromCentroid ), Point3( frustumCentroid ), Vector3::yAxis() );
 
         Vector3 frustumConrnersLS[8];
@@ -130,8 +133,7 @@ namespace
         const float nearClipOffset = 100.f;
         const Matrix4 projMatrix = Matrix4::orthographic( min.x, max.x, min.y, max.y, -max.z - nearClipOffset, -min.z );
 
-        const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
-        const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
+        
         cascade->proj = sc * tr * projMatrix;
         cascade->view = viewMatrix;
         cascade->zNear_zFar = Vector4( zNear, zFar, 0.f, 0.f );

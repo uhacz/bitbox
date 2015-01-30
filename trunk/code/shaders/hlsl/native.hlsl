@@ -47,7 +47,7 @@ in_PS vs_main( in_VS input )
 	const matrix wmit = world_it_matrix[input.instanceID];
 	const float3 world_pos = mul( wm, input.pos ).xyz;
     
-    const float4 hpos = mul( view_proj_matrix, float4( world_pos, 1.f ) );
+    const float4 hpos = mul( _camera_viewProj, float4( world_pos, 1.f ) );
     
     output.h_pos = hpos;
 	output.w_pos = world_pos.xyz;
@@ -65,11 +65,11 @@ out_PS ps_main( in_PS input )
     ASSIGN_MATERIAL_FROM_CBUFFER( mat );
 
     const float3 N = normalize( input.w_normal );
-    const float3 V = -view_dir.xyz;
+    const float3 V = -_camera_viewDir.xyz;
 
     const float2 screenPos01 = (input.s_pos.xy/input.s_pos.w + 1.f) * 0.5f;
     
-    uint2 tileXY = computeTileXY( screenPos01, _numTilesXY, render_target_size_rcp.zw, _tileSizeRcp );
+    uint2 tileXY = computeTileXY( screenPos01, _numTilesXY, _renderTarget_rcp_size.zw, _tileSizeRcp );
     uint lightsIndexBegin = ( _numTilesXY.x * tileXY.y + tileXY.x ) * _maxLights;
 
     float3 colorFromLights = float3(0.f, 0.f, 0.f);

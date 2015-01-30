@@ -81,7 +81,7 @@ in_PS vs_main( in_VS input )
 	float4 world_pos = mul( wm, input.pos );
     world_pos.w = 1.f;
     
-    float4 hpos = mul( view_proj_matrix, world_pos );
+    float4 hpos = mul( _camera_viewProj, world_pos );
     
     output.h_pos = hpos;
 	output.w_pos = world_pos.xyz;
@@ -157,10 +157,10 @@ out_PS ps_main( in_PS input )
 	out_PS OUT;
     float3 L = -normalize( sun_dir.xyz );
     float3 N = normalize( input.w_normal );
-    float3 V = normalize( eye_pos - input.w_pos );
+    float3 V = normalize( _camera_eyePos - input.w_pos );
     float2 brdf = BRDF( L, V, N );
 
-    float2 winpos = input.h_pos.xy * render_target_size_rcp.xy;
+    float2 winpos = input.h_pos.xy * _renderTarget_rcp_size.xy;
 
     float2 shadow_ssao = _tex_shadow_ssao.SampleLevel( _samp_shadow_ssao, winpos, 0.f ).xy;
     float ssao_term = shadow_ssao.y;

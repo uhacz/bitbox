@@ -38,8 +38,8 @@ passes:
 
 };#~header
 
-#include <sys/util.hlsl>
 #include <sys/frame_data.hlsl>
+#include <sys/util.hlsl>
 #include <sys/instance_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
 
@@ -76,12 +76,13 @@ struct in_PS_depth
 };
 struct out_PS_depth 
 {
+//    float linearDepth : SV_Depth;
 };
 in_PS_depth vs_depth( in_VS_depth input )
 {
 	in_PS_depth output;
 	float4 wpos = mul( world_matrix[input.instanceID], input.pos );
-    float4 hpos = mul( view_proj_matrix, wpos );
+    float4 hpos = mul( _camera_viewProj, wpos );
     output.hpos = hpos;
     return output;
 }
@@ -89,6 +90,7 @@ in_PS_depth vs_depth( in_VS_depth input )
 out_PS_depth ps_depth( in_PS_depth input )
 {
 	out_PS_depth output;
+    //output.linearDepth = resolveLinearDepth( input.hpos.z / input.hpos.w, camera_params.x, camera_params.y );
 	return output;
 }
 
@@ -167,10 +169,10 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
     float pixel_depth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
-    float linear_depth = resolveLinearDepth( pixel_depth, camera_params.z, camera_params.w );
+    float linear_depth = -resolveLinearDepth( pixel_depth );
 
-    float2 wpos = input.wpos01 * 2.0 - 1.0;
-    float3 vs_pos = resolvePositionVS( wpos, linear_depth, proj_params.xy );
+    float2 screenPos_m11 = input.wpos01 * 2.0 - 1.0;
+    float3 vs_pos = resolvePositionVS( screenPos_m11, linear_depth, _camera_projParams.xy );
     
     int current_split = 0;
 
@@ -186,9 +188,9 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     float offset = (float)current_split * NUM_CASCADES_INV ;
 
     //float3 N = gnormals_vs.SampleLevel( _samplerr, input.uv, 0.f ).xyz;
-    float3 L = light_direction_ws;
+    //float3 L = light_direction_ws;
     
-    float4 ws_pos = mul( camera_world, float4( vs_pos, 1.0 ) );
+    float4 ws_pos = mul( _camera_world, float4( vs_pos, 1.0 ) );
     //float4 ws_nrm = mul( camera_world, float4( N, 1.0 ) );
 
     //const float n_dot_l = saturate( dot( ws_nrm, L ) );
@@ -206,12 +208,13 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     //shadow_uv += ( 0.5f / shadow_map_size );
 	
     float light_depth = light_hpos.z / light_hpos.w;
-	
-    const float bias = 0;// (1.f + pow( 2.f, (float)current_split )) / shadow_map_size.y;
+	//light_depth = resolveLinearDepth( light_depth, clip_planes[current_split].x, clip_planes[current_split].y );
+
+    const float bias = 0.f;//(1.f + pow( 2.f, (float)current_split )) / shadow_map_size.y;
     float shadow_value = sample_shadow_gauss5x5( light_depth - bias, shadow_uv );
     //float shadow_value = sample_shadow_pcf( light_depth - bias, shadow_uv );
     
-    return shadow_value;
+    return pixel_depth;
     //return float2(offset, 1.f);
 }
 
