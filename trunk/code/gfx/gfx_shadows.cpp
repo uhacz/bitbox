@@ -2,7 +2,7 @@
 #include "gfx_camera.h"
 #include "gfx_render_list.h"
 #include "gfx_sort_list.h"
-
+#include "gfx_debug_draw.h"
 #include <gdi/gdi_shader.h>
 
 #include <util/common.h>
@@ -59,7 +59,7 @@ void bxGfxShadows::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourc
 {
     const int shadowTextureWidth = bxGfx::eSHADOW_CASCADE_SIZE * bxGfx::eSHADOW_NUM_CASCADES;
     const int shadowTextureHeight = bxGfx::eSHADOW_CASCADE_SIZE;
-    _depthTexture = dev->createTexture2Ddepth( shadowTextureWidth, shadowTextureHeight, 1, bxGdi::eTYPE_DEPTH16, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+    _depthTexture = dev->createTexture2Ddepth( shadowTextureWidth, shadowTextureHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
     _fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "shadow" );
     SYS_ASSERT( _fxI != 0 );
 }
@@ -99,6 +99,8 @@ namespace
         const Matrix4 splitProj = bxGfx::cameraMatrix_projection( params, bxGfx::eSHADOW_CASCADE_SIZE, bxGfx::eSHADOW_CASCADE_SIZE );
         const Matrix4 splitViewProj = splitProj * camera.matrix.view;
 
+        bxGfx::viewFrustum_debugDraw( splitViewProj, 0xFF0000FF );
+
         Vector3 frustumCorners[8];
         bxGfx::viewFrustum_extractCorners( frustumCorners, splitViewProj );
 
@@ -106,11 +108,14 @@ namespace
         for( int i = 0; i < 8; ++i )
         {
             frustumCentroid += frustumCorners[i];
+            //bxGfxDebugDraw::addSphere( Vector4( frustumCorners[i], 0.5f ), 0xFF0000FF, 1 );
         }
         frustumCentroid *= 1.f / 8.f;
 
-        const float distFromCentroid = maxOfPair( zFar - zNear, length( frustumCorners[7] - frustumCorners[3] ).getAsFloat() ) + 50.f;
+        const float distFromCentroid = maxOfPair( zFar - zNear, length( frustumCorners[5] - frustumCorners[4] ).getAsFloat() ) + 50.f;
         const Matrix4 viewMatrix = Matrix4::lookAt( Point3( frustumCentroid ) - ( lightDirection * distFromCentroid ), Point3( frustumCentroid ), Vector3::yAxis() );
+
+        bxGfxDebugDraw::addSphere( Vector4( frustumCentroid, 0.5f ), 0xFF00FFFF, 1 );
 
         Vector3 frustumConrnersLS[8];
         for( int i = 0; i < 8; ++i )
@@ -132,8 +137,7 @@ namespace
 
         const float nearClipOffset = 100.f;
         const Matrix4 projMatrix = Matrix4::orthographic( min.x, max.x, min.y, max.y, -max.z - nearClipOffset, -min.z );
-
-        
+               
         cascade->proj = sc * tr * projMatrix;
         cascade->view = viewMatrix;
         cascade->zNear_zFar = Vector4( zNear, zFar, 0.f, 0.f );
@@ -149,11 +153,11 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
         const float zFar  = splits[isplit+1];
         
         _ComputeCascade( cascade, camera, zNear, zFar, lightDirection );
+
+
+        {
+            const u32 colors[4] = { 0xFF0000FF, 0x00FF00FF, 0x0000FFFF, 0xFFFF00FF };
+            bxGfx::viewFrustum_debugDraw( cascade->proj * cascade->view, colors[isplit] );
+        }
     }
 }
-
-void bxGfxShadows::drawShadowMap( bxGdiContext* ctx, bxGfxSortList_Shadow* sList )
-{
-    
-}
-

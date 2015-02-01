@@ -62,7 +62,7 @@ Texture2D<float> sceneDepthTex;
 //Texture2D gnormals_vs;
 
 SamplerState sampl;
-SamplerComparisonState samplShadowMap;
+SamplerState samplShadowMap;
 
 /////////////////////////////////////////////////////////////////
 struct in_VS_depth
@@ -96,12 +96,16 @@ out_PS_depth ps_depth( in_PS_depth input )
 
 #define in_PS_shadow out_VS_screenquad
 
-float sample_shadow_map( float light_depth, float2 shadow_uv )
+float sample_shadow_map( float lightDepth, float2 shadow_uv, float bias )
 {
-    return shadowMap.SampleCmpLevelZero( samplShadowMap, shadow_uv.xy, light_depth );
+    float shadowValue = ( shadowMap.SampleLevel( samplShadowMap, shadow_uv, 0 ).x + bias );
+    //return smoothstep( 0.f, bias, shadowValue - lightDepth );
+    return step( lightDepth, shadowValue );
+    //return ( shadowValue < lightDepth ) ? 0.0f : 1.0f;
+    //return shadowMap.SampleCmpLevelZero( samplShadowMap, shadow_uv.xy, light_depth );
 }
 
-float sample_shadow_pcf( float light_depth, float2 shadow_uv )
+float sample_shadow_pcf( float light_depth, float2 shadow_uv, float bias )
 {
     float result = 0.0;
     const float2 shadow_map_size_inv = float2( 1.0, 1.0 ) / shadow_map_size;
@@ -113,13 +117,13 @@ float sample_shadow_pcf( float light_depth, float2 shadow_uv )
         for(int y=-r; y<=r; y++)
         {
             float2 off = float2( x, y ) * shadow_map_size_inv;
-            result += sample_shadow_map( light_depth, shadow_uv+off );
+            result += sample_shadow_map( light_depth, shadow_uv+off, bias );
         }
     }
     return result / ( PCF_FILTER_SIZE*PCF_FILTER_SIZE );
 }
 
-float sample_shadow_gauss5x5( float light_depth, float2 base_uv )
+float sample_shadow_gauss5x5( float light_depth, float2 base_uv, float bias )
 {
     const float gaussKernel5x5[25] = 
     { 
@@ -141,7 +145,7 @@ float sample_shadow_gauss5x5( float light_depth, float2 base_uv )
 			float2 sample_uv = base_uv + offset;
 
 			float weight = gaussKernel5x5[ (x+2)*5 + y+2 ];
-            float sample = sample_shadow_map( light_depth, sample_uv.xy );
+            float sample = sample_shadow_map( light_depth, sample_uv.xy, bias );
 			result += sample * weight;
 		}
 	}
@@ -158,21 +162,14 @@ float3 get_shadow_pos_offset(in float nDotL, in float3 normal )
     return texelSize * nmlOffsetScale * normal * 10.f;
 }
 
-float ld( float hwDepth, float zn, float zf )
-{
-    float c1 = zf / zn;
-    float c0 = 1.0 - c1;
-    return 1.0 / (c0 * hwDepth + c1);
-}
-
 float ps_shadow( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
     float pixel_depth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
-    float linear_depth = -resolveLinearDepth( pixel_depth );
+    float linear_depth = resolveLinearDepth( pixel_depth );
 
     float2 screenPos_m11 = input.wpos01 * 2.0 - 1.0;
-    float3 vs_pos = resolvePositionVS( screenPos_m11, linear_depth, _camera_projParams.xy );
+    float3 vs_pos = resolvePositionVS( screenPos_m11, -linear_depth, _camera_projParams.xy );
     
     int current_split = 0;
 
@@ -190,7 +187,7 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     //float3 N = gnormals_vs.SampleLevel( _samplerr, input.uv, 0.f ).xyz;
     //float3 L = light_direction_ws;
     
-    float4 ws_pos = mul( _camera_world, float4( vs_pos, 1.0 ) );
+    float4 ws_pos = mul( _camera_world, float4(vs_pos, 1.0) );
     //float4 ws_nrm = mul( camera_world, float4( N, 1.0 ) );
 
     //const float n_dot_l = saturate( dot( ws_nrm, L ) );
@@ -198,23 +195,23 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     //ws_pos.xyz += shadow_offset;
 
     float4 light_hpos = mul( light_view_proj[current_split], ws_pos );
-    
+    light_hpos /= light_hpos.w;
     // Transform from light space to shadow map texture space.
-    float2 shadow_uv = 0.5 *  light_hpos.xy / light_hpos.w + float2(0.5f, 0.5f);
+    float2 shadow_uv = 0.5 *  light_hpos.xy + float2(0.5f, 0.5f);
     shadow_uv.x = ( shadow_uv.x * NUM_CASCADES_INV ) + offset;
     shadow_uv.y = 1.f-shadow_uv.y;
-
+    shadow_uv = shadow_uv;
     // Offset the coordinate by half a texel so we sample it correctly
     //shadow_uv += ( 0.5f / shadow_map_size );
 	
-    float light_depth = light_hpos.z / light_hpos.w;
+    float light_depth = light_hpos.z;
 	//light_depth = resolveLinearDepth( light_depth, clip_planes[current_split].x, clip_planes[current_split].y );
 
-    const float bias = 0.f;//(1.f + pow( 2.f, (float)current_split )) / shadow_map_size.y;
-    float shadow_value = sample_shadow_gauss5x5( light_depth - bias, shadow_uv );
-    //float shadow_value = sample_shadow_pcf( light_depth - bias, shadow_uv );
+    const float bias = (1.f + pow( 2.f, (float)current_split )) / shadow_map_size.y;
+    float shadow_value = sample_shadow_gauss5x5( light_depth, shadow_uv, bias );
+    //float shadow_value = sample_shadow_map( light_depth, shadow_uv, bias );
     
-    return pixel_depth;
+    return shadow_value;
     //return float2(offset, 1.f);
 }
 
