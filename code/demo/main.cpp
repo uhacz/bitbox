@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -129,9 +129,9 @@ public:
         rList = bxGfx::renderList_new( 1024 * 4, 1024 * 8, bxDefaultAllocator() );
 
         camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.5f, 50.f ) );
-        camera1.matrix.world = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.0f ) ), Vector3(0.f, 0.f, 15.f ) ); //Matrix4::translation( Vector3( 0.f ) );
+        camera1.matrix.world = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.0f ) ), Vector3(0.f, 0.f, 50.f ) ); //Matrix4::translation( Vector3( 0.f ) );
         camera1.params.zNear = 1.f;
-        camera1.params.zFar = 20.f;
+        camera1.params.zFar = 100.f;
 
         bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
@@ -216,9 +216,9 @@ public:
             const float posA = sinf( rot ) * 0.2f;
             const float posB = cosf( posA * 2 * PI + rot ) * 0.2f;
 
-            const int gridX = 7;
-            const int gridY = 5;
-            const int gridZ = 30;
+            const int gridX = 3;
+            const int gridY = 3;
+            const int gridZ = 20;
 
             const float cellSize = 3.f;
             const float yOffset = 5.f;
@@ -262,11 +262,11 @@ public:
             
             bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "blue" );
             bxGfxRenderList_ItemDesc itemDesc( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
-            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
+            //bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
         }
 
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
-
+        bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
         //for( int ilight = 0; ilight < nPointLights; ++ilight )
         //{
         //    bxGfxLight_Point l = _gfxLights->lightManager.pointLight( pointLights[ilight] );
@@ -284,29 +284,29 @@ public:
         _gfxContext->frame_zPrepass( _gdiContext, camera, &rList, 1 );
         _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera, *_gfxLights );
 
-        //_gfxContext->bindCamera( _gdiContext, camera );
-        //{
-        //    bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-        //    _gfxPostprocess->sky( _gdiContext, outputTexture, _gfxLights->sunLight() );
-        //}
-        //_gfxLights->bind( _gdiContext );
+        _gfxContext->bindCamera( _gdiContext, camera );
+        {
+            bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+            _gfxPostprocess->sky( _gdiContext, outputTexture, _gfxLights->sunLight() );
+        }
+        _gfxLights->bind( _gdiContext );
 
-        //_gfxContext->frame_drawColor( _gdiContext, camera, &rList, 1 );
+        _gfxContext->frame_drawColor( _gdiContext, camera, &rList, 1 );
 
-        //_gdiContext->clear();
-        //_gfxContext->bindCamera( _gdiContext, camera );
-        //
-        //{
-        //    bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-        //    bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
-        //    bxGdiTexture depthTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
-        //    _gfxPostprocess->fog( _gdiContext, outputTexture, colorTexture, depthTexture, _gfxLights->sunLight() );
-        //}
-        //{
-        //    bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
-        //    bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-        //    _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, deltaTime );
-        //}
+        _gdiContext->clear();
+        _gfxContext->bindCamera( _gdiContext, camera );
+        
+        {
+            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+            bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+            bxGdiTexture depthTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
+            _gfxPostprocess->fog( _gdiContext, outputTexture, colorTexture, depthTexture, _gfxLights->sunLight() );
+        }
+        {
+            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+            bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+            _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, deltaTime );
+        }
         
         
 
