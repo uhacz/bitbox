@@ -4,6 +4,11 @@ passes:
     {
 	    vertex = "vs_depth";
         pixel = "ps_depth";
+
+        hwstate = 
+		{
+		    color_mask = "";
+		};
     };
 
     shadow =
@@ -62,7 +67,7 @@ Texture2D<float> sceneDepthTex;
 //Texture2D gnormals_vs;
 
 SamplerState sampl;
-SamplerState samplShadowMap;
+SamplerComparisonState samplShadowMap;
 
 /////////////////////////////////////////////////////////////////
 struct in_VS_depth
@@ -96,13 +101,13 @@ out_PS_depth ps_depth( in_PS_depth input )
 
 #define in_PS_shadow out_VS_screenquad
 
-float sample_shadow_map( float lightDepth, float2 shadow_uv, float bias )
+float sample_shadow_map( float lightDepth, float2 shadowUV, float bias )
 {
-    float shadowValue = ( shadowMap.SampleLevel( samplShadowMap, shadow_uv, 0 ).x + bias );
+    //float shadowValue = ( shadowMap.SampleLevel( samplShadowMap, shadowUV, 0 ).x + bias );
     //return smoothstep( 0.f, bias, shadowValue - lightDepth );
-    return step( lightDepth, shadowValue );
+    //return step( lightDepth, shadowValue );
     //return ( shadowValue < lightDepth ) ? 0.0f : 1.0f;
-    //return shadowMap.SampleCmpLevelZero( samplShadowMap, shadow_uv.xy, light_depth );
+    return shadowMap.SampleCmpLevelZero( samplShadowMap, shadowUV.xy, lightDepth - bias );
 }
 
 float sample_shadow_pcf( float light_depth, float2 shadow_uv, float bias )
@@ -208,8 +213,8 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
 	//light_depth = resolveLinearDepth( light_depth, clip_planes[current_split].x, clip_planes[current_split].y );
 
     const float bias = (1.f + pow( 2.f, (float)current_split )) / shadow_map_size.y;
-    float shadow_value = sample_shadow_gauss5x5( light_depth, shadow_uv, bias );
-    //float shadow_value = sample_shadow_map( light_depth, shadow_uv, bias );
+    //float shadow_value = sample_shadow_gauss5x5( light_depth, shadow_uv, bias );
+    float shadow_value = sample_shadow_map( light_depth, shadow_uv, bias );
     
     return shadow_value;
     //return float2(offset, 1.f);

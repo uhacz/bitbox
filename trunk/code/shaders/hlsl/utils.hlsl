@@ -9,6 +9,7 @@ passes:
 		{
 			depth_test = 1;
 			depth_write = 1;
+            //color_mask = "";
 		};
     };
 	

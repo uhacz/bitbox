@@ -59,7 +59,7 @@ void bxGfxShadows::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourc
 {
     const int shadowTextureWidth = bxGfx::eSHADOW_CASCADE_SIZE * bxGfx::eSHADOW_NUM_CASCADES;
     const int shadowTextureHeight = bxGfx::eSHADOW_CASCADE_SIZE;
-    _depthTexture = dev->createTexture2Ddepth( shadowTextureWidth, shadowTextureHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+    _depthTexture = dev->createTexture2Ddepth( shadowTextureWidth, shadowTextureHeight, 1, bxGdi::eTYPE_DEPTH16, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
     _fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "shadow" );
     SYS_ASSERT( _fxI != 0 );
 }
