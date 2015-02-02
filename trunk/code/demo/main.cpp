@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -262,7 +262,7 @@ public:
             
             bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "blue" );
             bxGfxRenderList_ItemDesc itemDesc( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
-            //bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
+            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
         }
 
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
@@ -282,7 +282,7 @@ public:
         
         _gfxContext->bindCamera( _gdiContext, camera );
         _gfxContext->frame_zPrepass( _gdiContext, camera, &rList, 1 );
-        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera, *_gfxLights );
+        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera1, *_gfxLights );
 
         _gfxContext->bindCamera( _gdiContext, camera );
         {
@@ -312,7 +312,7 @@ public:
 
         bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
         {
-            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS );
+            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             //bxGdiTexture colorTexture = _gfxShadows->_depthTexture;
             _gfxContext->frame_rasterizeFramebuffer( _gdiContext, colorTexture, camera );
         }
