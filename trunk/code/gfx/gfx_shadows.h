@@ -41,8 +41,8 @@ namespace bxGfx
 ////
 struct bxGfxShadows 
 {
-    void splitDepth( float splits[ bxGfx::eSHADOW_NUM_CASCADES+1], const bxGfxCamera_Params& params, float zMax, float lambda );
-    void computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCADES+1], const bxGfxCamera& camera, const Vector3& lightDirection );
+    void splitDepth( float splits[ bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera_Params& params, float zMax, float lambda );
+    void computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera& camera, const Vector3& lightDirection );
 
     bxGfxShadows();
     void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );

@@ -158,15 +158,6 @@ float sample_shadow_gauss5x5( float light_depth, float2 base_uv, float bias )
 	return result;
 }
 
-float3 get_shadow_pos_offset(in float nDotL, in float3 normal )
-{
-    float2 shadowMapSize;
-    shadowMap.GetDimensions(shadowMapSize.x, shadowMapSize.y );
-    float texelSize = 2.0f / shadowMapSize.x;
-    float nmlOffsetScale = saturate(1.0f - nDotL);
-    return texelSize * nmlOffsetScale * normal * 10.f;
-}
-
 float ps_shadow( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
@@ -207,7 +198,7 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     shadow_uv.y = 1.f-shadow_uv.y;
     shadow_uv = shadow_uv;
     // Offset the coordinate by half a texel so we sample it correctly
-    //shadow_uv += ( 0.5f / shadow_map_size );
+    shadow_uv += ( 0.5f / shadow_map_size );
 	
     float light_depth = light_hpos.z;
 	//light_depth = resolveLinearDepth( light_depth, clip_planes[current_split].x, clip_planes[current_split].y );
