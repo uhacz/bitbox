@@ -70,11 +70,11 @@ void bxGfxShadows::_Shurdown( bxGdiDeviceBackend* dev, bxResourceManager* resour
     dev->releaseTexture( &_depthTexture );
 }
 
-void bxGfxShadows::splitDepth( float splits[ bxGfx::eSHADOW_NUM_CASCADES+1], const bxGfxCamera_Params& params, float zMax, float lambda )
+void bxGfxShadows::splitDepth( float splits[ bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera_Params& params, float zMax, float lambda )
 {
     const float N = (float)bxGfx::eSHADOW_NUM_CASCADES;
     splits[0] = 0.f;
-    splits[bxGfx::eSHADOW_NUM_CASCADES] = 1.f; //params.zFar;
+    splits[bxGfx::eSHADOW_NUM_CASCADES-1] = 1.f; //params.zFar;
 
     const float znear = params.zNear;
     const float zfar = zMax;
@@ -100,9 +100,6 @@ namespace
 {
     void _ComputeCascade( bxGfxShadows_Cascade* cascade, const bxGfxCamera& camera, float nearSplitAlpha, float farSplitAlpha, float zRange, const Vector3& lightDirection )
     {
-        //const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
-        //const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
-
         Vector3 frustumCornersWS[8];
         bxGfx::viewFrustum_extractCorners( frustumCornersWS, camera.matrix.viewProj );
 
@@ -122,7 +119,7 @@ namespace
         for( int i = 0; i < 8; ++i )
         {
             frustumCenter += frustumCornersWS[i];
-            bxGfxDebugDraw::addSphere( Vector4( frustumCornersWS[i], 0.5f ), 0x0000FFFF, 1 );
+            
         }
         frustumCenter *= 1.f / 8.f;
 
@@ -130,9 +127,12 @@ namespace
         Vector3 minExtents( FLT_MAX );
         Vector3 maxExtents(-FLT_MAX );
 
-        const Vector3 lightCameraPos = frustumCenter - lightDirection;
-        const Vector3 lookAt = frustumCenter;
+        const Vector3 lightCameraPos = frustumCenter;
+        const Vector3 lookAt = frustumCenter - lightDirection;
         const Matrix4 lightView = Matrix4::lookAt( Point3( lightCameraPos ), Point3( lookAt ), upDir );
+
+        bxGfxDebugDraw::addSphere( Vector4( lightCameraPos, 0.5f ), 0x00FF00FF, 1 );
+        bxGfxDebugDraw::addSphere( Vector4( lookAt, 0.5f ), 0x0000FFFF, 1 );
 
         for( int i = 0 ; i < 8 ; ++i )
         {
@@ -142,16 +142,17 @@ namespace
         }
 
         const Vector3 cascadeExtents = maxExtents - minExtents;
-        const Vector3 shadowCameraPos = frustumCenter - lightDirection * minExtents.getZ();
+        const Vector3 shadowCameraPos = frustumCenter + lightDirection * -minExtents.getZ();
 
         float3_t mins, maxs, exts;
         m128_to_xyz( mins.xyz, minExtents.get128() );
         m128_to_xyz( maxs.xyz, maxExtents.get128() );
         m128_to_xyz( exts.xyz, cascadeExtents.get128() );
         
-        const Matrix4 cascadeProj = Matrix4::orthographic( mins.x, mins.y, maxs.x, maxs.y, 0.0f, exts.z );
+        const Matrix4 cascadeProj = Matrix4::orthographic( mins.x, maxs.x, mins.y, maxs.y, 0.0f, exts.z );
         const Matrix4 cascadeView = Matrix4::lookAt( Point3( shadowCameraPos ), Point3( frustumCenter ), upDir );
-        bxGfxDebugDraw::addSphere( Vector4( shadowCameraPos, 0.5f ), 0x00FF00FF, 1 );
+
+        bxGfxDebugDraw::addSphere( Vector4( shadowCameraPos, 0.5f ), 0xFF0000FF, 1 );
         cascade->proj = cascadeProj;
         cascade->view = cascadeView;
         cascade->zNear_zFar = Vector4( nearSplitAlpha * zRange, farSplitAlpha * zRange, 0.f, 0.f );

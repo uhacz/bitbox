@@ -282,7 +282,7 @@ public:
         
         _gfxContext->bindCamera( _gdiContext, camera );
         _gfxContext->frame_zPrepass( _gdiContext, camera, &rList, 1 );
-        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera1, *_gfxLights );
+        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera, *_gfxLights );
 
         _gfxContext->bindCamera( _gdiContext, camera );
         {
@@ -307,13 +307,17 @@ public:
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, deltaTime );
         }
-        
-        
-
-        bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
+        {
+            
+        }
         {
             bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-            //bxGdiTexture colorTexture = _gfxShadows->_depthTexture;
+            
+            _gdiContext->changeRenderTargets( &colorTexture, 1, _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ) );
+            bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
+            
+            //colorTexture = _gfxShadows->_depthTexture;
+            colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS );
             _gfxContext->frame_rasterizeFramebuffer( _gdiContext, colorTexture, camera );
         }
         
