@@ -12,9 +12,15 @@ namespace bxGfx
     void frameData_fill( FrameData* frameData, const bxGfxCamera& camera, int rtWidth, int rtHeight )
     {
         SYS_STATIC_ASSERT( sizeof( FrameData ) == 352 );
+
+        const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
+        const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
+
+        const Matrix4 proj = sc * tr * camera.matrix.proj;
+
         frameData->_camera_view = camera.matrix.view;
-        frameData->_camera_proj = camera.matrix.proj;
-        frameData->_camera_viewProj = camera.matrix.viewProj;
+        frameData->_camera_proj = proj;
+        frameData->_camera_viewProj = proj * camera.matrix.view;
         frameData->_camera_world = camera.matrix.world;
 
         const float fov = camera.params.fov();
@@ -32,10 +38,10 @@ namespace bxGfx
 
         //frameData->cameraParams = Vector4( fov, aspect, camera.params.zNear, camera.params.zFar );
         {
-            const float a = camera.matrix.proj.getElem( 0, 0 ).getAsFloat();//getCol0().getX().getAsFloat();
-            const float b = camera.matrix.proj.getElem( 1, 1 ).getAsFloat();//getCol1().getY().getAsFloat();
-            const float c = camera.matrix.proj.getElem( 2, 2 ).getAsFloat();//getCol2().getZ().getAsFloat();
-            const float d = camera.matrix.proj.getElem( 3, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+            const float a = proj.getElem( 0, 0 ).getAsFloat();//getCol0().getX().getAsFloat();
+            const float b = proj.getElem( 1, 1 ).getAsFloat();//getCol1().getY().getAsFloat();
+            const float c = proj.getElem( 2, 2 ).getAsFloat();//getCol2().getZ().getAsFloat();
+            const float d = proj.getElem( 3, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
 
             frameData->_camera_projParams = float4_t( 1.f/a, 1.f/b, c, -d );
         }
@@ -168,7 +174,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
     const Vector3 sunLightDirection( xyz_to_m128( sunLight.dir.xyz ) );
 
     float depthSplits[ bxGfx::eSHADOW_NUM_CASCADES ];
-    shadows->splitDepth( depthSplits, camera.params, camera.params.zFar, 0.8f );
+    shadows->splitDepth( depthSplits, camera.params, camera.params.zFar, 0.9f );
     shadows->computeCascades( depthSplits, camera, sunLightDirection );
 
     for( int ilist = 0; ilist < numLists; ++ilist )

@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -128,10 +128,9 @@ public:
 
         rList = bxGfx::renderList_new( 1024 * 4, 1024 * 8, bxDefaultAllocator() );
 
-        camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.5f, 50.f ) );
-        camera1.matrix.world = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.0f ) ), Vector3(0.f, 0.f, 50.f ) ); //Matrix4::translation( Vector3( 0.f ) );
-        camera1.params.zNear = 1.f;
-        camera1.params.zFar = 100.f;
+        camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.5f, 35.f ) );
+        camera1.matrix.world = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.0f ) ), Vector3(0.f, 0.f, 35.f ) ); //Matrix4::translation( Vector3( 0.f ) );
+        camera1.params = camera.params;
 
         bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
@@ -182,7 +181,7 @@ public:
 
 
         bxWindow* win = bxWindow_get();
-        if( bxInput_isPeyPressedOnce( &win->input.kbd, bxInput::eKEY_ESC ) )
+        if( bxInput_isKeyPressedOnce( &win->input.kbd, bxInput::eKEY_ESC ) )
         {
             return false;
         }
@@ -198,8 +197,13 @@ public:
 
         _gui_lights.show( _gfxLights, pointLights, nPointLights );
         
+        static Matrix4* cameraMatrix = &camera.matrix.world;
+        if( bxInput_isKeyPressedOnce( &win->input.kbd, bxInput::eKEY_LSHIFT ) )
+            cameraMatrix = ( cameraMatrix == &camera.matrix.world ) ? &camera1.matrix.world : &camera.matrix.world;
+
+
         bxGfx::cameraUtil_updateInput( &cameraInputCtx, &win->input, 1.f, deltaTime );
-        camera.matrix.world = bxGfx::cameraUtil_movement( camera.matrix.world
+        cameraMatrix[0] = bxGfx::cameraUtil_movement( cameraMatrix[0]
             , cameraInputCtx.leftInputX * 0.25f 
             , cameraInputCtx.leftInputY * 0.25f 
             , cameraInputCtx.rightInputX * deltaTime * 5.f
@@ -282,7 +286,7 @@ public:
         
         _gfxContext->bindCamera( _gdiContext, camera );
         _gfxContext->frame_zPrepass( _gdiContext, camera, &rList, 1 );
-        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera, *_gfxLights );
+        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera1, *_gfxLights );
 
         _gfxContext->bindCamera( _gdiContext, camera );
         {
@@ -317,7 +321,7 @@ public:
             bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
             
             //colorTexture = _gfxShadows->_depthTexture;
-            colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS );
+            //colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS );
             _gfxContext->frame_rasterizeFramebuffer( _gdiContext, colorTexture, camera );
         }
         

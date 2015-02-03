@@ -15,7 +15,7 @@ bxGfxCamera_Params::bxGfxCamera_Params()
     : hAperture( 1.8f )
 	, vAperture( 1.f )
 	, focalLength( 50.f )
-	, zNear( 1.0f )
+	, zNear( 0.25f )
 	, zFar( 100.f )
 	, orthoWidth( 10.f )
     , orthoHeight( 10.f )
@@ -128,9 +128,9 @@ namespace bxGfx
 
         // directx has different z mapping !!! (to range <0,1>)
         //
-        const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
-        const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
-        const Matrix4 newProj = sc * tr * proj_matrix;
+        //const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
+        //const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
+        const Matrix4 newProj = /*sc * tr * */proj_matrix;
         return newProj;
     }
 	Matrix4 cameraMatrix_view( const Matrix4& world )

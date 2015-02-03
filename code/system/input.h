@@ -148,7 +148,7 @@ inline bool bxInput_isKeyPressed( const bxInput_Keyboard* input, unsigned char k
 {
     return input->currState.keys[key] > 0;
 }
-inline bool bxInput_isPeyPressedOnce( const bxInput_Keyboard* input, unsigned char key )
+inline bool bxInput_isKeyPressedOnce( const bxInput_Keyboard* input, unsigned char key )
 {
     const unsigned char curr_state = input->currState.keys[key];
     const unsigned char prev_state = input->prevState.keys[key];

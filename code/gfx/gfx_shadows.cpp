@@ -59,7 +59,7 @@ void bxGfxShadows::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourc
 {
     const int shadowTextureWidth = bxGfx::eSHADOW_CASCADE_SIZE * bxGfx::eSHADOW_NUM_CASCADES;
     const int shadowTextureHeight = bxGfx::eSHADOW_CASCADE_SIZE;
-    _depthTexture = dev->createTexture2Ddepth( shadowTextureWidth, shadowTextureHeight, 1, bxGdi::eTYPE_DEPTH16, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+    _depthTexture = dev->createTexture2Ddepth( shadowTextureWidth, shadowTextureHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
     _fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "shadow" );
     SYS_ASSERT( _fxI != 0 );
 }
@@ -103,29 +103,33 @@ namespace
         Vector3 frustumCornersWS[8];
         bxGfx::viewFrustum_extractCorners( frustumCornersWS, camera.matrix.viewProj );
 
+
+        Vector3 splitCornersWS[8];
         for ( int i = 0; i < 8; i+=2 )
         {
-            bxGfxDebugDraw::addSphere( Vector4( frustumCornersWS[i], 0.25f ), 0xFF00FFFF, 1 );
-            bxGfxDebugDraw::addSphere( Vector4( frustumCornersWS[i+1], 0.25f ), 0xFF00FFFF, 1 );
+            
             const Vector3 cornerRay = frustumCornersWS[i + 1] - frustumCornersWS[i];
             const Vector3 nearCornerRay = cornerRay * nearSplitAlpha;
             const Vector3 farCornerRay = cornerRay * farSplitAlpha;
 
-            frustumCornersWS[i + 1] = frustumCornersWS[i] + farCornerRay;
-            frustumCornersWS[i] = frustumCornersWS[i] + nearCornerRay;
+            splitCornersWS[i + 1] = frustumCornersWS[i] + farCornerRay;
+            splitCornersWS[i]     = frustumCornersWS[i] + nearCornerRay;
+
+
+            bxGfxDebugDraw::addSphere( Vector4( splitCornersWS[i], 0.25f ), 0xFF00FFFF, 1 );
+            bxGfxDebugDraw::addSphere( Vector4( splitCornersWS[i+1], 0.25f ), 0xFF00FFFF, 1 );
         }
 
         Vector3 frustumCenter(0.f);
         for( int i = 0; i < 8; ++i )
         {
-            frustumCenter += frustumCornersWS[i];
+            frustumCenter += splitCornersWS[i];
             
         }
         frustumCenter *= 1.f / 8.f;
 
         Vector3 upDir = camera.matrix.world.getCol0().getXYZ();
-        Vector3 minExtents( FLT_MAX );
-        Vector3 maxExtents(-FLT_MAX );
+               
 
         const Vector3 lightCameraPos = frustumCenter;
         const Vector3 lookAt = frustumCenter - lightDirection;
@@ -134,15 +138,19 @@ namespace
         bxGfxDebugDraw::addSphere( Vector4( lightCameraPos, 0.5f ), 0x00FF00FF, 1 );
         bxGfxDebugDraw::addSphere( Vector4( lookAt, 0.5f ), 0x0000FFFF, 1 );
 
+        Vector3 minExtents( FLT_MAX );
+        Vector3 maxExtents(-FLT_MAX );
         for( int i = 0 ; i < 8 ; ++i )
         {
-            const Vector3 cornerLS = mulAsVec4( lightView, frustumCornersWS[i] );
+            const Vector3 cornerLS = mulAsVec4( lightView, splitCornersWS[i] );
             minExtents = minPerElem( cornerLS, minExtents );
             maxExtents = maxPerElem( cornerLS, maxExtents );
         }
+        //minExtents = mulPerElem( minExtents, Vector3( 1.1f, 1.1f, 1.f ) );
+        //maxExtents = mulPerElem( maxExtents, Vector3( 1.1f, 1.1f, 1.f ) );
 
         const Vector3 cascadeExtents = maxExtents - minExtents;
-        const Vector3 shadowCameraPos = frustumCenter + lightDirection * -minExtents.getZ();
+        const Vector3 shadowCameraPos = frustumCenter - lightDirection * -minExtents.getZ();
 
         float3_t mins, maxs, exts;
         m128_to_xyz( mins.xyz, minExtents.get128() );
@@ -153,7 +161,11 @@ namespace
         const Matrix4 cascadeView = Matrix4::lookAt( Point3( shadowCameraPos ), Point3( frustumCenter ), upDir );
 
         bxGfxDebugDraw::addSphere( Vector4( shadowCameraPos, 0.5f ), 0xFF0000FF, 1 );
-        cascade->proj = cascadeProj;
+
+        //const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
+        //const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
+
+        cascade->proj = /*sc * tr * */cascadeProj;
         cascade->view = cascadeView;
         cascade->zNear_zFar = Vector4( nearSplitAlpha * zRange, farSplitAlpha * zRange, 0.f, 0.f );
 
@@ -213,6 +225,10 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
 {
     const float zRange = camera.params.zFar - camera.params.zNear;
     
+    {
+        bxGfx::viewFrustum_debugDraw( camera.matrix.viewProj, 0x0000FFFF );
+    }
+
     for( int isplit = 0; isplit < bxGfx::eSHADOW_NUM_CASCADES; ++isplit )
     {
         bxGfxShadows_Cascade* cascade = &_cascade[isplit];
