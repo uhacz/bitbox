@@ -13,7 +13,9 @@ namespace bxGfx
     {
         SYS_STATIC_ASSERT( sizeof( FrameData ) == 352 );
 
-        const Matrix4 proj = camera.matrix.proj;
+        const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
+        const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
+        const Matrix4 proj = sc * tr * camera.matrix.proj;
 
         frameData->_camera_view = camera.matrix.view;
         frameData->_camera_proj = proj;
@@ -218,8 +220,8 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
                 cascadeCamera.matrix.proj = cascade.proj;
                 cascadeCamera.matrix.viewProj = cascade.proj * cascade.view;
                 cascadeCamera.matrix.world = inverse( cascade.view );
-                cascadeCamera.params.zNear = cascade.zNear_zFar.getX().getAsFloat();
-                cascadeCamera.params.zFar = cascade.zNear_zFar.getY().getAsFloat();
+                //cascadeCamera.params.zNear = cascade.zNear_zFar.getX().getAsFloat();
+                //cascadeCamera.params.zFar = cascade.zNear_zFar.getY().getAsFloat();
 
                 bindCamera( ctx, cascadeCamera );
                 ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
@@ -238,10 +240,12 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             Matrix4 viewProj[bxGfx::eSHADOW_NUM_CASCADES];
             Vector4 clipPlanes[bxGfx::eSHADOW_NUM_CASCADES];
 
+            const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
+            const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
             for( int i = 0; i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
             {
                 const bxGfxShadows_Cascade& cascade = shadows->_cascade[i];
-                viewProj[i] = ( cascade.proj ) * cascade.view;
+                viewProj[i] = ( sc * tr * cascade.proj ) * cascade.view;
                 clipPlanes[i] = -cascade.zNear_zFar;
             }
             shadowsFxI->setUniform( "light_view_proj", viewProj );
@@ -252,9 +256,9 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
 
             shadowsFxI->setTexture( "shadowMap", shadows->_depthTexture );
             shadowsFxI->setTexture( "sceneDepthTex", _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
-            shadowsFxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP ) );
+            shadowsFxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP ) );
             //shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_CLAMP ) );
-            shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
+            shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
 
             ctx->changeRenderTargets( &shadowsTexture, 1, bxGdiTexture() );
             ctx->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
