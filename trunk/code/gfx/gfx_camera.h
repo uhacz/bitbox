@@ -38,6 +38,7 @@ namespace bxGfx
 	Matrix4 cameraMatrix_projection    ( const bxGfxCamera_Params& params, int rtWidth, int rtHeight );
     Matrix4 cameraMatrix_ortho         ( const bxGfxCamera_Params& params, int rtWidth, int rtHeight );
     Matrix4 cameraMatrix_ortho         ( float orthoWidth, float orthoHeight, float znear, float zfar, int rtWidth, int rtHeight );
+    Matrix4 cameraMatrix_ortho         ( float left, float right, float bottom, float top, float near, float far );
 	Matrix4 cameraMatrix_view          ( const Matrix4& world );
 	bxGdiViewport cameraParams_viewport( const bxGfxCamera_Params& params, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
     void  cameraMatrix_compute               ( bxGfxCamera_Matrix* mtx, const bxGfxCamera_Params& params, const Matrix4& world, int rtWidth, int rtHeight );

@@ -286,7 +286,7 @@ public:
         
         _gfxContext->bindCamera( _gdiContext, camera );
         _gfxContext->frame_zPrepass( _gdiContext, camera, &rList, 1 );
-        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera1, *_gfxLights );
+        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera, *_gfxLights );
 
         _gfxContext->bindCamera( _gdiContext, camera );
         {
@@ -315,13 +315,33 @@ public:
             
         }
         {
-            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+            bxGdiTexture colorTextures[] = 
+            {
+                _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR ),
+                _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ),
+                _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS ),
+                _gfxShadows->_depthTexture,
+            };
+            const char* colorNames[] = 
+            {
+                "color", "depth", "shadows", "cascades",
+            };
+            const int nTextures = sizeof(colorTextures)/sizeof(*colorTextures);
+            static int current = 0;
             
+            if( ImGui::Begin() )
+            {
+                ImGui::Combo( "Visible RT", &current, colorNames, nTextures );
+                ImGui::End();
+            }
+            
+            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             _gdiContext->changeRenderTargets( &colorTexture, 1, _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ) );
             bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
             
             //colorTexture = _gfxShadows->_depthTexture;
             //colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS );
+            colorTexture = colorTextures[current];
             _gfxContext->frame_rasterizeFramebuffer( _gdiContext, colorTexture, camera );
         }
         

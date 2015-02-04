@@ -198,7 +198,7 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     shadow_uv.y = 1.f-shadow_uv.y;
     shadow_uv = shadow_uv;
     // Offset the coordinate by half a texel so we sample it correctly
-    //shadow_uv += ( 0.5f / shadow_map_size );
+    shadow_uv += ( 0.5f / shadow_map_size );
 	
     float light_depth = light_hpos.z;
 	//light_depth = resolveLinearDepth( light_depth, clip_planes[current_split].x, clip_planes[current_split].y );
