@@ -13,10 +13,7 @@ namespace bxGfx
     {
         SYS_STATIC_ASSERT( sizeof( FrameData ) == 352 );
 
-        const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
-        const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
-
-        const Matrix4 proj = sc * tr * camera.matrix.proj;
+        const Matrix4 proj = camera.matrix.proj;
 
         frameData->_camera_view = camera.matrix.view;
         frameData->_camera_proj = proj;
@@ -241,13 +238,10 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             Matrix4 viewProj[bxGfx::eSHADOW_NUM_CASCADES];
             Vector4 clipPlanes[bxGfx::eSHADOW_NUM_CASCADES];
 
-            const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
-            const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
-
             for( int i = 0; i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
             {
                 const bxGfxShadows_Cascade& cascade = shadows->_cascade[i];
-                viewProj[i] = ( sc * tr * cascade.proj ) * cascade.view;
+                viewProj[i] = ( cascade.proj ) * cascade.view;
                 clipPlanes[i] = -cascade.zNear_zFar;
             }
             shadowsFxI->setUniform( "light_view_proj", viewProj );
