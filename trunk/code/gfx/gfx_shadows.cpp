@@ -322,8 +322,8 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
         splitCornersWS[cornerBeginIdx + 2] = lerp( splitFar, frustumCornersWS[4], frustumCornersWS[5] );
         splitCornersWS[cornerBeginIdx + 3] = lerp( splitFar, frustumCornersWS[6], frustumCornersWS[7] );
 
-        const float splitZnear = lerp( splitNear, 0, zRange );
-        const float splitZfar  = lerp( splitFar , 0, zRange );
+        const float splitZnear = lerp( splitNear, camera.params.zNear, camera.params.zFar );
+        const float splitZfar  = lerp( splitFar , camera.params.zNear, camera.params.zFar );
 
         splitClipPlanes[isplit] = Vector4( splitZnear, splitZfar, 0.f, 0.f );
     }

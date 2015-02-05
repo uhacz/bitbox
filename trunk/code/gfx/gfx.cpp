@@ -72,7 +72,7 @@ int bxGfxContext::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resource
 
     _framebuffer[bxGfx::eFRAMEBUFFER_COLOR]   = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     _framebuffer[bxGfx::eFRAMEBUFFER_SWAP]    = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
-    _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH]   = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH24_STENCIL8, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+    _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH]   = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
     _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     
     {
@@ -220,11 +220,11 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
                 cascadeCamera.matrix.proj = cascade.proj;
                 cascadeCamera.matrix.viewProj = cascade.proj * cascade.view;
                 cascadeCamera.matrix.world = inverse( cascade.view );
-                //cascadeCamera.params.zNear = cascade.zNear_zFar.getX().getAsFloat();
-                //cascadeCamera.params.zFar = cascade.zNear_zFar.getY().getAsFloat();
+                cascadeCamera.params.zNear = cascade.zNear_zFar.getX().getAsFloat();
+                cascadeCamera.params.zFar = cascade.zNear_zFar.getY().getAsFloat();
 
                 bindCamera( ctx, cascadeCamera );
-                ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
+                ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eSTAGE_VERTEX );
                 ctx->setViewport( viewports[key.cascade] );
             }
 
