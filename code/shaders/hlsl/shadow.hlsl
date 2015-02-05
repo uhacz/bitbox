@@ -107,7 +107,7 @@ float sample_shadow_map( float lightDepth, float2 shadowUV, float bias )
     //return smoothstep( 0.f, bias, shadowValue - lightDepth );
     //return step( lightDepth, shadowValue );
     //return ( shadowValue < lightDepth ) ? 0.0f : 1.0f;
-    return shadowMap.SampleCmpLevelZero( samplShadowMap, shadowUV.xy, lightDepth - bias );
+    return shadowMap.SampleCmpLevelZero( samplShadowMap, shadowUV.xy, lightDepth );
 }
 
 float sample_shadow_pcf( float light_depth, float2 shadow_uv, float bias )
@@ -166,14 +166,15 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
 
     float2 screenPos_m11 = input.wpos01 * 2.0 - 1.0;
     float3 vs_pos = resolvePositionVS( screenPos_m11, -linear_depth, _camera_projParams.xy );
-    
-    int current_split = NUM_CASCADES - 1;
-    for( int i = NUM_CASCADES-1; i >= 0; --i )
+
+    int current_split = 0;
+    for( int i = 0; i < NUM_CASCADES; ++i )
     {
         [flatten]
-        if( vs_pos.z > clip_planes[i].y )
+        if( vs_pos.z < clip_planes[i].x )
         {
             current_split = i;
+
         }
     }
     
@@ -191,7 +192,7 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     //ws_pos.xyz += shadow_offset;
 
     float4 light_hpos = mul( light_view_proj[current_split], ws_pos );
-    light_hpos /= light_hpos.w;
+    //light_hpos /= light_hpos.w;
     // Transform from light space to shadow map texture space.
     float2 shadow_uv = 0.5 *  light_hpos.xy + float2(0.5f, 0.5f);
     shadow_uv.x = ( shadow_uv.x * NUM_CASCADES_INV ) + offset;
@@ -199,6 +200,7 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     //shadow_uv = shadow_uv;
     // Offset the coordinate by half a texel so we sample it correctly
     //shadow_uv += ( 0.5f / shadow_map_size );
+    
     float light_depth = light_hpos.z;
 	//light_depth = resolveLinearDepth( light_depth, clip_planes[current_split].x, clip_planes[current_split].y );
 
