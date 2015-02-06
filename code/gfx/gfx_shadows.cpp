@@ -296,14 +296,6 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
         1   2
     */
 
-    //const Vector3 rays[] = 
-    //{
-    //    frustumCornersWS[1] - frustumCornersWS[0],
-    //    frustumCornersWS[3] - frustumCornersWS[2],
-    //    frustumCornersWS[5] - frustumCornersWS[4],
-    //    frustumCornersWS[7] - frustumCornersWS[6],
-    //};
-
     Vector3 splitCornersWS[4 * (bxGfx::eSHADOW_NUM_CASCADES+1) ];
     splitCornersWS[0] = frustumCornersWS[0];
     splitCornersWS[1] = frustumCornersWS[2];
@@ -322,16 +314,11 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
         splitCornersWS[cornerBeginIdx + 2] = lerp( splitFar, frustumCornersWS[4], frustumCornersWS[5] );
         splitCornersWS[cornerBeginIdx + 3] = lerp( splitFar, frustumCornersWS[6], frustumCornersWS[7] );
 
-        const float splitZnear = lerp( splitNear, camera.params.zNear, camera.params.zFar );
-        const float splitZfar  = lerp( splitFar , camera.params.zNear, camera.params.zFar );
+        const float splitZnear = lerp( splitNear, camera.params.zNear, camera.params.zFar ); 
+        const float splitZfar  = lerp( splitFar,  camera.params.zNear, camera.params.zFar );
 
-        splitClipPlanes[isplit] = Vector4( splitZnear, splitZfar, 0.f, 0.f );
+        splitClipPlanes[isplit] = Vector4( splitZnear, splitZfar, splitNear, splitFar );
     }
-    
-//     for( int i = 0 ;i < 4 * (bxGfx::eSHADOW_NUM_CASCADES+1); ++i )
-//     {
-//         bxGfxDebugDraw::addSphere( Vector4( splitCornersWS[i], 0.25f ), 0xFFFFFFFF, true );
-//     }
 
     for( int isplit = 0; isplit < bxGfx::eSHADOW_NUM_CASCADES; ++isplit )
     {
