@@ -77,9 +77,9 @@ namespace bxGfx
         // directx has different z mapping !!! (to range <0,1>)
         //
 	    const Matrix4 proj = Matrix4::frustum( l, r, b, t, znear, zfar );
-	    const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
-	    const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
-	    const Matrix4 newProj = sc * tr * proj;
+	    //const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
+	    //const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
+	    const Matrix4 newProj = /*sc * tr * */proj;
 	    return newProj;
     }
 	Matrix4 cameraMatrix_projection( const bxGfxCamera_Params& params, int rtWidth, int rtHeight )
@@ -130,7 +130,7 @@ namespace bxGfx
         //
         //const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
         //const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
-        const Matrix4 newProj = proj_matrix;
+        const Matrix4 newProj =/* sc * tr * */proj_matrix;
         return newProj;
     }
 
@@ -138,7 +138,7 @@ namespace bxGfx
     {
         //const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
         //const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
-        return Matrix4::orthographic( left, right, bottom, top, near, far ); 
+        return /*sc * tr * */Matrix4::orthographic( left, right, bottom, top, near, far ); 
     }
 
     Matrix4 cameraMatrix_view( const Matrix4& world )

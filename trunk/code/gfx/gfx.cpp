@@ -161,7 +161,7 @@ void bxGfxContext::frame_zPrepass(bxGdiContext* ctx, const bxGfxCamera& camera, 
     ctx->changeRenderTargets( 0, 0, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
     ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
-    ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
+    ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eSTAGE_MASK_VERTEX );
 
     bxGdi::shaderFx_enable( ctx, _shared.shader.utils, "z_prepass" );
     bxGfx::submitSortList( ctx, _cbuffer_instanceData, _sortList_depth, bxGfx::eRENDER_ITEM_USE_STREAMS );
@@ -224,7 +224,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
                 cascadeCamera.params.zFar = cascade.zNear_zFar.getY().getAsFloat();
 
                 bindCamera( ctx, cascadeCamera );
-                ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eSTAGE_VERTEX );
+                ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eSTAGE_MASK_VERTEX );
                 ctx->setViewport( viewports[key.cascade] );
             }
 
@@ -246,7 +246,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             {
                 const bxGfxShadows_Cascade& cascade = shadows->_cascade[i];
                 viewProj[i] = ( sc * tr * cascade.proj ) * cascade.view;
-                clipPlanes[i] = -cascade.zNear_zFar;
+                clipPlanes[i] = mulPerElem( cascade.zNear_zFar, Vector4(-1.f,-1.f,1.f,1.f) );
             }
             shadowsFxI->setUniform( "light_view_proj", viewProj );
             shadowsFxI->setUniform( "clip_planes", clipPlanes );
