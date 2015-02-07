@@ -173,7 +173,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
     const Vector3 sunLightDirection( xyz_to_m128( sunLight.dir.xyz ) );
 
     float depthSplits[ bxGfx::eSHADOW_NUM_CASCADES ];
-    shadows->splitDepth( depthSplits, camera.params, camera.params.zFar, 0.9f );
+    shadows->splitDepth( depthSplits, camera.params, camera.params.zFar, 0.5f );
     shadows->computeCascades( depthSplits, camera, sunLightDirection );
 
     for( int ilist = 0; ilist < numLists; ++ilist )
@@ -212,6 +212,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
 
             if( currentCascade != key.cascade )
             {
+                //SYS_ASSERT( currentCascade < key.cascade );
                 currentCascade = key.cascade;
                 const bxGfxShadows_Cascade& cascade = shadows->_cascade[currentCascade];
 
@@ -240,8 +241,8 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             Matrix4 viewProj[bxGfx::eSHADOW_NUM_CASCADES];
             Vector4 clipPlanes[bxGfx::eSHADOW_NUM_CASCADES];
 
-            const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
-            const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
+            const Matrix4 sc = Matrix4::scale( Vector3(0.5f,0.5f,0.5f) );
+            const Matrix4 tr = Matrix4::translation( Vector3(1.f,1.f,1.f) );
             for( int i = 0; i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
             {
                 const bxGfxShadows_Cascade& cascade = shadows->_cascade[i];

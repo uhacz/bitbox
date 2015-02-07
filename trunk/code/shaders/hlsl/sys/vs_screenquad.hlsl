@@ -3,8 +3,8 @@
 
 struct out_VS_screenquad
 {
-    noperspective float2 wpos01	: TEXCOORD0;
-	noperspective float2 uv     : TEXCOORD1;
+    noperspective float2 screenPos	: TEXCOORD0;
+	noperspective float2 uv         : TEXCOORD1;
 };
 
 out_VS_screenquad vs_screenquad(
@@ -15,7 +15,7 @@ out_VS_screenquad vs_screenquad(
     OUT_hpos = float4( IN_pos.xyz, 1.0 );
     
     out_VS_screenquad output;
-    output.wpos01 = IN_uv.xy;
+    output.screenPos = IN_pos.xy;
     output.uv = IN_uv.xy;
     output.uv.y = 1 - output.uv.y;
     return output;

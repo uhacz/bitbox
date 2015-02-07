@@ -4,8 +4,8 @@
 float resolveLinearDepth( float hwDepth )
 {
     return rcp(hwDepth * _reprojectDepthScale + _reprojectDepthBias);
-    //return -zFar * zNear / (hwDepth * (zFar - zNear) - zFar);
-    //float c1 = zFar / zNear;
+    //return -_camera_zFar * _camera_zNear / (hwDepth * (_camera_zFar - _camera_zNear) - _camera_zFar);
+    //float c1 = _camera_zFar / _camera_zNear;
     //float c0 = 1.0 - c1;
     //return 1.0 / (c0 * hwDepth + c1);
 }

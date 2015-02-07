@@ -65,7 +65,7 @@ namespace bxGfx
     enum EShadow
     {
         eSHADOW_NUM_CASCADES = 4,
-        eSHADOW_CASCADE_SIZE = 1024,
+        eSHADOW_CASCADE_SIZE = 1024*2,
     };
     
     enum EFramebuffer

@@ -163,7 +163,7 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     // Reconstruct view-space position from the depth buffer
     float pixelDepth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
     float linearDepth = resolveLinearDepth( pixelDepth );
-    float2 screenPos_m11 = input.wpos01 * 2.0 - 1.0;
+    float2 screenPos_m11 = input.screenPos;// *2.0 - 1.0;
     float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth, _camera_projParams.xy );
     
     int current_split = 0;
@@ -173,11 +173,10 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
         if( posVS.z < clip_planes[i].x )
         {
             current_split = i;
-
         }
     }
     
-    const float NUM_CASCADES_INV = 1.0f / (float)NUM_CASCADES;
+    const float NUM_CASCADES_INV = 1.0 / (float)NUM_CASCADES;
     float offset = (float)current_split * NUM_CASCADES_INV;
 
     //float3 N = gnormals_vs.SampleLevel( _samplerr, input.uv, 0.f ).xyz;
@@ -193,7 +192,7 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     float4 lightHPos = mul( light_view_proj[current_split], posWS );
     //light_hpos /= light_hpos.w;
     // Transform from light space to shadow map texture space.
-    float2 shadowUV = 0.5 *  lightHPos.xy + float2(0.5f, 0.5f);
+    float2 shadowUV = lightHPos.xy;
     shadowUV.x = ( shadowUV.x * NUM_CASCADES_INV ) + offset;
     shadowUV.y = 1.f-shadowUV.y;
     //shadow_uv = shadow_uv;
@@ -207,7 +206,7 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     //float shadow_value = sample_shadow_gauss5x5( light_depth, shadow_uv, bias );
     float shadowValue = sample_shadow_map( lightDepth, shadowUV, bias );
     
-    return shadowValue; // * offset;
+    return shadowValue;
     //return float2(offset, 1.f);
 }
 
