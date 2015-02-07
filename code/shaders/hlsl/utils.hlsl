@@ -107,8 +107,8 @@ SamplerState gsamp_shadow_ssao;
 
 float4 ps_color_add_shadow( in out_VS_screenquad input ) : SV_Target0
 {
-    float4 color = gtex_color.SampleLevel( gsamp_color, input.wpos01, 0.f );
-    float2 shadow_ssao = gtex_shadow_ssao.SampleLevel( gsamp_shadow_ssao, input.wpos01, 0.f );
+    float4 color = gtex_color.SampleLevel( gsamp_color, input.uv, 0.f );
+    float2 shadow_ssao = gtex_shadow_ssao.SampleLevel( gsamp_shadow_ssao, input.uv, 0.f );
 
     return color;
 }

@@ -90,6 +90,6 @@ float _ssao( float2 uv, float2 wpos01, int num_samples )
 float ps_ssao( in out_VS_screenquad input ) : SV_Target0
 {
     int num_samples = 20;
-    float ssao_value = _ssao( input.uv, input.wpos01, num_samples );
+    float ssao_value = _ssao( input.uv, input.uv, num_samples );
     return ssao_value;
 }

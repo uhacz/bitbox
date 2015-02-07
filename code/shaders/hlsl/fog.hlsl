@@ -61,7 +61,7 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
     float hwDepth = _tex_depth.SampleLevel( _sampler, input.uv, 0.f ).r;
     float linDepth = resolveLinearDepth( hwDepth );
 
-    float2 winPos = input.wpos01 * 2.0 - 1.0;
+    float2 winPos = input.screenPos;// *2.0 - 1.0;
     float3 vsPos = resolvePositionVS( winPos, linDepth, _camera_projParams.xy );
     float3 worldPos = mul( _camera_world, float4(vsPos,1.f) ).xyz;
     
@@ -76,7 +76,7 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
 
 float4 ps_sky( in out_VS_screenquad input ) : SV_Target0
 {
-    const float2 winPos = input.wpos01 * 2.0 - 1.0;
+    const float2 winPos = input.screenPos;// *2.0 - 1.0;
     float3 vsPos = resolvePositionVS( winPos, 1.f, _camera_projParams.xy );
     const float3 rayDir = normalize( mul( (float3x3)_camera_world, vsPos ) );
     const float3 skyColor = computeSkyColor( rayDir );

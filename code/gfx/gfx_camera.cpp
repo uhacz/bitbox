@@ -452,5 +452,15 @@ namespace bxGfx
         bxGfxDebugDraw::addLine( corners[3], corners[5], colorRGBA, true );
         bxGfxDebugDraw::addLine( corners[5], corners[7], colorRGBA, true );
         bxGfxDebugDraw::addLine( corners[7], corners[1], colorRGBA, true );
+
+        bxGfxDebugDraw::addLine( corners[0], corners[4], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[2], corners[6], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[1], corners[5], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[3], corners[7], colorRGBA, true );
+
+        bxGfxDebugDraw::addLine( corners[0], corners[3], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[1], corners[2], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[4], corners[7], colorRGBA, true );
+        bxGfxDebugDraw::addLine( corners[5], corners[6], colorRGBA, true );
     }
 }///
