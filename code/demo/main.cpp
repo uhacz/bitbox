@@ -286,7 +286,7 @@ public:
         
         _gfxContext->bindCamera( _gdiContext, camera );
         _gfxContext->frame_zPrepass( _gdiContext, camera, &rList, 1 );
-        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera1, *_gfxLights );
+        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera, *_gfxLights );
 
         _gfxContext->bindCamera( _gdiContext, camera );
         {
@@ -327,7 +327,7 @@ public:
                 "color", "depth", "shadows", "cascades",
             };
             const int nTextures = sizeof(colorTextures)/sizeof(*colorTextures);
-            static int current = 2;
+            static int current = 0;
             
             if( ImGui::Begin() )
             {

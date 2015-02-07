@@ -103,7 +103,7 @@ namespace
         for( int i = 0; i < 8; ++i )
         {
             frustumCenter += splitCornersWS[i];
-            bxGfxDebugDraw::addSphere( Vector4( splitCornersWS[i], 0.25f ), 0x0000FFFF, 1 );
+            //bxGfxDebugDraw::addSphere( Vector4( splitCornersWS[i], 0.25f ), 0x0000FFFF, 1 );
 
         }
         frustumCenter *= 1.f / 8.f;
@@ -113,8 +113,8 @@ namespace
         const Vector3 lookAt = frustumCenter + lightDirection;
         const Matrix4 lightView = Matrix4::lookAt( Point3( lightCameraPos ), Point3( lookAt ), upDir );
 
-        bxGfxDebugDraw::addSphere( Vector4( lightCameraPos, 0.15f ), 0x00FF00FF, 1 );
-        bxGfxDebugDraw::addSphere( Vector4( lookAt, 0.15f ), 0x0000FFFF, 1 );
+        //bxGfxDebugDraw::addSphere( Vector4( lightCameraPos, 0.15f ), 0x00FF00FF, 1 );
+        //bxGfxDebugDraw::addSphere( Vector4( lookAt, 0.15f ), 0x0000FFFF, 1 );
 
         Vector3 minExtents( FLT_MAX );
         Vector3 maxExtents(-FLT_MAX );
@@ -133,12 +133,12 @@ namespace
         m128_to_xyz( maxs.xyz, maxExtents.get128() );
         m128_to_xyz( exts.xyz, cascadeExtents.get128() );
 
-        const Matrix4 cascadeProj = bxGfx::cameraMatrix_ortho( mins.x, maxs.x, mins.y, maxs.y, 0.f, exts.z );
+        const Matrix4 cascadeProj = bxGfx::cameraMatrix_ortho( mins.x, maxs.x, mins.y, maxs.y, -exts.z, exts.z );
         const Matrix4 cascadeView = Matrix4::lookAt( Point3( shadowCameraPos ), Point3( frustumCenter ), upDir );
 
         const Matrix4 cameraWorld = inverse( cascadeView );
-        bxGfxDebugDraw::addBox( Matrix4::translation( shadowCameraPos), Vector3(0.5f), 0xFF0000FF, 1 );
-        bxGfxDebugDraw::addLine( shadowCameraPos, shadowCameraPos + cameraWorld.getCol2().getXYZ(), 0x0000FFFF, 1 );
+        //bxGfxDebugDraw::addBox( Matrix4::translation( shadowCameraPos), Vector3(0.5f), 0xFF0000FF, 1 );
+        //bxGfxDebugDraw::addLine( shadowCameraPos, shadowCameraPos + cameraWorld.getCol2().getXYZ(), 0x0000FFFF, 1 );
         
         cascade->proj = cascadeProj;
         cascade->view = cascadeView;
@@ -148,10 +148,6 @@ namespace
 void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera& camera, const Vector3& lightDirection )
 {
     const float zRange = camera.params.zFar - camera.params.zNear;
-    
-    {
-        
-    }
 
     for( int isplit = 0; isplit < bxGfx::eSHADOW_NUM_CASCADES; ++isplit )
     {
@@ -167,22 +163,22 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
         mainCameraSplitParams.zNear = splitZnear;
         mainCameraSplitParams.zFar = splitZfar;
 
-        const Matrix4 mainCameraSplitProj = bxGfx::cameraMatrix_projection( mainCameraSplitParams, 1920,1080 );
+        const Matrix4 mainCameraSplitProj = bxGfx::cameraMatrix_projection( mainCameraSplitParams, bxGfx::eSHADOW_CASCADE_SIZE, bxGfx::eSHADOW_CASCADE_SIZE );
         Vector3 tmpCorners[8];
         bxGfx::viewFrustum_extractCorners( tmpCorners, mainCameraSplitProj * camera.matrix.view );
-        bxGfx::viewFrustum_debugDraw( mainCameraSplitProj * camera.matrix.view, 0x0000FFFF );
+        //bxGfx::viewFrustum_debugDraw( mainCameraSplitProj * camera.matrix.view, 0x0000FFFF );
 
         _ComputeCascadeMatrices( cascade, camera, tmpCorners, lightDirection );
         cascade->zNear_zFar = Vector4( splitZnear, splitZfar, splitNear, splitFar );
 
     }
 
-    for( int isplit = 0; isplit < bxGfx::eSHADOW_NUM_CASCADES; ++isplit )
-    {
-        bxGfxShadows_Cascade* cascade = &_cascade[isplit];
-        {
-            const u32 colors[4] = { 0xFF0000FF, 0x00FF00FF, 0x0000FFFF, 0xFFFF00FF };
-            bxGfx::viewFrustum_debugDraw( cascade->proj * cascade->view, colors[isplit] );
-        }
-    }
+    //for( int isplit = 0; isplit < bxGfx::eSHADOW_NUM_CASCADES; ++isplit )
+    //{
+    //    bxGfxShadows_Cascade* cascade = &_cascade[isplit];
+    //    {
+    //        const u32 colors[4] = { 0xFF0000FF, 0x00FF00FF, 0x0000FFFF, 0xFFFF00FF };
+    //        bxGfx::viewFrustum_debugDraw( cascade->proj * cascade->view, colors[isplit] );
+    //    }
+    //}
 }

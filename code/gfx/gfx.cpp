@@ -249,20 +249,20 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
                 viewProj[i] = ( sc * tr * cascade.proj ) * cascade.view;
                 clipPlanes[i] = mulPerElem( cascade.zNear_zFar, Vector4(-1.f,-1.f,1.f,1.f) );
             }
-            shadowsFxI->setUniform( "light_view_proj", viewProj );
-            shadowsFxI->setUniform( "clip_planes", clipPlanes );
-            shadowsFxI->setUniform( "light_direction_ws", sunLightDirection );
-            shadowsFxI->setUniform( "occlusion_texture_size", float2_t( shadowsTexture.width, shadowsTexture.height ) );
-            shadowsFxI->setUniform( "shadow_map_size", float2_t( shadows->_depthTexture.width, shadows->_depthTexture.height ) );
+            shadowsFxI->setUniform( "lightViewProj", viewProj );
+            shadowsFxI->setUniform( "clipPlanes", clipPlanes );
+            shadowsFxI->setUniform( "lightDirectionWS", sunLightDirection );
+            shadowsFxI->setUniform( "occlusionTextureSize", float2_t( shadowsTexture.width, shadowsTexture.height ) );
+            shadowsFxI->setUniform( "shadowMapSize", float2_t( shadows->_depthTexture.width, shadows->_depthTexture.height ) );
 
             shadowsFxI->setTexture( "shadowMap", shadows->_depthTexture );
             shadowsFxI->setTexture( "sceneDepthTex", _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
-            shadowsFxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP ) );
+            shadowsFxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP ) );
             //shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_CLAMP ) );
-            shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
+            shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
 
             ctx->changeRenderTargets( &shadowsTexture, 1, bxGdiTexture() );
-            ctx->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
+            ctx->clearBuffers( 1.f, 1.f, 1.f, 1.f, 0.f, 1, 0 );
             ctx->setViewport( bxGdiViewport( 0, 0, shadowsTexture.width, shadowsTexture.height ) );
 
             submitFullScreenQuad( ctx, shadowsFxI, "shadow" );
@@ -279,6 +279,9 @@ void bxGfxContext::frame_drawColor( bxGdiContext* ctx, const bxGfxCamera& camera
     ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
     ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
+
+    ctx->setTexture( _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS], 3, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR ), 3, bxGdi::eSTAGE_MASK_PIXEL );
 
     for( int ilist = 0; ilist < numLists; ++ilist )
     {

@@ -39,6 +39,8 @@ struct out_PS
 	float4 rgba : SV_Target0;
 };
 
+Texture2D _shadowMap : register(t3);
+SamplerState _samplShadowMap : register( s3 );
 
 in_PS vs_main( in_VS input )
 {
@@ -72,6 +74,9 @@ out_PS ps_main( in_PS input )
     uint2 tileXY = computeTileXY( screenPos01, _numTilesXY, _renderTarget_rcp_size.zw, _tileSizeRcp );
     uint lightsIndexBegin = ( _numTilesXY.x * tileXY.y + tileXY.x ) * _maxLights;
 
+    float2 shadowUV = float2( screenPos01.x, 1.0 - screenPos01.y );
+    float shadowValue = _shadowMap.SampleLevel( _samplShadowMap, shadowUV, 0.f ).r;
+
     float3 colorFromLights = float3(0.f, 0.f, 0.f);
     
     uint pointLightIndex = lightsIndexBegin;
@@ -96,7 +101,12 @@ out_PS ps_main( in_PS input )
 
     float3 sunIlluminance = evaluateSunLight( V, N, _sunDirection, _sunAngularRadius, _sunIlluminanceInLux, input.w_pos, mat );
     colorFromLights += _sunColor * sunIlluminance;
-    OUT.rgba.xyz = colorFromLights;
+    
+    
+    
+    OUT.rgba.xyz = lerp( colorFromLights * 0.2f, colorFromLights, shadowValue );
+
+
 
     //float3 tmpColors[] =
     //{

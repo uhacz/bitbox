@@ -89,8 +89,7 @@ float3 BRDF_diffuseOnly( in float3 L, in float3 V, in float3 N, in Material mat 
 
     float w = mat.ambientCoeff;
     float n = 1.f;
-    //float dif = pow( saturate( (NdotL + w) / (1.0f + w) ), n ) * (n + 1) / (2 * (1 + w));
-
+    
     return (diffuse) * wrappedLambert( NdotL, w, n ); // *dif + ambient;
     //return ambient;
 }
