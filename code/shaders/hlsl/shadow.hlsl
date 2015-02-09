@@ -52,7 +52,7 @@ passes:
 
 #define NUM_CASCADES 4
 #define NUM_CASCADES_INV ( 1.0 / (float)NUM_CASCADES )
-#define FILTER_SIZE 5
+#define FILTER_SIZE 7
 
 shared cbuffer MaterialData : register(b3)
 {
@@ -128,8 +128,9 @@ float2 computeReceiverPlaneDepthBias( float3 texCoordDX, float3 texCoordDY )
 //-------------------------------------------------------------------------------------------------
 float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float3 shadowPosDX, in float3 shadowPosDY, in uint cascadeIdx )
 {
-    float lightDepth = saturate( shadowPos.z );
-    const float bias = 0.f;
+    const float bias = 0.005f;
+    
+    float lightDepth = saturate( shadowPos.z ) - bias;
 
     float2 texelSize = 1.0f / shadowMapSize;
     //float2 receiverPlaneDepthBias = computeReceiverPlaneDepthBias( shadowPosDX, shadowPosDY );
@@ -156,6 +157,7 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float3 shadowPosDX, 
     const float offsetUV = cascadeIdx * NUM_CASCADES_INV;
     base_uv.x = (base_uv.x * NUM_CASCADES_INV) + offsetUV;
     base_uv.y = 1.f - base_uv.y;
+    base_uv += texelSize * 0.5f;
 
     float sum = 0;
 
@@ -260,6 +262,18 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float3 shadowPosDX, 
 
 #endif
 }
+
+//-------------------------------------------------------------------------------------------------
+// Calculates the offset to use for sampling the shadow map, based on the surface normal
+//-------------------------------------------------------------------------------------------------
+float3 getShadowPosOffset(in float nDotL, in float3 normal)
+{
+    const float OffsetScale = 100.f;
+    float texelSize = 2.0f / shadowMapSize.x;
+    float nmlOffsetScale = saturate(1.0f - nDotL);
+    return texelSize * OffsetScale * nmlOffsetScale * normal;
+}
+
 float ps_shadow( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
@@ -268,6 +282,7 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     float2 screenPos_m11 = input.screenPos;
     float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth, _camera_projParams.xy );
     
+
     int currentSplit = 0;
     for( int i = 0; i < NUM_CASCADES; ++i )
     {
@@ -283,7 +298,13 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     //float3 N = gnormals_vs.SampleLevel( _samplerr, input.uv, 0.f ).xyz;
     //float3 L = light_direction_ws;
     
+    const float3 nrmVS = cross( normalize( ddx_fine(posVS) ), normalize( ddy_fine(posVS) ) );
+    const float3 N = normalize( mul( (float3x3)_camera_world, nrmVS ) );
+    const float NdotL = dot( N, lightDirectionWS );
+    const float3 posOffset = getShadowPosOffset( NdotL, N );
+    
     float4 posWS = mul( _camera_world, float4(posVS, 1.0) );
+    posWS.xyz += posOffset;
     //float4 ws_nrm = mul( camera_world, float4( N, 1.0 ) );
 
     //const float n_dot_l = saturate( dot( ws_nrm, L ) );
