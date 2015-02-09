@@ -254,7 +254,7 @@ public:
                         bxGdiShaderFx_Instance* mat = materials[++counter % 3];
 
                         bxGfxRenderList_ItemDesc itemDesc( rs, mat, 0, bxAABB( Vector3( -0.5f ), Vector3( 0.5f ) ) );
-                        //bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, &pose, 1 );
+                        bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, &pose, 1 );
                     }
                 }
             }
@@ -270,7 +270,7 @@ public:
         }
 
         {
-            Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( -3.f,-2.f, 0.0f ) ), Vector3( 2.f, 2.f, 2.f ) );
+            Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( -3.f,-1.f, 0.0f ) ), Vector3( 5.f, 5.f, 5.f ) );
             bxGdiRenderSource* rsource = _gfxContext->shared()->rsource.sphere;
 
             bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );

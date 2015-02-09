@@ -112,19 +112,6 @@ inline void m128_to_xyzw( float* output, const __m128 input )
     output[3] = tmp[3];
 }
 
-inline const Matrix4 orthographicMatrix( float left, float right, float bottom, float top, float zNear, float zFar )
-{
-	float tx = - (right + left)/(right - left);
-	float ty = - (top + bottom)/(top - bottom);
-	//float tz = - (zFar + zNear)/(zFar - zNear);
-
-	return Matrix4(
-				  Vector4( 2.f/(right-left), 0.f, 0.f, tx )
-				, Vector4( 0.f, 2.f/(top-bottom), ty, 0.f )
-				, Vector4( 0.f, 0.f, -2.f/(zFar - zNear), 0.f )
-				, Vector4( 0.f, 0.f, 0.f, 1.f ) );
-}
-
 inline const floatInVec minf4( const floatInVec &v0, const floatInVec &v1 )
 {
 	return floatInVec( _mm_min_ps( v0.get128(), v1.get128() ) );
