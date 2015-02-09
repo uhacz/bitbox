@@ -219,7 +219,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
                 bxGfxCamera cascadeCamera;
                 cascadeCamera.matrix.view = cascade.view;
                 cascadeCamera.matrix.proj = cascade.proj;
-                cascadeCamera.matrix.viewProj = cascade.proj * cascade.view;
+                //cascadeCamera.matrix.viewProj = cascade.proj * cascade.view;
                 cascadeCamera.matrix.world = inverse( cascade.view );
                 cascadeCamera.params.zNear = cascade.zNear_zFar.getX().getAsFloat();
                 cascadeCamera.params.zFar = cascade.zNear_zFar.getY().getAsFloat();

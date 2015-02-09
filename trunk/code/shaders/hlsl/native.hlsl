@@ -104,7 +104,7 @@ out_PS ps_main( in_PS input )
     
     
     
-    OUT.rgba.xyz = lerp( colorFromLights * 0.2f, colorFromLights, shadowValue );
+    OUT.rgba.xyz = lerp( colorFromLights * 0.5f, colorFromLights, shadowValue );
 
 
 

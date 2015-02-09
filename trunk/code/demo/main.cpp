@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -254,7 +254,7 @@ public:
                         bxGdiShaderFx_Instance* mat = materials[++counter % 3];
 
                         bxGfxRenderList_ItemDesc itemDesc( rs, mat, 0, bxAABB( Vector3( -0.5f ), Vector3( 0.5f ) ) );
-                        bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, &pose, 1 );
+                        //bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, &pose, 1 );
                     }
                 }
             }
@@ -270,7 +270,7 @@ public:
         }
 
         {
-            Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( -3.f, -3.f, 0.0f ) ), Vector3( 1.f, 1.f, 1.f ) );
+            Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( -3.f,-2.f, 0.0f ) ), Vector3( 2.f, 2.f, 2.f ) );
             bxGdiRenderSource* rsource = _gfxContext->shared()->rsource.sphere;
 
             bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );
@@ -340,7 +340,7 @@ public:
                 "color", "depth", "shadows", "cascades",
             };
             const int nTextures = sizeof(colorTextures)/sizeof(*colorTextures);
-            static int current = 2;
+            static int current = 0;
             
             if( ImGui::Begin() )
             {

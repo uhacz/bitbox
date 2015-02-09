@@ -16,7 +16,7 @@ bxGfxCamera_Params::bxGfxCamera_Params()
 	, vAperture( 1.f )
 	, focalLength( 50.f )
 	, zNear( 0.25f )
-	, zFar( 100.f )
+	, zFar( 250.f )
 	, orthoWidth( 10.f )
     , orthoHeight( 10.f )
 {}

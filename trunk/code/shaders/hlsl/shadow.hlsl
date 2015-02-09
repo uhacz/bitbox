@@ -8,8 +8,8 @@ passes:
         hwstate = 
 		{
 		    color_mask = "";
-            cull_face = "FRONT";
-            depth_function = "LESS";
+            //cull_face = "FRONT";
+            //depth_function = "LESS";
 		};
     };
 
@@ -128,10 +128,10 @@ float2 computeReceiverPlaneDepthBias( float3 texCoordDX, float3 texCoordDY )
 //-------------------------------------------------------------------------------------------------
 float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float3 shadowPosDX, in float3 shadowPosDY, in uint cascadeIdx )
 {
-    const float bias = 0.005f;
+    const float bias = 0.000f;
     
     float lightDepth = saturate( shadowPos.z ) - bias;
-
+    
     float2 texelSize = 1.0f / shadowMapSize;
     //float2 receiverPlaneDepthBias = computeReceiverPlaneDepthBias( shadowPosDX, shadowPosDY );
 
@@ -162,7 +162,7 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float3 shadowPosDX, 
     float sum = 0;
 
 #if FILTER_SIZE == 2
-    return shadowMap_sample( lightDepth, uv, bias );
+    return shadowMap_sample( lightDepth, base_uv );
 #elif FILTER_SIZE == 3
 
     float uw0 = (3 - 2 * s);
