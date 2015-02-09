@@ -97,6 +97,15 @@ void bxGfxShadows::splitDepth( float splits[ bxGfx::eSHADOW_NUM_CASCADES], const
 
 namespace 
 {
+    const Matrix4 matrix_lookAt( const Vector3 &eyePos, const Vector3 &lookAtPos, const Vector3 &upVec )
+    {
+        Vector3 v3Y = normalize( upVec );
+        const Vector3 v3Z = normalize( (eyePos - lookAtPos) );
+        const Vector3 v3X = normalize( cross( v3Y, v3Z ) );
+        v3Y = normalize( cross( v3Z, v3X ) );
+        const Matrix4 m4EyeFrame = Matrix4( Matrix3( v3X, v3Y, v3Z ), eyePos );
+        return orthoInverse( m4EyeFrame );
+    }
     void _ComputeCascadeMatrices( bxGfxShadows_Cascade* cascade, const bxGfxCamera& camera, const Vector3 splitCornersWS[8], const Vector3& lightDirection )
     {
         Vector3 frustumCenter(0.f);
@@ -111,7 +120,7 @@ namespace
         const Vector3 upDir =-camera.matrix.world.getCol0().getXYZ();
         const Vector3 lightCameraPos = frustumCenter;
         const Vector3 lookAt = frustumCenter + lightDirection;
-        const Matrix4 lightView = Matrix4::lookAt( Point3( lightCameraPos ), Point3( lookAt ), upDir );
+        const Matrix4 lightView = matrix_lookAt( lightCameraPos, lookAt, upDir );
 
         //bxGfxDebugDraw::addSphere( Vector4( lightCameraPos, 0.15f ), 0x00FF00FF, 1 );
         //bxGfxDebugDraw::addSphere( Vector4( lookAt, 0.15f ), 0x0000FFFF, 1 );
@@ -125,6 +134,12 @@ namespace
             maxExtents = maxPerElem( cornerLS, maxExtents );
         }
         
+        const floatInVec sMapSize( (float)bxGfx::eSHADOW_CASCADE_SIZE );
+        const floatInVec scale( ( sMapSize + floatInVec( 9.0f ) ) / sMapSize );
+
+        minExtents *= scale;
+        maxExtents *= scale;
+
         const Vector3 cascadeExtents = maxExtents - minExtents;
         const Vector3 shadowCameraPos = frustumCenter + lightDirection * minExtents.getZ();
 
@@ -134,9 +149,9 @@ namespace
         m128_to_xyz( exts.xyz, cascadeExtents.get128() );
 
         const Matrix4 cascadeProj = bxGfx::cameraMatrix_ortho( mins.x, maxs.x, mins.y, maxs.y, -exts.z, exts.z );
-        const Matrix4 cascadeView = Matrix4::lookAt( Point3( shadowCameraPos ), Point3( frustumCenter ), upDir );
+        const Matrix4 cascadeView = matrix_lookAt( shadowCameraPos, frustumCenter, upDir );
 
-        const Matrix4 cameraWorld = inverse( cascadeView );
+        //const Matrix4 cameraWorld = inverse( cascadeView );
         //bxGfxDebugDraw::addBox( Matrix4::translation( shadowCameraPos), Vector3(0.5f), 0xFF0000FF, 1 );
         //bxGfxDebugDraw::addLine( shadowCameraPos, shadowCameraPos + cameraWorld.getCol2().getXYZ(), 0x0000FFFF, 1 );
         
@@ -149,6 +164,9 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
 {
     const float zRange = camera.params.zFar - camera.params.zNear;
 
+    Vector3 mainFrustumCorners[8];
+    bxGfx::viewFrustum_extractCorners( mainFrustumCorners, camera.matrix.viewProj );
+
     for( int isplit = 0; isplit < bxGfx::eSHADOW_NUM_CASCADES; ++isplit )
     {
         bxGfxShadows_Cascade* cascade = &_cascade[isplit];
@@ -159,14 +177,19 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
         const float splitZnear = lerp( splitNear, camera.params.zNear, camera.params.zFar );
         const float splitZfar = lerp( splitFar, camera.params.zNear, camera.params.zFar );
 
-        bxGfxCamera_Params mainCameraSplitParams = camera.params;
-        mainCameraSplitParams.zNear = splitZnear;
-        mainCameraSplitParams.zFar = splitZfar;
+        const Matrix4 mainCameraSplitProj = Matrix4::perspective( camera.params.fov(), camera.params.aspect(), splitZnear, splitZfar );
 
-        const Matrix4 mainCameraSplitProj = bxGfx::cameraMatrix_projection( mainCameraSplitParams, bxGfx::eSHADOW_CASCADE_SIZE, bxGfx::eSHADOW_CASCADE_SIZE );
         Vector3 tmpCorners[8];
-        bxGfx::viewFrustum_extractCorners( tmpCorners, mainCameraSplitProj * camera.matrix.view );
-        //bxGfx::viewFrustum_debugDraw( mainCameraSplitProj * camera.matrix.view, 0x0000FFFF );
+        for ( int icorner = 0; icorner < 8; icorner += 2 )
+        {
+            const Vector3 ray = mainFrustumCorners[icorner + 1] - mainFrustumCorners[icorner];
+            tmpCorners[icorner+0] = mainFrustumCorners[icorner] + ray * splitNear;//lerp( splitNear, mainFrustumCorners[icorner], mainFrustumCorners[icorner + 1] );
+            tmpCorners[icorner+1] = mainFrustumCorners[icorner] + ray * splitFar;//lerp( splitFar , mainFrustumCorners[icorner], mainFrustumCorners[icorner + 1] );
+        };
+        
+        //Vector3 tmpCorners1[8];
+        //bxGfx::viewFrustum_extractCorners( tmpCorners1, mainCameraSplitProj * camera.matrix.view );
+        //bxGfx::viewFrustum_debugDraw( tmpCorners, 0x0000FFFF );
 
         _ComputeCascadeMatrices( cascade, camera, tmpCorners, lightDirection );
         cascade->zNear_zFar = Vector4( splitZnear, splitZfar, splitNear, splitFar );
