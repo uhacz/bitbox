@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -269,6 +269,19 @@ public:
             bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
         }
 
+        {
+            Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( -3.f, -3.f, 0.0f ) ), Vector3( 1.f, 1.f, 1.f ) );
+            bxGdiRenderSource* rsource = _gfxContext->shared()->rsource.sphere;
+
+            bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );
+            bxGfxRenderList_ItemDesc itemDesc( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
+            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
+
+            world *= Matrix4::translation( Vector3( 0.f, 0.f, 3.f ) );
+            itemDesc.setRenderSource( _gfxContext->shared()->rsource.box );
+            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
+        }
+
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
         bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
         //for( int ilight = 0; ilight < nPointLights; ++ilight )
@@ -327,7 +340,7 @@ public:
                 "color", "depth", "shadows", "cascades",
             };
             const int nTextures = sizeof(colorTextures)/sizeof(*colorTextures);
-            static int current = 0;
+            static int current = 2;
             
             if( ImGui::Begin() )
             {
