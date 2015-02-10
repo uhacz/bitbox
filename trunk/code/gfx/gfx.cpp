@@ -255,6 +255,10 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             shadowsFxI->setUniform( "occlusionTextureSize", float2_t( shadowsTexture.width, shadowsTexture.height ) );
             shadowsFxI->setUniform( "shadowMapSize", float2_t( shadows->_depthTexture.width, shadows->_depthTexture.height ) );
 
+            shadowsFxI->setUniform( "depthBias", shadows->_params.bias );
+            shadowsFxI->setUniform( "normalOffsetScale", shadows->_params.normalOffsetScale );
+            shadowsFxI->setUniform( "useNormalOffset", shadows->_params.flag_useNormalOffset );
+            
             shadowsFxI->setTexture( "shadowMap", shadows->_depthTexture );
             shadowsFxI->setTexture( "sceneDepthTex", _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
             shadowsFxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP ) );
@@ -454,73 +458,70 @@ void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTex
 #include "gfx_gui.h"
 void bxGfxPostprocess::_ShowGUI()
 {
-    if ( ImGui::Begin( "gfx" ) )
+    ImGui::Begin( "gfx" );
+    if ( ImGui::CollapsingHeader( "Postprocess" ) )
     {
-        if ( ImGui::TreeNode( "Postprocess" ) )
+        if ( ImGui::TreeNode( "ToneMapping" ) )
         {
-            if ( ImGui::TreeNode( "ToneMapping" ) )
+            ImGui::InputFloat( "adaptation speed", &_toneMapping.tau );
+            ///
+            const char* itemName_aperture[] =
             {
-                ImGui::InputFloat( "adaptation speed", &_toneMapping.tau );
-                ///
-                const char* itemName_aperture[] =
-                {
-                    "1.4", "2.0", "2.8", "4.0", "5.6", "8.0", "11.0", "16.0",
-                };
-                const float itemValue_aperture[] =
-                {
-                    1.4f, 2.0f, 2.8f, 4.0f, 5.6f, 8.0f, 11.0f, 16.0f,
-                };
-                static int currentItem_aperture = 7;
-                if ( ImGui::Combo( "aperture", &currentItem_aperture, itemName_aperture, sizeof( itemValue_aperture ) / sizeof( *itemValue_aperture ) ) )
-                {
-                    _toneMapping.camera_aperture = itemValue_aperture[currentItem_aperture];
-                }
-
-                ///
-                const char* itemName_shutterSpeed[] =
-                {
-                    "1/2000", "1/1000", "1/500", "1/250", "1/125", "1/100", "1/60", "1/30", "1/15", "1/8", "1/4", "1/2", "1/1",
-                };
-                const float itemValue_shutterSpeed[] =
-                {
-                    1.f / 2000.f, 1.f / 1000.f, 1.f / 500.f, 1.f / 250.f, 1.f / 125.f, 1.f / 100.f, 1.f / 60.f, 1.f / 30.f, 1.f / 15.f, 1.f / 8.f, 1.f / 4.f, 1.f / 2.f, 1.f / 1.f,
-                };
-                static int currentItem_shutterSpeed = 5;
-                if ( ImGui::Combo( "shutter speed", &currentItem_shutterSpeed, itemName_shutterSpeed, sizeof( itemValue_shutterSpeed ) / sizeof( *itemValue_shutterSpeed ) ) )
-                {
-                    _toneMapping.camera_shutterSpeed = itemValue_shutterSpeed[currentItem_shutterSpeed];
-                }
-
-                ///
-                const char* itemName_iso[] =
-                {
-                    "100", "200", "400", "800", "1600", "3200", "6400",
-                };
-                const float itemValue_iso[] =
-                {
-                    100.f, 200.f, 400.f, 800.f, 1600.f, 3200.f, 6400.f,
-                };
-                static int currentItem_iso = 0;
-                if ( ImGui::Combo( "ISO", &currentItem_iso, itemName_iso, sizeof( itemValue_iso ) / sizeof( *itemValue_iso ) ) )
-                {
-                    _toneMapping.camera_iso = itemValue_iso[currentItem_iso];
-                }
-
-                ImGui::Checkbox( "useAutoExposure", (bool*)&_toneMapping.useAutoExposure );
-
-                ImGui::TreePop();
+                "1.4", "2.0", "2.8", "4.0", "5.6", "8.0", "11.0", "16.0",
+            };
+            const float itemValue_aperture[] =
+            {
+                1.4f, 2.0f, 2.8f, 4.0f, 5.6f, 8.0f, 11.0f, 16.0f,
+            };
+            static int currentItem_aperture = 7;
+            if ( ImGui::Combo( "aperture", &currentItem_aperture, itemName_aperture, sizeof( itemValue_aperture ) / sizeof( *itemValue_aperture ) ) )
+            {
+                _toneMapping.camera_aperture = itemValue_aperture[currentItem_aperture];
             }
 
-            if ( ImGui::TreeNode( "Fog" ) )
+            ///
+            const char* itemName_shutterSpeed[] =
             {
-                ImGui::SliderFloat( "fallOff", &_fog.fallOff, 0.f, 1.f, "%.8", 4.f );
-                ImGui::TreePop();
+                "1/2000", "1/1000", "1/500", "1/250", "1/125", "1/100", "1/60", "1/30", "1/15", "1/8", "1/4", "1/2", "1/1",
+            };
+            const float itemValue_shutterSpeed[] =
+            {
+                1.f / 2000.f, 1.f / 1000.f, 1.f / 500.f, 1.f / 250.f, 1.f / 125.f, 1.f / 100.f, 1.f / 60.f, 1.f / 30.f, 1.f / 15.f, 1.f / 8.f, 1.f / 4.f, 1.f / 2.f, 1.f / 1.f,
+            };
+            static int currentItem_shutterSpeed = 5;
+            if ( ImGui::Combo( "shutter speed", &currentItem_shutterSpeed, itemName_shutterSpeed, sizeof( itemValue_shutterSpeed ) / sizeof( *itemValue_shutterSpeed ) ) )
+            {
+                _toneMapping.camera_shutterSpeed = itemValue_shutterSpeed[currentItem_shutterSpeed];
             }
+
+            ///
+            const char* itemName_iso[] =
+            {
+                "100", "200", "400", "800", "1600", "3200", "6400",
+            };
+            const float itemValue_iso[] =
+            {
+                100.f, 200.f, 400.f, 800.f, 1600.f, 3200.f, 6400.f,
+            };
+            static int currentItem_iso = 0;
+            if ( ImGui::Combo( "ISO", &currentItem_iso, itemName_iso, sizeof( itemValue_iso ) / sizeof( *itemValue_iso ) ) )
+            {
+                _toneMapping.camera_iso = itemValue_iso[currentItem_iso];
+            }
+
+            ImGui::Checkbox( "useAutoExposure", (bool*)&_toneMapping.useAutoExposure );
 
             ImGui::TreePop();
         }
-        ImGui::End();
-    }
 
+        if ( ImGui::TreeNode( "Fog" ) )
+        {
+            ImGui::SliderFloat( "fallOff", &_fog.fallOff, 0.f, 1.f, "%.8", 4.f );
+            ImGui::TreePop();
+        }
+
+        ImGui::TreePop();
+    }
+    ImGui::End();
 }
 

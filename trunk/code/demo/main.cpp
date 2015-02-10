@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -188,8 +188,8 @@ public:
 
         bxGfxGUI::newFrame( (float)deltaTimeS );
 
-        if ( ImGui::Begin( "System" ) )
         {
+            ImGui::Begin( "System" );
             ImGui::Text( "deltaTime: %.5f", deltaTime );
             ImGui::Text( "FPS: %.5f", 1.f / deltaTime );
             ImGui::End();
@@ -278,6 +278,7 @@ public:
             bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
 
             world *= Matrix4::translation( Vector3( 0.f, 0.f, 3.f ) );
+            itemDesc.setShader( _gfxMaterials->findMaterial( "blue" ), 0 );
             itemDesc.setRenderSource( _gfxContext->shared()->rsource.box );
             bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
         }
@@ -342,8 +343,8 @@ public:
             const int nTextures = sizeof(colorTextures)/sizeof(*colorTextures);
             static int current = 0;
             
-            if( ImGui::Begin() )
             {
+                ImGui::Begin();
                 ImGui::Combo( "Visible RT", &current, colorNames, nTextures );
                 ImGui::End();
             }
