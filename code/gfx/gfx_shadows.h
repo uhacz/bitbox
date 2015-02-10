@@ -48,10 +48,36 @@ struct bxGfxShadows
     void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void _Shurdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 
+    void _ShowGUI();
+
 public:
     bxGfxShadows_Cascade _cascade[ bxGfx::eSHADOW_NUM_CASCADES ];
     bxGdiTexture _depthTexture;
     bxGdiShaderFx_Instance* _fxI;
+
+
+    struct Params
+    {
+        f32 bias;
+        f32 normalOffsetScale[bxGfx::eSHADOW_NUM_CASCADES];
+        i32 kernelSize;
+        
+        u32 flag_useNormalOffset;
+        u32 flag_showCascades;
+        
+
+        Params()
+            : bias( 0.0001f )
+            , kernelSize( 7 )
+            , flag_useNormalOffset(1)
+            , flag_showCascades( 0 )
+        {
+            for( int i = 0;  i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
+            {
+                normalOffsetScale[i] = -0.05f;
+            }
+        }
+    } _params;
 };
 
 

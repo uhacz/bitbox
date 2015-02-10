@@ -204,4 +204,42 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
     //        bxGfx::viewFrustum_debugDraw( cascade->proj * cascade->view, colors[isplit] );
     //    }
     //}
+
+    _ShowGUI();
+}
+
+#include "gfx_gui.h"
+void bxGfxShadows::_ShowGUI()
+{
+    ImGui::Begin( "gfx" );
+
+    if (ImGui::CollapsingHeader("Shadows"))
+    {
+        ImGui::InputFloat( "bias", &_params.bias, 0.0001f );
+        
+        for( int icascade = 0; icascade < bxGfx::eSHADOW_NUM_CASCADES; ++icascade )
+        {
+            char name[255];
+            sprintf_s( name, sizeof(name), "normalOffsetScale[%i]", icascade );
+            ImGui::InputFloat( name, &_params.normalOffsetScale[icascade], 0.001f );
+        }
+        
+        const char* kernelNames[] = { "2", "5", "7" };
+        const int kernelValues[] = { 2, 5, 7 };
+        const int nKernelValues = sizeof(kernelValues) / sizeof(*kernelValues);
+        int current = 0;
+        for( int i = 0; i < nKernelValues; ++i )
+        {
+            if( kernelValues[i] == _params.kernelSize )
+            {
+                current = i;
+                break;;
+            }
+        }
+        ImGui::Combo( "kernel size", &current, kernelNames, nKernelValues );
+
+        ImGui::Checkbox( "useNormalOffset", (bool*)&_params.flag_useNormalOffset );
+    }
+
+    ImGui::End();
 }
