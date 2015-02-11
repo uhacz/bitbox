@@ -1,8 +1,7 @@
 #include "gfx.h"
 #include <gdi/gdi_context.h>
 #include <gdi/gdi_shader.h>
-#include <util/common.h>
-#include <util/range_splitter.h>
+#include <util/float16.h>
 
 #include "gfx_camera.h"
 #include "gfx_lights.h"
@@ -172,9 +171,24 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
     const bxGfxLight_Sun sunLight = lights.sunLight();
     const Vector3 sunLightDirection( xyz_to_m128( sunLight.dir.xyz ) );
 
+    const u16 minZ16 = _sortList_depth->_sortData[0].key.depth;
+    const u16 maxZ16 = _sortList_depth->_sortData[_sortList_depth->_size_sortData-1].key.depth;
+    const float sceneZRange[2] =
+    {
+        camera.params.zNear,
+        camera.params.zFar,
+        //half_to_float( fromU16( minZ16 ) ).f,
+        //half_to_float( fromU16( maxZ16 ) ).f,
+    };
+
+    bxGfxCamera cameraForCascades = camera;
+    cameraForCascades.params.zNear = sceneZRange[0];
+    cameraForCascades.params.zFar = sceneZRange[1];
+    bxGfx::cameraMatrix_compute( &cameraForCascades.matrix, cameraForCascades.params, cameraForCascades.matrix.world, 0, 0 );
+
     float depthSplits[ bxGfx::eSHADOW_NUM_CASCADES ];
-    shadows->splitDepth( depthSplits, camera.params, camera.params.zFar, 0.5f );
-    shadows->computeCascades( depthSplits, camera, sunLightDirection );
+    shadows->splitDepth( depthSplits, cameraForCascades.params, sceneZRange, 0.75f );
+    shadows->computeCascades( depthSplits, cameraForCascades, sceneZRange, sunLightDirection );
 
     for( int ilist = 0; ilist < numLists; ++ilist )
     {
@@ -182,6 +196,8 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
     }
 
     _sortList_shadow->sortAscending();
+
+
 
     {
         bxGfx::InstanceData instanceData;
@@ -248,15 +264,17 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
                 const bxGfxShadows_Cascade& cascade = shadows->_cascade[i];
                 viewProj[i] = ( sc * tr * cascade.proj ) * cascade.view;
                 clipPlanes[i] = mulPerElem( cascade.zNear_zFar, Vector4(-1.f,-1.f,1.f,1.f) );
+                clipPlanes[i].setZ( shadows->_params.bias );
+                clipPlanes[i].setW( shadows->_params.normalOffsetScale[i] );
             }
             shadowsFxI->setUniform( "lightViewProj", viewProj );
-            shadowsFxI->setUniform( "clipPlanes", clipPlanes );
+            shadowsFxI->setUniform( "clipPlanes_bias_nOffset", clipPlanes );
             shadowsFxI->setUniform( "lightDirectionWS", sunLightDirection );
             shadowsFxI->setUniform( "occlusionTextureSize", float2_t( shadowsTexture.width, shadowsTexture.height ) );
             shadowsFxI->setUniform( "shadowMapSize", float2_t( shadows->_depthTexture.width, shadows->_depthTexture.height ) );
 
             shadowsFxI->setUniform( "depthBias", shadows->_params.bias );
-            shadowsFxI->setUniform( "normalOffsetScale", shadows->_params.normalOffsetScale );
+            //shadowsFxI->setUniform( "normalOffsetScale", shadows->_params.normalOffsetScale );
             shadowsFxI->setUniform( "useNormalOffset", shadows->_params.flag_useNormalOffset );
             
             shadowsFxI->setTexture( "shadowMap", shadows->_depthTexture );

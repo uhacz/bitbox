@@ -5,6 +5,7 @@
 #include <gdi/gdi_shader.h>
 #include <gdi/gdi_render_source.h>
 #include <util/common.h>
+#include <util/float16.h>
 
 void bxGfx::sortList_computeColor( bxGfxSortList_Color* sList, const bxGfxRenderList& rList, const bxGfxCamera& camera, u8 renderMask )
 {
@@ -72,7 +73,7 @@ void bxGfx::sortList_computeDepth( bxGfxSortList_Depth* sList, const bxGfxRender
         }
 
         const float depth = bxGfx::camera_depth( camera.matrix.world, itemPose.getTranslation() ).getAsFloat();
-        const u16 depth16 = depthToBits( depth );
+        const u16 depth16 = float_to_half_fast3( fromF32( depth ) ).u;// depthToBits( depth );
 
         bxGfxSortKey_Depth sortKey;
         sortKey.depth = depth16;

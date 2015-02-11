@@ -82,6 +82,7 @@
   <ItemGroup>
     <ClCompile Include="erand48.c" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="smallpt.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="erand48.h" />

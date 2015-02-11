@@ -63,19 +63,24 @@ out_PS ps_main( in_PS input )
 	out_PS OUT;
     OUT.rgba = float4( 0.0, 0.0, 0.0, 1.0 );
 
+    const float2 screenPos01 = (input.s_pos.xy / input.s_pos.w + 1.f) * 0.5f;
+
     Material mat;
     ASSIGN_MATERIAL_FROM_CBUFFER( mat );
 
     const float3 N = normalize( input.w_normal );
     const float3 V = -_camera_viewDir.xyz;
+    float2 shadowUV = float2(screenPos01.x, 1.0 - screenPos01.y);
+    float shadowValue = _shadowMap.SampleLevel( _samplShadowMap, shadowUV, 0.f ).r;
 
-    const float2 screenPos01 = (input.s_pos.xy/input.s_pos.w + 1.f) * 0.5f;
-    
+    ShadingData shData;
+    shData.N = N;
+    shData.V = V;
+        
     uint2 tileXY = computeTileXY( screenPos01, _numTilesXY, _renderTarget_rcp_size.zw, _tileSizeRcp );
     uint lightsIndexBegin = ( _numTilesXY.x * tileXY.y + tileXY.x ) * _maxLights;
 
-    float2 shadowUV = float2( screenPos01.x, 1.0 - screenPos01.y );
-    float shadowValue = _shadowMap.SampleLevel( _samplShadowMap, shadowUV, 0.f ).r;
+    
 
     float3 colorFromLights = float3(0.f, 0.f, 0.f);
     
@@ -92,17 +97,15 @@ out_PS ps_main( in_PS input )
         const float3 L = normalize( unormalizedLightVector );
         const float att = getDistanceAtt( unormalizedLightVector, 1.f / (lightPosRad.w*lightPosRad.w) );
         
-        float3 brdf = BRDF( L, V, N, mat );
+        float3 brdf = BRDF( L, shData, mat );
         colorFromLights += brdf * att * lightColInt.xyz * lightColInt.w;
         
         pointLightIndex++;
         pointLightDataIndex = _lightsIndices[pointLightIndex] & 0xFFFF;
     }
 
-    float3 sunIlluminance = evaluateSunLight( V, N, _sunDirection, _sunAngularRadius, _sunIlluminanceInLux, input.w_pos, mat );
+    float3 sunIlluminance = evaluateSunLight( shData, _sunDirection, _sunAngularRadius, _sunIlluminanceInLux, input.w_pos, mat );
     colorFromLights += _sunColor * sunIlluminance;
-    
-    
     
     OUT.rgba.xyz = lerp( colorFromLights * 0.5f, colorFromLights, shadowValue );
 

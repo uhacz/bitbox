@@ -1,6 +1,12 @@
 #ifndef BRDF_HLSL
 #define BRDF_HLSL
 
+struct ShadingData
+{
+    float3 V;
+    float3 N;
+};
+
 ////
 ////
 float3 Fresnel( float3 f0, float u )
@@ -55,8 +61,10 @@ float3 computeAmbientBRDF( in float NdotL, in Material mat )
     return ambient;
 }
 
-float3 BRDF( in float3 L, in float3 V, in float3 N, in Material mat )
+float3 BRDF( in float3 L, in ShadingData shd, in Material mat )
 {
+    float3 N = shd.N;
+    float3 V = shd.V;
     float3 H = normalize( L + V );
     float NdotH = saturate( dot( N, H ) );
     float NdotL_raw = (dot( N, L ));
@@ -74,8 +82,10 @@ float3 BRDF( in float3 L, in float3 V, in float3 N, in Material mat )
     return ( diffuse + specular ) * NdotL;
 }
 
-float3 BRDF_diffuseOnly( in float3 L, in float3 V, in float3 N, in Material mat )
+float3 BRDF_diffuseOnly( in float3 L, in ShadingData shd, in Material mat )
 {
+    float3 N = shd.N;
+    float3 V = shd.V;
     float3 H = normalize( L + V );
     float NdotL_raw = ( dot( N, L ) );
     float NdotL = saturate( NdotL_raw );
@@ -94,8 +104,10 @@ float3 BRDF_diffuseOnly( in float3 L, in float3 V, in float3 N, in Material mat 
     //return ambient;
 }
 
-float3 BRDF_specularOnly( in float3 L, in float3 V, in float3 N, in Material mat )
+float3 BRDF_specularOnly( in float3 L, in ShadingData shd, in Material mat )
 {
+    float3 N = shd.N;
+    float3 V = shd.V;
     float3 H = normalize( L + V );
     float NdotH = saturate( dot( N, H ) );
     float NdotL = saturate( dot( N, L ) );
