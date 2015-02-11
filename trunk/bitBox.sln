@@ -1,8 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Express 2013 for Windows Desktop
-VisualStudioVersion = 12.0.30723.0
-MinimumVisualStudioVersion = 10.0.40219.1
+# Visual Studio 2012
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo", "code\demo\demo.vcxproj", "{5F629FF1-027F-46DE-9FD9-FFB264626895}"
 	ProjectSection(ProjectDependencies) = postProject
 		{752EE42B-6767-4D1C-8CE2-227E00965D51} = {752EE42B-6767-4D1C-8CE2-227E00965D51}
@@ -25,6 +23,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gfx", "code\gfx\gfx.vcxproj", "{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{003D57C0-1648-4695-B5FC-16BDF0A2CBA9}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demoRT", "code\demoRT\demoRT.vcxproj", "{90D02E7A-709A-449B-B4E9-647CE45D7F07}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -64,6 +64,10 @@ Global
 		{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}.Debug|x64.Build.0 = Debug|x64
 		{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}.Release|x64.ActiveCfg = Release|x64
 		{F3B3BC37-9AAA-4B41-AF4E-144C1317F283}.Release|x64.Build.0 = Release|x64
+		{90D02E7A-709A-449B-B4E9-647CE45D7F07}.Debug|x64.ActiveCfg = Debug|x64
+		{90D02E7A-709A-449B-B4E9-647CE45D7F07}.Debug|x64.Build.0 = Debug|x64
+		{90D02E7A-709A-449B-B4E9-647CE45D7F07}.Release|x64.ActiveCfg = Release|x64
+		{90D02E7A-709A-449B-B4E9-647CE45D7F07}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
