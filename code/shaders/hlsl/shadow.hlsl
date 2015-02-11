@@ -57,16 +57,25 @@ passes:
 shared cbuffer MaterialData : register(b3)
 {
     float4x4 lightViewProj[NUM_CASCADES];
-    float4 clipPlanes[NUM_CASCADES];
+    float4 clipPlanes_bias_nOffset[NUM_CASCADES];
     float3 lightDirectionWS;
     float2 occlusionTextureSize;
     float2 shadowMapSize;
-    float depthBias;
-    float normalOffsetScale[NUM_CASCADES];
     int useNormalOffset;
 };
 
-
+float biasGet( in uint cascadeIdx )
+{
+    return clipPlanes_bias_nOffset[cascadeIdx].z;
+}
+float normalOffsetGet( in uint cascadeIdx )
+{
+    return clipPlanes_bias_nOffset[cascadeIdx].w;
+}
+float2 clipPlaneGet( in uint cascadeIdx )
+{
+    return clipPlanes_bias_nOffset[cascadeIdx].xy;
+}
 
 Texture2D<float> shadowMap;
 Texture2D<float> sceneDepthTex;
@@ -129,25 +138,15 @@ float2 computeReceiverPlaneDepthBias( float3 texCoordDX, float3 texCoordDY )
 //-------------------------------------------------------------------------------------------------
 // The method used in The Witness
 //-------------------------------------------------------------------------------------------------
-float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float3 shadowPosDX, in float3 shadowPosDY, in uint cascadeIdx )
+float sampleShadowMap_optimizedPCF( in float3 shadowPos, in uint cascadeIdx )
 {
     //const float bias = 0.001f;
-    const float bias = depthBias * (1.f + pow( 2.f, (float)cascadeIdx )) / shadowMapSize.y;
+    const float bias = biasGet( cascadeIdx ); // *(1.f + pow( 2.f, (float)cascadeIdx )) / shadowMapSize.y;
     
     float lightDepth = saturate( shadowPos.z ) - bias;
     
     float2 texelSize = 1.0f / shadowMapSize;
-    
         
-    float2 receiverPlaneDepthBias = (float2)0.f;
-    //if( useReceiverPlaneDepthBias )
-    //{
-    //    receiverPlaneDepthBias = computeReceiverPlaneDepthBias( shadowPosDX, shadowPosDY );
-    //    // Static depth biasing to make up for incorrect fractional sampling on the shadow map grid
-    //    float fractionalSamplingError = 2 * dot( float2(1.0f, 1.0f) * texelSize, abs( receiverPlaneDepthBias ) );
-    //    lightDepth -= min( fractionalSamplingError, 0.01 );
-    //}
-    
     float2 uv = shadowPos.xy * shadowMapSize.xy;
     
 
@@ -296,38 +295,26 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     for( int i = 0; i < NUM_CASCADES; ++i )
     {
         [flatten]
-        if( posVS.z < clipPlanes[i].x )
+        if( posVS.z < clipPlaneGet(i).x )
         {
             currentSplit = i;
         }
     }
     
-    //float offset = (float)currentSplit * NUM_CASCADES_INV;
-
-    //float3 N = gnormals_vs.SampleLevel( _samplerr, input.uv, 0.f ).xyz;
-    //float3 L = light_direction_ws;
     float4 posWS = mul( _camera_world, float4(posVS, 1.0) );
 
     if( useNormalOffset )
     {
         const float3 nrmVS = cross( normalize( ddx_fine(posVS) ), normalize( ddy_fine(posVS) ) );
         const float3 N = normalize( mul( (float3x3)_camera_world, nrmVS ) );
-        //const float NdotL = saturate( dot( N, lightDirectionWS ) );
-        //const float VdotN = ( dot( _camera_viewDir, N ) );
-        const float3 posOffset = N * normalOffsetScale[currentSplit]; //getShadowPosOffset( NdotL, N );
+        const float VdotL = 1.f - abs(dot( _camera_viewDir, N ));
+        const float scale = (VdotL + 1) * normalOffsetGet( currentSplit );
+        const float3 posOffset = N * scale; //getShadowPosOffset( NdotL, N );
         posWS.xyz += posOffset;
     }
-    //float4 ws_nrm = mul( camera_world, float4( N, 1.0 ) );
-
-    //const float n_dot_l = saturate( dot( ws_nrm, L ) );
-    //float3 shadow_offset = get_shadow_pos_offset( n_dot_l, ws_nrm );
-    //ws_pos.xyz += shadow_offset;
 
     float4 shadowPos = mul( lightViewProj[currentSplit], posWS );
-    float3 shadowPosDX = (float3)0.f;//ddx_fine( shadowPos.xyz );
-    float3 shadowPosDY = (float3)0.f;//ddy_fine( shadowPos.xyz );
-
-    float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, shadowPosDX, shadowPosDY, currentSplit );
+    float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, currentSplit );
 
     return shadowValue;
 

@@ -41,8 +41,8 @@ namespace bxGfx
 ////
 struct bxGfxShadows 
 {
-    void splitDepth( float splits[ bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera_Params& params, float zMax, float lambda );
-    void computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera& camera, const Vector3& lightDirection );
+    void splitDepth( float splits[bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera_Params& params, const float sceneZRange[2], float lambda );
+    void computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera& camera, const float sceneZRange[2], const Vector3& lightDirection );
 
     bxGfxShadows();
     void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
@@ -60,7 +60,6 @@ public:
     {
         f32 bias;
         f32 normalOffsetScale[bxGfx::eSHADOW_NUM_CASCADES];
-        i32 kernelSize;
         
         u32 flag_useNormalOffset;
         u32 flag_showCascades;
@@ -68,13 +67,12 @@ public:
 
         Params()
             : bias( 0.0001f )
-            , kernelSize( 7 )
             , flag_useNormalOffset(1)
             , flag_showCascades( 0 )
         {
             for( int i = 0;  i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
             {
-                normalOffsetScale[i] = -0.05f;
+                normalOffsetScale[i] = -0.05f * (i+1);
             }
         }
     } _params;

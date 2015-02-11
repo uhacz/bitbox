@@ -6,6 +6,7 @@
 #include <gdi/gdi_shader.h>
 
 #include <util/common.h>
+#include <util/float16.h>
 
 void bxGfx::sortList_computeShadow( bxGfxSortList_Shadow* sList, const bxGfxRenderList& rList, const bxGfxShadows_Cascade* cascades, int nCascades, u8 renderMask /*= eRENDER_MASK_SHADOW */ )
 {
@@ -37,7 +38,7 @@ void bxGfx::sortList_computeShadow( bxGfxSortList_Shadow* sList, const bxGfxRend
                 continue;
 
             const float depth = bxGfx::camera_depth( cascadeWorldMatrices[icascade], itemPose.getTranslation() ).getAsFloat();
-            const u16 depth16 = depthToBits( depth );
+            const u16 depth16 = float_to_half_fast3( fromF32( depth ) ).u;// depthToBits( depth );
 
             bxGfxSortKey_Shadow sortKey;
             sortKey.depth = depth16;
@@ -70,14 +71,14 @@ void bxGfxShadows::_Shurdown( bxGdiDeviceBackend* dev, bxResourceManager* resour
     dev->releaseTexture( &_depthTexture );
 }
 
-void bxGfxShadows::splitDepth( float splits[ bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera_Params& params, float zMax, float lambda )
+void bxGfxShadows::splitDepth( float splits[bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera_Params& params, const float sceneZRange[2], float lambda )
 {
     const float N = (float)bxGfx::eSHADOW_NUM_CASCADES;
     //splits[0] = 0.f;
     //splits[bxGfx::eSHADOW_NUM_CASCADES-1] = 1.f; //params.zFar;
 
-    const float znear = params.zNear;
-    const float zfar = zMax;
+    const float znear = sceneZRange[0];
+    const float zfar = sceneZRange[1];
     const float zRange = zfar - znear;
 
     const float minZ = znear; // +zRange;
@@ -160,10 +161,8 @@ namespace
     }
 }///
 
-void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera& camera, const Vector3& lightDirection )
+void bxGfxShadows::computeCascades( const float splits[bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera& camera, const float sceneZRange[2], const Vector3& lightDirection )
 {
-    const float zRange = camera.params.zFar - camera.params.zNear;
-
     Vector3 mainFrustumCorners[8];
     bxGfx::viewFrustum_extractCorners( mainFrustumCorners, camera.matrix.viewProj );
 
@@ -174,10 +173,10 @@ void bxGfxShadows::computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCA
         const float splitNear = (isplit == 0) ? 0.f : splits[isplit - 1];
         const float splitFar = splits[isplit];
 
-        const float splitZnear = lerp( splitNear, camera.params.zNear, camera.params.zFar );
-        const float splitZfar = lerp( splitFar, camera.params.zNear, camera.params.zFar );
+        const float splitZnear = lerp( splitNear, sceneZRange[0], sceneZRange[1] );
+        const float splitZfar  = lerp( splitFar , sceneZRange[0], sceneZRange[1] );
 
-        const Matrix4 mainCameraSplitProj = Matrix4::perspective( camera.params.fov(), camera.params.aspect(), splitZnear, splitZfar );
+        //const Matrix4 mainCameraSplitProj = Matrix4::perspective( camera.params.fov(), camera.params.aspect(), splitZnear, splitZfar );
 
         Vector3 tmpCorners[8];
         for ( int icorner = 0; icorner < 8; icorner += 2 )
@@ -223,21 +222,6 @@ void bxGfxShadows::_ShowGUI()
             sprintf_s( name, sizeof(name), "normalOffsetScale[%i]", icascade );
             ImGui::InputFloat( name, &_params.normalOffsetScale[icascade], 0.001f );
         }
-        
-        const char* kernelNames[] = { "2", "5", "7" };
-        const int kernelValues[] = { 2, 5, 7 };
-        const int nKernelValues = sizeof(kernelValues) / sizeof(*kernelValues);
-        int current = 0;
-        for( int i = 0; i < nKernelValues; ++i )
-        {
-            if( kernelValues[i] == _params.kernelSize )
-            {
-                current = i;
-                break;;
-            }
-        }
-        ImGui::Combo( "kernel size", &current, kernelNames, nKernelValues );
-
         ImGui::Checkbox( "useNormalOffset", (bool*)&_params.flag_useNormalOffset );
     }
 
