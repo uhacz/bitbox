@@ -49,9 +49,9 @@ float3 computeSkyColor( in float3 rayDir )
     return lerp( skyColor, sunColor, pow( sunAmount, 8.0 ) );
 }
 
-float3 applyFog( in float3 color, in float distance, in float3 rayDir )
+float3 applyFog( in float3 color, in float distance, in float3 rayDir, in float shadow )
 {
-    float3 fogColor = computeSkyColor( rayDir );
+    float3 fogColor = computeSkyColor( rayDir ) * shadow;
     float be = 1.f - exp( -distance * _fallOff);
     return lerp( color, fogColor, be );
 }
@@ -72,7 +72,7 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
     float3 color = _tex_color.SampleLevel( _sampler, input.uv, 0.f ).xyz;
     float2 shadow = _tex_shadow.SampleLevel( _sampler_shadow, input.uv, 0.f ).xy;
     
-    float3 result = applyFog( color, linDepth, rayDir ) * shadow.y;
+    float3 result = applyFog( color, linDepth, rayDir, shadow.y );
     
     return float4(result, 1.f);
 }
