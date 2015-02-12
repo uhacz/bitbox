@@ -22,7 +22,7 @@ passes:
 		{
 			depth_test = 0;
 			depth_write = 0;
-            color_mask = "R";
+            color_mask = "RG";
 		};
     };
 
@@ -50,7 +50,7 @@ passes:
 #include <sys/instance_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
 
-#define NUM_CASCADES 4
+#define NUM_CASCADES 1
 #define NUM_CASCADES_INV ( 1.0 / (float)NUM_CASCADES )
 #define FILTER_SIZE 7
 
@@ -138,18 +138,12 @@ float2 computeReceiverPlaneDepthBias( float3 texCoordDX, float3 texCoordDY )
 //-------------------------------------------------------------------------------------------------
 // The method used in The Witness
 //-------------------------------------------------------------------------------------------------
-float sampleShadowMap_optimizedPCF( in float3 shadowPos, in uint cascadeIdx )
+
+float4 computeShadowUV( in float3 shadowPos, in uint cascadeIdx )
 {
-    //const float bias = 0.001f;
-    const float bias = biasGet( cascadeIdx ); // *(1.f + pow( 2.f, (float)cascadeIdx )) / shadowMapSize.y;
-    
-    float lightDepth = saturate( shadowPos.z ) - bias;
-    
     float2 texelSize = 1.0f / shadowMapSize;
         
     float2 uv = shadowPos.xy * shadowMapSize.xy;
-    
-
     float2 shadowMapSizeInv = 1.0 / shadowMapSize.xy;
 
     float2 base_uv;
@@ -166,6 +160,29 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in uint cascadeIdx )
     base_uv.x = (base_uv.x * NUM_CASCADES_INV) + offsetUV;
     base_uv.y = 1.f - base_uv.y;
     base_uv += texelSize * 0.5f;
+
+    return float4( base_uv, s, t );
+}
+
+float sampleShadowMap_simple( in float3 shadowPos, in uint cascadeIdx )
+{
+    const float bias = biasGet( cascadeIdx ); // *(1.f + pow( 2.f, (float)cascadeIdx )) / shadowMapSize.y;
+    float lightDepth = saturate( shadowPos.z ) - bias;
+    float2 base_uv = computeShadowUV( shadowPos, cascadeIdx ).xy;
+    return shadowMap_sample( lightDepth, base_uv );
+}
+
+float sampleShadowMap_optimizedPCF( in float3 shadowPos, in uint cascadeIdx )
+{
+    //const float bias = 0.001f;
+    const float bias = biasGet( cascadeIdx ); // *(1.f + pow( 2.f, (float)cascadeIdx )) / shadowMapSize.y;
+    float lightDepth = saturate( shadowPos.z ) - bias;
+    float2 shadowMapSizeInv = 1.0 / shadowMapSize.xy;
+    float4 base_uvst = computeShadowUV( shadowPos, cascadeIdx );
+
+    float2 base_uv = base_uvst.xy;
+    float s = base_uvst.z;
+    float t = base_uvst.w;
 
     float sum = 0;
 
@@ -282,7 +299,9 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in uint cascadeIdx )
 //    return texelSize * OffsetScale * nmlOffsetScale * normal;
 //}
 
-float ps_shadow( in in_PS_shadow input ) : SV_Target0
+#define NUM_STEPS 32
+
+float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
     float pixelDepth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
@@ -303,39 +322,36 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     
     float4 posWS = mul( _camera_world, float4(posVS, 1.0) );
 
+    float3 rayDir = posWS - _camera_eyePos;
+    float rayLength = length( rayDir );
+    rayDir *= rcp( rayLength );
+    float step = rayLength / (float)(NUM_STEPS);
+    float currRayLen = 0.f;
+    float value = 0.f;
+    while( currRayLen < rayLength )
+    {
+        const float3 currSamplePos = _camera_eyePos + rayDir*currRayLen;
+        const float3 currShadowPos = mul( lightViewProj[currentSplit], float4( currSamplePos, 1.f ) );
+        value += sampleShadowMap_simple( currShadowPos, currentSplit );
+        
+        currRayLen += step;
+    }
+    value /= NUM_STEPS;
+
     if( useNormalOffset )
     {
         const float3 nrmVS = cross( normalize( ddx_fine(posVS) ), normalize( ddy_fine(posVS) ) );
         const float3 N = normalize( mul( (float3x3)_camera_world, nrmVS ) );
-        const float VdotL = 1.f - abs(dot( _camera_viewDir, N ));
-        const float scale = (VdotL + 1) * normalOffsetGet( currentSplit );
-        const float3 posOffset = N * scale; //getShadowPosOffset( NdotL, N );
+        const float scale = 1.f - saturate(dot( lightDirectionWS, N ));
+        const float offsetScale  = scale * normalOffsetGet( currentSplit );
+        const float3 posOffset = N * offsetScale; //getShadowPosOffset( NdotL, N );
         posWS.xyz += posOffset;
     }
 
     float4 shadowPos = mul( lightViewProj[currentSplit], posWS );
     float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, currentSplit );
 
-    return shadowValue;
-
- //   //light_hpos /= light_hpos.w;
- //   // Transform from light space to shadow map texture space.
- //   float2 shadowUV = shadowPos.xy;
- //   shadowUV.x = ( shadowUV.x * NUM_CASCADES_INV ) + offset;
- //   shadowUV.y = 1.f-shadowUV.y;
- //   //shadow_uv = shadow_uv;
- //   // Offset the coordinate by half a texel so we sample it correctly
- //   shadowUV += ( 0.5f / shadowMapSize );
- //   
- //   float lightDepth = saturate( shadowPos.z );
-	////light_depth = resolveLinearDepth( light_depth, clip_planes[current_split].x, clip_planes[current_split].y );
-
- //   const float bias = 0.f; // (1.f + pow( 2.f, (float)current_split )) / shadow_map_size.y;
- //   //float shadow_value = sample_shadow_gauss5x5( light_depth, shadow_uv, bias );
- //   float shadowValue = shadowMap_sample( lightDepth, shadowUV, bias );
- //   
- //   return shadowValue;
- //   //return float2(offset, 1.f);
+    return float2( shadowValue, value );
 }
 
 

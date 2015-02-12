@@ -36,9 +36,9 @@ cbuffer MaterialData : register(b3)
 
 Texture2D _tex_depth : register(t0);
 Texture2D _tex_color : register(t1);
-
+Texture2D _tex_shadow: register(t2);
 SamplerState _sampler : register(s0);
-
+SamplerState _sampler_shadow : register(s1);
 
 
 float3 computeSkyColor( in float3 rayDir )
@@ -70,8 +70,11 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
     float3 rayDir = ray * rcp( len );
 
     float3 color = _tex_color.SampleLevel( _sampler, input.uv, 0.f ).xyz;
-    float3 result = applyFog( color, linDepth, rayDir );
-    return float4(result, 1.f);
+    float2 shadow = _tex_shadow.SampleLevel( _sampler_shadow, input.uv, 0.f ).xy;
+    
+    float3 result = applyFog( color, linDepth, rayDir ) * shadow.y;
+    
+    return float4((float3)shadow.x+shadow.y, 1.f);
 }
 
 float4 ps_sky( in out_VS_screenquad input ) : SV_Target0
