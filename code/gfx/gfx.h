@@ -45,6 +45,8 @@ private:
     bxGfxSortList_Depth* _sortList_depth;
     bxGfxSortList_Shadow* _sortList_shadow;
 
+    f32 _scene_zRange[2];
+
     static bxGfx::Shared _shared;
 };
 

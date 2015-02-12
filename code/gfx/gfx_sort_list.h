@@ -136,6 +136,6 @@ namespace bxGfx
 namespace bxGfx
 {
     void sortList_computeColor( bxGfxSortList_Color* sList, const bxGfxRenderList& rList, const bxGfxCamera& camera, u8 renderMask = bxGfx::eRENDER_MASK_COLOR );
-    void sortList_computeDepth( bxGfxSortList_Depth* sList, const bxGfxRenderList& rList, const bxGfxCamera& camera, u8 renderMask = bxGfx::eRENDER_MASK_DEPTH );
+    void sortList_computeDepth( bxGfxSortList_Depth* sList, float minZ_maxZ[2], const bxGfxRenderList& rList, const bxGfxCamera& camera, u8 renderMask = bxGfx::eRENDER_MASK_DEPTH );
  
 }

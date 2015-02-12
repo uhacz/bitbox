@@ -351,7 +351,7 @@ float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
     float4 shadowPos = mul( lightViewProj[currentSplit], posWS );
     float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, currentSplit );
 
-    return float2( shadowValue, value );
+    return float2(shadowValue, value);
 }
 
 
