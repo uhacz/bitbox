@@ -299,7 +299,7 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in uint cascadeIdx )
 //    return texelSize * OffsetScale * nmlOffsetScale * normal;
 //}
 
-#define NUM_STEPS 32
+#define NUM_STEPS 64
 
 float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
 {

@@ -74,7 +74,7 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
     
     float3 result = applyFog( color, linDepth, rayDir ) * shadow.y;
     
-    return float4((float3)shadow.x+shadow.y, 1.f);
+    return float4(result, 1.f);
 }
 
 float4 ps_sky( in out_VS_screenquad input ) : SV_Target0
