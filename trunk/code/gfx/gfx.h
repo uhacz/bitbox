@@ -58,7 +58,7 @@ struct bxGfxPostprocess
     void toneMapping( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime );
 
     void sky( bxGdiContext* ctx, bxGdiTexture outTexture, const bxGfxLight_Sun& sunLight );
-    void fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, const bxGfxLight_Sun& sunLight );
+    void fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, bxGdiTexture shadowTexture, const bxGfxLight_Sun& sunLight );
 
     bxGfxPostprocess();
     void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );

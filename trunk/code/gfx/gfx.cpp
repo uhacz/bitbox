@@ -63,8 +63,10 @@ bxGfxContext::~bxGfxContext()
 bxGfx::Shared bxGfxContext::_shared;
 int bxGfxContext::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
-    const int fbWidth = 1920;
-    const int fbHeight = 1080;
+    //const int fbWidth = 1920;
+    //const int fbHeight = 1080;
+    const int fbWidth = 1280;
+    const int fbHeight = 720;
 
     _cbuffer_frameData = dev->createConstantBuffer( sizeof( bxGfx::FrameData ) );
     _cbuffer_instanceData = dev->createConstantBuffer( sizeof( bxGfx::InstanceData ) );
@@ -72,7 +74,7 @@ int bxGfxContext::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resource
     _framebuffer[bxGfx::eFRAMEBUFFER_COLOR]   = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     _framebuffer[bxGfx::eFRAMEBUFFER_SWAP]    = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH]   = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
-    _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 2, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     
     {
         _shared.shader.utils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "utils" );
@@ -451,7 +453,7 @@ void bxGfxPostprocess::sky(bxGdiContext* ctx, bxGdiTexture outTexture, const bxG
     bxGfxContext::submitFullScreenQuad( ctx, _fxI_fog, "sky" );
 }
 
-void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, const bxGfxLight_Sun& sunLight )
+void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, bxGdiTexture shadowTexture, const bxGfxLight_Sun& sunLight )
 {
     //_fxI_fog->setUniform( "_sunDir", sunLight.dir );
     //_fxI_fog->setUniform( "_sunColor", sunLight.color );
@@ -460,8 +462,10 @@ void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTex
     //_fxI_fog->setUniform( "_fallOff", _fog.fallOff );
     
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_TRILINEAR ), 1, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( depthTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( inTexture, 1, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setTexture( shadowTexture, 2, bxGdi::eSTAGE_MASK_PIXEL );
 
     ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
     ctx->setViewport( bxGdiViewport( 0, 0, outTexture.width, outTexture.height) );
@@ -470,6 +474,7 @@ void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTex
 
     ctx->setTexture( bxGdiTexture(), 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( bxGdiTexture(), 1, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setTexture( bxGdiTexture(), 2, bxGdi::eSTAGE_MASK_PIXEL );
 }
 
 

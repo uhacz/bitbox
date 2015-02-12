@@ -66,7 +66,7 @@ public:
         
 
         Params()
-            : bias( 0.0001f )
+            : bias( 0.0005f )
             , flag_useNormalOffset(1)
             , flag_showCascades( 0 )
         {
