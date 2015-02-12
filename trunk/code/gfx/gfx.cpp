@@ -55,7 +55,11 @@ namespace bxGfx
 bxGfxContext::bxGfxContext()
     : _sortList_color(0)
     , _sortList_depth(0)
-{}
+{
+    _scene_zRange[0] = -FLT_MAX;
+    _scene_zRange[1] = FLT_MAX;
+
+}
 
 bxGfxContext::~bxGfxContext()
 {}
@@ -153,9 +157,11 @@ void bxGfxContext::frame_begin( bxGdiContext* ctx )
 
 void bxGfxContext::frame_zPrepass(bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists)
 {
+    _scene_zRange[0] = FLT_MAX;
+    _scene_zRange[1] =-FLT_MAX;
     for ( int ilist = 0; ilist < numLists; ++ilist )
     {
-        bxGfx::sortList_computeDepth( _sortList_depth, *rLists[ilist], camera );
+        bxGfx::sortList_computeDepth( _sortList_depth, _scene_zRange, *rLists[ilist], camera );
     }
     _sortList_depth->sortAscending();
     
@@ -173,12 +179,12 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
     const bxGfxLight_Sun sunLight = lights.sunLight();
     const Vector3 sunLightDirection( xyz_to_m128( sunLight.dir.xyz ) );
 
-    const u16 minZ16 = _sortList_depth->_sortData[0].key.depth;
-    const u16 maxZ16 = _sortList_depth->_sortData[_sortList_depth->_size_sortData-1].key.depth;
+    //const u16 minZ16 = _sortList_depth->_sortData[0].key.depth;
+    //const u16 maxZ16 = _sortList_depth->_sortData[_sortList_depth->_size_sortData-1].key.depth;
     const float sceneZRange[2] =
     {
-        camera.params.zNear,
-        camera.params.zFar,
+        maxOfPair( _scene_zRange[0], camera.params.zNear ),
+        minOfPair( _scene_zRange[1], camera.params.zFar ),
         //half_to_float( fromU16( minZ16 ) ).f,
         //half_to_float( fromU16( maxZ16 ) ).f,
     };
