@@ -50,13 +50,14 @@ passes:
 #include <sys/instance_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
 
-#define NUM_CASCADES 1
+#define NUM_CASCADES 3
 #define NUM_CASCADES_INV ( 1.0 / (float)NUM_CASCADES )
 #define FILTER_SIZE 7
 
 shared cbuffer MaterialData : register(b3)
 {
-    float4x4 lightViewProj[NUM_CASCADES];
+    float4x4 worldToShadowSpace[NUM_CASCADES];
+    float4x4 viewToShadowSpace[NUM_CASCADES];
     float4 clipPlanes_bias_nOffset[NUM_CASCADES];
     float3 lightDirectionWS;
     float2 occlusionTextureSize;
@@ -288,19 +289,22 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in uint cascadeIdx )
 #endif
 }
 
-//-------------------------------------------------------------------------------------------------
-// Calculates the offset to use for sampling the shadow map, based on the surface normal
-//-------------------------------------------------------------------------------------------------
-//float3 getShadowPosOffset(in float nDotL, in float3 normal)
-//{
-//    const float OffsetScale = normalOffsetScale;
-//    float texelSize = 2.0f / shadowMapSize.y;
-//    float nmlOffsetScale = saturate(1.0f - nDotL);
-//    return texelSize * OffsetScale * nmlOffsetScale * normal;
-//}
+uint selectSplit( float z )
+{
+    uint currentSplit = 0;
+    for( uint i = 0; i < NUM_CASCADES; ++i )
+    {
+        [flatten]
+        if( z < clipPlaneGet(i).x )
+        {
+            currentSplit = i;
+        }
+    }
+
+    return currentSplit;
+}
 
 #define NUM_STEPS 64
-
 float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
@@ -308,34 +312,26 @@ float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
     float linearDepth = resolveLinearDepth( pixelDepth );
     float2 screenPos_m11 = input.screenPos;
     float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth, _camera_projParams.xy );
-    
 
-    int currentSplit = 0;
-    for( int i = 0; i < NUM_CASCADES; ++i )
-    {
-        [flatten]
-        if( posVS.z < clipPlaneGet(i).x )
-        {
-            currentSplit = i;
-        }
-    }
-    
+    uint currentSplit = selectSplit( posVS.z );
     float4 posWS = mul( _camera_world, float4(posVS, 1.0) );
 
-    float3 rayDir = posWS - _camera_eyePos;
-    float rayLength = length( rayDir );
-    rayDir *= rcp( rayLength );
-    float step = rayLength / (float)(NUM_STEPS);
-    float currRayLen = 0.f;
+    float3 rayDirVS = posVS;
+    const float rayLengthVS = length( rayDirVS );
+    rayDirVS *= rcp( rayLengthVS );
+    float step = rayLengthVS / (float)(NUM_STEPS);
+    float currRayLen = _camera_zNear;
     float value = 0.f;
-    while( currRayLen < rayLength )
+    while( currRayLen < rayLengthVS )
     {
-        const float3 currSamplePos = _camera_eyePos + rayDir*currRayLen;
-        const float3 currShadowPos = mul( lightViewProj[currentSplit], float4( currSamplePos, 1.f ) );
-        value += sampleShadowMap_simple( currShadowPos, currentSplit );
-        
+        const float3 currSamplePosVS = rayDirVS*currRayLen;
+        const float viewZ = currSamplePosVS.z;
+        const uint currSampleCascadeIdx = selectSplit( viewZ );
+        const float3 currShadowPos = mul( viewToShadowSpace[currSampleCascadeIdx], float4( currSamplePosVS, 1.0 ) ).xyz;
+        value += sampleShadowMap_simple( currShadowPos, currSampleCascadeIdx );
         currRayLen += step;
     }
+
     value /= NUM_STEPS;
 
     if( useNormalOffset )
@@ -344,11 +340,11 @@ float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
         const float3 N = normalize( mul( (float3x3)_camera_world, nrmVS ) );
         const float scale = 1.f - saturate(dot( lightDirectionWS, N ));
         const float offsetScale  = scale * normalOffsetGet( currentSplit );
-        const float3 posOffset = N * offsetScale; //getShadowPosOffset( NdotL, N );
+        const float3 posOffset = N * offsetScale; 
         posWS.xyz += posOffset;
     }
 
-    float4 shadowPos = mul( lightViewProj[currentSplit], posWS );
+    float4 shadowPos = mul( worldToShadowSpace[currentSplit], posWS );
     float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, currentSplit );
 
     return float2(shadowValue, value);

@@ -1,6 +1,12 @@
 #ifndef UTIL_HLSL
 #define UTIL_HLSL
 
+float cameraDepth( in float3 worldPosition )
+{
+    const float3 inCameraSpace = worldPosition - _camera_eyePos;
+	return -dot( _camera_world[2].xyz, inCameraSpace );
+}
+
 float resolveLinearDepth( float hwDepth )
 {
     return rcp(hwDepth * _reprojectDepthScale + _reprojectDepthBias);

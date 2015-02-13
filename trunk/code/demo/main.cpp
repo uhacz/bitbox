@@ -39,8 +39,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -326,9 +326,7 @@ public:
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, deltaTime );
         }
-        {
-            
-        }
+        
         {
             bxGdiTexture colorTextures[] = 
             {
@@ -342,7 +340,7 @@ public:
                 "color", "depth", "shadows", "cascades",
             };
             const int nTextures = sizeof(colorTextures)/sizeof(*colorTextures);
-            static int current = 0;
+            static int current = 2;
             
             {
                 ImGui::Begin();
