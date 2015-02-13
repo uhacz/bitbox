@@ -78,7 +78,7 @@ int bxGfxContext::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resource
     _framebuffer[bxGfx::eFRAMEBUFFER_COLOR]   = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     _framebuffer[bxGfx::eFRAMEBUFFER_SWAP]    = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH]   = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
-    _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS] = dev->createTexture2D( fbWidth/2, fbHeight/2, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 2, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS] = dev->createTexture2D( fbWidth/2, fbHeight/2, 1, bxGdiFormat( bxGdi::eTYPE_UBYTE, 2, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     
     {
         _shared.shader.utils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "utils" );
@@ -262,7 +262,8 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             bxGdiTexture shadowsTexture = _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS];
             
 
-            Matrix4 viewProj[bxGfx::eSHADOW_NUM_CASCADES];
+            Matrix4 worldToShadowSpace[bxGfx::eSHADOW_NUM_CASCADES];
+            Matrix4 viewToShadowSpace[bxGfx::eSHADOW_NUM_CASCADES];
             Vector4 clipPlanes[bxGfx::eSHADOW_NUM_CASCADES];
 
             const Matrix4 sc = Matrix4::scale( Vector3(0.5f,0.5f,0.5f) );
@@ -270,12 +271,15 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             for( int i = 0; i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
             {
                 const bxGfxShadows_Cascade& cascade = shadows->_cascade[i];
-                viewProj[i] = ( sc * tr * cascade.proj ) * cascade.view;
+                worldToShadowSpace[i] = ( sc * tr * cascade.proj ) * cascade.view;
+                viewToShadowSpace[i] = worldToShadowSpace[i] * camera.matrix.world;
+
                 clipPlanes[i] = mulPerElem( cascade.zNear_zFar, Vector4(-1.f,-1.f,1.f,1.f) );
                 clipPlanes[i].setZ( shadows->_params.bias );
                 clipPlanes[i].setW( shadows->_params.normalOffsetScale[i] );
             }
-            shadowsFxI->setUniform( "lightViewProj", viewProj );
+            shadowsFxI->setUniform( "worldToShadowSpace", worldToShadowSpace );
+            shadowsFxI->setUniform( "viewToShadowSpace", viewToShadowSpace );
             shadowsFxI->setUniform( "clipPlanes_bias_nOffset", clipPlanes );
             shadowsFxI->setUniform( "lightDirectionWS", sunLightDirection );
             shadowsFxI->setUniform( "occlusionTextureSize", float2_t( shadowsTexture.width, shadowsTexture.height ) );
@@ -289,7 +293,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             shadowsFxI->setTexture( "sceneDepthTex", _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
             shadowsFxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP ) );
             //shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_CLAMP ) );
-            shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
+            shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
 
             ctx->changeRenderTargets( &shadowsTexture, 1, bxGdiTexture() );
             ctx->clearBuffers( 1.f, 1.f, 1.f, 1.f, 0.f, 1, 0 );
@@ -468,7 +472,7 @@ void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTex
     //_fxI_fog->setUniform( "_fallOff", _fog.fallOff );
     
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
-    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_TRILINEAR ), 1, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ), 1, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( depthTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( inTexture, 1, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( shadowTexture, 2, bxGdi::eSTAGE_MASK_PIXEL );

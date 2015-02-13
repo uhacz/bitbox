@@ -51,8 +51,8 @@ float3 computeSkyColor( in float3 rayDir )
 
 float3 applyFog( in float3 color, in float distance, in float3 rayDir, in float shadow )
 {
-    float3 fogColor = computeSkyColor( rayDir ) * shadow;
-    float be = 1.f - exp( -distance * _fallOff);
+    float3 fogColor = computeSkyColor( rayDir );
+    float be = ( 1.f - exp( -distance * _fallOff) )  * shadow;
     return lerp( color, fogColor, be );
 }
 
@@ -64,14 +64,14 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
     float2 winPos = input.screenPos;// *2.0 - 1.0;
     float3 vsPos = resolvePositionVS( winPos, linDepth, _camera_projParams.xy );
     float3 worldPos = mul( _camera_world, float4(vsPos,1.f) ).xyz;
-    
+    //
     float3 ray = worldPos - _camera_eyePos.xyz;
     float len = length( ray );
     float3 rayDir = ray * rcp( len );
 
     float3 color = _tex_color.SampleLevel( _sampler, input.uv, 0.f ).xyz;
     float2 shadow = _tex_shadow.SampleLevel( _sampler_shadow, input.uv, 0.f ).xy;
-    
+    //float3 result = color * shadow.y;
     float3 result = applyFog( color, linDepth, rayDir, shadow.y );
     
     return float4(result, 1.f);

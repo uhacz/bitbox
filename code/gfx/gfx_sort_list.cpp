@@ -78,8 +78,15 @@ void bxGfx::sortList_computeDepth( bxGfxSortList_Depth* sList, float minZ_maxZ[2
         sortKey.depth = float_to_half_fast3( fromF32( depth ) ).u;// depthToBits( depth );
         sList->add( sortKey, &rList, it.itemIndex() );
 
-        //const Vector3 bboxCenter = bxAABB::center( itemWorldBBox );
+        const Vector3 bboxCenter = bxAABB::center( itemWorldBBox );
         const Vector3 bboxSize = bxAABB::size( itemWorldBBox );
+        //const floatInVec bsRadius = length( bboxSize ) * halfVec;
+
+        //const float minD = bxGfx::camera_depth( camera.matrix.world, bboxCenter - camera.matrix.worldDir()*bsRadius ).getAsFloat();
+        //const float maxD = bxGfx::camera_depth( camera.matrix.world, bboxCenter + camera.matrix.worldDir()*bsRadius ).getAsFloat();
+        //minZ_maxZ[0] = minOfPair( minD, minZ_maxZ[0] );
+        //minZ_maxZ[1] = maxOfPair( maxD, minZ_maxZ[1] );
+
         const Vector3 bboxCorenrs[8] = 
         {
             itemWorldBBox.min,
