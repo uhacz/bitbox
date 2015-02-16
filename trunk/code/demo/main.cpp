@@ -318,7 +318,7 @@ public:
             bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
             bxGdiTexture depthTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
-            bxGdiTexture shadowTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS );
+            bxGdiTexture shadowTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS_VOLUME );
             _gfxPostprocess->fog( _gdiContext, outputTexture, colorTexture, depthTexture, shadowTexture, _gfxLights->sunLight() );
         }
         {
@@ -333,14 +333,15 @@ public:
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR ),
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ),
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS ),
+                _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS_VOLUME ),
                 _gfxShadows->_depthTexture,
             };
             const char* colorNames[] = 
             {
-                "color", "depth", "shadows", "cascades",
+                "color", "depth", "shadows", "shadowsVolume", "cascades",
             };
             const int nTextures = sizeof(colorTextures)/sizeof(*colorTextures);
-            static int current = 2;
+            static int current = 0;
             
             {
                 ImGui::Begin();

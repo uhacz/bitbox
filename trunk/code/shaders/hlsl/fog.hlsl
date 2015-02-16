@@ -46,7 +46,7 @@ float3 computeSkyColor( in float3 rayDir )
     float sunAmount = saturate( dot( rayDir, _sunDir ) );
     const float3 skyColor = _skyColor * _skyIlluminance;
     const float3 sunColor = _sunColor * _sunIlluminance;
-    return lerp( skyColor, sunColor, pow( sunAmount, 8.0 ) );
+    return lerp( skyColor, sunColor, pow( sunAmount, 2.0 ) );
 }
 
 float3 applyFog( in float3 color, in float distance, in float3 rayDir, in float shadow )
@@ -70,11 +70,12 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
     float3 rayDir = ray * rcp( len );
 
     float3 color = _tex_color.SampleLevel( _sampler, input.uv, 0.f ).xyz;
-    float2 shadow = _tex_shadow.SampleLevel( _sampler_shadow, input.uv, 0.f ).xy;
+    float shadow = _tex_shadow.SampleLevel( _sampler_shadow, input.uv, 0.f ).x;
     //float3 result = color * shadow.y;
-    float3 result = applyFog( color, linDepth, rayDir, shadow.y );
+    float3 result = applyFog( color, linDepth, rayDir, shadow );
     
     return float4(result, 1.f);
+    //return float4( color, 1.f );
 }
 
 float4 ps_sky( in out_VS_screenquad input ) : SV_Target0
