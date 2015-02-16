@@ -22,7 +22,20 @@ passes:
 		{
 			depth_test = 0;
 			depth_write = 0;
-            color_mask = "RG";
+            color_mask = "R";
+		};
+    };
+
+    shadowVolume =
+    {
+        vertex = "vs_screenquad";
+        pixel = "ps_shadowVolume";
+
+        hwstate = 
+		{
+			depth_test = 0;
+			depth_write = 0;
+            color_mask = "R";
 		};
     };
 
@@ -50,9 +63,9 @@ passes:
 #include <sys/instance_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
 
-#define NUM_CASCADES 3
+#define NUM_CASCADES 2
 #define NUM_CASCADES_INV ( 1.0 / (float)NUM_CASCADES )
-#define FILTER_SIZE 7
+#define FILTER_SIZE 5
 
 shared cbuffer MaterialData : register(b3)
 {
@@ -304,8 +317,35 @@ uint selectSplit( float z )
     return currentSplit;
 }
 
+float ps_shadow( in in_PS_shadow input ) : SV_Target0
+{
+    // Reconstruct view-space position from the depth buffer
+    float pixelDepth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
+    float linearDepth = resolveLinearDepth( pixelDepth );
+    float2 screenPos_m11 = input.screenPos;
+    float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth, _camera_projParams.xy );
+
+    uint currentSplit = selectSplit( posVS.z );
+    float4 posWS = mul( _camera_world, float4(posVS, 1.0) );
+
+    if( useNormalOffset )
+    {
+        const float3 nrmVS = cross( normalize( ddx_fine(posVS) ), normalize( ddy_fine(posVS) ) );
+        const float3 N = normalize( mul( (float3x3)_camera_world, nrmVS ) );
+        const float scale = 1.f - saturate(dot( lightDirectionWS, N ));
+        const float offsetScale  = scale * normalOffsetGet( currentSplit );
+        const float3 posOffset = N * offsetScale; 
+        posWS.xyz += posOffset;
+    }
+
+    float4 shadowPos = mul( worldToShadowSpace[currentSplit], posWS );
+    float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, currentSplit );
+
+    return shadowValue;
+}
+
 #define NUM_STEPS 64
-float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
+float ps_shadowVolume( in in_PS_shadow input ) : SV_Target0
 {
     // Reconstruct view-space position from the depth buffer
     float pixelDepth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
@@ -334,22 +374,8 @@ float2 ps_shadow( in in_PS_shadow input ) : SV_Target0
 
     value /= NUM_STEPS;
 
-    if( useNormalOffset )
-    {
-        const float3 nrmVS = cross( normalize( ddx_fine(posVS) ), normalize( ddy_fine(posVS) ) );
-        const float3 N = normalize( mul( (float3x3)_camera_world, nrmVS ) );
-        const float scale = 1.f - saturate(dot( lightDirectionWS, N ));
-        const float offsetScale  = scale * normalOffsetGet( currentSplit );
-        const float3 posOffset = N * offsetScale; 
-        posWS.xyz += posOffset;
-    }
-
-    float4 shadowPos = mul( worldToShadowSpace[currentSplit], posWS );
-    float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, currentSplit );
-
-    return float2(shadowValue, value);
+    return value;
 }
-
 
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////

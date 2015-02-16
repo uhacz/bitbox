@@ -71,7 +71,7 @@ out_PS ps_main( in_PS input )
     const float3 N = normalize( input.w_normal );
     const float3 V = -_camera_viewDir.xyz;
     float2 shadowUV = float2(screenPos01.x, 1.0 - screenPos01.y);
-    float2 shadowValue = _shadowMap.SampleLevel( _samplShadowMap, shadowUV, 0.f ).rg;
+    float shadowValue = _shadowMap.SampleLevel( _samplShadowMap, shadowUV, 0.f ).r;
 
     ShadingData shData;
     shData.N = N;
@@ -104,12 +104,11 @@ out_PS ps_main( in_PS input )
         pointLightDataIndex = _lightsIndices[pointLightIndex] & 0xFFFF;
     }
 
-    float3 sunIlluminance = evaluateSunLight( shData, _sunDirection, _sunAngularRadius, _sunIlluminanceInLux, input.w_pos, mat );
+    float3 sunIlluminance = evaluateSunLight( shData, input.w_pos, mat, shadowValue );
     colorFromLights += _sunColor * sunIlluminance;
     
-    OUT.rgba.xyz = lerp( colorFromLights * 0.5f, colorFromLights, shadowValue.x ) * shadowValue.y;
-
-
+    //OUT.rgba.xyz = lerp( colorFromLights * 0.5f, colorFromLights, shadowValue );
+    OUT.rgba.xyz = colorFromLights;
 
     //float3 tmpColors[] =
     //{
