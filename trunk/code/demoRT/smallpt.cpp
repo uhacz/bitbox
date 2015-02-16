@@ -415,4 +415,6 @@ int doPathTracing( int w, int h, int samps ){
         fprintf( f, "%d %d %d ", toInt( c[i].x ), toInt( c[i].y ), toInt( c[i].z ) );
 
     fclose( f );
+
+    return 0;
 }
