@@ -67,6 +67,35 @@ namespace bxPathTracer
         return o1 * cos(r.x)*oneminus + sin(r.x)*oneminus*o2 + r.y*dirN;
     }
 
+    vector3f CosWeightedRandomHemisphereDirection2( normal3f n )
+    {
+        float Xi1 = (float)rand()/(float)RAND_MAX;
+        float Xi2 = (float)rand()/(float)RAND_MAX;
+
+        float  theta = acos(sqrt(1.0-Xi1));
+        float  phi = 2.0 * 3.1415926535897932384626433832795 * Xi2;
+
+        float xs = sinf(theta) * cosf(phi);
+        float ys = cosf(theta);
+        float zs = sinf(theta) * sinf(phi);
+
+        vector3f y(n.x, n.y, n.z);
+        vector3f h = y;
+        if (fabs(h.x)<=fabs(h.y) && fabs(h.x)<=fabs(h.z))
+            h.x= 1.0;
+        else if (fabs(h.y)<=fabs(h.x) && fabs(h.y)<=fabs(h.z))
+            h.y= 1.0;
+        else
+            h.z= 1.0;
+
+
+        vector3f x = (h ^ y).normalize();
+        vector3f z = (x ^ y).normalize();
+
+        vector3f direction = xs * x + ys * y + zs * z;
+        return direction.normalize();
+    }
+
     Vector3 cosineSampleHemisphere(float u1, float u2)
     {
         const float r = sqrt(u1);
