@@ -3,6 +3,7 @@
 #include "type.h"
 
 #define PI 3.14159265358979323846f
+#define PI2 6.28318530717958647693f
 
 template<typename Type>
 inline Type minOfPair( const Type& a, const Type& b ) {	return ( a < b ) ? a : b; }
