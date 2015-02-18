@@ -66,13 +66,13 @@ public:
         
 
         Params()
-            : bias( 0.0005f )
+            : bias( 0.001f )
             , flag_useNormalOffset(1)
             , flag_showCascades( 0 )
         {
             for( int i = 0;  i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
             {
-                normalOffsetScale[i] = -0.05f * (i+1);
+                normalOffsetScale[i] = -0.002f;// *(i + 1);
             }
         }
     } _params;
