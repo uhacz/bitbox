@@ -35,7 +35,7 @@ static const Vector3 colors[] =
 static const int nColors = sizeof(colors)/sizeof(*colors);
 //SYS_STATIC_ASSERT( nColors == nSpheres );
 
-static const Vector3 _sunDir = normalize( Vector3( 0.f, -1.f, 0.f ) );
+static const Vector3 _sunDir = normalize( Vector3( 0.5f, -1.f, 0.f ) );
 static const Vector3 _sunColor = Vector3( 1.0f, 1.0f, 1.0f );
 
 const Vector3 eye = Vector3( 2.f, 5.f, 10.f );
@@ -185,7 +185,11 @@ namespace bxPathTracer
         //return cosineSampleHemisphere( rnd.getf(0.f,1.f), rnd.getf(0.f,1.f) );
         //return getSampleBiased( dir, 1.0f, rnd );
     }
-    floatInVec worldShadow( const Vector3& ro, const Vector3& rd, const floatInVec& maxLen );
+    floatInVec worldShadow( const Vector3& ro, const Vector3& rd, const floatInVec& maxLen )
+    {
+        const Vector2 tres = worldIntersect( ro, rd, floatInVec( 1000.f ) );
+        return (tres.y < 0.f) ? oneVec : zeroVec;
+    }
 
     Vector3 worldGetNormal( const Vector3& po, float objectID )
     {
@@ -202,7 +206,10 @@ namespace bxPathTracer
 
     Vector3 worldApplyLighting( const Vector3& pos, const Vector3& nor )
     {
-        return _sunColor * clampf4( dot( nor, -_sunDir ), zeroVec, oneVec );
+        const Vector3 L = normalize( -_sunDir *1000.f - pos );
+        const floatInVec sh = worldShadow( pos, L, floatInVec( 1000.f ) );
+
+        return _sunColor * clampf4( dot( nor, -_sunDir ), zeroVec, oneVec ) * sh;
     }
     Vector3 worldGetBRDFRay( const Vector3& pos, const Vector3& nor, const Vector3& eye, float materialID )
     {
@@ -239,9 +246,9 @@ namespace bxPathTracer
             const Vector3 litCol = mulPerElem( worldApplyLighting( wPos, wNrm ), matCol ) * PI_INV;
 
             ro = wPos;
-            //rd = normalize( reflect( wNrm, -rd ) );//worldGetBRDFRay( wPos, wNrm, rd, tres.y, rnd );
+            //rd = normalize( reflect( wNrm, -rd ) );//worldGetBRDFRay( wPos, wNrm, rd, tres.y, rnd );    
             rd = worldGetBRDFRay( wPos, wNrm, rd, tres.y );
-
+            
             fcol = mulPerElem( fcol, matCol ); // * strength;
             //if( ilevel > 0 )
             tcol += mulPerElem( fcol, litCol );
@@ -312,25 +319,28 @@ namespace bxPathTracer
         Vector3* c = (Vector3*)BX_MALLOC( bxDefaultAllocator(), w*h *sizeof( Vector3 ), 4 );
         memset( c, 0x00, w*h*sizeof(Vector3) );
         //int i = 0;
-        for ( unsigned short y = 0; y<h; y+=4 )
+        for ( unsigned short y = 0; y<h; y+=1 )
         {            // Loop over image rows
-            for ( unsigned short x = 0; x<w; x+=4 )   // Loop cols
+            for ( unsigned short x = 0; x<w; x+=1 )   // Loop cols
             {
                 fprintf( stderr, "\rRendering (%d samples/pp) %5.2f%%", samps, 100.*y / (h - 1) );
                 const Vector3 pixel = Vector3( (float)x, (float)( w - y ), 0.f );
                 const Vector3 col = calculatePixelColor( pixel, resolution, samps, bounces );
-                
-                for( int yy = -2; yy <= 2; ++yy )
-                {
-                    for( int xx = -2; xx <= 2; ++xx )
-                    {
-                        const int i = clamp( (y+yy) * w + (x+xx), 0, w*h );
-                        const float w = weights[yy+2][xx+2];
-                        c[i] += col * w;
+               
+                const int i = (y) * w + x;
+                c[i] = col;
 
-                        //m128_to_xyz( c[i].xyz, col.get128() );
-                    }
-                }
+                //for( int yy = -2; yy <= 2; ++yy )
+                //{
+                //    for( int xx = -2; xx <= 2; ++xx )
+                //    {
+                //        const int i = clamp( (y+yy) * w + (x+xx), 0, w*h );
+                //        const float w = weights[yy+2][xx+2];
+                //        c[i] += col;
+
+                //        //m128_to_xyz( c[i].xyz, col.get128() );
+                //    }
+                //}
                 
                 
                 
@@ -358,6 +368,6 @@ namespace bxPathTracer
 
 int main()
 {
-    bxPathTracer::doPathTracing( 512, 512, 32, 2 );
+    bxPathTracer::doPathTracing( 512, 512, 1024, 3 );
     return 0;
 }

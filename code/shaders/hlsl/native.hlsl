@@ -63,7 +63,10 @@ out_PS ps_main( in_PS input )
 	out_PS OUT;
     OUT.rgba = float4( 0.0, 0.0, 0.0, 1.0 );
 
-    const float2 screenPos01 = (input.s_pos.xy / input.s_pos.w + 1.f) * 0.5f;
+    const float2 screenPos01 = (input.s_pos.xy / input.s_pos.w ) * 0.5 + 0.5;
+    uint2 tileXY = computeTileXY( screenPos01, _numTilesXY, _renderTarget_rcp_size, _tileSizeRcp );
+    uint tileIdx = _numTilesXY.x * tileXY.y + tileXY.x;
+    uint lightsIndexBegin = (tileIdx)* _maxLights;
 
     Material mat;
     ASSIGN_MATERIAL_FROM_CBUFFER( mat );
@@ -77,11 +80,8 @@ out_PS ps_main( in_PS input )
     shData.N = N;
     shData.V = V;
         
-    uint2 tileXY = computeTileXY( screenPos01, _numTilesXY, _renderTarget_rcp_size.zw, _tileSizeRcp );
-    uint lightsIndexBegin = ( _numTilesXY.x * tileXY.y + tileXY.x ) * _maxLights;
 
     
-
     float3 colorFromLights = float3(0.f, 0.f, 0.f);
     
     uint pointLightIndex = lightsIndexBegin;
@@ -104,11 +104,10 @@ out_PS ps_main( in_PS input )
         pointLightDataIndex = _lightsIndices[pointLightIndex] & 0xFFFF;
     }
 
-    float3 sunIlluminance = evaluateSunLight( shData, input.w_pos, mat, shadowValue );
+    float3 sunIlluminance = evaluateSunLight( shData, input.w_pos, mat );
     colorFromLights += _sunColor * sunIlluminance;
-    
-    //OUT.rgba.xyz = lerp( colorFromLights * 0.5f, colorFromLights, shadowValue );
-    OUT.rgba.xyz = colorFromLights;
+    OUT.rgba.xyz = lerp( colorFromLights * 0.5f, colorFromLights, shadowValue );
+    //OUT.rgba.xyz = colorFromLights;
 
     //float3 tmpColors[] =
     //{
@@ -116,8 +115,8 @@ out_PS ps_main( in_PS input )
     //    float3(1.f, 1.f, 0.f), float3(0.f, 1.f, 1.f), float3(0.1f, 0.1f, 0.1f),
     //};
 
-    //OUT.rgba.xyz += tmpColors[tileIdx % 6] * 0.01f;
-    //OUT.rgba.xy = uv;
+    //OUT.rgba.xyz *= tmpColors[( tileIdx + tileXY.y) % 6] * 0.2f;
+    //OUT.rgba.xyz = screenPos01.xyx;
     //OUT.rgba.z = 0.f;
     return OUT;
 }

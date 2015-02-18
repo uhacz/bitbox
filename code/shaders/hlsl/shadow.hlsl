@@ -63,9 +63,9 @@ passes:
 #include <sys/instance_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
 
-#define NUM_CASCADES 2
+#define NUM_CASCADES 4
 #define NUM_CASCADES_INV ( 1.0 / (float)NUM_CASCADES )
-#define FILTER_SIZE 5
+#define FILTER_SIZE 7
 
 shared cbuffer MaterialData : register(b3)
 {

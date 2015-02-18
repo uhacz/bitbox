@@ -66,12 +66,6 @@ public:
         _gfxPostprocess->_Startup( _gdiDevice, _resourceManager );
 
         {
-            
-            //const float r = 5.f;
-
-            //bxPolyShape shape;
-            //bxPolyShape_createShpere( &shape, 2 );
-
             const u32 colors[] = 
             {
                 0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
@@ -79,49 +73,30 @@ public:
             };
             const int nColors = sizeof(colors) / sizeof(*colors);
 
-            //for( int ivertex = 0; ivertex < 1; ++ivertex )
-            //{
-            //    const float* vertex = shape.position( ivertex );
+            const int gridX = 5;
+            const int gridZ = 5;
+            const float cellSize = 5.f;
+            const float y = 1.5f;
+            int counter = 0;
+            for ( int iz = 0; iz < gridZ; ++iz )
+            {
+                const float z = -gridZ * cellSize * 0.5f + iz*cellSize;
+                
+                for ( int ix = 0; ix < gridX; ++ix )
+                {
+                    const float x = -gridX * cellSize * 0.5f + ix*cellSize;
+                    const Vector3 pos = Vector3( x, y, z );
+                    bxGfxLight_Point l;
+                    m128_to_xyz( l.position.xyz, pos.get128() );
+                    l.radius = 50.f;
+                    bxColor::u32ToFloat3( colors[counter%nColors], l.color.xyz );
+                    l.intensity = 100000.f;
 
-            //    const Vector3 v( vertex[0], vertex[1], vertex[2] );
-
-            //    const Vector3 pos = normalize( v ) * r;
-
-            //    bxGfxLight_Point l;
-            //    m128_to_xyz( l.position.xyz, pos.get128() );
-            //    l.radius = 9.5f;
-            //    bxColor::u32ToFloat3( colors[ivertex%nColors], l.color.xyz );
-            //    l.intensity = 1.f;
-
-            //    pointLights[ivertex] = _gfxLights->lightManager.createPointLight( l );
-            //    ++nPointLights;
-            //}
-
-            //const float a = 100.f;
-            //const Vector3 corners[] =
-            //{
-            //    Vector3( -a, -0.f, -a ),
-            //    Vector3(  a, -0.f, -a ),
-            //    Vector3(  a,  a, -a ),
-            //    Vector3( -a,  a, -a ),
-
-            //    Vector3( -a, -0.f, a ),
-            //    Vector3(  a, -0.f, a ),
-            //    Vector3(  a,  a, a ),
-            //    Vector3( -a,  a, a ),
-            //};
-            //const int nCorners = sizeof( corners ) / sizeof( *corners );
-            //for ( int icorner = 0; icorner < nCorners; ++icorner )
-            //{
-            //    bxGfxLight_Point l;
-            //    m128_to_xyz( l.position.xyz, corners[icorner].get128() );
-            //    l.radius = 50.f;
-            //    bxColor::u32ToFloat3( colors[icorner%nColors], l.color.xyz );
-            //    l.intensity = 100000.f;
-            //    pointLights[icorner] = _gfxLights->lightManager.createPointLight( l );
-            //    ++nPointLights;
-            //}
-            //bxPolyShape_deallocateShape( &shape );
+                    pointLights[counter] = _gfxLights->lightManager.createPointLight( l );
+                    ++nPointLights;
+                    ++counter;
+                }
+            }
         }
 
         rsource = bxGfxContext::shared()->rsource.sphere;
@@ -214,7 +189,7 @@ public:
 
         {
             static float phase = 0.f;
-            phase = fmodf( phase + deltaTime, 2.f * PI );
+            phase = fmodf( phase + deltaTime, 8.f * PI );
 
             const float rot = sinf( phase + deltaTime );
             const float posA = sinf( rot ) * 0.2f;
@@ -247,8 +222,8 @@ public:
                     for( int ix = 0; ix < gridX; ++ix )
                     {
                         const float x = -gridX * cellSize * 0.5f + ix*cellSize;
-                        //const Matrix4 pose = Matrix4( Matrix3::rotationZYX( Vector3( rot, posA, posB ) ), Vector3( x, y, z ) );
-                        const Matrix4 pose = Matrix4( Matrix3::identity(), Vector3( x, y, z ) );
+                        const Matrix4 pose = Matrix4( Matrix3::rotationZYX( Vector3( rot, posA, posB ) ), Vector3( x, y, z ) );
+                        //const Matrix4 pose = Matrix4( Matrix3::identity(), Vector3( x, y, z ) );
 
                         bxGdiRenderSource* rs = rsources[counter % 2];
                         bxGdiShaderFx_Instance* mat = materials[++counter % 3];

@@ -32,7 +32,8 @@ float3 computeSpecularBRDF( in float NdotH, in float NdotL, in float NdotV, in f
     float m2 = m * m;
 
     // Calculate the distribution term
-    float d = m2 / (3.14159f * pow( NdotH * NdotH * (m2 - 1) + 1, 2.0f ));
+    float a = NdotH * NdotH * (m2 - 1) + 1;
+    float d = m2 / (PI * a*a);
     // Calculate the matching visibility term
     float v1i = GGX_V1( m2, NdotL );
     float v1o = GGX_V1( m2, NdotV );
@@ -53,14 +54,6 @@ float3 computeDiffuseBRDF( in float LdotH, in Material mat )
     return diffuse;
 }
 
-float3 computeAmbientBRDF( in float NdotL, in Material mat )
-{
-    float ambientBase = -NdotL;
-    float ambientFactor = (ambientBase * mat.ambientCoeff);
-    float3 ambient = ambientFactor * mat.diffuseColor;
-    return ambient;
-}
-
 float3 BRDF( in float3 L, in ShadingData shd, in Material mat )
 {
     float3 N = shd.N;
@@ -74,11 +67,8 @@ float3 BRDF( in float3 L, in ShadingData shd, in Material mat )
 
     float3 specular = computeSpecularBRDF( NdotH, NdotL, NdotV, LdotH, mat );
     float3 diffuse = computeDiffuseBRDF( LdotH, mat );
-    float3 ambient = float3( 0.f, 0.f, 0.f );
-    
-    //if( NdotL_raw <= 0.f )
-        //ambient = computeAmbientBRDF( NdotL_raw, mat );
-
+    float a = NdotL_raw * 0.5f + 0.5f;
+    diffuse = lerp( diffuse*mat.ambientCoeff, diffuse, a );
     return ( diffuse + specular ) * NdotL;
 }
 
@@ -92,16 +82,8 @@ float3 BRDF_diffuseOnly( in float3 L, in ShadingData shd, in Material mat )
     float LdotH = saturate( dot( L, H ) );
     
     float3 diffuse = computeDiffuseBRDF( LdotH, mat );
-    float3 ambient = float3( 0.f, 0.f, 0.f );
-    
-    //if( NdotL_raw <= 0.f )
-        //ambient = computeAmbientBRDF( NdotL_raw, mat );
-
-    float w = mat.ambientCoeff;
-    float n = 1.f;
-    
-    return (diffuse) * wrappedLambert( NdotL, w, n ); // *dif + ambient;
-    //return ambient;
+    float a = NdotL_raw * 0.5f + 0.5f;
+    return lerp( diffuse*mat.ambientCoeff, diffuse, a );// wrappedLambert( NdotL, w, n );
 }
 
 float3 BRDF_specularOnly( in float3 L, in ShadingData shd, in Material mat )

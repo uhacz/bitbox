@@ -46,14 +46,14 @@ float3 computeSkyColor( in float3 rayDir )
     float sunAmount = saturate( dot( rayDir, _sunDir ) );
     const float3 skyColor = _skyColor * _skyIlluminance;
     const float3 sunColor = _sunColor * _sunIlluminance;
-    return lerp( skyColor, sunColor, pow( sunAmount, 2.0 ) );
+    return lerp( skyColor, sunColor, pow( sunAmount, 8.0 ) );
 }
 
 float3 applyFog( in float3 color, in float distance, in float3 rayDir, in float shadow )
 {
     float3 fogColor = computeSkyColor( rayDir );
-    float be = ( 1.f - exp( -distance * _fallOff) )  * shadow;
-    return lerp( color, fogColor, be );
+    float be = (1.f - exp( -distance * _fallOff )) * shadow;
+    return lerp( color, lerp( _sunColor * _sunIlluminance, fogColor, be ), be  );
 }
 
 float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
@@ -61,7 +61,7 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
     float hwDepth = _tex_depth.SampleLevel( _sampler, input.uv, 0.f ).r;
     float linDepth = resolveLinearDepth( hwDepth );
 
-    float2 winPos = input.screenPos;// *2.0 - 1.0;
+    float2 winPos = input.screenPos;
     float3 vsPos = resolvePositionVS( winPos, linDepth, _camera_projParams.xy );
     float3 worldPos = mul( _camera_world, float4(vsPos,1.f) ).xyz;
     //
@@ -71,7 +71,7 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
 
     float3 color = _tex_color.SampleLevel( _sampler, input.uv, 0.f ).xyz;
     float shadow = _tex_shadow.SampleLevel( _sampler_shadow, input.uv, 0.f ).x;
-    //float3 result = color * shadow.y;
+    
     float3 result = applyFog( color, linDepth, rayDir, shadow );
     
     return float4(result, 1.f);
