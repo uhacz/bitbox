@@ -46,14 +46,17 @@ float3 computeSkyColor( in float3 rayDir )
     float sunAmount = saturate( dot( rayDir, _sunDir ) );
     const float3 skyColor = _skyColor * _skyIlluminance;
     const float3 sunColor = _sunColor * _sunIlluminance;
-    return lerp( skyColor, sunColor, pow( sunAmount, 8.0 ) );
+    return lerp( skyColor, sunColor, pow( sunAmount, 64.0 ) );
 }
 
 float3 applyFog( in float3 color, in float distance, in float3 rayDir, in float shadow )
 {
     float3 fogColor = computeSkyColor( rayDir );
-    float be = (1.f - exp( -distance * _fallOff )) * shadow;
-    return lerp( color, lerp( _sunColor * _sunIlluminance, fogColor, be ), be  );
+    float3 sunColor = _sunColor * _sunIlluminance;
+        
+    float be = 1.f - exp( -distance * _fallOff );
+    fogColor = lerp( sunColor, fogColor, smoothstep( 0.0, 0.7, be ) * ( 1.f - shadow ) );
+    return lerp( color, fogColor, be * shadow  );
 }
 
 float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
@@ -62,7 +65,7 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
     float linDepth = resolveLinearDepth( hwDepth );
 
     float2 winPos = input.screenPos;
-    float3 vsPos = resolvePositionVS( winPos, linDepth, _camera_projParams.xy );
+    float3 vsPos = resolvePositionVS( winPos, -linDepth, _camera_projParams.xy );
     float3 worldPos = mul( _camera_world, float4(vsPos,1.f) ).xyz;
     //
     float3 ray = worldPos - _camera_eyePos.xyz;

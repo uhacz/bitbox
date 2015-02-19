@@ -368,6 +368,6 @@ namespace bxPathTracer
 
 int main()
 {
-    bxPathTracer::doPathTracing( 512, 512, 1024, 3 );
+    bxPathTracer::doPathTracing( 1024, 1024, 2048, 16 );
     return 0;
 }
