@@ -18,6 +18,7 @@
 #include <gfx/gfx_debug_draw.h>
 
 #include "test_console.h"
+#include <util/random.h>
 
 static const int MAX_LIGHTS = 64;
 static const int TILE_SIZE = 64;
@@ -39,8 +40,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -188,6 +189,8 @@ public:
         rList->clear();
 
         {
+            bxRandomGen rnd( 0xBAADF00D );
+
             static float phase = 0.f;
             phase = fmodf( phase + deltaTime, 8.f * PI );
 
@@ -197,10 +200,11 @@ public:
 
             const int gridX = 3;
             const int gridY = 3;
-            const int gridZ = 20;
+            const int gridZ = 40;
 
-            const float cellSize = 3.f;
-            const float yOffset = 5.f;
+            const float cellSize = 5.f;
+            const float yOffset = 10.f;
+            const float zOffset = -50.f;
             bxGdiRenderSource* rsources[] =
             {
                 _gfxContext->shared()->rsource.box,
@@ -215,14 +219,16 @@ public:
             int counter = 0;
             for( int iz = 0; iz < gridZ; ++iz )
             {
-                const float z = -gridZ * cellSize * 0.5f + iz*cellSize;
+                const float z = -gridZ * cellSize * 0.5f + iz*cellSize + zOffset;
                 for( int iy = 0; iy < gridY; ++iy )
                 {
                     const float y = -gridY * cellSize * 0.5f + iy*cellSize + yOffset;
                     for( int ix = 0; ix < gridX; ++ix )
                     {
                         const float x = -gridX * cellSize * 0.5f + ix*cellSize;
-                        const Matrix4 pose = Matrix4( Matrix3::rotationZYX( Vector3( rot, posA, posB ) ), Vector3( x, y, z ) );
+                        const Vector3 rndOffset = bxRand::randomVector3( rnd, Vector3( -1.f ), Vector3( 1.f ) );
+                        const Vector3 rndScale( rnd.getf( 1.f, 2.f ) );
+                        const Matrix4 pose = appendScale( Matrix4( Matrix3::rotationZYX( Vector3( rot, posA, posB ) ), Vector3( x, y, z ) + rndOffset ), rndScale );
                         //const Matrix4 pose = Matrix4( Matrix3::identity(), Vector3( x, y, z ) );
 
                         bxGdiRenderSource* rs = rsources[counter % 2];

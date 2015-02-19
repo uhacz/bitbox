@@ -1,3 +1,10 @@
+#include <system/application.h>
+#include <system/window.h>
+#include <gdi/gdi_context.h>
+#include <gdi/gdi_render_source.h>
+#include <gdi/gdi_shader.h>
+#include <resource_manager/resource_manager.h>
+
 #include <util/vectormath/vectormath.h>
 #include <util/type.h>
 #include <util/memory.h>
@@ -38,7 +45,7 @@ static const int nColors = sizeof(colors)/sizeof(*colors);
 static const Vector3 _sunDir = normalize( Vector3( 0.5f, -1.f, 0.f ) );
 static const Vector3 _sunColor = Vector3( 1.0f, 1.0f, 1.0f );
 
-const Vector3 eye = Vector3( 2.f, 5.f, 10.f );
+const Vector3 eye = Vector3( 0.f, 2.f, 20.f );
 const Matrix3 cameraRot = inverse( Matrix4::lookAt( Point3(eye), Point3(0.f), Vector3::yAxis() ) ).getUpper3x3();
 
 //static bxRandomGen rnd;
@@ -302,15 +309,6 @@ namespace bxPathTracer
 
     inline int toInt( float x ){ return int( powf( clamp( x, 0.f, 1.f ), 0.454545455f )*255.0f + .5f ); }
 
-    static const float weights[5][5] = 
-    {
-        { 0.0073068827452812644, 0.03274717653776802, 0.05399096651318985, 0.03274717653776802, 0.0073068827452812644 }, 
-        { 0.03274717653776802  , 0.14676266317374237, 0.24197072451914536, 0.14676266317374237, 0.03274717653776802   }, 
-        { 0.05399096651318985  , 0.24197072451914536, 0.3989422804014327 , 0.24197072451914536, 0.05399096651318985   }, 
-        { 0.03274717653776802  , 0.14676266317374237, 0.24197072451914536, 0.14676266317374237, 0.03274717653776802   }, 
-        { 0.0073068827452812644, 0.03274717653776802, 0.05399096651318985, 0.03274717653776802, 0.0073068827452812644 },
-    };
-
     void doPathTracing( int w, int h, int samps, int bounces )
     {
         //rnd = bxRandomGen( (u32)bxTime::ms() );
@@ -364,10 +362,142 @@ namespace bxPathTracer
     }
 }///
 
-
-
-int main()
+class bxDemoRT : public bxApplication
 {
-    bxPathTracer::doPathTracing( 1024, 1024, 2048, 16 );
+public:
+    bxDemoRT()
+        : _timeUS(0)
+    {}
+    virtual ~bxDemoRT() {}
+
+    virtual bool startup( int argc, const char** argv )
+    {
+        bxWindow* win = bxWindow_get();
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
+
+        _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
+        _gdiContext->_Startup( _gdiDevice );
+
+        {//// fullScreenQuad
+            const float vertices[] =
+            {
+                -1.f, -1.f, 0.f, 0.f, 0.f,
+                1.f, -1.f, 0.f, 1.f, 0.f,
+                1.f, 1.f, 0.f, 1.f, 1.f,
+
+                -1.f, -1.f, 0.f, 0.f, 0.f,
+                1.f, 1.f, 0.f, 1.f, 1.f,
+                -1.f, 1.f, 0.f, 0.f, 1.f,
+            };
+            bxGdiVertexStreamDesc vsDesc;
+            vsDesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
+            vsDesc.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 );
+            bxGdiVertexBuffer vBuffer = _gdiDevice->createVertexBuffer( vsDesc, 6, vertices );
+
+            _fullScreenQuad = bxGdi::renderSource_new( 1 );
+            bxGdi::renderSource_setVertexBuffer( _fullScreenQuad, vBuffer, 0 );
+        }
+        {
+            _fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "pathtracer" );
+        }
+        {
+            _spheresBuffer = _gdiDevice->createBuffer( 1024, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+            _colorsBuffer  = _gdiDevice->createBuffer( 1024, bxGdiFormat( bxGdi::eTYPE_FLOAT, 3 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+
+        }
+        return true;
+
+    }
+    virtual void shutdown()
+    {
+        _gdiDevice->releaseBuffer( &_colorsBuffer );
+        _gdiDevice->releaseBuffer( &_spheresBuffer );
+
+        bxGdi::shaderFx_releaseWithInstance( _gdiDevice, &_fxI );
+        bxGdi::renderSource_releaseAndFree( _gdiDevice, &_fullScreenQuad );
+
+        _gdiContext->_Shutdown();
+        BX_DELETE0( bxDefaultAllocator(), _gdiContext );
+
+        bxGdi::backendShutdown( &_gdiDevice );
+        bxResourceManager::shutdown( &_resourceManager );
+    }
+    virtual bool update( u64 deltaTimeUS )
+    {
+        bxWindow* win = bxWindow_get();
+        if ( bxInput_isKeyPressedOnce( &win->input.kbd, bxInput::eKEY_ESC ) )
+        {
+            return false;
+        }
+
+        _fxI->setUniform( "_camera_rot", cameraRot );
+        _fxI->setUniform( "_camera_eye", eye );
+        _fxI->setUniform( "_sunDir", _sunDir );
+        _fxI->setUniform( "_sunColor", _sunColor );
+        _fxI->setUniform( "_resolution", float2_t( 512.f, 512.f ) );
+        _fxI->setUniform( "_time", bxTime::toSeconds( _timeUS ) );
+        _fxI->setUniform( "_numSpheres", nSpheres );
+        {
+            u8* dstData = _gdiContext->backend()->map( _spheresBuffer.rs, 0 );
+            memcpy( dstData, spheres, sizeof( spheres ) );
+            _gdiContext->backend()->unmap( _spheresBuffer.rs );
+        }
+        {
+            u8* dstData = _gdiContext->backend()->map( _colorsBuffer.rs, 0 );
+            memcpy( dstData, colors, sizeof( colors ) );
+            _gdiContext->backend()->unmap( _colorsBuffer.rs );
+        }
+        
+        _gdiContext->changeToMainFramebuffer();
+        _gdiContext->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 0 );
+        _gdiContext->setBufferRO( _spheresBuffer, 0, bxGdi::eSTAGE_MASK_PIXEL );
+        _gdiContext->setBufferRO( _colorsBuffer, 1, bxGdi::eSTAGE_MASK_PIXEL );
+
+        bxGdi::renderSource_enable( _gdiContext, _fullScreenQuad );
+        bxGdi::shaderFx_enable( _gdiContext, _fxI, 0 );
+
+        bxGdi::renderSurface_draw( _gdiContext, bxGdi::renderSource_surface( _fullScreenQuad, bxGdi::eTRIANGLES ) );
+
+        _gdiContext->backend()->swap();
+
+        _timeUS += deltaTimeUS;
+
+        return true;
+
+    }
+
+    bxGdiDeviceBackend* _gdiDevice;
+    bxGdiContext*       _gdiContext;
+    bxResourceManager* _resourceManager;
+
+    bxGdiShaderFx_Instance* _fxI;
+    bxGdiRenderSource* _fullScreenQuad;
+
+    bxGdiBuffer _spheresBuffer;
+    bxGdiBuffer _colorsBuffer;
+
+    u64 _timeUS;
+};
+
+
+int main( int argc, const char* argv[] )
+{
+    //bxPathTracer::doPathTracing( 1024, 1024, 2048, 16 );
+
+    bxWindow* window = bxWindow_create( "demo", 512, 512, false, 0 );
+    if ( window )
+    {
+        bxDemoRT app;
+        if ( bxApplication_startup( &app, argc, argv ) )
+        {
+            bxApplication_run( &app );
+        }
+
+        bxApplication_shutdown( &app );
+        bxWindow_release();
+    }
+
     return 0;
 }
