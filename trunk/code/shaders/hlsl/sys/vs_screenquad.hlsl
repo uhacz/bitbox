@@ -17,7 +17,7 @@ out_VS_screenquad vs_screenquad(
     out_VS_screenquad output;
     output.screenPos = IN_pos.xy;
     output.uv = IN_uv.xy;
-    output.uv.y = 1 - output.uv.y;
+    output.uv.y = output.uv.y;
     return output;
 }
 

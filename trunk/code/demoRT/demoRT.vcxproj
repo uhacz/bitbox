@@ -61,6 +61,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>Xinput9_1_0.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;dxguid.lib;libconfig.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -89,6 +90,21 @@
     <ClInclude Include="erand48.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\gdi\gdi.vcxproj">
+      <Project>{6c37bb51-ecab-42a3-8eb3-30e45503b92d}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\gfx\gfx.vcxproj">
+      <Project>{f3b3bc37-9aaa-4b41-af4e-144c1317f283}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\resource_manager\resource_manager.vcxproj">
+      <Project>{117290a3-4a22-4c58-9ac0-ed1c8efa49e3}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\system\system.vcxproj">
+      <Project>{02eab815-4288-477b-a47d-982eb8a15c1f}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\tools\fx_compiler\fx_compiler.vcxproj">
+      <Project>{18b49f0b-c441-4267-94e1-1e71e803b040}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\util\util.vcxproj">
       <Project>{c72ded4c-e82a-4e26-b7a8-715f4747ccec}</Project>
     </ProjectReference>

@@ -55,15 +55,20 @@ float3 applyFog( in float3 color, in float distance, in float3 rayDir, in float 
     float3 sunColor = _sunColor * _sunIlluminance;
         
     float be = 1.f - exp( -distance * _fallOff );
-    fogColor = lerp( sunColor, fogColor, smoothstep( 0.0, 0.7, be ) * ( 1.f - shadow ) );
+    fogColor = lerp( sunColor, fogColor, smoothstep( 0.0, 0.5, be ) );
     return lerp( color, fogColor, be * shadow  );
 }
 
 float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
 {
     float hwDepth = _tex_depth.SampleLevel( _sampler, input.uv, 0.f ).r;
-    float linDepth = resolveLinearDepth( hwDepth );
 
+    if( hwDepth >= 1.0 )
+    {
+        return _tex_color.SampleLevel( _sampler, input.uv, 0.f );
+    }
+
+    float linDepth = resolveLinearDepth( hwDepth );
     float2 winPos = input.screenPos;
     float3 vsPos = resolvePositionVS( winPos, -linDepth, _camera_projParams.xy );
     float3 worldPos = mul( _camera_world, float4(vsPos,1.f) ).xyz;
