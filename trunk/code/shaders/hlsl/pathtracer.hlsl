@@ -38,45 +38,6 @@ Buffer<float4> _colors : register(t1);
 #define PI2     6.28318530717958647693f
 #define PI_INV  0.31830988618379067154f
 
-//#define N_SPHERES 9
-//const float4 spheres[N_SPHERES] =
-//{
-//    float4( -4.f, 0.1f, 1.f, 0.5f ),
-//    float4( -3.f, 0.2f, -2.f, 1.5f ),
-//    float4( -2.f, -0.5f, 2.f, 1.1f ),
-//    float4( -1.f, -0.3f, 1.f, 1.2f ),
-//    float4( 0.f, 0.4f, -2.f, 2.3f ),
-//    float4( 1.f, -0.5f, 1.f, 0.5f ),
-//    float4( 2.f, 0.1f, .5f, 0.72f ),
-//    float4( 3.f, -0.2f, 0.f, 0.1f ),
-//    float4( 0.f, -51.f, 0.f, 50.f ),
-//};
-//
-//static const float3 colors[N_SPHERES] =
-//{
-//    float3( 1.f, 0.f, 0.f ),
-//    float3( 0.f, 1.f, 0.f ),
-//    float3( 0.f, 0.f, 1.f ),
-//    float3( 1.f, 1.f, 0.f ),
-//    float3( 1.f, 0.f, 1.f ),
-//    float3( 0.f, 1.f, 1.f ),
-//    float3( 1.f, .5f, 0.f ),
-//    float3( 0.f, .5f, .5f ),
-//    float3( .8f, 0.f, 0.f ),
-//};
-
-//static const float3 _sunDir = normalize( float3(0.5f, -1.f, 0.f) );
-//static const float3 _sunColor = float3(1.0f, 1.0f, 1.0f);
-//
-//const float3 _camera_eye = float3( 0.f, 0.f, 20.f );
-//const float3x3 _camera_rot = {
-//    1.f, 0.f, 0.f,
-//    0.f, 1.f, 0.f,
-//    0.f, 0.f, 1.f
-//};
-//
-//const float2 _resolution = float2( 512, 512 );
-
 float hash( const float n ) 
 {
     return frac( sin( n )*43758.54554213 );
@@ -100,14 +61,6 @@ float2 rand2n( inout float2 seed )
 	// implementation based on: lumina.sourceforge.net/Tutorials/Noise.html
     return float2(frac(sin(dot(seed.xy ,float2(12.9898,78.233))) * 43758.5453), frac(cos(dot(seed.xy ,float2(4.898,7.23))) * 23421.631) );
 };
-
-//float frand( inout int seed )
-//{
-//    //seed *= 16807;
-//    return hash( asfloat( seed ) );
-//    //uint ires = ((uint)seed >> 9 ) | 0x3f800000;
-//    //return saturate( asfloat( ires ) - 1.0f );
-//}
 
 
 
@@ -141,34 +94,34 @@ float3 ortho( in float3 v )
 }
 float3 cosWeightedRandomHemisphereDirection2( in float3 n, inout float2 seed )
 {
-    float2 xi = rand2n( seed );
-//    float Xi2 = frand( seed );
-    
-    float  theta = acos( sqrt( 1.0f-xi.x ) );
-    float  phi = PI2 * xi.y;
+//    float2 xi = rand2n( seed );
+////    float Xi2 = frand( seed );
+//    
+//    float  theta = acos( sqrt( 1.0f-xi.x ) );
+//    float  phi = PI2 * xi.y;
+//
+//    float xs = sin(theta) * cos(phi);
+//    float ys = cos(theta);
+//    float zs = sin(theta) * sin(phi);
+//
+//    float3 y = n;
+//    float3 h = ortho( y );
+//
+//    const float3 x = normalize( cross( h, y ) );
+//    const float3 z = normalize( cross( x, y ) );
+//    const float3 direction = xs * x + ys * y + zs * z;
+//    return normalize( direction );
 
-    float xs = sin(theta) * cos(phi);
-    float ys = cos(theta);
-    float zs = sin(theta) * sin(phi);
+    float3  uu = normalize( cross( n, float3(0.0,1.0,1.0) ) );
+	float3  vv = cross( uu, n );
+	float2 rv2 = rand2n( seed );
+	float ra = sqrt(rv2.y);
+	float rx = ra*cos(PI2*rv2.x); 
+	float ry = ra*sin(PI2*rv2.x);
+	float rz = sqrt( 1.0-rv2.y );
+	float3  rr = float3( rx*uu + ry*vv + rz*n );
 
-    float3 y = n;
-    float3 h = ortho( y );
-
-    const float3 x = normalize( cross( h, y ) );
-    const float3 z = normalize( cross( x, y ) );
-    const float3 direction = xs * x + ys * y + zs * z;
-    return normalize( direction );
-
- //   float3  uu = normalize( cross( n, float3(0.0,1.0,1.0) ) );
-	//float3  vv = cross( uu, n );
-	//float2 rv2 = rand2n( seed );
-	//float ra = sqrt(rv2.y);
-	//float rx = ra*cos(6.2831*rv2.x); 
-	//float ry = ra*sin(6.2831*rv2.x);
-	//float rz = sqrt( 1.0-rv2.y );
-	//float3  rr = float3( rx*uu + ry*vv + rz*n );
-
- //   return normalize( rr );
+    return normalize( rr );
 }
 float3 getCosineWeightedSample( in float3 dir, inout float2 seed )
 {
@@ -192,7 +145,10 @@ float3 worldGetColor( in float3 po, in float3 no, in float objectID )
 }
 float3 worldGetBackgound( in float3 rd ) 
 { 
-    return float3( 0.8, 0.9, 1.0 ) * (1.8 * (rd.y+0.5) );
+    float sunAmount = saturate( dot( rd, -_sunDir ) );
+    const float3 skyColor = float3( 0.4f, 0.5f, 1.0f );
+    const float3 sunColor = _sunColor;
+    return lerp( skyColor, sunColor, pow( sunAmount, 64.0 ) );
 }
 
 float3 worldApplyLighting( in float3 pos, in float3 nor )
