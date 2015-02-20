@@ -12,6 +12,7 @@
 #include <util/random.h>
 #include <util/time.h>
 #include <stdio.h>
+#include "gfx/gfx_camera.h"
 
 static const Vector4 spheres[] =
 {
@@ -45,7 +46,7 @@ static const int nColors = sizeof(colors)/sizeof(*colors);
 static const Vector3 _sunDir = normalize( Vector3( 0.5f, -1.f, 0.f ) );
 static const Vector3 _sunColor = Vector3( 1.0f, 1.0f, 1.0f );
 
-const Vector3 eye = Vector3( 0.f, 2.f, 20.f );
+const Vector3 eye = Vector3( 0.f, 1.f, 15.f );
 const Matrix3 cameraRot = inverse( Matrix4::lookAt( Point3(eye), Point3(0.f), Vector3::yAxis() ) ).getUpper3x3();
 
 //static bxRandomGen rnd;
@@ -373,8 +374,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -407,6 +408,11 @@ public:
             _colorsBuffer  = _gdiDevice->createBuffer( 1024, bxGdiFormat( bxGdi::eTYPE_FLOAT, 3 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
 
         }
+
+        const Vector3 eye = Vector3( 2.f, 5.f, 25.f );
+        _camera_worldMatrix = inverse( Matrix4::lookAt( Point3(eye), Point3(0.f), Vector3::yAxis() ) );
+        
+        
         return true;
 
     }
@@ -432,11 +438,27 @@ public:
             return false;
         }
 
-        _fxI->setUniform( "_camera_rot", cameraRot );
-        _fxI->setUniform( "_camera_eye", eye );
+        const float deltaTime = (float)bxTime::toSeconds( deltaTimeUS );
+
+        bxGfx::cameraUtil_updateInput( &_camera_inputCtx, &win->input, 1.f, deltaTime );
+        _camera_worldMatrix = bxGfx::cameraUtil_movement( _camera_worldMatrix
+            , _camera_inputCtx.leftInputX * 0.25f 
+            , _camera_inputCtx.leftInputY * 0.25f 
+            , _camera_inputCtx.rightInputX * deltaTime * 5.f
+            , _camera_inputCtx.rightInputY * deltaTime * 5.f
+            , _camera_inputCtx.upDown * 0.25f );
+
+        const float2_t resolution = float2_t(( float)win->width, (float)win->height );
+        const float aspect = resolution.x / resolution.y;
+
+        _fxI->setUniform( "_cameraX", _camera_worldMatrix.getCol0() );
+        _fxI->setUniform( "_cameraY", _camera_worldMatrix.getCol1() );
+        _fxI->setUniform( "_cameraZ", _camera_worldMatrix.getCol2() );
+        _fxI->setUniform( "_cameraEye", _camera_worldMatrix.getTranslation() );
         _fxI->setUniform( "_sunDir", _sunDir );
         _fxI->setUniform( "_sunColor", _sunColor );
-        _fxI->setUniform( "_resolution", float2_t( 512.f, 512.f ) );
+        _fxI->setUniform( "_resolution", resolution );
+        _fxI->setUniform( "_aspect", aspect );
         _fxI->setUniform( "_time", bxTime::toSeconds( _timeUS ) );
         _fxI->setUniform( "_numSpheres", nSpheres );
         {
@@ -478,6 +500,9 @@ public:
     bxGdiBuffer _spheresBuffer;
     bxGdiBuffer _colorsBuffer;
 
+    bxGfxCamera_InputContext _camera_inputCtx;
+    Matrix4 _camera_worldMatrix;
+
     u64 _timeUS;
 };
 
@@ -486,7 +511,7 @@ int main( int argc, const char* argv[] )
 {
     //bxPathTracer::doPathTracing( 1024, 1024, 2048, 16 );
 
-    bxWindow* window = bxWindow_create( "demo", 512, 512, false, 0 );
+    bxWindow* window = bxWindow_create( "demo", 640, 640, false, 0 );
     if ( window )
     {
         bxDemoRT app;
