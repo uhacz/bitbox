@@ -24,7 +24,7 @@ static const Vector4 spheres[] =
     Vector4( 1.f,-0.5f, 1.f, 0.5f ),
     Vector4( 2.f, 0.1f,.5f , 0.72f ),         
     Vector4( 3.f,-0.2f, 0.f, 0.1f ),         
-    Vector4( 0.f,-51.f, 0.f, 50.f),        
+    Vector4( 0.f,-21.f, 0.f, 20.f),        
 };
 static const int nSpheres = sizeof( spheres ) / sizeof( *spheres );
 
@@ -43,8 +43,8 @@ static const Vector3 colors[] =
 static const int nColors = sizeof(colors)/sizeof(*colors);
 //SYS_STATIC_ASSERT( nColors == nSpheres );
 
-static const Vector3 _sunDir = normalize( Vector3( 0.5f, -1.f, 0.f ) );
-static const Vector3 _sunColor = Vector3( 1.0f, 1.0f, 1.0f );
+static const Vector3 _sunDir = normalize( Vector3( 1.f, -1.f,-1.f ) );
+static const Vector3 _sunColor = Vector3( 1.0f, 0.9f, 0.7f );
 
 const Vector3 eye = Vector3( 0.f, 1.f, 15.f );
 const Matrix3 cameraRot = inverse( Matrix4::lookAt( Point3(eye), Point3(0.f), Vector3::yAxis() ) ).getUpper3x3();
