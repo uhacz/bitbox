@@ -242,6 +242,6 @@ float4 ps_pathtracer( in out_VS_screenquad input ) : SV_Target
     seed = hash22( hash22( seed ) );
 
     //uint seed = asuint( hash2( pixel * _resolution + _time ).x );
-    float3 col = calculatePixelColor( pixel, _resolution, 32, 4, seed );
+    float3 col = calculatePixelColor( pixel, _resolution, 16, 2, seed );
     return float4(col, 1.0);
 }

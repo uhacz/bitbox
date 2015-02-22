@@ -55,7 +55,8 @@ float3 applyFog( in float3 color, in float distance, in float3 rayDir, in float 
     float3 sunColor = _sunColor * _sunIlluminance;
         
     float be = 1.f - exp( -distance * _fallOff );
-    fogColor = lerp( sunColor, fogColor, smoothstep( 0.0, 0.5, be ) );
+    //fogColor = lerp( sunColor, fogColor, smoothstep( 0.0, 0.5, be ) );
+    fogColor += sunColor * exp( -distance * _fallOff*32 );
     return lerp( color, fogColor, be * shadow  );
 }
 

@@ -61,9 +61,11 @@ struct bxGfxPostprocess
 
     void sky( bxGdiContext* ctx, bxGdiTexture outTexture, const bxGfxLight_Sun& sunLight );
     void fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, bxGdiTexture shadowTexture, const bxGfxLight_Sun& sunLight );
+    void ssao( bxGdiContext* ctx, bxGdiTexture nrmVSTexture, bxGdiTexture depthTexture );
+    bxGdiTexture ssaoOutput() const { return _ssao.outputTexture;  }
 
     bxGfxPostprocess();
-    void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, int fbWidth, int fbHeight );
     void _Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 
 private:
@@ -101,8 +103,13 @@ private:
         {}
     } _fog;
 
+    struct SSAO
+    {
+        bxGdiTexture outputTexture;
+    } _ssao;
 
     bxGdiShaderFx_Instance* _fxI_toneMapping;
     bxGdiShaderFx_Instance* _fxI_fog;
+    bxGdiShaderFx_Instance* _fxI_ssao;
 };
 
