@@ -374,8 +374,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -462,12 +462,12 @@ public:
         _fxI->setUniform( "_time", bxTime::toSeconds( _timeUS ) );
         _fxI->setUniform( "_numSpheres", nSpheres );
         {
-            u8* dstData = _gdiContext->backend()->map( _spheresBuffer.rs, 0 );
+            u8* dstData = bxGdi::buffer_map( _gdiContext->backend(), _spheresBuffer, 0, nSpheres );
             memcpy( dstData, spheres, sizeof( spheres ) );
             _gdiContext->backend()->unmap( _spheresBuffer.rs );
         }
         {
-            u8* dstData = _gdiContext->backend()->map( _colorsBuffer.rs, 0 );
+            u8* dstData = bxGdi::buffer_map( _gdiContext->backend(), _colorsBuffer, 0, nSpheres );
             memcpy( dstData, colors, sizeof( colors ) );
             _gdiContext->backend()->unmap( _colorsBuffer.rs );
         }

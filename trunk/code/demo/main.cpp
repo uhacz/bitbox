@@ -32,6 +32,40 @@ static bxGfxCamera_InputContext cameraInputCtx;
 static bxGfxLightManager::PointInstance pointLights[MAX_LIGHTS];
 static int nPointLights = 0;
 
+static bxAABB frustumBBox = bxAABB::prepare();
+static bxGfxCamera* currentCamera_ = NULL;
+
+//union bxVoxelGrid_Coords
+//{
+//    u64 hash;
+//    struct
+//    {
+//        u64 x : 22;
+//        u64 y : 21;
+//        u64 z : 21;
+//    };
+//};
+//
+//struct bxVoxelGrid_Item
+//{
+//    uptr data;
+//    u32  next;
+//};
+//
+//struct bxStaticVoxelGrid
+//{
+//    void create( int nX, int nY, int nZ, bxAllocator* allocator = bxDefaultAllocator() );
+//    void release();
+//
+//    void 
+//
+//    bxAllocator* _allocator;
+//    bxVoxelGrid_Item* _items;
+//    i32 _nX;
+//    i32 _nY;
+//    i32 _nZ;
+//};
+
 class bxDemoApp : public bxApplication
 {
 public:
@@ -64,7 +98,7 @@ public:
         _gfxMaterials->_Startup( _gdiDevice, _resourceManager );
         
         _gfxPostprocess = BX_NEW1( bxGfxPostprocess );
-        _gfxPostprocess->_Startup( _gdiDevice, _resourceManager );
+        _gfxPostprocess->_Startup( _gdiDevice, _resourceManager, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
         {
             const u32 colors[] = 
@@ -93,8 +127,8 @@ public:
                     bxColor::u32ToFloat3( colors[counter%nColors], l.color.xyz );
                     l.intensity = 100000.f;
 
-                    pointLights[counter] = _gfxLights->lightManager.createPointLight( l );
-                    ++nPointLights;
+                    //pointLights[counter] = _gfxLights->lightManager.createPointLight( l );
+                    //++nPointLights;
                     ++counter;
                 }
             }
@@ -104,11 +138,13 @@ public:
 
         rList = bxGfx::renderList_new( 1024 * 4, 1024 * 8, bxDefaultAllocator() );
 
-        camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.5f, 35.f ) );
+        camera.matrix.world = Matrix4::translation( Vector3( 0.f, 2.f, 10.f ) );
         camera1.matrix.world = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.0f ) ), Vector3(0.f, 0.f, 35.f ) ); //Matrix4::translation( Vector3( 0.f ) );
         camera1.params = camera.params;
 
         bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
+
+        currentCamera_ = &camera;
 
         return true;
     }
@@ -175,11 +211,16 @@ public:
         
         static Matrix4* cameraMatrix = &camera.matrix.world;
         if( bxInput_isKeyPressedOnce( &win->input.kbd, bxInput::eKEY_LSHIFT ) )
-            cameraMatrix = ( cameraMatrix == &camera.matrix.world ) ? &camera1.matrix.world : &camera.matrix.world;
+        {
+            currentCamera_ = (currentCamera_ == &camera) ? &camera1 : &camera;
+
+        }
+//            cameraMatrix = ( cameraMatrix == &camera.matrix.world ) ? &camera1.matrix.world : &camera.matrix.world;
 
 
         bxGfx::cameraUtil_updateInput( &cameraInputCtx, &win->input, 1.f, deltaTime );
-        cameraMatrix[0] = bxGfx::cameraUtil_movement( cameraMatrix[0]
+        
+        currentCamera_->matrix.world = bxGfx::cameraUtil_movement( currentCamera_->matrix.world
             , cameraInputCtx.leftInputX * 0.25f 
             , cameraInputCtx.leftInputY * 0.25f 
             , cameraInputCtx.rightInputX * deltaTime * 5.f
@@ -198,13 +239,13 @@ public:
             const float posA = sinf( rot ) * 0.2f;
             const float posB = cosf( posA * 2 * PI + rot ) * 0.2f;
 
-            const int gridX = 3;
-            const int gridY = 3;
-            const int gridZ = 40;
+            const int gridX = 5;
+            const int gridY = 5;
+            const int gridZ = 5;
 
-            const float cellSize = 5.f;
-            const float yOffset = 10.f;
-            const float zOffset = -50.f;
+            const float cellSize = 2.f;
+            const float yOffset = 2.f;
+            const float zOffset = -0.f;
             bxGdiRenderSource* rsources[] =
             {
                 _gfxContext->shared()->rsource.box,
@@ -228,7 +269,7 @@ public:
                         const float x = -gridX * cellSize * 0.5f + ix*cellSize;
                         const Vector3 rndOffset = bxRand::randomVector3( rnd, Vector3( -1.f ), Vector3( 1.f ) );
                         const Vector3 rndScale( rnd.getf( 1.f, 2.f ) );
-                        const Matrix4 pose = appendScale( Matrix4( Matrix3::rotationZYX( Vector3( rot, posA, posB ) ), Vector3( x, y, z ) + rndOffset ), rndScale );
+                        const Matrix4 pose = appendScale( Matrix4( Matrix3::identity(), Vector3( x, y, z ) + rndOffset ), rndScale );
                         //const Matrix4 pose = Matrix4( Matrix3::identity(), Vector3( x, y, z ) );
 
                         bxGdiRenderSource* rs = rsources[counter % 2];
@@ -274,26 +315,45 @@ public:
         //    const Vector3 pos( xyz_to_m128( l.position.xyz ) );
         //    bxGfxDebugDraw::addSphere( Vector4( pos, floatInVec( l.radius*0.1f ) ), color, true );
         //}
+        {
+            Vector3 corners[8];
+            bxGfx::viewFrustum_extractCorners( corners, camera.matrix.viewProj );
+            frustumBBox = bxAABB::prepare();
+            for( int i = 0; i < 8; ++i )
+            {
+                frustumBBox = bxAABB::extend( frustumBBox, corners[i] );
+            }
+
+            bxGfxDebugDraw::addBox( Matrix4::translation( bxAABB::center( frustumBBox ) ), bxAABB::size( frustumBBox )*0.5f, 0xFF0000FF, true );
+
+        }
 
         _gfxLights->cullLights( camera );
         
         _gfxContext->frame_begin( _gdiContext );
         
-        _gfxContext->bindCamera( _gdiContext, camera );
-        _gfxContext->frame_zPrepass( _gdiContext, camera, &rList, 1 );
-        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, camera, *_gfxLights );
+        _gfxContext->bindCamera( _gdiContext, *currentCamera_ );
+        _gfxContext->frame_zPrepass( _gdiContext, *currentCamera_, &rList, 1 );
+        {
+            bxGdiTexture nrmVSTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_NORMAL_VS );
+            bxGdiTexture hwDepthTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
+            _gfxContext->bindCamera( _gdiContext, *currentCamera_ );
+            _gfxPostprocess->ssao( _gdiContext, nrmVSTexture,hwDepthTexture );
+        }
 
-        _gfxContext->bindCamera( _gdiContext, camera );
+        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, *currentCamera_, *_gfxLights );
+
+        _gfxContext->bindCamera( _gdiContext, *currentCamera_ );
         {
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             _gfxPostprocess->sky( _gdiContext, outputTexture, _gfxLights->sunLight() );
         }
         _gfxLights->bind( _gdiContext );
 
-        _gfxContext->frame_drawColor( _gdiContext, camera, &rList, 1 );
+        _gfxContext->frame_drawColor( _gdiContext, *currentCamera_, &rList, 1 );
 
         _gdiContext->clear();
-        _gfxContext->bindCamera( _gdiContext, camera );
+        _gfxContext->bindCamera( _gdiContext, *currentCamera_ );
         
         {
             bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
@@ -313,16 +373,18 @@ public:
             {
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR ),
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ),
+                _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_NORMAL_VS ),
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS ),
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS_VOLUME ),
+                _gfxPostprocess->ssaoOutput(),
                 _gfxShadows->_depthTexture,
             };
             const char* colorNames[] = 
             {
-                "color", "depth", "shadows", "shadowsVolume", "cascades",
+                "color", "depth", "normalsVS" , "shadows", "shadowsVolume", "ssao", "cascades",
             };
             const int nTextures = sizeof(colorTextures)/sizeof(*colorTextures);
-            static int current = 0;
+            static int current = 5;
             
             {
                 ImGui::Begin();
@@ -332,12 +394,12 @@ public:
             
             bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             _gdiContext->changeRenderTargets( &colorTexture, 1, _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ) );
-            bxGfxDebugDraw::flush( _gdiContext, camera.matrix.viewProj );
+            bxGfxDebugDraw::flush( _gdiContext, currentCamera_->matrix.viewProj );
             
             //colorTexture = _gfxShadows->_depthTexture;
             //colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS );
             colorTexture = colorTextures[current];
-            _gfxContext->frame_rasterizeFramebuffer( _gdiContext, colorTexture, camera );
+            _gfxContext->frame_rasterizeFramebuffer( _gdiContext, colorTexture, *currentCamera_ );
         }
         
         bxGfxGUI::draw( _gdiContext );

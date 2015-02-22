@@ -10,7 +10,7 @@ namespace bxGfx
 {
     void frameData_fill( FrameData* frameData, const bxGfxCamera& camera, int rtWidth, int rtHeight )
     {
-        SYS_STATIC_ASSERT( sizeof( FrameData ) == 352 );
+        //SYS_STATIC_ASSERT( sizeof( FrameData ) == 376 );
 
         const Matrix4 sc = Matrix4::scale( Vector3(1,1,0.5f) );
         const Matrix4 tr = Matrix4::translation( Vector3(0,0,1) );
@@ -36,12 +36,26 @@ namespace bxGfx
 
         //frameData->cameraParams = Vector4( fov, aspect, camera.params.zNear, camera.params.zFar );
         {
-            const float a = proj.getElem( 0, 0 ).getAsFloat();//getCol0().getX().getAsFloat();
-            const float b = proj.getElem( 1, 1 ).getAsFloat();//getCol1().getY().getAsFloat();
-            const float c = proj.getElem( 2, 2 ).getAsFloat();//getCol2().getZ().getAsFloat();
-            const float d = proj.getElem( 3, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+            const float m11 = proj.getElem( 0, 0 ).getAsFloat();//getCol0().getX().getAsFloat();
+            const float m22 = proj.getElem( 1, 1 ).getAsFloat();//getCol1().getY().getAsFloat();
+            const float m33 = proj.getElem( 2, 2 ).getAsFloat();//getCol2().getZ().getAsFloat();
+            const float m44 = proj.getElem( 3, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
 
-            frameData->_camera_projParams = float4_t( 1.f/a, 1.f/b, c, -d );
+            const float m13 = proj.getElem( 0, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+            const float m23 = proj.getElem( 1, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+
+            frameData->_camera_projParams = float4_t( 1.f/m11, 1.f/m22, m33, -m44 );
+            frameData->_reprojectInfo = float4_t( 
+                -2.f / ( (float)rtWidth*m11 ), 
+                -2.f / ( (float)rtHeight*m22 ), 
+                (1.f - m13) / m11, 
+                (1.f + m23) / m22 );
+            frameData->_reprojectInfoFromInt = float4_t(
+                frameData->_reprojectInfo.x,
+                frameData->_reprojectInfo.y,
+                frameData->_reprojectInfo.z + frameData->_reprojectInfo.x * 0.5f,
+                frameData->_reprojectInfo.w + frameData->_reprojectInfo.y * 0.5f
+                );
         }
 
         m128_to_xyzw( frameData->_camera_eyePos.xyzw, Vector4( camera.matrix.worldEye(), oneVec ).get128() );
@@ -75,10 +89,11 @@ int bxGfxContext::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resource
     _cbuffer_frameData = dev->createConstantBuffer( sizeof( bxGfx::FrameData ) );
     _cbuffer_instanceData = dev->createConstantBuffer( sizeof( bxGfx::InstanceData ) );
 
-    _framebuffer[bxGfx::eFRAMEBUFFER_COLOR]   = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
-    _framebuffer[bxGfx::eFRAMEBUFFER_SWAP]    = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4, 0, 0 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
-    _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH]   = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
-    _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_UBYTE, 1, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_COLOR]     = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_SWAP]      = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_NORMAL_VS] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+    _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH]     = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+    _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS]   = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_UBYTE, 1, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS_VOLUME] = dev->createTexture2D( fbWidth/2, fbHeight/2, 1, bxGdiFormat( bxGdi::eTYPE_UBYTE, 1, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
     
     {
@@ -166,8 +181,8 @@ void bxGfxContext::frame_zPrepass(bxGdiContext* ctx, const bxGfxCamera& camera, 
     }
     _sortList_depth->sortAscending();
     
-    ctx->changeRenderTargets( 0, 0, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
-    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
+    ctx->changeRenderTargets( &_framebuffer[ bxGfx::eFRAMEBUFFER_NORMAL_VS], 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
     ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
     ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eSTAGE_MASK_VERTEX );
 
@@ -292,9 +307,12 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             
             shadowsFxI->setTexture( "shadowMap", shadows->_depthTexture );
             shadowsFxI->setTexture( "sceneDepthTex", _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
+            shadowsFxI->setTexture( "normalsVS", _framebuffer[bxGfx::eFRAMEBUFFER_NORMAL_VS] );
+            
             shadowsFxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP ) );
             //shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_CLAMP ) );
             shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
+            shadowsFxI->setSampler( "samplNormalsVS", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP ) );
 
             ctx->changeRenderTargets( &shadowsTexture, 1, bxGdiTexture() );
             ctx->clearBuffers( 1.f, 1.f, 1.f, 1.f, 0.f, 1, 0 );
@@ -382,24 +400,30 @@ bxGfxPostprocess::bxGfxPostprocess()
     : _fxI_toneMapping(0)
 {}
 
-void bxGfxPostprocess::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+void bxGfxPostprocess::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, int fbWidth, int fbHeight )
 {
     _fxI_toneMapping = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "tone_mapping" );
     _fxI_fog = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "fog" );
+    _fxI_ssao = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "sao" );
 
     const int lumiTexSize = 1024;
     _toneMapping.adaptedLuminance[0] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
     _toneMapping.adaptedLuminance[1] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
     _toneMapping.initialLuminance    = dev->createTexture2D( lumiTexSize, lumiTexSize, 1 , bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
 
+    const int ssaoTexWidth = fbWidth;
+    const int ssaoTexHeight = fbHeight;
+    _ssao.outputTexture = dev->createTexture2D( ssaoTexWidth, ssaoTexHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 2 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
 }
 
 void bxGfxPostprocess::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
+    dev->releaseTexture( &_ssao.outputTexture );
     dev->releaseTexture( &_toneMapping.initialLuminance );
     dev->releaseTexture( &_toneMapping.adaptedLuminance[1] );
     dev->releaseTexture( &_toneMapping.adaptedLuminance[0] );
 
+    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_ssao );
     bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_fog );
     bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_toneMapping );
 }
@@ -493,6 +517,18 @@ void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTex
     ctx->setTexture( bxGdiTexture(), 2, bxGdi::eSTAGE_MASK_PIXEL );
 }
 
+void bxGfxPostprocess::ssao(bxGdiContext* ctx, bxGdiTexture nrmVSTexture, bxGdiTexture depthTexture)
+{
+    _fxI_ssao->setTexture( "tex_normalsVS", nrmVSTexture );
+    _fxI_ssao->setTexture( "tex_hwDepth", depthTexture );
+
+    bxGdiTexture outTexture = _ssao.outputTexture;
+    ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
+    ctx->setViewport( bxGdiViewport( 0, 0, outTexture.width, outTexture.height ) );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI_ssao, "ssao" );
+}
 
 #include "gfx_gui.h"
 void bxGfxPostprocess::_ShowGUI()

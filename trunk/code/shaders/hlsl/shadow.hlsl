@@ -93,10 +93,12 @@ float2 clipPlaneGet( in uint cascadeIdx )
 
 Texture2D<float> shadowMap;
 Texture2D<float> sceneDepthTex;
+Texture2D normalsVS;
 //Texture2D gnormals_vs;
 
 SamplerState sampl;
 SamplerComparisonState samplShadowMap;
+SamplerState samplNormalsVS;
 
 /////////////////////////////////////////////////////////////////
 struct in_VS_depth
@@ -330,7 +332,8 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
 
     if( useNormalOffset )
     {
-        const float3 nrmVS = cross( normalize( ddx_fine(posVS) ), normalize( ddy_fine(posVS) ) );
+        //const float3 nrmVS = cross( normalize( ddx_fine(posVS) ), normalize( ddy_fine(posVS) ) );
+        const float3 nrmVS = normalsVS.SampleLevel( samplNormalsVS, input.uv, 0.0 );
         const float3 N = normalize( mul( (float3x3)_camera_world, nrmVS ) );
         const float scale = 1.f - saturate(dot( lightDirectionWS, N ));
         const float offsetScale  = scale * normalOffsetGet( currentSplit );

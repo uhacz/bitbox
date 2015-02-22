@@ -52,27 +52,27 @@ struct in_VS
 {
 	uint   instanceID : SV_InstanceID;
 	float4 pos	  	  : POSITION;
-	//float3 nrm		  : NORMAL;
+	float3 nrm		  : NORMAL;
 };
 
 struct in_PS
 {
     float4 hpos	: SV_Position;
-    //nointerpolation float3 wnrm : TEXCOORD0;
+    /*nointerpolation*/ float3 wnrm : TEXCOORD0;
 };
 
 struct out_PS
 {
-	//float3 vnormal : SV_Target0;
+	float3 vnormal : SV_Target0;
 };
 in_PS vs_main( in_VS input )
 {
     in_PS output;
     float4 wpos = mul( world_matrix[input.instanceID], input.pos );
-    //float3 wnrm = mul( (float3x3)world_it_matrix[input.instanceID], input.nrm.xyz );
+    float3 wnrm = mul( (float3x3)world_it_matrix[input.instanceID], input.nrm.xyz );
     float4 hpos = mul( _camera_viewProj, wpos );
     output.hpos = hpos;
-    //output.wnrm = wnrm;
+    output.wnrm = wnrm;
     return output;
 }
 
@@ -80,7 +80,7 @@ in_PS vs_main( in_VS input )
 out_PS ps_main( in_PS input )
 {
     out_PS output;
-    //output.vnormal.xyz = mul( (float3x3)view_matrix, input.wnrm.xyz );
+    output.vnormal.xyz = mul( (float3x3)_camera_view, input.wnrm.xyz );
     //output.vnormal.w = 0.f;
     return output;
 }
