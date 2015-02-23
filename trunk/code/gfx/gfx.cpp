@@ -50,12 +50,20 @@ namespace bxGfx
                 -2.f / ( (float)rtHeight*m22 ), 
                 (1.f - m13) / m11, 
                 (1.f + m23) / m22 );
+            //frameData->_reprojectInfoFromInt = float4_t(
+            //    frameData->_reprojectInfo.x,
+            //    frameData->_reprojectInfo.y,
+            //    frameData->_reprojectInfo.z + frameData->_reprojectInfo.x * 0.5f,
+            //    frameData->_reprojectInfo.w + frameData->_reprojectInfo.y * 0.5f
+            //    );
             frameData->_reprojectInfoFromInt = float4_t(
-                frameData->_reprojectInfo.x,
-                frameData->_reprojectInfo.y,
-                frameData->_reprojectInfo.z + frameData->_reprojectInfo.x * 0.5f,
-                frameData->_reprojectInfo.w + frameData->_reprojectInfo.y * 0.5f
+                (-frameData->_camera_projParams.x * 2.f) / (float)rtWidth,
+                (-frameData->_camera_projParams.y * 2.f) / (float)rtHeight,
+                frameData->_camera_projParams.x,
+                frameData->_camera_projParams.y
                 );
+
+
         }
 
         m128_to_xyzw( frameData->_camera_eyePos.xyzw, Vector4( camera.matrix.worldEye(), oneVec ).get128() );
@@ -329,7 +337,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
     ctx->clear();
 }
 
-void bxGfxContext::frame_drawColor( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists )
+void bxGfxContext::frame_drawColor( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists, bxGdiTexture ssaoTexture )
 {
     bindCamera( ctx, camera );
     ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
@@ -339,6 +347,7 @@ void bxGfxContext::frame_drawColor( bxGdiContext* ctx, const bxGfxCamera& camera
     ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
 
     ctx->setTexture( _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS], 3, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setTexture( ssaoTexture, 4, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR ), 3, bxGdi::eSTAGE_MASK_PIXEL );
 
     for( int ilist = 0; ilist < numLists; ++ilist )
@@ -413,11 +422,13 @@ void bxGfxPostprocess::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* res
 
     const int ssaoTexWidth = fbWidth;
     const int ssaoTexHeight = fbHeight;
-    _ssao.outputTexture = dev->createTexture2D( ssaoTexWidth, ssaoTexHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 2 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+    _ssao.outputTexture = dev->createTexture2D( ssaoTexWidth, ssaoTexHeight, 1, bxGdiFormat( bxGdi::eTYPE_UBYTE, 4, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+    _ssao.swapTexture   = dev->createTexture2D( ssaoTexWidth, ssaoTexHeight, 1, bxGdiFormat( bxGdi::eTYPE_UBYTE, 4, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
 }
 
 void bxGfxPostprocess::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
+    dev->releaseTexture( &_ssao.swapTexture );
     dev->releaseTexture( &_ssao.outputTexture );
     dev->releaseTexture( &_toneMapping.initialLuminance );
     dev->releaseTexture( &_toneMapping.adaptedLuminance[1] );
@@ -519,15 +530,33 @@ void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTex
 
 void bxGfxPostprocess::ssao(bxGdiContext* ctx, bxGdiTexture nrmVSTexture, bxGdiTexture depthTexture)
 {
+    _fxI_ssao->setUniform( "_radius", _ssao._radius );
+    _fxI_ssao->setUniform( "_radius2", _ssao._radius*_ssao._radius );
+    _fxI_ssao->setUniform( "_bias", _ssao._bias );
+    _fxI_ssao->setUniform( "_intensity", _ssao._intensity );
+    _fxI_ssao->setUniform( "_projScale", _ssao._projScale );
+    
     _fxI_ssao->setTexture( "tex_normalsVS", nrmVSTexture );
     _fxI_ssao->setTexture( "tex_hwDepth", depthTexture );
 
     bxGdiTexture outTexture = _ssao.outputTexture;
+    bxGdiTexture swapTexture = _ssao.swapTexture;
+
     ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
     ctx->setViewport( bxGdiViewport( 0, 0, outTexture.width, outTexture.height ) );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
 
     bxGfxContext::submitFullScreenQuad( ctx, _fxI_ssao, "ssao" );
+
+    ctx->changeRenderTargets( &swapTexture, 1 );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+    _fxI_ssao->setTexture( "tex_source", outTexture );
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI_ssao, "blurX" );
+
+    ctx->changeRenderTargets( &outTexture, 1 );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+    _fxI_ssao->setTexture( "tex_source", swapTexture );
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI_ssao, "blurY" );
 }
 
 #include "gfx_gui.h"
@@ -592,6 +621,15 @@ void bxGfxPostprocess::_ShowGUI()
         if ( ImGui::TreeNode( "Fog" ) )
         {
             ImGui::SliderFloat( "fallOff", &_fog.fallOff, 0.f, 1.f, "%.8", 4.f );
+            ImGui::TreePop();
+        }
+
+        if( ImGui::TreeNode( "SSAO" ) )
+        {
+            ImGui::SliderFloat( "radius", &_ssao._radius, 0.f, 10.f );
+            ImGui::SliderFloat( "bias", &_ssao._bias, 0.f, 1.f );
+            ImGui::SliderFloat( "intensoty", &_ssao._intensity, 0.f, 1.f );
+            ImGui::InputFloat( "projScale", &_ssao._projScale );
             ImGui::TreePop();
         }
 

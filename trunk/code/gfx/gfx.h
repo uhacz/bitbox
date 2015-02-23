@@ -22,7 +22,7 @@ struct bxGfxContext
     void frame_begin               ( bxGdiContext* ctx );
     void frame_zPrepass            ( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
     void frame_drawShadows         ( bxGdiContext* ctx, bxGfxShadows* shadows, bxGfxRenderList** rLists, int numLists, const bxGfxCamera& camera, const bxGfxLights& lights );
-    void frame_drawColor           ( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
+    void frame_drawColor           ( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists, bxGdiTexture ssaoTexture );
     void frame_rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera );
     void frame_end                 ( bxGdiContext* ctx );
 
@@ -105,7 +105,20 @@ private:
 
     struct SSAO
     {
+        f32 _radius;
+        f32 _bias;
+        f32 _intensity;
+        f32 _projScale;
+
         bxGdiTexture outputTexture;
+        bxGdiTexture swapTexture;
+
+        SSAO()
+            : _radius(1.2f)
+            , _bias( 0.025f )
+            , _intensity( 0.4f )
+            , _projScale( 700.f )
+        {}
     } _ssao;
 
     bxGdiShaderFx_Instance* _fxI_toneMapping;

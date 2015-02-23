@@ -74,8 +74,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -350,7 +350,7 @@ public:
         }
         _gfxLights->bind( _gdiContext );
 
-        _gfxContext->frame_drawColor( _gdiContext, *currentCamera_, &rList, 1 );
+        _gfxContext->frame_drawColor( _gdiContext, *currentCamera_, &rList, 1, _gfxPostprocess->ssaoOutput() );
 
         _gdiContext->clear();
         _gfxContext->bindCamera( _gdiContext, *currentCamera_ );
