@@ -72,7 +72,7 @@ public:
         {
             for( int i = 0;  i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
             {
-                normalOffsetScale[i] = 0.01f;// *(i + 1);
+                normalOffsetScale[i] = 0.015f * (i + 1);
             }
         }
     } _params;

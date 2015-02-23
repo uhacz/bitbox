@@ -40,8 +40,10 @@ struct out_PS
 };
 
 Texture2D _shadowMap : register(t3);
-SamplerState _samplShadowMap : register( s3 );
 Texture2D _ssaoMap : register(t4);
+
+SamplerState _samplShadowMap : register(s3);
+SamplerState _samplSsaoMap : register(s4);
 
 in_PS vs_main( in_VS input )
 {
@@ -76,7 +78,7 @@ out_PS ps_main( in_PS input )
     const float3 V = -_camera_viewDir.xyz;
     float2 shadowUV = float2(screenPos01.x, 1.0 - screenPos01.y);
     float shadowValue = _shadowMap.SampleLevel( _samplShadowMap, shadowUV, 0.f ).r;
-    float ssaoValue = _ssaoMap.SampleLevel( _samplShadowMap, shadowUV, 0.f ).r;
+    float ssaoValue = _ssaoMap.SampleLevel( _samplSsaoMap, shadowUV, 0.f ).r;
 
     ShadingData shData;
     shData.N = N;
@@ -106,7 +108,10 @@ out_PS ps_main( in_PS input )
 
     float3 sunIlluminance = evaluateSunLight( shData, input.w_pos, mat );
     colorFromLights += _sunColor * sunIlluminance;
-    OUT.rgba.xyz = lerp( colorFromLights * 0.25f * ssaoValue, colorFromLights, shadowValue );
+
+    float colorInShadow = lerp( 0.1f, 0.5f, ssaoValue );
+    float colorCoeff = lerp( colorInShadow, 1.f, shadowValue );
+    OUT.rgba.xyz = colorFromLights * colorCoeff;// lerp( colorFromLights * colorInShadow, colorFromLights, shadowValue );
     //OUT.rgba.xyz = colorFromLights;
 
     //float3 tmpColors[] =
