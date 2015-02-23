@@ -332,8 +332,8 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
 
     if( useNormalOffset )
     {
-        //const float3 nrmVS = cross( normalize( ddx_fine(posVS) ), normalize( ddy_fine(posVS) ) );
-        const float3 nrmVS = normalsVS.SampleLevel( samplNormalsVS, input.uv, 0.0 );
+        const float3 nrmVS = cross( normalize( ddy_fine(posVS) ), normalize( ddx_fine(posVS) ) );
+        //const float3 nrmVS = normalsVS.SampleLevel( samplNormalsVS, input.uv, 0.0 );
         const float3 N = normalize( mul( (float3x3)_camera_world, nrmVS ) );
         const float scale = 1.f - saturate(dot( lightDirectionWS, N ));
         const float offsetScale  = scale * normalOffsetGet( currentSplit );
@@ -343,7 +343,6 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
 
     float4 shadowPos = mul( worldToShadowSpace[currentSplit], posWS );
     float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, currentSplit );
-
     return shadowValue;
 }
 

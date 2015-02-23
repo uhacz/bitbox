@@ -6,6 +6,9 @@
 #include "gfx_camera.h"
 #include "gfx_lights.h"
 
+#include <util/random.h>
+#include <util/time.h>
+
 namespace bxGfx
 {
     void frameData_fill( FrameData* frameData, const bxGfxCamera& camera, int rtWidth, int rtHeight )
@@ -50,20 +53,12 @@ namespace bxGfx
                 -2.f / ( (float)rtHeight*m22 ), 
                 (1.f - m13) / m11, 
                 (1.f + m23) / m22 );
-            //frameData->_reprojectInfoFromInt = float4_t(
-            //    frameData->_reprojectInfo.x,
-            //    frameData->_reprojectInfo.y,
-            //    frameData->_reprojectInfo.z + frameData->_reprojectInfo.x * 0.5f,
-            //    frameData->_reprojectInfo.w + frameData->_reprojectInfo.y * 0.5f
-            //    );
             frameData->_reprojectInfoFromInt = float4_t(
-                (-frameData->_camera_projParams.x * 2.f) / (float)rtWidth,
-                (-frameData->_camera_projParams.y * 2.f) / (float)rtHeight,
-                frameData->_camera_projParams.x,
-                frameData->_camera_projParams.y
+                frameData->_reprojectInfo.x,
+                frameData->_reprojectInfo.y,
+                frameData->_reprojectInfo.z + frameData->_reprojectInfo.x * 0.5f,
+                frameData->_reprojectInfo.w + frameData->_reprojectInfo.y * 0.5f
                 );
-
-
         }
 
         m128_to_xyzw( frameData->_camera_eyePos.xyzw, Vector4( camera.matrix.worldEye(), oneVec ).get128() );
@@ -134,7 +129,7 @@ int bxGfxContext::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resource
         _shared.rsource.box = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
         bxPolyShape_deallocateShape( &polyShape );
 
-        bxPolyShape_createShpere( &polyShape, 6 );
+        bxPolyShape_createShpere( &polyShape, 8 );
         _shared.rsource.sphere = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
         bxPolyShape_deallocateShape( &polyShape );
     }
@@ -348,7 +343,9 @@ void bxGfxContext::frame_drawColor( bxGdiContext* ctx, const bxGfxCamera& camera
 
     ctx->setTexture( _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS], 3, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( ssaoTexture, 4, bxGdi::eSTAGE_MASK_PIXEL );
-    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR ), 3, bxGdi::eSTAGE_MASK_PIXEL );
+    
+    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR ), 3, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST), 4, bxGdi::eSTAGE_MASK_PIXEL );
 
     for( int ilist = 0; ilist < numLists; ++ilist )
     {
@@ -530,12 +527,16 @@ void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTex
 
 void bxGfxPostprocess::ssao(bxGdiContext* ctx, bxGdiTexture nrmVSTexture, bxGdiTexture depthTexture)
 {
+    ++_ssao._frameCounter;
+
+    bxRandomGen rnd( (u32)bxTime::us() + _ssao._frameCounter );
+
     _fxI_ssao->setUniform( "_radius", _ssao._radius );
     _fxI_ssao->setUniform( "_radius2", _ssao._radius*_ssao._radius );
     _fxI_ssao->setUniform( "_bias", _ssao._bias );
     _fxI_ssao->setUniform( "_intensity", _ssao._intensity );
     _fxI_ssao->setUniform( "_projScale", _ssao._projScale );
-    
+    _fxI_ssao->setUniform( "_randomRot", rnd.getf( 0.f, 100.f ) );
     _fxI_ssao->setTexture( "tex_normalsVS", nrmVSTexture );
     _fxI_ssao->setTexture( "tex_hwDepth", depthTexture );
 

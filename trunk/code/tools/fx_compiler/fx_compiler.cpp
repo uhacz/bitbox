@@ -32,10 +32,13 @@ namespace
             SYS_ASSERT( counter < output_capacity );
             output[counter].Name = shader_macro[0];
             output[counter].Definition = shader_macro[1];
-
+            print_info( "%s, ", shader_macro[0] );
             ++counter;
             shader_macro += 2;
         }
+
+        print_info( "\n" );
+
         return counter;
     }
 
@@ -188,6 +191,7 @@ namespace
             {
                 defs[n_defs].name = cfgpass->name;
                 defs[n_defs].def = "1";
+                ++n_defs;
             }
 
             bxGdiHwStateDesc hwstate;
@@ -631,12 +635,14 @@ public:
         {
             const ConfigPass& pass = fx_src.passes[ipass];
 
+            print_info( "compiling pass: %s ...\n", pass.name );
+
             BinaryPass bin_pass;
             for( int j = 0; j < bxGdi::eDRAW_STAGES_COUNT; ++j )
             {
                 if( !pass.entry_points[j] )
                     continue;
-
+                
                 ID3DBlob* code_blob = _compile_shader( j, source, pass.entry_points[j], (const char**)pass.defs );
                 ID3DBlob* code_disasm = NULL;
 

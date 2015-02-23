@@ -109,15 +109,17 @@ private:
         f32 _bias;
         f32 _intensity;
         f32 _projScale;
-
+        u32 _frameCounter;
         bxGdiTexture outputTexture;
         bxGdiTexture swapTexture;
 
         SSAO()
             : _radius(1.2f)
             , _bias( 0.025f )
-            , _intensity( 0.4f )
+            , _intensity( 0.3f )
             , _projScale( 700.f )
+            , _frameCounter( 0 )
+
         {}
     } _ssao;
 

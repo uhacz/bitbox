@@ -45,6 +45,14 @@ int bxGfxMaterialManager::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* 
 
             createMaterial( dev, "blue", params );
         }
+        {
+            params.diffuseColor = float3_t( 1.f, 1.f, 1.f );
+            params.diffuseCoeff = 1.0f;
+            params.roughnessCoeff = 1.0f;
+            params.specularCoeff = 0.1f;
+
+            createMaterial( dev, "white", params );
+        }
     }
 
     return _nativeFx ? 0 : -1;
