@@ -41,6 +41,7 @@ struct out_PS
 
 Texture2D _shadowMap : register(t3);
 SamplerState _samplShadowMap : register( s3 );
+Texture2D _ssaoMap : register(t4);
 
 in_PS vs_main( in_VS input )
 {
@@ -75,12 +76,11 @@ out_PS ps_main( in_PS input )
     const float3 V = -_camera_viewDir.xyz;
     float2 shadowUV = float2(screenPos01.x, 1.0 - screenPos01.y);
     float shadowValue = _shadowMap.SampleLevel( _samplShadowMap, shadowUV, 0.f ).r;
+    float ssaoValue = _ssaoMap.SampleLevel( _samplShadowMap, shadowUV, 0.f ).r;
 
     ShadingData shData;
     shData.N = N;
     shData.V = V;
-        
-
     
     float3 colorFromLights = float3(0.f, 0.f, 0.f);
     
@@ -106,7 +106,7 @@ out_PS ps_main( in_PS input )
 
     float3 sunIlluminance = evaluateSunLight( shData, input.w_pos, mat );
     colorFromLights += _sunColor * sunIlluminance;
-    OUT.rgba.xyz = lerp( colorFromLights * 0.5f, colorFromLights, shadowValue );
+    OUT.rgba.xyz = lerp( colorFromLights * 0.25f * ssaoValue, colorFromLights, shadowValue );
     //OUT.rgba.xyz = colorFromLights;
 
     //float3 tmpColors[] =

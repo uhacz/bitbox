@@ -3,7 +3,7 @@
 
 float cameraDepth( in float3 worldPosition )
 {
-    const float3 inCameraSpace = worldPosition - _camera_eyePos;
+    const float3 inCameraSpace = worldPosition - _camera_eyePos.xyz;
 	return -dot( _camera_world[2].xyz, inCameraSpace );
 }
 
