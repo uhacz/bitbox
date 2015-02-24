@@ -37,6 +37,9 @@ namespace bxGfx
         frameData->_reprojectDepthScale = (zFar - zNear) / (-zFar * zNear);
         frameData->_reprojectDepthBias = zFar / (zFar * zNear);
 
+        frameData->_renderTarget_rcp = float2_t( 1.f/ (float)rtWidth, 1.f / (float)rtHeight );
+        frameData->_renderTarget_size = float2_t( (float)rtWidth, (float)rtHeight );
+
         //frameData->cameraParams = Vector4( fov, aspect, camera.params.zNear, camera.params.zFar );
         {
             const float m11 = proj.getElem( 0, 0 ).getAsFloat();//getCol0().getX().getAsFloat();
@@ -47,23 +50,30 @@ namespace bxGfx
             const float m13 = proj.getElem( 0, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
             const float m23 = proj.getElem( 1, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
 
-            frameData->_camera_projParams = float4_t( 1.f/m11, 1.f/m22, m33, -m44 );
-            frameData->_reprojectInfo = float4_t( 
-                -2.f / ( (float)rtWidth*m11 ), 
-                -2.f / ( (float)rtHeight*m22 ), 
-                (1.f - m13) / m11, 
-                (1.f + m23) / m22 );
+            frameData->_reprojectInfo = float4_t( 1.f/m11, 1.f/m22, m33, -m44 );
+            //frameData->_reprojectInfo = float4_t( 
+            //    -2.f / ( (float)rtWidth*m11 ), 
+            //    -2.f / ( (float)rtHeight*m22 ), 
+            //    (1.f - m13) / m11, 
+            //    (1.f + m23) / m22 );
             frameData->_reprojectInfoFromInt = float4_t(
+                ( -frameData->_reprojectInfo.x * 2.f ) * frameData->_renderTarget_rcp.x,
+                ( -frameData->_reprojectInfo.y * 2.f ) * frameData->_renderTarget_rcp.y,
                 frameData->_reprojectInfo.x,
-                frameData->_reprojectInfo.y,
-                frameData->_reprojectInfo.z + frameData->_reprojectInfo.x * 0.5f,
-                frameData->_reprojectInfo.w + frameData->_reprojectInfo.y * 0.5f
+                frameData->_reprojectInfo.y
                 );
+            //frameData->_reprojectInfoFromInt = float4_t(
+            //    frameData->_reprojectInfo.x,
+            //    frameData->_reprojectInfo.y,
+            //    frameData->_reprojectInfo.z + frameData->_reprojectInfo.x * 0.5f,
+            //    frameData->_reprojectInfo.w + frameData->_reprojectInfo.y * 0.5f
+            //    );
         }
 
         m128_to_xyzw( frameData->_camera_eyePos.xyzw, Vector4( camera.matrix.worldEye(), oneVec ).get128() );
         m128_to_xyzw( frameData->_camera_viewDir.xyzw, Vector4( camera.matrix.worldDir(), zeroVec ).get128() );
-        m128_to_xyzw( frameData->_renderTarget_rcp_size.xyzw, Vector4( 1.f / float( rtWidth ), 1.f / float( rtHeight ), float( rtWidth ), float( rtHeight ) ).get128() );
+        
+        //m128_to_xyzw( frameData->_renderTarget_rcp_size.xyzw, Vector4( 1.f / float( rtWidth ), 1.f / float( rtHeight ), float( rtWidth ), float( rtHeight ) ).get128() );
     }
 }///
 
@@ -267,7 +277,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
                 cascadeCamera.params.zNear = cascade.zNear_zFar.getX().getAsFloat();
                 cascadeCamera.params.zFar = cascade.zNear_zFar.getY().getAsFloat();
 
-                bindCamera( ctx, cascadeCamera );
+                bindCamera( ctx, cascadeCamera, bxGfx::eSHADOW_CASCADE_SIZE, bxGfx::eSHADOW_CASCADE_SIZE );
                 ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eSTAGE_MASK_VERTEX );
                 ctx->setViewport( viewports[key.cascade] );
             }
@@ -277,7 +287,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
         }
 
         {
-            bindCamera( ctx, camera );
+            
             bxGdiTexture shadowsTexture = _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS];
             bxGdiTexture shadowsVolumeTexture = _framebuffer[bxGfx::eFRAMEBUFFER_SHADOWS_VOLUME];
             
@@ -312,11 +322,11 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             shadowsFxI->setTexture( "sceneDepthTex", _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
             shadowsFxI->setTexture( "normalsVS", _framebuffer[bxGfx::eFRAMEBUFFER_NORMAL_VS] );
             
-            shadowsFxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP ) );
-            //shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_CLAMP ) );
-            shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
+            shadowsFxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP ) );
+            shadowsFxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
             shadowsFxI->setSampler( "samplNormalsVS", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP ) );
 
+            bindCamera( ctx, camera, shadowsTexture.width, shadowsTexture.height );
             ctx->changeRenderTargets( &shadowsTexture, 1, bxGdiTexture() );
             ctx->clearBuffers( 1.f, 1.f, 1.f, 1.f, 0.f, 1, 0 );
             ctx->setViewport( bxGdiViewport( 0, 0, shadowsTexture.width, shadowsTexture.height ) );
@@ -334,7 +344,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
 
 void bxGfxContext::frame_drawColor( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists, bxGdiTexture ssaoTexture )
 {
-    bindCamera( ctx, camera );
+    bindCamera( ctx, camera, _framebuffer->width, _framebuffer->height );
     ctx->setCbuffer( _cbuffer_instanceData, 1, bxGdi::eALL_STAGES_MASK );
         
     ctx->changeRenderTargets( _framebuffer, 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
@@ -390,12 +400,11 @@ void bxGfxContext::submitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instan
 }
 
 
-void bxGfxContext::bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera )
+void bxGfxContext::bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera, int rtWidth, int rtHeight )
 {
     bxGfx::FrameData fdata;
-    bxGfx::frameData_fill( &fdata, camera, _framebuffer[0].width, _framebuffer[0].height );
+    bxGfx::frameData_fill( &fdata, camera, rtWidth, rtHeight );
     ctx->backend()->updateCBuffer( _cbuffer_frameData, &fdata );
-
     ctx->setCbuffer( _cbuffer_frameData, 0, bxGdi::eALL_STAGES_MASK );
 }
 

@@ -17,7 +17,7 @@ struct bxGfxContext
     int _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     
-    void bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera );
+    void bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera, int rtWidth, int rtHeight );
     
     void frame_begin               ( bxGdiContext* ctx );
     void frame_zPrepass            ( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );

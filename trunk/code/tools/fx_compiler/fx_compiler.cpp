@@ -32,12 +32,12 @@ namespace
             SYS_ASSERT( counter < output_capacity );
             output[counter].Name = shader_macro[0];
             output[counter].Definition = shader_macro[1];
-            print_info( "%s, ", shader_macro[0] );
+            //print_info( "%s, ", shader_macro[0] );
             ++counter;
             shader_macro += 2;
         }
 
-        print_info( "\n" );
+        //print_info( "\n" );
 
         return counter;
     }
@@ -635,7 +635,7 @@ public:
         {
             const ConfigPass& pass = fx_src.passes[ipass];
 
-            print_info( "compiling pass: %s ...\n", pass.name );
+            print_info( "\tcompiling pass: %s ...\n", pass.name );
 
             BinaryPass bin_pass;
             for( int j = 0; j < bxGdi::eDRAW_STAGES_COUNT; ++j )
@@ -710,7 +710,8 @@ int compile( const char* input_file_path, const char* output_dir )
     FxCompilerHelper helper;
     int ires = helper.startup( input_file_path, output_dir );
 
-    
+    print_info( "%s...\n", input_file_path );
+
     if( ires == 0 )
     {
         Compiler* compiler = Compiler::create( 0 );

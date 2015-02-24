@@ -9,10 +9,11 @@ shared cbuffer FrameData : register(b0)
 	matrix _camera_world;
     float4 _camera_eyePos;
 	float4 _camera_viewDir;
-	float4 _camera_projParams;
+	//float4 _camera_projParams;
     float4 _reprojectInfo;
     float4 _reprojectInfoFromInt;
-    float4 _renderTarget_rcp_size;
+    float2 _renderTarget_rcp;
+    float2 _renderTarget_size;
 
     float _camera_fov;
     float _camera_aspect;

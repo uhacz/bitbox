@@ -79,7 +79,6 @@
     <CustomBuild Include="debug.hlsl" />
     <CustomBuild Include="shadow.hlsl" />
     <CustomBuild Include="sky.hlsl" />
-    <CustomBuild Include="test.hlsl" />
     <CustomBuild Include="texutils.hlsl" />
     <CustomBuild Include="utils.hlsl" />
   </ItemGroup>

@@ -18,10 +18,10 @@ float resolveLinearDepth( float hwDepth )
 
 ///
 // @param ab_inv : get from FrameData.proj_params.xy
-float3 resolvePositionVS( float2 wpos, float linearDepth, float2 abInv )
+float3 resolvePositionVS( float2 screenPos, float linearDepth )
 {
-    float2 xy = wpos * abInv * -linearDepth;
-    return float3(xy, linearDepth);
+    //return float3((screenPos * _reprojectInfo.xy + _reprojectInfo.zw) * -linearDepth, linearDepth );
+    return float3( screenPos * _reprojectInfo.xy * -linearDepth, linearDepth );
 }
 
 #endif

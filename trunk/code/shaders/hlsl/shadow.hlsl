@@ -325,7 +325,7 @@ float ps_shadow( in in_PS_shadow input ) : SV_Target0
     float pixelDepth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
     float linearDepth = resolveLinearDepth( pixelDepth );
     float2 screenPos_m11 = input.screenPos;
-    float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth, _camera_projParams.xy );
+    float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth );
 
     uint currentSplit = selectSplit( posVS.z );
     float4 posWS = mul( _camera_world, float4(posVS, 1.0) );
@@ -353,7 +353,7 @@ float ps_shadowVolume( in in_PS_shadow input ) : SV_Target0
     float pixelDepth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
     float linearDepth = resolveLinearDepth( pixelDepth );
     float2 screenPos_m11 = input.screenPos;
-    float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth, _camera_projParams.xy );
+    float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth );
 
     uint currentSplit = selectSplit( posVS.z );
     float4 posWS = mul( _camera_world, float4(posVS, 1.0) );

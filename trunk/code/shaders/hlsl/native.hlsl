@@ -67,7 +67,7 @@ out_PS ps_main( in_PS input )
     OUT.rgba = float4( 0.0, 0.0, 0.0, 1.0 );
 
     const float2 screenPos01 = (input.s_pos.xy / input.s_pos.w ) * 0.5 + 0.5;
-    uint2 tileXY = computeTileXY( screenPos01, _numTilesXY, _renderTarget_rcp_size, _tileSizeRcp );
+    uint2 tileXY = computeTileXY( screenPos01, _numTilesXY, _renderTarget_size, _tileSizeRcp );
     uint tileIdx = _numTilesXY.x * tileXY.y + tileXY.x;
     uint lightsIndexBegin = (tileIdx)* _maxLights;
 

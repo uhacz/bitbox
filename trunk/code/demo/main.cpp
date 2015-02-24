@@ -74,8 +74,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -338,8 +338,7 @@ public:
         {
             bxGdiTexture nrmVSTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_NORMAL_VS );
             bxGdiTexture hwDepthTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
-            _gfxContext->bindCamera( _gdiContext, *currentCamera_ );
-            _gfxPostprocess->ssao( _gdiContext, nrmVSTexture,hwDepthTexture );
+            _gfxPostprocess->ssao( _gdiContext, nrmVSTexture, hwDepthTexture );
         }
 
         _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, *currentCamera_, *_gfxLights );
