@@ -34,7 +34,7 @@ struct bxGfxCamera_Params
 
 namespace bxGfx
 {
-    Matrix4 cameraMatrix_projection    ( float aspect, float fov, float znear, float zfar/*, int rtWidth, int rtHeight*/ );
+    Matrix4 cameraMatrix_projection    ( float aspect, float fov, float znear, float zfar );
 	Matrix4 cameraMatrix_projection    ( const bxGfxCamera_Params& params, int rtWidth, int rtHeight );
     Matrix4 cameraMatrix_ortho         ( const bxGfxCamera_Params& params, int rtWidth, int rtHeight );
     Matrix4 cameraMatrix_ortho         ( float orthoWidth, float orthoHeight, float znear, float zfar, int rtWidth, int rtHeight );

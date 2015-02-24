@@ -32,10 +32,11 @@ namespace bxGfx
         Matrix4 _camera_world;
         float4_t _camera_eyePos;
         float4_t _camera_viewDir;
-        float4_t _camera_projParams;
+        //float4_t _camera_projParams;
         float4_t _reprojectInfo;
         float4_t _reprojectInfoFromInt;
-        float4_t _renderTarget_rcp_size;
+        float2_t _renderTarget_rcp;
+        float2_t _renderTarget_size;
         float _camera_fov;
         float _camera_aspect;
         float _camera_zNear;

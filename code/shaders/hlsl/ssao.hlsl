@@ -9,6 +9,7 @@ passes:
 
 #include <sys/frame_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
+#include <sys/util.hlsl>
 
 cbuffer MaterialData : register(b3)
 {
@@ -27,10 +28,8 @@ float _ssao( float2 uv, float2 wpos01, int num_samples )
 {
 	float linearDepth = gtex_linear_depth.SampleLevel( gsamp_linear_depth, uv, 0 ).x;
 	float Cz = linearDepth;
-
-	float2 winPos = 2 * wpos01 - 1;
-	float2 Cxy = winPos * _camera_projParams.xy * -Cz;
-	float3 C = float3( Cxy, Cz );
+    float2 winPos = 2 * wpos01 - 1;
+	float3 C = resolvePositionVS( winPos, linearDepth );
 
 	float3 N = gtex_normal_vs.SampleLevel( gsamp_normals_vs, uv, 0 ).xyz;
 	N = normalize(N);
@@ -45,7 +44,7 @@ float _ssao( float2 uv, float2 wpos01, int num_samples )
 		float ld = gtex_linear_depth.SampleLevel( gsamp_linear_depth, coord, 0 ).x;
 		float z = ld;
 
-		float2 xy = coordNormalized * _camera_projParams.xy * -z;
+		float2 xy = coordNormalized * _reprojectInfo.xy * -z;
 		float3 P = float3(xy, z);
 		float3 V = P - C;
 
@@ -61,7 +60,7 @@ float _ssao( float2 uv, float2 wpos01, int num_samples )
 		ld = gtex_linear_depth.SampleLevel( gsamp_linear_depth, coord, 0 ).x;
 		z = ld;
 
-		xy = coordNormalized * _camera_projParams.xy * -z;
+		xy = coordNormalized * _reprojectInfo.xy * -z;
 		P = float3(xy, z);
 		V = P - C;
 

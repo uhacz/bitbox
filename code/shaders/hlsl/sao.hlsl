@@ -248,7 +248,7 @@ float unpackKey(float2 p)
 
 float4 ps_ssao( out_VS_screenquad In ) : SV_Target
 {
-    float2 vPos = In.uv * _renderTarget_rcp_size.zw;
+    float2 vPos = In.uv * _renderTarget_size;
 
     // Pixel being shaded 
     int2 ssC = vPos;
@@ -259,7 +259,7 @@ float4 ps_ssao( out_VS_screenquad In ) : SV_Target
     float3 C = getPosition(ssC);
 
     // bw: early out on borders of screen to avoid over-darkening, load defaults to 0
-    bool earlyOut = C.z > FAR_PLANE_Z || C.z < 0.4f || any(ssC < 8) || any(ssC >= (_renderTarget_rcp_size.zw-8));
+    bool earlyOut = C.z > FAR_PLANE_Z || C.z < 0.4f || any(ssC < 8) || any(ssC >= (_renderTarget_size-8));
     [branch]
     if(earlyOut)
     {
@@ -287,7 +287,7 @@ float4 ps_ssao( out_VS_screenquad In ) : SV_Target
 
     // Choose the screen-space sample radius
     // proportional to the projected area of the sphere, default params were tweaked for 900p so scale projScale accordingly - 1 ALU mul operation as projScale/900.0f gets optimized by compiler
-    float ssDiskRadius = (_projScale / 900.0f * _renderTarget_rcp_size.w) * _radius * fastRcpNR0(max(C.z, 0.1f));
+    float ssDiskRadius = (_projScale / 900.0f * _renderTarget_size.y) * _radius * fastRcpNR0(max(C.z, 0.1f));
 
     float sum = 0.0;
 
@@ -434,12 +434,12 @@ float4 doBlur( int2 ssC, float2 axis )
 
 float4 ps_blurX( out_VS_screenquad In ) : SV_Target
 {
-    float2 vPos = In.uv * _renderTarget_rcp_size.zw;
+    float2 vPos = In.uv * _renderTarget_size;
     return doBlur( (int2)vPos, float2(1, 0) );
 }
 float4 ps_blurY( out_VS_screenquad In ) : SV_Target
 {
-    float2 vPos = In.uv * _renderTarget_rcp_size.zw;
+    float2 vPos = In.uv * _renderTarget_size;
     return doBlur( (int2)vPos, float2(0, 1) );
 }
 //float4 ps_blur( out_VS_screenquad In ) : SV_Target

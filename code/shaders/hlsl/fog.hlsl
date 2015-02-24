@@ -71,7 +71,7 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
 
     float linDepth = resolveLinearDepth( hwDepth );
     float2 winPos = input.screenPos;
-    float3 vsPos = resolvePositionVS( winPos, -linDepth, _camera_projParams.xy );
+    float3 vsPos = resolvePositionVS( winPos, -linDepth );
     float3 worldPos = mul( _camera_world, float4(vsPos,1.f) ).xyz;
     //
     float3 ray = worldPos - _camera_eyePos.xyz;
@@ -90,7 +90,7 @@ float4 ps_fog( in out_VS_screenquad input ) : SV_Target0
 float4 ps_sky( in out_VS_screenquad input ) : SV_Target0
 {
     const float2 winPos = input.screenPos;// *2.0 - 1.0;
-    float3 vsPos = resolvePositionVS( winPos, 1.f, _camera_projParams.xy );
+    float3 vsPos = resolvePositionVS( winPos, _camera_zFar );
     const float3 rayDir = normalize( mul( (float3x3)_camera_world, vsPos ) );
     const float3 skyColor = computeSkyColor( rayDir );
     
