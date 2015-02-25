@@ -53,7 +53,6 @@ void bxGfx::sortList_computeShadow( bxGfxSortList_Shadow* sList, const bxGfxRend
 bxGfxShadows::bxGfxShadows()
     : _fxI(0)
 {
-    memset( _cascade, 0x00, sizeof(_cascade) );
 }
 
 void bxGfxShadows::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
@@ -65,35 +64,10 @@ void bxGfxShadows::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourc
     SYS_ASSERT( _fxI != 0 );
 }
 
-void bxGfxShadows::_Shurdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+void bxGfxShadows::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
     bxGdi::shaderFx_releaseWithInstance( dev, &_fxI );
     dev->releaseTexture( &_depthTexture );
-}
-
-void bxGfxShadows::splitDepth( float splits[bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera_Params& params, const float sceneZRange[2], float lambda )
-{
-    const float N = (float)bxGfx::eSHADOW_NUM_CASCADES;
-    //splits[0] = 0.f;
-    //splits[bxGfx::eSHADOW_NUM_CASCADES-1] = 1.f; //params.zFar;
-
-    const float znear = sceneZRange[0];
-    const float zfar = sceneZRange[1];
-    const float zRange = zfar - znear;
-
-    const float minZ = znear; // +zRange;
-    const float maxZ = znear + zRange;
-    const float range = maxZ - minZ;
-    const float ratio = maxZ / minZ;
-
-    for( int isplit = 0; isplit < bxGfx::eSHADOW_NUM_CASCADES; ++isplit )
-    {
-        float p = (isplit + 1) / N;
-        float log = minZ * pow( ratio, p );
-        float uniform = minZ + range * p;
-        float d = lambda * (log - uniform) + uniform;
-        splits[isplit] = (d - znear) / zRange;
-    }
 }
 
 namespace 
@@ -160,21 +134,45 @@ namespace
         cascade->view = cascadeView;
     }
 }///
+void bxGfx::shadows_splitDepth( float splits[4], const bxGfxCamera_Params& params, const float sceneZRange[2], float lambda )
+{
+    const float N = (float)bxGfx::eSHADOW_NUM_CASCADES;
+    //splits[0] = 0.f;
+    //splits[bxGfx::eSHADOW_NUM_CASCADES-1] = 1.f; //params.zFar;
 
-void bxGfxShadows::computeCascades( const float splits[bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera& camera, const float sceneZRange[2], const Vector3& lightDirection )
+    const float znear = sceneZRange[0];
+    const float zfar = sceneZRange[1];
+    const float zRange = zfar - znear;
+
+    const float minZ = znear; // +zRange;
+    const float maxZ = znear + zRange;
+    const float range = maxZ - minZ;
+    const float ratio = maxZ / minZ;
+
+    for ( int isplit = 0; isplit < bxGfx::eSHADOW_NUM_CASCADES; ++isplit )
+    {
+        float p = (isplit + 1) / N;
+        float log = minZ * pow( ratio, p );
+        float uniform = minZ + range * p;
+        float d = lambda * (log - uniform) + uniform;
+        splits[isplit] = (d - znear) / zRange;
+    }
+}
+
+void bxGfx::shadows_computeCascades( bxGfxShadows_Cascade* cascades, const float* splits, const bxGfxCamera& camera, const float sceneZRange[2], const Vector3& lightDirection )
 {
     Vector3 mainFrustumCorners[8];
     bxGfx::viewFrustum_extractCorners( mainFrustumCorners, camera.matrix.viewProj );
 
-    for( int isplit = 0; isplit < bxGfx::eSHADOW_NUM_CASCADES; ++isplit )
+    for ( int isplit = 0; isplit < bxGfx::eSHADOW_NUM_CASCADES; ++isplit )
     {
-        bxGfxShadows_Cascade* cascade = &_cascade[isplit];
+        bxGfxShadows_Cascade* cascade = &cascades[isplit];
 
         const float splitNear = (isplit == 0) ? 0.f : splits[isplit - 1];
         const float splitFar = splits[isplit];
 
         const float splitZnear = lerp( splitNear, sceneZRange[0], sceneZRange[1] );
-        const float splitZfar  = lerp( splitFar , sceneZRange[0], sceneZRange[1] );
+        const float splitZfar = lerp( splitFar, sceneZRange[0], sceneZRange[1] );
 
         //const Matrix4 mainCameraSplitProj = Matrix4::perspective( camera.params.fov(), camera.params.aspect(), splitZnear, splitZfar );
 
@@ -182,10 +180,10 @@ void bxGfxShadows::computeCascades( const float splits[bxGfx::eSHADOW_NUM_CASCAD
         for ( int icorner = 0; icorner < 8; icorner += 2 )
         {
             const Vector3 ray = mainFrustumCorners[icorner + 1] - mainFrustumCorners[icorner];
-            tmpCorners[icorner+0] = mainFrustumCorners[icorner] + ray * splitNear;//lerp( splitNear, mainFrustumCorners[icorner], mainFrustumCorners[icorner + 1] );
-            tmpCorners[icorner+1] = mainFrustumCorners[icorner] + ray * splitFar;//lerp( splitFar , mainFrustumCorners[icorner], mainFrustumCorners[icorner + 1] );
+            tmpCorners[icorner + 0] = mainFrustumCorners[icorner] + ray * splitNear;//lerp( splitNear, mainFrustumCorners[icorner], mainFrustumCorners[icorner + 1] );
+            tmpCorners[icorner + 1] = mainFrustumCorners[icorner] + ray * splitFar;//lerp( splitFar , mainFrustumCorners[icorner], mainFrustumCorners[icorner + 1] );
         };
-        
+
         //Vector3 tmpCorners1[8];
         //bxGfx::viewFrustum_extractCorners( tmpCorners1, mainCameraSplitProj * camera.matrix.view );
         //bxGfx::viewFrustum_debugDraw( tmpCorners, 0x0000FFFF );
@@ -204,7 +202,7 @@ void bxGfxShadows::computeCascades( const float splits[bxGfx::eSHADOW_NUM_CASCAD
     //    }
     //}
 
-    _ShowGUI();
+    //_ShowGUI();
 }
 
 #include "gfx_gui.h"
@@ -227,3 +225,4 @@ void bxGfxShadows::_ShowGUI()
 
     ImGui::End();
 }
+

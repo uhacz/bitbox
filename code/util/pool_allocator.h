@@ -92,7 +92,7 @@ public:
 
     virtual void *alloc( size_t size, size_t align ) { (void)size; ( void )align; return _alloc(); }
     virtual void free( void *p ) { void* tmp = p; _free( tmp ); }
-    virtual size_t allocatedSize();
+    virtual size_t allocatedSize() const { return _allocatedSize; }
     
     void* alloc() { return _alloc(); }
 
@@ -113,6 +113,8 @@ private:
     Node* _begin;
     bxAllocator* _baseAllocator;
     u32 _alignment;
+
+    size_t _allocatedSize;
 
 };
 

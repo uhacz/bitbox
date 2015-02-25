@@ -19,9 +19,11 @@
 
 #include "test_console.h"
 #include <util/random.h>
+#include <util/array.h>
+#include <util/pool_allocator.h>
 
 static const int MAX_LIGHTS = 64;
-static const int TILE_SIZE = 64;
+static const int TILE_SIZE = 32;
 
 static bxGdiRenderSource* rsource = 0;
 static bxGfxRenderList* rList = 0;
@@ -34,6 +36,31 @@ static int nPointLights = 0;
 
 static bxAABB frustumBBox = bxAABB::prepare();
 static bxGfxCamera* currentCamera_ = NULL;
+
+
+union bxObject_Instance
+{
+    u32 hash;
+    struct
+    {
+        u32 index : 12;
+        u32 magic : 20;
+    };
+};
+
+struct bxObject
+{
+    
+
+    array_t< bxGdiRenderSource* >       _rsource;
+    array_t< bxGdiShaderFx_Instance* >  _fxI;
+    array_t< Matrix4* >                 _matrices;
+    array_t< u16 >                      _numMatrices;
+
+    bxAllocator* _alloc_singleMatrix;
+    bxAllocator* _alloc_multipleMatrix;
+};
+
 
 //union bxVoxelGrid_Coords
 //{
@@ -74,8 +101,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -90,9 +117,6 @@ public:
 
         _gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
         _gfxLights->_Startup( _gdiDevice, MAX_LIGHTS, TILE_SIZE, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
-
-        _gfxShadows = BX_NEW( bxDefaultAllocator(), bxGfxShadows );
-        _gfxShadows->_Startup( _gdiDevice, _resourceManager );
 
         _gfxMaterials = BX_NEW( bxDefaultAllocator(), bxGfxMaterialManager );
         _gfxMaterials->_Startup( _gdiDevice, _resourceManager );
@@ -165,9 +189,6 @@ public:
 
         _gfxMaterials->_Shutdown( _gdiDevice, _resourceManager );
         BX_DELETE0( bxDefaultAllocator(), _gfxMaterials );
-
-        _gfxShadows->_Shurdown( _gdiDevice, _resourceManager );
-        BX_DELETE0( bxDefaultAllocator(), _gfxShadows );
 
         _gfxLights->_Shutdown( _gdiDevice );
         BX_DELETE0( bxDefaultAllocator(), _gfxLights );
@@ -308,6 +329,7 @@ public:
 
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
         bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
+        
         //for( int ilight = 0; ilight < nPointLights; ++ilight )
         //{
         //    bxGfxLight_Point l = _gfxLights->lightManager.pointLight( pointLights[ilight] );
@@ -332,7 +354,6 @@ public:
         
         _gfxContext->frame_begin( _gdiContext );
         
-        _gfxContext->bindCamera( _gdiContext, *currentCamera_ );
         _gfxContext->frame_zPrepass( _gdiContext, *currentCamera_, &rList, 1 );
         {
             bxGdiTexture nrmVSTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_NORMAL_VS );
@@ -340,7 +361,8 @@ public:
             _gfxPostprocess->ssao( _gdiContext, nrmVSTexture, hwDepthTexture );
         }
 
-        _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, *currentCamera_, *_gfxLights );
+        _gfxContext->frame_drawShadows( _gdiContext, &rList, 1, *currentCamera_, *_gfxLights );
+
         _gfxContext->bindCamera( _gdiContext, *currentCamera_ );
         {
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
@@ -380,14 +402,14 @@ public:
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS ),
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS_VOLUME ),
                 _gfxPostprocess->ssaoOutput(),
-                _gfxShadows->_depthTexture,
+                //_gfxShadows->_depthTexture,
             };
             const char* colorNames[] = 
             {
-                "color", "depth", "normalsVS" , "shadows", "shadowsVolume", "ssao", "cascades",
+                "color", "depth", "normalsVS" , "shadows", "shadowsVolume", "ssao",// "cascades",
             };
             const int nTextures = sizeof(colorTextures)/sizeof(*colorTextures);
-            static int current = 5;
+            static int current = 0;
             
             {
                 ImGui::Begin();
@@ -399,8 +421,6 @@ public:
             _gdiContext->changeRenderTargets( &colorTexture, 1, _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ) );
             bxGfxDebugDraw::flush( _gdiContext, currentCamera_->matrix.viewProj );
             
-            //colorTexture = _gfxShadows->_depthTexture;
-            //colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS );
             colorTexture = colorTextures[current];
             _gfxContext->frame_rasterizeFramebuffer( _gdiContext, colorTexture, *currentCamera_ );
         }
@@ -415,7 +435,6 @@ public:
     bxGdiContext* _gdiContext;
     bxGfxContext* _gfxContext;
     bxGfxLights* _gfxLights;
-    bxGfxShadows* _gfxShadows;
     bxGfxPostprocess* _gfxPostprocess;
     bxGfxMaterialManager* _gfxMaterials;
     
