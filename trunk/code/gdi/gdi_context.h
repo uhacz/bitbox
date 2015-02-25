@@ -273,4 +273,12 @@ private:
 
 };
 
+namespace bxGdi
+{
+    inline void context_setViewport( bxGdiContext* ctx, bxGdiTexture texture )
+    {
+        ctx->setViewport( bxGdiViewport( 0, 0, texture.width, texture.height ) );
+    }
+}///
+
 

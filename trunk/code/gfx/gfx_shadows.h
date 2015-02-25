@@ -42,16 +42,15 @@ namespace bxGfx
 struct bxGfxShadows 
 {
     void splitDepth( float splits[bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera_Params& params, const float sceneZRange[2], float lambda );
-    void computeCascades( const float splits[ bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera& camera, const float sceneZRange[2], const Vector3& lightDirection );
+    void computeCascades( bxGfxShadows_Cascade* cascades, const float* splits, const bxGfxCamera& camera, const float sceneZRange[2], const Vector3& lightDirection );
 
     bxGfxShadows();
     void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void _Shurdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void _Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 
     void _ShowGUI();
 
 public:
-    bxGfxShadows_Cascade _cascade[ bxGfx::eSHADOW_NUM_CASCADES ];
     bxGdiTexture _depthTexture;
     bxGdiShaderFx_Instance* _fxI;
 
@@ -77,6 +76,12 @@ public:
         }
     } _params;
 };
+
+namespace bxGfx
+{
+    void shadows_splitDepth( float splits[bxGfx::eSHADOW_NUM_CASCADES], const bxGfxCamera_Params& params, const float sceneZRange[2], float lambda );
+    void shadows_computeCascades( bxGfxShadows_Cascade* cascades, const float* splits, const bxGfxCamera& camera, const float sceneZRange[2], const Vector3& lightDirection );
+}///
 
 
 

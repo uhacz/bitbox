@@ -21,19 +21,18 @@ struct bxGfxContext
     
     void frame_begin               ( bxGdiContext* ctx );
     void frame_zPrepass            ( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
-    void frame_drawShadows         ( bxGdiContext* ctx, bxGfxShadows* shadows, bxGfxRenderList** rLists, int numLists, const bxGfxCamera& camera, const bxGfxLights& lights );
+    void frame_drawShadows         ( bxGdiContext* ctx, bxGfxRenderList** rLists, int numLists, const bxGfxCamera& camera, const bxGfxLights& lights );
     void frame_drawColor           ( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists, bxGdiTexture ssaoTexture );
     void frame_rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera );
     void frame_end                 ( bxGdiContext* ctx );
 
     bxGdiTexture framebuffer( int index ) { SYS_ASSERT( index < bxGfx::eFRAMEBUFFER_COUNT );  return _framebuffer[index]; }
-
     int framebufferWidth() const { return _framebuffer->width; }
     int framebufferHeight() const { return _framebuffer->height; }
     
     static bxGfx::Shared* shared() { return &_shared; }
     static void submitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName );
-    
+    static void copyTexture_RGBA( bxGdiContext* ctx, bxGdiTexture outputTexture, bxGdiTexture inputTexture );
 
 private:
     bxGdiBuffer _cbuffer_frameData;
@@ -45,6 +44,7 @@ private:
     bxGfxSortList_Depth* _sortList_depth;
     bxGfxSortList_Shadow* _sortList_shadow;
 
+    bxGfxShadows _shadows;
     f32 _scene_zRange[2];
 
     static bxGfx::Shared _shared;

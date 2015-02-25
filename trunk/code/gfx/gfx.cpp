@@ -149,11 +149,15 @@ int bxGfxContext::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resource
     _sortList_depth  = bxGfx::sortList_new<bxGfxSortList_Depth>( nSortItems, bxDefaultAllocator() );
     _sortList_shadow = bxGfx::sortList_new<bxGfxSortList_Shadow>( nSortItems, bxDefaultAllocator() );
 
+    _shadows._Startup( dev, resourceManager );
+
     return 0;
 }
 
 void bxGfxContext::shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
+    _shadows._Shutdown( dev, resourceManager );
+    
     bxGfx::sortList_delete( &_sortList_depth, bxDefaultAllocator() );
     bxGfx::sortList_delete( &_sortList_color, bxDefaultAllocator() );
     {
@@ -194,6 +198,7 @@ void bxGfxContext::frame_zPrepass(bxGdiContext* ctx, const bxGfxCamera& camera, 
     }
     _sortList_depth->sortAscending();
     
+    bindCamera( ctx, camera, _framebuffer->width, _framebuffer->height );
     ctx->changeRenderTargets( &_framebuffer[ bxGfx::eFRAMEBUFFER_NORMAL_VS], 1, _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
     ctx->setViewport( bxGdiViewport( 0, 0, _framebuffer[0].width, _framebuffer[0].height ) );
@@ -203,7 +208,7 @@ void bxGfxContext::frame_zPrepass(bxGdiContext* ctx, const bxGfxCamera& camera, 
     bxGfx::submitSortList( ctx, _cbuffer_instanceData, _sortList_depth, bxGfx::eRENDER_ITEM_USE_STREAMS );
 }
 
-void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, bxGfxRenderList** rLists, int numLists, const bxGfxCamera& camera, const bxGfxLights& lights )
+void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxRenderList** rLists, int numLists, const bxGfxCamera& camera, const bxGfxLights& lights )
 {
     const bxGfxLight_Sun sunLight = lights.sunLight();
     const Vector3 sunLightDirection( xyz_to_m128( sunLight.dir.xyz ) );
@@ -224,12 +229,15 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
     bxGfx::cameraMatrix_compute( &cameraForCascades.matrix, cameraForCascades.params, cameraForCascades.matrix.world, 0, 0 );
 
     float depthSplits[ bxGfx::eSHADOW_NUM_CASCADES ];
-    shadows->splitDepth( depthSplits, cameraForCascades.params, sceneZRange, 0.75f );
-    shadows->computeCascades( depthSplits, cameraForCascades, sceneZRange, sunLightDirection );
+    bxGfxShadows_Cascade cascades[bxGfx::eSHADOW_NUM_CASCADES];
+    memset( cascades, 0x00, sizeof( cascades ) );
+
+    bxGfx::shadows_splitDepth( depthSplits, cameraForCascades.params, sceneZRange, 0.75f );
+    bxGfx::shadows_computeCascades( cascades, depthSplits, cameraForCascades, sceneZRange, sunLightDirection );
 
     for( int ilist = 0; ilist < numLists; ++ilist )
     {
-        bxGfx::sortList_computeShadow( _sortList_shadow, *rLists[ilist], shadows->_cascade, bxGfx::eSHADOW_NUM_CASCADES );
+        bxGfx::sortList_computeShadow( _sortList_shadow, *rLists[ilist], cascades, bxGfx::eSHADOW_NUM_CASCADES );
     }
 
     _sortList_shadow->sortAscending();
@@ -246,8 +254,8 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             viewports[i] = bxGdiViewport( i * bxGfx::eSHADOW_CASCADE_SIZE, 0, bxGfx::eSHADOW_CASCADE_SIZE, bxGfx::eSHADOW_CASCADE_SIZE );
         }
 
-        bxGdiTexture depthTexture = shadows->_depthTexture;
-        bxGdiShaderFx_Instance* shadowsFxI = shadows->_fxI;
+        bxGdiTexture depthTexture = _shadows._depthTexture;
+        bxGdiShaderFx_Instance* shadowsFxI = _shadows._fxI;
         bxGfxSortList_Shadow* sList = _sortList_shadow;
 
         ctx->changeRenderTargets( 0, 0, depthTexture );
@@ -267,7 +275,7 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             {
                 //SYS_ASSERT( currentCascade < key.cascade );
                 currentCascade = key.cascade;
-                const bxGfxShadows_Cascade& cascade = shadows->_cascade[currentCascade];
+                const bxGfxShadows_Cascade& cascade = cascades[currentCascade];
 
                 bxGfxCamera cascadeCamera;
                 cascadeCamera.matrix.view = cascade.view;
@@ -300,25 +308,25 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
             const Matrix4 tr = Matrix4::translation( Vector3(1.f,1.f,1.f) );
             for( int i = 0; i < bxGfx::eSHADOW_NUM_CASCADES; ++i )
             {
-                const bxGfxShadows_Cascade& cascade = shadows->_cascade[i];
+                const bxGfxShadows_Cascade& cascade = cascades[i];
                 worldToShadowSpace[i] = ( sc * tr * cascade.proj ) * cascade.view;
                 viewToShadowSpace[i] = worldToShadowSpace[i] * camera.matrix.world;
 
                 clipPlanes[i] = mulPerElem( cascade.zNear_zFar, Vector4(-1.f,-1.f,1.f,1.f) );
-                clipPlanes[i].setZ( shadows->_params.bias );
-                clipPlanes[i].setW( shadows->_params.normalOffsetScale[i] );
+                clipPlanes[i].setZ( _shadows._params.bias );
+                clipPlanes[i].setW( _shadows._params.normalOffsetScale[i] );
             }
             shadowsFxI->setUniform( "worldToShadowSpace", worldToShadowSpace );
             shadowsFxI->setUniform( "viewToShadowSpace", viewToShadowSpace );
             shadowsFxI->setUniform( "clipPlanes_bias_nOffset", clipPlanes );
             shadowsFxI->setUniform( "lightDirectionWS", sunLightDirection );
             shadowsFxI->setUniform( "occlusionTextureSize", float2_t( shadowsTexture.width, shadowsTexture.height ) );
-            shadowsFxI->setUniform( "shadowMapSize", float2_t( shadows->_depthTexture.width, shadows->_depthTexture.height ) );
+            shadowsFxI->setUniform( "shadowMapSize", float2_t( depthTexture.width, depthTexture.height ) );
 
-            shadowsFxI->setUniform( "depthBias", shadows->_params.bias );
-            shadowsFxI->setUniform( "useNormalOffset", shadows->_params.flag_useNormalOffset );
+            shadowsFxI->setUniform( "depthBias", _shadows._params.bias );
+            shadowsFxI->setUniform( "useNormalOffset", _shadows._params.flag_useNormalOffset );
             
-            shadowsFxI->setTexture( "shadowMap", shadows->_depthTexture );
+            shadowsFxI->setTexture( "shadowMap", _shadows._depthTexture );
             shadowsFxI->setTexture( "sceneDepthTex", _framebuffer[bxGfx::eFRAMEBUFFER_DEPTH] );
             shadowsFxI->setTexture( "normalsVS", _framebuffer[bxGfx::eFRAMEBUFFER_NORMAL_VS] );
             
@@ -340,6 +348,8 @@ void bxGfxContext::frame_drawShadows( bxGdiContext* ctx, bxGfxShadows* shadows, 
         }
     }
     ctx->clear();
+
+    _shadows._ShowGUI();
 }
 
 void bxGfxContext::frame_drawColor( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists, bxGdiTexture ssaoTexture )
@@ -399,6 +409,12 @@ void bxGfxContext::submitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instan
     ctx->draw( _shared.rsource.fullScreenQuad->vertexBuffers->numElements, 0 );
 }
 
+void bxGfxContext::copyTexture_RGBA(bxGdiContext* ctx, bxGdiTexture outputTexture, bxGdiTexture inputTexture)
+{
+    ctx->changeRenderTargets( &outputTexture, 1 );
+    bxGdi::context_setViewport( ctx, outputTexture );
+    submitFullScreenQuad( ctx, _shared.shader.texUtils, "copy_rgba" );
+}
 
 void bxGfxContext::bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera, int rtWidth, int rtHeight )
 {
@@ -508,7 +524,7 @@ void bxGfxPostprocess::sky(bxGdiContext* ctx, bxGdiTexture outTexture, const bxG
     _fxI_fog->setUniform( "_skyIlluminance", sunLight.skyIlluminance );
     _fxI_fog->setUniform( "_fallOff", _fog.fallOff );
 
-    ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
+    ctx->changeRenderTargets( &outTexture, 1 );
     ctx->setViewport( bxGdiViewport( 0, 0, outTexture.width, outTexture.height ) );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
     bxGfxContext::submitFullScreenQuad( ctx, _fxI_fog, "sky" );
@@ -516,19 +532,13 @@ void bxGfxPostprocess::sky(bxGdiContext* ctx, bxGdiTexture outTexture, const bxG
 
 void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, bxGdiTexture shadowTexture, const bxGfxLight_Sun& sunLight )
 {
-    //_fxI_fog->setUniform( "_sunDir", sunLight.dir );
-    //_fxI_fog->setUniform( "_sunColor", sunLight.color );
-    //_fxI_fog->setUniform( "_sunIlluminance", sunLight.illuminance );
-    //_fxI_fog->setUniform( "_skyIlluminance", 60000.f );
-    //_fxI_fog->setUniform( "_fallOff", _fog.fallOff );
-    
-    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
-    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ), 1, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ), 0, bxGdi::eSTAGE_MASK_PIXEL );
+    ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR ), 1, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( depthTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( inTexture, 1, bxGdi::eSTAGE_MASK_PIXEL );
     ctx->setTexture( shadowTexture, 2, bxGdi::eSTAGE_MASK_PIXEL );
 
-    ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
+    ctx->changeRenderTargets( &outTexture, 1 );
     ctx->setViewport( bxGdiViewport( 0, 0, outTexture.width, outTexture.height) );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
     bxGfxContext::submitFullScreenQuad( ctx, _fxI_fog, "fog" );
@@ -557,7 +567,7 @@ void bxGfxPostprocess::ssao(bxGdiContext* ctx, bxGdiTexture nrmVSTexture, bxGdiT
     bxGdiTexture outTexture = _ssao.outputTexture;
     bxGdiTexture swapTexture = _ssao.swapTexture;
 
-    ctx->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
+    ctx->changeRenderTargets( &outTexture, 1 );
     ctx->setViewport( bxGdiViewport( 0, 0, outTexture.width, outTexture.height ) );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
 
@@ -581,6 +591,7 @@ void bxGfxPostprocess::fxaa( bxGdiContext* ctx, bxGdiTexture outputTexture, bxGd
     _fxI_fxaa->setSampler( "sampl_source", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR ) );
 
     ctx->changeRenderTargets( &outputTexture, 1 );
+    ctx->setViewport( bxGdiViewport( 0, 0, outputTexture.width, outputTexture.height ) );
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
     bxGfxContext::submitFullScreenQuad( ctx, _fxI_fxaa, "fxaa" );
 }

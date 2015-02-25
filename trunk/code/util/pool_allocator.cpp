@@ -86,6 +86,7 @@ bxDynamicPoolAllocator::bxDynamicPoolAllocator()
 : _begin(0)
 , _baseAllocator(0)
 , _alignment(0)
+, _allocatedSize(0)
 {}
 
 bxDynamicPoolAllocator::~bxDynamicPoolAllocator()
@@ -143,6 +144,8 @@ void* bxDynamicPoolAllocator::_alloc()
         prev_node->next = node;
     }
     
+    _allocatedSize += _begin->pool.chunkSize();
+
     return node->pool.alloc();
 }
 
@@ -169,6 +172,8 @@ void bxDynamicPoolAllocator::_free( void*& address )
     }
     else
     {
+        _allocatedSize -= node->pool.chunkSize();
+        SYS_ASSERT( _allocatedSize >= 0 );
         node->pool.free( address );
     }
 }
