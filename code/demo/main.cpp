@@ -43,8 +43,8 @@ union bxObject_Instance
     u32 hash;
     struct
     {
-        u32 index : 12;
-        u32 magic : 20;
+        u32 index : 16;
+        u32 magic : 16;
     };
 };
 
