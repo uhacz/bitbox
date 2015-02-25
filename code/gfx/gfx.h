@@ -17,7 +17,7 @@ struct bxGfxContext
     int _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     
-    void bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera, int rtWidth, int rtHeight );
+    void bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera, int rtWidth = -1, int rtHeight = -1 );
     
     void frame_begin               ( bxGdiContext* ctx );
     void frame_zPrepass            ( bxGdiContext* ctx, const bxGfxCamera& camera, bxGfxRenderList** rLists, int numLists );
@@ -62,6 +62,9 @@ struct bxGfxPostprocess
     void sky( bxGdiContext* ctx, bxGdiTexture outTexture, const bxGfxLight_Sun& sunLight );
     void fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, bxGdiTexture depthTexture, bxGdiTexture shadowTexture, const bxGfxLight_Sun& sunLight );
     void ssao( bxGdiContext* ctx, bxGdiTexture nrmVSTexture, bxGdiTexture depthTexture );
+    void fxaa( bxGdiContext* ctx, bxGdiTexture outputTexture, bxGdiTexture inputTexture );
+    
+    
     bxGdiTexture ssaoOutput() const { return _ssao.outputTexture;  }
 
     bxGfxPostprocess();
@@ -126,5 +129,6 @@ private:
     bxGdiShaderFx_Instance* _fxI_toneMapping;
     bxGdiShaderFx_Instance* _fxI_fog;
     bxGdiShaderFx_Instance* _fxI_ssao;
+    bxGdiShaderFx_Instance* _fxI_fxaa;
 };
 

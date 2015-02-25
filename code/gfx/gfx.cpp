@@ -402,6 +402,8 @@ void bxGfxContext::submitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instan
 
 void bxGfxContext::bindCamera( bxGdiContext* ctx, const bxGfxCamera& camera, int rtWidth, int rtHeight )
 {
+    rtWidth = ( rtWidth == -1 ) ? _framebuffer->width : rtWidth;
+    rtHeight = ( rtHeight == -1 ) ? _framebuffer->height : rtHeight;
     bxGfx::FrameData fdata;
     bxGfx::frameData_fill( &fdata, camera, rtWidth, rtHeight );
     ctx->backend()->updateCBuffer( _cbuffer_frameData, &fdata );
@@ -420,14 +422,15 @@ void bxGfxPostprocess::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* res
     _fxI_toneMapping = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "tone_mapping" );
     _fxI_fog = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "fog" );
     _fxI_ssao = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "sao" );
+    _fxI_fxaa = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "fxaa" );
 
     const int lumiTexSize = 1024;
     _toneMapping.adaptedLuminance[0] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
     _toneMapping.adaptedLuminance[1] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
     _toneMapping.initialLuminance    = dev->createTexture2D( lumiTexSize, lumiTexSize, 1 , bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
 
-    const int ssaoTexWidth = fbWidth;
-    const int ssaoTexHeight = fbHeight;
+    const int ssaoTexWidth = fbWidth/2;
+    const int ssaoTexHeight = fbHeight/2;
     _ssao.outputTexture = dev->createTexture2D( ssaoTexWidth, ssaoTexHeight, 1, bxGdiFormat( bxGdi::eTYPE_UBYTE, 4, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
     _ssao.swapTexture   = dev->createTexture2D( ssaoTexWidth, ssaoTexHeight, 1, bxGdiFormat( bxGdi::eTYPE_UBYTE, 4, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
 }
@@ -440,6 +443,7 @@ void bxGfxPostprocess::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* re
     dev->releaseTexture( &_toneMapping.adaptedLuminance[1] );
     dev->releaseTexture( &_toneMapping.adaptedLuminance[0] );
 
+    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_fxaa );
     bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_ssao );
     bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_fog );
     bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_toneMapping );
@@ -534,7 +538,7 @@ void bxGfxPostprocess::fog( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTex
     ctx->setTexture( bxGdiTexture(), 2, bxGdi::eSTAGE_MASK_PIXEL );
 }
 
-void bxGfxPostprocess::ssao(bxGdiContext* ctx, bxGdiTexture nrmVSTexture, bxGdiTexture depthTexture)
+void bxGfxPostprocess::ssao(bxGdiContext* ctx, bxGdiTexture nrmVSTexture, bxGdiTexture depthTexture )
 {
     ++_ssao._frameCounter;
 
@@ -545,6 +549,7 @@ void bxGfxPostprocess::ssao(bxGdiContext* ctx, bxGdiTexture nrmVSTexture, bxGdiT
     _fxI_ssao->setUniform( "_bias", _ssao._bias );
     _fxI_ssao->setUniform( "_intensity", _ssao._intensity );
     _fxI_ssao->setUniform( "_projScale", _ssao._projScale );
+    _fxI_ssao->setUniform( "_ssaoTexSize", float2_t( _ssao.outputTexture.width, _ssao.outputTexture.height ) );
     _fxI_ssao->setUniform( "_randomRot", rnd.getf( 0.f, 100.f ) );
     _fxI_ssao->setTexture( "tex_normalsVS", nrmVSTexture );
     _fxI_ssao->setTexture( "tex_hwDepth", depthTexture );
@@ -567,6 +572,17 @@ void bxGfxPostprocess::ssao(bxGdiContext* ctx, bxGdiTexture nrmVSTexture, bxGdiT
     ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
     _fxI_ssao->setTexture( "tex_source", swapTexture );
     bxGfxContext::submitFullScreenQuad( ctx, _fxI_ssao, "blurY" );
+}
+
+void bxGfxPostprocess::fxaa( bxGdiContext* ctx, bxGdiTexture outputTexture, bxGdiTexture inputTexture )
+{
+    _fxI_fxaa->setUniform( "_rcpFrame", float2_t( 1.f / (float)outputTexture.width, 1.f / (float)outputTexture.height ) );
+    _fxI_fxaa->setTexture( "tex_source", inputTexture );
+    _fxI_fxaa->setSampler( "sampl_source", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR ) );
+
+    ctx->changeRenderTargets( &outputTexture, 1 );
+    ctx->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+    bxGfxContext::submitFullScreenQuad( ctx, _fxI_fxaa, "fxaa" );
 }
 
 #include "gfx_gui.h"

@@ -316,18 +316,17 @@ public:
         //    const Vector3 pos( xyz_to_m128( l.position.xyz ) );
         //    bxGfxDebugDraw::addSphere( Vector4( pos, floatInVec( l.radius*0.1f ) ), color, true );
         //}
-        {
-            Vector3 corners[8];
-            bxGfx::viewFrustum_extractCorners( corners, camera.matrix.viewProj );
-            frustumBBox = bxAABB::prepare();
-            for( int i = 0; i < 8; ++i )
-            {
-                frustumBBox = bxAABB::extend( frustumBBox, corners[i] );
-            }
+        //{
+        //    Vector3 corners[8];
+        //    bxGfx::viewFrustum_extractCorners( corners, camera.matrix.viewProj );
+        //    frustumBBox = bxAABB::prepare();
+        //    for( int i = 0; i < 8; ++i )
+        //    {
+        //        frustumBBox = bxAABB::extend( frustumBBox, corners[i] );
+        //    }
 
-            bxGfxDebugDraw::addBox( Matrix4::translation( bxAABB::center( frustumBBox ) ), bxAABB::size( frustumBBox )*0.5f, 0xFF0000FF, true );
-
-        }
+        //    bxGfxDebugDraw::addBox( Matrix4::translation( bxAABB::center( frustumBBox ) ), bxAABB::size( frustumBBox )*0.5f, 0xFF0000FF, true );
+        //}
 
         _gfxLights->cullLights( camera );
         
@@ -342,19 +341,17 @@ public:
         }
 
         _gfxContext->frame_drawShadows( _gdiContext, _gfxShadows, &rList, 1, *currentCamera_, *_gfxLights );
-
         _gfxContext->bindCamera( _gdiContext, *currentCamera_ );
         {
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             _gfxPostprocess->sky( _gdiContext, outputTexture, _gfxLights->sunLight() );
         }
-        _gfxLights->bind( _gdiContext );
 
+        _gfxLights->bind( _gdiContext );
         _gfxContext->frame_drawColor( _gdiContext, *currentCamera_, &rList, 1, _gfxPostprocess->ssaoOutput() );
 
         _gdiContext->clear();
         _gfxContext->bindCamera( _gdiContext, *currentCamera_ );
-        
         {
             bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
@@ -363,15 +360,21 @@ public:
             _gfxPostprocess->fog( _gdiContext, outputTexture, colorTexture, depthTexture, shadowTexture, _gfxLights->sunLight() );
         }
         {
-            bxGdiTexture colorTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+            bxGdiTexture inputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
             bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-            _gfxPostprocess->toneMapping( _gdiContext, outputTexture, colorTexture, deltaTime );
+            _gfxPostprocess->toneMapping( _gdiContext, outputTexture, inputTexture, deltaTime );
         }
         
         {
+            bxGdiTexture inputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+            bxGdiTexture outputTexture = _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+            _gfxPostprocess->fxaa( _gdiContext, outputTexture, inputTexture );
+        }
+
+        {
             bxGdiTexture colorTextures[] = 
             {
-                _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR ),
+                _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP ),
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ),
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_NORMAL_VS ),
                 _gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS ),
