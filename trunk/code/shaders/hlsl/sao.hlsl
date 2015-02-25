@@ -59,6 +59,7 @@ shared cbuffer MaterialData: register(b3)
     float _intensity;
     float _projScale;
     float _randomRot;
+    float2 _ssaoTexSize;
 };
 
 
@@ -258,8 +259,10 @@ float4 ps_ssao( out_VS_screenquad In ) : SV_Target
     // World space point being shaded
     float3 C = getPosition(ssC);
 
+    //float shadows = tex_shadows.Load( int3( ssC, 0 ) ).r;
+
     // bw: early out on borders of screen to avoid over-darkening, load defaults to 0
-    bool earlyOut = C.z > FAR_PLANE_Z || C.z < 0.4f || any(ssC < 8) || any(ssC >= (_renderTarget_size-8));
+    bool earlyOut = C.z > FAR_PLANE_Z || C.z < 0.4f || any(ssC < 8) || any(ssC >= (_renderTarget_size-8));// || shadows >= 1.f ;
     [branch]
     if(earlyOut)
     {
@@ -273,7 +276,7 @@ float4 ps_ssao( out_VS_screenquad In ) : SV_Target
     //float aoPrevFrame = prevFrame.r;
 
     // Hash function used in the HPG12 AlchemyAO paper + random rotation from CPU
-    float randomPatternRotationAngle = (3 * ssC.x ^ ssC.y + ssC.x * ssC.y) * 10 + _randomRot;
+    float randomPatternRotationAngle = (3 * ssC.x ^ ssC.y + ssC.x * ssC.y) * 10; // + _randomRot;
 
     // Reconstruct normals from positions. These will lead to 1-pixel black lines
     // at depth discontinuities, however the blur will wipe those out so they are not visible
@@ -434,12 +437,12 @@ float4 doBlur( int2 ssC, float2 axis )
 
 float4 ps_blurX( out_VS_screenquad In ) : SV_Target
 {
-    float2 vPos = In.uv * _renderTarget_size;
+    float2 vPos = In.uv * _ssaoTexSize;
     return doBlur( (int2)vPos, float2(1, 0) );
 }
 float4 ps_blurY( out_VS_screenquad In ) : SV_Target
 {
-    float2 vPos = In.uv * _renderTarget_size;
+    float2 vPos = In.uv * _ssaoTexSize;
     return doBlur( (int2)vPos, float2(0, 1) );
 }
 //float4 ps_blur( out_VS_screenquad In ) : SV_Target
