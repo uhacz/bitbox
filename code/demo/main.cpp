@@ -37,7 +37,60 @@ static int nPointLights = 0;
 static bxAABB frustumBBox = bxAABB::prepare();
 static bxGfxCamera* currentCamera_ = NULL;
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct bxTree_FlatData
+{
+    array_t< i16 > _parentIndices;
+    array_t< u64 > _data;
+};
 
+struct bxTree_Index
+{
+    i32 i;
+};
+
+struct bxTree
+{
+    bxTree();
+
+    bxTree_Index create( bxTree_Index parent );
+    void link( bxTree_Index parent, bxTree_Index child );
+    void unlink( bxTree_Index child );
+
+    void flatten( bxTree_FlatData* dst );
+
+private:
+
+    struct Node
+    {
+        u16 self;
+        u16 parent;
+        u16 next;
+        u16 firstChild;
+    };
+        
+    array_t< Node > _nodes;
+    array_t< u64 > _data;
+};
+
+struct bxTree_Iterator
+{
+    bxTree_Iterator( bxTree& tree, bxTree_Index start );
+    
+    bool next( bxTree_Index* nextIndex );
+        
+private:
+    bxTree& _tree;
+    bxTree_Index _current;
+};
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 union bxObject_Instance
 {
     u32 hash;
@@ -48,19 +101,43 @@ union bxObject_Instance
     };
 };
 
+struct bxObject_Data
+{
+    bxGdiRenderSource* rsource;
+    bxGdiShaderFx_Instance* fxI;
+    Matrix4* matrices;
+    u16 nMatrices;
+};
+
 struct bxObject
 {
-    
+    bxObject();
 
+    bxObject_Instance create();
+    void release( bxObject_Instance* i );
+
+    int  size() const;
+    bool empty() const;
+    bool has( bxObject_Instance i ) const;
+    bxObject_Instance find( const char* name );
+    bxObject_Data get( bxObject_Instance i ) const;
+
+private:
+    hashmap_t _nameLookup;
     array_t< bxGdiRenderSource* >       _rsource;
     array_t< bxGdiShaderFx_Instance* >  _fxI;
     array_t< Matrix4* >                 _matrices;
     array_t< u16 >                      _numMatrices;
+    bxTree                              _tree;
 
     bxAllocator* _alloc_singleMatrix;
     bxAllocator* _alloc_multipleMatrix;
 };
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
 //union bxVoxelGrid_Coords
 //{
@@ -101,8 +178,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );

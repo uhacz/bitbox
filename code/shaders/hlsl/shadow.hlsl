@@ -313,6 +313,7 @@ uint selectSplit( float z )
         if( z < clipPlaneGet(i).x )
         {
             currentSplit = i;
+
         }
     }
 
@@ -362,7 +363,7 @@ float ps_shadowVolume( in in_PS_shadow input ) : SV_Target0
     const float rayLengthVS = length( rayDirVS );
     rayDirVS *= rcp( rayLengthVS );
     float step = rayLengthVS / (float)(NUM_STEPS);
-    float currRayLen = _camera_zNear;
+    float currRayLen = _camera_zNear + ( step * ( sin( input.uv.x * input.uv.y ) * 0.5 + 0.5 ) );
     float value = 0.f;
     while( currRayLen < rayLengthVS )
     {
