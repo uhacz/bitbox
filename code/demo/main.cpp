@@ -41,51 +41,84 @@ static bxGfxCamera* currentCamera_ = NULL;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-//struct bxTree_FlatData
-//{
-//    array_t< i16 > _parentIndices;
-//    array_t< u64 > _data;
-//};
-//
-//struct bxTree_Index
-//{
-//    i32 i;
-//};
-//
-//struct bxTree
-//{
-//    bxTree();
-//
-//    bxTree_Index create( bxTree_Index parent );
-//    void link( bxTree_Index parent, bxTree_Index child );
-//    void unlink( bxTree_Index child );
-//
-//    void flatten( bxTree_FlatData* dst );
-//
-//private:
-//
-//    struct Node
-//    {
-//        u16 self;
-//        u16 parent;
-//        u16 next;
-//        u16 firstChild;
-//    };
-//        
-//    array_t< Node > _nodes;
-//    array_t< u64 > _data;
-//};
-//
-//struct bxTree_Iterator
-//{
-//    bxTree_Iterator( bxTree& tree, bxTree_Index start );
-//    
-//    bool next( bxTree_Index* nextIndex );
-//        
-//private:
-//    bxTree& _tree;
-//    bxTree_Index _current;
-//};
+struct bxTree_Index
+{
+    u32 i;
+};
+
+struct bxTree
+{
+    bxTree();
+
+    bxTree_Index create()
+    {
+        bxTree_Index idx = { 0 };
+        
+        if( _freeList == UINT_MAX )
+        {
+            idx.i = array::push_back( _nodes, Node() );
+        }
+        else
+        {
+            idx.i = _freeList;
+            Node& node = _nodes[_freeList];
+            _freeList = node._freeListNext;
+            node = Node();            
+            node.self = idx.i;
+        }
+
+        return idx;
+    }
+    void release( bxTree_Index* i  )
+    {
+        
+    }
+    void link( bxTree_Index parent, bxTree_Index child );
+    void unlink( bxTree_Index child );
+
+    u64 data( bxTree_Index i ) const;
+    void setData( bxTree_Index i, u64 d );
+
+private:
+
+    union Node
+    {
+        struct  
+        {
+            u32 _freeListNext;
+        };
+        struct  
+        {
+            u32 self;
+            u32 parent;
+            u32 next;
+            u32 firstChild;
+            u64 value;
+        };
+        
+        Node()
+            : self( 0xFFFF )
+            , parent( 0xFFFF )
+            , next( 0xFFFF )
+            , firstChild( 0xFFFF )
+            , value(0)
+        {}
+    };
+        
+    array_t< Node > _nodes;
+    u32 _freeList;
+};
+
+struct bxTree_Iterator
+{
+    bxTree_Iterator( bxTree& tree, bxTree_Index start );
+    
+    bool next( bxTree_Index* nextIndex );
+        
+private:
+    bxTree& _tree;
+    bxTree_Index _current;
+};
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -110,16 +143,12 @@ struct Transform
 
 struct bxObject_Data
 {
-    bxObject_Instance parent;
-    
     bxGdiRenderSource* rsource;
     bxGdiShaderFx_Instance* fxI;
     Matrix4* matrices;
     Transform* transforms;
     u16 nMatrices;
 };
-
-
 
 struct bxObject
 {
@@ -141,6 +170,7 @@ private:
     array_t< Matrix4* >                 _matrices;
     array_t< Transform* >               _transforms;
     array_t< u16 >                      _numMatrices;
+    array_t< bxTree_Index >             _treeIndices;
     
 
     bxAllocator* _alloc_singleMatrix;
@@ -148,6 +178,26 @@ private:
     bxAllocator* _alloc_singleTransform;
     bxAllocator* _alloc_multipleTransform;
 };
+
+
+//struct bxSpatialGraph_Handle
+//{
+//    u32 i;
+//};
+//
+//struct bxSpatialGraph
+//{
+//    bxSpatialGraph();
+//
+//    bxSpatialGraph_Handle create();
+//    void release( bxSpatialGraph_Handle* h );
+//
+//    void link( bxSpatialGraph_Handle parent, bxSpatialGraph_Handle child );
+//    void unlink( bxSpatialGraph_Handle child );
+//
+//    
+//
+//};
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
