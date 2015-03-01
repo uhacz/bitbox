@@ -5,6 +5,8 @@ struct ShadingData
 {
     float3 V;
     float3 N;
+    float shadow;
+    float ssao;
 };
 
 ////

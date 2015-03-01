@@ -83,6 +83,8 @@ out_PS ps_main( in_PS input )
     ShadingData shData;
     shData.N = N;
     shData.V = V;
+    shData.shadow = shadowValue;
+    shData.ssao = ssaoValue;
     
     float3 colorFromLights = float3(0.f, 0.f, 0.f);
     
@@ -109,7 +111,7 @@ out_PS ps_main( in_PS input )
     float3 sunIlluminance = evaluateSunLight( shData, input.w_pos, mat );
     colorFromLights += _sunColor * sunIlluminance;
 
-    float colorInShadow = lerp( 0.1f, 0.5f, ssaoValue );
+    float colorInShadow = lerp( 0.1f, 0.75f, ssaoValue );
     float colorCoeff = lerp( colorInShadow, 1.f, shadowValue );
     OUT.rgba.xyz = colorFromLights * colorCoeff;// lerp( colorFromLights * colorInShadow, colorFromLights, shadowValue );
     //OUT.rgba.xyz = colorFromLights;

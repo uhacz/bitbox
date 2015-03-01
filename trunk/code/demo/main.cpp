@@ -124,60 +124,9 @@ private:
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-union bxObject_Instance
-{
-    u32 hash;
-    struct
-    {
-        u32 index : 16;
-        u32 magic : 16;
-    };
-};
 
-struct Transform
-{
-    Matrix3 rotation;
-    Vector3 translation;
-    Vector3 scale;
-};
 
-struct bxObject_Data
-{
-    bxGdiRenderSource* rsource;
-    bxGdiShaderFx_Instance* fxI;
-    Matrix4* matrices;
-    Transform* transforms;
-    u16 nMatrices;
-};
 
-struct bxObject
-{
-    bxObject();
-
-    bxObject_Instance create();
-    void release( bxObject_Instance* i );
-
-    int  size() const;
-    bool empty() const;
-    bool has( bxObject_Instance i ) const;
-    bxObject_Instance find( const char* name );
-    bxObject_Data get( bxObject_Instance i ) const;
-
-private:
-    hashmap_t _nameLookup;
-    array_t< bxGdiRenderSource* >       _rsource;
-    array_t< bxGdiShaderFx_Instance* >  _fxI;
-    array_t< Matrix4* >                 _matrices;
-    array_t< Transform* >               _transforms;
-    array_t< u16 >                      _numMatrices;
-    array_t< bxTree_Index >             _treeIndices;
-    
-
-    bxAllocator* _alloc_singleMatrix;
-    bxAllocator* _alloc_multipleMatrix;
-    bxAllocator* _alloc_singleTransform;
-    bxAllocator* _alloc_multipleTransform;
-};
 
 
 //struct bxSpatialGraph_Handle
@@ -393,7 +342,7 @@ public:
         rList->clear();
 
         {
-            bxRandomGen rnd( 0xBAADF00D );
+            bxRandomGen rnd( 0xBAADF08D );
 
             static float phase = 0.f;
             phase = fmodf( phase + deltaTime, 8.f * PI );
@@ -406,8 +355,8 @@ public:
             const int gridY = 5;
             const int gridZ = 5;
 
-            const float cellSize = 2.f;
-            const float yOffset = 2.f;
+            const float cellSize = 2.5f;
+            const float yOffset = 4.f;
             const float zOffset = -0.f;
             bxGdiRenderSource* rsources[] =
             {

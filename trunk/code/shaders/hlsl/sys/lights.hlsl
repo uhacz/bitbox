@@ -45,7 +45,7 @@ float3 evaluateSunLight( in ShadingData shd, float3 surfPos, in Material mat )
     const float illuminance = _sunIlluminanceInLux * wrappedLambert( saturate( dot( N, D ) ), w, n );
 
     const float3 Fd = BRDF_diffuseOnly( D, shd, mat );
-    const float3 Fr = BRDF_specularOnly( L, shd, mat );
+    const float3 Fr = BRDF_specularOnly( L, shd, mat ) * shd.shadow;
 
     return (Fd + Fr) * illuminance;
     //return Fd * illuminance;

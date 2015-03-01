@@ -119,7 +119,7 @@ private:
         SSAO()
             : _radius(1.2f)
             , _bias( 0.025f )
-            , _intensity( 0.3f )
+            , _intensity( 0.5f )
             , _projScale( 700.f )
             , _frameCounter( 0 )
 

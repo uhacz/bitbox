@@ -21,7 +21,7 @@ passes:
         {
             depth_test = 0;
             depth_write = 0;
-            color_mask = "R";
+            color_mask = "RGB";
         };
     };
 
@@ -74,7 +74,7 @@ float loadLinearDepth( int2 ssP )
 
 
 // Total number of direct samples to take at each pixel
-#define NUM_SAMPLES (9)
+#define NUM_SAMPLES (11)
 
 static const int ROTATIONS[] = { 1, 1, 2, 3, 2, 5, 2, 3, 2,
 3, 3, 5, 5, 3, 4, 7, 5, 5, 7,
@@ -337,7 +337,7 @@ float4 ps_ssao( out_VS_screenquad In ) : SV_Target
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Increase to make edges crisper. Decrease to reduce temporal flicker. */
-#define EDGE_SHARPNESS     (0.6)
+#define EDGE_SHARPNESS     (0.1)
 
 /** Step in 2-pixel intervals since we already blurred against neighbors in the
     first AO pass.  This constant can be increased while R decreases to improve
@@ -418,7 +418,7 @@ float4 doBlur( int2 ssC, float2 axis )
             float value = temp.VALUE_COMPONENTS;
 
             // spatial domain: offset gaussian tap
-            float weight = gaussian[abs( r )];
+            float weight = 0.3 + gaussian[abs( r )];
 
             // range domain (the "bilateral" weight). As depth difference increases, decrease weight.
             weight *= max( 0.0, 1.0 - (2000.0 * EDGE_SHARPNESS) * abs( tapKey - key ) );
@@ -430,8 +430,13 @@ float4 doBlur( int2 ssC, float2 axis )
 
     const float epsilon = 0.0001;
     result = sum / (totalWeight + epsilon);
+    
+#ifdef blurY
     float afterGamma = result;
-    output = float4(pow( afterGamma.xxx, 2.2 ),1);
+    afterGamma = pow( afterGamma, 2.2 );
+    output = afterGamma.xxxx;
+#endif
+    
     return output;
 }
 
@@ -445,71 +450,3 @@ float4 ps_blurY( out_VS_screenquad In ) : SV_Target
     float2 vPos = In.uv * _ssaoTexSize;
     return doBlur( (int2)vPos, float2(0, 1) );
 }
-//float4 ps_blur( out_VS_screenquad In ) : SV_Target
-//{
-//    float2 vPos = In.uv * _renderTarget_rcp_size.zw;
-//
-//    // Pixel being shaded 
-//    int2 ssC = vPos;
-//
-//    float4 output = 1.0f;
-//
-//    float4 temp = tex_source.Load(int3(ssC, 0));
-//
-//    keyPassThrough = temp.KEY_COMPONENTS;
-//    float key = unpackKey(keyPassThrough);
-//
-//    float sum = temp.VALUE_COMPONENTS;
-//
-//    [branch]
-//    if (key == 1.0) 
-//    { 
-//        // Sky pixel (if you aren't using depth keying, disable this test)
-//        result = sum;
-//        return output;
-//    }
-//
-//    // Base weight for depth falloff.  Increase this for more blurriness,
-//    // decrease it for better edge discrimination
-//    float BASE = gaussian[0];
-//    float totalWeight = BASE;
-//    sum *= totalWeight;
-//
-//    [unroll]
-//    for (int r = -R; r <= R; ++r) 
-//    {
-//        // We already handled the zero case above.  This loop should be unrolled and the branch discarded
-//        if (r != 0) 
-//        {
-//#ifdef POP_BLUR_X
-//            float2 axis = float2(1,0);
-//#else
-//            float2 axis = float2(0,1);
-//#endif
-//            temp = tex_source.Load(int3(ssC + axis * (r * SCALE), 0));
-//            float tapKey = unpackKey(temp.KEY_COMPONENTS);
-//            float value  = temp.VALUE_COMPONENTS;
-//
-//            // spatial domain: offset gaussian tap
-//            float weight = 0.3 + gaussian[abs( r )];
-//
-//            // range domain (the "bilateral" weight). As depth difference increases, decrease weight.
-//            weight *= max(0.0, 1.0 - (2000.0 * EDGE_SHARPNESS) * abs(tapKey - key));
-//
-//            sum += value * weight;
-//            totalWeight += weight;
-//        }
-//    }
-//
-//    const float epsilon = 0.0001;
-//    result = sum / (totalWeight + epsilon);	
-//
-////#ifdef POP_BLUR_Y
-////    //float afterGamma = pow(result, g_PostAttenuationGamma);
-////    //afterGamma = lerp(1, afterGamma, g_PostAttenuationAmount);
-////    float afterGamma = result;
-////    output = float4(afterGamma.xxx,1);
-////#endif
-//
-//    return output.xxxx;
-//}
