@@ -98,6 +98,7 @@
     <ClInclude Include="memory.h" />
     <ClInclude Include="poly\poly_shape.h" />
     <ClInclude Include="pool_allocator.h" />
+    <ClInclude Include="queue.h" />
     <ClInclude Include="random.h" />
     <ClInclude Include="range_splitter.h" />
     <ClInclude Include="signal_filter.h" />
