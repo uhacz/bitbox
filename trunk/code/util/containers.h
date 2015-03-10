@@ -11,7 +11,7 @@ struct array_t
     bxAllocator* allocator;
     T* data;
     
-    array_t( bxAllocator* alloc = bxDefaultAllocator() );
+    explicit array_t( bxAllocator* alloc = bxDefaultAllocator() );
     ~array_t();
 
     T &operator[]( int i) { return data[i]; }
@@ -25,10 +25,11 @@ struct queue_t
     u32 size;
     u32 offset;
 
-    queue_t( bxAllocator* alloc = bxDefaultAllocator() );
+    explicit queue_t( bxAllocator* alloc = bxDefaultAllocator() );
+    ~queue_t();
 
-    T &operator[]( int i);
-	const T &operator[]( int i) const;
+          T &operator[]( int i )        { return data[(i + offset) % data.size]; }
+    const T &operator[]( int i ) const  { return data[(i + offset) % data.size]; }
 };
 
 struct hashmap_t

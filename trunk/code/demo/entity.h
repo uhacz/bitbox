@@ -2,8 +2,6 @@
 
 #include <util/containers.h>
 
-
-
 union bxEntity
 {
     enum
