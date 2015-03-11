@@ -51,8 +51,7 @@ namespace queue
     /// This is the number of items we can push before the queue needs to grow.
     template< typename T > u32      space ( const queue_t<T>& q ) { return q.data.size - q.size; }
     
-    template< typename T > 
-    void reserve( queue_t<T>& q, u32 size )
+    template< typename T > void reserve( queue_t<T>& q, u32 size )
     {
         if ( size > q.size )
         {
@@ -60,22 +59,19 @@ namespace queue
         }
     }
 
-    template< typename T >
-    void push_back( queue_t<T>& q, const T& item )
+    template< typename T > void push_back( queue_t<T>& q, const T& item )
     {
         if ( !space(q) )
             queue_internal::grow( q );
 
-        q[size++] = item;
+        q[q.size++] = item;
     }
 
-    template< typename T >
-    void pop_back( queue_t<T>& q )
+    template< typename T > void pop_back( queue_t<T>& q )
     {
         --q.size;
     }
-    template< typename T >
-    void push_front( queue_t<T>& q, const T &item )
+    template< typename T > void push_front( queue_t<T>& q, const T &item )
     {
         if ( !space(q) )
             grow(q);
@@ -85,24 +81,21 @@ namespace queue
         q[0] = item;
     }
 
-    template< typename T >
-    void pop_front( queue_t<T>& q )
+    template< typename T > void pop_front( queue_t<T>& q )
     {
         q.offset = (q.offset + 1) % q.data.size;
         --q.size;
     }
 
     /// Consumes n items from the front of the queue.
-    template< typename T >
-    void consume( queue_t<T>& q, u32 n )
+    template< typename T > void consume( queue_t<T>& q, u32 n )
     {
         q.offset = (q.offset + n) % q.data.size;
         q.size -= n;
     }
     
     /// Pushes n items to the back of the queue.
-    template< typename T >
-    void push( queue_t<T>& q, const T *items, u32 n )
+    template< typename T > void push( queue_t<T>& q, const T *items, u32 n )
     {
         if ( space(q) < n )
             grow( q, size(q) + n );
