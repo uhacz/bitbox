@@ -27,7 +27,8 @@ bxEntity bxEntityManager::create()
 void bxEntityManager::release( bxEntity* e )
 {
     u32 idx = e->index;
+    e->hash = 0;
+
     ++_generation[idx];
     queue::push_back( _freeIndeices, idx );
-    e->hash = 0;
 }

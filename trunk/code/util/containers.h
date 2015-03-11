@@ -28,8 +28,8 @@ struct queue_t
     explicit queue_t( bxAllocator* alloc = bxDefaultAllocator() );
     ~queue_t();
 
-          T &operator[]( int i )        { return data[(i + offset) % data.size]; }
-    const T &operator[]( int i ) const  { return data[(i + offset) % data.size]; }
+          T& operator[]( int i )        { return data[(i + offset) % data.size]; }
+    const T& operator[]( int i ) const  { return data[(i + offset) % data.size]; }
 };
 
 struct hashmap_t
