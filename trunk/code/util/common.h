@@ -70,3 +70,4 @@ inline u16 depthToBits( float depth )
     unsigned b = f2i.i >> 22; // take highest 10 bits
     return (u16)b;
 }
+
