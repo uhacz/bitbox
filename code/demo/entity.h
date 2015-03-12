@@ -40,9 +40,10 @@ private:
 
 
 #include <util/vectormath/vectormath.h>
+#include <util/bbox.h>
 struct bxGdiRenderSource;
 struct bxGdiShaderFx_Instance;
-
+struct bxGdiRenderSurface;
 
 struct bxMeshComponent_Instance 
 { 
@@ -52,17 +53,15 @@ struct bxMeshComponent_Instance
 struct bxMeshComponent_Matrix
 {
     Matrix4* data;
-    u16 n;
+    i32 n;
 };
 
 struct bxMeshComponentManager
 {
     bxMeshComponent_Instance create( bxEntity e );
     bxMeshComponent_Instance lookup( bxEntity e );
-    void release( bxMeshComponent_Instance* i );
-    void gc( const bxEntityManager& em );
-
-
+    void release( bxEntity e );
+    
     bxGdiRenderSource* renderSource( bxMeshComponent_Instance i );
     void setRenderSource( bxMeshComponent_Instance i, bxGdiRenderSource* rsource );
 
@@ -76,7 +75,6 @@ struct bxMeshComponentManager
     Matrix4 matrix( bxMeshComponent_Instance i, int index );
     void setMatrix( bxMeshComponent_Instance i, int index, const Matrix4& mx );
 
-
 public:
     struct InstanceData
     {
@@ -84,16 +82,23 @@ public:
         bxGdiShaderFx_Instance** fxI;
         bxGdiRenderSurface*      surface;
         bxAABB*                  localAABB;
-        bxMeshComponent_Matrix   matrix;
+        bxMeshComponent_Matrix*  matrix;
         i32                      n;
-    } _data;
+        i32                      capacity;
+    };
+    const InstanceData& data() const { return _data; }
+
+    bxMeshComponentManager();
 
 private:
+    void _SetDefaults();
     void _Allocate( int n );
 
     bxAllocator* _alloc_singleMatrix;
     bxAllocator* _alloc_multipleMatrix;
+    bxAllocator* _alloc_main;
 
     void* _memoryHandle;
-    bxAllocator* _alloc_main;
+    InstanceData _data;
+    hashmap_t entityMap;
 };
