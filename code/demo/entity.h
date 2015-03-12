@@ -17,7 +17,15 @@ union bxEntity
         u32 generation : eGENERATION_BITS;
     };
 };
-
+inline bool operator == (const bxEntity ea, const bxEntity eb) { 
+    return ea.hash == eb.hash; 
+}
+inline bool operator != (const bxEntity ea, const bxEntity eb) { 
+    return ea.hash != eb.hash; 
+}
+inline bxEntity bxEntity_null() {
+    bxEntity e = { 0 }; return e;
+}
 
 struct bxEntityManager
 {
@@ -47,7 +55,7 @@ struct bxGdiRenderSurface;
 
 struct bxMeshComponent_Instance 
 { 
-    u32 i; 
+    u32 i;
 };
 
 struct bxMeshComponent_Matrix
@@ -58,9 +66,9 @@ struct bxMeshComponent_Matrix
 
 struct bxMeshComponentManager
 {
-    bxMeshComponent_Instance create( bxEntity e );
+    bxMeshComponent_Instance create( bxEntity e, int nMatrices );
+    void release( bxMeshComponent_Instance i );
     bxMeshComponent_Instance lookup( bxEntity e );
-    void release( bxEntity e );
     
     bxGdiRenderSource* renderSource( bxMeshComponent_Instance i );
     void setRenderSource( bxMeshComponent_Instance i, bxGdiRenderSource* rsource );
@@ -78,6 +86,7 @@ struct bxMeshComponentManager
 public:
     struct InstanceData
     {
+        bxEntity*                entity;
         bxGdiRenderSource**      rsource;
         bxGdiShaderFx_Instance** fxI;
         bxGdiRenderSurface*      surface;
@@ -87,7 +96,7 @@ public:
         i32                      capacity;
     };
     const InstanceData& data() const { return _data; }
-
+    void gc( const bxEntityManager& em );
     bxMeshComponentManager();
 
 private:
@@ -100,5 +109,5 @@ private:
 
     void* _memoryHandle;
     InstanceData _data;
-    hashmap_t entityMap;
+    hashmap_t _entityMap;
 };

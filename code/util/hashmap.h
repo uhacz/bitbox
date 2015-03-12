@@ -10,7 +10,7 @@ namespace hashmap
 
     inline bool empty( hashmap_t& hmap ) { return hmap.size == 0; }
     
-    inline void erase( hashmap_t& hmap, size_t key)
+    inline void eraseByKey( hashmap_t& hmap, size_t key)
     {
         hashmap_t::cell_t* value = lookup( hmap, key);
         if (value)
