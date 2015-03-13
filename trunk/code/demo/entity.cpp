@@ -55,15 +55,15 @@ namespace
 
     inline size_t entity_toKey( bxEntity e ) { return size_t( e.hash );  }
 }
-bxMeshComponent_Instance bxMeshComponentManager::create(bxEntity e, int nMatrices )
+bxMeshComponent_Instance bxMeshComponent_Manager::create(bxEntity e, int nMatrices )
 {
-    if( _data.n + 1 >= _data.capacity )
+    if( _data.size + 1 >= _data.capacity )
     {
-        const int n = (_data.n) ? _data.n * 2 : 16;
+        const int n = (_data.size) ? _data.size * 2 : 16;
         _Allocate( n );
     }
 
-    const int index = _data.n++;
+    const int index = _data.size++;
     SYS_ASSERT( _data.entity[index] == bxEntity_null() );
     SYS_ASSERT( hashmap::lookup( _entityMap, entity_toKey( e ) ) == NULL );
 
@@ -86,12 +86,12 @@ bxMeshComponent_Instance bxMeshComponentManager::create(bxEntity e, int nMatrice
     return makeInstance( index );
 }
 
-void bxMeshComponentManager::release( bxMeshComponent_Instance i )
+void bxMeshComponent_Manager::release( bxMeshComponent_Instance i )
 {
-    SYS_ASSERT( i.i < _data.n );
+    SYS_ASSERT( i.i < _data.size );
 
     const int index = i.i;
-    const int lastIndex = _data.n - 1;
+    const int lastIndex = _data.size - 1;
     bxEntity olde = _data.entity[index];
 
     SYS_ASSERT( hashmap::lookup( _entityMap, entity_toKey( olde ) ) != NULL );
@@ -103,7 +103,7 @@ void bxMeshComponentManager::release( bxMeshComponent_Instance i )
 
 }
 
-bxMeshComponentManager::bxMeshComponentManager()
+bxMeshComponent_Manager::bxMeshComponent_Manager()
     : _alloc_singleMatrix(0)
     , _alloc_multipleMatrix(0)
     , _alloc_main(0)
@@ -112,7 +112,7 @@ bxMeshComponentManager::bxMeshComponentManager()
     memset( &_data, 0x00, sizeof( InstanceData ) );
 }
 
-void bxMeshComponentManager::_SetDefaults()
+void bxMeshComponent_Manager::_SetDefaults()
 {
     SYS_ASSERT( _alloc_main == NULL );
     
@@ -124,7 +124,7 @@ void bxMeshComponentManager::_SetDefaults()
     _alloc_singleMatrix = alloc;
 }
 
-void bxMeshComponentManager::_Allocate( int newCapacity )
+void bxMeshComponent_Manager::_Allocate( int newCapacity )
 {
     if( !_alloc_main )
     {
@@ -155,19 +155,19 @@ void bxMeshComponentManager::_Allocate( int newCapacity )
     newData.surface   = chunker.add< bxGdiRenderSurface >( newCapacity );
     newData.localAABB = chunker.add< bxAABB >( newCapacity );
     newData.matrix    = chunker.add< bxMeshComponent_Matrix >( newCapacity );
-    newData.n         = _data.n;
+    newData.size         = _data.size;
     newData.capacity  = newCapacity;
 
     chunker.check();
 
     if( _memoryHandle )
     {
-        memcpy( newData.entity    , _data.entity    , _data.n * sizeof(*_data.entity     ) );
-        memcpy( newData.rsource   , _data.rsource   , _data.n * sizeof(*_data.rsource    ) );
-        memcpy( newData.fxI       , _data.fxI       , _data.n * sizeof(*_data.fxI        ) );
-        memcpy( newData.surface   , _data.surface   , _data.n * sizeof(*_data.surface    ) );
-        memcpy( newData.localAABB , _data.localAABB , _data.n * sizeof(*_data.localAABB  ) );
-        memcpy( newData.matrix    , _data.matrix    , _data.n * sizeof(*_data.matrix     ) );
+        memcpy( newData.entity    , _data.entity    , _data.size * sizeof(*_data.entity     ) );
+        memcpy( newData.rsource   , _data.rsource   , _data.size * sizeof(*_data.rsource    ) );
+        memcpy( newData.fxI       , _data.fxI       , _data.size * sizeof(*_data.fxI        ) );
+        memcpy( newData.surface   , _data.surface   , _data.size * sizeof(*_data.surface    ) );
+        memcpy( newData.localAABB , _data.localAABB , _data.size * sizeof(*_data.localAABB  ) );
+        memcpy( newData.matrix    , _data.matrix    , _data.size * sizeof(*_data.matrix     ) );
 
         BX_FREE0( _alloc_main, _memoryHandle );
     }

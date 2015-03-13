@@ -58,50 +58,126 @@ struct bxMeshComponent_Instance
     u32 i;
 };
 
-struct bxMeshComponent_Matrix
+struct bxMeshComponent_Data
 {
-    Matrix4* data;
-    i32 n;
+    bxGdiRenderSource* rsource;
+    bxGdiRenderSurface surface;
 };
 
-struct bxMeshComponentManager
+struct bxMeshComponent_Manager
 {
-    bxMeshComponent_Instance create( bxEntity e, int nMatrices );
+    bxMeshComponent_Instance create( bxEntity e );
     void release( bxMeshComponent_Instance i );
     bxMeshComponent_Instance lookup( bxEntity e );
     
-    bxGdiRenderSource* renderSource( bxMeshComponent_Instance i );
-    void setRenderSource( bxMeshComponent_Instance i, bxGdiRenderSource* rsource );
-
-    bxGdiShaderFx_Instance shader( bxMeshComponent_Instance i );
-    void setShader( bxMeshComponent_Instance i, bxGdiShaderFx_Instance* fxI );
+    bxMeshComponent_Data* mesh( bxMeshComponent_Instance i );
+    void setMesh( bxMeshComponent_Instance i, bxGdiRenderSource* rsource, bxGdiRenderSurface surf );
 
     bxAABB localAABB( bxMeshComponent_Instance i );
     void setLocalAABB( bxMeshComponent_Instance i, const bxAABB& aabb );
-
-    bxMeshComponent_Matrix matrix( bxMeshComponent_Instance i );
-    Matrix4 matrix( bxMeshComponent_Instance i, int index );
-    void setMatrix( bxMeshComponent_Instance i, int index, const Matrix4& mx );
-
+    
 public:
     struct InstanceData
     {
         bxEntity*                entity;
-        bxGdiRenderSource**      rsource;
-        bxGdiShaderFx_Instance** fxI;
-        bxGdiRenderSurface*      surface;
+        bxMeshComponent_Data*    mesh;
         bxAABB*                  localAABB;
-        bxMeshComponent_Matrix*  matrix;
-        i32                      n;
+        i32                      size;
         i32                      capacity;
     };
     const InstanceData& data() const { return _data; }
     void gc( const bxEntityManager& em );
-    bxMeshComponentManager();
+    bxMeshComponent_Manager();
 
 private:
-    void _SetDefaults();
     void _Allocate( int n );
+
+    bxAllocator* _alloc_main;
+    void* _memoryHandle;
+    InstanceData _data;
+    hashmap_t _entityMap;
+};
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct bxShaderComponent_Instance
+{
+    u32 i;
+};
+
+struct bxShaderComponent_Manager
+{
+    bxShaderComponent_Instance create( bxEntity e );
+    void release( bxShaderComponent_Instance i );
+    bxShaderComponent_Instance lookup( bxEntity e );
+
+    bxGdiShaderFx_Instance* shader( bxShaderComponent_Instance i );
+    void setShader( bxShaderComponent_Instance i, bxGdiShaderFx_Instance* fxI );
+
+private:
+    struct InstanceData
+    {
+        bxEntity* entity;
+        bxGdiShaderFx_Instance* shader;
+        i32 size;
+        i32 capacity;
+    };
+
+    void _Allocate( int newCapacity );
+
+    bxAllocator* _alloc_main;
+    void* _memoryHandle;
+    InstanceData _data;
+    hashmap_t _entityMap;
+
+};
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct bxGraphComponent_Instance
+{
+    u32 i;
+};
+struct bxGraphComponent_Transform
+{
+    Matrix3* rotation;
+    Vector3* position;
+    Vector3* scale;
+    i32 n;
+};
+struct bxGraphComponent_Matrix
+{
+    Matrix4* pose;
+    i32 n;
+};
+
+struct bxGraphComponent_Manager
+{
+    bxGraphComponent_Instance create( bxEntity e, int nMatrices );
+    void release( bxGraphComponent_Instance i );
+    bxGraphComponent_Instance lookup( bxEntity e );
+
+    bxGraphComponent_Matrix matrix( bxGraphComponent_Instance i );
+    Matrix4 matrix( bxGraphComponent_Instance i, int index );
+    void setMatrix( bxGraphComponent_Instance i, int index, const Matrix4& mx );
+
+private:
+    struct InstanceData
+    {
+        bxEntity* entity;
+        bxGraphComponent_Matrix* matrix;
+        bxGraphComponent_Transform* transform;
+
+        i32 size;
+        i32 capacity;
+    };
+
+    void _SetDefaults();
+    void _Allocate( int newCapacity );
 
     bxAllocator* _alloc_singleMatrix;
     bxAllocator* _alloc_multipleMatrix;
@@ -110,4 +186,7 @@ private:
     void* _memoryHandle;
     InstanceData _data;
     hashmap_t _entityMap;
+
 };
+
+
