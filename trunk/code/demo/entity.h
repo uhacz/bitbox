@@ -49,9 +49,9 @@ private:
 
 #include <util/vectormath/vectormath.h>
 #include <util/bbox.h>
-struct bxGdiRenderSource;
+#include <util/handle_manager.h>
+#include <gdi/gdi_render_source.h>
 struct bxGdiShaderFx_Instance;
-struct bxGdiRenderSurface;
 
 struct bxComponent_Transform
 {
@@ -65,6 +65,23 @@ struct bxComponent_Matrix
     Matrix4* pose;
     i32 n;
 };
+
+struct bxComponent_MatrixAllocator
+{
+    bxComponent_Matrix alloc( int nInstances );
+    void free( bxComponent_Matrix* mx );
+
+    bxComponent_MatrixAllocator();
+    void _Startup( bxAllocator* allocMain );
+    void _Shutdown();
+
+private:
+    bxAllocator* _alloc_main;
+    bxAllocator* _alloc_singleMatrix;
+    bxAllocator* _alloc_multipleMatrix;
+};
+///
+///
 
 struct bxMeshComponent_Instance 
 { 
@@ -80,16 +97,15 @@ struct bxMeshComponent_Data
 
 struct bxMeshComponent_Manager
 {
-    bxMeshComponent_Instance create( bxEntity e );
+    bxMeshComponent_Instance create( bxEntity e, int nInstances );
     void release( bxMeshComponent_Instance i );
     bxMeshComponent_Instance lookup( bxEntity e );
     
-    bxMeshComponent_Data* mesh( bxMeshComponent_Instance i );
-    void setMesh( bxMeshComponent_Instance i, bxGdiRenderSource* rsource, bxGdiRenderSurface surf );
+    bxMeshComponent_Data mesh( bxMeshComponent_Instance i );
+    void setMesh( bxMeshComponent_Instance i, const bxMeshComponent_Data data );
 
-    bxComponent_Matrix matrix( bxGraphComponent_Instance i );
-    void setMatrix( bxGraphComponent_Instance i, const Matrix4* mx, int count, int offset = 0 );
-
+    bxComponent_Matrix matrix( bxMeshComponent_Instance i );
+    
     bxAABB localAABB( bxMeshComponent_Instance i );
     void setLocalAABB( bxMeshComponent_Instance i, const bxAABB& aabb );
     
@@ -105,14 +121,28 @@ public:
     };
     const InstanceData& data() const { return _data; }
     void gc( const bxEntityManager& em );
+    
     bxMeshComponent_Manager();
-
+    void _Startup( bxAllocator* alloc = bxDefaultAllocator() );
+    void _Shutdown();
+    
 private:
     void _Allocate( int n );
+    
+    typedef bxHandleManager<i32> InstanceIndices;
+    int _GetIndex( bxMeshComponent_Instance i ){
+        InstanceIndices::Handle h( i.i );
+        SYS_ASSERT( _indices.isValid( h ) );
+        const int index = _indices.get( h );
+        SYS_ASSERT( index < _data.size );
+        return index;
+    }
 
-    bxAllocator* _alloc_main;
+    bxAllocator* _alloc;
+    bxComponent_MatrixAllocator _alloc_matrix;
     void* _memoryHandle;
     InstanceData _data;
+    InstanceIndices _indices;
     hashmap_t _entityMap;
 };
 
@@ -135,7 +165,7 @@ struct bxGraphComponent_Manager
     bxComponent_Matrix matrix( bxGraphComponent_Instance i );
     Matrix4 matrix( bxGraphComponent_Instance i, int index );
     void setMatrix( bxGraphComponent_Instance i, int index, const Matrix4& mx );
-
+    
 private:
     struct InstanceData
     {
@@ -147,12 +177,8 @@ private:
         i32 capacity;
     };
 
-    void _SetDefaults();
     void _Allocate( int newCapacity );
-
-    bxAllocator* _alloc_singleMatrix;
-    bxAllocator* _alloc_multipleMatrix;
-    bxAllocator* _alloc_main;
+    bxAllocator* _alloc;
 
     void* _memoryHandle;
     InstanceData _data;

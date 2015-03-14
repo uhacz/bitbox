@@ -291,3 +291,17 @@ private:
     u32 _activeEntryCount;
     u32 _firstFreeEntry;
 };
+
+template< typename Tindex, typename Tmanager, typename Thandle >
+Tindex packedArrayHandle_remove( Tmanager* handleManager, Thandle& toRemove, const Tindex& lastIndex )
+{
+    SYS_ASSERT( handleManager->isValid( toRemove ) );
+
+    const u32 index = handleManager->get( toRemove );
+    Thandle lastHandle = handleManager->findHandleByValue( lastIndex );
+    SYS_ASSERT( handleManager->isValid( lastHandle ) );
+    handleManager->update( lastHandle, index );
+    handleManager->remove( toRemove );
+
+    return index;
+}
