@@ -67,16 +67,20 @@ void bxGfxLightManager::releaseLight( PointInstance i )
     SYS_ASSERT( _count_pointLights == _pointLight_indices.size() );
     
     Indices::Handle handle( i.id );
-    SYS_ASSERT( _pointLight_indices.isValid( handle ) );
-    
-    const u32 index = _pointLight_indices.get( handle );
-    Indices::Handle lastHandle = _pointLight_indices.findHandleByValue( --_count_pointLights );
-    SYS_ASSERT( _pointLight_indices.isValid( lastHandle ) );
-    _pointLight_indices.update( lastHandle, index );
-    _pointLight_indices.remove( handle );
+    const u32 lastIndex = _count_pointLights - 1;
+    const u32 removedIndex = packedArrayHandle_remove( &_pointLight_indices, handle, lastIndex );
+    //SYS_ASSERT( _pointLight_indices.isValid( handle ) );
+    //
+    //const u32 index = _pointLight_indices.get( handle );
+    //Indices::Handle lastHandle = _pointLight_indices.findHandleByValue( --_count_pointLights );
+    //SYS_ASSERT( _pointLight_indices.isValid( lastHandle ) );
+    //_pointLight_indices.update( lastHandle, index );
+    //_pointLight_indices.remove( handle );
 
-    _pointLight_position_radius[index] = _pointLight_position_radius[_count_pointLights];
-    _pointLight_color_intensity[index] = _pointLight_color_intensity[_count_pointLights];
+    _pointLight_position_radius[removedIndex] = _pointLight_position_radius[lastIndex];
+    _pointLight_color_intensity[removedIndex] = _pointLight_color_intensity[lastIndex];
+
+    --_count_pointLights;
 }
 
 namespace
