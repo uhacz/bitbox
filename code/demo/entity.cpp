@@ -7,6 +7,7 @@
 #include <util/pool_allocator.h>
 #include <util/buffer_utils.h>
 #include <gdi/gdi_render_source.h>
+#include <gfx/gfx_type.h>
 #include <string.h>
 
 bxEntity bxEntityManager::create()
@@ -123,6 +124,8 @@ bxMeshComponent_Instance bxMeshComponent_Manager::create( bxEntity e, int nInsta
     bxMeshComponent_Data meshData;
     meshData.rsource = 0;
     meshData.shader = 0;
+    meshData.mask = bxGfx::eRENDER_MASK_ALL;
+    meshData.layer = bxGfx::eRENDER_LAYER_MIDDLE;
     meshData.surface = bxGdiRenderSurface();
 
     _data.entity[index] = e;
