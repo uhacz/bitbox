@@ -6,6 +6,7 @@
 struct bxGdiShaderFx_Instance;
 struct bxGdiRenderSource;
 struct bxGfxCamera;
+struct bxGfxRenderList;
 
 namespace bxGfx
 {

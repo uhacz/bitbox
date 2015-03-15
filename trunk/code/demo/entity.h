@@ -93,6 +93,9 @@ struct bxMeshComponent_Data
     bxGdiRenderSource* rsource;
     bxGdiShaderFx_Instance* shader;
     bxGdiRenderSurface surface;
+
+    u32 mask : 8;
+    u32 layer : 8;
 };
 
 struct bxMeshComponent_Manager
@@ -146,6 +149,11 @@ private:
     hashmap_t _entityMap;
 };
 
+struct bxGfxRenderList;
+namespace bxComponent
+{
+    void mesh_createRenderList( bxGfxRenderList* rList, const bxMeshComponent_Manager& meshManager );
+}///
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
