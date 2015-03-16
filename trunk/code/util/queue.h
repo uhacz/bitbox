@@ -1,5 +1,7 @@
 #pragma once
 
+#include "array.h"
+
 namespace queue_internal
 {
     // Can only be used to increase the capacity.
@@ -26,14 +28,12 @@ namespace queue_internal
     }
 }///
 
-template<typename T >
-queue_t<T>::queue_t(bxAllocator* alloc)
+template<typename T > queue_t<T>::queue_t(bxAllocator* alloc)
     : data( alloc )
     , size(0)
     , offset(0)
 {}
-template< typename T >
-queue_t<T>::~queue_t()
+template< typename T > queue_t<T>::~queue_t()
 {}
 
 namespace queue

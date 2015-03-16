@@ -10,7 +10,7 @@
 #include <gfx/gfx_type.h>
 #include <string.h>
 
-bxEntity bxEntityManager::create()
+bxEntity bxEntity_Manager::create()
 {
     u32 idx;
     if( queue::size( _freeIndeices ) > eMINIMUM_FREE_INDICES )
@@ -31,13 +31,23 @@ bxEntity bxEntityManager::create()
     return e;
 }
 
-void bxEntityManager::release( bxEntity* e )
+void bxEntity_Manager::release( bxEntity* e )
 {
     u32 idx = e->index;
     e->hash = 0;
 
     ++_generation[idx];
     queue::push_back( _freeIndeices, idx );
+}
+
+bxEntity_Manager::bxEntity_Manager()
+{
+
+}
+
+bxEntity_Manager::~bxEntity_Manager()
+{
+
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -111,35 +121,41 @@ bxMeshComponent_Instance bxMeshComponent_Manager::create( bxEntity e, int nInsta
         const int n = (_data.size) ? _data.size * 2 : 16;
         _Allocate( n );
     }
-
+    
     const int index = _data.size++;
     SYS_ASSERT( _data.entity[index] == bxEntity_null() );
     SYS_ASSERT( hashmap::lookup( _entityMap, entity_toKey( e ) ) == NULL );
-
+    
     InstanceIndices::Handle handle = _indices.add( index );
-
     hashmap_t::cell_t* cell = hashmap::insert( _entityMap, entity_toKey( e ) );
     cell->value = size_t(handle.asU32());
+
+    SYS_ASSERT( nInstances > 0 );
+    bxComponent_Matrix mx = _alloc_matrix.alloc( nInstances );
+    _data.matrix[index] = mx;
 
     bxMeshComponent_Data meshData;
     meshData.rsource = 0;
     meshData.shader = 0;
     meshData.mask = bxGfx::eRENDER_MASK_ALL;
     meshData.layer = bxGfx::eRENDER_LAYER_MIDDLE;
+    meshData.passIndex = 0;
     meshData.surface = bxGdiRenderSurface();
 
     _data.entity[index] = e;
     _data.mesh[index] = meshData;
     _data.localAABB[index] = bxAABB( Vector3( -.5f ), Vector3( .5f ) );
     
-    SYS_ASSERT( nInstances > 0 );
-    bxComponent_Matrix mx = _alloc_matrix.alloc( nInstances );
-    
-    _data.matrix[index] = mx;
-    
     return makeInstance( handle.asU32() );
 }
+void bxMeshComponent_Manager::release( bxEntity e )
+{
+    bxMeshComponent_Instance i = lookup( e );
+    if( i.i == 0 )
+        return;
 
+    release( i );
+}
 void bxMeshComponent_Manager::release( bxMeshComponent_Instance i )
 {
     InstanceIndices::Handle handle( i.i );
@@ -157,7 +173,11 @@ void bxMeshComponent_Manager::release( bxMeshComponent_Instance i )
     _data.mesh[index]      = _data.mesh[lastIndex];;
     _data.matrix[index]    = _data.matrix[lastIndex];;
     _data.localAABB[index] = _data.localAABB[lastIndex];;
+
+    --_data.size;
 }
+
+
 
 bxMeshComponent_Instance bxMeshComponent_Manager::lookup(bxEntity e)
 {
@@ -208,11 +228,17 @@ void bxMeshComponent_Manager::_Startup(bxAllocator* alloc)
 {
     SYS_ASSERT( _alloc == 0 );
     _alloc = alloc;
+
+    _alloc_matrix._Startup( alloc );
+
 }
 
 void bxMeshComponent_Manager::_Shutdown()
 {
     SYS_ASSERT( _data.size == 0 );
+
+    _alloc_matrix._Shutdown();
+
     BX_FREE0( _alloc, _memoryHandle );
     memset( &_data, 0x00, sizeof( InstanceData ) );
     _indices.reset();
@@ -257,3 +283,7 @@ void bxMeshComponent_Manager::_Allocate( int newCapacity )
     _memoryHandle = mem;
 }
 
+void bxComponent::mesh_createRenderList( bxGfxRenderList* rList, const bxMeshComponent_Manager& meshManager )
+{
+
+}
