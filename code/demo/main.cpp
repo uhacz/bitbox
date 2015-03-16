@@ -19,11 +19,14 @@
 
 #include "test_console.h"
 #include <util/random.h>
+#include <util/perlin_noise.h>
 #include <util/array.h>
 #include <util/pool_allocator.h>
 
 static const int MAX_LIGHTS = 64;
 static const int TILE_SIZE = 32;
+
+#include "entity.h"
 
 static bxGdiRenderSource* rsource = 0;
 static bxGfxRenderList* rList = 0;
@@ -36,6 +39,11 @@ static int nPointLights = 0;
 
 static bxAABB frustumBBox = bxAABB::prepare();
 static bxGfxCamera* currentCamera_ = NULL;
+
+
+static const int MAX_ENTITIES = 1024;
+static bxEntity entities[MAX_ENTITIES];
+static int nEntities = 0;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -192,8 +200,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -214,6 +222,8 @@ public:
         
         _gfxPostprocess = BX_NEW1( bxGfxPostprocess );
         _gfxPostprocess->_Startup( _gdiDevice, _resourceManager, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
+
+        _componentMesh._Startup();
 
         {
             const u32 colors[] = 
@@ -261,10 +271,104 @@ public:
 
         currentCamera_ = &camera;
 
+
+        bxGdiRenderSource* rsources[] =
+        {
+            _gfxContext->shared()->rsource.box,
+            _gfxContext->shared()->rsource.sphere,
+        };
+        bxGdiShaderFx_Instance* materials[] = 
+        {
+            _gfxMaterials->findMaterial( "red" ),
+            _gfxMaterials->findMaterial( "green" ),
+            _gfxMaterials->findMaterial( "blue" ),
+            _gfxMaterials->findMaterial( "white" ),
+        };
+
+        const int gridX = 5;
+        const int gridY = 5;
+        const int gridZ = 5;
+
+        const float cellSize = 2.5f;
+        const float yOffset = 4.f;
+        const float zOffset = -0.f;
+
+        int counter = 0;
+        for( int iz = 0; iz < gridZ; ++iz )
+        {
+            const float z = -gridZ * cellSize * 0.5f + iz*cellSize + zOffset;
+            for( int iy = 0; iy < gridY; ++iy )
+            {
+                const float y = -gridY * cellSize * 0.5f + iy*cellSize + yOffset;
+                for( int ix = 0; ix < gridX; ++ix )
+                {
+                    const float x = -gridX * cellSize * 0.5f + ix*cellSize;
+                    const Vector3 rndOffset = Vector3( bxNoise_perlin( x, y, z ) );
+                    const Vector3 rndScale( 1.f );
+                    const Matrix4 pose = appendScale( Matrix4( Matrix3::identity(), Vector3( x, y, z ) + rndOffset ), rndScale );
+
+
+                    bxEntity e = _entityManager.create();
+                    bxMeshComponent_Instance cMeshI = _componentMesh.create( e, 1 );
+
+                    bxMeshComponent_Data cMeshData = _componentMesh.mesh( cMeshI );
+                    cMeshData.rsource = rsources[nEntities%2];
+                    cMeshData.shader = materials[nEntities%3];
+                    cMeshData.surface = bxGdi::renderSource_surface( cMeshData.rsource, bxGdi::eTRIANGLES );
+                    cMeshData.passIndex = 0;
+                    _componentMesh.setMesh( cMeshI, cMeshData );
+
+                    bxComponent_Matrix mx = _componentMesh.matrix( cMeshI );
+                    mx.pose[0] = pose;
+
+                    entities[ nEntities++ ] = e;
+                }
+            }
+        }
+
+        {
+            const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 100.f, 0.1f, 100.f ) );
+            bxGdiRenderSource* box = _gfxContext->shared()->rsource.box;
+
+            bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "blue" );
+            
+            bxEntity e = _entityManager.create();
+            bxMeshComponent_Instance cMeshI = _componentMesh.create( e, 1 );
+
+            bxMeshComponent_Data cMeshData = _componentMesh.mesh( cMeshI );
+            cMeshData.rsource = box;
+            cMeshData.shader = fxI;
+            cMeshData.surface = bxGdi::renderSource_surface( cMeshData.rsource, bxGdi::eTRIANGLES );
+            cMeshData.passIndex = 0;
+            _componentMesh.setMesh( cMeshI, cMeshData );
+
+            bxComponent_Matrix mx = _componentMesh.matrix( cMeshI );
+            mx.pose[0] = world;
+
+            entities[ nEntities++ ] = e;
+        }
+
+        //{
+        //    Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( -3.f,-1.f, 0.0f ) ), Vector3( 5.f, 5.f, 5.f ) );
+        //    bxGdiRenderSource* rsource = _gfxContext->shared()->rsource.sphere;
+
+        //    bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );
+        //    bxGfxRenderList_ItemDesc itemDesc( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
+        //    bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
+
+        //    world *= Matrix4::translation( Vector3( 0.f, 0.f, 3.f ) );
+        //    itemDesc.setShader( _gfxMaterials->findMaterial( "blue" ), 0 );
+        //    itemDesc.setRenderSource( _gfxContext->shared()->rsource.box );
+        //    bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
+        //}
+
+
         return true;
     }
     virtual void shutdown()
     {
+        _componentMesh._Shutdown();
+
         bxGfx::renderList_delete( &rList, bxDefaultAllocator() );
         rsource = 0;
         {
@@ -341,82 +445,84 @@ public:
         
         rList->clear();
 
-        {
-            bxRandomGen rnd( 0xBAADF08D );
+        bxComponent::mesh_createRenderList( rList, _componentMesh );
 
-            static float phase = 0.f;
-            phase = fmodf( phase + deltaTime, 8.f * PI );
+        //{
+        //    bxRandomGen rnd( 0xBAADF08D );
 
-            const float rot = sinf( phase + deltaTime );
-            const float posA = sinf( rot ) * 0.2f;
-            const float posB = cosf( posA * 2 * PI + rot ) * 0.2f;
+        //    static float phase = 0.f;
+        //    phase = fmodf( phase + deltaTime, 8.f * PI );
 
-            const int gridX = 5;
-            const int gridY = 5;
-            const int gridZ = 5;
+        //    const float rot = sinf( phase + deltaTime );
+        //    const float posA = sinf( rot ) * 0.2f;
+        //    const float posB = cosf( posA * 2 * PI + rot ) * 0.2f;
 
-            const float cellSize = 2.5f;
-            const float yOffset = 4.f;
-            const float zOffset = -0.f;
-            bxGdiRenderSource* rsources[] =
-            {
-                _gfxContext->shared()->rsource.box,
-                _gfxContext->shared()->rsource.sphere,
-            };
-            bxGdiShaderFx_Instance* materials[] = 
-            {
-                _gfxMaterials->findMaterial( "red" ),
-                _gfxMaterials->findMaterial( "green" ),
-                _gfxMaterials->findMaterial( "blue" ),
-                _gfxMaterials->findMaterial( "white" ),
-            };
-            int counter = 0;
-            for( int iz = 0; iz < gridZ; ++iz )
-            {
-                const float z = -gridZ * cellSize * 0.5f + iz*cellSize + zOffset;
-                for( int iy = 0; iy < gridY; ++iy )
-                {
-                    const float y = -gridY * cellSize * 0.5f + iy*cellSize + yOffset;
-                    for( int ix = 0; ix < gridX; ++ix )
-                    {
-                        const float x = -gridX * cellSize * 0.5f + ix*cellSize;
-                        const Vector3 rndOffset = bxRand::randomVector3( rnd, Vector3( -1.f ), Vector3( 1.f ) );
-                        const Vector3 rndScale( rnd.getf( 1.f, 2.f ) );
-                        const Matrix4 pose = appendScale( Matrix4( Matrix3::identity(), Vector3( x, y, z ) + rndOffset ), rndScale );
-                        //const Matrix4 pose = Matrix4( Matrix3::identity(), Vector3( x, y, z ) );
+        //    const int gridX = 5;
+        //    const int gridY = 5;
+        //    const int gridZ = 5;
 
-                        bxGdiRenderSource* rs = rsources[counter % 2];
-                        bxGdiShaderFx_Instance* mat = materials[++counter % 3];
+        //    const float cellSize = 2.5f;
+        //    const float yOffset = 4.f;
+        //    const float zOffset = -0.f;
+        //    bxGdiRenderSource* rsources[] =
+        //    {
+        //        _gfxContext->shared()->rsource.box,
+        //        _gfxContext->shared()->rsource.sphere,
+        //    };
+        //    bxGdiShaderFx_Instance* materials[] = 
+        //    {
+        //        _gfxMaterials->findMaterial( "red" ),
+        //        _gfxMaterials->findMaterial( "green" ),
+        //        _gfxMaterials->findMaterial( "blue" ),
+        //        _gfxMaterials->findMaterial( "white" ),
+        //    };
+        //    int counter = 0;
+        //    for( int iz = 0; iz < gridZ; ++iz )
+        //    {
+        //        const float z = -gridZ * cellSize * 0.5f + iz*cellSize + zOffset;
+        //        for( int iy = 0; iy < gridY; ++iy )
+        //        {
+        //            const float y = -gridY * cellSize * 0.5f + iy*cellSize + yOffset;
+        //            for( int ix = 0; ix < gridX; ++ix )
+        //            {
+        //                const float x = -gridX * cellSize * 0.5f + ix*cellSize;
+        //                const Vector3 rndOffset = bxRand::randomVector3( rnd, Vector3( -1.f ), Vector3( 1.f ) );
+        //                const Vector3 rndScale( rnd.getf( 1.f, 2.f ) );
+        //                const Matrix4 pose = appendScale( Matrix4( Matrix3::identity(), Vector3( x, y, z ) + rndOffset ), rndScale );
+        //                //const Matrix4 pose = Matrix4( Matrix3::identity(), Vector3( x, y, z ) );
 
-                        bxGfxRenderList_ItemDesc itemDesc( rs, mat, 0, bxAABB( Vector3( -0.5f ), Vector3( 0.5f ) ) );
-                        bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, &pose, 1 );
-                    }
-                }
-            }
-        }
+        //                bxGdiRenderSource* rs = rsources[counter % 2];
+        //                bxGdiShaderFx_Instance* mat = materials[++counter % 3];
 
-        {
-            const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 100.f, 0.1f, 100.f ) );
-            bxGdiRenderSource* box = _gfxContext->shared()->rsource.box;
-            
-            bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "blue" );
-            bxGfxRenderList_ItemDesc itemDesc( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
-            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
-        }
+        //                bxGfxRenderList_ItemDesc itemDesc( rs, mat, 0, bxAABB( Vector3( -0.5f ), Vector3( 0.5f ) ) );
+        //                bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, &pose, 1 );
+        //            }
+        //        }
+        //    }
+        //}
 
-        {
-            Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( -3.f,-1.f, 0.0f ) ), Vector3( 5.f, 5.f, 5.f ) );
-            bxGdiRenderSource* rsource = _gfxContext->shared()->rsource.sphere;
+        //{
+        //    const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 100.f, 0.1f, 100.f ) );
+        //    bxGdiRenderSource* box = _gfxContext->shared()->rsource.box;
+        //    
+        //    bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "blue" );
+        //    bxGfxRenderList_ItemDesc itemDesc( box, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
+        //    bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
+        //}
 
-            bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );
-            bxGfxRenderList_ItemDesc itemDesc( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
-            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
+        //{
+        //    Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( -3.f,-1.f, 0.0f ) ), Vector3( 5.f, 5.f, 5.f ) );
+        //    bxGdiRenderSource* rsource = _gfxContext->shared()->rsource.sphere;
 
-            world *= Matrix4::translation( Vector3( 0.f, 0.f, 3.f ) );
-            itemDesc.setShader( _gfxMaterials->findMaterial( "blue" ), 0 );
-            itemDesc.setRenderSource( _gfxContext->shared()->rsource.box );
-            bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
-        }
+        //    bxGdiShaderFx_Instance* fxI = _gfxMaterials->findMaterial( "red" );
+        //    bxGfxRenderList_ItemDesc itemDesc( rsource, fxI, 0, bxAABB( Vector3(-0.5f), Vector3(0.5f) ) );
+        //    bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
+
+        //    world *= Matrix4::translation( Vector3( 0.f, 0.f, 3.f ) );
+        //    itemDesc.setShader( _gfxMaterials->findMaterial( "blue" ), 0 );
+        //    itemDesc.setRenderSource( _gfxContext->shared()->rsource.box );
+        //    bxGfx::renderList_pushBack( rList, &itemDesc, bxGdi::eTRIANGLES, world );
+        //}
 
         bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
         bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
@@ -533,6 +639,10 @@ public:
 
     bxGfxLightsGUI _gui_lights;
     bxGfxShaderFxGUI _gui_shaderFx;
+
+    /// scene stuff
+    bxEntity_Manager _entityManager;
+    bxMeshComponent_Manager _componentMesh;
 };
 
 int main( int argc, const char* argv[] )

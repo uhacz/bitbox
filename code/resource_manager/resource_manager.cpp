@@ -153,7 +153,7 @@ public:
 			SYS_ASSERT( resource->referenceCounter > 0 );
             if( --resource->referenceCounter == 0 )
             {
-                hashmap::erase( _map, id );
+                hashmap::eraseByKey( _map, id );
                 BX_DELETE0( bxDefaultAllocator(), resource );
             }
 		}

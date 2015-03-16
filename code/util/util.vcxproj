@@ -96,6 +96,7 @@
     <ClInclude Include="hash.h" />
     <ClInclude Include="hashmap.h" />
     <ClInclude Include="memory.h" />
+    <ClInclude Include="perlin_noise.h" />
     <ClInclude Include="poly\poly_shape.h" />
     <ClInclude Include="pool_allocator.h" />
     <ClInclude Include="queue.h" />
@@ -130,6 +131,7 @@
     <ClCompile Include="hash.cpp" />
     <ClCompile Include="hashmap.cpp" />
     <ClCompile Include="memory.cpp" />
+    <ClCompile Include="perlin_noise.cpp" />
     <ClCompile Include="poly\poly_shape.cpp" />
     <ClCompile Include="pool_allocator.cpp" />
     <ClCompile Include="string_util.cpp" />

@@ -54,8 +54,8 @@ int testMain()
         size_t e = hashmap::lookup( hmap, (size_t)&test[8] )->value;
         int aa = 0;
 
-        hashmap::erase( hmap, (size_t)&test[13] );
-        hashmap::erase( hmap, (size_t)&test[19] );
+        hashmap::eraseByKey( hmap, (size_t)&test[13] );
+        hashmap::eraseByKey( hmap, (size_t)&test[19] );
 
         hashmap::iterator iter( hmap );
         while( iter.next() )

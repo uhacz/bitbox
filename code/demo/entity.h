@@ -27,7 +27,7 @@ inline bxEntity bxEntity_null() {
     bxEntity e = { 0 }; return e;
 }
 
-struct bxEntityManager
+struct bxEntity_Manager
 {
     bxEntity create();
     void release( bxEntity* e );
@@ -35,6 +35,9 @@ struct bxEntityManager
     bool alive( bxEntity e ) const { 
         return _generation[e.index] == e.generation;
     }
+
+    bxEntity_Manager();
+    ~bxEntity_Manager();
 
 private:
     enum 
@@ -94,6 +97,7 @@ struct bxMeshComponent_Data
     bxGdiShaderFx_Instance* shader;
     bxGdiRenderSurface surface;
 
+    u32 passIndex : 16;
     u32 mask : 8;
     u32 layer : 8;
 };
@@ -101,6 +105,7 @@ struct bxMeshComponent_Data
 struct bxMeshComponent_Manager
 {
     bxMeshComponent_Instance create( bxEntity e, int nInstances );
+    void release( bxEntity e );
     void release( bxMeshComponent_Instance i );
     bxMeshComponent_Instance lookup( bxEntity e );
     
@@ -113,6 +118,14 @@ struct bxMeshComponent_Manager
     void setLocalAABB( bxMeshComponent_Instance i, const bxAABB& aabb );
     
 public:
+    /// TODO : multiple components per entity
+    //struct InstanceChain 
+    //{
+    //    bxEntity* entity;
+    //    bxMeshComponent_Instance nextInstance;
+    //};
+
+
     struct InstanceData
     {
         bxEntity*                 entity;
@@ -123,7 +136,7 @@ public:
         i32                       capacity;
     };
     const InstanceData& data() const { return _data; }
-    void gc( const bxEntityManager& em );
+    void gc( const bxEntity_Manager& em );
     
     bxMeshComponent_Manager();
     void _Startup( bxAllocator* alloc = bxDefaultAllocator() );
