@@ -224,6 +224,7 @@ public:
         _gfxPostprocess->_Startup( _gdiDevice, _resourceManager, _gfxContext->framebufferWidth(), _gfxContext->framebufferHeight() );
 
         _componentMesh._Startup();
+        _entityManager.register_releaseCallback( bxMeshComponent_Manager::_Callback_releaseEntity, &_componentMesh );
 
         {
             const u32 colors[] = 
@@ -367,6 +368,10 @@ public:
     }
     virtual void shutdown()
     {
+        for( int ie = 0; ie < nEntities; ++ie )
+        {
+            _entityManager.release( &entities[ie] );
+        }
         _componentMesh._Shutdown();
 
         bxGfx::renderList_delete( &rList, bxDefaultAllocator() );

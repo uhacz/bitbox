@@ -1,5 +1,6 @@
 #include "entity.h"
 #include <util/array.h>
+#include <util/array_util.h>
 #include <util/queue.h>
 #include <util/hashmap.h>
 #include <util/debug.h>
@@ -33,6 +34,13 @@ bxEntity bxEntity_Manager::create()
 
 void bxEntity_Manager::release( bxEntity* e )
 {
+    for( int icb = 0; icb < array::size( _callback_releaseEntity ); ++icb )
+    {
+        Callback cb = _callback_releaseEntity[icb];
+        bxEtity_releaseCallback* ptr = (bxEtity_releaseCallback*)( cb.ptr );
+        (*ptr)( *e, cb.userData );
+    }
+    
     u32 idx = e->index;
     e->hash = 0;
 
@@ -48,6 +56,31 @@ bxEntity_Manager::bxEntity_Manager()
 bxEntity_Manager::~bxEntity_Manager()
 {
 
+}
+
+void bxEntity_Manager::register_releaseCallback( bxEtity_releaseCallback* cb, void* userData )
+{
+    struct Cmp{
+        
+        Callback _cb;
+        Cmp( Callback cb ): _cb(cb) {} 
+
+        bool operator() ( const Callback& a ){
+            return a.ptr == _cb.ptr && a.userData == _cb.userData;
+        }
+    };    
+
+    Callback entry;
+    entry.ptr = cb;
+    entry.userData = userData;
+
+    const int foundIndex = array::find1( array::begin( _callback_releaseEntity ), array::end( _callback_releaseEntity ), Cmp(entry) );
+    if( foundIndex != -1 )
+    {
+        bxLogWarning( "Callback (0x%p) already registered", cb );
+        return;
+    }
+    array::push_back( _callback_releaseEntity, entry );
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -169,6 +202,8 @@ void bxMeshComponent_Manager::release( bxMeshComponent_Instance i )
     SYS_ASSERT( hashmap::lookup( _entityMap, entity_toKey( entity ) ) != NULL );
     hashmap::eraseByKey( _entityMap, entity_toKey( entity ) );
 
+    _alloc_matrix.free( _data.matrix + index );
+
     _data.entity[index]    = _data.entity[lastIndex];
     _data.mesh[index]      = _data.mesh[lastIndex];;
     _data.matrix[index]    = _data.matrix[lastIndex];;
@@ -283,7 +318,26 @@ void bxMeshComponent_Manager::_Allocate( int newCapacity )
     _memoryHandle = mem;
 }
 
+void bxMeshComponent_Manager::_Callback_releaseEntity( bxEntity e, void* userData )
+{
+    bxMeshComponent_Manager* _this = (bxMeshComponent_Manager*)userData;
+    _this->release( e );
+}
+
+#include <gfx/gfx_render_list.h>
 void bxComponent::mesh_createRenderList( bxGfxRenderList* rList, const bxMeshComponent_Manager& meshManager )
 {
+    const bxMeshComponent_Manager::InstanceData& data = meshManager.data();
+    const int nComponents = data.size;
+    for( int ic = 0; ic < nComponents; ++ic )
+    {
+        const bxMeshComponent_Data& meshData = data.mesh[ic];
+        const bxAABB& aabb = data.localAABB[ic];
+        const bxComponent_Matrix mx = data.matrix[ic];
 
+        const int dataIndex = rList->renderDataAdd( meshData.rsource, meshData.shader, meshData.passIndex, aabb );
+        const u32 surfIndex = rList->surfacesAdd( &meshData.surface, 1 );
+        const u32 poseIndex = rList->instancesAdd( mx.pose, mx.n );
+        rList->itemSubmit( dataIndex, surfIndex, poseIndex, meshData.mask, meshData.layer );
+    }
 }

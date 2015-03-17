@@ -27,6 +27,8 @@ inline bxEntity bxEntity_null() {
     bxEntity e = { 0 }; return e;
 }
 
+typedef void bxEtity_releaseCallback( bxEntity entity, void* userData );
+
 struct bxEntity_Manager
 {
     bxEntity create();
@@ -39,6 +41,8 @@ struct bxEntity_Manager
     bxEntity_Manager();
     ~bxEntity_Manager();
 
+    void register_releaseCallback( bxEtity_releaseCallback* cb, void* userData );
+
 private:
     enum 
     {
@@ -47,6 +51,14 @@ private:
 
     array_t<u8> _generation;
     queue_t<u32> _freeIndeices;
+
+    struct Callback
+    {
+        void* ptr;
+        void* userData;
+    };
+    array_t<Callback> _callback_releaseEntity;
+
 };
 
 
@@ -142,6 +154,8 @@ public:
     void _Startup( bxAllocator* alloc = bxDefaultAllocator() );
     void _Shutdown();
     
+    static void _Callback_releaseEntity( bxEntity e, void* userData );
+
 private:
     void _Allocate( int n );
     

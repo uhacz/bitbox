@@ -145,14 +145,14 @@ namespace bxGfx
     {
         renderList_pushBack( rList, itemDesc, topology, &matrix, 1 );
     }
-    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderList_ItemDesc* itemDesc, const bxGdiRenderSurface& surf, const Matrix4& matrix )
+    inline void renderList_pushBack( bxGfxRenderList* rList, bxGfxRenderList_ItemDesc* itemDesc, const bxGdiRenderSurface& surf, const Matrix4* matrices, int nMatrices )
     {
         if ( itemDesc->_dataIndex < 0 )
         {
             itemDesc->_dataIndex = rList->renderDataAdd( itemDesc->_rsource, itemDesc->_fxI, itemDesc->_passIndex, itemDesc->_localAABB );
         }
         u32 surfaceIndex = rList->surfacesAdd( &surf, 1 );
-        u32 instanceIndex = rList->instancesAdd( &matrix, 1 );
+        u32 instanceIndex = rList->instancesAdd( matrices, nMatrices );
         rList->itemSubmit( itemDesc->_dataIndex, surfaceIndex, instanceIndex );
     }
 }///
