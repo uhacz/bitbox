@@ -9,7 +9,7 @@ namespace queue_internal
     {
         u32 end = q.size;
         array_internal::_Grow( q.data, newCapacity );
-
+        q.data.size = newCapacity;
         if ( q.offset +  q.size > end) 
         {
             u32 end_items = end - q.offset;
