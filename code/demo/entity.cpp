@@ -37,7 +37,7 @@ void bxEntity_Manager::release( bxEntity* e )
     for( int icb = 0; icb < array::size( _callback_releaseEntity ); ++icb )
     {
         Callback cb = _callback_releaseEntity[icb];
-        bxEtity_releaseCallback* ptr = (bxEtity_releaseCallback*)( cb.ptr );
+        bxEntity_releaseCallback* ptr = (bxEntity_releaseCallback*)( cb.ptr );
         (*ptr)( *e, cb.userData );
     }
     
@@ -58,7 +58,7 @@ bxEntity_Manager::~bxEntity_Manager()
 
 }
 
-void bxEntity_Manager::register_releaseCallback( bxEtity_releaseCallback* cb, void* userData )
+void bxEntity_Manager::register_releaseCallback( bxEntity_releaseCallback* cb, void* userData )
 {
     struct Cmp{
         

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <util/containers.h>
+#include <util/tag.h>
 
 union bxEntity
 {
@@ -27,7 +28,10 @@ inline bxEntity bxEntity_null() {
     bxEntity e = { 0 }; return e;
 }
 
-typedef void bxEtity_releaseCallback( bxEntity entity, void* userData );
+struct bxEntity_Manager;
+
+typedef void bxEntity_releaseCallback( bxEntity entity, void* userData );
+typedef void bxEntity_garbageCollectorCallback( const bxEntity_Manager& em );
 
 struct bxEntity_Manager
 {
@@ -41,8 +45,10 @@ struct bxEntity_Manager
     bxEntity_Manager();
     ~bxEntity_Manager();
 
-    void register_releaseCallback( bxEtity_releaseCallback* cb, void* userData );
+    void register_releaseCallback( bxEntity_releaseCallback* cb, void* userData );
+    void register_garbageCollectorCallback( bxEntity_garbageCollectorCallback* cb, void* userData );
 
+    void _GarbageCollector();
 private:
     enum 
     {
@@ -58,8 +64,15 @@ private:
         void* userData;
     };
     array_t<Callback> _callback_releaseEntity;
+    array_t<Callback> _callback_garbageCollector;
 
 };
+////
+////
+
+
+////
+////
 
 
 #include <util/vectormath/vectormath.h>
@@ -80,6 +93,7 @@ struct bxComponent_Matrix
     Matrix4* pose;
     i32 n;
 };
+
 
 struct bxComponent_MatrixAllocator
 {
@@ -148,12 +162,15 @@ public:
         i32                       capacity;
     };
     const InstanceData& data() const { return _data; }
-    void gc( const bxEntity_Manager& em );
-    
+
     bxMeshComponent_Manager();
     void _Startup( bxAllocator* alloc = bxDefaultAllocator() );
     void _Shutdown();
+
     
+    static const u32 typeId = bxTag32( "mesh" );
+    static const char* typeName = "mesh";
+    static bxMeshComponent_Instance _Callback_createComponent( bxEntity e, void* manager, void* userData );
     static void _Callback_releaseEntity( bxEntity e, void* userData );
 
 private:
@@ -198,16 +215,24 @@ struct bxGraphComponent_Manager
     bxGraphComponent_Instance lookup( bxEntity e );
 
     bxComponent_Matrix matrix( bxGraphComponent_Instance i );
-    Matrix4 matrix( bxGraphComponent_Instance i, int index );
-    void setMatrix( bxGraphComponent_Instance i, int index, const Matrix4& mx );
-    
+    bxComponent_Transform transform( bxGraphComponent_Instance i );
+
+    void link( bxGraphComponent_Instance parent, bxGraphComponent_Instance child );
+    void unlink( bxGraphComponent_Instance child );
+        
 private:
+    enum
+    {
+        eFLAG_DIRTY = 0x1,
+    };
+    
     struct InstanceData
     {
         bxEntity* entity;
         bxComponent_Matrix* matrix;
         bxComponent_Transform* transform;
-
+        i16* parent;
+        u8* flags;
         i32 size;
         i32 capacity;
     };
