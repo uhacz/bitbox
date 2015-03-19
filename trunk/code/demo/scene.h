@@ -7,6 +7,7 @@
 struct bxScene_NodeId
 {
     i16 index;
+    u16 generation;
 };
 
 struct bxScene
@@ -41,7 +42,8 @@ public:
 private:
     enum EFlag
     {
-        eFLAG_DIRTY = 0x1,
+        eFLAG_ACTIVE = 0x1,
+        eFLAG_DIRTY  = 0x2,
     };
 
     struct Data
@@ -66,5 +68,6 @@ private:
     Data _data;
     bxAllocator* _alloc;
     i32 _alloc_chunkSize;
+
     void _Allocate( int newCapacity );
 };
