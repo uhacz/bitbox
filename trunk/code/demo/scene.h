@@ -7,7 +7,6 @@
 struct bxScene_NodeId
 {
     i16 index;
-    u16 generation;
 };
 
 struct bxScene
@@ -20,14 +19,14 @@ struct bxScene
 
     bxScene_NodeId parent( bxScene_NodeId nodeId );
 
-    const Matrix3& localRotation( bxScene_NodeId nodeId );
-    const Vector3& localPosition( bxScene_NodeId nodeId );
-    const Vector3& localScale   ( bxScene_NodeId nodeId );
-
+    const Matrix3& localRotation( bxScene_NodeId nodeId ) const;
+    const Vector3& localPosition( bxScene_NodeId nodeId ) const;
+    const Vector3& localScale   ( bxScene_NodeId nodeId ) const;
+                                                          
     const Matrix4& localPoseCalc( bxScene_NodeId nodeId );
     const Matrix4& worldPoseCalc( bxScene_NodeId nodeId );
-    const Matrix4& worldPoseFetch( bxScene_NodeId nodeId );
-    const Matrix4& localPoseFetch( bxScene_NodeId nodeId );
+    const Matrix4& worldPoseFetch( bxScene_NodeId nodeId ) const;
+    const Matrix4& localPoseFetch( bxScene_NodeId nodeId ) const;
 
     void setLocalRotation( bxScene_NodeId nodeId );
     void setLocalPosition( bxScene_NodeId nodeId );

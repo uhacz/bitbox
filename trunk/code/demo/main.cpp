@@ -199,7 +199,35 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxScene scene;
+        bxScene_NodeId nodeId[11];
+        for( int i = 0; i < 11; ++i )
+        {
+            nodeId[i] = scene.create();
+        }
 
+        scene.link( nodeId[0], nodeId[1] );
+        scene.link( nodeId[0], nodeId[2] );
+
+        scene.link( nodeId[1], nodeId[3] );
+        scene.link( nodeId[1], nodeId[4] );
+        scene.link( nodeId[1], nodeId[5] );
+
+        scene.link( nodeId[2], nodeId[6] );
+        scene.link( nodeId[2], nodeId[7] );
+
+        scene.link( nodeId[4], nodeId[9] );
+        scene.link( nodeId[5], nodeId[10] );
+
+        scene.link( nodeId[7], nodeId[8] );
+
+        scene.release( &nodeId[1] );
+        scene.release( &nodeId[4] );
+
+        nodeId[1] = scene.create();
+
+        //scene.unlink( nodeId[4] );
+        //scene.unlink( nodeId[5] );
+        //scene.unlink( nodeId[3] );
 
 
         //testBRDF();
