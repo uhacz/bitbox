@@ -31,6 +31,7 @@ void bxScene::_Allocate( int newCapacity )
 
     Data newData;
     memset( &newData, 0x00, sizeof(Data) );
+    
     bxBufferChunker chunker( mem, memSize );
     newData.localRotation = chunker.add<Matrix3>( newCapacity );
     newData.localPosition = chunker.add<Vector3>( newCapacity );
@@ -43,6 +44,7 @@ void bxScene::_Allocate( int newCapacity )
     newData.flag          = chunker.add<u8>( newCapacity );
     newData.capacity = newCapacity;
     newData.size = _data.size;
+    newData._freeList = _data._freeList;
     newData._memoryHandle = mem;
 
     chunker.check();
@@ -104,8 +106,9 @@ bxScene_NodeId bxScene::create()
     _data.parent[index] = -1;
     _data.firstChild[index] = -1;
     _data.nextSlibling[index] = -1;
+    SYS_ASSERT( _data.flag[index] == 0 );
     _data.flag[index] = eFLAG_ACTIVE;
-
+    ++_data.size;
     return makeNodeId( index );
 }
 
@@ -117,6 +120,8 @@ void bxScene::release( bxScene_NodeId* id )
 
     if ( !(_data.flag[index] & eFLAG_ACTIVE) )
         return;
+
+    SYS_ASSERT( _data.size > 0 );
 
     const i16 parentIndex = _data.parent[index];
     unlink( id[0] );
@@ -133,7 +138,8 @@ void bxScene::release( bxScene_NodeId* id )
     _data.flag[index] = 0;
     _data.parent[index] = _data._freeList;
     _data._freeList = index;
-
+    
+    --_data.size;
 }
 
 void bxScene::link( bxScene_NodeId parent, bxScene_NodeId child )
@@ -182,5 +188,100 @@ void bxScene::unlink( bxScene_NodeId child )
             }
         }
     }
+
+    _data.parent[childIndex] = -1;
+
+}
+
+namespace 
+{
+    inline i16 nodeId_indexSafe( bxScene_NodeId nodeId, i32 numNodesInContainer )
+    {
+        const i16 index = nodeId.index;
+        SYS_ASSERT( index >= 0 && index < numNodesInContainer );
+        return index;
+    }
+}
+
+bxScene_NodeId bxScene::parent( bxScene_NodeId nodeId )
+{
+    const int index = nodeId_indexSafe( nodeId );
+    return makeNodeId( _data.parent[ index ] );
+}
+
+const Matrix3& bxScene::localRotation( bxScene_NodeId nodeId ) const
+{
+    const int index = nodeId_indexSafe( nodeId );
+    return _data.localRotation[ index ];
+}
+
+const Vector3& bxScene::localPosition( bxScene_NodeId nodeId ) const
+{
+    const int index = nodeId_indexSafe( nodeId );
+    return _data.localPosition[ index ];
+}
+
+const Vector3& bxScene::localScale( bxScene_NodeId nodeId ) const
+{
+    const int index = nodeId_indexSafe( nodeId );
+    return _data.localScale[ index ];
+}
+
+const Matrix4& bxScene::localPoseCalc( bxScene_NodeId nodeId )
+{
+    const int index = nodeId_indexSafe( nodeId );
+    if( _data.flag[index] & eFLAG_DIRTY )
+    {
+        const Matrix3& rot   = _data.localRotation[index];
+        const Vector3& pos   = _data.localPosition[index];
+        const Vector3& scale = _data.localScale[index];
+        _data.localPose[index] = appendScale( Matrix4( rot, pos ), scale );
+        _data.flag[index] &= ~eFLAG_DIRTY;
+    }
+
+    return _data.localPose[index];
+}
+
+const Matrix4& bxScene::worldPoseCalc( bxScene_NodeId nodeId )
+{
+
+}
+
+const Matrix4& bxScene::worldPoseFetch( bxScene_NodeId nodeId ) const
+{
+    const int index = nodeId_indexSafe( nodeId );
+    SYS_ASSERT( (_data.flag[ index] & eFLAG_DIRTY ) == 0 );
+    return _data.worldPose[index];
+}
+
+const Matrix4& bxScene::localPoseFetch( bxScene_NodeId nodeId ) const
+{
+    const int index = nodeId_indexSafe( nodeId );
+    SYS_ASSERT( (_data.flag[ index] & eFLAG_DIRTY ) == 0 );
+    return _data.localPose[index];
+}
+
+void bxScene::setLocalRotation( bxScene_NodeId nodeId )
+{
+
+}
+
+void bxScene::setLocalPosition( bxScene_NodeId nodeId )
+{
+
+}
+
+void bxScene::setLocalScale( bxScene_NodeId nodeId )
+{
+
+}
+
+void bxScene::setWorldPose( bxScene_NodeId nodeId )
+{
+
+}
+
+void bxScene::transform( const Matrix4& world )
+{
 
 }

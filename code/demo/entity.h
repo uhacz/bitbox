@@ -171,7 +171,7 @@ public:
     //static const u32 typeId = bxTag32( "mesh" );
     //static const char* typeName = "mesh";
     //static bxMeshComponent_Instance _Callback_createComponent( bxEntity e, void* manager, void* userData );
-    //static void _Callback_releaseEntity( bxEntity e, void* userData );
+    static void _Callback_releaseEntity( bxEntity e, void* userData );
 
 private:
     void _Allocate( int n );
