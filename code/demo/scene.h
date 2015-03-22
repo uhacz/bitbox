@@ -1,8 +1,77 @@
 #pragma once
 
 #include <util/type.h>
+#include <util/debug.h>
 #include <util/vectormath/vectormath.h>
 #include <util/memory.h>
+
+
+struct bxTree_Id
+{
+    u32 index: 16;
+    u32 generation : 16;
+};
+
+struct bxTree
+{
+    typedef bxTree_Id Id;
+
+    Id create();
+    void release( Id* id );
+
+    void link( Id parent, Id child );
+    void unlink( Id child );
+
+    bool has( Id id ) const{
+        return id.index < (u32)_data.size && id.generation == _data.generation[id.index];
+    }
+
+    Id parent( Id id ) const{
+        SYS_ASSERT( has( id ) ); return _data.parent[id.index];
+    }
+    Id firstChild( Id id )const{
+        SYS_ASSERT( has( id ) ); return _data.firstChild[id.index];
+    }
+    Id nextSlibling( Id id ) const{
+        SYS_ASSERT( has( id ) ); return _data.nextSlibling[id.index];
+    }
+    uptr userData( Id id ) const {
+        SYS_ASSERT( has( id ) ); return _data.userData[id.index];
+    }
+    void setUserData( Id id, uptr ud ){
+        SYS_ASSERT( has( id ) ); _data.userData[id.index] = ud;
+    }
+
+    bxTree();
+
+private:
+    enum EFlag
+    {
+        eFLAG_ACTIVE = 0x1,
+    };
+
+    struct Data
+    {
+        u16*    generation;
+        Id*     parent;
+        Id*     firstChild;
+        Id*     nextSlibling;
+        u8*     flag;
+        uptr*   userData;
+        i32 size;
+        i32 capacity;
+
+        i32 _freeList;
+        void* _memoryHandle;
+    };
+
+    Data _data;
+    bxAllocator* _alloc;
+    i32 _alloc_chunkSize;
+    u32 _lastGenerationId;
+
+    void _Allocate( int newCapacity );
+};
 
 struct bxScene_NodeId
 {
@@ -18,22 +87,13 @@ struct bxScene
     void unlink( bxScene_NodeId child );
 
     bxScene_NodeId parent( bxScene_NodeId nodeId );
+    const Matrix4& localPose( bxScene_NodeId nodeId ) const;
+    const Matrix4& worldPose( bxScene_NodeId nodeId ) const;
 
-    const Matrix3& localRotation( bxScene_NodeId nodeId ) const;
-    const Vector3& localPosition( bxScene_NodeId nodeId ) const;
-    const Vector3& localScale   ( bxScene_NodeId nodeId ) const;
-                                                          
-    const Matrix4& localPoseCalc( bxScene_NodeId nodeId );
-    const Matrix4& worldPoseCalc( bxScene_NodeId nodeId );
-    const Matrix4& worldPoseFetch( bxScene_NodeId nodeId ) const;
-    const Matrix4& localPoseFetch( bxScene_NodeId nodeId ) const;
-
-    void setLocalRotation( bxScene_NodeId nodeId );
-    void setLocalPosition( bxScene_NodeId nodeId );
-    void setLocalScale( bxScene_NodeId nodeId );
-    void setWorldPose( bxScene_NodeId nodeId );
-
-    void transform( const Matrix4& world );
+    void setLocalRotation( bxScene_NodeId nodeId, const Matrix3& rot );
+    void setLocalPosition( bxScene_NodeId nodeId, const Vector3& pos );
+    void setLocalPose( bxScene_NodeId nodeId, const Matrix4& pose );
+    void setWorldPose( bxScene_NodeId nodeId, const Matrix4& pose );
 
 public:
     bxScene( int allocationChunkSize = 16, bxAllocator* alloc = bxDefaultAllocator() );
@@ -42,14 +102,10 @@ private:
     enum EFlag
     {
         eFLAG_ACTIVE = 0x1,
-        eFLAG_DIRTY  = 0x2,
     };
 
     struct Data
     {
-        Matrix3* localRotation;
-        Vector3* localPosition;
-        Vector3* localScale;
         Matrix4* localPose;
         Matrix4* worldPose;
         i16*     parent;
@@ -69,4 +125,5 @@ private:
     i32 _alloc_chunkSize;
 
     void _Allocate( int newCapacity );
+    void _Transform( const Matrix4& parentPose, bxScene_NodeId nodeId );
 };

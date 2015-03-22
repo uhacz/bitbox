@@ -50,117 +50,6 @@ static int nEntities = 0;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-//struct bxTree_Index
-//{
-//    u32 i;
-//};
-//
-//struct bxTree
-//{
-//    bxTree();
-//
-//    bxTree_Index create()
-//    {
-//        bxTree_Index idx = { 0 };
-//        
-//        if( _freeList == UINT_MAX )
-//        {
-//            idx.i = array::push_back( _nodes, Node() );
-//        }
-//        else
-//        {
-//            idx.i = _freeList;
-//            Node& node = _nodes[_freeList];
-//            _freeList = node._freeListNext;
-//            node = Node();            
-//            node.self = idx.i;
-//        }
-//
-//        return idx;
-//    }
-//    void release( bxTree_Index* i  )
-//    {
-//        
-//    }
-//    void link( bxTree_Index parent, bxTree_Index child );
-//    void unlink( bxTree_Index child );
-//
-//    u64 data( bxTree_Index i ) const;
-//    void setData( bxTree_Index i, u64 d );
-//
-//private:
-//
-//    union Node
-//    {
-//        struct  
-//        {
-//            u32 _freeListNext;
-//        };
-//        struct  
-//        {
-//            u32 self;
-//            u32 parent;
-//            u32 next;
-//            u32 firstChild;
-//            u64 value;
-//        };
-//        
-//        Node()
-//            : self( 0xFFFF )
-//            , parent( 0xFFFF )
-//            , next( 0xFFFF )
-//            , firstChild( 0xFFFF )
-//            , value(0)
-//        {}
-//    };
-//        
-//    array_t< Node > _nodes;
-//    u32 _freeList;
-//};
-//
-//struct bxTree_Iterator
-//{
-//    bxTree_Iterator( bxTree& tree, bxTree_Index start );
-//    
-//    bool next( bxTree_Index* nextIndex );
-//        
-//private:
-//    bxTree& _tree;
-//    bxTree_Index _current;
-//};
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
-
-
-
-
-//struct bxSpatialGraph_Handle
-//{
-//    u32 i;
-//};
-//
-//struct bxSpatialGraph
-//{
-//    bxSpatialGraph();
-//
-//    bxSpatialGraph_Handle create();
-//    void release( bxSpatialGraph_Handle* h );
-//
-//    void link( bxSpatialGraph_Handle parent, bxSpatialGraph_Handle child );
-//    void unlink( bxSpatialGraph_Handle child );
-//
-//    
-//
-//};
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
 
 //union bxVoxelGrid_Coords
 //{
@@ -198,8 +87,8 @@ class bxDemoApp : public bxApplication
 public:
     virtual bool startup( int argc, const char** argv )
     {
-        bxScene scene;
-        bxScene_NodeId nodeId[11];
+        bxTree scene;
+        bxTree_Id nodeId[11];
         for( int i = 0; i < 11; ++i )
         {
             nodeId[i] = scene.create();
