@@ -9,11 +9,11 @@ struct bxBufferChunker
     {}
 
     template< typename T >
-    T* add( int count = 1 )
+    T* add( int count = 1, int alignment = 4 )
     {
-        unsigned char* result = current;
+        unsigned char* result = (unsigned char*)TYPE_ALIGN( current, alignment );
 
-        unsigned char* next = current + count * sizeof(T);
+        unsigned char* next = result + count * sizeof( T );
         current = next;
         return (T*)result;
     }
