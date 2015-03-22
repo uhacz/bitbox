@@ -122,7 +122,7 @@ void bxComponent_MatrixAllocator::_Startup( bxAllocator* allocMain )
     _alloc_multipleMatrix = allocMain;
 
     bxDynamicPoolAllocator* alloc = BX_NEW( _alloc_main, bxDynamicPoolAllocator );
-    alloc->startup( sizeof( Matrix4 ), 64, _alloc_main, ALIGNOF( Matrix4 ) );
+    alloc->startup( sizeof( Matrix4 ), 1024, _alloc_main, ALIGNOF( Matrix4 ) );
     _alloc_singleMatrix = alloc;
 }
 
@@ -181,14 +181,7 @@ bxMeshComponent_Instance bxMeshComponent_Manager::create( bxEntity e, int nInsta
     
     return makeInstance( handle.asU32() );
 }
-void bxMeshComponent_Manager::release( bxEntity e )
-{
-    bxMeshComponent_Instance i = lookup( e );
-    if( i.i == 0 )
-        return;
 
-    release( i );
-}
 void bxMeshComponent_Manager::release( bxMeshComponent_Instance i )
 {
     InstanceIndices::Handle handle( i.i );
@@ -287,8 +280,9 @@ void bxMeshComponent_Manager::_Allocate( int newCapacity )
     int memSize = 0;
     memSize += newCapacity * sizeof( *_data.entity );
     memSize += newCapacity * sizeof( *_data.mesh );
-    memSize += newCapacity * sizeof( *_data.localAABB );
     memSize += newCapacity * sizeof( *_data.matrix );
+    memSize += newCapacity * sizeof( *_data.localAABB );
+    memSize += memSize % 16;
 
     void* mem = BX_MALLOC( _alloc, memSize, 8 );
     memset( mem, 0x00, memSize );
@@ -298,8 +292,8 @@ void bxMeshComponent_Manager::_Allocate( int newCapacity )
     bxBufferChunker chunker( mem, memSize );
     newData.entity    = chunker.add< bxEntity >( newCapacity );
     newData.mesh      = chunker.add< bxMeshComponent_Data >( newCapacity );
-    newData.localAABB = chunker.add< bxAABB >( newCapacity );
     newData.matrix    = chunker.add< bxComponent_Matrix >( newCapacity );
+    newData.localAABB = chunker.add< bxAABB >( newCapacity, 16 );
     newData.size      = _data.size;
     newData.capacity  = newCapacity;
 
@@ -321,7 +315,11 @@ void bxMeshComponent_Manager::_Allocate( int newCapacity )
 void bxMeshComponent_Manager::_Callback_releaseEntity( bxEntity e, void* userData )
 {
     bxMeshComponent_Manager* _this = (bxMeshComponent_Manager*)userData;
-    _this->release( e );
+    bxMeshComponent_Instance i = _this->lookup( e );
+    if ( i.i == 0 )
+        return;
+
+    _this->release( i );
 }
 
 #include <gfx/gfx_render_list.h>

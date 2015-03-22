@@ -42,7 +42,7 @@ static bxAABB frustumBBox = bxAABB::prepare();
 static bxGfxCamera* currentCamera_ = NULL;
 
 
-static const int MAX_ENTITIES = 1024;
+static const int MAX_ENTITIES = 1024*8;
 static bxEntity entities[MAX_ENTITIES];
 static int nEntities = 0;
 
@@ -87,32 +87,32 @@ class bxDemoApp : public bxApplication
 public:
     virtual bool startup( int argc, const char** argv )
     {
-        bxTree scene;
-        bxTree_Id nodeId[11];
-        for( int i = 0; i < 11; ++i )
-        {
-            nodeId[i] = scene.create();
-        }
+        //bxTree scene;
+        //bxTree_Id nodeId[11];
+        //for( int i = 0; i < 11; ++i )
+        //{
+        //    nodeId[i] = scene.create();
+        //}
 
-        scene.link( nodeId[0], nodeId[1] );
-        scene.link( nodeId[0], nodeId[2] );
+        //scene.link( nodeId[0], nodeId[1] );
+        //scene.link( nodeId[0], nodeId[2] );
 
-        scene.link( nodeId[1], nodeId[3] );
-        scene.link( nodeId[1], nodeId[4] );
-        scene.link( nodeId[1], nodeId[5] );
+        //scene.link( nodeId[1], nodeId[3] );
+        //scene.link( nodeId[1], nodeId[4] );
+        //scene.link( nodeId[1], nodeId[5] );
 
-        scene.link( nodeId[2], nodeId[6] );
-        scene.link( nodeId[2], nodeId[7] );
+        //scene.link( nodeId[2], nodeId[6] );
+        //scene.link( nodeId[2], nodeId[7] );
 
-        scene.link( nodeId[4], nodeId[9] );
-        scene.link( nodeId[5], nodeId[10] );
+        //scene.link( nodeId[4], nodeId[9] );
+        //scene.link( nodeId[5], nodeId[10] );
 
-        scene.link( nodeId[7], nodeId[8] );
+        //scene.link( nodeId[7], nodeId[8] );
 
-        scene.release( &nodeId[1] );
-        scene.release( &nodeId[4] );
+        //scene.release( &nodeId[1] );
+        //scene.release( &nodeId[4] );
 
-        nodeId[1] = scene.create();
+        //nodeId[1] = scene.create();
 
         //scene.unlink( nodeId[4] );
         //scene.unlink( nodeId[5] );
@@ -122,8 +122,8 @@ public:
         //testBRDF();
         
         bxWindow* win = bxWindow_get();
-        //_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-        _resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
         bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
         _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -184,7 +184,7 @@ public:
 
         rsource = bxGfxContext::shared()->rsource.sphere;
 
-        rList = bxGfx::renderList_new( 1024 * 4, 1024 * 8, bxDefaultAllocator() );
+        rList = bxGfx::renderList_new( 1024 * 6, 1024 * 8, bxDefaultAllocator() );
 
         camera.matrix.world = Matrix4::translation( Vector3( 0.f, 2.f, 10.f ) );
         camera1.matrix.world = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.0f ) ), Vector3(0.f, 0.f, 35.f ) ); //Matrix4::translation( Vector3( 0.f ) );
@@ -208,11 +208,11 @@ public:
             _gfxMaterials->findMaterial( "white" ),
         };
 
-        const int gridX = 5;
-        const int gridY = 5;
-        const int gridZ = 5;
+        const int gridX = 16;
+        const int gridY = 16;
+        const int gridZ = 16;
 
-        const float cellSize = 2.5f;
+        const float cellSize = 1.5f;
         const float yOffset = 4.f;
         const float zOffset = -0.f;
 

@@ -131,7 +131,6 @@ struct bxMeshComponent_Data
 struct bxMeshComponent_Manager
 {
     bxMeshComponent_Instance create( bxEntity e, int nInstances );
-    void release( bxEntity e );
     void release( bxMeshComponent_Instance i );
     bxMeshComponent_Instance lookup( bxEntity e );
     
@@ -167,10 +166,6 @@ public:
     void _Startup( bxAllocator* alloc = bxDefaultAllocator() );
     void _Shutdown();
 
-    
-    //static const u32 typeId = bxTag32( "mesh" );
-    //static const char* typeName = "mesh";
-    //static bxMeshComponent_Instance _Callback_createComponent( bxEntity e, void* manager, void* userData );
     static void _Callback_releaseEntity( bxEntity e, void* userData );
 
 private:
@@ -202,33 +197,28 @@ namespace bxComponent
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-struct bxSceneComponent_Instance
+
+struct bxSceneComponent
 {
-    u32 i;
-};
-struct bxSceneComponent_NodeData
-{
-    Matrix3* localRotation;
-    Vector3* localPosition;
-    Vector3* localScale;
+    struct Instance
+    {
+        u32 i;
+    };
 
-    Matrix4* localPose;
-    Matrix4* worldPose;
 
-    i32 size;
-};
+    Instance create( bxEntity e, int nMatrices );
+    void release( Instance i );
+    Instance lookup( bxEntity e );
 
-struct bxSceneComponent_Manager
-{
-    bxSceneComponent_Instance create( bxEntity e, int nMatrices );
-    void release( bxSceneComponent_Instance i );
-    bxSceneComponent_Instance lookup( bxEntity e );
+    const Matrix4& local( Instance i ) const;
+    const Matrix4& world( Instance i ) const;
 
-    bxSceneComponent_NodeData data( bxSceneComponent_Instance i );
-
-    void link( bxSceneComponent_Instance parent, bxSceneComponent_Instance child );
-    void unlink( bxSceneComponent_Instance child );
+    void setLocal( Instance i, const Matrix4& value );
+    void setWorld( Instance i, const Matrix4& value );
         
+    void link( Instance parent, Instance child );
+    void unlink( Instance child );
+
 private:
     enum
     {
@@ -238,8 +228,8 @@ private:
     struct InstanceData
     {
         bxEntity* entity;
-        bxSceneComponent_NodeData nodeData;
-        i16* parent;
+        Matrix4* local;
+        Matrix4* world;
         u8* flags;
         i32 size;
         i32 capacity;
