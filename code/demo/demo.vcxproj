@@ -84,9 +84,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="demo_engine.cpp" />
     <ClCompile Include="entity.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="scene.cpp" />
+    <ClCompile Include="simple_scene.cpp" />
     <ClCompile Include="test_console.cpp" />
     <ClCompile Include="tree.cpp" />
   </ItemGroup>
@@ -111,8 +113,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="demo_engine.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="scene.h" />
+    <ClInclude Include="simple_scene.h" />
     <ClInclude Include="test_console.h" />
     <ClInclude Include="tree.h" />
   </ItemGroup>
