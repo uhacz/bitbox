@@ -204,20 +204,13 @@ struct bxSceneComponent
     {
         u32 i;
     };
-
-
-    Instance create( bxEntity e, int nMatrices );
+    
+    Instance create( bxEntity e );
     void release( Instance i );
     Instance lookup( bxEntity e );
 
-    const Matrix4& local( Instance i ) const;
     const Matrix4& world( Instance i ) const;
-
-    void setLocal( Instance i, const Matrix4& value );
     void setWorld( Instance i, const Matrix4& value );
-        
-    void link( Instance parent, Instance child );
-    void unlink( Instance child );
 
 private:
     enum
@@ -227,9 +220,8 @@ private:
     
     struct InstanceData
     {
-        bxEntity* entity;
-        Matrix4* local;
-        Matrix4* world;
+        bxEntity*   entity;
+        Matrix4*    world;
         u8* flags;
         i32 size;
         i32 capacity;
@@ -241,7 +233,6 @@ private:
     void* _memoryHandle;
     InstanceData _data;
     hashmap_t _entityMap;
-
 };
 
 
