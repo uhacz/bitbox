@@ -88,6 +88,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="scene.cpp" />
     <ClCompile Include="test_console.cpp" />
+    <ClCompile Include="tree.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\gdi\gdi.vcxproj">
@@ -113,6 +114,7 @@
     <ClInclude Include="entity.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="test_console.h" />
+    <ClInclude Include="tree.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
