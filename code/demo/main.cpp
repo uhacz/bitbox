@@ -161,6 +161,9 @@ public:
         memcpy( mappedVoxelDataBuffer, &vxData, sizeof(VoxelData) );
         _engine.gdiContext->backend()->unmap( voxelDataBuffer.rs );
 
+        _engine.gfxContext->frame_begin( _engine.gdiContext );
+
+        _engine.gfxContext->frame_end( _engine.gdiContext );
 
 
         //bxDemoSimpleScene_frame( win, &_engine, __simpleScene, deltaTimeUS );

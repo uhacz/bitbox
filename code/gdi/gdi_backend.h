@@ -117,6 +117,7 @@ struct bxGdiBuffer
         rs = bxGdiResource::null();
     }
 };
+
 struct bxGdiTexture
 {
     union
