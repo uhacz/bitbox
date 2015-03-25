@@ -6,111 +6,111 @@
 void bxDemoEngine_startup( bxDemoEngine* dengine )
 {
     bxWindow* win = bxWindow_get();
-    dengine->_resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+    dengine->resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
     //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
-    bxGdi::backendStartup( &dengine->_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
+    bxGdi::backendStartup( &dengine->gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
-    dengine->_gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
-    dengine->_gdiContext->_Startup( dengine->_gdiDevice );
+    dengine->gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
+    dengine->gdiContext->_Startup( dengine->gdiDevice );
 
-    bxGfxGUI::_Startup( dengine->_gdiDevice, dengine->_resourceManager, win );
+    bxGfxGUI::_Startup( dengine->gdiDevice, dengine->resourceManager, win );
 
-    dengine->_gfxContext = BX_NEW( bxDefaultAllocator(), bxGfxContext );
-    dengine->_gfxContext->_Startup( dengine->_gdiDevice, dengine->_resourceManager );
+    dengine->gfxContext = BX_NEW( bxDefaultAllocator(), bxGfxContext );
+    dengine->gfxContext->_Startup( dengine->gdiDevice, dengine->resourceManager );
 
-    bxGfxDebugDraw::_Startup( dengine->_gdiDevice, dengine->_resourceManager );
+    bxGfxDebugDraw::_Startup( dengine->gdiDevice, dengine->resourceManager );
 
-    dengine->_gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
-    dengine->_gfxLights->_Startup( dengine->_gdiDevice, bxDemoEngine::MAX_LIGHTS, bxDemoEngine::TILE_SIZE, dengine->_gfxContext->framebufferWidth(), dengine->_gfxContext->framebufferHeight() );
+    dengine->gfxLights = BX_NEW( bxDefaultAllocator(), bxGfxLights );
+    dengine->gfxLights->_Startup( dengine->gdiDevice, bxDemoEngine::MAX_LIGHTS, bxDemoEngine::TILE_SIZE, dengine->gfxContext->framebufferWidth(), dengine->gfxContext->framebufferHeight() );
 
-    dengine->_gfxMaterials = BX_NEW( bxDefaultAllocator(), bxGfxMaterialManager );
-    dengine->_gfxMaterials->_Startup( dengine->_gdiDevice, dengine->_resourceManager );
+    dengine->gfxMaterials = BX_NEW( bxDefaultAllocator(), bxGfxMaterialManager );
+    dengine->gfxMaterials->_Startup( dengine->gdiDevice, dengine->resourceManager );
 
-    dengine->_gfxPostprocess = BX_NEW1( bxGfxPostprocess );
-    dengine->_gfxPostprocess->_Startup( dengine->_gdiDevice, dengine->_resourceManager, dengine->_gfxContext->framebufferWidth(), dengine->_gfxContext->framebufferHeight() );
+    dengine->gfxPostprocess = BX_NEW1( bxGfxPostprocess );
+    dengine->gfxPostprocess->_Startup( dengine->gdiDevice, dengine->resourceManager, dengine->gfxContext->framebufferWidth(), dengine->gfxContext->framebufferHeight() );
 
     
 
 }
 void bxDemoEngine_shutdown( bxDemoEngine* dengine )
 {
-    dengine->_gfxPostprocess->_Shutdown( dengine->_gdiDevice, dengine->_resourceManager );
-    BX_DELETE01( dengine->_gfxPostprocess );
+    dengine->gfxPostprocess->_Shutdown( dengine->gdiDevice, dengine->resourceManager );
+    BX_DELETE01( dengine->gfxPostprocess );
 
-    dengine->_gfxMaterials->_Shutdown( dengine->_gdiDevice, dengine->_resourceManager );
-    BX_DELETE0( bxDefaultAllocator(), dengine->_gfxMaterials );
+    dengine->gfxMaterials->_Shutdown( dengine->gdiDevice, dengine->resourceManager );
+    BX_DELETE0( bxDefaultAllocator(), dengine->gfxMaterials );
 
-    dengine->_gfxLights->_Shutdown( dengine->_gdiDevice );
-    BX_DELETE0( bxDefaultAllocator(), dengine->_gfxLights );
+    dengine->gfxLights->_Shutdown( dengine->gdiDevice );
+    BX_DELETE0( bxDefaultAllocator(), dengine->gfxLights );
 
-    bxGfxDebugDraw::_Shutdown( dengine->_gdiDevice, dengine->_resourceManager );
+    bxGfxDebugDraw::_Shutdown( dengine->gdiDevice, dengine->resourceManager );
 
-    dengine->_gfxContext->shutdown( dengine->_gdiDevice, dengine->_resourceManager );
-    BX_DELETE0( bxDefaultAllocator(), dengine->_gfxContext );
+    dengine->gfxContext->shutdown( dengine->gdiDevice, dengine->resourceManager );
+    BX_DELETE0( bxDefaultAllocator(), dengine->gfxContext );
 
-    bxGfxGUI::shutdown( dengine->_gdiDevice, dengine->_resourceManager, bxWindow_get() );
+    bxGfxGUI::shutdown( dengine->gdiDevice, dengine->resourceManager, bxWindow_get() );
 
-    dengine->_gdiContext->_Shutdown();
-    BX_DELETE0( bxDefaultAllocator(), dengine->_gdiContext );
+    dengine->gdiContext->_Shutdown();
+    BX_DELETE0( bxDefaultAllocator(), dengine->gdiContext );
 
-    bxGdi::backendShutdown( &dengine->_gdiDevice );
-    bxResourceManager::shutdown( &dengine->_resourceManager );
+    bxGdi::backendShutdown( &dengine->gdiDevice );
+    bxResourceManager::shutdown( &dengine->resourceManager );
 }
 
 void bxDemoEngine_frameDraw( bxWindow* win, bxDemoEngine* dengine, bxGfxRenderList* rList, const bxGfxCamera& camera, float deltaTime )
 {
-    dengine->_gfxLights->cullLights( camera );
+    dengine->gfxLights->cullLights( camera );
 
-    dengine->_gfxContext->frame_begin( dengine->_gdiContext );
+    dengine->gfxContext->frame_begin( dengine->gdiContext );
 
-    dengine->_gfxContext->frame_zPrepass( dengine->_gdiContext, camera, &rList, 1 );
+    dengine->gfxContext->frame_zPrepass( dengine->gdiContext, camera, &rList, 1 );
     {
-        bxGdiTexture nrmVSTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_NORMAL_VS );
-        bxGdiTexture hwDepthTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
-        dengine->_gfxPostprocess->ssao( dengine->_gdiContext, nrmVSTexture, hwDepthTexture );
+        bxGdiTexture nrmVSTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_NORMAL_VS );
+        bxGdiTexture hwDepthTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
+        dengine->gfxPostprocess->ssao( dengine->gdiContext, nrmVSTexture, hwDepthTexture );
     }
 
-    dengine->_gfxContext->frame_drawShadows( dengine->_gdiContext, &rList, 1, camera, *dengine->_gfxLights );
+    dengine->gfxContext->frame_drawShadows( dengine->gdiContext, &rList, 1, camera, *dengine->gfxLights );
 
-    dengine->_gfxContext->bindCamera( dengine->_gdiContext, camera );
+    dengine->gfxContext->bindCamera( dengine->gdiContext, camera );
     {
-        bxGdiTexture outputTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-        dengine->_gfxPostprocess->sky( dengine->_gdiContext, outputTexture, dengine->_gfxLights->sunLight() );
+        bxGdiTexture outputTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+        dengine->gfxPostprocess->sky( dengine->gdiContext, outputTexture, dengine->gfxLights->sunLight() );
     }
 
-    dengine->_gfxLights->bind( dengine->_gdiContext );
-    dengine->_gfxContext->frame_drawColor( dengine->_gdiContext, camera, &rList, 1, dengine->_gfxPostprocess->ssaoOutput() );
+    dengine->gfxLights->bind( dengine->gdiContext );
+    dengine->gfxContext->frame_drawColor( dengine->gdiContext, camera, &rList, 1, dengine->gfxPostprocess->ssaoOutput() );
 
-    dengine->_gdiContext->clear();
-    dengine->_gfxContext->bindCamera( dengine->_gdiContext, camera );
+    dengine->gdiContext->clear();
+    dengine->gfxContext->bindCamera( dengine->gdiContext, camera );
     {
-        bxGdiTexture colorTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-        bxGdiTexture outputTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
-        bxGdiTexture depthTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
-        bxGdiTexture shadowTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS_VOLUME );
-        dengine->_gfxPostprocess->fog( dengine->_gdiContext, outputTexture, colorTexture, depthTexture, shadowTexture, dengine->_gfxLights->sunLight() );
+        bxGdiTexture colorTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+        bxGdiTexture outputTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+        bxGdiTexture depthTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH );
+        bxGdiTexture shadowTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS_VOLUME );
+        dengine->gfxPostprocess->fog( dengine->gdiContext, outputTexture, colorTexture, depthTexture, shadowTexture, dengine->gfxLights->sunLight() );
     }
     {
-        bxGdiTexture inputTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
-        bxGdiTexture outputTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-        dengine->_gfxPostprocess->toneMapping( dengine->_gdiContext, outputTexture, inputTexture, deltaTime );
+        bxGdiTexture inputTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+        bxGdiTexture outputTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+        dengine->gfxPostprocess->toneMapping( dengine->gdiContext, outputTexture, inputTexture, deltaTime );
     }
 
     {
-        bxGdiTexture inputTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-        bxGdiTexture outputTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
-        dengine->_gfxPostprocess->fxaa( dengine->_gdiContext, outputTexture, inputTexture );
+        bxGdiTexture inputTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+        bxGdiTexture outputTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP );
+        dengine->gfxPostprocess->fxaa( dengine->gdiContext, outputTexture, inputTexture );
     }
 
     {
         bxGdiTexture colorTextures[] =
         {
-            dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP ),
-            dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ),
-            dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_NORMAL_VS ),
-            dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS ),
-            dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS_VOLUME ),
-            dengine->_gfxPostprocess->ssaoOutput(),
+            dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SWAP ),
+            dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ),
+            dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_NORMAL_VS ),
+            dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS ),
+            dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_SHADOWS_VOLUME ),
+            dengine->gfxPostprocess->ssaoOutput(),
             //_gfxShadows->_depthTexture,
         };
         const char* colorNames[] =
@@ -126,17 +126,17 @@ void bxDemoEngine_frameDraw( bxWindow* win, bxDemoEngine* dengine, bxGfxRenderLi
             ImGui::End();
         }
 
-        bxGdiTexture colorTexture = dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
-        dengine->_gdiContext->changeRenderTargets( &colorTexture, 1, dengine->_gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ) );
-        bxGfxDebugDraw::flush( dengine->_gdiContext, camera.matrix.viewProj );
+        bxGdiTexture colorTexture = dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_COLOR );
+        dengine->gdiContext->changeRenderTargets( &colorTexture, 1, dengine->gfxContext->framebuffer( bxGfx::eFRAMEBUFFER_DEPTH ) );
+        bxGfxDebugDraw::flush( dengine->gdiContext, camera.matrix.viewProj );
 
         colorTexture = colorTextures[current];
-        dengine->_gfxContext->frame_rasterizeFramebuffer( dengine->_gdiContext, colorTexture, camera );
+        dengine->gfxContext->frame_rasterizeFramebuffer( dengine->gdiContext, colorTexture, camera );
     }
 
     //_gui_lights.show( _gfxLights, pointLights, nPointLights );
-    bxGfxGUI::draw( dengine->_gdiContext );
+    bxGfxGUI::draw( dengine->gdiContext );
     
-    dengine->_gfxContext->frame_end( dengine->_gdiContext );
+    dengine->gfxContext->frame_end( dengine->gdiContext );
 
 }

@@ -13,7 +13,7 @@ struct bxDemoSimpleScene
     bxDemoSimpleScene();
     ~bxDemoSimpleScene();
 
-    bxMeshComponent_Manager _componentMesh;
+    bxMeshComponent_Manager componentMesh;
 
     bxGdiRenderSource* rsource;
     bxGfxRenderList* rList;
@@ -24,7 +24,7 @@ struct bxDemoSimpleScene
     array_t<bxGfxLightManager::PointInstance> pointLights;
     array_t<bxEntity> entities;
     
-    bxGfxCamera* currentCamera_;
+    bxGfxCamera* currentCamera;
 };
 
 extern bxDemoSimpleScene* __simpleScene;

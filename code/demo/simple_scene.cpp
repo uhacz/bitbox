@@ -12,7 +12,7 @@ bxDemoSimpleScene* __simpleScene = 0;
 bxDemoSimpleScene::bxDemoSimpleScene()
     : rsource(0)
     , rList(0)
-    , currentCamera_(0)
+    , currentCamera(0)
 {}
 
 bxDemoSimpleScene::~bxDemoSimpleScene()
@@ -20,8 +20,8 @@ bxDemoSimpleScene::~bxDemoSimpleScene()
 }
 void bxDemoSimpleScene_startUp(bxDemoEngine* engine, bxDemoSimpleScene* scene)
 {
-    scene->_componentMesh._Startup();
-    engine->_entityManager.register_releaseCallback( bxMeshComponent_Manager::_Callback_releaseEntity, &scene->_componentMesh );
+    scene->componentMesh._Startup();
+    engine->entityManager.register_releaseCallback( bxMeshComponent_Manager::_Callback_releaseEntity, &scene->componentMesh );
 
     {
         const u32 colors[] =
@@ -68,22 +68,22 @@ void bxDemoSimpleScene_startUp(bxDemoEngine* engine, bxDemoSimpleScene* scene)
     camera1.matrix.world = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.0f ) ), Vector3( 0.f, 0.f, 35.f ) ); //Matrix4::translation( Vector3( 0.f ) );
     camera1.params = camera.params;
 
-    bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, engine->_gfxContext->framebufferWidth(), engine->_gfxContext->framebufferHeight() );
+    bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, engine->gfxContext->framebufferWidth(), engine->gfxContext->framebufferHeight() );
 
-    scene->currentCamera_ = &camera;
+    scene->currentCamera = &camera;
 
 
     bxGdiRenderSource* rsources[] =
     {
-        engine->_gfxContext->shared()->rsource.box,
-        engine->_gfxContext->shared()->rsource.sphere,
+        engine->gfxContext->shared()->rsource.box,
+        engine->gfxContext->shared()->rsource.sphere,
     };
     bxGdiShaderFx_Instance* materials[] =
     {
-        engine->_gfxMaterials->findMaterial( "red" ),
-        engine->_gfxMaterials->findMaterial( "green" ),
-        engine->_gfxMaterials->findMaterial( "blue" ),
-        engine->_gfxMaterials->findMaterial( "white" ),
+        engine->gfxMaterials->findMaterial( "red" ),
+        engine->gfxMaterials->findMaterial( "green" ),
+        engine->gfxMaterials->findMaterial( "blue" ),
+        engine->gfxMaterials->findMaterial( "white" ),
     };
 
     const int gridX = 16;
@@ -109,17 +109,17 @@ void bxDemoSimpleScene_startUp(bxDemoEngine* engine, bxDemoSimpleScene* scene)
                 const Matrix4 pose = appendScale( Matrix4( Matrix3::identity(), Vector3( x, y, z ) + rndOffset ), rndScale );
 
 
-                bxEntity e = engine->_entityManager.create();
-                bxMeshComponent_Instance cMeshI = scene->_componentMesh.create( e, 1 );
+                bxEntity e = engine->entityManager.create();
+                bxMeshComponent_Instance cMeshI = scene->componentMesh.create( e, 1 );
 
-                bxMeshComponent_Data cMeshData = scene->_componentMesh.mesh( cMeshI );
+                bxMeshComponent_Data cMeshData = scene->componentMesh.mesh( cMeshI );
                 cMeshData.rsource = rsources[array::size( scene->entities ) % 2];
                 cMeshData.shader = materials[array::size( scene->entities ) % 3];
                 cMeshData.surface = bxGdi::renderSource_surface( cMeshData.rsource, bxGdi::eTRIANGLES );
                 cMeshData.passIndex = 0;
-                scene->_componentMesh.setMesh( cMeshI, cMeshData );
+                scene->componentMesh.setMesh( cMeshI, cMeshData );
 
-                bxComponent_Matrix mx = scene->_componentMesh.matrix( cMeshI );
+                bxComponent_Matrix mx = scene->componentMesh.matrix( cMeshI );
                 mx.pose[0] = pose;
 
                 array::push_back( scene->entities, e );
@@ -129,21 +129,21 @@ void bxDemoSimpleScene_startUp(bxDemoEngine* engine, bxDemoSimpleScene* scene)
 
         {
             const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 100.f, 0.1f, 100.f ) );
-            bxGdiRenderSource* box = engine->_gfxContext->shared()->rsource.box;
+            bxGdiRenderSource* box = engine->gfxContext->shared()->rsource.box;
 
-            bxGdiShaderFx_Instance* fxI = engine->_gfxMaterials->findMaterial( "blue" );
+            bxGdiShaderFx_Instance* fxI = engine->gfxMaterials->findMaterial( "blue" );
 
-            bxEntity e = engine->_entityManager.create();
-            bxMeshComponent_Instance cMeshI = scene->_componentMesh.create( e, 1 );
+            bxEntity e = engine->entityManager.create();
+            bxMeshComponent_Instance cMeshI = scene->componentMesh.create( e, 1 );
 
-            bxMeshComponent_Data cMeshData = scene->_componentMesh.mesh( cMeshI );
+            bxMeshComponent_Data cMeshData = scene->componentMesh.mesh( cMeshI );
             cMeshData.rsource = box;
             cMeshData.shader = fxI;
             cMeshData.surface = bxGdi::renderSource_surface( cMeshData.rsource, bxGdi::eTRIANGLES );
             cMeshData.passIndex = 0;
-            scene->_componentMesh.setMesh( cMeshI, cMeshData );
+            scene->componentMesh.setMesh( cMeshI, cMeshData );
 
-            bxComponent_Matrix mx = scene->_componentMesh.matrix( cMeshI );
+            bxComponent_Matrix mx = scene->componentMesh.matrix( cMeshI );
             mx.pose[0] = world;
 
             array::push_back( scene->entities, e );
@@ -167,17 +167,17 @@ void bxDemoSimpleScene_shutdown( bxDemoEngine* engine, bxDemoSimpleScene* scene 
 {
     for ( int ie = 0; ie < array::size( scene->entities ); ++ie )
     {
-        engine->_entityManager.release( &scene->entities[ie] );
+        engine->entityManager.release( &scene->entities[ie] );
     }
     array::clear( scene->entities );
-    scene->_componentMesh._Shutdown();
+    scene->componentMesh._Shutdown();
 
     bxGfx::renderList_delete( &scene->rList, bxDefaultAllocator() );
     scene->rsource = 0;
     {
         for ( int ilight = 0; ilight < array::size( scene->pointLights ); ++ilight )
         {
-            engine->_gfxLights->lightManager.releaseLight( scene->pointLights[ilight] );
+            engine->gfxLights->lightManager.releaseLight( scene->pointLights[ilight] );
         }
     }
     array::clear( scene->pointLights );
@@ -189,9 +189,9 @@ void bxDemoSimpleScene_frame( bxWindow* win, bxDemoEngine* engine, bxDemoSimpleS
     bxGfxCamera& camera1 = scene->camera1;
     if ( bxInput_isKeyPressedOnce( &win->input.kbd, bxInput::eKEY_LSHIFT ) )
     {
-        scene->currentCamera_ = (scene->currentCamera_ == &camera) ? &camera1 : &camera;
+        scene->currentCamera = (scene->currentCamera == &camera) ? &camera1 : &camera;
     }
-    bxGfxCamera* currentCamera = scene->currentCamera_;
+    bxGfxCamera* currentCamera = scene->currentCamera;
     //cameraMatrix = ( cameraMatrix == &camera.matrix.world ) ? &camera1.matrix.world : &camera.matrix.world;
 
     const double deltaTimeS = bxTime::toSeconds( deltaTimeUS );
@@ -207,12 +207,12 @@ void bxDemoSimpleScene_frame( bxWindow* win, bxDemoEngine* engine, bxDemoSimpleS
                                                                , cameraInputCtx.rightInputY * deltaTime * 5.f
                                                                , cameraInputCtx.upDown * 0.25f );
 
-    const int fbWidth = engine->_gfxContext->framebufferWidth();
-    const int fbHeight = engine->_gfxContext->framebufferHeight();
+    const int fbWidth = engine->gfxContext->framebufferWidth();
+    const int fbHeight = engine->gfxContext->framebufferHeight();
     bxGfx::cameraMatrix_compute( &camera.matrix, camera.params, camera.matrix.world, fbWidth, fbHeight );
     bxGfx::cameraMatrix_compute( &camera1.matrix, camera1.params, camera1.matrix.world, fbWidth, fbHeight );
 
     scene->rList->clear();
-    bxComponent::mesh_createRenderList( scene->rList, scene->_componentMesh );
+    bxComponent::mesh_createRenderList( scene->rList, scene->componentMesh );
 }
 

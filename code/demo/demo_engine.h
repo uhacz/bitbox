@@ -15,18 +15,18 @@
 
 struct bxDemoEngine
 {
-    bxGdiDeviceBackend*   _gdiDevice;
-    bxGdiContext*         _gdiContext;
-    bxGfxContext*         _gfxContext;
-    bxGfxLights*          _gfxLights;
-    bxGfxPostprocess*     _gfxPostprocess;
-    bxGfxMaterialManager* _gfxMaterials;
-    bxResourceManager*    _resourceManager;
+    bxGdiDeviceBackend*   gdiDevice;
+    bxGdiContext*         gdiContext;
+    bxGfxContext*         gfxContext;
+    bxGfxLights*          gfxLights;
+    bxGfxPostprocess*     gfxPostprocess;
+    bxGfxMaterialManager* gfxMaterials;
+    bxResourceManager*    resourceManager;
 
-    bxGfxLightsGUI        _gui_lights;
-    bxGfxShaderFxGUI      _gui_shaderFx;
+    bxGfxLightsGUI        gui_lights;
+    bxGfxShaderFxGUI      gui_shaderFx;
 
-    bxEntity_Manager      _entityManager;
+    bxEntity_Manager      entityManager;
 
     static const int MAX_LIGHTS = 64;
     static const int TILE_SIZE = 32;
