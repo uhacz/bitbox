@@ -9,22 +9,6 @@
 class bxResourceManager;
 struct bxGfxCamera_Params;
 
-//struct bxGfxFramebuffer
-//{
-//    bxGdiTexture* textures;
-//    i32 numTextures;
-//
-//    i16 width;
-//    i16 height;
-//
-//    bxAllocator* _allocator;
-//};
-//namespace bxGfx
-//{
-//    void framebuffer_new( bxGfxFramebuffer* fb, int nTextures, bxAllocator* allocator = bxDefaultAllocator() );
-//    void framebuffer_delete( bxGfxFramebuffer* fb );
-//}///
-
 struct bxGfxContext
 {
     bxGfxContext();

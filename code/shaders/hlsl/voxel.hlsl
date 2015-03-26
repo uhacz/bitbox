@@ -17,8 +17,8 @@ na podstawie index'u obliczamy pozycje worldSpace, transformujemy wierzcholek bo
 
 #include <sys/types.hlsl>
 
-#define GRID_SIZE 1024
-#define CELL_SIZE 0.0009765625
+#define GRID_SIZE 512
+#define CELL_SIZE 0.001953125
 
 
 shared cbuffer MaterialData: register(b3)
@@ -77,6 +77,12 @@ in_PS vs_main( in_VS input )
 out_PS ps_main( in_PS input )
 {
     out_PS OUT;
-    OUT.rgba = input.color;
+
+    float3 L = normalize( float3(-1.f, 1.f, 0.f ) );
+    float3 N = normalize( input.w_normal );
+
+    const float NdotL = saturate( dot( L, N ) );
+
+    OUT.rgba = lerp( input.color* 0.1, input.color * NdotL, NdotL );
     return OUT;
 }

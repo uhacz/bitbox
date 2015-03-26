@@ -117,3 +117,14 @@ namespace bxGfx
     };
 
 }///
+
+
+struct bxGfxFramebuffer
+{
+    bxGdiTexture* textures;
+    i32 numTextures;
+
+    i16 width;
+    i16 height;
+};
+

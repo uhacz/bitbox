@@ -272,10 +272,10 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
             dxUsage = D3D11_USAGE_DYNAMIC;
         }
         
-
+        const u32 formatByteWidth = bxGdi::formatByteWidth( format );
         D3D11_BUFFER_DESC bdesc;
         memset( &bdesc, 0, sizeof( bdesc ) );
-        bdesc.ByteWidth = numElements * bxGdi::formatByteWidth( format );
+        bdesc.ByteWidth = numElements * formatByteWidth;
         bdesc.Usage = dxUsage;
         bdesc.BindFlags = dxBindFlags;
         bdesc.CPUAccessFlags = dxCpuAccessFlag;
