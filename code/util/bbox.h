@@ -52,4 +52,13 @@ struct bxAABB
 
         return result;
     }
+
+    static inline bool isPointInside( const bxAABB& aabb, const Vector3& point )
+    {
+        const boolInVec xInside = aabb.min.getX() < point.getX() & aabb.max.getX() > point.getX();
+        const boolInVec yInside = aabb.min.getY() < point.getY() & aabb.max.getY() > point.getY();
+        const boolInVec zInside = aabb.min.getZ() < point.getZ() & aabb.max.getZ() > point.getZ();
+
+        return ((xInside & yInside & zInside).getAsBool());
+    }
 };

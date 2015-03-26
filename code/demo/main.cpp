@@ -10,7 +10,7 @@
 #include "demo_engine.h"
 #include "simple_scene.h"
 #include "util/perlin_noise.h"
-
+#include "voxel.h"
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -116,6 +116,17 @@ struct bxVoxelFramebuffer
     int height() const { return textures[0].height; }
 };
 
+struct bxVoxelObject
+{
+    u16 width;
+    u16 height;
+    u16 depth;
+};
+
+
+
+
+
 static bxVoxelFramebuffer fb;
 static bxGfxCamera camera;
 static bxGfxCamera_InputContext cameraInputCtx;
@@ -126,6 +137,10 @@ public:
     {
         //testBRDF();
         
+        bxVoxelOctree* octree = bxVoxel::octree_new( 128 );
+
+        bxVoxel::octree_delete( &octree );
+
         bxDemoEngine_startup( &_engine );
         
         fxI = bxGdi::shaderFx_createWithInstance( _engine.gdiDevice, _engine.resourceManager, "voxel" );
@@ -260,9 +275,11 @@ public:
         const bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
         bxGdi::renderSurface_drawIndexedInstanced( gdiContext, surf, N_VOXELS );
 
+        bxGfxGUI::draw( gdiContext );
+
         gfxContext->frame_rasterizeFramebuffer( gdiContext, fb.textures[bxVoxelFramebuffer::eCOLOR], *currentCamera );
 
-        bxGfxGUI::draw( gdiContext );
+        
 
         gdiContext->backend()->swap();
 

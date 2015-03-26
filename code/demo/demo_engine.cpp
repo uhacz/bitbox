@@ -6,8 +6,8 @@
 void bxDemoEngine_startup( bxDemoEngine* dengine )
 {
     bxWindow* win = bxWindow_get();
-    //dengine->resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-    dengine->resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+    dengine->resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+    //dengine->resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
     bxGdi::backendStartup( &dengine->gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
     dengine->gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
@@ -28,9 +28,6 @@ void bxDemoEngine_startup( bxDemoEngine* dengine )
 
     dengine->gfxPostprocess = BX_NEW1( bxGfxPostprocess );
     dengine->gfxPostprocess->_Startup( dengine->gdiDevice, dengine->resourceManager, dengine->gfxContext->framebufferWidth(), dengine->gfxContext->framebufferHeight() );
-
-    
-
 }
 void bxDemoEngine_shutdown( bxDemoEngine* dengine )
 {
