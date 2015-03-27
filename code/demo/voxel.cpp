@@ -107,10 +107,19 @@ namespace
         const Vector3 nodeSize( (float)node.size );
         return bxAABB( nodeBegin, nodeBegin + nodeSize );
     }
+    static inline bool testAABB( const vec_float4 bboxMin, const vec_float4 bboxMax, const vec_float4 point )
+    {
+        const vec_float4 a = vec_cmple( bboxMin, point );
+        const vec_float4 b = vec_cmpgt( bboxMax, point );
+        const vec_float4 a_n_b = vec_and( a, b );
+        const int mask = _mm_movemask_ps( vec_and( vec_splat( a_n_b, 0 ), vec_and( vec_splat( a_n_b, 1 ), vec_splat( a_n_b, 2 ) ) ) );
+        return mask == 0xF;
+    }
+
     int _Octree_insertR( bxVoxelOctree* voct, u32 nodeIndex, const Vector3& point, size_t data )
     {
         const bxAABB bbox = _Octree_nodeAABB( voct->nodes[nodeIndex] );
-        const bool insideBBox = bxAABB::isPointInside( bbox, point );
+        const bool insideBBox = testAABB( bbox.min.get128(), bbox.max.get128(), point.get128() );
         
         if( !insideBBox )
             return -1;
@@ -125,6 +134,7 @@ namespace
         if( nodeSize == 1 )
         {
             u32 dataIndex = _Octree_allocateData( voct );
+            voct->nodes[nodeIndex].dataIndex = dataIndex;
             voct->data[dataIndex] = data;
             result = 1;
         }
@@ -144,9 +154,9 @@ namespace
                     u32 index = _Octree_allocateNode( voct );
                     bxVoxelOctree::Node& childNode = voct->nodes[index];
                     _Octree_initNode( &childNode, childSize );
-                    childNode.x = xyz[0] + nodeX;
-                    childNode.y = xyz[1] + nodeY;
-                    childNode.z = xyz[2] + nodeZ;
+                    childNode.x = xyz[0] * childSize + nodeX;
+                    childNode.y = xyz[1] * childSize + nodeY;
+                    childNode.z = xyz[2] * childSize + nodeZ;
 
                     voct->nodes[nodeIndex].children[ichild] = index;
                 }
@@ -175,6 +185,42 @@ void octree_clear( bxVoxelOctree* voct )
     array::clear( voct->data );
 }
 
+void octree_getShell( array_t<bxVoxelData>& vxData, const bxVoxelOctree* voct )
+{
+    bxGrid grid( 512, 512, 512 );
+    for ( int inode = 0; inode < array::size( voct->nodes ); ++inode )
+    {
+        const bxVoxelOctree::Node& node = voct->nodes[inode];
+        if ( node.size != 2 )
+            continue;
+
+        if ( node.children[0] == 0xFFFFFFFF )
+            continue;
+
+        u8 mask = 0;
+        for( int ichild = 0; ichild < 8; ++ichild )
+        {
+            mask += (voct->nodes[node.children[ichild]].dataIndex != -1) ? 1 << ichild : 0;
+        }
+
+        if ( mask == 0xFF )
+            continue;
+
+        for ( int ichild = 0; ichild < 8; ++ichild )
+        {
+            if ( !(mask & (1 << ichild)) )
+                continue;
+
+            const bxVoxelOctree::Node& child = voct->nodes[node.children[ichild]];
+            bxVoxelData vx;
+            vx.gridIndex = grid.index( child.x, child.y, child.z );
+            vx.colorRGBA = (u32)voct->data[child.dataIndex];
+            array::push_back( vxData, vx );
+        }
+
+    }
+}
+
 void octree_debugDraw( bxVoxelOctree* voct )
 {
     for( int inode = 0; inode < array::size( voct->nodes ); ++inode )
@@ -182,7 +228,9 @@ void octree_debugDraw( bxVoxelOctree* voct )
         const bxVoxelOctree::Node& node = voct->nodes[inode];
         const bxAABB bbox = _Octree_nodeAABB( node );
         
-        const u32 color = ( node.dataIndex > 0 ) ? (u32)voct->data[node.dataIndex] : 0x666666FF;
+        u32 color = 0x333333FF;
+        if (node.dataIndex > 0) 
+            color = (u32)voct->data[node.dataIndex];
 
         bxGfxDebugDraw::addBox( Matrix4::translation( bxAABB::center( bbox ) ), bxAABB::size( bbox ) * 0.5f, color, 1 );
     }

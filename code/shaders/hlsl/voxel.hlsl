@@ -65,7 +65,7 @@ in_PS vs_main( in_VS input )
     const uint2 vxData = _voxelData[ input.instanceID ];
 
     const uint3 xyz = getXYZ( vxData.x );
-    const float3 pos = (float3)xyz;
+    const float3 pos = (float3)xyz + 0.5f;
     
     const float3 wpos = pos + input.pos.xyz;//
     OUT.h_pos = mul( viewProj, float4( wpos, 1.0 ) );

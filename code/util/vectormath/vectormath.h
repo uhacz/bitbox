@@ -47,6 +47,9 @@ using namespace Vectormath::Aos;
 #define fltEpsVec floatInVec( FLT_EPSILON )
 
 #define vec_floor(v) _mm_floor_ps( v )
+#define vec_cmplt(a,b) _mm_cmplt_ps( a, b )
+#define vec_cmple( a, b ) _mm_cmple_ps( a, b )
+#define vec_cmpge( a, b ) _mm_cmpge_ps( a, b )
 
 struct Vector2
 {

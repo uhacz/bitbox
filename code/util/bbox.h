@@ -53,13 +53,10 @@ struct bxAABB
         return result;
     }
 
-#define vec_cmple( a, b ) _mm_cmple_ps( a, b )
-#define vec_cmpge( a, b ) _mm_cmpge_ps( a, b )
     static inline vec_float4 pointInAABBf4( const vec_float4 bboxMin, const vec_float4 bboxMax, const vec_float4 point )
-    
     {
-        const vec_float4 a = vec_cmple( bboxMin, point );
-        const vec_float4 b = vec_cmpge( bboxMax, point );
+        const vec_float4 a = vec_cmplt( bboxMin, point );
+        const vec_float4 b = vec_cmpgt( bboxMax, point );
         const vec_float4 a_n_b = vec_and( a, b );
         return vec_and( vec_splat( a_n_b, 0 ), vec_and( vec_splat( a_n_b, 1 ), vec_splat( a_n_b, 2 ) ) );
     }
