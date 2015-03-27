@@ -11,7 +11,8 @@
 #include "simple_scene.h"
 #include "util/perlin_noise.h"
 #include "voxel.h"
-
+#include "grid.h"
+#include "../gfx/gfx_debug_draw.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -58,48 +59,7 @@ struct VoxelData
     u32 colorRGBA;
 };
 
-struct Grid
-{
-    u32 width;
-    u32 height;
-    u32 depth;
 
-    f32 scale_x;
-    f32 scale_y;
-    f32 scale_z;
-
-    //
-    Grid()
-        : width(0), height(0), depth(0)
-        , scale_x(1.f), scale_y(1.f), scale_z(1.f)
-    {}
-        
-    void setSize( unsigned w, unsigned h, unsigned d )
-    {
-        width = w;
-        height = h;
-        depth = d;
-    }
-
-
-    //
-    int numCells() 
-    { 
-        return width * height * depth; 
-    }
-    int index( unsigned x, unsigned y, unsigned z )
-    {
-        return x + y * width + z*width*height;    
-    }
-    void coords( unsigned xyz[3], unsigned idx )
-    {
-        const int wh = width*height;
-        const int index_mod_wh = idx % wh;
-        xyz[0] = index_mod_wh % width;
-        xyz[1] = index_mod_wh / width;
-        xyz[2] = idx / wh;
-    }
-};
 
 struct bxVoxelFramebuffer
 {
@@ -157,7 +117,7 @@ public:
         //bxDemoSimpleScene_startUp( &_engine, __simpleScene );
         
         //camera.matrix.world = Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 150.f ) );
-        camera.matrix.world = inverse( Matrix4::lookAt( Point3( -30.f, 10.f, 150.f ), Point3(0.f), Vector3::yAxis() ) );
+        camera.matrix.world = inverse( Matrix4::lookAt( Point3( 0.f, 10.f, 50.f ), Point3(0.f), Vector3::yAxis() ) );
         time = 0.f;
         return true;
     }
@@ -199,67 +159,76 @@ public:
 
         bxGfx::cameraUtil_updateInput( &cameraInputCtx, &win->input, 1.f, deltaTime );
         currentCamera->matrix.world = bxGfx::cameraUtil_movement( currentCamera->matrix.world
-            , cameraInputCtx.leftInputX * 0.25f
-            , cameraInputCtx.leftInputY * 0.25f
-            , cameraInputCtx.rightInputX * deltaTime * 5.f
-            , cameraInputCtx.rightInputY * deltaTime * 5.f
-            , cameraInputCtx.upDown * 0.25f );
+            , cameraInputCtx.leftInputX * 0.5f
+            , cameraInputCtx.leftInputY * 0.5f
+            , cameraInputCtx.rightInputX * deltaTime * 10.f
+            , cameraInputCtx.rightInputY * deltaTime * 10.f
+            , cameraInputCtx.upDown * 0.5f );
 
         bxGfx::cameraMatrix_compute( &currentCamera->matrix, currentCamera->params, currentCamera->matrix.world, 0, 0 );
 
         fxI->setUniform( "viewProj", currentCamera->matrix.viewProj );
 
-        
-        Grid grid;
-        grid.setSize( GRID_SIZE,GRID_SIZE,GRID_SIZE );
-
-
-        const int N_VOXELS_X = 100;
-        const int N_VOXELS_Y = 100;
-        const int N_VOXELS_Z = 100;
-        const int N_VOXELS = N_VOXELS_X * N_VOXELS_Y * N_VOXELS_Z;
-        static VoxelData* vxData = new VoxelData[N_VOXELS];
-
-        const u32 colors[] = 
-        {
-            0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
-            0xFFFF00FF, 0xFF00FFFF, 0x00FFFFFF,
-            0xFFFFFFFF, 0xF0F0F0FF, 0x0F0F0FFF,
-            0xFF0FF0FF, 0x0FF0FFFF, 0xFFF00FFF,
-            0xFF000FFF, 0xF000FFFF, 0x000FFFFF
-        };
-        const int nColors =sizeof(colors)/sizeof(*colors);
-
-        const float cellSize = 10.5f;
-        const Vector3 divider = Vector3( 1.f / GRID_SIZE );
-
-        int counter = 0;
-        for( int iz = 0; iz < N_VOXELS_Z; ++iz )
-        {
-            for( int iy = 0; iy < N_VOXELS_Y; ++iy )
-            {
-                for( int ix = 0; ix < N_VOXELS_X; ++ix )
-                {
-                    const Vector3 rndOffset = Vector3( bxNoise_perlin( ix * cellSize + time, iy * cellSize + time, iz * cellSize  + time) ) * cellSize;
-                    //const Vector3 rndOffset1 = mulPerElem( rndOffset, divider );
-                    
-                    SSEScalar scalar( rndOffset.get128() );
-                    
-
-                    vxData[counter].gridIndex = grid.index( ix, iy, iz ) + grid.index( (int)scalar.x, (int)scalar.y, (int)scalar.z*10.f );
-                    vxData[counter].colorRGBA = colors[ counter % nColors ];
-                    ++counter;
-                }
-            }
-        }
-
-        u8* mappedVoxelDataBuffer = bxGdi::buffer_map( _engine.gdiContext->backend(), voxelDataBuffer, 0, N_VOXELS );
-        memcpy( mappedVoxelDataBuffer, vxData, sizeof(VoxelData) * N_VOXELS );
-        
         bxGfxContext* gfxContext = _engine.gfxContext;
         bxGdiContext* gdiContext = _engine.gdiContext;
 
-        gdiContext->backend()->unmap( voxelDataBuffer.rs );
+        bxGrid grid( GRID_SIZE,GRID_SIZE,GRID_SIZE );
+
+        const int N_VOXELS_X = 4;
+        const int N_VOXELS_Y = 4;
+        const int N_VOXELS_Z = 4;
+        const int N_VOXELS = N_VOXELS_X * N_VOXELS_Y * N_VOXELS_Z;
+        static VoxelData* vxData = 0 ;
+        static bxVoxelOctree* vxOctree = 0;
+        if( !vxData )
+        {
+            vxOctree = bxVoxel::octree_new( 64 );
+            vxData = new VoxelData[N_VOXELS];
+
+            const u32 colors[] = 
+            {
+                0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
+                0xFFFF00FF, 0xFF00FFFF, 0x00FFFFFF,
+                0xFFFFFFFF, 0xF0F0F0FF, 0x0F0F0FFF,
+                0xFF0FF0FF, 0x0FF0FFFF, 0xFFF00FFF,
+                0xFF000FFF, 0xF000FFFF, 0x000FFFFF
+            };
+            const int nColors =sizeof(colors)/sizeof(*colors);
+
+            const float cellSize = 5.5f;
+            const Vector3 divider = Vector3( 1.f / GRID_SIZE );
+
+            int counter = 0;
+            for( int iz = 0; iz < N_VOXELS_Z; ++iz )
+            {
+                for( int iy = 0; iy < N_VOXELS_Y; ++iy )
+                {
+                    for( int ix = 0; ix < N_VOXELS_X; ++ix )
+                    {
+                        //const Vector3 rndOffset = Vector3( bxNoise_perlin( ix * cellSize + time, iy * cellSize + time, iz * cellSize  + time) ) * cellSize;
+                        //const Vector3 rndOffset1 = mulPerElem( rndOffset, divider );
+                    
+                        //SSEScalar scalar( rndOffset.get128() );
+                        
+                        const Vector3 point( ix * cellSize, iy * cellSize, iz * cellSize );
+                        const u32 color = colors[ counter % nColors ];
+
+                        bxVoxel::octree_insert( vxOctree, point, color );
+                        
+                        vxData[counter].gridIndex = grid.index( ix * cellSize, iy * cellSize, iz * cellSize ) ; // + grid.index( (int)scalar.x * cellSize, (int)scalar.y * cellSize, (int)scalar.z*cellSize );
+                        vxData[counter].colorRGBA = colors[ counter % nColors ];
+                        ++counter;
+                    }
+                }
+            }
+
+            u8* mappedVoxelDataBuffer = bxGdi::buffer_map( _engine.gdiContext->backend(), voxelDataBuffer, 0, N_VOXELS );
+            memcpy( mappedVoxelDataBuffer, vxData, sizeof(VoxelData) * N_VOXELS );
+            gdiContext->backend()->unmap( voxelDataBuffer.rs );
+        }
+        
+        bxVoxel::octree_debugDraw( vxOctree );
+
 
         bxGfxGUI::newFrame( deltaTime );
 
@@ -277,6 +246,7 @@ public:
 
         bxGfxGUI::draw( gdiContext );
 
+        bxGfxDebugDraw::flush( gdiContext, camera.matrix.viewProj );
         gfxContext->frame_rasterizeFramebuffer( gdiContext, fb.textures[bxVoxelFramebuffer::eCOLOR], *currentCamera );
 
         

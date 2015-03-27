@@ -116,6 +116,7 @@
   <ItemGroup>
     <ClInclude Include="demo_engine.h" />
     <ClInclude Include="entity.h" />
+    <ClInclude Include="grid.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="simple_scene.h" />
     <ClInclude Include="test_console.h" />

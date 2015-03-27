@@ -53,12 +53,20 @@ struct bxAABB
         return result;
     }
 
+#define vec_cmple( a, b ) _mm_cmple_ps( a, b )
+#define vec_cmpge( a, b ) _mm_cmpge_ps( a, b )
+    static inline vec_float4 pointInAABBf4( const vec_float4 bboxMin, const vec_float4 bboxMax, const vec_float4 point )
+    
+    {
+        const vec_float4 a = vec_cmple( bboxMin, point );
+        const vec_float4 b = vec_cmpge( bboxMax, point );
+        const vec_float4 a_n_b = vec_and( a, b );
+        return vec_and( vec_splat( a_n_b, 0 ), vec_and( vec_splat( a_n_b, 1 ), vec_splat( a_n_b, 2 ) ) );
+    }
+
     static inline bool isPointInside( const bxAABB& aabb, const Vector3& point )
     {
-        const boolInVec xInside = aabb.min.getX() < point.getX() & aabb.max.getX() > point.getX();
-        const boolInVec yInside = aabb.min.getY() < point.getY() & aabb.max.getY() > point.getY();
-        const boolInVec zInside = aabb.min.getZ() < point.getZ() & aabb.max.getZ() > point.getZ();
-
-        return ((xInside & yInside & zInside).getAsBool());
+        //return boolInVec( pointInAABBf4( picoF128( bboxMin.get128() ), picoF128( bboxMax.get128() ), picoF128( point.get128() ) ) );
+        return boolInVec( floatInVec( pointInAABBf4( aabb.min.get128(), aabb.max.get128(), point.get128() ) ) ).getAsBool();
     }
 };

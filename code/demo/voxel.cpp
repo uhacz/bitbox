@@ -5,6 +5,9 @@
 #include <util/buffer_utils.h>
 #include <util/memory.h>
 #include <util/array.h>
+#include <util/bbox.h>
+#include "grid.h"
+#include <gfx/gfx_debug_draw.h>
 
 struct bxVoxelOctree
 {
@@ -37,6 +40,17 @@ namespace bxVoxel
         {
             return array::push_back( octree->data, (size_t)0 );
         }
+
+        void _Octree_initNode( bxVoxelOctree::Node* node, u32 size )
+        {
+            node->size = size;
+            node->x = 0;
+            node->y = 0;
+            node->z = 0;
+            node->dataIndex = -1;
+            memset( node->children, 0xFF, sizeof( node->children ) );    
+        }
+
     }
 
 bxVoxelOctree* octree_new( int size )
@@ -56,12 +70,7 @@ bxVoxelOctree* octree_new( int size )
     
     u32 rootIndex = _Octree_allocateNode( octree );
     bxVoxelOctree::Node& root = octree->nodes[rootIndex];
-    root.size = size;
-    root.x = 0;
-    root.y = 0;
-    root.z = 0;
-    root.dataIndex = -1;
-    memset( root.children, 0xFF, sizeof( root.children ) );
+    _Octree_initNode( &root, size );
     
     return octree;
     
@@ -90,11 +99,93 @@ void octree_delete( bxVoxelOctree** voct )
     BX_DELETE0( bxDefaultAllocator(), voct[0] );
 }
 
-
-
-unsigned octree_insert( bxVoxelOctree* voct, const Vector3& point )
+namespace
 {
-    return 0;
+    bxAABB _Octree_nodeAABB( const bxVoxelOctree::Node& node )
+    {
+        const Vector3 nodeBegin( (float)node.x, (float)node.y, (float)node.z );
+        const Vector3 nodeSize( (float)node.size );
+        return bxAABB( nodeBegin, nodeBegin + nodeSize );
+    }
+    int _Octree_insertR( bxVoxelOctree* voct, u32 nodeIndex, const Vector3& point, size_t data )
+    {
+        const bxAABB bbox = _Octree_nodeAABB( voct->nodes[nodeIndex] );
+        const bool insideBBox = bxAABB::isPointInside( bbox, point );
+        
+        if( !insideBBox )
+            return -1;
 
+        int result = -1;
+
+        const u32 nodeSize = voct->nodes[nodeIndex].size;
+        const u8 nodeX = voct->nodes[nodeIndex].x;
+        const u8 nodeY = voct->nodes[nodeIndex].y;
+        const u8 nodeZ = voct->nodes[nodeIndex].z;
+
+        if( nodeSize == 1 )
+        {
+            u32 dataIndex = _Octree_allocateData( voct );
+            voct->data[dataIndex] = data;
+            result = 1;
+        }
+        else
+        {
+            if( voct->nodes[nodeIndex].children[0] == 0xFFFFFFFF )
+            {
+                bxGrid grid( 2, 2, 2 );
+                
+                const u32 childSize = nodeSize/2;
+                
+                for( int ichild = 0; ichild < 8; ++ichild )
+                {
+                    u32 xyz[3];
+                    grid.coords( xyz, ichild );
+
+                    u32 index = _Octree_allocateNode( voct );
+                    bxVoxelOctree::Node& childNode = voct->nodes[index];
+                    _Octree_initNode( &childNode, childSize );
+                    childNode.x = xyz[0] + nodeX;
+                    childNode.y = xyz[1] + nodeY;
+                    childNode.z = xyz[2] + nodeZ;
+
+                    voct->nodes[nodeIndex].children[ichild] = index;
+                }
+            }
+            
+            for( int ichild = 0; ichild < 8; ++ichild )
+            {
+                result = _Octree_insertR( voct, voct->nodes[nodeIndex].children[ichild], point, data );
+                if( result > 0 )
+                    break;
+            }
+        }
+        return result;
+    }
 }
+
+
+void octree_insert( bxVoxelOctree* voct, const Vector3& point, size_t data )
+{
+    _Octree_insertR( voct, 0, point, data );
+}
+
+void octree_clear( bxVoxelOctree* voct )
+{
+    array::clear( voct->nodes );
+    array::clear( voct->data );
+}
+
+void octree_debugDraw( bxVoxelOctree* voct )
+{
+    for( int inode = 0; inode < array::size( voct->nodes ); ++inode )
+    {
+        const bxVoxelOctree::Node& node = voct->nodes[inode];
+        const bxAABB bbox = _Octree_nodeAABB( node );
+        
+        const u32 color = ( node.dataIndex > 0 ) ? (u32)voct->data[node.dataIndex] : 0x666666FF;
+
+        bxGfxDebugDraw::addBox( Matrix4::translation( bxAABB::center( bbox ) ), bxAABB::size( bbox ) * 0.5f, color, 1 );
+    }
+}
+
 }///
