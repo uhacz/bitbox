@@ -16,15 +16,15 @@ struct bxGrid
     {}
 
     //
-    int numCells() 
+    int numCells() const
     { 
         return width * height * depth; 
     }
-    int index( unsigned x, unsigned y, unsigned z )
+    int index( unsigned x, unsigned y, unsigned z ) const
     {
         return x + y * width + z*width*height;    
     }
-    void coords( unsigned xyz[3], unsigned idx )
+    void coords( unsigned xyz[3], unsigned idx ) const
     {
         const int wh = width*height;
         const int index_mod_wh = idx % wh;

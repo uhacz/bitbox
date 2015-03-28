@@ -185,39 +185,142 @@ void octree_clear( bxVoxelOctree* voct )
     array::clear( voct->data );
 }
 
+namespace
+{
+    int _Octree_checkCellR( const bxVoxelOctree* voct, u32 nodeIndex, const Vector3& point )
+    {
+        const bxVoxelOctree::Node& node = voct->nodes[nodeIndex];
+        const bxAABB bbox = _Octree_nodeAABB( node );
+        const bool insideBBox = testAABB( bbox.min.get128(), bbox.max.get128(), point.get128() );
+
+        int result = -1;
+        if ( !insideBBox )
+            return result;
+
+        if( node.size == 1 )
+        {
+            result = (node.dataIndex > 0) ? 1 : -1;
+        }
+        else if( node.children[0] != 0xFFFFFFFF )
+        {
+            for ( int ichild = 0; ichild < 8; ++ichild )
+            {
+                result = _Octree_checkCellR( voct, node.children[ichild], point );
+                if ( result > 0 )
+                    break;
+            }
+        }
+
+        return result;
+    }
+
+    inline size_t _Octree_createMapKey( u32 x, u32 y, u32 z )
+    {
+        return (x << 16) | (y << 8) | z;
+    }
+    inline bxVoxelData _Octree_createVoxelData( const bxVoxelOctree* voct, const bxVoxelOctree::Node& node, const bxGrid& grid )
+    {
+        bxVoxelData vx;
+        vx.gridIndex = grid.index( node.x, node.y, node.z );
+        vx.colorRGBA = (u32)voct->data[node.dataIndex];
+        return vx;
+    }
+}///
+
 void octree_getShell( array_t<bxVoxelData>& vxData, const bxVoxelOctree* voct )
 {
     bxGrid grid( 512, 512, 512 );
+
+    hashmap_t cellMap( array::size( voct->data ) );
     for ( int inode = 0; inode < array::size( voct->nodes ); ++inode )
     {
         const bxVoxelOctree::Node& node = voct->nodes[inode];
-        if ( node.size != 2 )
+        if ( node.size > 1 )
             continue;
 
-        if ( node.children[0] == 0xFFFFFFFF )
+        if ( node.dataIndex < 0 )
             continue;
 
-        u8 mask = 0;
-        for( int ichild = 0; ichild < 8; ++ichild )
+        const u32 nodeX = node.x;
+        const u32 nodeY = node.y;
+        const u32 nodeZ = node.z;
+
+        size_t hash = _Octree_createMapKey( nodeX, nodeY, nodeZ );
+        SYS_ASSERT( hashmap::lookup( cellMap, hash ) == 0 );
+
+        hashmap_t::cell_t* cell = hashmap::insert( cellMap, hash );
+        cell->value = voct->data[node.dataIndex];
+
+        //array::push_back( vxData, _Octree_createVoxelData( voct, node, grid ) );
+    }
+
+    //return;
+
+    for ( int inode = 0; inode < array::size( voct->nodes ); ++inode )
+    {
+        const bxVoxelOctree::Node& node = voct->nodes[inode];
+        if ( node.size > 1 )
+            continue;
+
+        if ( node.dataIndex < 0 )
+            continue;
+
+        const u32 centerX = node.x;
+        const u32 centerY = node.y;
+        const u32 centerZ = node.z;
+        const Vector3 center( centerX, centerY, centerZ );
+        
+        //u32 mask = 0; // 0x3F for all sides
+        u32 hitX = 0;
+        u32 hitY = 0;
+        u32 hitZ = 0;
+        for( int ix = -1; ix <= 1; ix += 2 )
         {
-            mask += (voct->nodes[node.children[ichild]].dataIndex != -1) ? 1 << ichild : 0;
+            const size_t key = _Octree_createMapKey( centerX + ix, centerY, centerZ );
+            if ( !hashmap::lookup( cellMap, key ) )
+                break;
+
+            ++hitX;
         }
-
-        if ( mask == 0xFF )
-            continue;
-
-        for ( int ichild = 0; ichild < 8; ++ichild )
+        
+        if( hitX < 2 )
         {
-            if ( !(mask & (1 << ichild)) )
-                continue;
-
-            const bxVoxelOctree::Node& child = voct->nodes[node.children[ichild]];
-            bxVoxelData vx;
-            vx.gridIndex = grid.index( child.x, child.y, child.z );
-            vx.colorRGBA = (u32)voct->data[child.dataIndex];
+            const bxVoxelData vx = _Octree_createVoxelData( voct, node, grid );
             array::push_back( vxData, vx );
+            continue;
         }
 
+        for ( int iy = -1; iy <= 1; iy += 2 )
+        {
+            const size_t key = _Octree_createMapKey( centerX, centerY + iy, centerZ );
+            if ( !hashmap::lookup( cellMap, key ) )
+                break;
+            
+            ++hitY;
+        }
+        
+        if ( hitY < 2 )
+        {
+            const bxVoxelData vx = _Octree_createVoxelData( voct, node, grid );
+            array::push_back( vxData, vx );
+            continue;
+        }
+
+        for ( int iz = -1; iz <= 1; iz += 2 )
+        {
+            const size_t key = _Octree_createMapKey( centerX, centerY, centerZ + iz );
+            if ( !hashmap::lookup( cellMap, key ) )
+                break;
+
+            ++hitZ;
+        }
+
+        if ( hitZ < 2 )
+        {
+            const bxVoxelData vx = _Octree_createVoxelData( voct, node, grid );
+            array::push_back( vxData, vx );
+            continue;
+        }
     }
 }
 

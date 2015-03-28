@@ -168,9 +168,9 @@ public:
 
         bxGrid grid( GRID_SIZE,GRID_SIZE,GRID_SIZE );
 
-        const int N_VOXELS_X = 64;
-        const int N_VOXELS_Y = 64;
-        const int N_VOXELS_Z = 64;
+        const int N_VOXELS_X = 128;
+        const int N_VOXELS_Y = 128;
+        const int N_VOXELS_Z = 128;
         const int N_VOXELS = N_VOXELS_X * N_VOXELS_Y * N_VOXELS_Z;
         static array_t<bxVoxelData> vxData;
         static bxVoxelOctree* vxOctree = 0;
@@ -196,16 +196,16 @@ public:
             int counter = 0;
             const float angleXStep = PI2 / (N_VOXELS_X - 1);
             const float angleYStep = PI / (N_VOXELS_X - 1);
-            const float radius = 9.f;
+            const float radius = 15.f;
             const float center = 15.f;
             float zAngle = 0.f;
-            for( int iz = 0; iz < (int)radius; ++iz )
+            for( int iz = 1; iz < (int)radius; ++iz )
             {
-                float yAngle = 0.f;
-                for( int iy = 0; iy < N_VOXELS_Y; ++iy )
+                float yAngle = 0.1f;
+                for( int iy = 0; iy <= N_VOXELS_Y; ++iy )
                 {
-                    float xAngle = 0.f;
-                    for( int ix = 0; ix < N_VOXELS_X; ++ix )
+                    float xAngle = 0.1f;
+                    for( int ix = 0; ix <= N_VOXELS_X; ++ix )
                     {
                         const float x = center + iz * cos( xAngle ) * sin( yAngle );
                         const float y = center + iz * sin( xAngle ) * sin( yAngle );
@@ -219,7 +219,7 @@ public:
                         //const Vector3 point( ix * cellSize, iy * cellSize, iz * cellSize );
                         const Vector3 point( x, y, z );
                         const u32 color = colors[ counter % nColors ];
-
+                        //bxGfxDebugDraw::addSphere( Vector4( point, 0.1f ), 0xFF00FF00, true );
                         bxVoxel::octree_insert( vxOctree, point, color );
                         
                         //vxData[counter].gridIndex = grid.index( ix * cellSize, iy * cellSize, iz * cellSize ) ; // + grid.index( (int)scalar.x * cellSize, (int)scalar.y * cellSize, (int)scalar.z*cellSize );
@@ -247,7 +247,7 @@ public:
         bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::xAxis(), 0xFF0000FF, true );
         bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
         bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::zAxis(), 0x0000FFFF, true );
-        bxVoxel::octree_debugDraw( vxOctree );
+        //bxVoxel::octree_debugDraw( vxOctree );
 
 
         gdiContext->clear();
