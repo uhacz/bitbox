@@ -91,7 +91,7 @@ public:
     {
         //testBRDF();
         
-        bxVoxelOctree* octree = bxVoxel::octree_new( 128 );
+        bxVoxel_Octree* octree = bxVoxel::octree_new( 128 );
 
         bxVoxel::octree_delete( &octree );
 
@@ -172,8 +172,8 @@ public:
         const int N_VOXELS_Y = 128;
         const int N_VOXELS_Z = 128;
         const int N_VOXELS = N_VOXELS_X * N_VOXELS_Y * N_VOXELS_Z;
-        static array_t<bxVoxelData> vxData;
-        static bxVoxelOctree* vxOctree = 0;
+        static array_t<bxVoxel_GpuData> vxData;
+        static bxVoxel_Octree* vxOctree = 0;
         static int nValidVoxels = 0;
         if( array::empty( vxData ) )
         {
@@ -238,7 +238,7 @@ public:
             if( !array::empty( vxData ) )
             {
                 u8* mappedVoxelDataBuffer = bxGdi::buffer_map( _engine.gdiContext->backend(), voxelDataBuffer, 0, counter );
-                memcpy( mappedVoxelDataBuffer, array::begin( vxData ), sizeof(bxVoxelData) * array::size( vxData ) );
+                memcpy( mappedVoxelDataBuffer, array::begin( vxData ), sizeof(bxVoxel_GpuData) * array::size( vxData ) );
                 gdiContext->backend()->unmap( voxelDataBuffer.rs );    
             }
             

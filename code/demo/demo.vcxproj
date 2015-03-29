@@ -92,6 +92,7 @@
     <ClCompile Include="test_console.cpp" />
     <ClCompile Include="tree.cpp" />
     <ClCompile Include="voxel.cpp" />
+    <ClCompile Include="voxel_octree.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\gdi\gdi.vcxproj">
@@ -122,6 +123,7 @@
     <ClInclude Include="test_console.h" />
     <ClInclude Include="tree.h" />
     <ClInclude Include="voxel.h" />
+    <ClInclude Include="voxel_octree.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

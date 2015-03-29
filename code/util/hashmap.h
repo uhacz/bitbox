@@ -1,14 +1,17 @@
+#pragma once
+ 
 #include "containers.h"
 
 namespace hashmap
 {
     hashmap_t::cell_t* lookup( hashmap_t& hmap, size_t key);
+    const hashmap_t::cell_t* lookup( const hashmap_t& hmap, size_t key );
     hashmap_t::cell_t* insert( hashmap_t& hmap, size_t key);
 
     void erase( hashmap_t& hmap, hashmap_t::cell_t* cell);
     void clear( hashmap_t& hmap );
 
-    inline bool empty( hashmap_t& hmap ) { return hmap.size == 0; }
+    inline bool empty( const hashmap_t& hmap ) { return hmap.size == 0; }
     
     inline void eraseByKey( hashmap_t& hmap, size_t key)
     {

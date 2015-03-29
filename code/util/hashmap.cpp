@@ -87,6 +87,22 @@ namespace hashmap
 
         return 0;
     }
+    const hashmap_t::cell_t* lookup( const hashmap_t& hmap, size_t key )
+    {
+        if ( !key )
+            return 0;
+
+        // Check regular cells
+        for ( Cell* cell = FIRST_CELL( integerHash( key ) );; cell = CIRCULAR_NEXT( cell ) )
+        {
+            if ( cell->key == key )
+                return cell;
+            if ( !cell->key )
+                return 0;
+        }
+
+        return 0;
+    }
     hashmap_t::cell_t* insert( hashmap_t& hmap, size_t key)
     {
         if( !key )

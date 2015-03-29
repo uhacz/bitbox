@@ -17,8 +17,8 @@ na podstawie index'u obliczamy pozycje worldSpace, transformujemy wierzcholek bo
 
 #include <sys/types.hlsl>
 
-#define GRID_SIZE 512
-#define CELL_SIZE 0.001953125
+#define GRID_SIZE 4096
+#define CELL_SIZE 0.000244140625
 
 
 shared cbuffer MaterialData: register(b3)

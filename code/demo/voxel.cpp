@@ -1,342 +1,201 @@
 #include "voxel.h"
 
-#include <util/type.h>
 #include <util/debug.h>
-#include <util/buffer_utils.h>
 #include <util/memory.h>
+#include <util/pool_allocator.h>
 #include <util/array.h>
 #include <util/bbox.h>
-#include "grid.h"
+#include <util/buffer_utils.h>
 #include <gfx/gfx_debug_draw.h>
+#include <gdi/gdi_backend.h>
+#include <gdi/gdi_context.h>
+#include <gdi/gdi_render_source.h>
+#include <gdi/gdi_shader.h>
 
-struct bxVoxelOctree
+#include "voxel_octree.h"
+#include "grid.h"
+
+struct bxVoxel_InternalObject
 {
-    struct Node
+    bxVoxel_Object _obj;
+    bxVoxel_ObjectId _id;
+};
+
+struct bxVoxel_Manager
+{
+    //typedef bxHandleManager<u32> Indices;
+    struct Data
     {
-        u8 x, y, z;
-        u8 size;
-        u32 children[8];
-        i32 dataIndex;
+        Matrix4*          worldPose;
+        bxVoxel_Octree**  octree;
+        bxGdiBuffer*      voxelData;
+        bxVoxel_InternalObject*   object;
+
+        i32 capacity;
+        i32 size;
+
+        void* _memoryHandle;
     };
 
-    array_t<Node> nodes;
-    array_t<size_t> data;
-    
+    Data _data;
+    bxAllocator* _alloc_main;
+    bxAllocator* _alloc_octree;
 };
+
+
+struct bxVoxel_Gfx
+{
+    bxGdiShaderFx_Instance* fxI;
+    bxGdiRenderSource* rsource;
+};
+
+struct bxVoxel_Context
+{
+    bxVoxel_Manager menago;
+    bxVoxel_Gfx gfx;
+};
+
 
 namespace bxVoxel
 {
+    bxVoxel_Manager* manager( bxVoxel_Context* ctx ) { return &ctx->menago; }
+    bxVoxel_Gfx*     gfx( bxVoxel_Context* ctx ) { return &ctx->gfx; }
+    ////
+    ////
+    void _Manager_startup( bxVoxel_Manager* man )
+    {
+        memset( &man->_data, 0x00, sizeof( bxVoxel_Manager::Data ) );
+        man->_alloc_main = bxDefaultAllocator();
+        bxDynamicPoolAllocator* pool = BX_NEW( bxDefaultAllocator(), bxDynamicPoolAllocator );
+        pool->startup( sizeof( bxVoxel_Octree ), 64, bxDefaultAllocator() );
+        man->_alloc_octree = pool;
+    }
+    void _Manager_shutdown( bxVoxel_Manager* man )
+    {
+        SYS_ASSERT( man->_data.size == 0 );
+
+        BX_FREE0( man->_alloc_main, man->_data._memoryHandle );
+
+        bxDynamicPoolAllocator* pool = (bxDynamicPoolAllocator*)man->_alloc_octree;
+        pool->shutdown();
+        man->_alloc_main = 0;
+    }
+    ////
+    ////
+    void _Gfx_startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Gfx* gfx )
+    {
+        gfx->fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "voxel" );
+        {
+            bxPolyShape polyShape;
+            bxPolyShape_createBox( &polyShape, 1 );
+            gfx->rsource = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
+            bxPolyShape_deallocateShape( &polyShape );
+        }
+    }
+    void _Gfx_shutdown( bxGdiDeviceBackend* dev, bxVoxel_Gfx* gfx )
+    {
+        bxGdi::shaderFx_releaseWithInstance( dev, &gfx->fxI );
+        bxGdi::renderSource_releaseAndFree( dev, &gfx->rsource );
+    }
+    ////
+    ////
+    bxVoxel_Context* _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    {
+        bxVoxel_Context* vctx = BX_NEW( bxDefaultAllocator(), bxVoxel_Context );
+        _Manager_startup( &vctx->menago );
+        _Gfx_startup( dev, resourceManager, &vctx->gfx );
+    }
+    void _Shutdown( bxGdiDeviceBackend* dev, bxVoxel_Context** vctx )
+    {
+        _Gfx_shutdown( dev, &vctx[0]->gfx );
+        _Manager_shutdown( &vctx[0]->menago );
+
+        BX_DELETE0( bxDefaultAllocator(), vctx[0] );
+    }
+    
+
     namespace
     {
-        u32 _Octree_allocateNode( bxVoxelOctree* octree )
+        void _Manager_allocateData( bxVoxel_Manager* menago, int newCapacity )
         {
-            bxVoxelOctree::Node node;
-            memset( &node, 0x00, sizeof( bxVoxelOctree::Node ) );
-            u32 index = array::push_back( octree->nodes, node );
-            return index;
-        }
+            if ( newCapacity <= menago->_data.capacity )
+                return;
 
-        i32 _Octree_allocateData( bxVoxelOctree* octree )
-        {
-            return array::push_back( octree->data, (size_t)0 );
-        }
+            bxVoxel_Manager::Data& data = menago->_data;
 
-        void _Octree_initNode( bxVoxelOctree::Node* node, u32 size )
-        {
-            node->size = size;
-            node->x = 0;
-            node->y = 0;
-            node->z = 0;
-            node->dataIndex = -1;
-            memset( node->children, 0xFF, sizeof( node->children ) );    
-        }
+            int memSize = 0;
+            memSize += newCapacity * sizeof( *data.worldPose );
+            memSize += newCapacity * sizeof( *data.octree );
+            memSize += newCapacity * sizeof( *data.voxelData );
+            memSize += newCapacity * sizeof( *data.object );
 
-    }
+            void* mem = BX_MALLOC( menago->_alloc_main, memSize, 16 );
+            memset( mem, 0x00, memSize );
 
-bxVoxelOctree* octree_new( int size )
-{
-    SYS_ASSERT( size > 0 && size < 0x100 );
-    SYS_ASSERT( ( size % 2 ) == 0 );
-    {
-        int tmp = size;
-        while( tmp > 1 )
-        {
-            SYS_ASSERT( (tmp % 2) == 0 && "size must be power of 2 number" );
-            tmp /= 2;
-        }
-    }
+            bxVoxel_Manager::Data newData;
+            memset( &newData, 0x00, sizeof( bxVoxel_Manager::Data ) );
 
-    bxVoxelOctree* octree = BX_NEW( bxDefaultAllocator(), bxVoxelOctree );
-    
-    u32 rootIndex = _Octree_allocateNode( octree );
-    bxVoxelOctree::Node& root = octree->nodes[rootIndex];
-    _Octree_initNode( &root, size );
-    
-    return octree;
-    
-    //const int maxNodes = size * size * size;
+            bxBufferChunker chunker( mem, memSize );
+            newData.worldPose = chunker.add<Matrix4>( newCapacity );
+            newData.octree = chunker.add<bxVoxel_Octree*>( newCapacity );
+            newData.voxelData = chunker.add<bxGdiBuffer>( newCapacity );
+            newData.object = chunker.add<bxVoxel_InternalObject>( newCapacity );
+            chunker.check();
+            newData._memoryHandle = mem;
+            newData.size = data.size;
+            newData.capacity = newCapacity;
 
-    //int memSize = 0;
-    //memSize += sizeof( bxVoxelOctree );
-    //memSize += maxNodes * sizeof( bxVoxelOctree::Node );
-
-    //void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 4 );
-    //memset( mem, 0x00, memSize );
-
-    //bxBufferChunker chunker( mem, memSize );
-    //bxVoxelOctree* octree = chunker.add< bxVoxelOctree >();
-    //octree->nodes = chunker.add< bxVoxelOctree::Node >( maxNodes );
-    //octree->size = size;
-    //octree->sizeNode = 0;
-
-    //chunker.check();
-
-    //return octree;
-
-}
-void octree_delete( bxVoxelOctree** voct )
-{
-    BX_DELETE0( bxDefaultAllocator(), voct[0] );
-}
-
-namespace
-{
-    bxAABB _Octree_nodeAABB( const bxVoxelOctree::Node& node )
-    {
-        const Vector3 nodeBegin( (float)node.x, (float)node.y, (float)node.z );
-        const Vector3 nodeSize( (float)node.size );
-        return bxAABB( nodeBegin, nodeBegin + nodeSize );
-    }
-    static inline bool testAABB( const vec_float4 bboxMin, const vec_float4 bboxMax, const vec_float4 point )
-    {
-        const vec_float4 a = vec_cmple( bboxMin, point );
-        const vec_float4 b = vec_cmpgt( bboxMax, point );
-        const vec_float4 a_n_b = vec_and( a, b );
-        const int mask = _mm_movemask_ps( vec_and( vec_splat( a_n_b, 0 ), vec_and( vec_splat( a_n_b, 1 ), vec_splat( a_n_b, 2 ) ) ) );
-        return mask == 0xF;
-    }
-
-    int _Octree_insertR( bxVoxelOctree* voct, u32 nodeIndex, const Vector3& point, size_t data )
-    {
-        const bxAABB bbox = _Octree_nodeAABB( voct->nodes[nodeIndex] );
-        const bool insideBBox = testAABB( bbox.min.get128(), bbox.max.get128(), point.get128() );
-        
-        if( !insideBBox )
-            return -1;
-
-        int result = -1;
-
-        const u32 nodeSize = voct->nodes[nodeIndex].size;
-        const u8 nodeX = voct->nodes[nodeIndex].x;
-        const u8 nodeY = voct->nodes[nodeIndex].y;
-        const u8 nodeZ = voct->nodes[nodeIndex].z;
-
-        if( nodeSize == 1 )
-        {
-            u32 dataIndex = _Octree_allocateData( voct );
-            voct->nodes[nodeIndex].dataIndex = dataIndex;
-            voct->data[dataIndex] = data;
-            result = 1;
-        }
-        else
-        {
-            if( voct->nodes[nodeIndex].children[0] == 0xFFFFFFFF )
+            if ( data._memoryHandle )
             {
-                bxGrid grid( 2, 2, 2 );
-                
-                const u32 childSize = nodeSize/2;
-                
-                for( int ichild = 0; ichild < 8; ++ichild )
-                {
-                    u32 xyz[3];
-                    grid.coords( xyz, ichild );
+                memcpy( newData.worldPose, data.worldPose, data.size * sizeof( *data.worldPose ) );
+                memcpy( newData.octree, data.octree, data.size * sizeof( *data.octree ) );
+                memcpy( newData.voxelData, data.voxelData, data.size * sizeof( *data.voxelData ) );
+                memcpy( newData.object, data.object, data.size * sizeof( *data.object ) );
 
-                    u32 index = _Octree_allocateNode( voct );
-                    bxVoxelOctree::Node& childNode = voct->nodes[index];
-                    _Octree_initNode( &childNode, childSize );
-                    childNode.x = xyz[0] * childSize + nodeX;
-                    childNode.y = xyz[1] * childSize + nodeY;
-                    childNode.z = xyz[2] * childSize + nodeZ;
-
-                    voct->nodes[nodeIndex].children[ichild] = index;
-                }
+                BX_FREE0( menago->_alloc_main, data._memoryHandle );
             }
-            
-            for( int ichild = 0; ichild < 8; ++ichild )
-            {
-                result = _Octree_insertR( voct, voct->nodes[nodeIndex].children[ichild], point, data );
-                if( result > 0 )
-                    break;
-            }
+
+            menago->_data = newData;
         }
-        return result;
+    
+        bxGdiBuffer _Gfx_createVoxelDataBuffer( bxGdiDeviceBackend* dev, int gridSize )
+        {
+            const int maxVoxels = gridSize*gridSize*gridSize;
+            const bxGdiFormat format( bxGdi::eTYPE_UINT, 2 );
+            bxGdiBuffer buff = dev->createBuffer( maxVoxels, format, bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+            return buff;
+        }
+    }///
+
+
+
+    bxVoxel_Object* object_new( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, int gridSize )
+    {
+        if( menago->_data.size + 1 > menago->_data.capacity )
+        {
+            const int newCapacity = menago->_data.capacity + 64;
+            _Manager_allocateData( menago, newCapacity );
+        }
+        bxVoxel_Manager::Data& data = menago->_data;
+        const int index = data.size;
+
+        data.worldPose[index] = Matrix4::identity();
+        data.octree[index] = octree_new( gridSize, menago->_alloc_octree );
+        data.voxelData[index] = _Gfx_createVoxelDataBuffer( dev, gridSize );
+
+        bxVoxel_InternalObject* obj = &data.object[index]; alokacja interlan objects!!
+        obj->_id.index = index;
+
+        ++data.size;
+    }
+
+    void object_delete( bxVoxel_Manager* menago, bxVoxel_Object** vobj )
+    {
+        bxVoxel_Manager::Data& data = menago->_data;
+        const int lastIndex = data.size - 1;
+        SYS_ASSERT( lastIndex >= 0 );
+
+        bxVoxel_InternalObject* iobj = (bxVoxel_InternalObject*)vobj[0];
+        const int index = iobj->_id.index;
     }
 }
-
-
-void octree_insert( bxVoxelOctree* voct, const Vector3& point, size_t data )
-{
-    _Octree_insertR( voct, 0, point, data );
-}
-
-void octree_clear( bxVoxelOctree* voct )
-{
-    array::clear( voct->nodes );
-    array::clear( voct->data );
-}
-
-namespace
-{
-    int _Octree_checkCellR( const bxVoxelOctree* voct, u32 nodeIndex, const Vector3& point )
-    {
-        const bxVoxelOctree::Node& node = voct->nodes[nodeIndex];
-        const bxAABB bbox = _Octree_nodeAABB( node );
-        const bool insideBBox = testAABB( bbox.min.get128(), bbox.max.get128(), point.get128() );
-
-        int result = -1;
-        if ( !insideBBox )
-            return result;
-
-        if( node.size == 1 )
-        {
-            result = (node.dataIndex > 0) ? 1 : -1;
-        }
-        else if( node.children[0] != 0xFFFFFFFF )
-        {
-            for ( int ichild = 0; ichild < 8; ++ichild )
-            {
-                result = _Octree_checkCellR( voct, node.children[ichild], point );
-                if ( result > 0 )
-                    break;
-            }
-        }
-
-        return result;
-    }
-
-    inline size_t _Octree_createMapKey( u32 x, u32 y, u32 z )
-    {
-        return (x << 16) | (y << 8) | z;
-    }
-    inline bxVoxelData _Octree_createVoxelData( const bxVoxelOctree* voct, const bxVoxelOctree::Node& node, const bxGrid& grid )
-    {
-        bxVoxelData vx;
-        vx.gridIndex = grid.index( node.x, node.y, node.z );
-        vx.colorRGBA = (u32)voct->data[node.dataIndex];
-        return vx;
-    }
-}///
-
-void octree_getShell( array_t<bxVoxelData>& vxData, const bxVoxelOctree* voct )
-{
-    bxGrid grid( 512, 512, 512 );
-
-    hashmap_t cellMap( array::size( voct->data ) );
-    for ( int inode = 0; inode < array::size( voct->nodes ); ++inode )
-    {
-        const bxVoxelOctree::Node& node = voct->nodes[inode];
-        if ( node.size > 1 )
-            continue;
-
-        if ( node.dataIndex < 0 )
-            continue;
-
-        const u32 nodeX = node.x;
-        const u32 nodeY = node.y;
-        const u32 nodeZ = node.z;
-
-        size_t hash = _Octree_createMapKey( nodeX, nodeY, nodeZ );
-        SYS_ASSERT( hashmap::lookup( cellMap, hash ) == 0 );
-
-        hashmap_t::cell_t* cell = hashmap::insert( cellMap, hash );
-        cell->value = voct->data[node.dataIndex];
-
-        //array::push_back( vxData, _Octree_createVoxelData( voct, node, grid ) );
-    }
-
-    //return;
-
-    for ( int inode = 0; inode < array::size( voct->nodes ); ++inode )
-    {
-        const bxVoxelOctree::Node& node = voct->nodes[inode];
-        if ( node.size > 1 )
-            continue;
-
-        if ( node.dataIndex < 0 )
-            continue;
-
-        const u32 centerX = node.x;
-        const u32 centerY = node.y;
-        const u32 centerZ = node.z;
-        const Vector3 center( centerX, centerY, centerZ );
-        
-        //u32 mask = 0; // 0x3F for all sides
-        u32 hitX = 0;
-        u32 hitY = 0;
-        u32 hitZ = 0;
-        for( int ix = -1; ix <= 1; ix += 2 )
-        {
-            const size_t key = _Octree_createMapKey( centerX + ix, centerY, centerZ );
-            if ( !hashmap::lookup( cellMap, key ) )
-                break;
-
-            ++hitX;
-        }
-        
-        if( hitX < 2 )
-        {
-            const bxVoxelData vx = _Octree_createVoxelData( voct, node, grid );
-            array::push_back( vxData, vx );
-            continue;
-        }
-
-        for ( int iy = -1; iy <= 1; iy += 2 )
-        {
-            const size_t key = _Octree_createMapKey( centerX, centerY + iy, centerZ );
-            if ( !hashmap::lookup( cellMap, key ) )
-                break;
-            
-            ++hitY;
-        }
-        
-        if ( hitY < 2 )
-        {
-            const bxVoxelData vx = _Octree_createVoxelData( voct, node, grid );
-            array::push_back( vxData, vx );
-            continue;
-        }
-
-        for ( int iz = -1; iz <= 1; iz += 2 )
-        {
-            const size_t key = _Octree_createMapKey( centerX, centerY, centerZ + iz );
-            if ( !hashmap::lookup( cellMap, key ) )
-                break;
-
-            ++hitZ;
-        }
-
-        if ( hitZ < 2 )
-        {
-            const bxVoxelData vx = _Octree_createVoxelData( voct, node, grid );
-            array::push_back( vxData, vx );
-            continue;
-        }
-    }
-}
-
-void octree_debugDraw( bxVoxelOctree* voct )
-{
-    for( int inode = 0; inode < array::size( voct->nodes ); ++inode )
-    {
-        const bxVoxelOctree::Node& node = voct->nodes[inode];
-        const bxAABB bbox = _Octree_nodeAABB( node );
-        
-        u32 color = 0x333333FF;
-        if (node.dataIndex > 0) 
-            color = (u32)voct->data[node.dataIndex];
-
-        bxGfxDebugDraw::addBox( Matrix4::translation( bxAABB::center( bbox ) ), bxAABB::size( bbox ) * 0.5f, color, 1 );
-    }
-}
-
-}///
