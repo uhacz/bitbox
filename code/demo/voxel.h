@@ -27,16 +27,6 @@ struct bxVoxel_ObjectId
     u32 index : 16;
     u32 generation : 16;
 };
-struct bxVoxel_Object
-{
-    bxVoxel_Octree* octree() { return _octree;  }
-    const Matrix4& pose() const { return _pose[0]; }
-    void setPose( const Matrix4& pose ) { _pose[0] = pose; }
-
-private:
-    bxVoxel_Octree* _octree;
-    Matrix4*        _pose;
-};
 
 namespace bxVoxel
 {
@@ -55,9 +45,13 @@ namespace bxVoxel
     void octree_clear( bxVoxel_Octree* voct );
     void octree_debugDraw( bxVoxel_Octree* voct );
 
-    bxVoxel_Object* object_new( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, int gridSize );
-    void object_delete( bxVoxel_Manager* menago, bxVoxel_Object** vobj );
+    bxVoxel_ObjectId object_new( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, int gridSize );
+    void object_delete( bxVoxel_Manager* menago, bxVoxel_ObjectId* vobj );
     
+    bxVoxel_Octree* object_octree( bxVoxel_Context* ctx, bxVoxel_ObjectId id );
+    const Matrix4& pose( bxVoxel_Context* ctx, bxVoxel_ObjectId id );
+    void setPose( bxVoxel_Context* ctx, bxVoxel_ObjectId id, const Matrix4& pose );
+
     void gfx_cull( bxVoxel_Context* vctx, const bxGfxCamera& camera );
     void gfx_draw( bxVoxel_Gfx* vgfx, bxGdiContext* ctx );
     

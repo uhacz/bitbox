@@ -15,25 +15,18 @@
 #include "voxel_octree.h"
 #include "grid.h"
 
-struct bxVoxel_InternalObject
-{
-    bxVoxel_Object _obj;
-    bxVoxel_ObjectId _id;
-};
-
 struct bxVoxel_Manager
 {
-    //typedef bxHandleManager<u32> Indices;
     struct Data
     {
         Matrix4*          worldPose;
         bxVoxel_Octree**  octree;
         bxGdiBuffer*      voxelData;
-        bxVoxel_InternalObject*   object;
+        bxVoxel_ObjectId* indices;
 
         i32 capacity;
         i32 size;
-
+        i32 _freeList;
         void* _memoryHandle;
     };
 
@@ -65,6 +58,8 @@ namespace bxVoxel
     void _Manager_startup( bxVoxel_Manager* man )
     {
         memset( &man->_data, 0x00, sizeof( bxVoxel_Manager::Data ) );
+        man->_data._freeList = -1;
+
         man->_alloc_main = bxDefaultAllocator();
         bxDynamicPoolAllocator* pool = BX_NEW( bxDefaultAllocator(), bxDynamicPoolAllocator );
         pool->startup( sizeof( bxVoxel_Octree ), 64, bxDefaultAllocator() );
@@ -127,7 +122,7 @@ namespace bxVoxel
             memSize += newCapacity * sizeof( *data.worldPose );
             memSize += newCapacity * sizeof( *data.octree );
             memSize += newCapacity * sizeof( *data.voxelData );
-            memSize += newCapacity * sizeof( *data.object );
+            memSize += newCapacity * sizeof( *data.indices );
 
             void* mem = BX_MALLOC( menago->_alloc_main, memSize, 16 );
             memset( mem, 0x00, memSize );
@@ -137,9 +132,9 @@ namespace bxVoxel
 
             bxBufferChunker chunker( mem, memSize );
             newData.worldPose = chunker.add<Matrix4>( newCapacity );
-            newData.octree = chunker.add<bxVoxel_Octree*>( newCapacity );
+            newData.octree    = chunker.add<bxVoxel_Octree*>( newCapacity );
             newData.voxelData = chunker.add<bxGdiBuffer>( newCapacity );
-            newData.object = chunker.add<bxVoxel_InternalObject>( newCapacity );
+            newData.indices   = chunker.add<bxVoxel_ObjectId>( newCapacity );
             chunker.check();
             newData._memoryHandle = mem;
             newData.size = data.size;
@@ -150,7 +145,7 @@ namespace bxVoxel
                 memcpy( newData.worldPose, data.worldPose, data.size * sizeof( *data.worldPose ) );
                 memcpy( newData.octree, data.octree, data.size * sizeof( *data.octree ) );
                 memcpy( newData.voxelData, data.voxelData, data.size * sizeof( *data.voxelData ) );
-                memcpy( newData.object, data.object, data.size * sizeof( *data.object ) );
+                memcpy( newData.indices, data.indices, data.size * sizeof( *data.indices ) );
 
                 BX_FREE0( menago->_alloc_main, data._memoryHandle );
             }
@@ -169,7 +164,7 @@ namespace bxVoxel
 
 
 
-    bxVoxel_Object* object_new( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, int gridSize )
+    bxVoxel_ObjectId object_new( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, int gridSize )
     {
         if( menago->_data.size + 1 > menago->_data.capacity )
         {
@@ -183,19 +178,29 @@ namespace bxVoxel
         data.octree[index] = octree_new( gridSize, menago->_alloc_octree );
         data.voxelData[index] = _Gfx_createVoxelDataBuffer( dev, gridSize );
 
-        bxVoxel_InternalObject* obj = &data.object[index]; alokacja interlan objects!!
-        obj->_id.index = index;
+        int iobjIndex = -1;
+        if( data._freeList == -1 )
+        {
+            iobjIndex = index;
+        }
+        else
+        {
+            iobjIndex = data._freeList;
+            data._freeList = data.indices[iobjIndex].index;
+        }
+        bxVoxel_ObjectId& id = data.indices[iobjIndex];// alokacja interlan objects!!
+        id.index = index;
 
         ++data.size;
+
+        return id;
     }
 
-    void object_delete( bxVoxel_Manager* menago, bxVoxel_Object** vobj )
+    void object_delete( bxVoxel_Manager* menago, bxVoxel_ObjectId* id )
     {
         bxVoxel_Manager::Data& data = menago->_data;
         const int lastIndex = data.size - 1;
         SYS_ASSERT( lastIndex >= 0 );
-
-        bxVoxel_InternalObject* iobj = (bxVoxel_InternalObject*)vobj[0];
-        const int index = iobj->_id.index;
+                
     }
 }
