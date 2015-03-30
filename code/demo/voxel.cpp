@@ -99,6 +99,7 @@ namespace bxVoxel
         bxVoxel_Context* vctx = BX_NEW( bxDefaultAllocator(), bxVoxel_Context );
         _Manager_startup( &vctx->menago );
         _Gfx_startup( dev, resourceManager, &vctx->gfx );
+        return vctx;
     }
     void _Shutdown( bxGdiDeviceBackend* dev, bxVoxel_Context** vctx )
     {
@@ -188,7 +189,7 @@ namespace bxVoxel
             iobjIndex = data._freeList;
             data._freeList = data.indices[iobjIndex].index;
         }
-        bxVoxel_ObjectId& id = data.indices[iobjIndex];// alokacja interlan objects!!
+        bxVoxel_ObjectId& id = data.indices[iobjIndex];
         id.index = index;
 
         ++data.size;
@@ -199,8 +200,63 @@ namespace bxVoxel
     void object_delete( bxVoxel_Manager* menago, bxVoxel_ObjectId* id )
     {
         bxVoxel_Manager::Data& data = menago->_data;
-        const int lastIndex = data.size - 1;
-        SYS_ASSERT( lastIndex >= 0 );
-                
+        if( data.indices[id->index].generation != id->generation )
+        {
+            return;
+        }
+        
+        const int handleIndex = id->index;
+        const int dataIndex = data.indices[handleIndex].index;
+        
+        const int lastDataIndex = data.size - 1;
+        SYS_ASSERT( lastDataIndex >= 0 );
+
+        int lastHandleIndex = -1;
+        for( int i = 0; i < data.size; ++i )
+        {
+            if( data.indices[i].index == lastDataIndex )
+            {
+                lastHandleIndex = i;
+                break;
+            }
+        }
+        
+        data.indices[lastHandleIndex].index = dataIndex;
+        data.indices[handleIndex].index = data._freeList;
+        data._freeList = handleIndex;
+        data.indices[handleIndex].generation += 1;
+        data.worldPose[dataIndex] = data.worldPose[lastDataIndex];
+        data.octree[dataIndex] = data.octree[lastDataIndex];
+        data.voxelData[dataIndex] = data.voxelData[lastDataIndex];
+
+        --data.size;
+        id->index = 0;
+        id->generation = 0;
     }
+
+    bool object_valid( bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    {
+        return ( id.index < menago->_data.size ) && ( menago->_data.indices[id.index].generation == id.generation );
+    }
+
+    bxVoxel_Octree* object_octree( bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    {
+        return menago->_data.octree[ menago->_data.indices[id.index].index ];
+    }
+
+    const Matrix4& object_pose( bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    {
+        return menago->_data.worldPose[ menago->_data.indices[id.index].index ];
+    }
+
+    void object_setPose( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const Matrix4& pose )
+    {
+        menago->_data.worldPose[ menago->_data.indices[id.index].index ] = pose;
+    }
+
+    void object_upload( bxGdiContextBackend* ctx, bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    {
+
+    }
+
 }

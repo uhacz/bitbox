@@ -23,4 +23,5 @@ namespace bxVoxel
     void octree_delete( bxVoxel_Octree** voct, bxAllocator* alloc );
     
     void octree_getShell( array_t<bxVoxel_GpuData>& vxData, const bxVoxel_Octree* voct );
+    void octree_getShell( bxVoxel_GpuData* vxData, int xvDataLenght, const bxVoxel_Octree* voct );
 }///

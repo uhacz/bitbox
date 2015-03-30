@@ -93,6 +93,7 @@
     <ClCompile Include="tree.cpp" />
     <ClCompile Include="voxel.cpp" />
     <ClCompile Include="voxel_octree.cpp" />
+    <ClCompile Include="voxel_util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\gdi\gdi.vcxproj">
