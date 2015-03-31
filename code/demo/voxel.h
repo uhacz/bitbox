@@ -7,6 +7,7 @@
 struct bxGfxCamera;
 struct bxGdiContext;
 struct bxGdiDeviceBackend;
+struct bxGdiContextBackend;
 class bxResourceManager;
 
 struct bxVoxel_Octree;
@@ -30,7 +31,7 @@ struct bxVoxel_ObjectId
 namespace bxVoxel
 {
     bxVoxel_Context* _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void _Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Context** vctx );
+    void _Shutdown( bxGdiDeviceBackend* dev, bxVoxel_Context** vctx );
 
     bxVoxel_Manager* manager( bxVoxel_Context* ctx );
     bxVoxel_Gfx* gfx( bxVoxel_Context* ctx );
@@ -60,7 +61,7 @@ namespace bxVoxel
     ////
     ////
     void gfx_cull( bxVoxel_Context* vctx, const bxGfxCamera& camera );
-    void gfx_draw( bxVoxel_Gfx* vgfx, bxGdiContext* ctx );
+    void gfx_draw( bxGdiContext* ctx, bxVoxel_Context* vctx, const bxGfxCamera& camera );
 
     ////
     ////

@@ -101,12 +101,7 @@ namespace bxVoxel
 
         inline size_t _Octree_createMapKey( u32 x, u32 y, u32 z )
         {
-            return (x << 16) | (y << 8) | z;
-        }
-
-        void _Octree_insertToMap( bxVoxel_Octree* voct, const bxVoxel_Octree::Node& node )
-        {
-
+            return ( 255 << 24 ) | (x << 16) | (y << 8) | z;
         }
 
         int _Octree_insertR( bxVoxel_Octree* voct, u32 nodeIndex, const Vector3& point, size_t data )
@@ -189,8 +184,8 @@ namespace bxVoxel
         array::clear( voct->data );
         hashmap::clear( voct->map );
 
-        u32 rootIndex = _Octree_allocateNode( octree );
-        bxVoxel_Octree::Node& root = octree->nodes[rootIndex];
+        u32 rootIndex = _Octree_allocateNode( voct );
+        bxVoxel_Octree::Node& root = voct->nodes[rootIndex];
         _Octree_initNode( &root, size );
     }
 
@@ -235,8 +230,16 @@ namespace bxVoxel
 
     void octree_getShell( array_t<bxVoxel_GpuData>& vxData, const bxVoxel_Octree* voct )
     {
+        array::reserve( vxData, (int)voct->map.size );
+        vxData.size = octree_getShell( array::begin( vxData ), array::capacity( vxData ), voct );
+    }
 
+    int octree_getShell( bxVoxel_GpuData* vxData, int xvDataCapacity, const bxVoxel_Octree* voct )
+    {
         bxGrid grid( GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE );
+
+
+        int vxDataSize = 0;
         for ( int inode = 0; inode < array::size( voct->nodes ); ++inode )
         {
             const bxVoxel_Octree::Node& node = voct->nodes[inode];
@@ -245,6 +248,9 @@ namespace bxVoxel
 
             if ( node.dataIndex < 0 )
                 continue;
+
+            if( vxDataSize >= xvDataCapacity )
+                break;
 
             const u32 centerX = node.x;
             const u32 centerY = node.y;
@@ -266,10 +272,12 @@ namespace bxVoxel
 
             if ( hitX < 2 )
             {
-                const bxVoxel_GpuData vx = _Octree_createVoxelData( voct, node, grid );
-                array::push_back( vxData, vx );
+                vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
                 continue;
             }
+
+            if( vxDataSize >= xvDataCapacity )
+                break;
 
             for ( int iy = -1; iy <= 1; iy += 2 )
             {
@@ -282,10 +290,12 @@ namespace bxVoxel
 
             if ( hitY < 2 )
             {
-                const bxVoxel_GpuData vx = _Octree_createVoxelData( voct, node, grid );
-                array::push_back( vxData, vx );
+                vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
                 continue;
             }
+
+            if( vxDataSize >= xvDataCapacity )
+                break;
 
             for ( int iz = -1; iz <= 1; iz += 2 )
             {
@@ -298,16 +308,11 @@ namespace bxVoxel
 
             if ( hitZ < 2 )
             {
-                const bxVoxel_GpuData vx = _Octree_createVoxelData( voct, node, grid );
-                array::push_back( vxData, vx );
+                vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
                 continue;
             }
         }
-    }
-
-    void octree_getShell( bxVoxel_GpuData* vxData, int xvDataLenght, const bxVoxel_Octree* voct )
-    {
-        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        return vxDataSize;
     }
 
 }///

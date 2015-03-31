@@ -49,10 +49,12 @@
 //    i32 _nZ;
 //};
 
-static bxGdiShaderFx_Instance* fxI = 0;
-static bxGdiRenderSource* rsource = 0;
-static bxGdiBuffer voxelDataBuffer;
-static const u32 GRID_SIZE = 512;
+//static bxGdiShaderFx_Instance* fxI = 0;
+//static bxGdiRenderSource* rsource = 0;
+//static bxGdiBuffer voxelDataBuffer;
+//static const u32 GRID_SIZE = 512;
+static bxVoxel_Context* vxContext = 0;
+static bxVoxel_ObjectId vxObject;
 
 
 struct bxVoxelFramebuffer
@@ -91,16 +93,16 @@ public:
     {
         //testBRDF();
         
-        bxVoxel_Octree* octree = bxVoxel::octree_new( 128 );
+        //bxVoxel_Octree* octree = bxVoxel::octree_new( 128 );
 
-        bxVoxel::octree_delete( &octree );
+        //bxVoxel::octree_delete( &octree );
 
         bxDemoEngine_startup( &_engine );
         
-        fxI = bxGdi::shaderFx_createWithInstance( _engine.gdiDevice, _engine.resourceManager, "voxel" );
-        rsource = _engine.gfxContext->shared()->rsource.box;
+        //fxI = bxGdi::shaderFx_createWithInstance( _engine.gdiDevice, _engine.resourceManager, "voxel" );
+        //rsource = _engine.gfxContext->shared()->rsource.box;
 
-        voxelDataBuffer = _engine.gdiDevice->createBuffer( (GRID_SIZE*GRID_SIZE*GRID_SIZE), bxGdiFormat( bxGdi::eTYPE_UINT, 2 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+        //voxelDataBuffer = _engine.gdiDevice->createBuffer( (GRID_SIZE*GRID_SIZE*GRID_SIZE), bxGdiFormat( bxGdi::eTYPE_UINT, 2 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
 
         const int fbWidth = 1920;
         const int fbHeight = 1080;
@@ -113,17 +115,27 @@ public:
         //camera.matrix.world = Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 150.f ) );
         camera.matrix.world = inverse( Matrix4::lookAt( Point3( 0.f, 10.f, 50.f ), Point3(0.f), Vector3::yAxis() ) );
         time = 0.f;
+
+        vxContext = bxVoxel::_Startup( _engine.gdiDevice, _engine.resourceManager );
+        bxVoxel_Manager* vxMenago = bxVoxel::manager( vxContext );
+        vxObject = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 32 );
+        bxVoxel::util_addBox( bxVoxel::object_octree( vxMenago, vxObject ), 20, 20, 20, 0xFF0000FF );
+        bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, vxObject );
+
         return true;
     }
     virtual void shutdown()
     {
+        bxVoxel::object_delete( bxVoxel::manager( vxContext ), &vxObject );
+        bxVoxel::_Shutdown( _engine.gdiDevice, &vxContext );
+
         for( int ifb = 0; ifb < bxVoxelFramebuffer::eCOUNT; ++ifb )
         {
             _engine.gdiDevice->releaseTexture( &fb.textures[ifb] );
         }
-        _engine.gdiDevice->releaseBuffer( &voxelDataBuffer );
-        rsource = 0;
-        bxGdi::shaderFx_releaseWithInstance( _engine.gdiDevice, &fxI );
+        //_engine.gdiDevice->releaseBuffer( &voxelDataBuffer );
+        //rsource = 0;
+        //bxGdi::shaderFx_releaseWithInstance( _engine.gdiDevice, &fxI );
         //bxDemoSimpleScene_shutdown( &_engine, __simpleScene );
         //BX_DELETE0( bxDefaultAllocator(), __simpleScene );
         bxDemoEngine_shutdown( &_engine );
@@ -161,88 +173,88 @@ public:
 
         bxGfx::cameraMatrix_compute( &currentCamera->matrix, currentCamera->params, currentCamera->matrix.world, 0, 0 );
 
-        fxI->setUniform( "viewProj", currentCamera->matrix.viewProj );
+        //
 
         bxGfxContext* gfxContext = _engine.gfxContext;
         bxGdiContext* gdiContext = _engine.gdiContext;
 
-        bxGrid grid( GRID_SIZE,GRID_SIZE,GRID_SIZE );
+        //bxGrid grid( GRID_SIZE,GRID_SIZE,GRID_SIZE );
 
-        const int N_VOXELS_X = 128;
-        const int N_VOXELS_Y = 128;
-        const int N_VOXELS_Z = 128;
-        const int N_VOXELS = N_VOXELS_X * N_VOXELS_Y * N_VOXELS_Z;
-        static array_t<bxVoxel_GpuData> vxData;
-        static bxVoxel_Octree* vxOctree = 0;
-        static int nValidVoxels = 0;
-        if( array::empty( vxData ) )
-        {
-            vxOctree = bxVoxel::octree_new( 32 );
-            //vxData = new VoxelData[N_VOXELS];
+        //const int N_VOXELS_X = 128;
+        //const int N_VOXELS_Y = 128;
+        //const int N_VOXELS_Z = 128;
+        //const int N_VOXELS = N_VOXELS_X * N_VOXELS_Y * N_VOXELS_Z;
+        //static array_t<bxVoxel_GpuData> vxData;
+        //static bxVoxel_Octree* vxOctree = 0;
+        //static int nValidVoxels = 0;
+        //if( array::empty( vxData ) )
+        //{
+        //    vxOctree = bxVoxel::octree_new( 32 );
+        //    //vxData = new VoxelData[N_VOXELS];
 
-            const u32 colors[] = 
-            {
-                0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
-                0xFFFF00FF, 0xFF00FFFF, 0x00FFFFFF,
-                0xFFFFFFFF, 0xF0F0F0FF, 0x0F0F0FFF,
-                0xFF0FF0FF, 0x0FF0FFFF, 0xFFF00FFF,
-                0xFF000FFF, 0xF000FFFF, 0x000FFFFF
-            };
-            const int nColors =sizeof(colors)/sizeof(*colors);
+        //    const u32 colors[] = 
+        //    {
+        //        0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
+        //        0xFFFF00FF, 0xFF00FFFF, 0x00FFFFFF,
+        //        0xFFFFFFFF, 0xF0F0F0FF, 0x0F0F0FFF,
+        //        0xFF0FF0FF, 0x0FF0FFFF, 0xFFF00FFF,
+        //        0xFF000FFF, 0xF000FFFF, 0x000FFFFF
+        //    };
+        //    const int nColors =sizeof(colors)/sizeof(*colors);
 
-            const float cellSize = 5.5f;
-            const Vector3 divider = Vector3( 1.f / GRID_SIZE );
+        //    const float cellSize = 5.5f;
+        //    const Vector3 divider = Vector3( 1.f / GRID_SIZE );
 
-            int counter = 0;
-            const float angleXStep = PI2 / (N_VOXELS_X - 1);
-            const float angleYStep = PI / (N_VOXELS_X - 1);
-            const float radius = 15.f;
-            const float center = 15.f;
-            float zAngle = 0.f;
-            for( int iz = 1; iz < (int)radius; ++iz )
-            {
-                float yAngle = 0.1f;
-                for( int iy = 0; iy <= N_VOXELS_Y; ++iy )
-                {
-                    float xAngle = 0.1f;
-                    for( int ix = 0; ix <= N_VOXELS_X; ++ix )
-                    {
-                        const float x = center + iz * cos( xAngle ) * sin( yAngle );
-                        const float y = center + iz * sin( xAngle ) * sin( yAngle );
-                        const float z = center + iz * cos( yAngle );
-                        
-                        //const Vector3 rndOffset = Vector3( bxNoise_perlin( ix * cellSize + time, iy * cellSize + time, iz * cellSize  + time) ) * cellSize;
-                        //const Vector3 rndOffset1 = mulPerElem( rndOffset, divider );
-                    
-                        //SSEScalar scalar( rndOffset.get128() );
-                        
-                        //const Vector3 point( ix * cellSize, iy * cellSize, iz * cellSize );
-                        const Vector3 point( x, y, z );
-                        const u32 color = colors[ counter % nColors ];
-                        //bxGfxDebugDraw::addSphere( Vector4( point, 0.1f ), 0xFF00FF00, true );
-                        bxVoxel::octree_insert( vxOctree, point, color );
-                        
-                        //vxData[counter].gridIndex = grid.index( ix * cellSize, iy * cellSize, iz * cellSize ) ; // + grid.index( (int)scalar.x * cellSize, (int)scalar.y * cellSize, (int)scalar.z*cellSize );
-                        //vxData[counter].gridIndex = grid.index( (int)x, (int)y, (int)z );
-                        //vxData[counter].colorRGBA = colors[ counter % nColors ];
-                        ++counter;
-                        xAngle += angleXStep;
-                    }
-                    yAngle += angleYStep;
-                }
-                //zAngle += angleStep;
-            }
-            nValidVoxels = counter;
+        //    int counter = 0;
+        //    const float angleXStep = PI2 / (N_VOXELS_X - 1);
+        //    const float angleYStep = PI / (N_VOXELS_X - 1);
+        //    const float radius = 15.f;
+        //    const float center = 15.f;
+        //    float zAngle = 0.f;
+        //    for( int iz = 1; iz < (int)radius; ++iz )
+        //    {
+        //        float yAngle = 0.1f;
+        //        for( int iy = 0; iy <= N_VOXELS_Y; ++iy )
+        //        {
+        //            float xAngle = 0.1f;
+        //            for( int ix = 0; ix <= N_VOXELS_X; ++ix )
+        //            {
+        //                const float x = center + iz * cos( xAngle ) * sin( yAngle );
+        //                const float y = center + iz * sin( xAngle ) * sin( yAngle );
+        //                const float z = center + iz * cos( yAngle );
+        //                
+        //                //const Vector3 rndOffset = Vector3( bxNoise_perlin( ix * cellSize + time, iy * cellSize + time, iz * cellSize  + time) ) * cellSize;
+        //                //const Vector3 rndOffset1 = mulPerElem( rndOffset, divider );
+        //            
+        //                //SSEScalar scalar( rndOffset.get128() );
+        //                
+        //                //const Vector3 point( ix * cellSize, iy * cellSize, iz * cellSize );
+        //                const Vector3 point( x, y, z );
+        //                const u32 color = colors[ counter % nColors ];
+        //                //bxGfxDebugDraw::addSphere( Vector4( point, 0.1f ), 0xFF00FF00, true );
+        //                bxVoxel::octree_insert( vxOctree, point, color );
+        //                
+        //                //vxData[counter].gridIndex = grid.index( ix * cellSize, iy * cellSize, iz * cellSize ) ; // + grid.index( (int)scalar.x * cellSize, (int)scalar.y * cellSize, (int)scalar.z*cellSize );
+        //                //vxData[counter].gridIndex = grid.index( (int)x, (int)y, (int)z );
+        //                //vxData[counter].colorRGBA = colors[ counter % nColors ];
+        //                ++counter;
+        //                xAngle += angleXStep;
+        //            }
+        //            yAngle += angleYStep;
+        //        }
+        //        //zAngle += angleStep;
+        //    }
+        //    nValidVoxels = counter;
 
-            bxVoxel::octree_getShell( vxData, vxOctree );
-            if( !array::empty( vxData ) )
-            {
-                u8* mappedVoxelDataBuffer = bxGdi::buffer_map( _engine.gdiContext->backend(), voxelDataBuffer, 0, counter );
-                memcpy( mappedVoxelDataBuffer, array::begin( vxData ), sizeof(bxVoxel_GpuData) * array::size( vxData ) );
-                gdiContext->backend()->unmap( voxelDataBuffer.rs );    
-            }
-            
-        }
+        //    bxVoxel::octree_getShell( vxData, vxOctree );
+        //    if( !array::empty( vxData ) )
+        //    {
+        //        u8* mappedVoxelDataBuffer = bxGdi::buffer_map( _engine.gdiContext->backend(), voxelDataBuffer, 0, counter );
+        //        memcpy( mappedVoxelDataBuffer, array::begin( vxData ), sizeof(bxVoxel_GpuData) * array::size( vxData ) );
+        //        gdiContext->backend()->unmap( voxelDataBuffer.rs );    
+        //    }
+        //    
+        //}
         
         bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::xAxis(), 0xFF0000FF, true );
         bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
@@ -253,14 +265,16 @@ public:
         gdiContext->clear();
         gdiContext->changeRenderTargets( &fb.textures[0], 1, fb.textures[bxVoxelFramebuffer::eDEPTH] );
         gdiContext->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
-        gdiContext->setBufferRO( voxelDataBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX );
         bxGdi::context_setViewport( gdiContext, fb.textures[0] );
         
-        bxGdi::shaderFx_enable( gdiContext, fxI, 0 );
-        bxGdi::renderSource_enable( gdiContext, rsource );
-        
-        const bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
-        bxGdi::renderSurface_drawIndexedInstanced( gdiContext, surf, array::size( vxData ) );
+        bxVoxel::gfx_draw( gdiContext, vxContext, *currentCamera );
+
+        //gdiContext->setBufferRO( voxelDataBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX );
+        //bxGdi::shaderFx_enable( gdiContext, fxI, 0 );
+        //bxGdi::renderSource_enable( gdiContext, rsource );
+        //
+        //const bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
+        //bxGdi::renderSurface_drawIndexedInstanced( gdiContext, surf, array::size( vxData ) );
 
         
 

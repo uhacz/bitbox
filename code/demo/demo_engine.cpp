@@ -6,8 +6,8 @@
 void bxDemoEngine_startup( bxDemoEngine* dengine )
 {
     bxWindow* win = bxWindow_get();
-    dengine->resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-    //dengine->resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+    //dengine->resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+    dengine->resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
     bxGdi::backendStartup( &dengine->gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
     dengine->gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );

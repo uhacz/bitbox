@@ -23,7 +23,8 @@ na podstawie index'u obliczamy pozycje worldSpace, transformujemy wierzcholek bo
 
 shared cbuffer MaterialData: register(b3)
 {
-    matrix viewProj;
+    matrix _viewProj;
+    matrix _world;
 };
 
 Buffer<uint2> _voxelData : register(t0);
@@ -67,8 +68,8 @@ in_PS vs_main( in_VS input )
     const uint3 xyz = getXYZ( vxData.x );
     const float3 pos = (float3)xyz + 0.5f;
     
-    const float3 wpos = pos + input.pos.xyz;//
-    OUT.h_pos = mul( viewProj, float4( wpos, 1.0 ) );
+    const float3 wpos = floor( mul( _world, float4(pos,1.0 ) ).xyz ) + input.pos.xyz;
+    OUT.h_pos = mul( _viewProj, float4( wpos, 1.0 ) );
     OUT.w_normal = input.normal;
     OUT.color = colorU32toFloat4_RGBA( vxData.y );
     return OUT;
