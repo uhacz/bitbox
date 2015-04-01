@@ -19,6 +19,7 @@
 struct bxVoxel_ObjectData
 {
     i32 numShellVoxels;
+    u32 gridSize;
 };
 
 struct bxVoxel_Manager
@@ -300,7 +301,10 @@ namespace bxVoxel
 
         ctx->unmap( buff.rs );
 
-        menago->_data.voxelDataObj[dataIndex].numShellVoxels = numShellVoxels;
+
+        bxVoxel_ObjectData& objData = menago->_data.voxelDataObj[dataIndex];
+        objData.numShellVoxels = numShellVoxels;
+        objData.gridSize = octree->nodes[0].size;
     }
 
     void gfx_draw( bxGdiContext* ctx, bxVoxel_Context* vctx, const bxGfxCamera& camera )
@@ -314,29 +318,30 @@ namespace bxVoxel
 
         const bxGdiBuffer* vxDataGpu = data.voxelDataGpu;
         const bxVoxel_ObjectData* vxDataObj = data.voxelDataObj;
+        const Matrix4* worldMatrices = data.worldPose;
 
         bxGdiShaderFx_Instance* fxI = vctx->gfx.fxI;
         bxGdiRenderSource* rsource = vctx->gfx.rsource;
 
-        static Matrix4 world = Matrix4::identity();
-        static float angle = 0.f;
-
-        world = Matrix4::rotationZYX( Vector3( angle ) );
-        angle += 0.001f;
-
-
-
         fxI->setUniform( "_viewProj", camera.matrix.viewProj );
-        fxI->setUniform( "_world", world );
+        
         bxGdi::shaderFx_enable( ctx, fxI, 0 );
         bxGdi::renderSource_enable( ctx, rsource );
         const bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
 
         for( int iobj = 0; iobj < numObjects; ++iobj )
         {
-            const int nInstancesToDraw = vxDataObj[iobj].numShellVoxels;
+            const bxVoxel_ObjectData& objData = vxDataObj[iobj];
+            const int nInstancesToDraw = objData.numShellVoxels;
             if( nInstancesToDraw <= 0 )
                 continue;
+
+            const u32 gridSize = objData.gridSize;
+            fxI->setUniform( "_gridSize", gridSize );
+            fxI->setUniform( "_gridSizeSqr", gridSize * gridSize );
+            fxI->setUniform( "_gridSizeInv", 1.0f / (float)gridSize );
+            fxI->setUniform( "_world", worldMatrices[iobj] );
+            fxI->uploadCBuffers( ctx->backend() );
 
             ctx->setBufferRO( vxDataGpu[iobj], 0, bxGdi::eSTAGE_MASK_VERTEX );
             bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, nInstancesToDraw );
