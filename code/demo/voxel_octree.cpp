@@ -257,60 +257,80 @@ namespace bxVoxel
             const u32 centerZ = node.z;
             const Vector3 center( (float)centerX, (float)centerY, (float)centerZ );
 
-            //u32 mask = 0; // 0x3F for all sides
-            u32 hitX = 0;
-            u32 hitY = 0;
-            u32 hitZ = 0;
-            for ( int ix = -1; ix <= 1; ix += 2 )
+            int emptyFound = 0;
+            for ( int iz = -1; iz <= 1 && !emptyFound; ++iz )
             {
-                const size_t key = _Octree_createMapKey( centerX + ix, centerY, centerZ );
-                if ( !hashmap::lookup( voct->map, key ) )
-                    break;
-
-                ++hitX;
+                for ( int iy = -1; iy <= 1 && !emptyFound; ++iy )
+                {
+                    for ( int ix = -1; ix <= 1 && !emptyFound; ++ix )
+                    {
+                        if ( ix == 0 && iy == 0 && iz == 0 )
+                            continue;
+                        const size_t key = _Octree_createMapKey( centerX + ix, centerY + iy, centerZ +iz );
+                        emptyFound = hashmap::lookup( voct->map, key ) == 0;
+                    }
+                }
             }
 
-            if ( hitX < 2 )
-            {
-                vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
-                continue;
-            }
-
-            if( vxDataSize >= xvDataCapacity )
-                break;
-
-            for ( int iy = -1; iy <= 1; iy += 2 )
-            {
-                const size_t key = _Octree_createMapKey( centerX, centerY + iy, centerZ );
-                if ( !hashmap::lookup( voct->map, key ) )
-                    break;
-
-                ++hitY;
-            }
-
-            if ( hitY < 2 )
+            if( emptyFound )
             {
                 vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
-                continue;
             }
 
-            if( vxDataSize >= xvDataCapacity )
-                break;
+            ////u32 mask = 0; // 0x3F for all sides
+            //u32 hitX = 0;
+            //u32 hitY = 0;
+            //u32 hitZ = 0;
+            //for ( int ix = -1; ix <= 1; ix += 2 )
+            //{
+            //    const size_t key = _Octree_createMapKey( centerX + ix, centerY, centerZ );
+            //    if ( !hashmap::lookup( voct->map, key ) )
+            //        break;
 
-            for ( int iz = -1; iz <= 1; iz += 2 )
-            {
-                const size_t key = _Octree_createMapKey( centerX, centerY, centerZ + iz );
-                if ( !hashmap::lookup( voct->map, key ) )
-                    break;
+            //    ++hitX;
+            //}
 
-                ++hitZ;
-            }
+            //if ( hitX < 2 )
+            //{
+            //    vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
+            //    continue;
+            //}
 
-            if ( hitZ < 2 )
-            {
-                vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
-                continue;
-            }
+            //if( vxDataSize >= xvDataCapacity )
+            //    break;
+
+            //for ( int iy = -1; iy <= 1; iy += 2 )
+            //{
+            //    const size_t key = _Octree_createMapKey( centerX, centerY + iy, centerZ );
+            //    if ( !hashmap::lookup( voct->map, key ) )
+            //        break;
+
+            //    ++hitY;
+            //}
+
+            //if ( hitY < 2 )
+            //{
+            //    vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
+            //    continue;
+            //}
+
+            //if( vxDataSize >= xvDataCapacity )
+            //    break;
+
+            //for ( int iz = -1; iz <= 1; iz += 2 )
+            //{
+            //    const size_t key = _Octree_createMapKey( centerX, centerY, centerZ + iz );
+            //    if ( !hashmap::lookup( voct->map, key ) )
+            //        break;
+
+            //    ++hitZ;
+            //}
+
+            //if ( hitZ < 2 )
+            //{
+            //    vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
+            //    continue;
+            //}
         }
         return vxDataSize;
     }

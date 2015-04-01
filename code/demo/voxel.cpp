@@ -319,10 +319,10 @@ namespace bxVoxel
         bxGdiRenderSource* rsource = vctx->gfx.rsource;
 
         static Matrix4 world = Matrix4::identity();
-        static float angle = 0.f;
+        static float angle = 0.7f;
 
         world = Matrix4::rotationZYX( Vector3( angle ) );
-        angle += 0.001f;
+        //angle += 0.0001f;
 
 
 
