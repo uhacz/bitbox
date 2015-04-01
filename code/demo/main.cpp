@@ -54,7 +54,7 @@
 //static bxGdiBuffer voxelDataBuffer;
 //static const u32 GRID_SIZE = 512;
 static bxVoxel_Context* vxContext = 0;
-const int N_OBJECTS = 50;
+const int N_OBJECTS = 1;
 static bxVoxel_ObjectId vxObject[N_OBJECTS];
 
 

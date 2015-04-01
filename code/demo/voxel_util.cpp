@@ -7,11 +7,16 @@ namespace bxVoxel
     {
         //octree_clear( voct );
 
-        for( int iz = 0; iz < d; ++iz )
+        
+        const int halfW = w / 2;
+        const int halfH = h / 2;
+        const int halfD = d / 2;
+
+        for( int iz = -halfD; iz < halfD; ++iz )
         {
-            for( int iy = 0; iy < h; ++iy )
+            for( int iy = -halfH; iy < halfH; ++iy )
             {
-                for( int ix = 0; ix < d; ++ix )
+                for( int ix = -halfW; ix < halfW; ++ix )
                 {
                     const Vector3 point( (float)ix, (float)iy, float(iz) );
                     octree_insert( voct, point, colorRGBA );

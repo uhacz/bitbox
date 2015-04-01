@@ -336,10 +336,10 @@ namespace bxVoxel
             if( nInstancesToDraw <= 0 )
                 continue;
 
-            const u32 gridSize = objData.gridSize;
-            fxI->setUniform( "_gridSize", gridSize );
-            fxI->setUniform( "_gridSizeSqr", gridSize * gridSize );
-            fxI->setUniform( "_gridSizeInv", 1.0f / (float)gridSize );
+            //const u32 gridSize = objData.gridSize;
+            //fxI->setUniform( "_gridSize", gridSize );
+            //fxI->setUniform( "_gridSizeSqr", gridSize * gridSize );
+            //fxI->setUniform( "_gridSizeInv", 1.0f / (float)gridSize );
             fxI->setUniform( "_world", worldMatrices[iobj] );
             fxI->uploadCBuffers( ctx->backend() );
 

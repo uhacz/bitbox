@@ -67,6 +67,10 @@ union SSEScalar
     {
         as_vec128f = v;
     }
+    SSEScalar( const __m128i v )
+    {
+        as_vec128i = v;
+    }
        
     __m128 as_vec128f;
     __m128i as_vec128i;

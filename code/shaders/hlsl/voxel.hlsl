@@ -25,9 +25,9 @@ shared cbuffer MaterialData: register(b3)
 {
     matrix _viewProj;
     matrix _world;
-    uint  _gridSize;
-    uint  _gridSizeSqr;
-    float _gridSizeInv;
+    //uint  _gridSize;
+    //uint  _gridSizeSqr;
+    //float _gridSizeInv;
 };
 
 Buffer<uint2> _voxelData : register(t0);
@@ -51,14 +51,19 @@ struct out_PS
     float4 rgba : SV_Target0;
 };
 
-uint3 getXYZ( int index )
+int3 getXYZ( int index )
 {
     //const int wh = GRID_SIZE*GRID_SIZE;
-	const int index_mod_wh = index % _gridSizeSqr;
+	//const int index_mod_wh = index % _gridSizeSqr;
+ //   int3 xyz;
+ //   xyz.x = index_mod_wh % _gridSize;
+	//xyz.y = index_mod_wh / _gridSize;
+	//xyz.z = index / _gridSizeSqr;
     int3 xyz;
-    xyz.x = index_mod_wh % _gridSize;
-	xyz.y = index_mod_wh / _gridSize;
-	xyz.z = index / _gridSizeSqr;
+    xyz.x = ( index >> 16 ) & 0xFF;
+    xyz.y = ( index >> 8  ) & 0xFF;
+    xyz.z = ( index ) & 0xFF;
+
     return xyz;
 }
 

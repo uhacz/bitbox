@@ -39,7 +39,7 @@ namespace bxVoxel
 
 namespace bxVoxel
 {
-    static const int GLOBAL_GRID_SIZE = 4096;
+    //static const int GLOBAL_GRID_SIZE = 4096;
 
     ////
     ////
