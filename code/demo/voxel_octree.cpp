@@ -236,7 +236,8 @@ namespace bxVoxel
 
     int octree_getShell( bxVoxel_GpuData* vxData, int xvDataCapacity, const bxVoxel_Octree* voct )
     {
-        bxGrid grid( GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE );
+        const u32 gridSize = voct->nodes[0].size;
+        bxGrid grid( gridSize, gridSize, gridSize );
 
 
         int vxDataSize = 0;
@@ -252,21 +253,19 @@ namespace bxVoxel
             if( vxDataSize >= xvDataCapacity )
                 break;
 
-            const u32 centerX = node.x;
-            const u32 centerY = node.y;
-            const u32 centerZ = node.z;
+            const i32 centerX = node.x;
+            const i32 centerY = node.y;
+            const i32 centerZ = node.z;
             const Vector3 center( (float)centerX, (float)centerY, (float)centerZ );
 
             int emptyFound = 0;
-            for ( int iz = -1; iz <= 1 && !emptyFound; ++iz )
+            for( int iz = -1; iz <= 2 && !emptyFound; iz += 2 )
             {
-                for ( int iy = -1; iy <= 1 && !emptyFound; ++iy )
+                for( int iy = -1; iy <= 2 && !emptyFound; iy += 2 )
                 {
-                    for ( int ix = -1; ix <= 1 && !emptyFound; ++ix )
+                    for( int ix = -1; ix <= 2 && !emptyFound; ix += 2 )
                     {
-                        if ( ix == 0 && iy == 0 && iz == 0 )
-                            continue;
-                        const size_t key = _Octree_createMapKey( centerX + ix, centerY + iy, centerZ +iz );
+                        const size_t key = _Octree_createMapKey( centerX + ix, centerY + iy, centerZ + iz );
                         emptyFound = hashmap::lookup( voct->map, key ) == 0;
                     }
                 }

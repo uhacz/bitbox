@@ -17,14 +17,17 @@ na podstawie index'u obliczamy pozycje worldSpace, transformujemy wierzcholek bo
 
 #include <sys/types.hlsl>
 
-#define GRID_SIZE 4096
-#define CELL_SIZE 0.000244140625
+//#define GRID_SIZE 32
+//#define CELL_SIZE (1.0 / GRID_SIZE)
 
 
 shared cbuffer MaterialData: register(b3)
 {
     matrix _viewProj;
     matrix _world;
+    uint  _gridSize;
+    uint  _gridSizeSqr;
+    float _gridSizeInv;
 };
 
 Buffer<uint2> _voxelData : register(t0);
@@ -48,14 +51,14 @@ struct out_PS
     float4 rgba : SV_Target0;
 };
 
-uint3 getXYZ( uint index )
+uint3 getXYZ( int index )
 {
-    const uint wh = GRID_SIZE*GRID_SIZE;
-	const uint index_mod_wh = index % wh;
-    uint3 xyz;
-    xyz.x = index_mod_wh % GRID_SIZE;
-	xyz.y = index_mod_wh * CELL_SIZE;
-	xyz.z = index / wh;
+    //const int wh = GRID_SIZE*GRID_SIZE;
+	const int index_mod_wh = index % _gridSizeSqr;
+    int3 xyz;
+    xyz.x = index_mod_wh % _gridSize;
+	xyz.y = index_mod_wh / _gridSize;
+	xyz.z = index / _gridSizeSqr;
     return xyz;
 }
 
@@ -65,8 +68,8 @@ in_PS vs_main( in_VS input )
 
     const uint2 vxData = _voxelData[ input.instanceID ];
 
-    const uint3 xyz = getXYZ( vxData.x );
-    const float3 pos = (float3)xyz + 0.5f;
+    const int3 xyz = getXYZ( (int)vxData.x );
+    const float3 pos = (float3)xyz;
     
     const float3 wpos = floor( mul( _world, float4(pos,1.0 ) ).xyz ) + input.pos.xyz;
     OUT.h_pos = mul( _viewProj, float4( wpos, 1.0 ) );

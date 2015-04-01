@@ -54,7 +54,8 @@
 //static bxGdiBuffer voxelDataBuffer;
 //static const u32 GRID_SIZE = 512;
 static bxVoxel_Context* vxContext = 0;
-static bxVoxel_ObjectId vxObject;
+const int N_OBJECTS = 50;
+static bxVoxel_ObjectId vxObject[N_OBJECTS];
 
 
 struct bxVoxelFramebuffer
@@ -113,20 +114,44 @@ public:
         //bxDemoSimpleScene_startUp( &_engine, __simpleScene );
         
         //camera.matrix.world = Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 150.f ) );
-        camera.matrix.world = inverse( Matrix4::lookAt( Point3( 0.f, 10.f, 50.f ), Point3(0.f), Vector3::yAxis() ) );
+        camera.params.zFar = 1000.f;
+        camera.matrix.world = inverse( Matrix4::lookAt( Point3( 0.f, 10.f, 100.f ), Point3(0.f), Vector3::yAxis() ) );
         time = 0.f;
 
         vxContext = bxVoxel::_Startup( _engine.gdiDevice, _engine.resourceManager );
         bxVoxel_Manager* vxMenago = bxVoxel::manager( vxContext );
-        vxObject = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 32 );
-        bxVoxel::util_addBox( bxVoxel::object_octree( vxMenago, vxObject ), 20, 20, 20, 0xFF0000FF );
-        bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, vxObject );
+
+        const u32 colors[] = 
+        {
+            0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
+            0xFFFF00FF, 0xFF00FFFF, 0x00FFFFFF,
+            0xFFFFFFFF, 0xF0F0F0FF, 0x0F0F0FFF,
+            0xFF0FF0FF, 0x0FF0FFFF, 0xFFF00FFF,
+            0xFF000FFF, 0xF000FFFF, 0x000FFFFF
+        };
+        const int nColors =sizeof(colors)/sizeof(*colors);
+
+        for( int iobj = 0; iobj < N_OBJECTS; ++iobj )
+        {
+            bxVoxel_ObjectId id = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 64 );
+            bxVoxel::util_addBox( bxVoxel::object_octree( vxMenago, id ), 20, 20, 20, colors[iobj%nColors] );
+            
+            const Matrix4 pose = Matrix4::translation( Vector3( -22.f + ( 22*iobj), 0.f, 0.f ) );
+            bxVoxel::object_setPose( vxMenago, id, pose );            
+            bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, id );
+
+            vxObject[iobj] = id;
+        }
+        
 
         return true;
     }
     virtual void shutdown()
     {
-        bxVoxel::object_delete( bxVoxel::manager( vxContext ), &vxObject );
+        for( int iobj = 0; iobj < N_OBJECTS; ++iobj )
+        {
+            bxVoxel::object_delete( bxVoxel::manager( vxContext ), &vxObject[iobj] );
+        }
         bxVoxel::_Shutdown( _engine.gdiDevice, &vxContext );
 
         for( int ifb = 0; ifb < bxVoxelFramebuffer::eCOUNT; ++ifb )
@@ -174,6 +199,28 @@ public:
         bxGfx::cameraMatrix_compute( &currentCamera->matrix, currentCamera->params, currentCamera->matrix.world, 0, 0 );
 
         //
+
+        static float angle = 0.f;
+        angle += deltaTimeS;
+        const float freq = 0.1f;
+        for( int iobj = 0; iobj < N_OBJECTS; ++iobj )
+        {
+            Matrix4 pose = bxVoxel::object_pose( bxVoxel::manager( vxContext ), vxObject[iobj] );
+            pose.setUpper3x3( Matrix3::rotationZYX( Vector3( angle + PI/2 * iobj ) ) );
+
+            const float* a = (float*)&pose;
+            const float* b = a + 4;
+            const float* c = a + 8;
+            const float x = bxNoise_perlin( a[0] * freq + iobj, a[1] * freq - iobj, a[2] * freq * iobj );
+            const float y = bxNoise_perlin( b[0] * freq + x, b[1] * freq - x, b[2] * freq + x );
+            const float z = bxNoise_perlin( c[0] * freq + iobj-y, c[1] * freq - iobj+x, c[2] * freq + y );
+
+            pose.setTranslation( Vector3( x, y, z ) *64 );
+            bxVoxel::object_setPose( bxVoxel::manager( vxContext ), vxObject[iobj], pose );
+        }
+
+        
+
 
         bxGfxContext* gfxContext = _engine.gfxContext;
         bxGdiContext* gdiContext = _engine.gdiContext;
