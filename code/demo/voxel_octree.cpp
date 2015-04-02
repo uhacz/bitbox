@@ -103,7 +103,8 @@ namespace bxVoxel
 
         union MapKey
         {
-            size_t hash;
+            size_t hash64;
+            u32 hash32[2];
             struct
             {
                 i8 x, y, z, w;
@@ -119,15 +120,16 @@ namespace bxVoxel
             mk.z = z;
             mk.w = -1;
             mk._padd = 0;
-            return mk.hash;
+            return mk.hash64;
             //return ( 255 << 24 ) | ((i8)x << 16) | ((i8)y << 8) | z;
         }
         inline void _Octree_keyToXYZ( i32 xyz[3], size_t key )
         {
             //MapKey mk = { key };
-            xyz[0] = (key >> 16) & 0xFF;
-            xyz[1] = (key >> 8 ) & 0xFF;
-            xyz[2] = (key      ) & 0xFF;
+            MapKey mk = {key};
+            xyz[0] = mk.x;
+            xyz[1] = mk.y;
+            xyz[2] = mk.z;
         }
         int _Octree_insertR( bxVoxel_Octree* voct, u32 nodeIndex, const Vector3& point, size_t data )
         {
@@ -259,8 +261,14 @@ namespace bxVoxel
         }
         inline bxVoxel_GpuData _Octree_createVoxelData( const bxVoxel_Octree* voct, i32 xyz[3], u32 colorRGBA )
         {
+            MapKey key;
+            key.x = xyz[0];
+            key.y = xyz[1];
+            key.z = xyz[2];
+            key.w = 0;
+            
             bxVoxel_GpuData vx;
-            vx.gridIndex = xyz[0] << 16 | xyz[1] << 8 | xyz[2];
+            vx.gridIndex = key.hash32[0];
             vx.colorRGBA = colorRGBA;
             return vx;
         }

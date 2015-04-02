@@ -60,9 +60,9 @@ int3 getXYZ( int index )
 	//xyz.y = index_mod_wh / _gridSize;
 	//xyz.z = index / _gridSizeSqr;
     int3 xyz;
-    xyz.x = ( index >> 16 ) & 0xFF;
-    xyz.y = ( index >> 8  ) & 0xFF;
-    xyz.z = ( index ) & 0xFF;
+    xyz.x = (int)( index << 24 ) >> 24;
+    xyz.y = (int)( ( index << 16 ) & 0xFF000000 ) >> 24;
+    xyz.z = (int)( ( index << 8  ) & 0xFF000000 ) >> 24;
 
     return xyz;
 }
@@ -87,7 +87,7 @@ out_PS ps_main( in_PS input )
 {
     out_PS OUT;
 
-    float3 L = normalize( float3(-1.f, 1.f, 0.f ) );
+    float3 L = -normalize( float3(3.f, 1.f,-5.f ) );
     float3 N = normalize( input.w_normal );
 
     const float NdotL = saturate( dot( L, N ) );

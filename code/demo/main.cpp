@@ -54,7 +54,7 @@
 //static bxGdiBuffer voxelDataBuffer;
 //static const u32 GRID_SIZE = 512;
 static bxVoxel_Context* vxContext = 0;
-const int N_OBJECTS = 1;
+const int N_OBJECTS = 50;
 static bxVoxel_ObjectId vxObject[N_OBJECTS];
 
 
@@ -131,18 +131,30 @@ public:
         };
         const int nColors =sizeof(colors)/sizeof(*colors);
 
-        for( int iobj = 0; iobj < N_OBJECTS; ++iobj )
+
+
+        for( int iobj = 0; iobj < N_OBJECTS-1; ++iobj )
         {
             bxVoxel_ObjectId id = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 64 );
-            bxVoxel::util_addBox( bxVoxel::object_octree( vxMenago, id ), 20, 20, 20, colors[iobj%nColors] );
+            //bxVoxel::util_addBox( bxVoxel::object_octree( vxMenago, id ), 20, 20, 20, colors[iobj%nColors] );
+            bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[iobj%nColors] );
             
-            const Matrix4 pose = Matrix4::translation( Vector3( -22.f + ( 22*iobj), 0.f, 0.f ) );
+            const Matrix4 pose = Matrix4::translation( Vector3( -22.f*(N_OBJECTS/2) + ( 22*iobj), 0.f, 0.f ) );
             bxVoxel::object_setPose( vxMenago, id, pose );            
             bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, id );
 
             vxObject[iobj] = id;
         }
         
+        {
+            bxVoxel_ObjectId id = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 64 );
+            bxVoxel::util_addPlane( bxVoxel::object_octree( vxMenago, id ), 500, 500, colors[1] );
+            const Matrix4 pose = Matrix4::translation( Vector3( 0.f, -22.f, 0.f ) );
+            bxVoxel::object_setPose( vxMenago, id, pose );            
+
+            bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, id );
+            vxObject[N_OBJECTS-1] = id;
+        }
 
         return true;
     }
@@ -150,7 +162,7 @@ public:
     {
         for( int iobj = 0; iobj < N_OBJECTS; ++iobj )
         {
-            bxVoxel::object_delete( bxVoxel::manager( vxContext ), &vxObject[iobj] );
+            bxVoxel::object_delete( _engine.gdiDevice, bxVoxel::manager( vxContext ), &vxObject[iobj] );
         }
         bxVoxel::_Shutdown( _engine.gdiDevice, &vxContext );
 
@@ -158,11 +170,7 @@ public:
         {
             _engine.gdiDevice->releaseTexture( &fb.textures[ifb] );
         }
-        //_engine.gdiDevice->releaseBuffer( &voxelDataBuffer );
-        //rsource = 0;
-        //bxGdi::shaderFx_releaseWithInstance( _engine.gdiDevice, &fxI );
-        //bxDemoSimpleScene_shutdown( &_engine, __simpleScene );
-        //BX_DELETE0( bxDefaultAllocator(), __simpleScene );
+        
         bxDemoEngine_shutdown( &_engine );
 
     }
@@ -200,24 +208,24 @@ public:
 
         //
 
-        static float angle = 0.f;
-        angle += deltaTimeS;
-        const float freq = 0.1f;
-        for( int iobj = 0; iobj < N_OBJECTS; ++iobj )
-        {
-            Matrix4 pose = bxVoxel::object_pose( bxVoxel::manager( vxContext ), vxObject[iobj] );
-            pose.setUpper3x3( Matrix3::rotationZYX( Vector3( angle + PI/2 * iobj ) ) );
+        //static float angle = 0.0f;
+        ////angle += deltaTimeS;
+        //const float freq = 0.1f;
+        //for( int iobj = 0; iobj < N_OBJECTS-1; ++iobj )
+        //{
+        //    Matrix4 pose = bxVoxel::object_pose( bxVoxel::manager( vxContext ), vxObject[iobj] );
+        //    pose.setUpper3x3( Matrix3::rotationZYX( Vector3( angle + PI/2 * iobj ) ) );
 
-            const float* a = (float*)&pose;
-            const float* b = a + 4;
-            const float* c = a + 8;
-            const float x = bxNoise_perlin( a[0] * freq + iobj, a[1] * freq - iobj, a[2] * freq * iobj );
-            const float y = bxNoise_perlin( b[0] * freq + x, b[1] * freq - x, b[2] * freq + x );
-            const float z = bxNoise_perlin( c[0] * freq + iobj-y, c[1] * freq - iobj+x, c[2] * freq + y );
+        //    const float* a = (float*)&pose;
+        //    const float* b = a + 4;
+        //    const float* c = a + 8;
+        //    const float x = bxNoise_perlin( a[0] * freq + iobj, a[1] * freq - iobj, a[2] * freq * iobj );
+        //    const float y = bxNoise_perlin( b[0] * freq + x, b[1] * freq - x, b[2] * freq + x );
+        //    const float z = bxNoise_perlin( c[0] * freq + iobj-y, c[1] * freq - iobj+x, c[2] * freq + y );
 
-            pose.setTranslation( Vector3( x, y, z ) *64 );
-            bxVoxel::object_setPose( bxVoxel::manager( vxContext ), vxObject[iobj], pose );
-        }
+        //    pose.setTranslation( Vector3( x, y, z ) *64 );
+        //    bxVoxel::object_setPose( bxVoxel::manager( vxContext ), vxObject[iobj], pose );
+        //}
 
         
 

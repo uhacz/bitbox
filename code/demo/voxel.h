@@ -50,7 +50,7 @@ namespace bxVoxel
     ////
     ////
     bxVoxel_ObjectId object_new( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, int gridSize );
-    void object_delete( bxVoxel_Manager* menago, bxVoxel_ObjectId* vobj );
+    void object_delete( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId* vobj );
     bool object_valid( bxVoxel_Manager* menago, bxVoxel_ObjectId id );
         
     bxVoxel_Octree* object_octree( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );

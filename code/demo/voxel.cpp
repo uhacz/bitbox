@@ -228,7 +228,7 @@ namespace bxVoxel
         return id;
     }
 
-    void object_delete( bxVoxel_Manager* menago, bxVoxel_ObjectId* id )
+    void object_delete( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId* id )
     {
         bxVoxel_Manager::Data& data = menago->_data;
         if( data.indices[id->index].generation != id->generation )
@@ -251,7 +251,10 @@ namespace bxVoxel
                 break;
             }
         }
-        
+
+        BX_DELETE0( menago->_alloc_octree, data.octree[dataIndex] );
+        dev->releaseBuffer( &data.voxelDataGpu[dataIndex] );
+
         data.indices[lastHandleIndex].index = dataIndex;
         data.indices[handleIndex].index = data._freeList;
         data._freeList = handleIndex;
