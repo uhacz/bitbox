@@ -11,6 +11,7 @@
 #include "simple_scene.h"
 #include "util/perlin_noise.h"
 #include "voxel.h"
+#include "voxel_file.h"
 #include "grid.h"
 #include "../gfx/gfx_debug_draw.h"
 //////////////////////////////////////////////////////////////////////////
@@ -54,7 +55,7 @@
 //static bxGdiBuffer voxelDataBuffer;
 //static const u32 GRID_SIZE = 512;
 static bxVoxel_Context* vxContext = 0;
-const int N_OBJECTS = 50;
+const int N_OBJECTS = 2;
 static bxVoxel_ObjectId vxObject[N_OBJECTS];
 
 
@@ -133,24 +134,39 @@ public:
 
 
 
-        for( int iobj = 0; iobj < N_OBJECTS-1; ++iobj )
-        {
-            bxVoxel_ObjectId id = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 64 );
-            //bxVoxel::util_addBox( bxVoxel::object_octree( vxMenago, id ), 20, 20, 20, colors[iobj%nColors] );
-            bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[iobj%nColors] );
-            
-            const Matrix4 pose = Matrix4::translation( Vector3( -22.f*(N_OBJECTS/2) + ( 22*iobj), 0.f, 0.f ) );
-            bxVoxel::object_setPose( vxMenago, id, pose );            
-            bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, id );
+        //for( int iobj = 0; iobj < N_OBJECTS-1; ++iobj )
+        //{
+        //    bxVoxel_ObjectId id = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 64 );
+        //    if( iobj % 2 )
+        //    {
+        //        bxVoxel::util_addBox( bxVoxel::object_octree( vxMenago, id ), 10, 20, 10, colors[iobj%nColors] );
+        //    }
+        //    else
+        //    {
+        //        bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[iobj%nColors] );
+        //    }
+        //    
+        //    const Matrix4 pose = Matrix4::translation( Vector3( -22.f*(N_OBJECTS/2) + ( 22*iobj), 0.f, 0.f ) );
+        //    bxVoxel::object_setPose( vxMenago, id, pose );            
+        //    bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, id );
 
-            vxObject[iobj] = id;
-        }
-        
+        //    vxObject[iobj] = id;
+        //}
+
         {
             bxVoxel_ObjectId id = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 64 );
-            bxVoxel::util_addPlane( bxVoxel::object_octree( vxMenago, id ), 500, 500, colors[1] );
-            const Matrix4 pose = Matrix4::translation( Vector3( 0.f, -22.f, 0.f ) );
-            bxVoxel::object_setPose( vxMenago, id, pose );            
+            bxVoxel::octree_loadMagicaVox( _engine.resourceManager, bxVoxel::object_octree(vxMenago,id), "model/noise.vox" );
+            bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, id );
+            vxObject[0] = id;
+        }
+
+        {
+            bxVoxel_ObjectId id = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 64 );
+            //bxVoxel::util_addPlane( bxVoxel::object_octree( vxMenago, id ), 500, 500, colors[1] );
+            //const Matrix4 pose = Matrix4::translation( Vector3( 0.f, -22.f, 0.f ) );
+            //bxVoxel::object_setPose( vxMenago, id, pose );            
+            bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[1] );
+
 
             bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, id );
             vxObject[N_OBJECTS-1] = id;
@@ -209,7 +225,7 @@ public:
         //
 
         //static float angle = 0.0f;
-        ////angle += deltaTimeS;
+        //angle += deltaTimeS;
         //const float freq = 0.1f;
         //for( int iobj = 0; iobj < N_OBJECTS-1; ++iobj )
         //{
@@ -223,7 +239,7 @@ public:
         //    const float y = bxNoise_perlin( b[0] * freq + x, b[1] * freq - x, b[2] * freq + x );
         //    const float z = bxNoise_perlin( c[0] * freq + iobj-y, c[1] * freq - iobj+x, c[2] * freq + y );
 
-        //    pose.setTranslation( Vector3( x, y, z ) *64 );
+        //    //pose.setTranslation( Vector3( x, y, z ) *64 );
         //    bxVoxel::object_setPose( bxVoxel::manager( vxContext ), vxObject[iobj], pose );
         //}
 

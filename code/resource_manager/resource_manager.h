@@ -16,6 +16,7 @@ public:
 
 	virtual bxFS::File readFileSync( const char* relativePath ) = 0;
     virtual bxFS::File readTextFileSync( const char* relativePath ) = 0;
+    virtual bxFS::Path absolutePath( const char* relativePath ) = 0;
 
     virtual void       insert( ResourceID id, uptr data ) = 0;
 	virtual uptr       lookup( ResourceID id ) = 0;

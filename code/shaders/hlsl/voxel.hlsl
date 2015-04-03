@@ -76,7 +76,7 @@ in_PS vs_main( in_VS input )
     const int3 xyz = getXYZ( (int)vxData.x );
     const float3 pos = (float3)xyz;
     
-    const float3 wpos = floor( mul( _world, float4(pos,1.0 ) ).xyz ) + input.pos.xyz;
+    const float3 wpos = round( mul( _world, float4(pos,1.0 ) ).xyz ) + input.pos.xyz;
     OUT.h_pos = mul( _viewProj, float4( wpos, 1.0 ) );
     OUT.w_normal = input.normal;
     OUT.color = colorU32toFloat4_RGBA( vxData.y );

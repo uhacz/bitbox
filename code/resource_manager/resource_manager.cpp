@@ -78,7 +78,12 @@ public:
 	{
 		return _fs.readTextFile( relative_path );
 	}
-
+    virtual bxFS::Path absolutePath( const char* relativePath )
+    {
+        bxFS::Path path;
+        _fs.absolutePath( &path, relativePath );
+        return path;
+    }
     virtual void insert( ResourceID id, uptr data )
 	{
 		_mapLock.lock();
