@@ -11,6 +11,7 @@ struct bxGdiContextBackend;
 class bxResourceManager;
 
 struct bxVoxel_Octree;
+struct bxVoxel_Map;
 struct bxVoxel_ObjectId;
 struct bxVoxel_Manager;
 struct bxVoxel_Gfx;
@@ -39,24 +40,29 @@ namespace bxVoxel
 
 namespace bxVoxel
 {
-    //static const int GLOBAL_GRID_SIZE = 4096;
-
     ////
     ////
     void octree_insert( bxVoxel_Octree* voct, const Vector3& point, size_t data );
     void octree_clear( bxVoxel_Octree* voct );
+    void octree_build( bxVoxel_Octree* voct, const bxVoxel_Map* m );
     void octree_debugDraw( bxVoxel_Octree* voct );
 
+    void map_insert( bxVoxel_Map* m, const Vector3& point, size_t data );
+    void map_clear( bxVoxel_Map* m );
+
+    void gpu_uploadShell( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId id );
+    
     ////
     ////
-    bxVoxel_ObjectId object_new( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, int gridSize );
+    bxVoxel_ObjectId object_new( bxVoxel_Manager* menago );
     void object_delete( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId* vobj );
     bool object_valid( bxVoxel_Manager* menago, bxVoxel_ObjectId id );
         
     bxVoxel_Octree* object_octree( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );
+    bxVoxel_Map* object_map( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );
+
     const Matrix4& object_pose( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );
     void object_setPose( bxVoxel_Manager* ctx, bxVoxel_ObjectId id, const Matrix4& pose );
-    void object_upload( bxGdiContextBackend* ctx, bxVoxel_Manager* menago, bxVoxel_ObjectId id );
 
     ////
     ////
@@ -65,9 +71,9 @@ namespace bxVoxel
 
     ////
     ////
-    void util_addBox( bxVoxel_Octree* voct, int w, int h, int d, unsigned colorRGBA );
-    void util_addSphere( bxVoxel_Octree* voct, int radius, unsigned colorRGBA );
-    void util_addPlane( bxVoxel_Octree* voct, int w, int h, unsigned colorRGBA );
+    void util_addBox( bxVoxel_Map* voct, int w, int h, int d, unsigned colorRGBA );
+    void util_addSphere( bxVoxel_Map* voct, int radius, unsigned colorRGBA );
+    void util_addPlane( bxVoxel_Map* voct, int w, int h, unsigned colorRGBA );
 }///
 
 

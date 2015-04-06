@@ -154,21 +154,21 @@ public:
         //}
 
         {
-            bxVoxel_ObjectId id = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 64 );
-            bxVoxel::octree_loadMagicaVox( _engine.resourceManager, bxVoxel::object_octree(vxMenago,id), "model/noise.vox" );
-            bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, id );
+            bxVoxel_ObjectId id = bxVoxel::object_new( vxMenago );
+            bxVoxel::octree_loadMagicaVox( _engine.resourceManager, bxVoxel::object_map(vxMenago,id), "model/dragon.vox" );
+            bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxMenago, id );
             vxObject[0] = id;
         }
 
         {
-            bxVoxel_ObjectId id = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 64 );
+            bxVoxel_ObjectId id = bxVoxel::object_new( vxMenago );
             //bxVoxel::util_addPlane( bxVoxel::object_octree( vxMenago, id ), 500, 500, colors[1] );
             //const Matrix4 pose = Matrix4::translation( Vector3( 0.f, -22.f, 0.f ) );
             //bxVoxel::object_setPose( vxMenago, id, pose );            
-            bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[1] );
+            //bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[1] );
+            bxVoxel::octree_loadHeightmapRaw8( _engine.resourceManager, bxVoxel::object_map( vxMenago, id ), "model/heightmap.raw" );
 
-
-            bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, id );
+            bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxMenago, id );
             vxObject[N_OBJECTS-1] = id;
         }
 

@@ -19,7 +19,6 @@
 struct bxVoxel_ObjectData
 {
     i32 numShellVoxels;
-    u32 gridSize;
 };
 
 struct bxVoxel_Manager
@@ -28,6 +27,7 @@ struct bxVoxel_Manager
     {
         Matrix4*            worldPose;
         bxVoxel_Octree**    octree;
+        bxVoxel_Map*        map;
         bxVoxel_ObjectData* voxelDataObj;
         bxGdiBuffer*        voxelDataGpu;
         bxVoxel_ObjectId*   indices;
@@ -144,6 +144,7 @@ namespace bxVoxel
             int memSize = 0;
             memSize += newCapacity * sizeof( *data.worldPose );
             memSize += newCapacity * sizeof( *data.octree );
+            memSize += newCapacity * sizeof( *data.map );
             memSize += newCapacity * sizeof( *data.voxelDataObj );
             memSize += newCapacity * sizeof( *data.voxelDataGpu );
             memSize += newCapacity * sizeof( *data.indices );
@@ -157,6 +158,7 @@ namespace bxVoxel
             bxBufferChunker chunker( mem, memSize );
             newData.worldPose    = chunker.add<Matrix4>( newCapacity );
             newData.octree       = chunker.add<bxVoxel_Octree*>( newCapacity );
+            newData.map          = chunker.add<bxVoxel_Map>( newCapacity );
             newData.voxelDataObj = chunker.add<bxVoxel_ObjectData>( newCapacity );
             newData.voxelDataGpu = chunker.add<bxGdiBuffer>( newCapacity );
             newData.indices      = chunker.add<bxVoxel_ObjectId>( newCapacity );
@@ -170,6 +172,7 @@ namespace bxVoxel
             {
                 memcpy( newData.worldPose, data.worldPose, data.size * sizeof( *data.worldPose ) );
                 memcpy( newData.octree, data.octree, data.size * sizeof( *data.octree ) );
+                memcpy( newData.map   , data.map   , data.size * sizeof( *data.map ) );
                 memcpy( newData.voxelDataObj, data.voxelDataObj, data.size * sizeof( *data.voxelDataObj ) );
                 memcpy( newData.voxelDataGpu, data.voxelDataGpu, data.size * sizeof( *data.voxelDataGpu ) );
                 memcpy( newData.indices, data.indices, data.size * sizeof( *data.indices ) );
@@ -180,9 +183,9 @@ namespace bxVoxel
             menago->_data = newData;
         }
     
-        bxGdiBuffer _Gfx_createVoxelDataBuffer( bxGdiDeviceBackend* dev, int gridSize )
+        bxGdiBuffer _Gfx_createVoxelDataBuffer( bxGdiDeviceBackend* dev, int maxVoxels )
         {
-            const int maxVoxels = gridSize*gridSize*gridSize;
+            //const int maxVoxels = gridSize*gridSize*gridSize;
             const bxGdiFormat format( bxGdi::eTYPE_UINT, 2 );
             bxGdiBuffer buff = dev->createBuffer( maxVoxels, format, bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
             return buff;
@@ -191,7 +194,7 @@ namespace bxVoxel
 
 
 
-    bxVoxel_ObjectId object_new( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, int gridSize )
+    bxVoxel_ObjectId object_new( bxVoxel_Manager* menago )
     {
         if( menago->_data.size + 1 > menago->_data.capacity )
         {
@@ -202,8 +205,9 @@ namespace bxVoxel
         const int dataIndex = data.size;
 
         data.worldPose[dataIndex] = Matrix4::identity();
-        data.octree[dataIndex] = octree_new( gridSize, menago->_alloc_octree );
-        data.voxelDataGpu[dataIndex] = _Gfx_createVoxelDataBuffer( dev, gridSize );
+        data.octree[dataIndex] = 0; // octree_new( gridSize, menago->_alloc_octree );
+        data.voxelDataGpu[dataIndex] = bxGdiBuffer();// _Gfx_createVoxelDataBuffer( dev, gridSize );
+        new(&data.map[dataIndex]) hashmap_t();
 
         int iobjIndex = -1;
         if( data._freeList == -1 )
@@ -254,6 +258,7 @@ namespace bxVoxel
 
         BX_DELETE0( menago->_alloc_octree, data.octree[dataIndex] );
         dev->releaseBuffer( &data.voxelDataGpu[dataIndex] );
+        data.map[dataIndex].~bxVoxel_Map();
 
         data.indices[lastHandleIndex].index = dataIndex;
         data.indices[handleIndex].index = data._freeList;
@@ -278,6 +283,11 @@ namespace bxVoxel
         return menago->_data.octree[ menago->_data.indices[id.index].index ];
     }
 
+    bxVoxel_Map* object_map( bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    {
+        return &menago->_data.map[menago->_data.indices[id.index].index];
+    }
+
     const Matrix4& object_pose( bxVoxel_Manager* menago, bxVoxel_ObjectId id )
     {
         return menago->_data.worldPose[ menago->_data.indices[id.index].index ];
@@ -288,26 +298,41 @@ namespace bxVoxel
         menago->_data.worldPose[ menago->_data.indices[id.index].index ] = pose;
     }
 
-    void object_upload( bxGdiContextBackend* ctx, bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    void gpu_uploadShell( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId id )
     {
         SYS_ASSERT( object_valid( menago, id ) );
 
         const bxVoxel_ObjectId* indices = menago->_data.indices;
         const int dataIndex = indices[ id.index ].index;
 
-        bxVoxel_Octree* octree = object_octree( menago, id );
-        bxGdiBuffer buff = menago->_data.voxelDataGpu[ dataIndex ];
-        const int vxDataCapacity = (int)octree->map.size;
-        bxVoxel_GpuData* vxData =  (bxVoxel_GpuData*)bxGdi::buffer_map( ctx, buff, 0, vxDataCapacity );
+        bxVoxel_Map* map = object_map( menago, id );
 
-        const int numShellVoxels = octree_getShell( vxData, vxDataCapacity, octree );
 
+        const int vxDataCapacity = (int)map->size;
+        bxVoxel_GpuData* tmp = (bxVoxel_GpuData*)BX_MALLOC( bxDefaultAllocator(), vxDataCapacity * sizeof( bxVoxel_GpuData ), 8 );
+        
+        const int numShellVoxels = map_getShell( tmp, vxDataCapacity, map[0] );
+        const int requiredMemSize = numShellVoxels * sizeof( bxVoxel_GpuData );
+
+        bxGdiBuffer buff = menago->_data.voxelDataGpu[dataIndex];
+        if( buff.id == 0 || buff.sizeInBytes != requiredMemSize )
+        {
+            dev->releaseBuffer( &buff );
+            menago->_data.voxelDataGpu[dataIndex] = _Gfx_createVoxelDataBuffer( dev, numShellVoxels );
+            buff = menago->_data.voxelDataGpu[dataIndex];
+        }
+
+        bxGdiContextBackend* ctx = dev->ctx;
+
+        bxVoxel_GpuData* vxData = (bxVoxel_GpuData*)bxGdi::buffer_map( ctx, buff, 0, numShellVoxels );
+        memcpy( vxData, tmp, numShellVoxels * sizeof( bxVoxel_GpuData ) );
         ctx->unmap( buff.rs );
 
+        BX_FREE0( bxDefaultAllocator(), tmp );
 
         bxVoxel_ObjectData& objData = menago->_data.voxelDataObj[dataIndex];
         objData.numShellVoxels = numShellVoxels;
-        objData.gridSize = octree->nodes[0].size;
+        //objData.gridSize = octree->nodes[0].size;
     }
 
     void gfx_draw( bxGdiContext* ctx, bxVoxel_Context* vctx, const bxGfxCamera& camera )
@@ -339,10 +364,6 @@ namespace bxVoxel
             if( nInstancesToDraw <= 0 )
                 continue;
 
-            //const u32 gridSize = objData.gridSize;
-            //fxI->setUniform( "_gridSize", gridSize );
-            //fxI->setUniform( "_gridSizeSqr", gridSize * gridSize );
-            //fxI->setUniform( "_gridSizeInv", 1.0f / (float)gridSize );
             fxI->setUniform( "_world", worldMatrices[iobj] );
             fxI->uploadCBuffers( ctx->backend() );
 

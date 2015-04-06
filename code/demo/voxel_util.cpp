@@ -3,7 +3,7 @@
 
 namespace bxVoxel
 {
-    void util_addBox( bxVoxel_Octree* voct, int w, int h, int d, unsigned colorRGBA )
+    void util_addBox( bxVoxel_Map* map, int w, int h, int d, unsigned colorRGBA )
     {
         //octree_clear( voct );
         const int halfW = w / 2;
@@ -17,12 +17,12 @@ namespace bxVoxel
                 for( int ix = -halfW; ix < halfW; ++ix )
                 {
                     const Vector3 point( (float)ix, (float)iy, float(iz) );
-                    octree_insert( voct, point, colorRGBA );
+                    map_insert( map, point, colorRGBA );
                 }
             }
         }
     }
-    void util_addSphere( bxVoxel_Octree* voct, int radius, unsigned colorRGBA )
+    void util_addSphere( bxVoxel_Map* map, int radius, unsigned colorRGBA )
     {
         const float radiusSqr = (float)radius * (float)radius;
         for( int z = -radius; z <= radius; ++z )
@@ -34,7 +34,7 @@ namespace bxVoxel
                     const Vector3 point( (float)x, (float)y, float(z) );
                     if( lengthSqr( point ).getAsFloat() <= radiusSqr )
                     {
-                        octree_insert( voct, point, colorRGBA );
+                        map_insert( map, point, colorRGBA );
                     }
                 }
             }
@@ -76,7 +76,7 @@ namespace bxVoxel
         //    }
         //}
     }
-    void util_addPlane( bxVoxel_Octree* voct, int w, int h, unsigned colorRGBA )
+    void util_addPlane( bxVoxel_Map* map, int w, int h, unsigned colorRGBA )
     {
         const int halfW = w/2;
         const int halfH = h/2;
@@ -85,7 +85,7 @@ namespace bxVoxel
             for( int x = -halfW; x <= halfW; ++x )
             {
                 const Vector3 point( (float)x, 0.f, (float)z );
-                octree_insert( voct, point, colorRGBA );
+                map_insert( map, point, colorRGBA );
             }
         }
     }

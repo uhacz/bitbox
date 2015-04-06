@@ -91,7 +91,7 @@ out_PS ps_main( in_PS input )
     float3 N = normalize( input.w_normal );
 
     const float NdotL = saturate( dot( L, N ) );
-
-    OUT.rgba = lerp( input.color* 0.1, input.color * NdotL, NdotL );
+    const float w = 0.5f;
+    OUT.rgba = input.color * saturate( (NdotL + w) / ((1 + w) * (1 + w)) );
     return OUT;
 }

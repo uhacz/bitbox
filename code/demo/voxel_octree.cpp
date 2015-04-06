@@ -38,24 +38,24 @@ namespace bxVoxel
 
     }
 
-    bxVoxel_Octree* octree_new( int size, bxAllocator* alloc )
+    bxVoxel_Octree* octree_new( bxAllocator* alloc )
     {
-        SYS_ASSERT( size > 0 && size < 0x100 );
-        SYS_ASSERT( (size % 2) == 0 );
-        {
-            int tmp = size;
-            while ( tmp > 1 )
-            {
-                SYS_ASSERT( (tmp % 2) == 0 && "size must be power of 2 number" );
-                tmp /= 2;
-            }
-        }
+        //SYS_ASSERT( size > 0 && size < 0x100 );
+        //SYS_ASSERT( (size % 2) == 0 );
+        //{
+        //    int tmp = size;
+        //    while ( tmp > 1 )
+        //    {
+        //        SYS_ASSERT( (tmp % 2) == 0 && "size must be power of 2 number" );
+        //        tmp /= 2;
+        //    }
+        //}
 
         bxVoxel_Octree* octree = BX_NEW( alloc, bxVoxel_Octree );
 
-        u32 rootIndex = _Octree_allocateNode( octree );
-        bxVoxel_Octree::Node& root = octree->nodes[rootIndex];
-        _Octree_initNode( &root, size );
+        //u32 rootIndex = _Octree_allocateNode( octree );
+        //bxVoxel_Octree::Node& root = octree->nodes[rootIndex];
+        //_Octree_initNode( &root, size );
 
         return octree;
 
@@ -88,8 +88,8 @@ namespace bxVoxel
     {
         bxAABB _Octree_nodeAABB( const bxVoxel_Octree::Node& node )
         {
-            const Vector3 nodeBegin( (float)node.x, (float)node.y, (float)node.z );
-            const Vector3 nodeSize( (float)node.size );
+            const Vector3 nodeBegin( xyz_to_m128( node.center.xyz ) );
+            const Vector3 nodeSize( xyz_to_m128( node.size.xyz ) );
             return bxAABB( nodeBegin, nodeBegin + nodeSize );
         }
         static inline bool testAABB( const vec_float4 bboxMin, const vec_float4 bboxMax, const vec_float4 point )
@@ -101,36 +101,7 @@ namespace bxVoxel
             return mask == 0xF;
         }
 
-        union MapKey
-        {
-            size_t hash64;
-            u32 hash32[2];
-            struct
-            {
-                i8 x, y, z, w;
-                u32 _padd;
-            };
-        };
 
-        inline size_t _Octree_createMapKey( i32 x, i32 y, i32 z )
-        {
-            MapKey mk;
-            mk.x = x;
-            mk.y = y;
-            mk.z = z;
-            mk.w = -1;
-            mk._padd = 0;
-            return mk.hash64;
-            //return ( 255 << 24 ) | ((i8)x << 16) | ((i8)y << 8) | z;
-        }
-        inline void _Octree_keyToXYZ( i32 xyz[3], size_t key )
-        {
-            //MapKey mk = { key };
-            MapKey mk = {key};
-            xyz[0] = mk.x;
-            xyz[1] = mk.y;
-            xyz[2] = mk.z;
-        }
         int _Octree_insertR( bxVoxel_Octree* voct, u32 nodeIndex, const Vector3& point, size_t data )
         {
             const bxAABB bbox = _Octree_nodeAABB( voct->nodes[nodeIndex] );
@@ -151,12 +122,6 @@ namespace bxVoxel
                 u32 dataIndex = _Octree_allocateData( voct );
                 voct->nodes[nodeIndex].dataIndex = dataIndex;
                 voct->data[dataIndex] = data;
-                {
-                    size_t hash = _Octree_createMapKey( nodeX, nodeY, nodeZ );
-                    hashmap_t::cell_t* cell = hashmap::insert( voct->map, hash );
-                    cell->value = data;
-                }
-
                 result = 1;
             }
             else
@@ -197,13 +162,7 @@ namespace bxVoxel
 
     void octree_insert( bxVoxel_Octree* voct, const Vector3& point, size_t data )
     {
-        //_Octree_insertR( voct, 0, point, data );
-
-        const __m128i rounded = _mm_cvtps_epi32(_mm_round_ps( point.get128(), _MM_FROUND_NINT ) );
-        const SSEScalar tmp( rounded );
-        const size_t key = _Octree_createMapKey( tmp.ix, tmp.iy, tmp.iz );
-        hashmap_t::cell_t* cell = hashmap::insert( voct->map, key );
-        cell->value = data;
+        _Octree_insertR( voct, 0, point, data );
     }
 
     void octree_clear( bxVoxel_Octree* voct )
@@ -211,15 +170,14 @@ namespace bxVoxel
         if( array::empty( voct->nodes ) )
             return;
 
-        const u32 size = voct->nodes[0].size;
+        //const u32 size = voct->nodes[0].size;
 
         array::clear( voct->nodes );
         array::clear( voct->data );
-        hashmap::clear( voct->map );
 
-        u32 rootIndex = _Octree_allocateNode( voct );
-        bxVoxel_Octree::Node& root = voct->nodes[rootIndex];
-        _Octree_initNode( &root, size );
+        //u32 rootIndex = _Octree_allocateNode( voct );
+        //bxVoxel_Octree::Node& root = voct->nodes[rootIndex];
+        //_Octree_initNode( &root, size );
     }
 
     namespace
@@ -251,15 +209,38 @@ namespace bxVoxel
             return result;
         }
 
-
-        inline bxVoxel_GpuData _Octree_createVoxelData( const bxVoxel_Octree* voct, const bxVoxel_Octree::Node& node, const bxGrid& grid )
+        union MapKey
         {
-            bxVoxel_GpuData vx;
-            vx.gridIndex = grid.index( node.x, node.y, node.z );
-            vx.colorRGBA = (u32)voct->data[node.dataIndex];
-            return vx;
+            size_t hash64;
+            u32 hash32[2];
+            struct
+            {
+                i8 x, y, z, w;
+                u32 _padd;
+            };
+        };
+
+        inline size_t _Map_createKey( i32 x, i32 y, i32 z )
+        {
+            MapKey mk;
+            mk.x = x;
+            mk.y = y;
+            mk.z = z;
+            mk.w = -1;
+            mk._padd = 0;
+            return mk.hash64;
+            //return ( 255 << 24 ) | ((i8)x << 16) | ((i8)y << 8) | z;
         }
-        inline bxVoxel_GpuData _Octree_createVoxelData( const bxVoxel_Octree* voct, i32 xyz[3], u32 colorRGBA )
+        inline void _Map_keyToXYZ( i32 xyz[3], size_t key )
+        {
+            //MapKey mk = { key };
+            MapKey mk = { key };
+            xyz[0] = mk.x;
+            xyz[1] = mk.y;
+            xyz[2] = mk.z;
+        }
+
+        inline bxVoxel_GpuData _Map_createVoxelData( i32 xyz[3], u32 colorRGBA )
         {
             MapKey key;
             key.x = xyz[0];
@@ -273,141 +254,65 @@ namespace bxVoxel
             return vx;
         }
     }///
-
-    void octree_getShell( array_t<bxVoxel_GpuData>& vxData, const bxVoxel_Octree* voct )
+    void map_insert( bxVoxel_Map* m, const Vector3& point, size_t data )
     {
-        array::reserve( vxData, (int)voct->map.size );
-        vxData.size = octree_getShell( array::begin( vxData ), array::capacity( vxData ), voct );
+        const __m128i rounded = _mm_cvtps_epi32( _mm_round_ps( point.get128(), _MM_FROUND_NINT ) );
+        const SSEScalar tmp( rounded );
+        const size_t key = _Map_createKey( tmp.ix, tmp.iy, tmp.iz );
+        hashmap_t::cell_t* cell = hashmap::insert( *m, key );
+        cell->value = data;
+    }
+    void map_clear( bxVoxel_Map* m )
+    {
+        hashmap::clear( *m );
     }
 
-    int octree_getShell( bxVoxel_GpuData* vxData, int xvDataCapacity, const bxVoxel_Octree* voct )
+
+
+    void map_getShell( array_t<bxVoxel_GpuData>& vxData, const bxVoxel_Map& map )
+    {
+        array::reserve( vxData, (int)map.size );
+        vxData.size = map_getShell( array::begin( vxData ), array::capacity( vxData ), map );
+    }
+
+    int map_getShell( bxVoxel_GpuData* vxData, int xvDataCapacity, const bxVoxel_Map& map )
     {
         //const u32 gridSize = voct->nodes[0].size;
         //bxGrid grid( gridSize, gridSize, gridSize );
 
         int vxDataSize = 0;
 
-        hashmap::iterator cellIt( (hashmap_t&)voct->map );
+        hashmap::iterator cellIt( (hashmap_t&)map );
         hashmap_t::cell_t* cell = cellIt.next();
         while( cell )
         {
             int centerXYZ[3];
-            _Octree_keyToXYZ( centerXYZ, cell->key );
+            _Map_keyToXYZ( centerXYZ, cell->key );
 
             int emptyFound = 0;
-            for ( int iz = -1; iz <= 2 && !emptyFound; iz += 2 )
+            for ( int iz = -1; iz <= 1 && !emptyFound; iz += 2 )
             {
-                for ( int iy = -1; iy <= 2 && !emptyFound; iy += 2 )
+                for ( int iy = -1; iy <= 1 && !emptyFound; iy += 2 )
                 {
-                    for ( int ix = -1; ix <= 2 && !emptyFound; ix += 2 )
+                    for ( int ix = -1; ix <= 1 && !emptyFound; ix += 2 )
                     {
-                        const size_t key = _Octree_createMapKey( centerXYZ[0] + ix, centerXYZ[1] + iy, centerXYZ[2] + iz );
-                        emptyFound = hashmap::lookup( voct->map, key ) == 0;
+                        const size_t key = _Map_createKey( centerXYZ[0] + ix, centerXYZ[1] + iy, centerXYZ[2] + iz );
+                        emptyFound = hashmap::lookup( map, key ) == 0;
                     }
                 }
             }
 
             if ( emptyFound )
             {
-                vxData[vxDataSize++] = _Octree_createVoxelData( voct, centerXYZ, (u32)cell->value );
+                vxData[vxDataSize++] = _Map_createVoxelData( centerXYZ, (u32)cell->value );
             }
 
             cell = cellIt.next();
         }
-        
-        //int vxDataSize = 0;
-        //for ( int inode = 0; inode < array::size( voct->nodes ); ++inode )
-        //{
-        //    const bxVoxel_Octree::Node& node = voct->nodes[inode];
-        //    if ( node.size > 1 )
-        //        continue;
-
-        //    if ( node.dataIndex < 0 )
-        //        continue;
-
-        //    if( vxDataSize >= xvDataCapacity )
-        //        break;
-
-        //    const i32 centerX = node.x;
-        //    const i32 centerY = node.y;
-        //    const i32 centerZ = node.z;
-        //    const Vector3 center( (float)centerX, (float)centerY, (float)centerZ );
-
-        //    int emptyFound = 0;
-        //    for( int iz = -1; iz <= 2 && !emptyFound; iz += 2 )
-        //    {
-        //        for( int iy = -1; iy <= 2 && !emptyFound; iy += 2 )
-        //        {
-        //            for( int ix = -1; ix <= 2 && !emptyFound; ix += 2 )
-        //            {
-        //                const size_t key = _Octree_createMapKey( centerX + ix, centerY + iy, centerZ + iz );
-        //                emptyFound = hashmap::lookup( voct->map, key ) == 0;
-        //            }
-        //        }
-        //    }
-
-        //    if( emptyFound )
-        //    {
-        //        vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
-        //    }
-
-            ////u32 mask = 0; // 0x3F for all sides
-            //u32 hitX = 0;
-            //u32 hitY = 0;
-            //u32 hitZ = 0;
-            //for ( int ix = -1; ix <= 1; ix += 2 )
-            //{
-            //    const size_t key = _Octree_createMapKey( centerX + ix, centerY, centerZ );
-            //    if ( !hashmap::lookup( voct->map, key ) )
-            //        break;
-
-            //    ++hitX;
-            //}
-
-            //if ( hitX < 2 )
-            //{
-            //    vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
-            //    continue;
-            //}
-
-            //if( vxDataSize >= xvDataCapacity )
-            //    break;
-
-            //for ( int iy = -1; iy <= 1; iy += 2 )
-            //{
-            //    const size_t key = _Octree_createMapKey( centerX, centerY + iy, centerZ );
-            //    if ( !hashmap::lookup( voct->map, key ) )
-            //        break;
-
-            //    ++hitY;
-            //}
-
-            //if ( hitY < 2 )
-            //{
-            //    vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
-            //    continue;
-            //}
-
-            //if( vxDataSize >= xvDataCapacity )
-            //    break;
-
-            //for ( int iz = -1; iz <= 1; iz += 2 )
-            //{
-            //    const size_t key = _Octree_createMapKey( centerX, centerY, centerZ + iz );
-            //    if ( !hashmap::lookup( voct->map, key ) )
-            //        break;
-
-            //    ++hitZ;
-            //}
-
-            //if ( hitZ < 2 )
-            //{
-            //    vxData[vxDataSize++] = _Octree_createVoxelData( voct, node, grid );
-            //    continue;
-            //}
-        //}
         return vxDataSize;
     }
+
+
 
 }///
 

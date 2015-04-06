@@ -6,22 +6,25 @@ struct bxVoxel_Octree
 {
     struct Node
     {
-        u8 x, y, z;
-        u8 size;
+        float3_t center;
+        float3_t size;
         u32 children[8];
         i32 dataIndex;
     };
 
     array_t<Node> nodes;
     array_t<size_t> data;
-    hashmap_t map;
 };
+
+struct bxVoxel_Map : public hashmap_t
+{};
 
 namespace bxVoxel
 {
-    bxVoxel_Octree* octree_new( int size, bxAllocator* alloc );
+    bxVoxel_Octree* octree_new( bxAllocator* alloc );
     void octree_delete( bxVoxel_Octree** voct, bxAllocator* alloc );
     
-    void octree_getShell( array_t<bxVoxel_GpuData>& vxData, const bxVoxel_Octree* voct );
-    int octree_getShell( bxVoxel_GpuData* vxData, int vxDataLenght, const bxVoxel_Octree* voct );
+
+    void map_getShell( array_t<bxVoxel_GpuData>& vxData, const bxVoxel_Map& voct );
+    int map_getShell( bxVoxel_GpuData* vxData, int vxDataLenght, const bxVoxel_Map& voct );
 }///
