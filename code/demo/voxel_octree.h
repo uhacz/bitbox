@@ -4,10 +4,10 @@
 
 struct bxVoxel_Octree
 {
-    struct Node
+    struct BIT_ALIGNMENT_16 Node
     {
-        float3_t center;
-        float3_t size;
+        Vector4 size;
+        Vector3 center;
         u32 children[8];
         i32 dataIndex;
     };
@@ -23,8 +23,8 @@ namespace bxVoxel
 {
     bxVoxel_Octree* octree_new( bxAllocator* alloc );
     void octree_delete( bxVoxel_Octree** voct, bxAllocator* alloc );
+    void octree_init( bxVoxel_Octree* voct, const Vector3& center, const Vector3& size );
     
-
     void map_getShell( array_t<bxVoxel_GpuData>& vxData, const bxVoxel_Map& voct );
     int map_getShell( bxVoxel_GpuData* vxData, int vxDataLenght, const bxVoxel_Map& voct );
 }///

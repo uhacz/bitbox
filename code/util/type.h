@@ -48,6 +48,7 @@ union float2_t
     float2_t( f32 vx, f32 vy ) 
         : x(vx), y(vy) {}
 };
+
 union float3_t
 {
     f32 xyz[3];
@@ -57,6 +58,8 @@ union float3_t
     float3_t( f32 vxyz ) : x( vxyz ), y( vxyz ), z( vxyz ) {}
     float3_t( f32 vx, f32 vy, f32 vz ) : x( vx ), y( vy ), z(vz) {}
 };
+float3_t operator * ( const float3_t& a, float b ) { return float3_t( a.x * b, a.y * b, a.y * b ); }
+
 union float4_t
 {
     f32 xyzw[4];

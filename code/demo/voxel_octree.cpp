@@ -26,12 +26,10 @@ namespace bxVoxel
             return array::push_back( octree->data, (size_t)0 );
         }
 
-        void _Octree_initNode( bxVoxel_Octree::Node* node, u32 size )
+        void _Octree_initNode( bxVoxel_Octree::Node* node, const Vector3& size )
         {
-            node->size = size;
-            node->x = 0;
-            node->y = 0;
-            node->z = 0;
+            node->size = Vector4( size, size.getX() * size.getY() * size.getZ() );
+            node->center = Vector3(0.f);
             node->dataIndex = -1;
             memset( node->children, 0xFF, sizeof( node->children ) );
         }
@@ -88,8 +86,8 @@ namespace bxVoxel
     {
         bxAABB _Octree_nodeAABB( const bxVoxel_Octree::Node& node )
         {
-            const Vector3 nodeBegin( xyz_to_m128( node.center.xyz ) );
-            const Vector3 nodeSize( xyz_to_m128( node.size.xyz ) );
+            const Vector3& nodeBegin = node.center; //( xyz_to_m128( node.center.xyz ) );
+            const Vector3 nodeSize = node.size.getXYZ(); //( xyz_to_m128( node.size.xyz ) );
             return bxAABB( nodeBegin, nodeBegin + nodeSize );
         }
         static inline bool testAABB( const vec_float4 bboxMin, const vec_float4 bboxMax, const vec_float4 point )
@@ -102,6 +100,18 @@ namespace bxVoxel
         }
 
 
+        void _Octree_createChildNode( bxVoxel_Octree* voct, u32 nodeIndex, u32 ichild, const Vector3& offsetFromCenter )
+        {
+            //const Vector3 offsetFromCenter( -1.f, -1.f, -1.f );
+            const Vector3& nodeCenter = voct->nodes[nodeIndex].center;
+            const Vector3 childSize = voct->nodes[nodeIndex].size.getXYZ() * halfVec;
+            const u32 index = _Octree_allocateNode( voct );
+            bxVoxel_Octree::Node& childNode = voct->nodes[index];
+            _Octree_initNode( &childNode, childSize );
+            childNode.center = nodeCenter + mulPerElem( offsetFromCenter, childSize );
+            voct->nodes[nodeIndex].children[ichild] = index;
+        }
+
         int _Octree_insertR( bxVoxel_Octree* voct, u32 nodeIndex, const Vector3& point, size_t data )
         {
             const bxAABB bbox = _Octree_nodeAABB( voct->nodes[nodeIndex] );
@@ -112,12 +122,11 @@ namespace bxVoxel
 
             int result = -1;
 
-            const u32 nodeSize = voct->nodes[nodeIndex].size;
-            const u8 nodeX = voct->nodes[nodeIndex].x;
-            const u8 nodeY = voct->nodes[nodeIndex].y;
-            const u8 nodeZ = voct->nodes[nodeIndex].z;
+            const Vector3 nodeSize = voct->nodes[nodeIndex].size.getXYZ();
+            const float nodeVolume = voct->nodes[nodeIndex].size.getW().getAsFloat();
+            const Vector3 nodeXYZ = voct->nodes[nodeIndex].center;
 
-            if ( nodeSize == 1 )
+            if ( nodeVolume <= ( 1.f + FLT_EPSILON ) )
             {
                 u32 dataIndex = _Octree_allocateData( voct );
                 voct->nodes[nodeIndex].dataIndex = dataIndex;
@@ -128,24 +137,40 @@ namespace bxVoxel
             {
                 if ( voct->nodes[nodeIndex].children[0] == 0xFFFFFFFF )
                 {
-                    bxGrid grid( 2, 2, 2 );
+                    //bxGrid grid( 2, 2, 2 );
 
-                    const u32 childSize = nodeSize / 2;
+                    //const float3_t childSize = nodeSize * 0.5f;
 
-                    for ( int ichild = 0; ichild < 8; ++ichild )
                     {
-                        u32 xyz[3];
-                        grid.coords( xyz, ichild );
-
-                        u32 index = _Octree_allocateNode( voct );
-                        bxVoxel_Octree::Node& childNode = voct->nodes[index];
-                        _Octree_initNode( &childNode, childSize );
-                        childNode.x = xyz[0] * childSize + nodeX;
-                        childNode.y = xyz[1] * childSize + nodeY;
-                        childNode.z = xyz[2] * childSize + nodeZ;
-
-                        voct->nodes[nodeIndex].children[ichild] = index;
+                        _Octree_createChildNode( voct, nodeIndex, 0, Vector3(-1.f, -1.f, -1.f) );
+                        _Octree_createChildNode( voct, nodeIndex, 1, Vector3( 1.f, -1.f, -1.f) );
+                        _Octree_createChildNode( voct, nodeIndex, 2, Vector3( 1.f,  1.f, -1.f) );
+                        _Octree_createChildNode( voct, nodeIndex, 3, Vector3(-1.f,  1.f, -1.f) );
+                        _Octree_createChildNode( voct, nodeIndex, 4, Vector3(-1.f, -1.f,  1.f) );
+                        _Octree_createChildNode( voct, nodeIndex, 5, Vector3( 1.f, -1.f,  1.f) );
+                        _Octree_createChildNode( voct, nodeIndex, 6, Vector3( 1.f,  1.f,  1.f) );
+                        _Octree_createChildNode( voct, nodeIndex, 7, Vector3(-1.f,  1.f,  1.f) );
+                        //const Vector3 offsetFromCenter( -1.f, -1.f, -1.f );
+                        //
+                        //u32 index = _Octree_allocateNode( voct );
+                        //bxVoxel_Octree::Node& childNode = voct->nodes[index];
+                        //_Octree_initNode( &childNode, childSize );
+                        //childNode.center = nodeXYZ + mulPerElem( offsetFromCenter, childSize );
+                        //voct->nodes[nodeIndex].children[ichild] = index;
                     }
+
+                    //for ( int ichild = 0; ichild < 8; ++ichild )
+                    //{
+                    //    u32 xyz[3];
+                    //    grid.coords( xyz, ichild );
+
+                    //    
+                    //    childNode.x = xyz[0] * childSize + nodeX;
+                    //    childNode.y = xyz[1] * childSize + nodeY;
+                    //    childNode.z = xyz[2] * childSize + nodeZ;
+
+                    //    voct->nodes[nodeIndex].children[ichild] = index;
+                    //}
                 }
 
                 for ( int ichild = 0; ichild < 8; ++ichild )
@@ -180,34 +205,56 @@ namespace bxVoxel
         //_Octree_initNode( &root, size );
     }
 
+    void octree_init( bxVoxel_Octree* voct, const Vector3& center, const Vector3& size )
+    {
+        octree_clear( voct );
+        u32 rootIndex = _Octree_allocateNode( voct );
+        bxVoxel_Octree::Node& root = voct->nodes[rootIndex];
+        _Octree_initNode( &root, size );
+        root.center = center;
+    }
+
+    void octree_build( bxVoxel_Octree* voct, const bxVoxel_Map* m )
+    {
+        bxAABB bbox = bxAABB::prepare();
+
+        hashmap::iterator mapIt( *m );
+        hashmap_t::cell_t* cell = mapIt.next();
+        while( cell )
+        {
+            bbox
+            cell = mapIt.next();
+        }
+    }
+
     namespace
     {
-        int _Octree_checkCellR( const bxVoxel_Octree* voct, u32 nodeIndex, const Vector3& point )
-        {
-            const bxVoxel_Octree::Node& node = voct->nodes[nodeIndex];
-            const bxAABB bbox = _Octree_nodeAABB( node );
-            const bool insideBBox = testAABB( bbox.min.get128(), bbox.max.get128(), point.get128() );
+        //int _Octree_checkCellR( const bxVoxel_Octree* voct, u32 nodeIndex, const Vector3& point )
+        //{
+        //    const bxVoxel_Octree::Node& node = voct->nodes[nodeIndex];
+        //    const bxAABB bbox = _Octree_nodeAABB( node );
+        //    const bool insideBBox = testAABB( bbox.min.get128(), bbox.max.get128(), point.get128() );
 
-            int result = -1;
-            if ( !insideBBox )
-                return result;
+        //    int result = -1;
+        //    if ( !insideBBox )
+        //        return result;
 
-            if ( node.size == 1 )
-            {
-                result = (node.dataIndex > 0) ? 1 : -1;
-            }
-            else if ( node.children[0] != 0xFFFFFFFF )
-            {
-                for ( int ichild = 0; ichild < 8; ++ichild )
-                {
-                    result = _Octree_checkCellR( voct, node.children[ichild], point );
-                    if ( result > 0 )
-                        break;
-                }
-            }
+        //    if ( node.size == 1 )
+        //    {
+        //        result = (node.dataIndex > 0) ? 1 : -1;
+        //    }
+        //    else if ( node.children[0] != 0xFFFFFFFF )
+        //    {
+        //        for ( int ichild = 0; ichild < 8; ++ichild )
+        //        {
+        //            result = _Octree_checkCellR( voct, node.children[ichild], point );
+        //            if ( result > 0 )
+        //                break;
+        //        }
+        //    }
 
-            return result;
-        }
+        //    return result;
+        //}
 
         union MapKey
         {
@@ -333,6 +380,8 @@ namespace bxVoxel
             bxGfxDebugDraw::addBox( Matrix4::translation( bxAABB::center( bbox ) ), bxAABB::size( bbox ) * 0.5f, color, 1 );
         }
     }
+
+
 
 
 }///
