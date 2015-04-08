@@ -214,18 +214,18 @@ namespace bxVoxel
         root.center = center;
     }
 
-    void octree_build( bxVoxel_Octree* voct, const bxVoxel_Map* m )
-    {
-        bxAABB bbox = bxAABB::prepare();
+    //void octree_build( bxVoxel_Octree* voct, const bxVoxel_Map* m )
+    //{
+    //    bxAABB bbox = bxAABB::prepare();
 
-        hashmap::iterator mapIt( *m );
-        hashmap_t::cell_t* cell = mapIt.next();
-        while( cell )
-        {
-            bbox
-            cell = mapIt.next();
-        }
-    }
+    //    hashmap::iterator mapIt( *m );
+    //    hashmap_t::cell_t* cell = mapIt.next();
+    //    while( cell )
+    //    {
+    //        bbox
+    //        cell = mapIt.next();
+    //    }
+    //}
 
     namespace
     {

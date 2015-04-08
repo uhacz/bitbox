@@ -162,11 +162,11 @@ public:
 
         {
             bxVoxel_ObjectId id = bxVoxel::object_new( vxMenago );
-            //bxVoxel::util_addPlane( bxVoxel::object_octree( vxMenago, id ), 500, 500, colors[1] );
-            //const Matrix4 pose = Matrix4::translation( Vector3( 0.f, -22.f, 0.f ) );
-            //bxVoxel::object_setPose( vxMenago, id, pose );            
+            bxVoxel::util_addPlane( bxVoxel::object_map( vxMenago, id ), 500, 500, colors[1] );
+            const Matrix4 pose = Matrix4::translation( Vector3( 0.f, -52.f, 0.f ) );
+            bxVoxel::object_setPose( vxMenago, id, pose );            
             //bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[1] );
-            bxVoxel::octree_loadHeightmapRaw8( _engine.resourceManager, bxVoxel::object_map( vxMenago, id ), "model/heightmap.raw" );
+            //bxVoxel::octree_loadHeightmapRaw8( _engine.resourceManager, bxVoxel::object_map( vxMenago, id ), "model/heightmap.raw" );
 
             bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxMenago, id );
             vxObject[N_OBJECTS-1] = id;

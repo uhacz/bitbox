@@ -2,6 +2,7 @@
 
 #include <util/vectormath/vectormath.h>
 #include <util/type.h>
+#include <util/bbox.h>
 #include <util/containers.h>
 
 struct bxGfxCamera;
@@ -9,6 +10,7 @@ struct bxGdiContext;
 struct bxGdiDeviceBackend;
 struct bxGdiContextBackend;
 class bxResourceManager;
+
 
 struct bxVoxel_Octree;
 struct bxVoxel_Map;
@@ -42,10 +44,10 @@ namespace bxVoxel
 {
     ////
     ////
-    void octree_insert( bxVoxel_Octree* voct, const Vector3& point, size_t data );
-    void octree_clear( bxVoxel_Octree* voct );
-    void octree_build( bxVoxel_Octree* voct, const bxVoxel_Map* m );
-    void octree_debugDraw( bxVoxel_Octree* voct );
+    //void octree_insert( bxVoxel_Octree* voct, const Vector3& point, size_t data );
+    //void octree_clear( bxVoxel_Octree* voct );
+    //void octree_build( bxVoxel_Octree* voct, const bxVoxel_Map* m );
+    //void octree_debugDraw( bxVoxel_Octree* voct );
 
     void map_insert( bxVoxel_Map* m, const Vector3& point, size_t data );
     void map_clear( bxVoxel_Map* m );
@@ -58,11 +60,14 @@ namespace bxVoxel
     void object_delete( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId* vobj );
     bool object_valid( bxVoxel_Manager* menago, bxVoxel_ObjectId id );
         
-    bxVoxel_Octree* object_octree( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );
-    bxVoxel_Map* object_map( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );
+    //bxVoxel_Octree* object_octree( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );
+    bxVoxel_Map* object_map( bxVoxel_Manager* menago, bxVoxel_ObjectId id );
 
-    const Matrix4& object_pose( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );
-    void object_setPose( bxVoxel_Manager* ctx, bxVoxel_ObjectId id, const Matrix4& pose );
+    const bxAABB& object_aabb( bxVoxel_Manager* menago, bxVoxel_ObjectId id ); 
+    const Matrix4& object_pose( bxVoxel_Manager* menago, bxVoxel_ObjectId id );
+    
+    void object_setPose( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const Matrix4& pose );
+    void object_setAABB( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const bxAABB& aabb );
 
     ////
     ////
