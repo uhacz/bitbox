@@ -55,7 +55,7 @@
 //static bxGdiBuffer voxelDataBuffer;
 //static const u32 GRID_SIZE = 512;
 static bxVoxel_Context* vxContext = 0;
-const int N_OBJECTS = 2;
+const int N_OBJECTS = 40;
 static bxVoxel_ObjectId vxObject[N_OBJECTS];
 
 
@@ -152,17 +152,21 @@ public:
 
         //    vxObject[iobj] = id;
         //}
-
+        for ( int iobj = 0; iobj < N_OBJECTS - 1; ++iobj )
         {
             bxVoxel_ObjectId id = bxVoxel::object_new( vxMenago );
-            bxVoxel::octree_loadMagicaVox( _engine.resourceManager, bxVoxel::object_map(vxMenago,id), "model/dragon.vox" );
+            bxVoxel::octree_loadMagicaVox( _engine.resourceManager, bxVoxel::object_map(vxMenago,id), "model/noise.vox" );
             bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxMenago, id );
-            vxObject[0] = id;
+
+            const Matrix4 pose = Matrix4::translation( Vector3( -128.f*(N_OBJECTS/2) + ( 128*iobj), 0.f, 0.f ) );
+            bxVoxel::object_setPose( vxMenago, id, pose );            
+
+            vxObject[iobj] = id;
         }
 
         {
             bxVoxel_ObjectId id = bxVoxel::object_new( vxMenago );
-            bxVoxel::util_addPlane( bxVoxel::object_map( vxMenago, id ), 500, 500, colors[1] );
+            bxVoxel::util_addPlane( bxVoxel::object_map( vxMenago, id ), 255, 255, colors[1] );
             const Matrix4 pose = Matrix4::translation( Vector3( 0.f, -52.f, 0.f ) );
             bxVoxel::object_setPose( vxMenago, id, pose );            
             //bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[1] );
@@ -224,24 +228,24 @@ public:
 
         //
 
-        //static float angle = 0.0f;
-        //angle += deltaTimeS;
-        //const float freq = 0.1f;
-        //for( int iobj = 0; iobj < N_OBJECTS-1; ++iobj )
-        //{
-        //    Matrix4 pose = bxVoxel::object_pose( bxVoxel::manager( vxContext ), vxObject[iobj] );
-        //    pose.setUpper3x3( Matrix3::rotationZYX( Vector3( angle + PI/2 * iobj ) ) );
+        static float angle = 0.0f;
+        angle += deltaTimeS;
+        const float freq = 0.1f;
+        for( int iobj = 0; iobj < N_OBJECTS-1; ++iobj )
+        {
+            Matrix4 pose = bxVoxel::object_pose( bxVoxel::manager( vxContext ), vxObject[iobj] );
+            pose.setUpper3x3( Matrix3::rotationZYX( Vector3( angle + PI/2 * iobj ) ) );
 
-        //    const float* a = (float*)&pose;
-        //    const float* b = a + 4;
-        //    const float* c = a + 8;
-        //    const float x = bxNoise_perlin( a[0] * freq + iobj, a[1] * freq - iobj, a[2] * freq * iobj );
-        //    const float y = bxNoise_perlin( b[0] * freq + x, b[1] * freq - x, b[2] * freq + x );
-        //    const float z = bxNoise_perlin( c[0] * freq + iobj-y, c[1] * freq - iobj+x, c[2] * freq + y );
+            const float* a = (float*)&pose;
+            const float* b = a + 4;
+            const float* c = a + 8;
+            const float x = bxNoise_perlin( a[0] * freq + iobj, a[1] * freq - iobj, a[2] * freq * iobj );
+            const float y = bxNoise_perlin( b[0] * freq + x, b[1] * freq - x, b[2] * freq + x );
+            const float z = bxNoise_perlin( c[0] * freq + iobj-y, c[1] * freq - iobj+x, c[2] * freq + y );
 
-        //    //pose.setTranslation( Vector3( x, y, z ) *64 );
-        //    bxVoxel::object_setPose( bxVoxel::manager( vxContext ), vxObject[iobj], pose );
-        //}
+            //pose.setTranslation( Vector3( x, y, z ) *64 );
+            bxVoxel::object_setPose( bxVoxel::manager( vxContext ), vxObject[iobj], pose );
+        }
 
         
 
