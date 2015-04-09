@@ -15,10 +15,24 @@
 #include "voxel_octree.h"
 #include "grid.h"
 #include "gfx/gfx_camera.h"
+#include "../util/string_util.h"
 
 struct bxVoxel_ObjectData
 {
     i32 numShellVoxels;
+};
+
+struct bxVoxel_ObjectAttribute
+{
+    float3_t pos;
+    float3_t rot;
+    char* file;
+
+    bxVoxel_ObjectAttribute()
+        : pos(0.f)
+        , rot(0.f)
+        , file(0)
+    {}
 };
 
 struct bxVoxel_Manager
@@ -31,7 +45,10 @@ struct bxVoxel_Manager
         bxVoxel_Map*        map;
         bxVoxel_ObjectData* voxelDataObj;
         bxGdiBuffer*        voxelDataGpu;
+        bxVoxel_ObjectAttribute* attribute;
+        
         bxVoxel_ObjectId*   indices;
+
 
         i32 capacity;
         i32 size;
@@ -149,6 +166,7 @@ namespace bxVoxel
             memSize += newCapacity * sizeof( *data.map );
             memSize += newCapacity * sizeof( *data.voxelDataObj );
             memSize += newCapacity * sizeof( *data.voxelDataGpu );
+            memSize += newCapacity * sizeof( *data.attribute );
             memSize += newCapacity * sizeof( *data.indices );
 
             void* mem = BX_MALLOC( menago->_alloc_main, memSize, 16 );
@@ -164,6 +182,7 @@ namespace bxVoxel
             newData.map          = chunker.add<bxVoxel_Map>( newCapacity );
             newData.voxelDataObj = chunker.add<bxVoxel_ObjectData>( newCapacity );
             newData.voxelDataGpu = chunker.add<bxGdiBuffer>( newCapacity );
+            newData.attribute    = chunker.add<bxVoxel_ObjectAttribute>( newCapacity );
             newData.indices      = chunker.add<bxVoxel_ObjectId>( newCapacity );
             chunker.check();
             newData._memoryHandle = mem;
@@ -179,6 +198,7 @@ namespace bxVoxel
                 memcpy( newData.map   , data.map   , data.size * sizeof( *data.map ) );
                 memcpy( newData.voxelDataObj, data.voxelDataObj, data.size * sizeof( *data.voxelDataObj ) );
                 memcpy( newData.voxelDataGpu, data.voxelDataGpu, data.size * sizeof( *data.voxelDataGpu ) );
+                memcpy( newData.attribute, data.attribute, data.size * sizeof( *data.attribute ) );
                 memcpy( newData.indices, data.indices, data.size * sizeof( *data.indices ) );
 
                 BX_FREE0( menago->_alloc_main, data._memoryHandle );
@@ -273,6 +293,7 @@ namespace bxVoxel
         data.aabb[dataIndex] = data.aabb[lastDataIndex];
         //data.octree[dataIndex] = data.octree[lastDataIndex];
         data.voxelDataGpu[dataIndex] = data.voxelDataGpu[lastDataIndex];
+        data.attribute[dataIndex] = data.attribute[lastDataIndex];
 
         --data.size;
         id->index = 0;
@@ -283,7 +304,41 @@ namespace bxVoxel
     {
         return ( id.index < (u32)menago->_data.size ) && ( menago->_data.indices[id.index].generation == id.generation );
     }
+    int object_setAttribute( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const char* attrName, const void* attrData, unsigned attrDataSize )
+    {
+        if( !object_valid( menago, id ) )
+            return -1;
 
+        bxVoxel_ObjectAttribute& attribs = menago->_data.attribute[menago->_data.indices[id.index].index];
+        if( string::equal( attrName, "pos" ) )
+        {
+            if( attrDataSize < 12 )
+                goto object_setAttribute_sizeError;
+
+            memcpy( attribs.pos.xyz, attrData, 12 );
+        }
+        else if( string::equal( attrName, "rot" ) )
+        {
+            if( attrDataSize < 12 )
+                goto object_setAttribute_sizeError;
+
+            memcpy( attribs.rot.xyz, attrData, 12 );
+        }
+        else if( string::equal( attrName, "file" ) )
+        {
+            if( attrDataSize == 0 )
+                goto object_setAttribute_sizeError;
+
+            string::duplicate( attribs.file, (const char*)attrData );
+        }
+
+        return 0;
+
+object_setAttribute_sizeError:
+        bxLogError( "Attribute '%s' has wrong data size (%u)", attrName, attrDataSize );
+        return -1;
+        
+    }
     //bxVoxel_Octree* object_octree( bxVoxel_Manager* menago, bxVoxel_ObjectId id )
     //{
     //    return menago->_data.octree[ menago->_data.indices[id.index].index ];
@@ -387,6 +442,8 @@ namespace bxVoxel
             bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, nInstancesToDraw );
         }
     }
+
+
 
 
 

@@ -1,7 +1,7 @@
 #include "scene.h"
 #include <util/buffer_utils.h>
 
-bxScene::bxScene( int allocationChunkSize /*= 16*/, bxAllocator* alloc /*= bxDefaultAllocator() */ )
+bxScene_Graph::bxScene_Graph( int allocationChunkSize /*= 16*/, bxAllocator* alloc /*= bxDefaultAllocator() */ )
     : _alloc( alloc )
     , _alloc_chunkSize( allocationChunkSize )
     , _flag_recompute(0)
@@ -10,7 +10,7 @@ bxScene::bxScene( int allocationChunkSize /*= 16*/, bxAllocator* alloc /*= bxDef
     _data._freeList = -1;
 }
 
-void bxScene::_Allocate( int newCapacity )
+void bxScene_Graph::_Allocate( int newCapacity )
 {
     if( newCapacity <= _data.capacity )
         return;
@@ -54,12 +54,12 @@ void bxScene::_Allocate( int newCapacity )
 
 namespace
 {
-    inline bxScene::Id makeNodeId( int i )
+    inline bxScene_Graph::Id makeNodeId( int i )
     {
-        bxScene::Id id = { i };
+        bxScene_Graph::Id id = { i };
         return id;
     }
-    inline i16 nodeId_indexSafe( bxScene::Id nodeId, i32 numNodesInContainer )
+    inline i16 nodeId_indexSafe( bxScene_Graph::Id nodeId, i32 numNodesInContainer )
     {
         const i16 index = nodeId.index;
         SYS_ASSERT( index >= 0 && index < numNodesInContainer );
@@ -68,7 +68,7 @@ namespace
 }///
 
 
-bxScene::Id bxScene::create()
+bxScene_Graph::Id bxScene_Graph::create()
 {
     int index = -1;
 
@@ -101,7 +101,7 @@ bxScene::Id bxScene::create()
     return makeNodeId( index );
 }
 
-void bxScene::release( bxScene::Id* id )
+void bxScene_Graph::release( bxScene_Graph::Id* id )
 {
     int index = id->index;
     if ( index < 0 || index > _data.size )
@@ -123,7 +123,7 @@ void bxScene::release( bxScene::Id* id )
     _flag_recompute = 1;
 }
 
-void bxScene::link( bxScene::Id parent, bxScene::Id child )
+void bxScene_Graph::link( bxScene_Graph::Id parent, bxScene_Graph::Id child )
 {
     const int parentIndex = parent.index;
     const int childIndex = child.index;
@@ -138,7 +138,7 @@ void bxScene::link( bxScene::Id parent, bxScene::Id child )
     _data.parent[childIndex] = parentIndex;
 }
 
-void bxScene::unlink( bxScene::Id child )
+void bxScene_Graph::unlink( bxScene_Graph::Id child )
 {
     const int childIndex = child.index;
     if ( childIndex < 0 || childIndex > _data.size )
@@ -147,26 +147,26 @@ void bxScene::unlink( bxScene::Id child )
     _data.parent[childIndex] = -1;
 }
 
-bxScene::Id bxScene::parent( bxScene::Id nodeId )
+bxScene_Graph::Id bxScene_Graph::parent( bxScene_Graph::Id nodeId )
 {
     const int index = nodeId_indexSafe( nodeId, _data.size );
     return makeNodeId( _data.parent[ index ] );
 }
 
-const Matrix4& bxScene::localPose( bxScene::Id nodeId ) const 
+const Matrix4& bxScene_Graph::localPose( bxScene_Graph::Id nodeId ) const 
 {
     const int index = nodeId_indexSafe( nodeId, _data.size );
     return _data.localPose[index];
 }
 
-const Matrix4& bxScene::worldPose( bxScene::Id nodeId ) const 
+const Matrix4& bxScene_Graph::worldPose( bxScene_Graph::Id nodeId ) const 
 {
     const int index = nodeId_indexSafe( nodeId, _data.size );
     return _data.worldPose[index];
 }
 
 
-void bxScene::setLocalRotation( bxScene::Id nodeId, const Matrix3& rot )
+void bxScene_Graph::setLocalRotation( bxScene_Graph::Id nodeId, const Matrix3& rot )
 {
     const int index = nodeId_indexSafe( nodeId, _data.size );
     _data.localPose[index].setUpper3x3( rot );
@@ -176,7 +176,7 @@ void bxScene::setLocalRotation( bxScene::Id nodeId, const Matrix3& rot )
     _Transform( parentPose, nodeId );
 }
 
-void bxScene::setLocalPosition( bxScene::Id nodeId, const Vector3& pos )
+void bxScene_Graph::setLocalPosition( bxScene_Graph::Id nodeId, const Vector3& pos )
 {
     const int index = nodeId_indexSafe( nodeId, _data.size );
     _data.localPose[index].setTranslation( pos );
@@ -186,7 +186,7 @@ void bxScene::setLocalPosition( bxScene::Id nodeId, const Vector3& pos )
     _Transform( parentPose, nodeId );
 }
 
-void bxScene::setLocalPose( bxScene::Id nodeId, const Matrix4& pose )
+void bxScene_Graph::setLocalPose( bxScene_Graph::Id nodeId, const Matrix4& pose )
 {
     const int index = nodeId_indexSafe( nodeId, _data.size );
     _data.localPose[index] = pose;
@@ -196,7 +196,7 @@ void bxScene::setLocalPose( bxScene::Id nodeId, const Matrix4& pose )
     _Transform( parentPose, nodeId );
 }
 
-void bxScene::setWorldPose( bxScene::Id nodeId, const Matrix4& pose )
+void bxScene_Graph::setWorldPose( bxScene_Graph::Id nodeId, const Matrix4& pose )
 {
     const int index = nodeId_indexSafe( nodeId, _data.size );
     const int parentIndex = _data.parent[index];
@@ -206,7 +206,7 @@ void bxScene::setWorldPose( bxScene::Id nodeId, const Matrix4& pose )
     _Transform( parentPose, nodeId );
 }
 
-void bxScene::_Transform( const Matrix4& parentPose, bxScene::Id nodeId )
+void bxScene_Graph::_Transform( const Matrix4& parentPose, bxScene_Graph::Id nodeId )
 {
     const int index = nodeId_indexSafe( nodeId, _data.size );
     _data.worldPose[index] = parentPose * _data.localPose[index];

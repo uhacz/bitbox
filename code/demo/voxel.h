@@ -59,6 +59,7 @@ namespace bxVoxel
     bxVoxel_ObjectId object_new( bxVoxel_Manager* menago );
     void object_delete( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId* vobj );
     bool object_valid( bxVoxel_Manager* menago, bxVoxel_ObjectId id );
+    int object_setAttribute( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const char* attrName, const void* attrData, unsigned attrDataSize );
         
     //bxVoxel_Octree* object_octree( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );
     bxVoxel_Map* object_map( bxVoxel_Manager* menago, bxVoxel_ObjectId id );

@@ -3,7 +3,7 @@
 #include <util/vectormath/vectormath.h>
 #include <util/memory.h>
 
-struct bxScene
+struct bxScene_Graph
 {
     struct Id
     {
@@ -26,7 +26,7 @@ struct bxScene
     void setWorldPose( Id nodeId, const Matrix4& pose );
 
 public:
-    bxScene( int allocationChunkSize = 16, bxAllocator* alloc = bxDefaultAllocator() );
+    bxScene_Graph( int allocationChunkSize = 16, bxAllocator* alloc = bxDefaultAllocator() );
 
 private:
     enum EFlag
@@ -67,5 +67,4 @@ private:
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-
 
