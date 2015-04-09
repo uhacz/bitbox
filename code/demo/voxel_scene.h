@@ -1,29 +1,19 @@
 #pragma once
 
-#include <util/array.h>
-#include <gfx/gfx_camera.h>
-#include "voxel.h"
+#include <util/containers.h>
 
 struct bxDemoEngine;
-
+struct bxScene_Level;
 ////
 //
-struct bxScene_Level
+namespace bxVoxel
 {
-    typedef array_t< bxVoxel_ObjectId > Container_VoxelObjectId;
-    typedef array_t< bxGfxCamera >      Container_Camera;
+    bxScene_Level* level_new( const char* name );
+    void level_delete( bxScene_Level** level );
 
-    bxVoxel_Context* vxCtx;
-    bxGfxCamera*     currentCamera;
-
-    Container_Camera        camera;
-    Container_VoxelObjectId vxObjects;
-
-    bxScene_Level();
-
-    void load( bxDemoEngine* engine );
-    void unload( bxDemoEngine* engine );
-};
+    void level_loadResources  ( bxScene_Level* level, bxDemoEngine* engine );
+    void level_unloadResources( bxScene_Level* level, bxDemoEngine* engine );
+}///
 
 ////
 //
@@ -31,16 +21,15 @@ struct bxScene_Callback
 {
     virtual void onCreate( const char* objectName, bxScene_Level* level ) = 0;
     virtual void onAttribute( const char* attrName, void* data, unsigned dataSize, bxScene_Level* level ) = 0;
-    virtual void onCommand( const char* cmdName, bxScene_Level* level  ) = 0;
+    virtual void onCommand( const char* cmdName, bxScene_Level* level ) = 0;
 };
 
-////
-//
-struct bxScene_Script
+struct bxVoxelScene_Script
 {
-    void parse( const char* script, bxDemoEngine* engine, bxScene_Level* level );
-    void registerCallback( const char* name, bxScene_Callback* callback );
-
-private:
     hashmap_t _map_callback;
 };
+namespace bxVoxel
+{
+    int  script_run( bxDemoEngine* engine, bxVoxelScene_Script* script, const char* scriptTxt );
+    void registerCallback( bxVoxelScene_Script* script, const char* name, bxScene_Callback* callback );
+}///

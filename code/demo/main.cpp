@@ -74,17 +74,6 @@ struct bxVoxelFramebuffer
     int height() const { return textures[0].height; }
 };
 
-struct bxVoxelObject
-{
-    u16 width;
-    u16 height;
-    u16 depth;
-};
-
-
-
-
-
 static bxVoxelFramebuffer fb;
 static bxGfxCamera camera;
 static bxGfxCamera_InputContext cameraInputCtx;

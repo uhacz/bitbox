@@ -93,6 +93,7 @@
     <ClCompile Include="tree.cpp" />
     <ClCompile Include="voxel.cpp" />
     <ClCompile Include="voxel_file.cpp" />
+    <ClCompile Include="voxel_gfx.cpp" />
     <ClCompile Include="voxel_octree.cpp" />
     <ClCompile Include="voxel_scene.cpp" />
     <ClCompile Include="voxel_util.cpp" />
@@ -127,6 +128,7 @@
     <ClInclude Include="tree.h" />
     <ClInclude Include="voxel.h" />
     <ClInclude Include="voxel_file.h" />
+    <ClInclude Include="voxel_gfx.h" />
     <ClInclude Include="voxel_octree.h" />
     <ClInclude Include="voxel_scene.h" />
   </ItemGroup>
