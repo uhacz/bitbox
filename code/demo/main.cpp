@@ -54,7 +54,7 @@
 //static bxGdiRenderSource* rsource = 0;
 //static bxGdiBuffer voxelDataBuffer;
 //static const u32 GRID_SIZE = 512;
-static bxVoxel_Context* vxContext = 0;
+static bxVoxel_Container* vxContainer = 0;
 const int N_OBJECTS = 15;
 static bxVoxel_ObjectId vxObject[N_OBJECTS];
 
@@ -108,8 +108,8 @@ public:
         camera.matrix.world = inverse( Matrix4::lookAt( Point3( 0.f, 10.f, 100.f ), Point3(0.f), Vector3::yAxis() ) );
         time = 0.f;
 
-        vxContext = bxVoxel::_Startup( _engine.gdiDevice, _engine.resourceManager );
-        bxVoxel_Manager* vxMenago = bxVoxel::manager( vxContext );
+        bxVoxel::_Startup( _engine.gdiDevice, _engine.resourceManager );
+        vxContainer = bxVoxel::container_new();
 
         const u32 colors[] = 
         {
@@ -153,25 +153,25 @@ public:
 
         for ( int iobj = 0; iobj < N_OBJECTS - 1; ++iobj )
         {
-            bxVoxel_ObjectId id = bxVoxel::object_new( vxMenago );
-            bxVoxel::octree_loadMagicaVox( _engine.resourceManager, bxVoxel::object_map(vxMenago,id), models[iobj%nModels] );
-            bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxMenago, id );
+            bxVoxel_ObjectId id = bxVoxel::object_new( vxContainer );
+            bxVoxel::octree_loadMagicaVox( _engine.resourceManager, bxVoxel::object_map(vxContainer,id), models[iobj%nModels] );
+            bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxContainer, id );
 
             const Matrix4 pose = Matrix4::translation( Vector3( -128.f*(N_OBJECTS/2) + ( 128*iobj), 0.f, 0.f ) );
-            bxVoxel::object_setPose( vxMenago, id, pose );            
+            bxVoxel::object_setPose( vxContainer, id, pose );            
 
             vxObject[iobj] = id;
         }
 
         {
-            bxVoxel_ObjectId id = bxVoxel::object_new( vxMenago );
-            bxVoxel::util_addPlane( bxVoxel::object_map( vxMenago, id ), 255, 255, colors[1] );
+            bxVoxel_ObjectId id = bxVoxel::object_new( vxContainer );
+            bxVoxel::util_addPlane( bxVoxel::object_map( vxContainer, id ), 255, 255, colors[1] );
             const Matrix4 pose = Matrix4::translation( Vector3( 0.f, -52.f, 0.f ) );
-            bxVoxel::object_setPose( vxMenago, id, pose );            
+            bxVoxel::object_setPose( vxContainer, id, pose );            
             //bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[1] );
             //bxVoxel::octree_loadHeightmapRaw8( _engine.resourceManager, bxVoxel::object_map( vxMenago, id ), "model/heightmap.raw" );
 
-            bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxMenago, id );
+            bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxContainer, id );
             vxObject[N_OBJECTS-1] = id;
         }
 
@@ -181,9 +181,10 @@ public:
     {
         for( int iobj = 0; iobj < N_OBJECTS; ++iobj )
         {
-            bxVoxel::object_delete( _engine.gdiDevice, bxVoxel::manager( vxContext ), &vxObject[iobj] );
+            bxVoxel::object_delete( _engine.gdiDevice, vxContainer, &vxObject[iobj] );
         }
-        bxVoxel::_Shutdown( _engine.gdiDevice, &vxContext );
+        bxVoxel::container_delete( &vxContainer );
+        bxVoxel::_Shutdown( _engine.gdiDevice );
 
         for( int ifb = 0; ifb < bxVoxelFramebuffer::eCOUNT; ++ifb )
         {
@@ -341,7 +342,7 @@ public:
         gdiContext->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
         bxGdi::context_setViewport( gdiContext, fb.textures[0] );
         
-        bxVoxel::gfx_draw( gdiContext, vxContext, *currentCamera );
+        bxVoxel::gfx_draw( gdiContext, vxContainer, *currentCamera );
 
         //gdiContext->setBufferRO( voxelDataBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX );
         //bxGdi::shaderFx_enable( gdiContext, fxI, 0 );

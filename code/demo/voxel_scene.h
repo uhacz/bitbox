@@ -3,33 +3,38 @@
 #include <util/containers.h>
 
 struct bxDemoEngine;
-struct bxScene_Level;
+struct bxVoxel_Level;
 ////
 //
-namespace bxVoxel
-{
-    bxScene_Level* level_new( const char* name );
-    void level_delete( bxScene_Level** level );
-
-    void level_loadResources  ( bxScene_Level* level, bxDemoEngine* engine );
-    void level_unloadResources( bxScene_Level* level, bxDemoEngine* engine );
-}///
+//namespace bxVoxel
+//{
+//    bxVoxel_Level* level_new( const char* name );
+//    void level_delete( bxVoxel_Level** level );
+//
+//    void level_loadResources  ( bxVoxel_Level* level, bxDemoEngine* engine );
+//    void level_unloadResources( bxVoxel_Level* level, bxDemoEngine* engine );
+//}///
 
 ////
 //
+/*
+@ - create
+; - attribute
+: - command
+*/
 struct bxScene_Callback
 {
-    virtual void onCreate( const char* objectName, bxScene_Level* level ) = 0;
-    virtual void onAttribute( const char* attrName, void* data, unsigned dataSize, bxScene_Level* level ) = 0;
-    virtual void onCommand( const char* cmdName, bxScene_Level* level ) = 0;
+    virtual void onCreate( const char* objectName, void* userData ) = 0;
+    virtual void onAttribute( const char* attrName, void* data, unsigned dataSize, void* userData ) = 0;
+    virtual void onCommand( const char* cmdName, void* userData ) = 0;
 };
 
-struct bxVoxelScene_Script
+struct bxScene_Script
 {
     hashmap_t _map_callback;
 };
-namespace bxVoxel
+namespace bxScene
 {
-    int  script_run( bxDemoEngine* engine, bxVoxelScene_Script* script, const char* scriptTxt );
-    void registerCallback( bxVoxelScene_Script* script, const char* name, bxScene_Callback* callback );
+    int  script_run( bxDemoEngine* engine, bxScene_Script* script, const char* scriptTxt, void* userData );
+    void registerCallback( bxScene_Script* script, const char* name, bxScene_Callback* callback );
 }///

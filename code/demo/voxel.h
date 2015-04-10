@@ -15,15 +15,7 @@ class bxResourceManager;
 struct bxVoxel_Octree;
 struct bxVoxel_Map;
 struct bxVoxel_ObjectId;
-struct bxVoxel_Manager;
-struct bxVoxel_Gfx;
-struct bxVoxel_Context;
-
-struct bxVoxel_GpuData
-{
-    u32 gridIndex;
-    u32 colorRGBA;
-};
+struct bxVoxel_Container;
 
 struct bxVoxel_ObjectId
 {
@@ -33,11 +25,11 @@ struct bxVoxel_ObjectId
 
 namespace bxVoxel
 {
-    bxVoxel_Context* _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void _Shutdown( bxGdiDeviceBackend* dev, bxVoxel_Context** vctx );
+    void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void _Shutdown( bxGdiDeviceBackend* dev );
 
-    bxVoxel_Manager* manager( bxVoxel_Context* ctx );
-    bxVoxel_Gfx* gfx( bxVoxel_Context* ctx );
+    bxVoxel_Container* container_new();
+    void container_delete( bxVoxel_Container** cnt );
 }
 
 namespace bxVoxel
@@ -48,32 +40,32 @@ namespace bxVoxel
     //void octree_clear( bxVoxel_Octree* voct );
     //void octree_build( bxVoxel_Octree* voct, const bxVoxel_Map* m );
     //void octree_debugDraw( bxVoxel_Octree* voct );
+    //bxVoxel_Octree* object_octree( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );
 
     void map_insert( bxVoxel_Map* m, const Vector3& point, size_t data );
     void map_clear( bxVoxel_Map* m );
-
-    void gpu_uploadShell( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId id );
+    void gpu_uploadShell( bxGdiDeviceBackend* dev, bxVoxel_Container* container, bxVoxel_ObjectId id );
+    //TODO: void gpu_uploadVolume();
     
     ////
     ////
-    bxVoxel_ObjectId object_new( bxVoxel_Manager* menago );
-    void object_delete( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId* vobj );
-    bool object_valid( bxVoxel_Manager* menago, bxVoxel_ObjectId id );
-    int object_setAttribute( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const char* attrName, const void* attrData, unsigned attrDataSize );
+    bxVoxel_ObjectId object_new( bxVoxel_Container* container );
+    void object_delete( bxGdiDeviceBackend* dev, bxVoxel_Container* container, bxVoxel_ObjectId* vobj );
+    bool object_valid( bxVoxel_Container* container, bxVoxel_ObjectId id );
+    int object_setAttribute( bxVoxel_Container* container, bxVoxel_ObjectId id, const char* attrName, const void* attrData, unsigned attrDataSize );
         
-    //bxVoxel_Octree* object_octree( bxVoxel_Manager* ctx, bxVoxel_ObjectId id );
-    bxVoxel_Map* object_map( bxVoxel_Manager* menago, bxVoxel_ObjectId id );
-
-    const bxAABB& object_aabb( bxVoxel_Manager* menago, bxVoxel_ObjectId id ); 
-    const Matrix4& object_pose( bxVoxel_Manager* menago, bxVoxel_ObjectId id );
     
-    void object_setPose( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const Matrix4& pose );
-    void object_setAABB( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const bxAABB& aabb );
+    bxVoxel_Map* object_map( bxVoxel_Container* container, bxVoxel_ObjectId id );
+    const bxAABB& object_aabb( bxVoxel_Container* container, bxVoxel_ObjectId id ); 
+    const Matrix4& object_pose( bxVoxel_Container* container, bxVoxel_ObjectId id );
+    
+    void object_setPose( bxVoxel_Container* container, bxVoxel_ObjectId id, const Matrix4& pose );
+    void object_setAABB( bxVoxel_Container* container, bxVoxel_ObjectId id, const bxAABB& aabb );
 
     ////
     ////
-    void gfx_cull( bxVoxel_Context* vctx, const bxGfxCamera& camera );
-    void gfx_draw( bxGdiContext* ctx, bxVoxel_Context* vctx, const bxGfxCamera& camera );
+    void gfx_cull( bxVoxel_Container* vxcnt, const bxGfxCamera& camera );
+    void gfx_draw( bxGdiContext* ctx, bxVoxel_Container* container, const bxGfxCamera& camera );
 
     ////
     ////

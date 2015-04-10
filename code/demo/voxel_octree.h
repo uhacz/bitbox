@@ -19,6 +19,12 @@ struct bxVoxel_Octree
 struct bxVoxel_Map : public hashmap_t
 {};
 
+struct bxVoxel_GpuData
+{
+    u32 gridIndex;
+    u32 colorRGBA;
+};
+
 namespace bxVoxel
 {
     bxVoxel_Octree* octree_new( bxAllocator* alloc );

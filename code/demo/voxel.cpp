@@ -35,7 +35,7 @@ struct bxVoxel_ObjectAttribute
     {}
 };
 
-struct bxVoxel_Manager
+struct bxVoxel_Container
 {
     struct Data
     {
@@ -60,11 +60,15 @@ struct bxVoxel_Manager
     bxAllocator* _alloc_main;
     bxAllocator* _alloc_octree;
 
-    bxVoxel_Manager()
+    bxVoxel_Container()
         : _alloc_main(0)
         , _alloc_octree(0)
     {
-        memset( &_data, 0x00, sizeof(bxVoxel_Manager::Data) );
+        memset( &_data, 0x00, sizeof(bxVoxel_Container::Data) );
+    }
+
+    int objectIndex( bxVoxel_ObjectId id ){
+        return _data.indices[id.index].index;
     }
 };
 
@@ -80,40 +84,40 @@ struct bxVoxel_Gfx
     {}
 };
 
-struct bxVoxel_Context
-{
-    bxVoxel_Manager menago;
-    bxVoxel_Gfx gfx;
+//struct bxVoxel_Context
+//{
+//    bxVoxel_Container menago;
+//    bxVoxel_Gfx gfx;
+//
+//    bxVoxel_Context() {}
+//};
 
-    bxVoxel_Context() {}
-};
-
-
+static bxVoxel_Gfx* __gfx = 0;
 namespace bxVoxel
 {
-    bxVoxel_Manager* manager( bxVoxel_Context* ctx ) { return &ctx->menago; }
-    bxVoxel_Gfx*     gfx( bxVoxel_Context* ctx ) { return &ctx->gfx; }
+    //bxVoxel_Container* manager( bxVoxel_Context* ctx ) { return &ctx->menago; }
+    //bxVoxel_Gfx*     gfx( bxVoxel_Context* ctx ) { return &ctx->gfx; }
     ////
     ////
-    void _Manager_startup( bxVoxel_Manager* man )
+    void _Container_startup( bxVoxel_Container* cnt )
     {
-        memset( &man->_data, 0x00, sizeof( bxVoxel_Manager::Data ) );
-        man->_data._freeList = -1;
+        memset( &cnt->_data, 0x00, sizeof( bxVoxel_Container::Data ) );
+        cnt->_data._freeList = -1;
 
-        man->_alloc_main = bxDefaultAllocator();
+        cnt->_alloc_main = bxDefaultAllocator();
         bxDynamicPoolAllocator* pool = BX_NEW( bxDefaultAllocator(), bxDynamicPoolAllocator );
         pool->startup( sizeof( bxVoxel_Octree ), 64, bxDefaultAllocator() );
-        man->_alloc_octree = pool;
+        cnt->_alloc_octree = pool;
     }
-    void _Manager_shutdown( bxVoxel_Manager* man )
+    void _Container_shutdown( bxVoxel_Container* cnt )
     {
-        SYS_ASSERT( man->_data.size == 0 );
+        SYS_ASSERT( cnt->_data.size == 0 );
 
-        BX_FREE0( man->_alloc_main, man->_data._memoryHandle );
+        BX_FREE0( cnt->_alloc_main, cnt->_data._memoryHandle );
 
-        bxDynamicPoolAllocator* pool = (bxDynamicPoolAllocator*)man->_alloc_octree;
+        bxDynamicPoolAllocator* pool = (bxDynamicPoolAllocator*)cnt->_alloc_octree;
         pool->shutdown();
-        man->_alloc_main = 0;
+        cnt->_alloc_main = 0;
     }
     ////
     ////
@@ -134,30 +138,39 @@ namespace bxVoxel
     }
     ////
     ////
-    bxVoxel_Context* _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
-        bxVoxel_Context* vctx = BX_NEW( bxDefaultAllocator(), bxVoxel_Context );
-        _Manager_startup( &vctx->menago );
-        _Gfx_startup( dev, resourceManager, &vctx->gfx );
-        return vctx;
+        SYS_ASSERT( __gfx == 0 );
+        __gfx = BX_NEW( bxDefaultAllocator(), bxVoxel_Gfx );
+        _Gfx_startup( dev, resourceManager, __gfx );
     }
-    void _Shutdown( bxGdiDeviceBackend* dev, bxVoxel_Context** vctx )
-    {
-        _Gfx_shutdown( dev, &vctx[0]->gfx );
-        _Manager_shutdown( &vctx[0]->menago );
 
-        BX_DELETE0( bxDefaultAllocator(), vctx[0] );
+    void _Shutdown( bxGdiDeviceBackend* dev )
+    {
+        _Gfx_shutdown( dev, __gfx );
+        BX_DELETE0( bxDefaultAllocator(), __gfx );
     }
     
+    bxVoxel_Container* container_new()
+    {
+        bxVoxel_Container* cnt = BX_NEW( bxDefaultAllocator(), bxVoxel_Container );
+        _Container_startup( cnt );
+        return cnt;
+    }
+    void container_delete( bxVoxel_Container** cnt )
+    {
+        _Container_shutdown( cnt[0] );
+        BX_DELETE0( bxDefaultAllocator(), cnt[0] );
+    }
 
     namespace
     {
-        void _Manager_allocateData( bxVoxel_Manager* menago, int newCapacity )
+        void _Container_allocateData( bxVoxel_Container* cnt, int newCapacity )
         {
-            if ( newCapacity <= menago->_data.capacity )
+            if ( newCapacity <= cnt->_data.capacity )
                 return;
 
-            bxVoxel_Manager::Data& data = menago->_data;
+            bxVoxel_Container::Data& data = cnt->_data;
 
             int memSize = 0;
             memSize += newCapacity * sizeof( *data.worldPose );
@@ -169,11 +182,11 @@ namespace bxVoxel
             memSize += newCapacity * sizeof( *data.attribute );
             memSize += newCapacity * sizeof( *data.indices );
 
-            void* mem = BX_MALLOC( menago->_alloc_main, memSize, 16 );
+            void* mem = BX_MALLOC( cnt->_alloc_main, memSize, 16 );
             memset( mem, 0x00, memSize );
 
-            bxVoxel_Manager::Data newData;
-            memset( &newData, 0x00, sizeof( bxVoxel_Manager::Data ) );
+            bxVoxel_Container::Data newData;
+            memset( &newData, 0x00, sizeof( bxVoxel_Container::Data ) );
 
             bxBufferChunker chunker( mem, memSize );
             newData.worldPose    = chunker.add<Matrix4>( newCapacity );
@@ -201,10 +214,10 @@ namespace bxVoxel
                 memcpy( newData.attribute, data.attribute, data.size * sizeof( *data.attribute ) );
                 memcpy( newData.indices, data.indices, data.size * sizeof( *data.indices ) );
 
-                BX_FREE0( menago->_alloc_main, data._memoryHandle );
+                BX_FREE0( cnt->_alloc_main, data._memoryHandle );
             }
 
-            menago->_data = newData;
+            cnt->_data = newData;
         }
     
         bxGdiBuffer _Gfx_createVoxelDataBuffer( bxGdiDeviceBackend* dev, int maxVoxels )
@@ -218,14 +231,14 @@ namespace bxVoxel
 
 
 
-    bxVoxel_ObjectId object_new( bxVoxel_Manager* menago )
+    bxVoxel_ObjectId object_new( bxVoxel_Container* cnt )
     {
-        if( menago->_data.size + 1 > menago->_data.capacity )
+        if( cnt->_data.size + 1 > cnt->_data.capacity )
         {
-            const int newCapacity = menago->_data.capacity + 64;
-            _Manager_allocateData( menago, newCapacity );
+            const int newCapacity = cnt->_data.capacity + 64;
+            _Container_allocateData( cnt, newCapacity );
         }
-        bxVoxel_Manager::Data& data = menago->_data;
+        bxVoxel_Container::Data& data = cnt->_data;
         const int dataIndex = data.size;
 
         data.worldPose[dataIndex] = Matrix4::identity();
@@ -257,9 +270,9 @@ namespace bxVoxel
         return id;
     }
 
-    void object_delete( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId* id )
+    void object_delete( bxGdiDeviceBackend* dev, bxVoxel_Container* cnt, bxVoxel_ObjectId* id )
     {
-        bxVoxel_Manager::Data& data = menago->_data;
+        bxVoxel_Container::Data& data = cnt->_data;
         if( data.indices[id->index].generation != id->generation )
         {
             return;
@@ -300,16 +313,16 @@ namespace bxVoxel
         id->generation = 0;
     }
 
-    bool object_valid( bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    bool object_valid( bxVoxel_Container* cnt, bxVoxel_ObjectId id )
     {
-        return ( id.index < (u32)menago->_data.size ) && ( menago->_data.indices[id.index].generation == id.generation );
+        return ( id.index < (u32)cnt->_data.size ) && ( cnt->_data.indices[id.index].generation == id.generation );
     }
-    int object_setAttribute( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const char* attrName, const void* attrData, unsigned attrDataSize )
+    int object_setAttribute( bxVoxel_Container* cnt, bxVoxel_ObjectId id, const char* attrName, const void* attrData, unsigned attrDataSize )
     {
-        if( !object_valid( menago, id ) )
+        if( !object_valid( cnt, id ) )
             return -1;
 
-        bxVoxel_ObjectAttribute& attribs = menago->_data.attribute[menago->_data.indices[id.index].index];
+        bxVoxel_ObjectAttribute& attribs = cnt->_data.attribute[cnt->_data.indices[id.index].index];
         if( string::equal( attrName, "pos" ) )
         {
             if( attrDataSize < 12 )
@@ -344,39 +357,39 @@ object_setAttribute_sizeError:
     //    return menago->_data.octree[ menago->_data.indices[id.index].index ];
     //}
 
-    bxVoxel_Map* object_map( bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    bxVoxel_Map* object_map( bxVoxel_Container* cnt, bxVoxel_ObjectId id )
     {
-        return &menago->_data.map[menago->_data.indices[id.index].index];
+        return &cnt->_data.map[ cnt->objectIndex( id ) ];
     }
 
-    const bxAABB& object_aabb( bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    const bxAABB& object_aabb( bxVoxel_Container* cnt, bxVoxel_ObjectId id )
     {
-        return menago->_data.aabb[ menago->_data.indices[id.index].index ];
+        return cnt->_data.aabb[ cnt->objectIndex( id ) ];
     }
 
-    const Matrix4& object_pose( bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    const Matrix4& object_pose( bxVoxel_Container* cnt, bxVoxel_ObjectId id )
     {
-        return menago->_data.worldPose[ menago->_data.indices[id.index].index ];
+        return cnt->_data.worldPose[ cnt->objectIndex( id ) ];
     }
 
-    void object_setPose( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const Matrix4& pose )
+    void object_setPose( bxVoxel_Container* cnt, bxVoxel_ObjectId id, const Matrix4& pose )
     {
-        menago->_data.worldPose[ menago->_data.indices[id.index].index ] = pose;
+        cnt->_data.worldPose[ cnt->objectIndex( id ) ] = pose;
     }
 
-    void object_setAABB( bxVoxel_Manager* menago, bxVoxel_ObjectId id, const bxAABB& aabb )
+    void object_setAABB( bxVoxel_Container* cnt, bxVoxel_ObjectId id, const bxAABB& aabb )
     {
-        menago->_data.aabb[ menago->_data.indices[id.index].index ] = aabb;
+        cnt->_data.aabb[ cnt->objectIndex( id ) ] = aabb;
     }
 
-    void gpu_uploadShell( bxGdiDeviceBackend* dev, bxVoxel_Manager* menago, bxVoxel_ObjectId id )
+    void gpu_uploadShell( bxGdiDeviceBackend* dev, bxVoxel_Container* cnt, bxVoxel_ObjectId id )
     {
-        SYS_ASSERT( object_valid( menago, id ) );
+        SYS_ASSERT( object_valid( cnt, id ) );
 
-        const bxVoxel_ObjectId* indices = menago->_data.indices;
-        const int dataIndex = indices[ id.index ].index;
+        //const bxVoxel_ObjectId* indices = cnt->_data.indices;
+        const int dataIndex = cnt->objectIndex( id );
 
-        bxVoxel_Map* map = object_map( menago, id );
+        bxVoxel_Map* map = object_map( cnt, id );
 
 
         const int vxDataCapacity = (int)map->size;
@@ -385,12 +398,12 @@ object_setAttribute_sizeError:
         const int numShellVoxels = map_getShell( tmp, vxDataCapacity, map[0] );
         const int requiredMemSize = numShellVoxels * sizeof( bxVoxel_GpuData );
 
-        bxGdiBuffer buff = menago->_data.voxelDataGpu[dataIndex];
+        bxGdiBuffer buff = cnt->_data.voxelDataGpu[dataIndex];
         if( buff.id == 0 || buff.sizeInBytes != requiredMemSize )
         {
             dev->releaseBuffer( &buff );
-            menago->_data.voxelDataGpu[dataIndex] = _Gfx_createVoxelDataBuffer( dev, numShellVoxels );
-            buff = menago->_data.voxelDataGpu[dataIndex];
+            cnt->_data.voxelDataGpu[dataIndex] = _Gfx_createVoxelDataBuffer( dev, numShellVoxels );
+            buff = cnt->_data.voxelDataGpu[dataIndex];
         }
 
         bxGdiContextBackend* ctx = dev->ctx;
@@ -401,15 +414,15 @@ object_setAttribute_sizeError:
 
         BX_FREE0( bxDefaultAllocator(), tmp );
 
-        bxVoxel_ObjectData& objData = menago->_data.voxelDataObj[dataIndex];
+        bxVoxel_ObjectData& objData = cnt->_data.voxelDataObj[dataIndex];
         objData.numShellVoxels = numShellVoxels;
         //objData.gridSize = octree->nodes[0].size;
     }
 
-    void gfx_draw( bxGdiContext* ctx, bxVoxel_Context* vctx, const bxGfxCamera& camera )
+    void gfx_draw( bxGdiContext* ctx, bxVoxel_Container* cnt, const bxGfxCamera& camera )
     {
-        bxVoxel_Manager* menago = &vctx->menago;
-        const bxVoxel_Manager::Data& data = menago->_data;
+        //bxVoxel_Container* menago = &vctx->menago;
+        const bxVoxel_Container::Data& data = cnt->_data;
         const int numObjects = data.size;
 
         if( !numObjects )
@@ -419,8 +432,8 @@ object_setAttribute_sizeError:
         const bxVoxel_ObjectData* vxDataObj = data.voxelDataObj;
         const Matrix4* worldMatrices = data.worldPose;
 
-        bxGdiShaderFx_Instance* fxI = vctx->gfx.fxI;
-        bxGdiRenderSource* rsource = vctx->gfx.rsource;
+        bxGdiShaderFx_Instance* fxI = __gfx->fxI;
+        bxGdiRenderSource* rsource = __gfx->rsource;
 
         fxI->setUniform( "_viewProj", camera.matrix.viewProj );
         
