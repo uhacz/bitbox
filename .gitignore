@@ -57,6 +57,8 @@
 *.userosscache
 *.sln.docstates
 *.sdf
+*.filters
+ReadMe.txt
 
 #
 assets/

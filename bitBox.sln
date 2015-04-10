@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo", "code\demo\demo.vcxproj", "{5F629FF1-027F-46DE-9FD9-FFB264626895}"
 	ProjectSection(ProjectDependencies) = postProject
 		{752EE42B-6767-4D1C-8CE2-227E00965D51} = {752EE42B-6767-4D1C-8CE2-227E00965D51}
@@ -25,6 +27,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{003D57C0-1648-4695-B5FC-16BDF0A2CBA9}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demoRT", "code\demoRT\demoRT.vcxproj", "{90D02E7A-709A-449B-B4E9-647CE45D7F07}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "code\tools\lua\lua.vcxproj", "{492E3CD2-C843-46BC-87B3-048B85E35866}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -68,6 +72,10 @@ Global
 		{90D02E7A-709A-449B-B4E9-647CE45D7F07}.Debug|x64.Build.0 = Debug|x64
 		{90D02E7A-709A-449B-B4E9-647CE45D7F07}.Release|x64.ActiveCfg = Release|x64
 		{90D02E7A-709A-449B-B4E9-647CE45D7F07}.Release|x64.Build.0 = Release|x64
+		{492E3CD2-C843-46BC-87B3-048B85E35866}.Debug|x64.ActiveCfg = Debug|x64
+		{492E3CD2-C843-46BC-87B3-048B85E35866}.Debug|x64.Build.0 = Debug|x64
+		{492E3CD2-C843-46BC-87B3-048B85E35866}.Release|x64.ActiveCfg = Release|x64
+		{492E3CD2-C843-46BC-87B3-048B85E35866}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -75,5 +83,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{18B49F0B-C441-4267-94E1-1E71E803B040} = {B7E1E07F-7431-4C42-B994-C5B0E3182C80}
 		{752EE42B-6767-4D1C-8CE2-227E00965D51} = {003D57C0-1648-4695-B5FC-16BDF0A2CBA9}
+		{492E3CD2-C843-46BC-87B3-048B85E35866} = {B7E1E07F-7431-4C42-B994-C5B0E3182C80}
 	EndGlobalSection
 EndGlobal
