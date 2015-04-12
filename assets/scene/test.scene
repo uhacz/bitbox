@@ -1,11 +1,13 @@
 @camera persp
-;pos 0 0 50.0
+$pos 0 0 50.0
 
 @voxel dragon
-;pos 0 0 0
-;rot 0 0.7 0
-;file "model/dragon.vox"
+$pos 0 0 0
+$rot 0 0.7 0
+$file "model/dragon.vox"
 
 @voxel plane
-;pos 0 -50 0
-;add plane 100 100
+$pos 0 -50 0
+:addPlane 100 100
+
+:setCamera persp

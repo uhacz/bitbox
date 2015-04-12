@@ -134,6 +134,7 @@
     <ClInclude Include="voxel_gfx.h" />
     <ClInclude Include="voxel_octree.h" />
     <ClInclude Include="voxel_scene.h" />
+    <ClInclude Include="voxel_type.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

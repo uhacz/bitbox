@@ -1,9 +1,10 @@
 #pragma once
 
 #include <util/vectormath/vectormath.h>
-#include <util/type.h>
 #include <util/bbox.h>
 #include <util/containers.h>
+
+#include "voxel_type.h"
 
 struct bxGfxCamera;
 struct bxGdiContext;
@@ -12,16 +13,7 @@ struct bxGdiContextBackend;
 class bxResourceManager;
 
 
-struct bxVoxel_Octree;
-struct bxVoxel_Map;
-struct bxVoxel_ObjectId;
-struct bxVoxel_Container;
 
-struct bxVoxel_ObjectId
-{
-    u32 index : 16;
-    u32 generation : 16;
-};
 
 namespace bxVoxel
 {

@@ -12,48 +12,13 @@
 #include "util/perlin_noise.h"
 #include "voxel.h"
 #include "voxel_file.h"
+#include "voxel_scene.h"
 #include "grid.h"
 #include <gfx/gfx_debug_draw.h>
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-
-//union bxVoxelGrid_Coords
-//{
-//    u64 hash;
-//    struct
-//    {
-//        u64 x : 22;
-//        u64 y : 21;
-//        u64 z : 21;
-//    };
-//};
-//
-//struct bxVoxelGrid_Item
-//{
-//    uptr data;
-//    u32  next;
-//};
-//
-//struct bxStaticVoxelGrid
-//{
-//    void create( int nX, int nY, int nZ, bxAllocator* allocator = bxDefaultAllocator() );
-//    void release();
-//
-//    void 
-//
-//    bxAllocator* _allocator;
-//    bxVoxelGrid_Item* _items;
-//    i32 _nX;
-//    i32 _nY;
-//    i32 _nZ;
-//};
-
-//static bxGdiShaderFx_Instance* fxI = 0;
-//static bxGdiRenderSource* rsource = 0;
-//static bxGdiBuffer voxelDataBuffer;
-//static const u32 GRID_SIZE = 512;
 static bxVoxel_Container* vxContainer = 0;
 const int N_OBJECTS = 15;
 static bxVoxel_ObjectId vxObject[N_OBJECTS];
@@ -174,6 +139,25 @@ public:
             bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxContainer, id );
             vxObject[N_OBJECTS-1] = id;
         }
+
+
+        bxVoxel_SceneScriptCallback scriptCallback;
+        scriptCallback._container = vxContainer;
+        scriptCallback._currentId.hash = 0;
+
+        bxScene_Script sceneScript;
+        bxScene::script_addCallback( &sceneScript, "voxel", &scriptCallback );
+
+        bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( "scene/test.scene" );
+        
+        if( scriptFile.ok() )
+        {
+            bxScene::script_run( &sceneScript, scriptFile.txt );
+        }
+
+        scriptFile.release();
+
+
 
         return true;
     }

@@ -19,14 +19,35 @@
 //
 /*
 @ - create
-; - attribute
+$ - attribute
 : - command
 */
+struct bxScene_ScriptAttribData
+{
+    enum
+    {
+        eMAX_STRING_LEN = 255,
+        eMAX_NUMBER_LEN = 32,
+    };
+    union
+    {
+        f64 number[32];
+        char string[eMAX_STRING_LEN + 1];
+    };
+    u32 numBytes;
+
+    int addNumber( f64 n );
+    int setString( const char* str, int len );
+
+    void* dataPointer() const { return (void*)&number[0]; }
+    unsigned dataSizeInBytes() const { return numBytes;  }
+};
+
 struct bxScene_ScriptCallback
 {
-    virtual void onCreate( const char* typeName, const char* objectName, void* userData ) = 0;
-    virtual void onAttribute( const char* attrName, void* data, unsigned dataSize, void* userData ) = 0;
-    virtual void onCommand( const char* cmdName, void* userData ) = 0;
+    virtual void onCreate( const char* typeName, const char* objectName ) = 0;
+    virtual void onAttribute( const char* attrName, const bxScene_ScriptAttribData& attribData ) = 0;
+    virtual void onCommand( const char* cmdName ) = 0;
 };
 
 struct bxScene_Script
@@ -35,6 +56,17 @@ struct bxScene_Script
 };
 namespace bxScene
 {
-    int  script_run( bxScene_Script* script, const char* scriptTxt, void* userData );
-    void registerCallback( bxScene_Script* script, const char* name, bxScene_ScriptCallback* callback );
+    int  script_run( bxScene_Script* script, const char* scriptTxt );
+    void script_addCallback( bxScene_Script* script, const char* name, bxScene_ScriptCallback* callback );
 }///
+
+#include "voxel_type.h"
+struct bxVoxel_SceneScriptCallback : public bxScene_ScriptCallback
+{
+    virtual void onCreate( const char* typeName, const char* objectName );
+    virtual void onAttribute( const char* attrName, const bxScene_ScriptAttribData& attribData );
+    virtual void onCommand( const char* cmdName );
+
+    bxVoxel_Container* _container;
+    bxVoxel_ObjectId _currentId;
+};
