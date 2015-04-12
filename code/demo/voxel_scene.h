@@ -27,16 +27,16 @@ struct bxScene_ScriptAttribData
     enum
     {
         eMAX_STRING_LEN = 255,
-        eMAX_NUMBER_LEN = 32,
+        eMAX_NUMBER_LEN = 64,
     };
     union
     {
-        f64 number[32];
+        f32 number[eMAX_NUMBER_LEN];
         char string[eMAX_STRING_LEN + 1];
     };
     u32 numBytes;
 
-    int addNumber( f64 n );
+    int addNumber( f32 n );
     int setString( const char* str, int len );
 
     void* dataPointer() const { return (void*)&number[0]; }

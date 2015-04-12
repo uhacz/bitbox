@@ -33,6 +33,11 @@ struct bxVoxel_ObjectAttribute
         , rot(0.f)
         , file(0)
     {}
+
+    void release(){
+        string::free_and_null( &file );
+    }
+
 };
 
 struct bxVoxel_Container
@@ -157,6 +162,39 @@ namespace bxVoxel
         _Container_startup( cnt );
         return cnt;
     }
+
+    void container_load(bxGdiDeviceBackend* dev, bxVoxel_Container* cnt)
+    {
+        bxVoxel_Container::Data& data = cnt->_data;
+        const int n = data.size;
+        for ( int i = 0; i < n; ++i )
+        {
+
+        }
+    }
+
+    namespace
+    {
+        void object_releaseData( bxGdiDeviceBackend* dev, bxVoxel_Container::Data& data, int dataIndex )
+        {
+            dev->releaseBuffer( &data.voxelDataGpu[dataIndex] );
+            data.map[dataIndex].~bxVoxel_Map();
+            data.attribute[dataIndex].release();
+        }
+    }///
+    void container_unload(bxGdiDeviceBackend* dev, bxVoxel_Container* cnt)
+    {
+        bxVoxel_Container::Data& data = cnt->_data;
+        const int n = data.size;
+        for( int i = 0; i < n; ++i )
+        {
+            object_releaseData( dev, data, i );
+            data.indices[i].generation += 1;
+        }
+
+        data.size = 0;
+    }
+
     void container_delete( bxVoxel_Container** cnt )
     {
         _Container_shutdown( cnt[0] );
@@ -295,8 +333,7 @@ namespace bxVoxel
         }
 
         //BX_DELETE0( menago->_alloc_octree, data.octree[dataIndex] );
-        dev->releaseBuffer( &data.voxelDataGpu[dataIndex] );
-        data.map[dataIndex].~bxVoxel_Map();
+        object_releaseData( dev, data, dataIndex );
 
         data.indices[lastHandleIndex].index = dataIndex;
         data.indices[handleIndex].index = data._freeList;
@@ -342,7 +379,7 @@ namespace bxVoxel
             if( attrDataSize == 0 )
                 goto object_setAttribute_sizeError;
 
-            string::duplicate( attribs.file, (const char*)attrData );
+            attribs.file = string::duplicate( attribs.file, (const char*)attrData );
         }
 
         return 0;

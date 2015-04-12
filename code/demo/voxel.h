@@ -21,6 +21,8 @@ namespace bxVoxel
     void _Shutdown( bxGdiDeviceBackend* dev );
 
     bxVoxel_Container* container_new();
+    void container_load( bxGdiDeviceBackend* dev, bxVoxel_Container* cnt );
+    void container_unload( bxGdiDeviceBackend* dev, bxVoxel_Container* cnt );
     void container_delete( bxVoxel_Container** cnt );
 }
 

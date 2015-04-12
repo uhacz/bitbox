@@ -8,7 +8,10 @@
 char* string::token( char* str, char* tok, size_t toklen, char* delim )
 {
     if( !str )
+    {
+        tok[0] = 0;
         return 0;
+    }
     str += strspn( str, delim );
     size_t n = strcspn( str, delim );
     n = ( toklen - 1 < n ) ? toklen - 1 : n;

@@ -48,9 +48,9 @@ namespace
     
 }///
 
-int bxScene_ScriptAttribData::addNumber( f64 n )
+int bxScene_ScriptAttribData::addNumber( f32 n )
 {
-    const int size = numBytes / sizeof( f64 );
+    const int size = numBytes / sizeof( f32 );
     if ( size >= eMAX_NUMBER_LEN )
     {
         bxLogError( "to many attribute values" );
@@ -58,7 +58,7 @@ int bxScene_ScriptAttribData::addNumber( f64 n )
     }
 
     number[size] = n;
-    numBytes += sizeof( f64 );
+    numBytes += sizeof( f32 );
     return 0;
 }
 
@@ -88,9 +88,28 @@ namespace bxScene
         memset( &attribData, 0x00, sizeof( bxScene_ScriptAttribData ) );
 
         bxScene_ScriptCallback* currentCallback = 0;
-        char* scriptPtr = string::token( (char*)scriptTxt, line, MAX_LINE_SIZE, "\n" );
-        while ( scriptPtr )
+        char* scriptPtr = (char*)scriptTxt;
+
+        char* lineDelimeter = "\n";
         {
+            char* endOfLine = string::find( scriptPtr, lineDelimeter );
+            if( endOfLine && endOfLine[-1] == '\r' )
+            {
+                lineDelimeter = "\r\n";
+            }
+        }
+
+        while ( 1 )
+        {
+            scriptPtr = string::token( scriptPtr, line, MAX_LINE_SIZE, lineDelimeter );
+            if ( string::equal( line, "\r" ) )
+                continue;
+
+            if( !scriptPtr && string::length( line ) == 0 )
+            {
+                break;
+            }
+
             char* linePtr = string::token( line, token, MAX_TOKEN_SIZE, " " );
             if ( token[0] == '@' )
             {
@@ -110,23 +129,25 @@ namespace bxScene
             else if ( token[0] == '$' && currentCallback )
             {
                 memset( &attribData, 0x00, sizeof( bxScene_ScriptAttribData ) );
-                char attribName[MAX_TOKEN_SIZE + 1] = { 0 };
+                char* attribName = token + 1;
                 char attribDataToken[MAX_TOKEN_SIZE + 1] = { 0 };
 
                 int ierr = 0;
-                linePtr = string::token( line, attribName, MAX_TOKEN_SIZE, " " );
                 while( linePtr && !ierr )
                 {
                     linePtr = string::token( linePtr, attribDataToken, MAX_TOKEN_SIZE, " " );
                     if ( attribDataToken[0] == '\"' )
                     {
                         char* attribString = attribDataToken + 1;
-                        const int tokenLen = string::length( attribString ) - 1; // minus '"' char at the end
+                        int tokenLen = string::length( attribString ) - 1; // minus '"' char at the end
+                        //if ( attribString[tokenLen-1] == '\"' ) // in case of \r char
+                            //tokenLen -= 1;
+
                         ierr = attribData.setString( attribString, tokenLen );
                     }
                     else if ( isdigit( attribDataToken[0] ) )
                     {
-                        ierr = attribData.addNumber( atof( attribDataToken ) );
+                        ierr = attribData.addNumber( (f32)atof( attribDataToken ) );
                     }
                     else
                     {
@@ -151,10 +172,6 @@ namespace bxScene
                     
                 }
             }
-            
-            //SYS_ASSERT( linePtr == 0 );
-
-            scriptPtr = string::token( scriptPtr, line, MAX_LINE_SIZE, "\n" );
         }
                
        
