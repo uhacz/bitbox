@@ -48,7 +48,8 @@ namespace
     
 }///
 
-int bxScene_ScriptAttribData::addNumber( f32 n )
+
+int bxScene_ScriptAttribData::addNumberf( f32 n )
 {
     const int size = numBytes / sizeof( f32 );
     if ( size >= eMAX_NUMBER_LEN )
@@ -57,11 +58,37 @@ int bxScene_ScriptAttribData::addNumber( f32 n )
         return -1;
     }
 
-    number[size] = n;
+    fnumber[size] = n;
     numBytes += sizeof( f32 );
     return 0;
 }
+int bxScene_ScriptAttribData::addNumberi( i32 n )
+{
+    const int size = numBytes / sizeof( i32 );
+    if ( size >= eMAX_NUMBER_LEN )
+    {
+        bxLogError( "to many attribute values" );
+        return -1;
+    }
 
+    inumber[size] = n;
+    numBytes += sizeof( i32 );
+    return 0;
+}
+
+int bxScene_ScriptAttribData::addNumberu( u32 n )
+{
+    const int size = numBytes / sizeof( u32 );
+    if ( size >= eMAX_NUMBER_LEN )
+    {
+        bxLogError( "to many attribute values" );
+        return -1;
+    }
+
+    unumber[size] = n;
+    numBytes += sizeof( u32 );
+    return 0;
+}
 int bxScene_ScriptAttribData::setString( const char* str, int len )
 {
     if ( len >= eMAX_STRING_LEN )
@@ -75,12 +102,58 @@ int bxScene_ScriptAttribData::setString( const char* str, int len )
     return 0;
 }
 
+
+
+namespace bxScene
+{
+    static const int MAX_LINE_SIZE = 256;
+    static const int MAX_TOKEN_SIZE = 64;
+
+    int attrib_parseLine( bxScene_ScriptAttribData* attribData, const char* line )
+    {
+        char attribDataToken[MAX_TOKEN_SIZE + 1] = { 0 };
+        char* linePtr = (char*)line;
+        int ierr = 0;
+        while( linePtr && !ierr )
+        {
+            linePtr = string::token( linePtr, attribDataToken, MAX_TOKEN_SIZE, " " );
+            if ( attribDataToken[0] == '\"' )
+            {
+                char* attribString = attribDataToken + 1;
+                int tokenLen = string::length( attribString ) - 1; // minus '"' char at the end
+                ierr = attribData->setString( attribString, tokenLen );
+            }
+            else if ( isdigit( attribDataToken[0] ) || attribDataToken[0]=='-' || attribDataToken[0]=='.' )
+            {
+                if( string::find( attribDataToken, "." ) )
+                {
+                    ierr = attribData->addNumberf( (f32)atof( attribDataToken ) );
+                }
+                else if( string::find( attribDataToken, "x" ) )
+                {
+                    ierr = attribData->addNumberu( strtoul( attribDataToken, NULL, 0 ) );
+                }
+                else
+                {
+                    ierr = attribData->addNumberu( strtol( attribDataToken, NULL, 0 ) );
+                }
+            }
+            else
+            {
+                bxLogError( "invalid character in script token '%s'", attribDataToken );
+                ierr = -1;
+            }
+        } 
+        return ierr;
+    }
+}///
+
+
 namespace bxScene
 {
     int script_run( bxScene_Script* script, const char* scriptTxt )
     {
-        const int MAX_LINE_SIZE = 256;
-        const int MAX_TOKEN_SIZE = 64;
+        
         char line[MAX_LINE_SIZE + 1] = { 0 };
         char token[MAX_TOKEN_SIZE + 1 ] = { 0 };
         
@@ -132,30 +205,7 @@ namespace bxScene
                 char* attribName = token + 1;
                 char attribDataToken[MAX_TOKEN_SIZE + 1] = { 0 };
 
-                int ierr = 0;
-                while( linePtr && !ierr )
-                {
-                    linePtr = string::token( linePtr, attribDataToken, MAX_TOKEN_SIZE, " " );
-                    if ( attribDataToken[0] == '\"' )
-                    {
-                        char* attribString = attribDataToken + 1;
-                        int tokenLen = string::length( attribString ) - 1; // minus '"' char at the end
-                        //if ( attribString[tokenLen-1] == '\"' ) // in case of \r char
-                            //tokenLen -= 1;
-
-                        ierr = attribData.setString( attribString, tokenLen );
-                    }
-                    else if ( isdigit( attribDataToken[0] ) )
-                    {
-                        ierr = attribData.addNumber( (f32)atof( attribDataToken ) );
-                    }
-                    else
-                    {
-                        bxLogError( "invalid character in script token '%s'", attribDataToken );
-                        ierr = -1;
-                    }
-                }
-
+                int ierr = attrib_parseLine( &attribData, linePtr );
                 if( ierr == 0 )
                 {
                     currentCallback->onAttribute( attribName, attribData );
@@ -163,13 +213,25 @@ namespace bxScene
             }
             else if ( token[0] == ':' )
             {
-                if( currentCallback )
+                memset( &attribData, 0x00, sizeof( bxScene_ScriptAttribData ) );
+                char* cmdName = token + 1;
+                char attribDataToken[MAX_TOKEN_SIZE + 1] = { 0 };
+                int ierr = attrib_parseLine( &attribData, linePtr );
+                if( ierr == 0 )
                 {
-                    
-                }
-                else
-                {
-                    
+                    if( currentCallback )
+                    {
+                        currentCallback->onCommand( cmdName, attribData );
+                    }
+                    else
+                    {
+                        size_t cmdNameHash = hashNameGet( cmdName );
+                        bxScene_ScriptCallback* callback = scriptCallbackFind( script, cmdNameHash );
+                        if( callback )
+                        {
+                            callback->onCommand( cmdName, attribData );
+                        }
+                    }
                 }
             }
         }
@@ -204,7 +266,17 @@ void bxVoxel_SceneScriptCallback::onAttribute(const char* attrName, const bxScen
     }
 }
 
-void bxVoxel_SceneScriptCallback::onCommand(const char* cmdName)
+void bxVoxel_SceneScriptCallback::onCommand(const char* cmdName, const bxScene_ScriptAttribData& args )
 {
+    if( string::equal( cmdName, "addPlane" ) )
+    {
+        if( _container && bxVoxel::object_valid( _container, _currentId ) )
+        {
+            const int w = args.inumber[0];
+            const int h = args.inumber[1];
+            const unsigned color = args.unumber[2];
+            bxVoxel::util_addPlane( bxVoxel::object_map( _container, _currentId ), w, h, color );
+        }
+    }
 }
 

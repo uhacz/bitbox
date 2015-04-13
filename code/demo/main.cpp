@@ -165,6 +165,8 @@ public:
         }
         scriptFile.release();
 
+        bxVoxel::container_load( _engine.gdiDevice, _engine.resourceManager, vxscene._container );
+
         return true;
     }
     virtual void shutdown()

@@ -1,13 +1,18 @@
 @camera persp
-$pos 0 0 50.0
+$pos 0.0 0.0 50.0
 
 @voxel dragon
-$pos 0 0 0
-$rot 0 0.7 0
+$pos -80.0 0.0 0.0
+$rot 0.0 -0.1 0.0
 $file "model/dragon.vox"
 
+@voxel teapot
+$pos 80.0 40.0 0.0
+$rot -1.0 -0.0 -0.0
+$file "model/teapot.vox"
+
 @voxel plane
-$pos 0 -50 0
-:addPlane 100 100
+$pos 0.0 -50.0 0.0
+:addPlane 100 100 0x00FF00FF
 
 :setCamera persp

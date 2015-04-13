@@ -6,6 +6,7 @@
 #include <util/array.h>
 #include <util/bbox.h>
 #include <util/buffer_utils.h>
+#include <util/string_util.h>
 #include <gfx/gfx_debug_draw.h>
 #include <gdi/gdi_backend.h>
 #include <gdi/gdi_context.h>
@@ -15,7 +16,7 @@
 #include "voxel_octree.h"
 #include "grid.h"
 #include "gfx/gfx_camera.h"
-#include "../util/string_util.h"
+#include "voxel_file.h"
 
 struct bxVoxel_ObjectData
 {
@@ -163,13 +164,84 @@ namespace bxVoxel
         return cnt;
     }
 
-    void container_load(bxGdiDeviceBackend* dev, bxVoxel_Container* cnt)
+    namespace
+    {
+        bxGdiBuffer _Gfx_createVoxelDataBuffer( bxGdiDeviceBackend* dev, int maxVoxels )
+        {
+            //const int maxVoxels = gridSize*gridSize*gridSize;
+            const bxGdiFormat format( bxGdi::eTYPE_UINT, 2 );
+            bxGdiBuffer buff = dev->createBuffer( maxVoxels, format, bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+            return buff;
+        }
+        void _Gpu_uploadShell( bxGdiDeviceBackend* dev, bxVoxel_Container* cnt, int dataIndex )
+        {
+            bxVoxel_Container::Data& data = cnt->_data;
+
+            bxVoxel_Map* map = &data.map[dataIndex];
+            const int vxDataCapacity = (int)map->size;
+            if( vxDataCapacity == 0 )
+            {
+                bxLogWarning( "Voxel map is empty. There is nothing to upload to GPU!!" );
+                return;
+            }
+
+            bxVoxel_GpuData* tmp = (bxVoxel_GpuData*)BX_MALLOC( bxDefaultAllocator(), vxDataCapacity * sizeof( bxVoxel_GpuData ), 8 );
+
+            const int numShellVoxels = map_getShell( tmp, vxDataCapacity, map[0] );
+            const int requiredMemSize = numShellVoxels * sizeof( bxVoxel_GpuData );
+
+            bxGdiBuffer buff = cnt->_data.voxelDataGpu[dataIndex];
+            if( buff.id == 0 || buff.sizeInBytes != requiredMemSize )
+            {
+                dev->releaseBuffer( &buff );
+                cnt->_data.voxelDataGpu[dataIndex] = _Gfx_createVoxelDataBuffer( dev, numShellVoxels );
+                buff = cnt->_data.voxelDataGpu[dataIndex];
+            }
+
+            bxGdiContextBackend* ctx = dev->ctx;
+
+            bxVoxel_GpuData* vxData = (bxVoxel_GpuData*)bxGdi::buffer_map( ctx, buff, 0, numShellVoxels );
+            memcpy( vxData, tmp, numShellVoxels * sizeof( bxVoxel_GpuData ) );
+            ctx->unmap( buff.rs );
+
+            BX_FREE0( bxDefaultAllocator(), tmp );
+
+            bxVoxel_ObjectData& objData = cnt->_data.voxelDataObj[dataIndex];
+            objData.numShellVoxels = numShellVoxels;
+            //objData.gridSize = octree->nodes[0].size;
+        }
+    }
+
+    void container_load(bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Container* cnt)
     {
         bxVoxel_Container::Data& data = cnt->_data;
         const int n = data.size;
         for ( int i = 0; i < n; ++i )
         {
+            const bxVoxel_ObjectAttribute& attribs = data.attribute[i];
 
+            const Vector3 rotation( xyz_to_m128( attribs.rot.xyz ) );
+            const Vector3 position( xyz_to_m128( attribs.pos.xyz ) );
+            
+            const Matrix4 pose = Matrix4( Matrix3::rotationZYX( rotation ), position );
+            data.worldPose[i] = pose;
+
+            if (attribs.file)
+            {
+                if( string::find( attribs.file, ".vox" ) )
+                {
+                    map_loadMagicaVox( resourceManager, &data.map[i], attribs.file );
+                }
+                else if( string::find( attribs.file, ".raw" ) )
+                {
+                    map_loadHeightmapRaw8( resourceManager, &data.map[i], attribs.file );
+                }
+                else
+                {
+                    bxLogError( "Unsupported voxel file '%s'", attribs.file );
+                }
+            }
+            _Gpu_uploadShell( dev, cnt, i );
         }
     }
 
@@ -256,14 +328,6 @@ namespace bxVoxel
             }
 
             cnt->_data = newData;
-        }
-    
-        bxGdiBuffer _Gfx_createVoxelDataBuffer( bxGdiDeviceBackend* dev, int maxVoxels )
-        {
-            //const int maxVoxels = gridSize*gridSize*gridSize;
-            const bxGdiFormat format( bxGdi::eTYPE_UINT, 2 );
-            bxGdiBuffer buff = dev->createBuffer( maxVoxels, format, bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
-            return buff;
         }
     }///
 
@@ -419,41 +483,13 @@ object_setAttribute_sizeError:
         cnt->_data.aabb[ cnt->objectIndex( id ) ] = aabb;
     }
 
+
+
     void gpu_uploadShell( bxGdiDeviceBackend* dev, bxVoxel_Container* cnt, bxVoxel_ObjectId id )
     {
         SYS_ASSERT( object_valid( cnt, id ) );
-
-        //const bxVoxel_ObjectId* indices = cnt->_data.indices;
         const int dataIndex = cnt->objectIndex( id );
-
-        bxVoxel_Map* map = object_map( cnt, id );
-
-
-        const int vxDataCapacity = (int)map->size;
-        bxVoxel_GpuData* tmp = (bxVoxel_GpuData*)BX_MALLOC( bxDefaultAllocator(), vxDataCapacity * sizeof( bxVoxel_GpuData ), 8 );
-        
-        const int numShellVoxels = map_getShell( tmp, vxDataCapacity, map[0] );
-        const int requiredMemSize = numShellVoxels * sizeof( bxVoxel_GpuData );
-
-        bxGdiBuffer buff = cnt->_data.voxelDataGpu[dataIndex];
-        if( buff.id == 0 || buff.sizeInBytes != requiredMemSize )
-        {
-            dev->releaseBuffer( &buff );
-            cnt->_data.voxelDataGpu[dataIndex] = _Gfx_createVoxelDataBuffer( dev, numShellVoxels );
-            buff = cnt->_data.voxelDataGpu[dataIndex];
-        }
-
-        bxGdiContextBackend* ctx = dev->ctx;
-
-        bxVoxel_GpuData* vxData = (bxVoxel_GpuData*)bxGdi::buffer_map( ctx, buff, 0, numShellVoxels );
-        memcpy( vxData, tmp, numShellVoxels * sizeof( bxVoxel_GpuData ) );
-        ctx->unmap( buff.rs );
-
-        BX_FREE0( bxDefaultAllocator(), tmp );
-
-        bxVoxel_ObjectData& objData = cnt->_data.voxelDataObj[dataIndex];
-        objData.numShellVoxels = numShellVoxels;
-        //objData.gridSize = octree->nodes[0].size;
+        _Gpu_uploadShell( dev, cnt, dataIndex );
     }
 
     void gfx_draw( bxGdiContext* ctx, bxVoxel_Container* cnt, const bxGfxCamera& camera )
