@@ -39,6 +39,10 @@ struct bxVoxelFramebuffer
     int height() const { return textures[0].height; }
 };
 
+
+
+
+
 struct bxVoxel_Scene
 {
     bxVoxel_Container* _container;
@@ -46,6 +50,8 @@ struct bxVoxel_Scene
     bxGfxCamera camera;
     bxGfxCamera_InputContext cameraInputCtx;
 };
+
+
 
 static bxVoxelFramebuffer fb;
 static bxVoxel_Scene vxscene;

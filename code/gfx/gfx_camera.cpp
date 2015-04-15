@@ -467,3 +467,97 @@ namespace bxGfx
         bxGfxDebugDraw::addLine( corners[5], corners[6], colorRGBA, true );
     }
 }///
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct bxGfxCamera_Manager
+{
+    struct CameraDesc
+    {
+        char* name;
+        union
+        {
+            i32 _freeList;
+            bxGfxCamera_Id id;
+        };
+        CameraDesc()
+            : name(0)
+            , _freeList(-1)
+        {}
+    };
+    array_t< CameraDesc > _desc;
+    array_t< bxGfxCamera > _container;
+    array_t< bxGfxCamera_Id > _stack;
+
+    bxGfxCamera _current;
+    i32 _freeList;
+
+    bxGfxCamera_Manager()
+        : _freeList(-1) {}
+    ~bxGfxCamera_Manager(){}
+};
+namespace bxGfx
+{
+    bxGfxCamera_Manager* cameraManager_new()
+    {
+        bxGfxCamera_Manager* m = BX_NEW( bxDefaultAllocator(), bxGfxCamera_Manager );
+        return m;
+    }
+    void cameraManager_delete( bxGfxCamera_Manager** m )
+    {
+        BX_DELETE0( bxDefaultAllocator(), m[0] );
+    }
+    void cameraManager_update( bxGfxCamera_Manager* m, float dt );
+
+    bxGfxCamera_Id camera_new( bxGfxCamera_Manager* m, const char* name )
+    {
+        int index = 0;
+        if( m->_freeList != -1 )
+        {
+            index = m->_freeList;
+            m->_freeList = m->_desc[index]._freeList;
+        }
+        else
+        {
+            index = array::push_back( m->_desc, bxGfxCamera_Manager::CameraDesc() );
+            m->_desc[index].id.index = index;
+            m->_desc[index].id.generation = 1;
+            {
+                int index1 = array::push_back( m->_container, bxGfxCamera() );
+                SYS_ASSERT( index1 == index );
+            }
+        }
+
+        bxGfxCamera_Manager::CameraDesc& desc = m->_desc[index];
+        m->_container[index] = bxGfxCamera();
+
+        desc.name = string::duplicate( desc.name, name );
+        
+        return desc.id;
+    }
+    void camera_delete( bxGfxCamera_Manager* m, bxGfxCamera_Id* id )
+    {
+        
+    }
+
+    void camera_push( bxGfxCamera_Manager* m, bxGfxCamera_Id id )
+    {
+    
+    }
+    void camera_pop( bxGfxCamera_Manager* m )
+    {
+        
+    }
+
+    const bxGfxCamera& camera_current( bxGfxCamera_Manager* m )
+    {
+        return m->_current;
+    }
+}///
+
+
+
+

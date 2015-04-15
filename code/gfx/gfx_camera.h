@@ -120,3 +120,26 @@ namespace bxGfx
 
 #include "view_frustum.inl"
 }///
+
+
+struct bxGfxCamera_Manager;
+struct bxGfxCamera_Id
+{
+    u16 index;
+    u16 generation;
+};
+
+namespace bxGfx
+{
+    bxGfxCamera_Manager* cameraManager_new();
+    void cameraManager_delete( bxGfxCamera_Manager** m );
+    void cameraManager_update( bxGfxCamera_Manager* m, float dt );
+
+    bxGfxCamera_Id camera_new( bxGfxCamera_Manager* m, const char* name );
+    void camera_delete( bxGfxCamera_Manager* m, bxGfxCamera_Id* id );
+
+    void camera_push( bxGfxCamera_Manager* m, bxGfxCamera_Id id );
+    void camera_pop( bxGfxCamera_Manager* m );
+
+    const bxGfxCamera& camera_current( bxGfxCamera_Manager* m );
+}///
