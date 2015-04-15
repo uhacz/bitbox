@@ -123,23 +123,36 @@ namespace bxGfx
 
 
 struct bxGfxCamera_Manager;
-struct bxGfxCamera_Id
+union bxGfxCamera_Id
 {
-    u16 index;
-    u16 generation;
+    u32 hash;
+    struct
+    {
+        u16 index;
+        u16 generation;
+    };
 };
 
 namespace bxGfx
 {
     bxGfxCamera_Manager* cameraManager_new();
     void cameraManager_delete( bxGfxCamera_Manager** m );
+    void cameraManager_clear( bxGfxCamera_Manager* m );
     void cameraManager_update( bxGfxCamera_Manager* m, float dt );
 
     bxGfxCamera_Id camera_new( bxGfxCamera_Manager* m, const char* name );
     void camera_delete( bxGfxCamera_Manager* m, bxGfxCamera_Id* id );
+    int camera_valid( bxGfxCamera_Manager* m, bxGfxCamera_Id id );
 
     void camera_push( bxGfxCamera_Manager* m, bxGfxCamera_Id id );
     void camera_pop( bxGfxCamera_Manager* m );
 
+    bxGfxCamera_Id camera_find( bxGfxCamera_Manager* m, const char* name );
     const bxGfxCamera& camera_current( bxGfxCamera_Manager* m );
+    bxGfxCamera_Id camera_top( bxGfxCamera_Manager* m );
+    bxGfxCamera* camera_get( bxGfxCamera_Manager* m, bxGfxCamera_Id id );
+    void camera_setWorld( bxGfxCamera_Manager* m, bxGfxCamera_Id id, const Matrix4& world );
+    
+    void camera_setAttrubute( bxGfxCamera_Manager* m, bxGfxCamera_Id id, const char* attribName, const void* data, unsigned dataSize );
+
 }///

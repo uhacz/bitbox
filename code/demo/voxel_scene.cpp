@@ -280,3 +280,23 @@ void bxVoxel_SceneScriptCallback::onCommand(const char* cmdName, const bxScene_S
     }
 }
 
+////
+////
+void bxGfxCamera_SceneScriptCallback::onCreate(const char* typeName, const char* objectName)
+{
+    _currentId = bxGfx::camera_new( _menago, objectName );
+}
+
+void bxGfxCamera_SceneScriptCallback::onAttribute(const char* attrName, const bxScene_ScriptAttribData& attribData)
+{
+    bxGfx::camera_setAttrubute( _menago, _currentId, attrName, attribData.dataPointer(), attribData.dataSizeInBytes() );
+}
+
+void bxGfxCamera_SceneScriptCallback::onCommand(const char* cmdName, const bxScene_ScriptAttribData& args)
+{
+    if( string::equal( "camera_push", cmdName ) )
+    {
+        const bxGfxCamera_Id id = bxGfx::camera_find( _menago, args.string );
+        bxGfx::camera_push( _menago, id );
+    }
+}

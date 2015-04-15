@@ -46,8 +46,8 @@ struct bxVoxelFramebuffer
 struct bxVoxel_Scene
 {
     bxVoxel_Container* _container;
+    bxGfxCamera_Manager* _cameraManager;
     
-    bxGfxCamera camera;
     bxGfxCamera_InputContext cameraInputCtx;
 };
 
@@ -88,8 +88,10 @@ public:
         bxVoxel::_Startup( _engine.gdiDevice, _engine.resourceManager );
         vxscene._container = bxVoxel::container_new();
 
-        vxscene.camera.params.zFar = 1000.f;
-        vxscene.camera.matrix.world = inverse( Matrix4::lookAt( Point3( 0.f, 10.f, 100.f ), Point3( 0.f ), Vector3::yAxis() ) );
+        vxscene._cameraManager = bxGfx::cameraManager_new();
+
+        //vxscene.camera.params.zFar = 1000.f;
+        //vxscene.camera.matrix.world = inverse( Matrix4::lookAt( Point3( 0.f, 10.f, 100.f ), Point3( 0.f ), Vector3::yAxis() ) );
 
         //const u32 colors[] = 
         //{
@@ -156,12 +158,17 @@ public:
         //}
 
 
-        bxVoxel_SceneScriptCallback scriptCallback;
-        scriptCallback._container = vxscene._container;
-        scriptCallback._currentId.hash = 0;
+        bxVoxel_SceneScriptCallback voxelScriptCallback;
+        voxelScriptCallback._container = vxscene._container;
+        voxelScriptCallback._currentId.hash = 0;
+
+        bxGfxCamera_SceneScriptCallback cameraScriptCallback;
+        cameraScriptCallback._menago = vxscene._cameraManager;
 
         bxScene_Script sceneScript;
-        bxScene::script_addCallback( &sceneScript, "voxel", &scriptCallback );
+        bxScene::script_addCallback( &sceneScript, "voxel", &voxelScriptCallback );
+        bxScene::script_addCallback( &sceneScript, "camera", &cameraScriptCallback );
+        bxScene::script_addCallback( &sceneScript, "camera_push", &cameraScriptCallback );
 
         bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( "scene/test.scene" );
         
@@ -181,6 +188,10 @@ public:
         //{
         //    bxVoxel::object_delete( _engine.gdiDevice, vxContainer, &vxObject[iobj] );
         //}
+
+        bxGfx::cameraManager_clear( vxscene._cameraManager );
+        bxGfx::cameraManager_delete( &vxscene._cameraManager );
+
         bxVoxel::container_unload( _engine.gdiDevice, vxscene._container );
         bxVoxel::container_delete( &vxscene._container );
         bxVoxel::_Shutdown( _engine.gdiDevice );
@@ -213,18 +224,23 @@ public:
             ImGui::End();
         }
 
-        bxGfxCamera* currentCamera = &vxscene.camera;
         bxGfxCamera_InputContext* cameraInputCtx = &vxscene.cameraInputCtx;
 
-        bxGfx::cameraUtil_updateInput( cameraInputCtx, &win->input, 1.f, deltaTime );
-        currentCamera->matrix.world = bxGfx::cameraUtil_movement( currentCamera->matrix.world
+        bxGfx::cameraUtil_updateInput( cameraInputCtx, &win->input, 0.1f, deltaTime );
+        bxGfxCamera* topCamera = bxGfx::camera_get( vxscene._cameraManager, bxGfx::camera_top( vxscene._cameraManager ) );
+        topCamera->matrix.world = bxGfx::cameraUtil_movement( topCamera->matrix.world
             , cameraInputCtx->leftInputX * 0.5f
             , cameraInputCtx->leftInputY * 0.5f
             , cameraInputCtx->rightInputX * deltaTime * 10.f
             , cameraInputCtx->rightInputY * deltaTime * 10.f
             , cameraInputCtx->upDown * 0.5f );
+        
+        bxGfx::cameraManager_update( vxscene._cameraManager, deltaTime );
+        
 
-        bxGfx::cameraMatrix_compute( &currentCamera->matrix, currentCamera->params, currentCamera->matrix.world, 0, 0 );
+        //bxGfx::cameraMatrix_compute( &currentCamera->matrix, currentCamera->params, currentCamera->matrix.world, 0, 0 );
+
+        const bxGfxCamera& currentCamera = bxGfx::camera_current( vxscene._cameraManager );
 
         //
 //         static float angle = 0.0f;
@@ -341,7 +357,7 @@ public:
         gdiContext->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
         bxGdi::context_setViewport( gdiContext, fb.textures[0] );
         
-        bxVoxel::gfx_draw( gdiContext, vxscene._container, *currentCamera );
+        bxVoxel::gfx_draw( gdiContext, vxscene._container, currentCamera );
 
         //gdiContext->setBufferRO( voxelDataBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX );
         //bxGdi::shaderFx_enable( gdiContext, fxI, 0 );
@@ -352,8 +368,8 @@ public:
 
         
 
-        bxGfxDebugDraw::flush( gdiContext, currentCamera->matrix.viewProj );
-        gfxContext->frame_rasterizeFramebuffer( gdiContext, fb.textures[bxVoxelFramebuffer::eCOLOR], *currentCamera );
+        bxGfxDebugDraw::flush( gdiContext, currentCamera.matrix.viewProj );
+        gfxContext->frame_rasterizeFramebuffer( gdiContext, fb.textures[bxVoxelFramebuffer::eCOLOR], currentCamera );
 
         
         bxGfxGUI::draw( gdiContext );

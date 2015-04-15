@@ -74,3 +74,14 @@ struct bxVoxel_SceneScriptCallback : public bxScene_ScriptCallback
     bxVoxel_Container* _container;
     bxVoxel_ObjectId _currentId;
 };
+
+#include <gfx/gfx_camera.h>
+struct bxGfxCamera_SceneScriptCallback : public bxScene_ScriptCallback
+{
+    virtual void onCreate( const char* typeName, const char* objectName );
+    virtual void onAttribute( const char* attrName, const bxScene_ScriptAttribData& attribData );
+    virtual void onCommand( const char* cmdName, const bxScene_ScriptAttribData& args );
+
+    bxGfxCamera_Manager* _menago;
+    bxGfxCamera_Id _currentId;
+};

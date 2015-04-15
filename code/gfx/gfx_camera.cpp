@@ -233,8 +233,8 @@ namespace bxGfx
         const float leftInputX = mouse_dxF * mouse_mbutton; //-float( left ) + float( right );
         const float upDown     = mouse_dyF * mouse_mbutton; //-float( down ) + float( up );
 
-        const float rightInputX = mouse_dxF * mouse_lbutton; // / mouseSensitivityInPix;
-        const float rightInputY = mouse_dyF * mouse_lbutton; // / mouseSensitivityInPix;
+        const float rightInputX = mouse_dxF * mouse_lbutton * mouseSensitivityInPix;
+        const float rightInputY = mouse_dyF * mouse_lbutton * mouseSensitivityInPix;
 
         const float rc = 0.05f;
 
@@ -473,20 +473,22 @@ namespace bxGfx
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+#include <util/string_util.h>
+#include <util/array.h>
+
 struct bxGfxCamera_Manager
 {
     struct CameraDesc
     {
         char* name;
-        union
-        {
-            i32 _freeList;
-            bxGfxCamera_Id id;
-        };
+        i32 _freeList;
+        bxGfxCamera_Id id;
         CameraDesc()
             : name(0)
             , _freeList(-1)
-        {}
+        {
+            id.hash = 0;
+        }
     };
     array_t< CameraDesc > _desc;
     array_t< bxGfxCamera > _container;
@@ -510,13 +512,47 @@ namespace bxGfx
     {
         BX_DELETE0( bxDefaultAllocator(), m[0] );
     }
-    void cameraManager_update( bxGfxCamera_Manager* m, float dt );
+    namespace
+    {
+        void camera_deleteByIndex( bxGfxCamera_Manager* m, int index )
+        {
+            bxGfxCamera_Manager::CameraDesc& desc = m->_desc[index];
+            string::free_and_null( &desc.name );
+            desc.id.generation += 1;
+            desc._freeList = m->_freeList;
+            m->_freeList = index;
+        }
+    }
+    void cameraManager_clear(bxGfxCamera_Manager* m)
+    {
+        const int n = m->_desc.size;
+        for ( int i = 0; i < n; ++i )
+        {
+            camera_deleteByIndex( m, i );
+        }
+    }
+
+    void cameraManager_update( bxGfxCamera_Manager* m, float dt )
+    {
+        if( array::empty( m->_stack ) )
+        {
+            return;
+        }
+
+        const bxGfxCamera_Id topId = array::back( m->_stack );
+        const bxGfxCamera& topCamera = m->_container[topId.index];
+
+        m->_current = topCamera;
+        bxGfxCamera* currentCamera = &m->_current;
+        bxGfx::cameraMatrix_compute( &currentCamera->matrix, currentCamera->params, currentCamera->matrix.world, 0, 0 );
+    }
 
     bxGfxCamera_Id camera_new( bxGfxCamera_Manager* m, const char* name )
     {
         int index = 0;
         if( m->_freeList != -1 )
         {
+            SYS_ASSERT( (unsigned)m->_freeList < m->_desc.size );
             index = m->_freeList;
             m->_freeList = m->_desc[index]._freeList;
         }
@@ -538,23 +574,120 @@ namespace bxGfx
         
         return desc.id;
     }
+
+    
+
     void camera_delete( bxGfxCamera_Manager* m, bxGfxCamera_Id* id )
     {
-        
+        if ( !camera_valid( m, id[0] ) )
+            return;
+
+        camera_deleteByIndex( m, id->index );
+        id[0].hash = 0;
+    }
+
+    int camera_valid(bxGfxCamera_Manager* m, bxGfxCamera_Id id)
+    {
+        return m->_desc[id.index].id.generation == id.generation;
     }
 
     void camera_push( bxGfxCamera_Manager* m, bxGfxCamera_Id id )
     {
-    
+        if ( !camera_valid( m, id ) )
+        {
+            bxLogError( "camera not valid" );
+            return;
+        }
+
+        array::push_back( m->_stack, id );
     }
     void camera_pop( bxGfxCamera_Manager* m )
     {
-        
+        if ( array::empty( m->_stack ) )
+        {
+            bxLogError( "camera stack is empty" );
+            return;
+        }
+
+        array::pop_back( m->_stack );
+    }
+
+    bxGfxCamera_Id camera_find( bxGfxCamera_Manager* m, const char* name )
+    {
+        bxGfxCamera_Id result = { 0 };
+        const int n = m->_desc.size;
+        for( int i = 0; i < n; ++i )
+        {
+            if( string::equal( m->_desc[i].name, name ) )
+            {
+                result = m->_desc[i].id;
+                break;
+            }
+        }
+
+        return result;
     }
 
     const bxGfxCamera& camera_current( bxGfxCamera_Manager* m )
     {
         return m->_current;
+    }
+
+    bxGfxCamera_Id camera_top(bxGfxCamera_Manager* m)
+    {
+        bxGfxCamera_Id nullId = { 0 };
+        return (array::empty( m->_stack )) ? nullId : array::back( m->_stack );
+    }
+
+    bxGfxCamera* camera_get(bxGfxCamera_Manager* m, bxGfxCamera_Id id)
+    {
+        return (camera_valid( m, id )) ? &m->_container[id.index] : 0;
+    }
+
+    void camera_setWorld(bxGfxCamera_Manager* m, bxGfxCamera_Id id, const Matrix4& world)
+    {
+        SYS_ASSERT( camera_valid( m, id ) );
+        bxGfxCamera& camera = m->_container[id.index];
+        camera.matrix.world = world;
+    }
+
+    void camera_setAttrubute(bxGfxCamera_Manager* m, bxGfxCamera_Id id, const char* attribName, const void* data, unsigned dataSize)
+    {
+        if ( !camera_valid( m, id ) )
+        {
+            bxLogError( "camera not valid" );
+            return;
+        }
+
+        if( string::equal( "pos", attribName ) )
+        {
+            if( dataSize == 12 )
+            {
+                const float* xyz = (float*)data;
+                m->_container[id.index].matrix.world.setTranslation( Vector3( xyz[0], xyz[1], xyz[2] ) );
+            }
+            else
+            {
+                bxLogError( "invalid data size" );
+            }
+        }
+        else if ( string::equal( "rot", attribName ) )
+        {
+            if ( dataSize == 12 )
+            {
+                const float* xyz = (float*)data;
+                const Vector3 eulerXYZ( xyz[0], xyz[1], xyz[2] );
+                m->_container[id.index].matrix.world.setUpper3x3( Matrix3::rotationZYX( eulerXYZ ) );
+            }
+            else
+            {
+                bxLogError( "invalid data size" );
+            }
+        }
+        else
+        {
+            bxLogError( "camera attribute '%s' not found", attribName );
+        }
     }
 }///
 
