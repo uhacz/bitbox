@@ -5,6 +5,7 @@
 
 #include "test_console.h"
 #include "entity.h"
+#include "config.h"
 //#include "scene.h"
 
 #include "demo_engine.h"
@@ -53,6 +54,7 @@ struct bxVoxel_Scene
 
 
 
+
 static bxVoxelFramebuffer fb;
 static bxVoxel_Scene vxscene;
 class bxDemoApp : public bxApplication
@@ -60,29 +62,16 @@ class bxDemoApp : public bxApplication
 public:
     virtual bool startup( int argc, const char** argv )
     {
+        bxConfig::global_init();
         //testBRDF();
         
-        //bxVoxel_Octree* octree = bxVoxel::octree_new( 128 );
-
-        //bxVoxel::octree_delete( &octree );
-
         bxDemoEngine_startup( &_engine );
         
-        //fxI = bxGdi::shaderFx_createWithInstance( _engine.gdiDevice, _engine.resourceManager, "voxel" );
-        //rsource = _engine.gfxContext->shared()->rsource.box;
-
-        //voxelDataBuffer = _engine.gdiDevice->createBuffer( (GRID_SIZE*GRID_SIZE*GRID_SIZE), bxGdiFormat( bxGdi::eTYPE_UINT, 2 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
-
         const int fbWidth = 1920;
         const int fbHeight = 1080;
         fb.textures[bxVoxelFramebuffer::eCOLOR] = _engine.gdiDevice->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET|bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
         fb.textures[bxVoxelFramebuffer::eDEPTH] = _engine.gdiDevice->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL|bxGdi::eBIND_SHADER_RESOURCE );
 
-        //__simpleScene = BX_NEW( bxDefaultAllocator(), bxDemoSimpleScene );
-        //bxDemoSimpleScene_startUp( &_engine, __simpleScene );
-        
-        //camera.matrix.world = Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 150.f ) );
-        
         time = 0.f;
 
         bxVoxel::_Startup( _engine.gdiDevice, _engine.resourceManager );
@@ -170,7 +159,8 @@ public:
         bxScene::script_addCallback( &sceneScript, "camera", &cameraScriptCallback );
         bxScene::script_addCallback( &sceneScript, "camera_push", &cameraScriptCallback );
 
-        bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( "scene/test.scene" );
+        const char* sceneName = bxConfig::global_string( "scene" );
+        bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( sceneName );
         
         if( scriptFile.ok() )
         {
@@ -203,6 +193,7 @@ public:
         
         bxDemoEngine_shutdown( &_engine );
 
+        bxConfig::global_deinit();
     }
     virtual bool update( u64 deltaTimeUS )
     {

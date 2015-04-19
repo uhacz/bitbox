@@ -2,7 +2,7 @@
 
 namespace bxConfig
 {
-    int global_init( const char* path );
+    int global_init();
     void global_deinit();
 
     const char* global_string( const char* name );

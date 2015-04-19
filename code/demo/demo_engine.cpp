@@ -1,13 +1,14 @@
 #include "demo_engine.h"
 #include <gfx/gfx_camera.h>
 #include <gfx/gfx_debug_draw.h>
+#include "config.h"
 
 
 void bxDemoEngine_startup( bxDemoEngine* dengine )
 {
     bxWindow* win = bxWindow_get();
-    dengine->resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
-    //dengine->resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
+    const char* assetDir = bxConfig::global_string( "assetDir" );
+    dengine->resourceManager = bxResourceManager::startup( assetDir );
     bxGdi::backendStartup( &dengine->gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
     dengine->gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
