@@ -17,6 +17,7 @@
 #include "grid.h"
 #include "gfx/gfx_camera.h"
 #include "voxel_file.h"
+#include <util/common.h>
 
 struct bxVoxel_ObjectData
 {
@@ -78,13 +79,27 @@ struct bxVoxel_Container
     }
 };
 
+struct bxVoxel_ColorPalette
+{
+    u32 rgba[256];
+};
+inline bool equal( const bxVoxel_ColorPalette& a, const bxVoxel_ColorPalette& b )
+{
+    return memcmp( a.rgba, b.rgba, sizeof( bxVoxel_ColorPalette ) ) == 0;
+}
+inline bool equal( const bxVoxel_ColorPalette& a, const u32* b )
+{
+    return memcmp( a.rgba, b, sizeof( bxVoxel_ColorPalette ) ) == 0;
+}
+
 struct bxVoxel_Gfx
 {
     bxGdiShaderFx_Instance* fxI;
     bxGdiRenderSource* rsource;
 
-    array_t<char*> colorPalette_name;
+    array_t<const char*> colorPalette_name;
     array_t<bxGdiTexture> colorPalette_texture;
+    array_t<bxVoxel_ColorPalette> colorPalette_data;
 
     bxVoxel_Gfx()
         : fxI(0)
@@ -131,18 +146,57 @@ namespace bxVoxel
     ////
     namespace
     {
-        int _Gfx_loadColorPalette( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Gfx* gfx, const char* name )
+        //int _Gfx_loadColorPalette( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Gfx* gfx, const char* name )
+        //{
+        //    bxFS::File file = resourceManager->readFileSync( name );
+        //    if ( !file.ok() )
+        //        return -1;
+
+        //    bxGdiTexture texture = dev->createTexture( file.bin, file.size );
+        //    if ( !texture.id )
+        //        return -1;
+
+        //    const int idx0 = array::push_back( gfx->colorPalette_texture, texture );
+        //    
+
+
+        //}
+        int _Gfx_findColorPaletteByData( bxVoxel_Gfx* gfx, const u32* data )
         {
-            bxFS::File file = resourceManager->readFileSync( name );
-            if ( !file.ok() )
-                return -1;
+            for ( int i = 0; i < array::size( gfx->colorPalette_data ); ++i )
+            {
+                if( equal( gfx->colorPalette_data[i], data ) )
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        int _Gfx_createColorPalette( bxGdiDeviceBackend* dev, bxVoxel_Gfx* gfx, const char* name, const u32* data, int dataSize )
+        {
+            int found = _Gfx_findColorPaletteByData( gfx, data );
+            if( found )
+            {
+                if( !string::equal( gfx->colorPalette_name[found], name ) )
+                {
+                    bxLogWarning( "Color palette '%s' exists under different name: '%s'", name, gfx->colorPalette_name[found] );
+                }
+                return found;
+            }
 
-            bxGdiTexture texture = dev->createTexture( file.bin, file.size );
-            if ( !texture.id )
-                return -1;
-
-            const int idx0 = array::push_back( gfx->colorPalette_texture, texture );
+            const char* nameCopy = string::duplicate( 0, name );
             
+            found = array::push_back( gfx->colorPalette_name, nameCopy );
+            int idx = array::push_back( gfx->colorPalette_data, bxVoxel_ColorPalette() );
+            SYS_ASSERT( idx == found );
+            idx = array::push_back( gfx->colorPalette_texture, bxGdiTexture() );
+            SYS_ASSERT( idx == found );
+
+            bxVoxel_ColorPalette& palette = gfx->colorPalette_data[idx];
+            memset( &palette, 0x00, sizeof( bxVoxel_ColorPalette ) );
+            memcpy( palette.rgba, data, minOfPair( dataSize, (int)sizeof( bxVoxel_ColorPalette) ) );
+
+            gfx->colorPalette_texture[idx] = dev->createTexture1D(  )
 
 
         }

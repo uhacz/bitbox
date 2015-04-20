@@ -446,10 +446,17 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         tex.depth = 0;
         return tex;
     }
-    virtual bxGdiTexture createTexture1D()
+
+
+
+    virtual bxGdiTexture createTexture1D( int w, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
     {
-        SYS_NOT_IMPLEMENTED;
-        return bxGdiTexture();
+        const DXGI_FORMAT dx_format = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
+        const u32 dx_bind_flags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
+        const u32 dx_cpua_flags = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
+    
+        D3D11_TEXTURE1D_DESC desc;a
+        memset( &desc, 0, sizeof( desc ) );
     }
     virtual bxGdiTexture createTexture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
     {

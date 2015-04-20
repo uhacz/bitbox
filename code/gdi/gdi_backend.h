@@ -273,7 +273,7 @@ struct bxGdiDeviceBackend
     virtual bxGdiShader createShader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdi::ShaderReflection* reflection = 0  ) = 0;
     
     virtual bxGdiTexture createTexture( const void* dataBlob, size_t dataBlobSize ) = 0;
-    virtual bxGdiTexture createTexture1D() = 0;
+    virtual bxGdiTexture createTexture1D( int w, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data ) = 0;
     virtual bxGdiTexture createTexture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data ) = 0;
     virtual bxGdiTexture createTexture2Ddepth( int w, int h, int mips, bxGdi::EDataType dataType, unsigned bindFlags ) = 0;
     virtual bxGdiTexture createTexture3D() = 0;
