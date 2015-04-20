@@ -21,8 +21,12 @@ struct bxVoxel_Map : public hashmap_t
 
 struct bxVoxel_GpuData
 {
-    u32 gridIndex;
-    u32 colorRGBA;
+    i8 x;
+    i8 y;
+    i8 z;
+    u8 colorIndex;
+    //u32 gridIndex;
+    //u32 colorRGBA;
 };
 
 namespace bxVoxel

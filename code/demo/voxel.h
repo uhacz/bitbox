@@ -63,9 +63,9 @@ namespace bxVoxel
 
     ////
     ////
-    void util_addBox( bxVoxel_Map* voct, int w, int h, int d, unsigned colorRGBA );
-    void util_addSphere( bxVoxel_Map* voct, int radius, unsigned colorRGBA );
-    void util_addPlane( bxVoxel_Map* voct, int w, int h, unsigned colorRGBA );
+    void util_addBox( bxVoxel_Map* voct, int w, int h, int d, unsigned char colorIndex );
+    void util_addSphere( bxVoxel_Map* voct, int radius, unsigned char colorIndex );
+    void util_addPlane( bxVoxel_Map* voct, int w, int h, unsigned char colorIndex );
 }///
 
 

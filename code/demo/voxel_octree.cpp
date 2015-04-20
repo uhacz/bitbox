@@ -286,20 +286,29 @@ namespace bxVoxel
             xyz[1] = mk.y;
             xyz[2] = mk.z;
         }
-
-        inline bxVoxel_GpuData _Map_createVoxelData( i32 xyz[3], u32 colorRGBA )
+        inline bxVoxel_GpuData _Map_createVoxelData( i32 xyz[3], u8 colorIndex )
         {
-            MapKey key;
-            key.x = xyz[0];
-            key.y = xyz[1];
-            key.z = xyz[2];
-            key.w = 0;
-            
-            bxVoxel_GpuData vx;
-            vx.gridIndex = key.hash32[0];
-            vx.colorRGBA = colorRGBA;
-            return vx;
+            bxVoxel_GpuData gpuData;
+            gpuData.x = (i8)xyz[0];
+            gpuData.y = (i8)xyz[1];
+            gpuData.z = (i8)xyz[2];
+            gpuData.colorIndex = colorIndex;
+
+            return gpuData;
         }
+        //inline bxVoxel_GpuData _Map_createVoxelData( i32 xyz[3], u32 colorRGBA )
+        //{
+        //    MapKey key;
+        //    key.x = xyz[0];
+        //    key.y = xyz[1];
+        //    key.z = xyz[2];
+        //    key.w = 0;
+        //    
+        //    bxVoxel_GpuData vx;
+        //    vx.gridIndex = key.hash32[0];
+        //    vx.colorRGBA = colorRGBA;
+        //    return vx;
+        //}
     }///
     void map_insert( bxVoxel_Map* m, const Vector3& point, size_t data )
     {

@@ -78,11 +78,13 @@ struct bxVoxel_Container
     }
 };
 
-
 struct bxVoxel_Gfx
 {
     bxGdiShaderFx_Instance* fxI;
     bxGdiRenderSource* rsource;
+
+    array_t<char*> colorPalette_name;
+    array_t<bxGdiTexture> colorPalette_texture;
 
     bxVoxel_Gfx()
         : fxI(0)
@@ -127,6 +129,24 @@ namespace bxVoxel
     }
     ////
     ////
+    namespace
+    {
+        int _Gfx_loadColorPalette( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Gfx* gfx, const char* name )
+        {
+            bxFS::File file = resourceManager->readFileSync( name );
+            if ( !file.ok() )
+                return -1;
+
+            bxGdiTexture texture = dev->createTexture( file.bin, file.size );
+            if ( !texture.id )
+                return -1;
+
+            const int idx0 = array::push_back( gfx->colorPalette_texture, texture );
+            
+
+
+        }
+    }
     void _Gfx_startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Gfx* gfx )
     {
         gfx->fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "voxel" );
@@ -169,7 +189,7 @@ namespace bxVoxel
         bxGdiBuffer _Gfx_createVoxelDataBuffer( bxGdiDeviceBackend* dev, int maxVoxels )
         {
             //const int maxVoxels = gridSize*gridSize*gridSize;
-            const bxGdiFormat format( bxGdi::eTYPE_UINT, 2 );
+            const bxGdiFormat format( bxGdi::eTYPE_UINT, 1 );
             bxGdiBuffer buff = dev->createBuffer( maxVoxels, format, bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
             return buff;
         }
