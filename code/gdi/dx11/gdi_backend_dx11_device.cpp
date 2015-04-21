@@ -455,8 +455,94 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         const u32 dx_bind_flags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
         const u32 dx_cpua_flags = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
     
-        D3D11_TEXTURE1D_DESC desc;a
+        D3D11_TEXTURE1D_DESC desc;
         memset( &desc, 0, sizeof( desc ) );
+        desc.Width = w;
+        desc.MipLevels = mips;
+        desc.ArraySize = 1;
+        desc.Format = dx_format;
+
+        //desc.SampleDesc.Count = 1;
+        //desc.SampleDesc.Quality = 0;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = dx_bind_flags;
+        desc.CPUAccessFlags = dx_cpua_flags;
+
+        if( desc.MipLevels > 1 )
+        {
+            desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+        }
+        D3D11_SUBRESOURCE_DATA* subResourcePtr = 0;
+        D3D11_SUBRESOURCE_DATA subResource;
+        memset( &subResource, 0, sizeof( D3D11_SUBRESOURCE_DATA ) );
+        if( data )
+        {
+            subResource.pSysMem = data;
+            subResource.SysMemPitch = w * bxGdi::formatByteWidth( format );
+            subResource.SysMemSlicePitch = 0;
+            subResourcePtr = &subResource;
+        }
+
+        ID3D11Texture1D* tex1D = 0;
+        HRESULT hres = _device->CreateTexture1D( &desc, subResourcePtr, &tex1D );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+
+        ID3D11ShaderResourceView* view_sh = 0;
+        ID3D11RenderTargetView* view_rt = 0;
+        ID3D11UnorderedAccessView* view_ua = 0;
+
+        ID3D11RenderTargetView** rtv_mips = 0;
+
+        if( dx_bind_flags & D3D11_BIND_SHADER_RESOURCE )
+        {
+            D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+            memset( &srvdesc, 0, sizeof(srvdesc) );
+            srvdesc.Format = dx_format;
+            srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+            srvdesc.Texture2D.MostDetailedMip = 0;
+            srvdesc.Texture2D.MipLevels = desc.MipLevels;
+            hres = _device->CreateShaderResourceView( tex1D, &srvdesc, &view_sh );
+            SYS_ASSERT( SUCCEEDED(hres) );
+        }
+
+        if( dx_bind_flags & D3D11_BIND_RENDER_TARGET )
+        {
+            D3D11_RENDER_TARGET_VIEW_DESC rtvdesc;
+            memset( &rtvdesc, 0, sizeof(rtvdesc) );
+            rtvdesc.Format = dx_format;
+            rtvdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+            rtvdesc.Texture2D.MipSlice = 0;
+            hres = _device->CreateRenderTargetView( tex1D, &rtvdesc, &view_rt );
+            SYS_ASSERT( SUCCEEDED(hres) );
+        }
+
+        if( dx_bind_flags & D3D11_BIND_DEPTH_STENCIL )
+        {
+            bxLogError( "Depth stencil binding is not supported without depth texture format" );
+        }
+
+        if( dx_bind_flags & D3D11_BIND_UNORDERED_ACCESS )
+        {
+            D3D11_UNORDERED_ACCESS_VIEW_DESC uavdesc;
+            memset( &uavdesc, 0, sizeof(uavdesc) );
+            uavdesc.Format = dx_format;
+            uavdesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+            uavdesc.Texture2D.MipSlice = 0;
+            hres = _device->CreateUnorderedAccessView( tex1D, &uavdesc, &view_ua );
+            SYS_ASSERT( SUCCEEDED(hres) );
+        }
+
+        bxGdiTexture tex;
+        tex.dx11Tex1D = tex1D;
+        tex.rs.dx11ViewSH = view_sh;
+        tex.rs.dx11ViewUA = view_ua;
+        tex.dx11ViewRT = view_rt;
+        tex.dx11ViewDS = 0;
+        tex.width = w;
+        tex.height = 0;
+        tex.depth = 0;
+        tex.format = format;
+        return tex;
     }
     virtual bxGdiTexture createTexture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
     {

@@ -22,6 +22,7 @@
 struct bxVoxel_ObjectData
 {
     i32 numShellVoxels;
+	i32 colorPalette;
 };
 
 struct bxVoxel_ObjectAttribute
@@ -196,9 +197,8 @@ namespace bxVoxel
             memset( &palette, 0x00, sizeof( bxVoxel_ColorPalette ) );
             memcpy( palette.rgba, data, minOfPair( dataSize, (int)sizeof( bxVoxel_ColorPalette) ) );
 
-            gfx->colorPalette_texture[idx] = dev->createTexture1D(  )
-
-
+			gfx->colorPalette_texture[idx] = dev->createTexture1D(256, 1, bxGdiFormat(bxGdi::eTYPE_UBYTE, 4, 1), bxGdi::eBIND_SHADER_RESOURCE, 0, data);
+			return idx;
         }
     }
     void _Gfx_startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Gfx* gfx )
@@ -213,7 +213,16 @@ namespace bxVoxel
     }
     void _Gfx_shutdown( bxGdiDeviceBackend* dev, bxVoxel_Gfx* gfx )
     {
-        bxGdi::shaderFx_releaseWithInstance( dev, &gfx->fxI );
+		for (int i = 0; i < array::size(gfx->colorPalette_name); ++i)
+		{
+			string::free_and_null((char**)&gfx->colorPalette_name[i]);
+			dev->releaseTexture(&gfx->colorPalette_texture[i]);
+		}
+		array::clear(gfx->colorPalette_texture);
+		array::clear(gfx->colorPalette_data);
+		array::clear(gfx->colorPalette_name);
+		
+		bxGdi::shaderFx_releaseWithInstance( dev, &gfx->fxI );
         bxGdi::renderSource_releaseAndFree( dev, &gfx->rsource );
     }
     ////
