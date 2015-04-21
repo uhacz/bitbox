@@ -278,6 +278,15 @@ void bxVoxel_SceneScriptCallback::onCommand(const char* cmdName, const bxScene_S
             bxVoxel::util_addPlane( bxVoxel::object_map( _container, _currentId ), w, h, color );
         }
     }
+    if ( string::equal( cmdName, "addSphere" ) )
+    {
+        if ( _container && bxVoxel::object_valid( _container, _currentId ) )
+        {
+            const int r = args.inumber[0];
+            const int cindex = args.inumber[1];
+            bxVoxel::util_addSphere( bxVoxel::object_map( _container, _currentId ), r, cindex );
+        }
+    }
 }
 
 ////

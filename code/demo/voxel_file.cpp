@@ -8,7 +8,7 @@
 
 namespace bxVoxel
 {
-    int map_loadMagicaVox( bxResourceManager* resourceManager, bxVoxel_Map* map, const char* filename )
+    int map_loadMagicaVox( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Map* map, const char* filename )
     {
         bxFS::Path absPath = resourceManager->absolutePath( filename );
         MV_Model vox;
@@ -22,9 +22,9 @@ namespace bxVoxel
             const MV_Voxel& voxel = vox.voxels[ivox];
 
             const Vector3 point = mulAsVec4( transform, Vector3( (float)voxel.x, (float)voxel.y, (float)voxel.z ) );
-            const MV_RGBA rgba = vox.palette[ voxel.colorIndex ];
-            const u32 color = bxColor::toRGBA( rgba.r, rgba.g, rgba.b, rgba.a );
-            map_insert( map, point, color );
+            //const MV_RGBA rgba = vox.palette[ voxel.colorIndex ];
+            //const u32 color = bxColor::toRGBA( rgba.r, rgba.g, rgba.b, rgba.a );
+            map_insert( map, point, voxel.colorIndex );
         }
         
         return 0;
@@ -58,8 +58,7 @@ namespace bxVoxel
                 {
                     const float y = ( sampleValue ) * yconvert;
                     const Vector3 point( x, y, z );
-                    const u32 color = 0x00FF00FF;
-                    map_insert( map, point, color );
+                    map_insert( map, point, 0 );
                     --sampleValue;
                 }
             }

@@ -498,9 +498,9 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
             D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
             memset( &srvdesc, 0, sizeof(srvdesc) );
             srvdesc.Format = dx_format;
-            srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-            srvdesc.Texture2D.MostDetailedMip = 0;
-            srvdesc.Texture2D.MipLevels = desc.MipLevels;
+            srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
+            srvdesc.Texture1D.MostDetailedMip = 0;
+            srvdesc.Texture1D.MipLevels = desc.MipLevels;
             hres = _device->CreateShaderResourceView( tex1D, &srvdesc, &view_sh );
             SYS_ASSERT( SUCCEEDED(hres) );
         }
@@ -510,8 +510,8 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
             D3D11_RENDER_TARGET_VIEW_DESC rtvdesc;
             memset( &rtvdesc, 0, sizeof(rtvdesc) );
             rtvdesc.Format = dx_format;
-            rtvdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-            rtvdesc.Texture2D.MipSlice = 0;
+            rtvdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1D;
+            rtvdesc.Texture1D.MipSlice = 0;
             hres = _device->CreateRenderTargetView( tex1D, &rtvdesc, &view_rt );
             SYS_ASSERT( SUCCEEDED(hres) );
         }
@@ -527,7 +527,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
             memset( &uavdesc, 0, sizeof(uavdesc) );
             uavdesc.Format = dx_format;
             uavdesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-            uavdesc.Texture2D.MipSlice = 0;
+            uavdesc.Texture1D.MipSlice = 0;
             hres = _device->CreateUnorderedAccessView( tex1D, &uavdesc, &view_ua );
             SYS_ASSERT( SUCCEEDED(hres) );
         }
