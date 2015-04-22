@@ -1,9 +1,6 @@
 #pragma once
 
-#include <util/vectormath/vectormath.h>
 #include <util/bbox.h>
-#include <util/containers.h>
-
 #include "voxel_type.h"
 
 struct bxGfxCamera;
@@ -11,9 +8,6 @@ struct bxGdiContext;
 struct bxGdiDeviceBackend;
 struct bxGdiContextBackend;
 class bxResourceManager;
-
-
-
 
 namespace bxVoxel
 {
@@ -58,7 +52,6 @@ namespace bxVoxel
 
     ////
     ////
-    int gfx_acquireColorPalette( bxGdiDeviceBackend* dev, const u32* data );
     void gfx_cull( bxVoxel_Container* vxcnt, const bxGfxCamera& camera );
     void gfx_draw( bxGdiContext* ctx, bxVoxel_Container* container, const bxGfxCamera& camera );
 
