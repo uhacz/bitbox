@@ -1,7 +1,11 @@
 #include "voxel_gfx.h"
+#include "voxel_type.h"
 #include <util/array.h>
 #include <util/string_util.h>
+#include <util/buffer_utils.h>
 #include <util/common.h>
+#include <util/memory.h>
+
 #include <resource_manager/resource_manager.h>
 #include <gdi/gdi_shader.h>
 #include <gdi/gdi_render_source.h>
@@ -111,3 +115,87 @@ namespace bxVoxel
 		BX_DELETE0(bxDefaultAllocator(), __gfx);
 	}
 }
+
+
+////
+////
+union bxVoxel_GfxSortKey
+{
+	u32 hash;
+	struct
+	{
+		u32 depth : 16;
+		u32 palette : 16;
+	};
+};
+
+struct bxVoxel_GfxSortItem
+{
+	u32 key;
+	u32 itemIndex;
+};
+struct bxVoxel_GfxSortList
+{
+	bxVoxel_GfxSortItem* items;
+	i32 capacity;
+	i32 size;
+
+	bxAllocator* allocator;
+};
+
+
+
+struct BIT_ALIGNMENT_16 bxVoxel_GfxDisplayList
+{
+	Matrix4* matrices;
+	bxVoxel_ObjectId* objId;
+
+	i32 capacity;
+	i32 size;
+
+	bxAllocator* allocator;
+};
+
+struct bxVoxel_GfxDisplayListChunk
+{
+	bxVoxel_GfxDisplayList* dlist;
+	i32 begin;
+	i32 end;
+	i32 current;
+};
+
+namespace bxVoxel
+{
+	bxVoxel_GfxDisplayList* gfx_displayListNew(int capacity, bxAllocator* alloc )
+	{
+		int memSize = 0;
+		memSize += sizeof( bxVoxel_GfxDisplayList );
+		memSize += capacity * sizeof( Matrix4 );
+		memSize += capacity * sizeof( bxVoxel_ObjectId );
+
+		void* memHandle = BX_MALLOC( alloc, memSize, 16 );
+		memset( memHandle, 0x00, memSize );
+		bxBufferChunker chunker( memHandle, memSize );
+
+		bxVoxel_GfxDisplayList* dlist = chunker.add< bxVoxel_GfxDisplayList >();
+		dlist->matrices = chunker.add< Matrix4 >( capacity, 16 );
+		dlist->objId = chunker.add< bxVoxel_ObjectId >( capacity );
+		
+		chunker.check();
+
+		dlist->size = 0;
+		dlist->capacity = capacity;
+		dlist->allocator = alloc;
+
+		return dlist;
+
+	}
+	void gfx_displayListDelete( bxVoxel_GfxDisplayList** dlist )
+	{
+		bxAllocator* alloc = dlist[0]->allocator;
+		BX_FREE0( alloc, dlist[0] );
+	}
+
+
+}
+

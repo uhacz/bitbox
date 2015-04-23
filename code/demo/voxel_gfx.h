@@ -7,7 +7,6 @@
 struct bxGdiContext;
 struct bxGfxCamera;
 struct bxVoxel_Container;
-struct bxVoxel_GfxContext;
 struct bxVoxel_GfxDisplayList;
 struct bxGdiShaderFx_Instance;
 struct bxGdiRenderSource;
@@ -47,9 +46,6 @@ namespace bxVoxel
 {
 	void gfx_startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 	void gfx_shutdown( bxGdiDeviceBackend* dev );
-
-    bxVoxel_GfxContext gfx_contextNew();
-    void gfx_contextDelete( bxVoxel_GfxContext** gfx );
 
     bxVoxel_GfxDisplayList* gfx_displayListNew( int capacity, bxAllocator* alloc = bxDefaultAllocator() );
     void gfx_displayListDelete( bxVoxel_GfxDisplayList** dlist );
