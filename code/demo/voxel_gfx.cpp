@@ -3,12 +3,15 @@
 #include <util/array.h>
 #include <util/string_util.h>
 #include <util/buffer_utils.h>
+#include <util/range_splitter.h>
 #include <util/common.h>
 #include <util/memory.h>
 
 #include <resource_manager/resource_manager.h>
 #include <gdi/gdi_shader.h>
 #include <gdi/gdi_render_source.h>
+
+#include "voxel_container.h"
 
 static const u32 __default_palette[256] = {
 	0x00000000, 0xffffffff, 0xffccffff, 0xff99ffff, 0xff66ffff, 0xff33ffff, 0xff00ffff, 0xffffccff, 0xffccccff, 0xff99ccff, 0xff66ccff, 0xff33ccff, 0xff00ccff, 0xffff99ff, 0xffcc99ff, 0xff9999ff,
@@ -143,12 +146,18 @@ struct bxVoxel_GfxSortList
 	bxAllocator* allocator;
 };
 
-
+struct bxVoxel_GfxSortListChunk
+{
+    bxVoxel_GfxSortList* slist;
+    i32 begin;
+    i32 end;
+    i32 current;
+};
 
 struct BIT_ALIGNMENT_16 bxVoxel_GfxDisplayList
 {
 	Matrix4* matrices;
-	bxVoxel_ObjectId* objId;
+	u16* objectDataIndex;
 
 	i32 capacity;
 	i32 size;
@@ -171,7 +180,7 @@ namespace bxVoxel
 		int memSize = 0;
 		memSize += sizeof( bxVoxel_GfxDisplayList );
 		memSize += capacity * sizeof( Matrix4 );
-		memSize += capacity * sizeof( bxVoxel_ObjectId );
+		memSize += capacity * sizeof( u16 );
 
 		void* memHandle = BX_MALLOC( alloc, memSize, 16 );
 		memset( memHandle, 0x00, memSize );
@@ -179,7 +188,7 @@ namespace bxVoxel
 
 		bxVoxel_GfxDisplayList* dlist = chunker.add< bxVoxel_GfxDisplayList >();
 		dlist->matrices = chunker.add< Matrix4 >( capacity, 16 );
-		dlist->objId = chunker.add< bxVoxel_ObjectId >( capacity );
+		dlist->objectDataIndex = chunker.add< u16 >( capacity );
 		
 		chunker.check();
 
@@ -196,6 +205,115 @@ namespace bxVoxel
 		BX_FREE0( alloc, dlist[0] );
 	}
 
+    void gfx_displayListCreateChunks( bxVoxel_GfxDisplayListChunk* chunks, int nChunks, bxVoxel_GfxDisplayList* dlist )
+	{
+        const int capacity = dlist->capacity;
+
+        bxRangeSplitter split = bxRangeSplitter::splitByTask( capacity, nChunks );
+
+        int ichunk = 0;
+        while( split.elementsLeft() )
+        {
+            const int begin = split.grabbedElements;
+            const int grab = split.nextGrab();
+            const int end = begin + end;
+
+            SYS_ASSERT( ichunk < nChunks );
+
+            bxVoxel_GfxDisplayListChunk& c = chunks[ichunk];
+            c.dlist = dlist;
+            c.begin = begin;
+            c.end = end;
+            c.current = begin;
+            
+            ++ichunk;
+        }
+
+        SYS_ASSERT( ichunk == nChunks );
+	}
+    void gfx_sortListCreateChunks( bxVoxel_GfxSortListChunk* chunks, int nChunks, bxVoxel_GfxSortList* slist )
+    {
+        const int capacity = slist->capacity;
+        bxRangeSplitter split = bxRangeSplitter::splitByTask( capacity, nChunks );
+
+        int ichunk = 0;
+        while ( split.elementsLeft() )
+        {
+            const int begin = split.grabbedElements;
+            const int grab = split.nextGrab();
+            const int end = begin + end;
+
+            SYS_ASSERT( ichunk < nChunks );
+
+            bxVoxel_GfxSortListChunk& c = chunks[ichunk];
+            c.slist = slist;
+            c.begin = begin;
+            c.end = end;
+            c.current = begin;
+
+            ++ichunk;
+        }
+
+        SYS_ASSERT( ichunk == nChunks );
+    }
+    int gfx_displayListChunkAdd( bxVoxel_GfxDisplayListChunk* chunk, u16 objectIndex, const Matrix4* matrices, int nMatrices )
+    {
+        const int spaceLeft = chunk->end - chunk->current;
+        nMatrices = minOfPair( spaceLeft, nMatrices );
+
+        bxVoxel_GfxDisplayList* dlist = chunk->dlist;
+        for ( int i = 0; i < nMatrices; ++i )
+        {
+            dlist->objectDataIndex[chunk->current] = objectIndex;
+            dlist->matrices[chunk->current] = matrices[i];
+
+            ++chunk->current;
+        }
+
+        SYS_ASSERT( chunk->current <= chunk->end );
+        return nMatrices;
+    }
+
+    int gfx_displayListChunkAdd( bxVoxel_GfxDisplayListChunk* chunk, bxVoxel_Container* menago, bxVoxel_ObjectId id, const Matrix4* matrices, int nMatrices )
+	{
+        const u16 objIndex = menago->objectIndex( id );
+        return gfx_displayListChunkAdd( chunk, objIndex, matrices, nMatrices );
+	}
+
+    int gfx_displayListChunkFill( bxVoxel_GfxDisplayListChunk* chunk, bxVoxel_Container* menago )
+	{
+        const bxVoxel_Container::Data& data = menago->_data;
+        int nObjects = data.size;
+
+        int iobj = 0;
+        for( ; iobj < nObjects; ++iobj )
+        {
+            const u16 objectIndex = (u16)iobj;
+            const Matrix4& matrix = data.worldPose[objectIndex];
+
+            int ires = gfx_displayListChunkAdd( chunk, objectIndex, &matrix, 1 );
+            if ( !ires )
+                break;
+        }
+        return iobj;
+	}
+
+
+
+    void gfx_displayListBuild( bxVoxel_GfxDisplayList* dlist, bxVoxel_Container* menago, const bxGfxCamera& camera )
+	{
+        bxVoxel_GfxDisplayListChunk chunks[1];
+        memset( chunks, 0x00, sizeof( chunks ) );
+        const int nChunks = sizeof( chunks ) / sizeof( *chunks );
+        gfx_displayListCreateChunks( chunks, nChunks, dlist );
+        gfx_displayListChunkFill( &chunks[0], menago );
+
+        
+	}
+    void gfx_displayListDraw( bxGdiContext* ctx, bxVoxel_GfxDisplayList* dlist, bxVoxel_Container* menago, const bxGfxCamera& camera )
+	{
+	    
+	}
 
 }
 
