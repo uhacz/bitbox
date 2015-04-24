@@ -54,6 +54,28 @@ struct bxVoxel_GfxDisplayListChunk
 
 namespace bxVoxel
 {
+    template< typename Titem >
+    void gfx_sortListCreateChunks( typename bxSortList<Titem>::Chunk* chunks, int nChunks, bxSortList<Titem>* slist, int nItems )
+    {
+        const int N_TASKS = nChunks;
+        bxRangeSplitter splitter = bxRangeSplitter::splitByTask( nItems, N_TASKS );
+        int ilist = 0;
+        while ( splitter.elementsLeft() )
+        {
+            const int begin = splitter.grabbedElements;
+            const int grab = splitter.nextGrab();
+            const int end = begin + grab;
+
+            SYS_ASSERT( ilist < N_TASKS );
+            bxSortList<Titem>::Chunk& c = chunks[ilist++];
+            c.slist = slist;
+            c.begin = begin;
+            c.end = end;
+        }
+
+        SYS_ASSERT( ilist == N_TASKS );
+    }
+
 	bxVoxel_GfxDisplayList* gfx_displayListNew(int capacity, bxAllocator* alloc )
 	{
 		int memSize = 0;
@@ -170,8 +192,9 @@ namespace bxVoxel
 			nItems += chunks[ichunk].current - chunks[ichunk].begin;
 		}
 
-		bxVoxel_GfxSortListColor::Chunk slistChunks[N_TASKS];
-		
+		bxVoxel_GfxSortListColor::Chunk slistColorChunks[N_TASKS];
+        gfx_sortListCreateChunks( slistColorChunks, N_TASKS, __gfx->_slist_color, nItems );
+
 
 	}
     void gfx_displayListDraw( bxGdiContext* ctx, bxVoxel_Container* menago, const bxGfxCamera& camera )
