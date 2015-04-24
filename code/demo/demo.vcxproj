@@ -130,6 +130,7 @@
     <ClInclude Include="grid.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="simple_scene.h" />
+    <ClInclude Include="sort_list.h" />
     <ClInclude Include="test_console.h" />
     <ClInclude Include="tree.h" />
     <ClInclude Include="voxel.h" />

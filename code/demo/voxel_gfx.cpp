@@ -35,133 +35,12 @@ static const u32 __default_palette[256] = {
 static bxVoxel_Gfx* __gfx = 0;
 bxVoxel_Gfx* bxVoxel_Gfx::instance() { return __gfx; }
 
-namespace
-{
-
-	int _Gfx_findColorPaletteByData(bxVoxel_Gfx* gfx, const u32* data)
-	{
-		for (int i = 0; i < array::size(gfx->colorPalette_data); ++i)
-		{
-			if (equal(gfx->colorPalette_data[i], data))
-			{
-				return i;
-			}
-		}
-		return -1;
-	}
-	int _Gfx_acquireColorPalette(bxGdiDeviceBackend* dev, bxVoxel_Gfx* gfx, const char* name, const u32* data, int dataSize)
-	{
-		int found = _Gfx_findColorPaletteByData(gfx, data);
-		if (found != -1)
-		{
-			if (!string::equal(gfx->colorPalette_name[found], name))
-			{
-				bxLogWarning("Color palette '%s' exists under different name: '%s'", name, gfx->colorPalette_name[found]);
-			}
-			return found;
-		}
-
-		const char* nameCopy = string::duplicate(0, name);
-
-		found = array::push_back(gfx->colorPalette_name, nameCopy);
-		int idx = array::push_back(gfx->colorPalette_data, bxVoxel_ColorPalette());
-		SYS_ASSERT(idx == found);
-		idx = array::push_back(gfx->colorPalette_texture, bxGdiTexture());
-		SYS_ASSERT(idx == found);
-
-		bxVoxel_ColorPalette& palette = gfx->colorPalette_data[idx];
-		memset(&palette, 0x00, sizeof(bxVoxel_ColorPalette));
-		memcpy(palette.rgba, data, minOfPair(dataSize, (int)sizeof(bxVoxel_ColorPalette)));
-
-		gfx->colorPalette_texture[idx] = dev->createTexture1D(256, 1, bxGdiFormat(bxGdi::eTYPE_UBYTE, 4, 1), bxGdi::eBIND_SHADER_RESOURCE, 0, data);
-		return idx;
-	}
-	void _Gfx_startup(bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Gfx* gfx)
-	{
-		gfx->fxI = bxGdi::shaderFx_createWithInstance(dev, resourceManager, "voxel");
-		{
-			bxPolyShape polyShape;
-			bxPolyShape_createBox(&polyShape, 1);
-			gfx->rsource = bxGdi::renderSource_createFromPolyShape(dev, polyShape);
-			bxPolyShape_deallocateShape(&polyShape);
-		}
-
-		_Gfx_acquireColorPalette(dev, gfx, "default", __default_palette, sizeof(__default_palette));
-	}
-	void _Gfx_shutdown(bxGdiDeviceBackend* dev, bxVoxel_Gfx* gfx)
-	{
-		for (int i = 0; i < array::size(gfx->colorPalette_name); ++i)
-		{
-			string::free_and_null((char**)&gfx->colorPalette_name[i]);
-			dev->releaseTexture(&gfx->colorPalette_texture[i]);
-		}
-		array::clear(gfx->colorPalette_texture);
-		array::clear(gfx->colorPalette_data);
-		array::clear(gfx->colorPalette_name);
-
-		bxGdi::shaderFx_releaseWithInstance(dev, &gfx->fxI);
-		bxGdi::renderSource_releaseAndFree(dev, &gfx->rsource);
-	}
-}
-
-namespace bxVoxel
-{
-	void gfx_startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
-	{
-		SYS_ASSERT(__gfx == 0);
-		__gfx = BX_NEW(bxDefaultAllocator(), bxVoxel_Gfx);
-		_Gfx_startup(dev, resourceManager, __gfx);
-	}
-	void gfx_shutdown( bxGdiDeviceBackend* dev )
-	{
-		_Gfx_shutdown(dev, __gfx);
-		BX_DELETE0(bxDefaultAllocator(), __gfx);
-	}
-}
-
-
-////
-////
-union bxVoxel_GfxSortKey
-{
-	u32 hash;
-	struct
-	{
-		u32 depth : 16;
-		u32 palette : 16;
-	};
-};
-
-struct bxVoxel_GfxSortItem
-{
-	u32 key;
-	u32 itemIndex;
-};
-struct bxVoxel_GfxSortList
-{
-	bxVoxel_GfxSortItem* items;
-	i32 capacity;
-	i32 size;
-
-	bxAllocator* allocator;
-};
-
-struct bxVoxel_GfxSortListChunk
-{
-    bxVoxel_GfxSortList* slist;
-    i32 begin;
-    i32 end;
-    i32 current;
-};
-
 struct BIT_ALIGNMENT_16 bxVoxel_GfxDisplayList
 {
 	Matrix4* matrices;
 	u16* objectDataIndex;
-
+	
 	i32 capacity;
-	i32 size;
-
 	bxAllocator* allocator;
 };
 
@@ -192,7 +71,6 @@ namespace bxVoxel
 		
 		chunker.check();
 
-		dlist->size = 0;
 		dlist->capacity = capacity;
 		dlist->allocator = alloc;
 
@@ -216,7 +94,7 @@ namespace bxVoxel
         {
             const int begin = split.grabbedElements;
             const int grab = split.nextGrab();
-            const int end = begin + end;
+            const int end = begin + grab;
 
             SYS_ASSERT( ichunk < nChunks );
 
@@ -231,31 +109,7 @@ namespace bxVoxel
 
         SYS_ASSERT( ichunk == nChunks );
 	}
-    void gfx_sortListCreateChunks( bxVoxel_GfxSortListChunk* chunks, int nChunks, bxVoxel_GfxSortList* slist )
-    {
-        const int capacity = slist->capacity;
-        bxRangeSplitter split = bxRangeSplitter::splitByTask( capacity, nChunks );
 
-        int ichunk = 0;
-        while ( split.elementsLeft() )
-        {
-            const int begin = split.grabbedElements;
-            const int grab = split.nextGrab();
-            const int end = begin + end;
-
-            SYS_ASSERT( ichunk < nChunks );
-
-            bxVoxel_GfxSortListChunk& c = chunks[ichunk];
-            c.slist = slist;
-            c.begin = begin;
-            c.end = end;
-            c.current = begin;
-
-            ++ichunk;
-        }
-
-        SYS_ASSERT( ichunk == nChunks );
-    }
     int gfx_displayListChunkAdd( bxVoxel_GfxDisplayListChunk* chunk, u16 objectIndex, const Matrix4* matrices, int nMatrices )
     {
         const int spaceLeft = chunk->end - chunk->current;
@@ -298,22 +152,129 @@ namespace bxVoxel
         return iobj;
 	}
 
-
-
-    void gfx_displayListBuild( bxVoxel_GfxDisplayList* dlist, bxVoxel_Container* menago, const bxGfxCamera& camera )
+    void gfx_displayListBuild( bxVoxel_Container* menago, const bxGfxCamera& camera )
 	{
-        bxVoxel_GfxDisplayListChunk chunks[1];
+		bxVoxel_GfxDisplayList* dlist = __gfx->_dlist;
+		
+		const int N_TASKS = 1;
+		bxVoxel_GfxDisplayListChunk chunks[N_TASKS];
         memset( chunks, 0x00, sizeof( chunks ) );
-        const int nChunks = sizeof( chunks ) / sizeof( *chunks );
+		const int nChunks = N_TASKS;
+
         gfx_displayListCreateChunks( chunks, nChunks, dlist );
         gfx_displayListChunkFill( &chunks[0], menago );
 
-        
+		int nItems = 0;
+		for( int ichunk = 0; ichunk < nChunks; ++ichunk )
+		{
+			nItems += chunks[ichunk].current - chunks[ichunk].begin;
+		}
+
+		bxVoxel_GfxSortListColor::Chunk slistChunks[N_TASKS];
+		
+
 	}
-    void gfx_displayListDraw( bxGdiContext* ctx, bxVoxel_GfxDisplayList* dlist, bxVoxel_Container* menago, const bxGfxCamera& camera )
+    void gfx_displayListDraw( bxGdiContext* ctx, bxVoxel_Container* menago, const bxGfxCamera& camera )
 	{
 	    
 	}
 
+}
+
+
+namespace
+{
+
+	int _Gfx_findColorPaletteByData( bxVoxel_Gfx* gfx, const u32* data )
+	{
+		for( int i = 0; i < array::size( gfx->colorPalette_data ); ++i )
+		{
+			if( equal( gfx->colorPalette_data[i], data ) )
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+	int _Gfx_acquireColorPalette( bxGdiDeviceBackend* dev, bxVoxel_Gfx* gfx, const char* name, const u32* data, int dataSize )
+	{
+		int found = _Gfx_findColorPaletteByData( gfx, data );
+		if( found != -1 )
+		{
+			if( !string::equal( gfx->colorPalette_name[found], name ) )
+			{
+				bxLogWarning( "Color palette '%s' exists under different name: '%s'", name, gfx->colorPalette_name[found] );
+			}
+			return found;
+		}
+
+		const char* nameCopy = string::duplicate( 0, name );
+
+		found = array::push_back( gfx->colorPalette_name, nameCopy );
+		int idx = array::push_back( gfx->colorPalette_data, bxVoxel_ColorPalette() );
+		SYS_ASSERT( idx == found );
+		idx = array::push_back( gfx->colorPalette_texture, bxGdiTexture() );
+		SYS_ASSERT( idx == found );
+
+		bxVoxel_ColorPalette& palette = gfx->colorPalette_data[idx];
+		memset( &palette, 0x00, sizeof( bxVoxel_ColorPalette ) );
+		memcpy( palette.rgba, data, minOfPair( dataSize, ( int )sizeof( bxVoxel_ColorPalette ) ) );
+
+		gfx->colorPalette_texture[idx] = dev->createTexture1D( 256, 1, bxGdiFormat( bxGdi::eTYPE_UBYTE, 4, 1 ), bxGdi::eBIND_SHADER_RESOURCE, 0, data );
+		return idx;
+	}
+	void _Gfx_startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Gfx* gfx )
+	{
+		gfx->fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "voxel" );
+		{
+			bxPolyShape polyShape;
+			bxPolyShape_createBox( &polyShape, 1 );
+			gfx->rsource = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
+			bxPolyShape_deallocateShape( &polyShape );
+		}
+
+		_Gfx_acquireColorPalette( dev, gfx, "default", __default_palette, sizeof( __default_palette ) );
+
+		const int MAX_DISPLAY_ITEMS = 1024 * 8;
+		bx::sortListNew( &gfx->_slist_color, MAX_DISPLAY_ITEMS, bxDefaultAllocator() );
+		bx::sortListNew( &gfx->_slist_depth, MAX_DISPLAY_ITEMS, bxDefaultAllocator() );
+		gfx->_dlist = bxVoxel::gfx_displayListNew( MAX_DISPLAY_ITEMS, bxDefaultAllocator() );
+
+
+	}
+	void _Gfx_shutdown( bxGdiDeviceBackend* dev, bxVoxel_Gfx* gfx )
+	{
+		bxVoxel::gfx_displayListDelete( &gfx->_dlist );
+		bx::sortListDelete( &gfx->_slist_depth );
+		bx::sortListDelete( &gfx->_slist_color );
+
+
+		for( int i = 0; i < array::size( gfx->colorPalette_name ); ++i )
+		{
+			string::free_and_null( (char**)&gfx->colorPalette_name[i] );
+			dev->releaseTexture( &gfx->colorPalette_texture[i] );
+		}
+		array::clear( gfx->colorPalette_texture );
+		array::clear( gfx->colorPalette_data );
+		array::clear( gfx->colorPalette_name );
+
+		bxGdi::shaderFx_releaseWithInstance( dev, &gfx->fxI );
+		bxGdi::renderSource_releaseAndFree( dev, &gfx->rsource );
+	}
+}
+
+namespace bxVoxel
+{
+	void gfx_startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+	{
+		SYS_ASSERT( __gfx == 0 );
+		__gfx = BX_NEW( bxDefaultAllocator(), bxVoxel_Gfx );
+		_Gfx_startup( dev, resourceManager, __gfx );
+	}
+	void gfx_shutdown( bxGdiDeviceBackend* dev )
+	{
+		_Gfx_shutdown( dev, __gfx );
+		BX_DELETE0( bxDefaultAllocator(), __gfx );
+	}
 }
 
