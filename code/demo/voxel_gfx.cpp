@@ -196,6 +196,7 @@ namespace bxVoxel
         gfx_sortListCreateChunks( slistColorChunks, N_TASKS, __gfx->_slist_color, nItems );
 
 
+
 	}
     void gfx_displayListDraw( bxGdiContext* ctx, bxVoxel_Container* menago, const bxGfxCamera& camera )
 	{
