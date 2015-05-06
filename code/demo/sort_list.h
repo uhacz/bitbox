@@ -10,21 +10,41 @@ struct bxSortList
 	Titem* items;
 	i32 capacity;
 	bxAllocator* allocator;
+};
 
-	struct Chunk
-	{
-		bxSortList<Titem>* slist;
-		i32 begin;
-		i32 end;
-		i32 current;
-	};
-
+struct bxChunk
+{
+    i32 begin;
+    i32 end;
+    i32 current;
 };
 
 namespace bx
 {
+    void chunk_create( bxChunk* chunks, int nChunks, int nItems )
+    {
+        const int N_TASKS = nChunks;
+        bxRangeSplitter splitter = bxRangeSplitter::splitByTask( nItems, N_TASKS );
+        int ilist = 0;
+        while ( splitter.elementsLeft() )
+        {
+            const int begin = splitter.grabbedElements;
+            const int grab = splitter.nextGrab();
+            const int end = begin + grab;
+
+            SYS_ASSERT( ilist < N_TASKS );
+            bxChunk& c = chunks[ilist++];
+            c.begin = begin;
+            c.end = end;
+            c.current = begin;
+        }
+
+        SYS_ASSERT( ilist == N_TASKS );
+    }
+
+
 	template< typename Titem >
-	void sortListNew( bxSortList<Titem>** slist, int capacity, bxAllocator* allocator )
+	void sortList_new( bxSortList<Titem>** slist, int capacity, bxAllocator* allocator )
 	{
 		typedef bxSortList<Titem> SortList;
 		int memSize = 0;
@@ -42,45 +62,18 @@ namespace bx
 		slist[0]->allocator = allocator;
 	}
 	template< typename Titem >
-	void sortListDelete( bxSortList<Titem>** slist )
+	void sortList_delete( bxSortList<Titem>** slist )
 	{
 		bxAllocator* allocator = slist[0]->allocator;
 		BX_FREE0( allocator, slist[0] );
 	}
+
 	template< typename Titem >
-	void sortListCreateChunks( typename bxSortList<Titem>::Chunk* chunks, int nChunks, bxSortList<Titem>* slist )
-	{
-		typedef bxSortList<Titem>::Chunk Chunk;
-
-		const int capacity = slist->capacity;
-		bxRangeSplitter split = bxRangeSplitter::splitByTask( capacity, nChunks );
-
-		int ichunk = 0;
-		while( split.elementsLeft() )
-		{
-			const int begin = split.grabbedElements;
-			const int grab = split.nextGrab();
-			const int end = begin + end;
-
-			SYS_ASSERT( ichunk < nChunks );
-
-			Chunk& c = chunks[ichunk];
-			c.slist = slist;
-			c.begin = begin;
-			c.end = end;
-			c.current = begin;
-
-			++ichunk;
-		}
-
-		SYS_ASSERT( ichunk == nChunks );
-	}
-	template< typename Titem >
-	int sortListChunkAdd( typename bxSortList<Titem>::Chunk* chunk, Titem item )
+	int sortList_chunkAdd( bxSortList<Titem>* slist, bxChunk* chunk, Titem item )
 	{
 		SYS_ASSERT( chunk->end - chunk->current >= 1 );
 		const int index = chunk->current++;
-		chunk->slist->items[index] = item;
+		slist->items[index] = item;
 		return index;
 	}
 }

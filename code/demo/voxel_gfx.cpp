@@ -3,15 +3,15 @@
 #include <util/array.h>
 #include <util/string_util.h>
 #include <util/buffer_utils.h>
-#include <util/range_splitter.h>
 #include <util/common.h>
 #include <util/memory.h>
-
+#include <util/float16.h>
 #include <resource_manager/resource_manager.h>
 #include <gdi/gdi_shader.h>
 #include <gdi/gdi_render_source.h>
 
 #include "voxel_container.h"
+#include <gfx/gfx_camera.h>
 
 static const u32 __default_palette[256] = {
 	0x00000000, 0xffffffff, 0xffccffff, 0xff99ffff, 0xff66ffff, 0xff33ffff, 0xff00ffff, 0xffffccff, 0xffccccff, 0xff99ccff, 0xff66ccff, 0xff33ccff, 0xff00ccff, 0xffff99ff, 0xffcc99ff, 0xff9999ff,
@@ -44,36 +44,53 @@ struct BIT_ALIGNMENT_16 bxVoxel_GfxDisplayList
 	bxAllocator* allocator;
 };
 
-struct bxVoxel_GfxDisplayListChunk
-{
-	bxVoxel_GfxDisplayList* dlist;
-	i32 begin;
-	i32 end;
-	i32 current;
-};
+//struct bxVoxel_GfxDisplayListChunk
+//{
+//	bxVoxel_GfxDisplayList* dlist;
+//	i32 begin;
+//	i32 end;
+//	i32 current;
+//};
+
+
 
 namespace bxVoxel
 {
-    template< typename Titem >
-    void gfx_sortListCreateChunks( typename bxSortList<Titem>::Chunk* chunks, int nChunks, bxSortList<Titem>* slist, int nItems )
+
+
+    void gfx_sortListChunkFill_color( bxVoxel_GfxSortListColor* slist, bxChunk* slistChunk, const bxVoxel_GfxDisplayList* dlist, const bxChunk& dlistChunk, const bxVoxel_Container* container, const bxGfxCamera& camera )
     {
-        const int N_TASKS = nChunks;
-        bxRangeSplitter splitter = bxRangeSplitter::splitByTask( nItems, N_TASKS );
-        int ilist = 0;
-        while ( splitter.elementsLeft() )
+        const bxGfxViewFrustum frustum = bxGfx::viewFrustum_extract( camera.matrix.viewProj );
+
+        const bxVoxel_Container::Data& data = container->_data;
+        const int nDisplayItems = dlistChunk.current - dlistChunk.begin;
+        const int nSortItems = slistChunk->end - slistChunk->begin;
+        SYS_ASSERT( nDisplayItems == nSortItems );
+
+        for ( int iitem = dlistChunk.begin; iitem < dlistChunk.current; ++iitem )
         {
-            const int begin = splitter.grabbedElements;
-            const int grab = splitter.nextGrab();
-            const int end = begin + grab;
+            const int dlistIndex = iitem;
+            const u16 objIndex = dlist->objectDataIndex[dlistIndex];
+            const Matrix4& pose = data.worldPose[objIndex];
+            const bxAABB& aabb = data.aabb[objIndex];
+            const bxAABB worldAABB = bxAABB::transform( pose, aabb );
+            const boolInVec inFrustumv = bxGfx::viewFrustum_AABBIntersect( frustum, worldAABB.min, worldAABB.max );
+            if ( !inFrustumv.getAsBool() )
+                continue;
 
-            SYS_ASSERT( ilist < N_TASKS );
-            bxSortList<Titem>::Chunk& c = chunks[ilist++];
-            c.slist = slist;
-            c.begin = begin;
-            c.end = end;
+            const int paletteIndex = data.voxelDataObj[objIndex].colorPalette;
+            const float depth = bxGfx::camera_depth( camera.matrix.world, pose.getTranslation() ).getAsFloat();
+
+            bxVoxel_GfxSortItemColor slistItem;
+            slistItem.itemIndex = dlistIndex;
+            slistItem.key.palette = (u8)paletteIndex;
+            slistItem.key.depth = float_to_half_fast3( fromF32( depth ) ).u;
+            bx::sortList_chunkAdd( slist, slistChunk, slistItem );
         }
+    }
+    void gfx_sortListChunkFill_depth( bxVoxel_GfxSortListDepth* slist, bxChunk* slistChunk, const bxVoxel_GfxDisplayList* dlist, const bxChunk& dlistChunk, const bxVoxel_Container* container, const bxGfxCamera& camera )
+    {
 
-        SYS_ASSERT( ilist == N_TASKS );
     }
 
 	bxVoxel_GfxDisplayList* gfx_displayListNew(int capacity, bxAllocator* alloc )
@@ -105,39 +122,37 @@ namespace bxVoxel
 		BX_FREE0( alloc, dlist[0] );
 	}
 
-    void gfx_displayListCreateChunks( bxVoxel_GfxDisplayListChunk* chunks, int nChunks, bxVoxel_GfxDisplayList* dlist )
-	{
-        const int capacity = dlist->capacity;
+ //   void gfx_displayListCreateChunks( Chunk* chunks, int nChunks, bxVoxel_GfxDisplayList* dlist )
+	//{
+ //       const int capacity = dlist->capacity;
 
-        bxRangeSplitter split = bxRangeSplitter::splitByTask( capacity, nChunks );
+ //       bxRangeSplitter split = bxRangeSplitter::splitByTask( capacity, nChunks );
 
-        int ichunk = 0;
-        while( split.elementsLeft() )
-        {
-            const int begin = split.grabbedElements;
-            const int grab = split.nextGrab();
-            const int end = begin + grab;
+ //       int ichunk = 0;
+ //       while( split.elementsLeft() )
+ //       {
+ //           const int begin = split.grabbedElements;
+ //           const int grab = split.nextGrab();
+ //           const int end = begin + grab;
 
-            SYS_ASSERT( ichunk < nChunks );
+ //           SYS_ASSERT( ichunk < nChunks );
 
-            bxVoxel_GfxDisplayListChunk& c = chunks[ichunk];
-            c.dlist = dlist;
-            c.begin = begin;
-            c.end = end;
-            c.current = begin;
-            
-            ++ichunk;
-        }
+ //           Chunk& c = chunks[ichunk];
+ //           c.begin = begin;
+ //           c.end = end;
+ //           c.current = begin;
+ //           
+ //           ++ichunk;
+ //       }
 
-        SYS_ASSERT( ichunk == nChunks );
-	}
+ //       SYS_ASSERT( ichunk == nChunks );
+	//}
 
-    int gfx_displayListChunkAdd( bxVoxel_GfxDisplayListChunk* chunk, u16 objectIndex, const Matrix4* matrices, int nMatrices )
+    int gfx_displayListChunkAdd( bxVoxel_GfxDisplayList* dlist, bxChunk* chunk, u16 objectIndex, const Matrix4* matrices, int nMatrices )
     {
         const int spaceLeft = chunk->end - chunk->current;
         nMatrices = minOfPair( spaceLeft, nMatrices );
 
-        bxVoxel_GfxDisplayList* dlist = chunk->dlist;
         for ( int i = 0; i < nMatrices; ++i )
         {
             dlist->objectDataIndex[chunk->current] = objectIndex;
@@ -150,53 +165,70 @@ namespace bxVoxel
         return nMatrices;
     }
 
-    int gfx_displayListChunkAdd( bxVoxel_GfxDisplayListChunk* chunk, bxVoxel_Container* menago, bxVoxel_ObjectId id, const Matrix4* matrices, int nMatrices )
+    int gfx_displayListChunkAdd( bxVoxel_GfxDisplayList* dlist, bxChunk* chunk, bxVoxel_Container* menago, bxVoxel_ObjectId id, const Matrix4* matrices, int nMatrices )
 	{
         const u16 objIndex = menago->objectIndex( id );
-        return gfx_displayListChunkAdd( chunk, objIndex, matrices, nMatrices );
+        return gfx_displayListChunkAdd( dlist, chunk, objIndex, matrices, nMatrices );
 	}
 
-    int gfx_displayListChunkFill( bxVoxel_GfxDisplayListChunk* chunk, bxVoxel_Container* menago )
+    int gfx_displayListChunkFill( bxVoxel_GfxDisplayList* dlist, bxChunk* chunk, bxVoxel_Container* menago, const bxChunk& menagoChunk )
 	{
         const bxVoxel_Container::Data& data = menago->_data;
-        int nObjects = data.size;
-
-        int iobj = 0;
-        for( ; iobj < nObjects; ++iobj )
+        
+        int iobj = menagoChunk.begin;
+        for( ; iobj < menagoChunk.end; ++iobj )
         {
             const u16 objectIndex = (u16)iobj;
             const Matrix4& matrix = data.worldPose[objectIndex];
 
-            int ires = gfx_displayListChunkAdd( chunk, objectIndex, &matrix, 1 );
+            int ires = gfx_displayListChunkAdd( dlist, chunk, objectIndex, &matrix, 1 );
             if ( !ires )
                 break;
         }
-        return iobj;
+        return ( iobj - menagoChunk.begin );
 	}
 
-    void gfx_displayListBuild( bxVoxel_Container* menago, const bxGfxCamera& camera )
+    void gfx_displayListBuild( bxVoxel_Container* container, const bxGfxCamera& camera )
 	{
 		bxVoxel_GfxDisplayList* dlist = __gfx->_dlist;
 		
-		const int N_TASKS = 1;
-		bxVoxel_GfxDisplayListChunk chunks[N_TASKS];
-        memset( chunks, 0x00, sizeof( chunks ) );
-		const int nChunks = N_TASKS;
+		bxChunk* dlistChunks = __gfx->_dlist_chunks;
+        bxChunk* containerChunks = __gfx->_container_chunks;
+        bxChunk* slistColorChunks = __gfx->_slist_colorChunks;
+        bxChunk* slistDepthChunks = __gfx->_slist_depthChunks;
 
-        gfx_displayListCreateChunks( chunks, nChunks, dlist );
-        gfx_displayListChunkFill( &chunks[0], menago );
+        const int nChunks = bxVoxel_Gfx::N_TASKS;
+
+        bx::chunk_create( dlistChunks, nChunks, dlist->capacity );
+        bx::chunk_create( containerChunks, nChunks, container->_data.size );
+        for( int ichunk = 0; ichunk < nChunks; ++ichunk )
+        {
+            gfx_displayListChunkFill( dlist, &dlistChunks[ichunk], container, containerChunks[ichunk] );
+        }
+
 
 		int nItems = 0;
-		for( int ichunk = 0; ichunk < nChunks; ++ichunk )
+        for ( int ichunk = 0; ichunk < nChunks; ++ichunk )
 		{
-			nItems += chunks[ichunk].current - chunks[ichunk].begin;
+            const int n = dlistChunks[ichunk].current - dlistChunks[ichunk].begin;
+            bxChunk& c = slistColorChunks[ichunk];
+            c.begin = nItems;
+            c.current = nItems;
+            c.end = nItems + n;
+            nItems += n;
+
+            slistDepthChunks[ichunk] = c;
 		}
 
-		bxVoxel_GfxSortListColor::Chunk slistColorChunks[N_TASKS];
-        gfx_sortListCreateChunks( slistColorChunks, N_TASKS, __gfx->_slist_color, nItems );
+        for ( int ichunk = 0; ichunk < nChunks; ++ichunk )
+        {
+            gfx_sortListChunkFill_color( __gfx->_slist_color, &slistColorChunks[ichunk], dlist, dlistChunks[ichunk], container, camera );
+        }
 
-
-
+        for ( int ichunk = 0; ichunk < nChunks; ++ichunk )
+        {
+            gfx_sortListChunkFill_depth( __gfx->_slist_depth, &slistDepthChunks[ichunk], dlist, dlistChunks[ichunk], container, camera );
+        }
 	}
     void gfx_displayListDraw( bxGdiContext* ctx, bxVoxel_Container* menago, const bxGfxCamera& camera )
 	{
@@ -260,8 +292,8 @@ namespace
 		_Gfx_acquireColorPalette( dev, gfx, "default", __default_palette, sizeof( __default_palette ) );
 
 		const int MAX_DISPLAY_ITEMS = 1024 * 8;
-		bx::sortListNew( &gfx->_slist_color, MAX_DISPLAY_ITEMS, bxDefaultAllocator() );
-		bx::sortListNew( &gfx->_slist_depth, MAX_DISPLAY_ITEMS, bxDefaultAllocator() );
+		bx::sortList_new( &gfx->_slist_color, MAX_DISPLAY_ITEMS, bxDefaultAllocator() );
+		bx::sortList_new( &gfx->_slist_depth, MAX_DISPLAY_ITEMS, bxDefaultAllocator() );
 		gfx->_dlist = bxVoxel::gfx_displayListNew( MAX_DISPLAY_ITEMS, bxDefaultAllocator() );
 
 
@@ -269,8 +301,8 @@ namespace
 	void _Gfx_shutdown( bxGdiDeviceBackend* dev, bxVoxel_Gfx* gfx )
 	{
 		bxVoxel::gfx_displayListDelete( &gfx->_dlist );
-		bx::sortListDelete( &gfx->_slist_depth );
-		bx::sortListDelete( &gfx->_slist_color );
+		bx::sortList_delete( &gfx->_slist_depth );
+		bx::sortList_delete( &gfx->_slist_color );
 
 
 		for( int i = 0; i < array::size( gfx->colorPalette_name ); ++i )

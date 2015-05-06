@@ -68,6 +68,12 @@ struct bxVoxel_Gfx
 	bxVoxel_GfxSortListDepth* _slist_depth;
 	bxVoxel_GfxDisplayList* _dlist;
 
+    static const int N_TASKS = 1;
+    bxChunk _dlist_chunks[N_TASKS];
+    bxChunk _container_chunks[N_TASKS];
+    bxChunk _slist_colorChunks[N_TASKS];
+    bxChunk _slist_depthChunks[N_TASKS];
+
 	bxVoxel_Gfx()
 		: fxI(0)
 		, rsource(0)
