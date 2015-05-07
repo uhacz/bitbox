@@ -41,6 +41,10 @@ struct bxVoxel_GfxSortItemColor
 	u16 itemIndex;
 	u16 __padding[1];
 };
+inline bool operator < (const bxVoxel_GfxSortItemColor& a, const bxVoxel_GfxSortItemColor& b ){
+    return a.key.hash < b.key.hash;
+}
+
 struct bxVoxel_GfxSortItemDepth
 {
 	union Key{
@@ -49,6 +53,9 @@ struct bxVoxel_GfxSortItemDepth
 	} key;
 	u16 itemIndex;
 };
+inline bool operator < (const bxVoxel_GfxSortItemDepth& a, const bxVoxel_GfxSortItemDepth& b){
+    return a.key.hash < b.key.hash;
+}
 
 typedef bxSortList< bxVoxel_GfxSortItemColor > bxVoxel_GfxSortListColor;
 typedef bxSortList< bxVoxel_GfxSortItemDepth > bxVoxel_GfxSortListDepth;
@@ -69,18 +76,20 @@ struct bxVoxel_Gfx
 	bxVoxel_GfxDisplayList* _dlist;
 
     static const int N_TASKS = 1;
-    bxChunk _dlist_chunks[N_TASKS];
-    bxChunk _container_chunks[N_TASKS];
-    bxChunk _slist_colorChunks[N_TASKS];
-    bxChunk _slist_depthChunks[N_TASKS];
+    struct
+    {
+        bxChunk container[N_TASKS];
+        bxChunk displayList[N_TASKS];
+        bxChunk sortListColor[N_TASKS];
+        bxChunk sortListDepth[N_TASKS];
+        
+        bxChunk finalSortedColor;
+        bxChunk finalSortedDepth;
+    } _chunk;
+    
+    
 
-	bxVoxel_Gfx()
-		: fxI(0)
-		, rsource(0)
-		, _slist_color(0)
-		, _slist_depth(0)
-		, _dlist(0)
-	{}
+    bxVoxel_Gfx();
 
 	static bxVoxel_Gfx* instance();
 };

@@ -13,6 +13,8 @@
 #include "voxel_container.h"
 #include <gfx/gfx_camera.h>
 
+#include <algorithm>
+
 static const u32 __default_palette[256] = {
 	0x00000000, 0xffffffff, 0xffccffff, 0xff99ffff, 0xff66ffff, 0xff33ffff, 0xff00ffff, 0xffffccff, 0xffccccff, 0xff99ccff, 0xff66ccff, 0xff33ccff, 0xff00ccff, 0xffff99ff, 0xffcc99ff, 0xff9999ff,
 	0xff6699ff, 0xff3399ff, 0xff0099ff, 0xffff66ff, 0xffcc66ff, 0xff9966ff, 0xff6666ff, 0xff3366ff, 0xff0066ff, 0xffff33ff, 0xffcc33ff, 0xff9933ff, 0xff6633ff, 0xff3333ff, 0xff0033ff, 0xffff00ff,
@@ -52,7 +54,15 @@ struct BIT_ALIGNMENT_16 bxVoxel_GfxDisplayList
 //	i32 current;
 //};
 
-
+bxVoxel_Gfx::bxVoxel_Gfx()
+    : fxI( 0 )
+    , rsource( 0 )
+    , _slist_color( 0 )
+    , _slist_depth( 0 )
+    , _dlist( 0 )
+{
+    memset( &_chunk, 0x00, sizeof( _chunk ) );
+}
 
 namespace bxVoxel
 {
@@ -192,10 +202,10 @@ namespace bxVoxel
 	{
 		bxVoxel_GfxDisplayList* dlist = __gfx->_dlist;
 		
-		bxChunk* dlistChunks = __gfx->_dlist_chunks;
-        bxChunk* containerChunks = __gfx->_container_chunks;
-        bxChunk* slistColorChunks = __gfx->_slist_colorChunks;
-        bxChunk* slistDepthChunks = __gfx->_slist_depthChunks;
+        bxChunk* dlistChunks = __gfx->_chunk.displayList;
+        bxChunk* containerChunks = __gfx->_chunk.container;
+        bxChunk* slistColorChunks = __gfx->_chunk.sortListColor;
+        bxChunk* slistDepthChunks = __gfx->_chunk.sortListDepth;
 
         const int nChunks = bxVoxel_Gfx::N_TASKS;
 
@@ -229,6 +239,47 @@ namespace bxVoxel
         {
             gfx_sortListChunkFill_depth( __gfx->_slist_depth, &slistDepthChunks[ichunk], dlist, dlistChunks[ichunk], container, camera );
         }
+
+        /// merge
+        {
+            bxVoxel_GfxSortListColor* slist = __gfx->_slist_color;
+            bxChunk* finalChunk = &__gfx->_chunk.finalSortedColor;
+            bxChunk* chunks = slistColorChunks;
+
+            bxChunk* frontChunk = chunks - 1;
+            bxChunk* backChunk = chunks + (nChunks-1);
+            while ( frontChunk++ != backChunk )
+            {
+                while( frontChunk->current < frontChunk->end )
+                {
+                    slist->items[++frontChunk->current] = slist->items[++backChunk->current];
+                    if( backChunk->current >= backChunk->end )
+                    {
+                        --backChunk;
+                    }
+
+                    if ( frontChunk == backChunk )
+                        break;
+                }
+            }
+
+            int nSortItems = chunks[0].current;
+            for( int ichunk = 1; ichunk < nChunks; ++ichunk )
+            {
+                const bxChunk& c = chunks[ichunk];
+                if ( c.current == c.begin )
+                    break;
+                
+                nSortItems = c.current;
+            }
+
+            finalChunk[0].begin = 0;
+            finalChunk[0].current = nSortItems;
+            finalChunk[0].end = nSortItems;
+
+            bx::sortList_sortLess( slist, finalChunk[0] );
+        }
+
 	}
     void gfx_displayListDraw( bxGdiContext* ctx, bxVoxel_Container* menago, const bxGfxCamera& camera )
 	{

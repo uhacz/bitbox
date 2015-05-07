@@ -7,7 +7,8 @@
 template< typename Titem >
 struct bxSortList
 {
-	Titem* items;
+    typedef Titem ItemType;
+    Titem* items;
 	i32 capacity;
 	bxAllocator* allocator;
 };
@@ -76,4 +77,11 @@ namespace bx
 		slist->items[index] = item;
 		return index;
 	}
+
+    template< typename Titem >
+    void sortList_sortLess( bxSortList<Titem>* slist, const bxChunk& chunk )
+    {
+        std::sort( slist->items + chunk.begin, slist->items + chunk.current, std::less<Titem>() );
+    }
+
 }
