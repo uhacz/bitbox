@@ -14,6 +14,7 @@
 #include "voxel.h"
 #include "voxel_file.h"
 #include "voxel_scene.h"
+#include "voxel_gfx.h"
 #include "grid.h"
 #include <gfx/gfx_debug_draw.h>
 //////////////////////////////////////////////////////////////////////////
@@ -348,7 +349,10 @@ public:
         gdiContext->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
         bxGdi::context_setViewport( gdiContext, fb.textures[0] );
         
-        bxVoxel::gfx_draw( gdiContext, vxscene._container, currentCamera );
+        bxVoxel::gfx_displayListBuild( vxscene._container, currentCamera );
+        bxVoxel::gfx_displayListDraw( gdiContext, vxscene._container, currentCamera );
+
+        //bxVoxel::gfx_draw( gdiContext, vxscene._container, currentCamera );
 
         //gdiContext->setBufferRO( voxelDataBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX );
         //bxGdi::shaderFx_enable( gdiContext, fxI, 0 );

@@ -52,8 +52,8 @@ namespace bxVoxel
 
     ////
     ////
-    void gfx_cull( bxVoxel_Container* vxcnt, const bxGfxCamera& camera );
-    void gfx_draw( bxGdiContext* ctx, bxVoxel_Container* container, const bxGfxCamera& camera );
+    //void gfx_cull( bxVoxel_Container* vxcnt, const bxGfxCamera& camera );
+    //void gfx_draw( bxGdiContext* ctx, bxVoxel_Container* container, const bxGfxCamera& camera );
 
     ////
     ////

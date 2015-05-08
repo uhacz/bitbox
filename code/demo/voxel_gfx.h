@@ -75,7 +75,7 @@ struct bxVoxel_Gfx
 	bxVoxel_GfxSortListDepth* _slist_depth;
 	bxVoxel_GfxDisplayList* _dlist;
 
-    static const int N_TASKS = 1;
+    static const int N_TASKS = 4;
     struct
     {
         bxChunk container[N_TASKS];

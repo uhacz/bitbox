@@ -9,7 +9,7 @@
 #include <resource_manager/resource_manager.h>
 #include <gdi/gdi_shader.h>
 #include <gdi/gdi_render_source.h>
-
+#include <gdi/gdi_context.h>
 #include "voxel_container.h"
 #include <gfx/gfx_camera.h>
 
@@ -230,6 +230,8 @@ namespace bxVoxel
             slistDepthChunks[ichunk] = c;
 		}
 
+        memset( __gfx->_slist_color->items, 0x00, __gfx->_slist_color->capacity * sizeof( *__gfx->_slist_color->items ) );
+
         for ( int ichunk = 0; ichunk < nChunks; ++ichunk )
         {
             gfx_sortListChunkFill_color( __gfx->_slist_color, &slistColorChunks[ichunk], dlist, dlistChunks[ichunk], container, camera );
@@ -246,14 +248,14 @@ namespace bxVoxel
             bxChunk* finalChunk = &__gfx->_chunk.finalSortedColor;
             bxChunk* chunks = slistColorChunks;
 
-            bxChunk* frontChunk = chunks - 1;
+            bxChunk* frontChunk = chunks;
             bxChunk* backChunk = chunks + (nChunks-1);
-            while ( frontChunk++ != backChunk )
+            while ( frontChunk != backChunk )
             {
                 while( frontChunk->current < frontChunk->end )
                 {
-                    slist->items[++frontChunk->current] = slist->items[++backChunk->current];
-                    if( backChunk->current >= backChunk->end )
+                    slist->items[frontChunk->current++] = slist->items[--backChunk->current];
+                    if( backChunk->current <= backChunk->begin )
                     {
                         --backChunk;
                     }
@@ -261,6 +263,11 @@ namespace bxVoxel
                     if ( frontChunk == backChunk )
                         break;
                 }
+
+                if ( frontChunk == backChunk )
+                    break;
+                else
+                    ++frontChunk;
             }
 
             int nSortItems = chunks[0].current;
@@ -281,11 +288,62 @@ namespace bxVoxel
         }
 
 	}
-    void gfx_displayListDraw( bxGdiContext* ctx, bxVoxel_Container* menago, const bxGfxCamera& camera )
-	{
-	    
-	}
 
+    namespace
+    {
+        inline void _Gfx_drawObject( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const bxVoxel_Container::Data& data, int iobj, const Matrix4& pose, const bxGdiRenderSurface surf )
+        {
+            const bxVoxel_ObjectData& objData = data.voxelDataObj[iobj];
+            const int nInstancesToDraw = objData.numShellVoxels;
+            if ( nInstancesToDraw <= 0 )
+                return;
+
+            fxI->setUniform( "_world", pose );
+            fxI->uploadCBuffers( ctx->backend() );
+
+            ctx->setBufferRO( data.voxelDataGpu[iobj], 0, bxGdi::eSTAGE_MASK_VERTEX );
+            ctx->setTexture( __gfx->colorPalette_texture[objData.colorPalette], 0, bxGdi::eSTAGE_MASK_PIXEL );
+
+            bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, nInstancesToDraw );
+        }
+    }
+
+    void gfx_displayListDraw( bxGdiContext* ctx, bxVoxel_Container* cnt, const bxGfxCamera& camera )
+	{
+        const bxVoxel_Container::Data& data = cnt->_data;
+        const int numObjects = data.size;
+
+        if ( !numObjects )
+            return;
+
+        const bxGdiBuffer* vxDataGpu = data.voxelDataGpu;
+        const bxVoxel_ObjectData* vxDataObj = data.voxelDataObj;
+        const Matrix4* worldMatrices = data.worldPose;
+
+        bxVoxel_Gfx* vgfx = bxVoxel_Gfx::instance();
+        bxVoxel_GfxSortListColor* slist = vgfx->_slist_color;
+        bxVoxel_GfxDisplayList* dlist = vgfx->_dlist;
+
+
+        bxGdiShaderFx_Instance* fxI = vgfx->fxI;
+        bxGdiRenderSource* rsource = vgfx->rsource;
+
+        fxI->setUniform( "_viewProj", camera.matrix.viewProj );
+
+        bxGdi::shaderFx_enable( ctx, fxI, 0 );
+        bxGdi::renderSource_enable( ctx, rsource );
+        const bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
+        ctx->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ), 0, bxGdi::eSTAGE_MASK_PIXEL );
+
+        const bxChunk colorChunk = vgfx->_chunk.finalSortedColor;
+        for( int iitem = colorChunk.begin; iitem < colorChunk.current; ++iitem )
+        {
+            const int dlistItemIndex = slist->items[iitem].itemIndex;
+            const int iobj = dlist->objectDataIndex[dlistItemIndex];
+            const Matrix4& pose = dlist->matrices[dlistItemIndex];
+            _Gfx_drawObject( ctx, fxI, data, iobj, pose, surf );
+        }
+	}
 }
 
 
@@ -342,7 +400,7 @@ namespace
 
 		_Gfx_acquireColorPalette( dev, gfx, "default", __default_palette, sizeof( __default_palette ) );
 
-		const int MAX_DISPLAY_ITEMS = 1024 * 8;
+        const int MAX_DISPLAY_ITEMS = 16; // 1024 * 8;
 		bx::sortList_new( &gfx->_slist_color, MAX_DISPLAY_ITEMS, bxDefaultAllocator() );
 		bx::sortList_new( &gfx->_slist_depth, MAX_DISPLAY_ITEMS, bxDefaultAllocator() );
 		gfx->_dlist = bxVoxel::gfx_displayListNew( MAX_DISPLAY_ITEMS, bxDefaultAllocator() );

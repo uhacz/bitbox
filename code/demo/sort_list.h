@@ -22,7 +22,7 @@ struct bxChunk
 
 namespace bx
 {
-    void chunk_create( bxChunk* chunks, int nChunks, int nItems )
+    inline void chunk_create( bxChunk* chunks, int nChunks, int nItems )
     {
         const int N_TASKS = nChunks;
         bxRangeSplitter splitter = bxRangeSplitter::splitByTask( nItems, N_TASKS );
