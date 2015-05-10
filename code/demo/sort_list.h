@@ -89,7 +89,6 @@ namespace bx
         {
             while ( frontChunk->current < frontChunk->end )
             {
-                slist->items[frontChunk->current++] = slist->items[--backChunk->current];
                 if ( backChunk->current <= backChunk->begin )
                 {
                     --backChunk;
@@ -97,6 +96,9 @@ namespace bx
 
                 if ( frontChunk == backChunk )
                     break;
+
+                if( backChunk->current > backChunk->begin )
+                    slist->items[frontChunk->current++] = slist->items[--backChunk->current];
             }
 
             if ( frontChunk == backChunk )
