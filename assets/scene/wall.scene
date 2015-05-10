@@ -1,0 +1,24 @@
+@camera persp
+$pos 0.0 0.0 150.0
+$zFar 1000.0
+:camera_push "persp"
+
+@voxel wall
+$pos 0.0 0.0 0.0
+$rot 0.0 0.0 0.0
+$file "model/wall.vox"
+
+@voxel castle
+$pos -126.0 0.0 0.0
+$rot 0.0 0.0 0.0
+$file "model/castle.vox"
+
+@voxel man
+$pos -5.0 0.0 10.0
+$rot 0.0 0.0 0.0
+$file "model/chr_man.vox"
+
+@voxel old
+$pos 5.0 0.0 10.0
+$rot 0.0 0.0 0.0
+$file "model/chr_old.vox"
