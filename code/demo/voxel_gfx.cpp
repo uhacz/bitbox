@@ -245,45 +245,17 @@ namespace bxVoxel
         /// merge
         {
             bxVoxel_GfxSortListColor* slist = __gfx->_slist_color;
-            bxChunk* finalChunk = &__gfx->_chunk.finalSortedColor;
             bxChunk* chunks = slistColorChunks;
+            bxChunk* finalChunk = &__gfx->_chunk.finalSortedColor;
+            finalChunk[0] = bx::sortList_merge( slist, chunks, nChunks );
+            bx::sortList_sortLess( slist, finalChunk[0] );
+        }
 
-            bxChunk* frontChunk = chunks;
-            bxChunk* backChunk = chunks + (nChunks-1);
-            while ( frontChunk != backChunk )
-            {
-                while( frontChunk->current < frontChunk->end )
-                {
-                    slist->items[frontChunk->current++] = slist->items[--backChunk->current];
-                    if( backChunk->current <= backChunk->begin )
-                    {
-                        --backChunk;
-                    }
-
-                    if ( frontChunk == backChunk )
-                        break;
-                }
-
-                if ( frontChunk == backChunk )
-                    break;
-                else
-                    ++frontChunk;
-            }
-
-            int nSortItems = chunks[0].current;
-            for( int ichunk = 1; ichunk < nChunks; ++ichunk )
-            {
-                const bxChunk& c = chunks[ichunk];
-                if ( c.current == c.begin )
-                    break;
-                
-                nSortItems = c.current;
-            }
-
-            finalChunk[0].begin = 0;
-            finalChunk[0].current = nSortItems;
-            finalChunk[0].end = nSortItems;
-
+        {
+            bxVoxel_GfxSortListDepth* slist = __gfx->_slist_depth;
+            bxChunk* chunks = slistDepthChunks;
+            bxChunk* finalChunk = &__gfx->_chunk.finalSortedDepth;
+            finalChunk[0] = bx::sortList_merge( slist, chunks, nChunks );
             bx::sortList_sortLess( slist, finalChunk[0] );
         }
 

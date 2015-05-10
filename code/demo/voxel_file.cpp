@@ -15,7 +15,7 @@ namespace bxVoxel
         vox.LoadModel( absPath.name );
         
         const int maxSize = maxOfPair( maxOfPair( vox.size.x, vox.size.y ), vox.size.z );
-        Matrix4 transform = Matrix4( Matrix3::identity(), Vector3( (f32)maxSize ) * -0.5f  );
+        Matrix4 transform = Matrix4::rotationX( -PI_HALF ) * Matrix4::translation( Vector3( roundf( maxSize * -0.5f ) ) );
 
         for( size_t ivox = 0; ivox < vox.voxels.size(); ++ivox )
         {

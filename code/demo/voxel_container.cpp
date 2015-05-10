@@ -53,7 +53,7 @@ namespace
 
 		bxVoxel_GpuData* tmp = (bxVoxel_GpuData*)BX_MALLOC(bxDefaultAllocator(), vxDataCapacity * sizeof(bxVoxel_GpuData), 8);
 
-		const int numShellVoxels = bxVoxel::map_getShell(tmp, vxDataCapacity, map[0]);
+		const int numShellVoxels = bxVoxel::map_getShell(tmp, vxDataCapacity, map[0], &data.aabb[dataIndex] );
 		const int requiredMemSize = numShellVoxels * sizeof(bxVoxel_GpuData);
 
 		bxGdiBuffer buff = cnt->_data.voxelDataGpu[dataIndex];

@@ -2,6 +2,8 @@
 
 #include <util/containers.h>
 
+struct bxAABB;
+
 struct bxVoxel_Octree
 {
     struct BIT_ALIGNMENT_16 Node
@@ -36,5 +38,5 @@ namespace bxVoxel
     void octree_init( bxVoxel_Octree* voct, const Vector3& center, const Vector3& size );
     
     void map_getShell( array_t<bxVoxel_GpuData>& vxData, const bxVoxel_Map& voct );
-    int map_getShell( bxVoxel_GpuData* vxData, int vxDataLenght, const bxVoxel_Map& voct );
+    int map_getShell( bxVoxel_GpuData* vxData, int vxDataLenght, const bxVoxel_Map& voct, bxAABB* bbox );
 }///

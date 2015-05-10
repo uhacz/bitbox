@@ -661,33 +661,45 @@ namespace bxGfx
 
         if( string::equal( "pos", attribName ) )
         {
-            if( dataSize == 12 )
-            {
-                const float* xyz = (float*)data;
-                m->_container[id.index].matrix.world.setTranslation( Vector3( xyz[0], xyz[1], xyz[2] ) );
-            }
-            else
-            {
-                bxLogError( "invalid data size" );
-            }
+            if ( dataSize != 12 )
+                goto label_cameraAttributeInvalidSize;
+            
+            const float* xyz = (float*)data;
+            m->_container[id.index].matrix.world.setTranslation( Vector3( xyz[0], xyz[1], xyz[2] ) );
         }
         else if ( string::equal( "rot", attribName ) )
         {
-            if ( dataSize == 12 )
-            {
-                const float* xyz = (float*)data;
-                const Vector3 eulerXYZ( xyz[0], xyz[1], xyz[2] );
-                m->_container[id.index].matrix.world.setUpper3x3( Matrix3::rotationZYX( eulerXYZ ) );
-            }
-            else
-            {
-                bxLogError( "invalid data size" );
-            }
+            if ( dataSize != 12 )
+                goto label_cameraAttributeInvalidSize;
+            const float* xyz = (float*)data;
+            const Vector3 eulerXYZ( xyz[0], xyz[1], xyz[2] );
+            m->_container[id.index].matrix.world.setUpper3x3( Matrix3::rotationZYX( eulerXYZ ) );
+        }
+        else if( string::equal( "zNear", attribName ) )
+        {
+            if ( dataSize != 4 )
+                goto label_cameraAttributeInvalidSize;
+
+            const float value = *(float*)data;
+            m->_container[id.index].params.zNear = value;
+        }
+        else if ( string::equal( "zFar", attribName ) )
+        {
+            if ( dataSize != 4 )
+                goto label_cameraAttributeInvalidSize;
+            
+            const float value = *(float*)data;
+            m->_container[id.index].params.zFar = value;
         }
         else
         {
             bxLogError( "camera attribute '%s' not found", attribName );
         }
+
+        return;
+
+    label_cameraAttributeInvalidSize:
+        bxLogError( "invalid data size" );
     }
 }///
 

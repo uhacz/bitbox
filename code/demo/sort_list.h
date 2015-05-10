@@ -40,7 +40,7 @@ namespace bx
             c.current = begin;
         }
 
-        SYS_ASSERT( ilist == N_TASKS );
+        SYS_ASSERT( ilist <= N_TASKS );
     }
 
 
@@ -77,6 +77,50 @@ namespace bx
 		slist->items[index] = item;
 		return index;
 	}
+
+    template< typename Titem >
+    bxChunk sortList_merge( bxSortList<Titem>* slist, bxChunk* chunks, int nChunks )
+    {
+        //bxChunk* chunks = slistColorChunks;
+
+        bxChunk* frontChunk = chunks;
+        bxChunk* backChunk = chunks + (nChunks - 1);
+        while ( frontChunk != backChunk )
+        {
+            while ( frontChunk->current < frontChunk->end )
+            {
+                slist->items[frontChunk->current++] = slist->items[--backChunk->current];
+                if ( backChunk->current <= backChunk->begin )
+                {
+                    --backChunk;
+                }
+
+                if ( frontChunk == backChunk )
+                    break;
+            }
+
+            if ( frontChunk == backChunk )
+                break;
+            else
+                ++frontChunk;
+        }
+
+        int nSortItems = chunks[0].current;
+        for ( int ichunk = 1; ichunk < nChunks; ++ichunk )
+        {
+            const bxChunk& c = chunks[ichunk];
+            if ( c.current == c.begin )
+                break;
+
+            nSortItems = c.current;
+        }
+        bxChunk finalChunk;
+        finalChunk.begin = 0;
+        finalChunk.current = nSortItems;
+        finalChunk.end = nSortItems;
+        
+        return finalChunk;
+    }
 
     template< typename Titem >
     void sortList_sortLess( bxSortList<Titem>* slist, const bxChunk& chunk )

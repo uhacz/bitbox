@@ -328,13 +328,15 @@ namespace bxVoxel
     void map_getShell( array_t<bxVoxel_GpuData>& vxData, const bxVoxel_Map& map )
     {
         array::reserve( vxData, (int)map.size );
-        vxData.size = map_getShell( array::begin( vxData ), array::capacity( vxData ), map );
+        vxData.size = map_getShell( array::begin( vxData ), array::capacity( vxData ), map, NULL );
     }
 
-    int map_getShell( bxVoxel_GpuData* vxData, int xvDataCapacity, const bxVoxel_Map& map )
+    int map_getShell( bxVoxel_GpuData* vxData, int xvDataCapacity, const bxVoxel_Map& map, bxAABB* bbox )
     {
         //const u32 gridSize = voct->nodes[0].size;
         //bxGrid grid( gridSize, gridSize, gridSize );
+
+        bxAABB aabb = bxAABB::prepare();
 
         int vxDataSize = 0;
 
@@ -346,11 +348,11 @@ namespace bxVoxel
             _Map_keyToXYZ( centerXYZ, cell->key );
 
             int emptyFound = 0;
-            for ( int iz = -1; iz <= 1 && !emptyFound; iz += 2 )
+            for ( int iz = -1; iz <= 1 && !emptyFound; iz += 1 )
             {
-                for ( int iy = -1; iy <= 1 && !emptyFound; iy += 2 )
+                for ( int iy = -1; iy <= 1 && !emptyFound; iy += 1 )
                 {
-                    for ( int ix = -1; ix <= 1 && !emptyFound; ix += 2 )
+                    for ( int ix = -1; ix <= 1 && !emptyFound; ix += 1 )
                     {
                         const size_t key = _Map_createKey( centerXYZ[0] + ix, centerXYZ[1] + iy, centerXYZ[2] + iz );
                         emptyFound = hashmap::lookup( map, key ) == 0;
@@ -361,10 +363,19 @@ namespace bxVoxel
             if ( emptyFound )
             {
                 vxData[vxDataSize++] = _Map_createVoxelData( centerXYZ, (u32)cell->value );
+
+                const Vector3 pos( (float)centerXYZ[0], (float)centerXYZ[1], (float)centerXYZ[2] );
+                aabb = bxAABB::extend( aabb, pos );
             }
 
             cell = cellIt.next();
         }
+
+        if( bbox )
+        {
+            bbox[0] = aabb;
+        }
+
         return vxDataSize;
     }
 
