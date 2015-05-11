@@ -82,6 +82,7 @@
   <ItemGroup>
     <ClInclude Include="array.h" />
     <ClInclude Include="array_util.h" />
+    <ClInclude Include="ascii_script.h" />
     <ClInclude Include="bbox.h" />
     <ClInclude Include="buffer.h" />
     <ClInclude Include="buffer_utils.h" />
@@ -126,6 +127,7 @@
     <ClInclude Include="vectormath\vectormath.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ascii_script.cpp" />
     <ClCompile Include="buffer.cpp" />
     <ClCompile Include="debug.c" />
     <ClCompile Include="dlmalloc.c" />

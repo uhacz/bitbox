@@ -150,7 +150,7 @@ public:
         bxGfxCamera_SceneScriptCallback cameraScriptCallback;
         cameraScriptCallback._menago = vxscene._cameraManager;
 
-        bxScene_Script sceneScript;
+        bxAsciiScript sceneScript;
         bxScene::script_addCallback( &sceneScript, "voxel", &voxelScriptCallback );
         bxScene::script_addCallback( &sceneScript, "camera", &cameraScriptCallback );
         bxScene::script_addCallback( &sceneScript, "camera_push", &cameraScriptCallback );

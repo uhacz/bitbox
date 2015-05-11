@@ -156,3 +156,14 @@ namespace bxGfx
     void camera_setAttrubute( bxGfxCamera_Manager* m, bxGfxCamera_Id id, const char* attribName, const void* data, unsigned dataSize );
 
 }///
+
+#include <util/ascii_script.h>
+struct bxGfxCamera_SceneScriptCallback : public bxAsciiScript_Callback
+{
+    virtual void onCreate( const char* typeName, const char* objectName );
+    virtual void onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData );
+    virtual void onCommand( const char* cmdName, const bxAsciiScript_AttribData& args );
+
+    bxGfxCamera_Manager* _menago;
+    bxGfxCamera_Id _currentId;
+};
