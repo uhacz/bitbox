@@ -16,9 +16,9 @@ struct bxGdiSortList
 namespace bxGdi
 {
 	template< typename Titem >
-	void sortList_new( bxSortList<Titem>** slist, int capacity, bxAllocator* allocator )
+	void sortList_new( bxGdiSortList<Titem>** slist, int capacity, bxAllocator* allocator )
 	{
-		typedef bxSortList<Titem> SortList;
+		typedef bxGdiSortList<Titem> SortList;
 		int memSize = 0;
 		memSize += sizeof( SortList );
 		memSize += capacity * sizeof( Titem );
@@ -34,14 +34,14 @@ namespace bxGdi
 		slist[0]->allocator = allocator;
 	}
 	template< typename Titem >
-	void sortList_delete( bxSortList<Titem>** slist )
+    void sortList_delete( bxGdiSortList<Titem>** slist )
 	{
 		bxAllocator* allocator = slist[0]->allocator;
 		BX_FREE0( allocator, slist[0] );
 	}
 
 	template< typename Titem >
-	int sortList_chunkAdd( bxSortList<Titem>* slist, bxChunk* chunk, Titem item )
+    int sortList_chunkAdd( bxGdiSortList<Titem>* slist, bxChunk* chunk, Titem item )
 	{
 		SYS_ASSERT( chunk->end - chunk->current >= 1 );
 		const int index = chunk->current++;
@@ -50,7 +50,7 @@ namespace bxGdi
 	}
 
     template< typename Titem >
-    bxChunk sortList_merge( bxSortList<Titem>* slist, bxChunk* chunks, int nChunks )
+    bxChunk sortList_merge( bxGdiSortList<Titem>* slist, bxChunk* chunks, int nChunks )
     {
         //bxChunk* chunks = slistColorChunks;
 
@@ -96,7 +96,7 @@ namespace bxGdi
     }
 
     template< typename Titem >
-    void sortList_sortLess( bxSortList<Titem>* slist, const bxChunk& chunk )
+    void sortList_sortLess( bxGdiSortList<Titem>* slist, const bxChunk& chunk )
     {
         std::sort( slist->items + chunk.begin, slist->items + chunk.current, std::less<Titem>() );
     }

@@ -90,6 +90,7 @@
     <ClInclude Include="gdi_render_source.h" />
     <ClInclude Include="gdi_shader.h" />
     <ClInclude Include="gdi_shader_reflection.h" />
+    <ClInclude Include="gdi_sort_list.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dx11\DDSTextureLoader.cpp" />

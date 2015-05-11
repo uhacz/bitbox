@@ -11,20 +11,15 @@
 #include "demo_engine.h"
 #include "simple_scene.h"
 #include "util/perlin_noise.h"
-#include "voxel.h"
-#include "voxel_file.h"
-#include "voxel_scene.h"
-#include "voxel_gfx.h"
-#include "grid.h"
+#include <voxel/voxel.h>
+#include <voxel/voxel_file.h>
+#include <voxel/voxel_scene.h>
+#include <voxel/voxel_gfx.h>
 #include <gfx/gfx_debug_draw.h>
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-//static bxVoxel_Container* vxContainer = 0;
-//const int N_OBJECTS = 15;
-//static bxVoxel_ObjectId vxObject[N_OBJECTS];
-
 
 struct bxVoxelFramebuffer
 {

@@ -30,6 +30,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demoRT", "code\demoRT\demoR
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "code\tools\lua\lua.vcxproj", "{492E3CD2-C843-46BC-87B3-048B85E35866}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "voxel", "code\voxel\voxel.vcxproj", "{449B4222-E0A4-43C3-8C49-D55CA856E420}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -76,6 +78,10 @@ Global
 		{492E3CD2-C843-46BC-87B3-048B85E35866}.Debug|x64.Build.0 = Debug|x64
 		{492E3CD2-C843-46BC-87B3-048B85E35866}.Release|x64.ActiveCfg = Release|x64
 		{492E3CD2-C843-46BC-87B3-048B85E35866}.Release|x64.Build.0 = Release|x64
+		{449B4222-E0A4-43C3-8C49-D55CA856E420}.Debug|x64.ActiveCfg = Debug|x64
+		{449B4222-E0A4-43C3-8C49-D55CA856E420}.Debug|x64.Build.0 = Debug|x64
+		{449B4222-E0A4-43C3-8C49-D55CA856E420}.Release|x64.ActiveCfg = Release|x64
+		{449B4222-E0A4-43C3-8C49-D55CA856E420}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

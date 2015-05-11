@@ -92,13 +92,6 @@
     <ClCompile Include="simple_scene.cpp" />
     <ClCompile Include="test_console.cpp" />
     <ClCompile Include="tree.cpp" />
-    <ClCompile Include="voxel.cpp" />
-    <ClCompile Include="voxel_container.cpp" />
-    <ClCompile Include="voxel_file.cpp" />
-    <ClCompile Include="voxel_gfx.cpp" />
-    <ClCompile Include="voxel_octree.cpp" />
-    <ClCompile Include="voxel_scene.cpp" />
-    <ClCompile Include="voxel_util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\gdi\gdi.vcxproj">
@@ -122,24 +115,18 @@
     <ProjectReference Include="..\util\util.vcxproj">
       <Project>{c72ded4c-e82a-4e26-b7a8-715f4747ccec}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\voxel\voxel.vcxproj">
+      <Project>{449b4222-e0a4-43c3-8c49-d55ca856e420}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="config.h" />
     <ClInclude Include="demo_engine.h" />
     <ClInclude Include="entity.h" />
-    <ClInclude Include="grid.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="simple_scene.h" />
-    <ClInclude Include="sort_list.h" />
     <ClInclude Include="test_console.h" />
     <ClInclude Include="tree.h" />
-    <ClInclude Include="voxel.h" />
-    <ClInclude Include="voxel_container.h" />
-    <ClInclude Include="voxel_file.h" />
-    <ClInclude Include="voxel_gfx.h" />
-    <ClInclude Include="voxel_octree.h" />
-    <ClInclude Include="voxel_scene.h" />
-    <ClInclude Include="voxel_type.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
