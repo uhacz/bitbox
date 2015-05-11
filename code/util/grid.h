@@ -1,5 +1,7 @@
 #pragma once
 
+#include "type.h"
+
 struct bxGrid
 {
     u32 width;

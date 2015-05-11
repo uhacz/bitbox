@@ -1,11 +1,11 @@
 #pragma once
 
-#include <util/range_splitter.h>
 #include <util/buffer_utils.h>
 #include <util/memory.h>
+#include <util/chunk.h>
 
 template< typename Titem >
-struct bxSortList
+struct bxGdiSortList
 {
     typedef Titem ItemType;
     Titem* items;
@@ -13,37 +13,8 @@ struct bxSortList
 	bxAllocator* allocator;
 };
 
-struct bxChunk
+namespace bxGdi
 {
-    i32 begin;
-    i32 end;
-    i32 current;
-};
-
-namespace bx
-{
-    inline void chunk_create( bxChunk* chunks, int nChunks, int nItems )
-    {
-        const int N_TASKS = nChunks;
-        bxRangeSplitter splitter = bxRangeSplitter::splitByTask( nItems, N_TASKS );
-        int ilist = 0;
-        while ( splitter.elementsLeft() )
-        {
-            const int begin = splitter.grabbedElements;
-            const int grab = splitter.nextGrab();
-            const int end = begin + grab;
-
-            SYS_ASSERT( ilist < N_TASKS );
-            bxChunk& c = chunks[ilist++];
-            c.begin = begin;
-            c.end = end;
-            c.current = begin;
-        }
-
-        SYS_ASSERT( ilist <= N_TASKS );
-    }
-
-
 	template< typename Titem >
 	void sortList_new( bxSortList<Titem>** slist, int capacity, bxAllocator* allocator )
 	{
