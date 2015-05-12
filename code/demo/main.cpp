@@ -2,10 +2,11 @@
 
 #include <util/time.h>
 #include <util/handle_manager.h>
+#include <util/config.h>
 
 #include "test_console.h"
 #include "entity.h"
-#include "config.h"
+
 //#include "scene.h"
 
 #include "demo_engine.h"
@@ -36,20 +37,12 @@ struct bxVoxelFramebuffer
     int height() const { return textures[0].height; }
 };
 
-
-
-
-
 struct bxVoxel_Scene
 {
     bxVoxel_Container* _container;
     bxGfxCamera_Manager* _cameraManager;
-    
     bxGfxCamera_InputContext cameraInputCtx;
 };
-
-
-
 
 static bxVoxelFramebuffer fb;
 static bxVoxel_Scene vxscene;

@@ -1,7 +1,7 @@
 #include "demo_engine.h"
 #include <gfx/gfx_camera.h>
 #include <gfx/gfx_debug_draw.h>
-#include "config.h"
+#include <util/config.h>
 
 
 void bxDemoEngine_startup( bxDemoEngine* dengine )

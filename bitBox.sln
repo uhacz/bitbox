@@ -32,6 +32,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "code\tools\lua\lua.v
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "voxel", "code\voxel\voxel.vcxproj", "{449B4222-E0A4-43C3-8C49-D55CA856E420}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo_voxel", "code\demo_voxel\demo_voxel.vcxproj", "{EE5FE887-5D56-4693-8C38-87422EDA9DBF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "engine", "code\engine\engine.vcxproj", "{B8C282A6-C75B-40D0-A85D-461B0893E8A7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -82,6 +86,14 @@ Global
 		{449B4222-E0A4-43C3-8C49-D55CA856E420}.Debug|x64.Build.0 = Debug|x64
 		{449B4222-E0A4-43C3-8C49-D55CA856E420}.Release|x64.ActiveCfg = Release|x64
 		{449B4222-E0A4-43C3-8C49-D55CA856E420}.Release|x64.Build.0 = Release|x64
+		{EE5FE887-5D56-4693-8C38-87422EDA9DBF}.Debug|x64.ActiveCfg = Debug|x64
+		{EE5FE887-5D56-4693-8C38-87422EDA9DBF}.Debug|x64.Build.0 = Debug|x64
+		{EE5FE887-5D56-4693-8C38-87422EDA9DBF}.Release|x64.ActiveCfg = Release|x64
+		{EE5FE887-5D56-4693-8C38-87422EDA9DBF}.Release|x64.Build.0 = Release|x64
+		{B8C282A6-C75B-40D0-A85D-461B0893E8A7}.Debug|x64.ActiveCfg = Debug|x64
+		{B8C282A6-C75B-40D0-A85D-461B0893E8A7}.Debug|x64.Build.0 = Debug|x64
+		{B8C282A6-C75B-40D0-A85D-461B0893E8A7}.Release|x64.ActiveCfg = Release|x64
+		{B8C282A6-C75B-40D0-A85D-461B0893E8A7}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
