@@ -24,7 +24,7 @@ namespace bxConfig
 
         config_init( __cfg->config() );
         int ierr = config_read_file( __cfg->config(), "global.cfg" );
-        if( ierr == CONFIG_FALSE )
+        if ( ierr == CONFIG_FALSE )
         {
             BX_DELETE0( bxDefaultAllocator(), __cfg );
             return -1;
@@ -56,6 +56,6 @@ namespace bxConfig
     {
         double result = defaultValue;
         config_lookup_float( __cfg->config(), name, &result );
-        return (float)result;        
+        return (float)result;
     }
 }
