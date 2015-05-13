@@ -86,6 +86,8 @@
     <ClInclude Include="gfx_gui.h" />
     <ClInclude Include="gfx_lights.h" />
     <ClInclude Include="gfx_material.h" />
+    <ClInclude Include="gfx_mesh_renderer.h" />
+    <ClInclude Include="gfx_postprocess.h" />
     <ClInclude Include="gfx_render_list.h" />
     <ClInclude Include="gfx_shadows.h" />
     <ClInclude Include="gfx_sort_list.h" />
@@ -102,6 +104,8 @@
     <ClCompile Include="gfx_gui.cpp" />
     <ClCompile Include="gfx_lights.cpp" />
     <ClCompile Include="gfx_material.cpp" />
+    <ClCompile Include="gfx_mesh_renderer.cpp" />
+    <ClCompile Include="gfx_postprocess.cpp" />
     <ClCompile Include="gfx_render_list.cpp" />
     <ClCompile Include="gfx_shadows.cpp" />
     <ClCompile Include="gfx_sort_list.cpp" />

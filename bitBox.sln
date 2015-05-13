@@ -33,6 +33,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "voxel", "code\voxel\voxel.vcxproj", "{449B4222-E0A4-43C3-8C49-D55CA856E420}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo_voxel", "code\demo_voxel\demo_voxel.vcxproj", "{EE5FE887-5D56-4693-8C38-87422EDA9DBF}"
+	ProjectSection(ProjectDependencies) = postProject
+		{752EE42B-6767-4D1C-8CE2-227E00965D51} = {752EE42B-6767-4D1C-8CE2-227E00965D51}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "engine", "code\engine\engine.vcxproj", "{B8C282A6-C75B-40D0-A85D-461B0893E8A7}"
 EndProject

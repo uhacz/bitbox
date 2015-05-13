@@ -160,7 +160,7 @@ public:
 
 
         bxGfxDebugDraw::flush( gdiContext, currentCamera.matrix.viewProj );
-        gfxContext->frame_rasterizeFramebuffer( gdiContext, fb.textures[bxVoxelFramebuffer::eCOLOR], currentCamera );
+        bxGfx::rasterizeFramebuffer( gdiContext, fb.textures[bxVoxelFramebuffer::eCOLOR], currentCamera );
         
         bxGfxGUI::draw( gdiContext );
         gdiContext->backend()->swap();

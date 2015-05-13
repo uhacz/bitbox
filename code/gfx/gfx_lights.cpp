@@ -1,10 +1,13 @@
 #include "gfx_lights.h"
 #include "gfx_camera.h"
 #include "gfx.h"
+#include "gfx_type.h"
+#include "gfx_debug_draw.h"
+
 #include <util/memory.h>
 #include <util/buffer_utils.h>
 #include <util/color.h>
-#include "gfx_debug_draw.h"
+#include <util/bbox.h>
 
 bxGfxLightManager::bxGfxLightManager()
     : _memoryHandle( 0 )
