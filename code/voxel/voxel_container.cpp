@@ -137,6 +137,7 @@ namespace bxVoxel
 			dev->releaseBuffer(&data.voxelDataGpu[dataIndex]);
 			data.map[dataIndex].~bxVoxel_Map();
 			data.attribute[dataIndex].release();
+            string::free_and_null( &data.name[dataIndex] );
 		}
 	}///
 	void container_unload(bxGdiDeviceBackend* dev, bxVoxel_Container* cnt)
@@ -168,6 +169,7 @@ namespace bxVoxel
 			bxVoxel_Container::Data& data = cnt->_data;
 
 			int memSize = 0;
+            memSize += newCapacity * sizeof( *data.name );
 			memSize += newCapacity * sizeof(*data.worldPose);
 			memSize += newCapacity * sizeof(*data.aabb);
 			//memSize += newCapacity * sizeof( *data.octree );
@@ -184,6 +186,7 @@ namespace bxVoxel
 			memset(&newData, 0x00, sizeof(bxVoxel_Container::Data));
 
 			bxBufferChunker chunker(mem, memSize);
+            newData.name = chunker.add<char*>( newCapacity );
 			newData.worldPose = chunker.add<Matrix4>(newCapacity);
 			newData.aabb = chunker.add<bxAABB>(newCapacity);
 			//newData.octree       = chunker.add<bxVoxel_Octree*>( newCapacity );
@@ -200,14 +203,15 @@ namespace bxVoxel
 
 			if (data._memoryHandle)
 			{
-				memcpy(newData.worldPose, data.worldPose, data.size * sizeof(*data.worldPose));
-				memcpy(newData.aabb, data.aabb, data.size * sizeof(*data.aabb));
+                memcpy( newData.name, data.name, data.size * sizeof( *data.name ) );
+                memcpy( newData.worldPose, data.worldPose, data.size * sizeof(*data.worldPose));
+				memcpy( newData.aabb, data.aabb, data.size * sizeof(*data.aabb));
 				//memcpy( newData.octree, data.octree, data.size * sizeof( *data.octree ) );
-				memcpy(newData.map, data.map, data.size * sizeof(*data.map));
-				memcpy(newData.voxelDataObj, data.voxelDataObj, data.size * sizeof(*data.voxelDataObj));
-				memcpy(newData.voxelDataGpu, data.voxelDataGpu, data.size * sizeof(*data.voxelDataGpu));
-				memcpy(newData.attribute, data.attribute, data.size * sizeof(*data.attribute));
-				memcpy(newData.indices, data.indices, data.size * sizeof(*data.indices));
+				memcpy( newData.map, data.map, data.size * sizeof(*data.map));
+				memcpy( newData.voxelDataObj, data.voxelDataObj, data.size * sizeof(*data.voxelDataObj));
+				memcpy( newData.voxelDataGpu, data.voxelDataGpu, data.size * sizeof(*data.voxelDataGpu));
+				memcpy( newData.attribute, data.attribute, data.size * sizeof(*data.attribute));
+				memcpy( newData.indices, data.indices, data.size * sizeof(*data.indices));
 
 				BX_FREE0(cnt->_alloc_main, data._memoryHandle);
 			}
@@ -218,7 +222,7 @@ namespace bxVoxel
 
 
 
-	bxVoxel_ObjectId object_new(bxVoxel_Container* cnt)
+	bxVoxel_ObjectId object_new(bxVoxel_Container* cnt, const char* name )
 	{
 		if (cnt->_data.size + 1 > cnt->_data.capacity)
 		{
@@ -228,6 +232,8 @@ namespace bxVoxel
 		bxVoxel_Container::Data& data = cnt->_data;
 		const int dataIndex = data.size;
 
+        SYS_ASSERT( data.name == 0 );
+        data.name[dataIndex] = string::duplicate( NULL, name );
 		data.worldPose[dataIndex] = Matrix4::identity();
 		data.aabb[dataIndex] = bxAABB(Vector3(-1.f), Vector3(1.f));
 		//data.octree[dataIndex] = 0; // octree_new( gridSize, menago->_alloc_octree );
@@ -259,7 +265,21 @@ namespace bxVoxel
 		return id;
 	}
 
-	void object_delete(bxGdiDeviceBackend* dev, bxVoxel_Container* cnt, bxVoxel_ObjectId* id)
+    bxVoxel_ObjectId object_find( const bxVoxel_Container* container, const char* name )
+    {
+        SYS_NOT_IMPLEMENTED;
+        bxVoxel_ObjectId id = { 0 };
+        return id;
+        //const bxVoxel_Container::Data& data = container->_data;
+        //for ( int iobj = 0; iobj < data.size; ++iobj )
+        //{
+        //    if( string::equal( data.name[iobj], name ) )
+        //    {
+        //    }
+        //}
+    }
+    
+    void object_delete(bxGdiDeviceBackend* dev, bxVoxel_Container* cnt, bxVoxel_ObjectId* id)
 	{
 		bxVoxel_Container::Data& data = cnt->_data;
 		if (data.indices[id->index].generation != id->generation)

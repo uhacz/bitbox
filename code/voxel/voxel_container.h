@@ -38,16 +38,15 @@ struct bxVoxel_Container
 {
 	struct Data
 	{
-		Matrix4*            worldPose;
+        char**              name;
+        Matrix4*            worldPose;
 		bxAABB*             aabb;
-		//bxVoxel_Octree**    octree;
+		
 		bxVoxel_Map*        map;
 		bxVoxel_ObjectData* voxelDataObj;
 		bxGdiBuffer*        voxelDataGpu;
 		bxVoxel_ObjectAttribute* attribute;
-
 		bxVoxel_ObjectId*   indices;
-
 
 		i32 capacity;
 		i32 size;
@@ -65,8 +64,3 @@ struct bxVoxel_Container
 		return _data.indices[id.index].index;
 	}
 };
-
-namespace bxVoxel
-{
-	
-}

@@ -1,11 +1,11 @@
 @camera persp
-$pos 0.0 0.0 150.0
+$pos 0.0 50.0 150.0
 :camera_push "persp"
 
 @voxel groundPlane
 $pos 0.0 0.0 0.0
-:addPlane 128 1128 0xFF0000FF
+:addPlane 128 1128 96
 
 @voxel rocket
 $pos 0.0 8.0 0.0
-:addBox 16 16 16 0xFF0000FF
+:addBox 16 16 16 128

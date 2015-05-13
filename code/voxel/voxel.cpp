@@ -20,7 +20,7 @@ namespace bxVoxel
     {
 		gfx_shutdown(dev);
     }
-    
+
   //  void gfx_draw( bxGdiContext* ctx, bxVoxel_Container* cnt, const bxGfxCamera& camera )
   //  {
   //      //bxVoxel_Container* menago = &vctx->menago;

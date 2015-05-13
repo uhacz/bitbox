@@ -30,13 +30,24 @@ void bxVoxel_SceneScriptCallback::onCommand( const char* cmdName, const bxAsciiS
             bxVoxel::util_addPlane( bxVoxel::object_map( _container, _currentId ), w, h, color );
         }
     }
-    if ( string::equal( cmdName, "addSphere" ) )
+    else if ( string::equal( cmdName, "addSphere" ) )
     {
         if ( _container && bxVoxel::object_valid( _container, _currentId ) )
         {
             const int r = args.inumber[0];
             const int cindex = args.inumber[1];
             bxVoxel::util_addSphere( bxVoxel::object_map( _container, _currentId ), r, cindex );
+        }
+    }
+    else if ( string::equal( cmdName, "addBox" ) )
+    {
+        if ( _container && bxVoxel::object_valid( _container, _currentId ) )
+        {
+            const int w = args.inumber[0];
+            const int h = args.inumber[1];
+            const int d = args.inumber[2];
+            const int cindex = args.inumber[3];
+            bxVoxel::util_addBox( bxVoxel::object_map( _container, _currentId ), w, h, d, cindex );
         }
     }
 }

@@ -37,7 +37,8 @@ namespace bxVoxel
     
     ////
     ////
-    bxVoxel_ObjectId object_new( bxVoxel_Container* container );
+    bxVoxel_ObjectId object_new( bxVoxel_Container* container, const char* name );
+    bxVoxel_ObjectId object_find( const bxVoxel_Container* container, const char* name );
     void object_delete( bxGdiDeviceBackend* dev, bxVoxel_Container* container, bxVoxel_ObjectId* vobj );
     bool object_valid( bxVoxel_Container* container, bxVoxel_ObjectId id );
     int object_setAttribute( bxVoxel_Container* container, bxVoxel_ObjectId id, const char* attrName, const void* attrData, unsigned attrDataSize );
