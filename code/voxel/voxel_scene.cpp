@@ -7,7 +7,7 @@
 ////
 void bxVoxel_SceneScriptCallback::onCreate(const char* typeName, const char* objectName)
 {
-    _currentId = bxVoxel::object_new( _container );
+    _currentId = bxVoxel::object_new( _container, objectName );
 }
 
 void bxVoxel_SceneScriptCallback::onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData )

@@ -232,7 +232,7 @@ namespace bxVoxel
 		bxVoxel_Container::Data& data = cnt->_data;
 		const int dataIndex = data.size;
 
-        SYS_ASSERT( data.name == 0 );
+        SYS_ASSERT( data.name[dataIndex] == 0 );
         data.name[dataIndex] = string::duplicate( NULL, name );
 		data.worldPose[dataIndex] = Matrix4::identity();
 		data.aabb[dataIndex] = bxAABB(Vector3(-1.f), Vector3(1.f));
@@ -267,16 +267,29 @@ namespace bxVoxel
 
     bxVoxel_ObjectId object_find( const bxVoxel_Container* container, const char* name )
     {
-        SYS_NOT_IMPLEMENTED;
         bxVoxel_ObjectId id = { 0 };
+        
+        const bxVoxel_Container::Data& data = container->_data;
+        int dataIndex = 0;
+        for ( ; dataIndex < data.size; ++dataIndex )
+        {
+            if( string::equal( data.name[dataIndex], name ) )
+            {
+                break;
+            }
+        }
+
+        for( int iobj = 0; iobj < data.size; ++iobj )
+        {
+            if( dataIndex == data.indices[iobj].index )
+            {
+                id.index = iobj;
+                id.generation = data.indices[iobj].generation;
+                break;
+            }
+        }
+
         return id;
-        //const bxVoxel_Container::Data& data = container->_data;
-        //for ( int iobj = 0; iobj < data.size; ++iobj )
-        //{
-        //    if( string::equal( data.name[iobj], name ) )
-        //    {
-        //    }
-        //}
     }
     
     void object_delete(bxGdiDeviceBackend* dev, bxVoxel_Container* cnt, bxVoxel_ObjectId* id)
