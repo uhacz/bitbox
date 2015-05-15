@@ -20,7 +20,7 @@ struct bxRocket_DynamicState
 
 struct bxRocekt_Controller
 {
-    //// PID controller of inverted pendulum
+    
 };
 
 struct bxRocket_Entity
