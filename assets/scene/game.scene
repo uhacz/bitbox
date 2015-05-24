@@ -1,0 +1,4 @@
+@camera persp
+$pos 0.0 0.0 10.0
+$zFar 1000.0
+:camera_push "persp"

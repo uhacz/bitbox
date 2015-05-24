@@ -18,7 +18,8 @@ bxDemoSimpleScene::bxDemoSimpleScene()
 bxDemoSimpleScene::~bxDemoSimpleScene()
 {
 }
-void bxDemoSimpleScene_startUp(bxDemoEngine* engine, bxDemoSimpleScene* scene)
+
+void bxDemoSimpleScene_startup(bxDemoEngine* engine, bxDemoSimpleScene* scene)
 {
     scene->componentMesh._Startup();
     engine->entityManager.register_releaseCallback( bxMeshComponent_Manager::_Callback_releaseEntity, &scene->componentMesh );
@@ -57,7 +58,7 @@ void bxDemoSimpleScene_startUp(bxDemoEngine* engine, bxDemoSimpleScene* scene)
         }
     }
 
-    scene->rsource = bxGfxContext::shared()->rsource.sphere;
+    scene->rsource = bxGfx::globalResources()->mesh.sphere;
 
     scene->rList = bxGfx::renderList_new( 1024 * 6, 1024 * 8, bxDefaultAllocator() );
 
@@ -75,8 +76,8 @@ void bxDemoSimpleScene_startUp(bxDemoEngine* engine, bxDemoSimpleScene* scene)
 
     bxGdiRenderSource* rsources[] =
     {
-        engine->gfxContext->shared()->rsource.box,
-        engine->gfxContext->shared()->rsource.sphere,
+        bxGfx::globalResources()->mesh.box,
+        bxGfx::globalResources()->mesh.sphere,
     };
     bxGdiShaderFx_Instance* materials[] =
     {
@@ -86,9 +87,9 @@ void bxDemoSimpleScene_startUp(bxDemoEngine* engine, bxDemoSimpleScene* scene)
         engine->gfxMaterials->findMaterial( "white" ),
     };
 
-    const int gridX = 16;
-    const int gridY = 16;
-    const int gridZ = 16;
+    const int gridX = 4;
+    const int gridY = 4;
+    const int gridZ = 4;
 
     const float cellSize = 1.5f;
     const float yOffset = 4.f;
@@ -129,7 +130,7 @@ void bxDemoSimpleScene_startUp(bxDemoEngine* engine, bxDemoSimpleScene* scene)
 
         {
             const Matrix4 world = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -3.f, 0.0f ) ), Vector3( 100.f, 0.1f, 100.f ) );
-            bxGdiRenderSource* box = engine->gfxContext->shared()->rsource.box;
+            bxGdiRenderSource* box = bxGfx::globalResources()->mesh.box;
 
             bxGdiShaderFx_Instance* fxI = engine->gfxMaterials->findMaterial( "blue" );
 

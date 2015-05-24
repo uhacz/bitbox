@@ -1,13 +1,13 @@
 #pragma once
 #include <system/window.h>
 
-
-#include <resource_manager/resource_manager.h>
+#include <engine/engine.h>
 
 #include <gdi/gdi_shader.h>
-#include <gdi/gdi_context.h>
 
 #include <gfx/gfx.h>
+#include <gfx/gfx_mesh_renderer.h>
+#include <gfx/gfx_postprocess.h>
 #include <gfx/gfx_material.h>
 #include <gfx/gfx_gui.h>
 
@@ -15,13 +15,10 @@
 
 struct bxDemoEngine
 {
-    bxGdiDeviceBackend*   gdiDevice;
-    bxGdiContext*         gdiContext;
     bxGfxContext*         gfxContext;
     bxGfxLights*          gfxLights;
     bxGfxPostprocess*     gfxPostprocess;
     bxGfxMaterialManager* gfxMaterials;
-    bxResourceManager*    resourceManager;
 
     bxGfxLightsGUI        gui_lights;
     bxGfxShaderFxGUI      gui_shaderFx;
@@ -33,6 +30,6 @@ struct bxDemoEngine
 };
 
 
-void bxDemoEngine_startup( bxDemoEngine* dengine );
-void bxDemoEngine_shutdown( bxDemoEngine* dengine );
-void bxDemoEngine_frameDraw( bxWindow* win, bxDemoEngine* dengine, bxGfxRenderList* rList, const bxGfxCamera& camera, float deltaTime );
+void bxDemoEngine_startup( bxEngine* e, bxDemoEngine* dengine );
+void bxDemoEngine_shutdown( bxEngine* e, bxDemoEngine* dengine );
+void bxDemoEngine_frameDraw( bxWindow* win, bxEngine* e, bxDemoEngine* dengine, bxGfxRenderList* rList, const bxGfxCamera& camera, float deltaTime );

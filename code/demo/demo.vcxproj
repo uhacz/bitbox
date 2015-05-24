@@ -93,6 +93,9 @@
     <ClCompile Include="tree.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\engine\engine.vcxproj">
+      <Project>{b8c282a6-c75b-40d0-a85d-461b0893e8a7}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\gdi\gdi.vcxproj">
       <Project>{6c37bb51-ecab-42a3-8eb3-30e45503b92d}</Project>
     </ProjectReference>

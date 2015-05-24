@@ -29,6 +29,6 @@ struct bxDemoSimpleScene
 
 extern bxDemoSimpleScene* __simpleScene;
 
-void bxDemoSimpleScene_startUp( bxDemoEngine* engine, bxDemoSimpleScene* scene );
+void bxDemoSimpleScene_startup( bxDemoEngine* engine, bxDemoSimpleScene* scene );
 void bxDemoSimpleScene_shutdown( bxDemoEngine* engine, bxDemoSimpleScene* scene );
 void bxDemoSimpleScene_frame( bxWindow* win, bxDemoEngine* engine, bxDemoSimpleScene* scene, u64 deltaTimeUS );

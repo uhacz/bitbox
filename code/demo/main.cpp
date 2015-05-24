@@ -1,28 +1,17 @@
 #include <system/application.h>
+#include <system/window.h>
+
+#include <engine/engine.h>
 
 #include <util/time.h>
 #include <util/handle_manager.h>
 #include <util/config.h>
-
-#include "test_console.h"
-#include "entity.h"
-
-//#include "scene.h"
-
-#include "demo_engine.h"
-#include "simple_scene.h"
-#include "util/perlin_noise.h"
-#include <voxel/voxel.h>
-#include <voxel/voxel_file.h>
-#include <voxel/voxel_scene.h>
-#include <voxel/voxel_gfx.h>
+#include <gfx/gfx_camera.h>
 #include <gfx/gfx_debug_draw.h>
+#include "gfx/gfx_gui.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
-struct bxVoxelFramebuffer
+struct bxDemoFramebuffer
 {
     enum
     {
@@ -36,154 +25,61 @@ struct bxVoxelFramebuffer
     int width()  const { return textures[0].width; }
     int height() const { return textures[0].height; }
 };
+static bxDemoFramebuffer __framebuffer;
 
-struct bxVoxel_Scene
+struct bxDemoScene
 {
-    bxVoxel_Container* _container;
     bxGfxCamera_Manager* _cameraManager;
     bxGfxCamera_InputContext cameraInputCtx;
 };
+static bxDemoScene __scene;
 
-static bxVoxelFramebuffer fb;
-static bxVoxel_Scene vxscene;
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+
 class bxDemoApp : public bxApplication
 {
 public:
     virtual bool startup( int argc, const char** argv )
     {
-        bxConfig::global_init();
-        //testBRDF();
-        
-        bxDemoEngine_startup( &_engine );
-        
+        bxEngine_startup( &_engine );
+
         const int fbWidth = 1920;
         const int fbHeight = 1080;
-        fb.textures[bxVoxelFramebuffer::eCOLOR] = _engine.gdiDevice->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET|bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        fb.textures[bxVoxelFramebuffer::eDEPTH] = _engine.gdiDevice->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL|bxGdi::eBIND_SHADER_RESOURCE );
+        __framebuffer.textures[bxDemoFramebuffer::eCOLOR] = _engine.gdiDevice->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        __framebuffer.textures[bxDemoFramebuffer::eDEPTH] = _engine.gdiDevice->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
 
-        time = 0.f;
-
-        bxVoxel::_Startup( _engine.gdiDevice, _engine.resourceManager );
-        vxscene._container = bxVoxel::container_new();
-
-        vxscene._cameraManager = bxGfx::cameraManager_new();
-
-        //vxscene.camera.params.zFar = 1000.f;
-        //vxscene.camera.matrix.world = inverse( Matrix4::lookAt( Point3( 0.f, 10.f, 100.f ), Point3( 0.f ), Vector3::yAxis() ) );
-
-        //const u32 colors[] = 
-        //{
-        //    0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
-        //    0xFFFF00FF, 0xFF00FFFF, 0x00FFFFFF,
-        //    0xFFFFFFFF, 0xF0F0F0FF, 0x0F0F0FFF,
-        //    0xFF0FF0FF, 0x0FF0FFFF, 0xFFF00FFF,
-        //    0xFF000FFF, 0xF000FFFF, 0x000FFFFF
-        //};
-        //const int nColors =sizeof(colors)/sizeof(*colors);
-
-
-
-        //for( int iobj = 0; iobj < N_OBJECTS-1; ++iobj )
-        //{
-        //    bxVoxel_ObjectId id = bxVoxel::object_new( _engine.gdiDevice, vxMenago, 64 );
-        //    if( iobj % 2 )
-        //    {
-        //        bxVoxel::util_addBox( bxVoxel::object_octree( vxMenago, id ), 10, 20, 10, colors[iobj%nColors] );
-        //    }
-        //    else
-        //    {
-        //        bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[iobj%nColors] );
-        //    }
-        //    
-        //    const Matrix4 pose = Matrix4::translation( Vector3( -22.f*(N_OBJECTS/2) + ( 22*iobj), 0.f, 0.f ) );
-        //    bxVoxel::object_setPose( vxMenago, id, pose );            
-        //    bxVoxel::object_upload( _engine.gdiContext->backend(), vxMenago, id );
-
-        //    vxObject[iobj] = id;
-        //}
-
-        //const char* models[] = 
-        //{
-        //    "model/noise.vox",
-        //    "model/teapot.vox",
-        //    "model/dragon.vox",
-        //    "model/menger.vox",
-        //};
-        //const int nModels = sizeof(models)/sizeof(*models);
-
-        //for ( int iobj = 0; iobj < N_OBJECTS - 1; ++iobj )
-        //{
-        //    bxVoxel_ObjectId id = bxVoxel::object_new( vxContainer );
-        //    bxVoxel::octree_loadMagicaVox( _engine.resourceManager, bxVoxel::object_map(vxContainer,id), models[iobj%nModels] );
-        //    bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxContainer, id );
-
-        //    const Matrix4 pose = Matrix4::translation( Vector3( -128.f*(N_OBJECTS/2) + ( 128*iobj), 0.f, 0.f ) );
-        //    bxVoxel::object_setPose( vxContainer, id, pose );            
-
-        //    vxObject[iobj] = id;
-        //}
-
-        //{
-        //    bxVoxel_ObjectId id = bxVoxel::object_new( vxContainer );
-        //    bxVoxel::util_addPlane( bxVoxel::object_map( vxContainer, id ), 255, 255, colors[1] );
-        //    const Matrix4 pose = Matrix4::translation( Vector3( 0.f, -52.f, 0.f ) );
-        //    bxVoxel::object_setPose( vxContainer, id, pose );            
-        //    //bxVoxel::util_addSphere( bxVoxel::object_octree( vxMenago, id ), 10, colors[1] );
-        //    //bxVoxel::octree_loadHeightmapRaw8( _engine.resourceManager, bxVoxel::object_map( vxMenago, id ), "model/heightmap.raw" );
-
-        //    bxVoxel::gpu_uploadShell( _engine.gdiDevice, vxContainer, id );
-        //    vxObject[N_OBJECTS-1] = id;
-        //}
-
-
-        bxVoxel_SceneScriptCallback voxelScriptCallback;
-        voxelScriptCallback._container = vxscene._container;
-        voxelScriptCallback._currentId.hash = 0;
-
+        __scene._cameraManager = bxGfx::cameraManager_new();
+        
         bxGfxCamera_SceneScriptCallback cameraScriptCallback;
-        cameraScriptCallback._menago = vxscene._cameraManager;
+        cameraScriptCallback._menago = __scene._cameraManager;
 
         bxAsciiScript sceneScript;
-        bxScene::script_addCallback( &sceneScript, "voxel", &voxelScriptCallback );
         bxScene::script_addCallback( &sceneScript, "camera", &cameraScriptCallback );
         bxScene::script_addCallback( &sceneScript, "camera_push", &cameraScriptCallback );
 
         const char* sceneName = bxConfig::global_string( "scene" );
         bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( sceneName );
-        
-        if( scriptFile.ok() )
+
+        if ( scriptFile.ok() )
         {
             bxScene::script_run( &sceneScript, scriptFile.txt );
         }
         scriptFile.release();
 
-        bxVoxel::container_load( _engine.gdiDevice, _engine.resourceManager, vxscene._container );
-
         return true;
     }
     virtual void shutdown()
     {
-        //for( int iobj = 0; iobj < N_OBJECTS; ++iobj )
-        //{
-        //    bxVoxel::object_delete( _engine.gdiDevice, vxContainer, &vxObject[iobj] );
-        //}
-
-        bxGfx::cameraManager_clear( vxscene._cameraManager );
-        bxGfx::cameraManager_delete( &vxscene._cameraManager );
-
-        bxVoxel::container_unload( _engine.gdiDevice, vxscene._container );
-        bxVoxel::container_delete( &vxscene._container );
-        bxVoxel::_Shutdown( _engine.gdiDevice );
-
-        for( int ifb = 0; ifb < bxVoxelFramebuffer::eCOUNT; ++ifb )
+        bxGfx::cameraManager_delete( &__scene._cameraManager );
+        for ( int ifb = 0; ifb < bxDemoFramebuffer::eCOUNT; ++ifb )
         {
-            _engine.gdiDevice->releaseTexture( &fb.textures[ifb] );
+            _engine.gdiDevice->releaseTexture( &__framebuffer.textures[ifb] );
         }
-        
-        bxDemoEngine_shutdown( &_engine );
-
-        bxConfig::global_deinit();
+        bxEngine_shutdown( &_engine );
     }
+
     virtual bool update( u64 deltaTimeUS )
     {
         const double deltaTimeS = bxTime::toSeconds( deltaTimeUS );
@@ -204,178 +100,49 @@ public:
             ImGui::End();
         }
 
-        bxGfxCamera_InputContext* cameraInputCtx = &vxscene.cameraInputCtx;
+        bxGfxCamera_InputContext* cameraInputCtx = &__scene.cameraInputCtx;
 
         bxGfx::cameraUtil_updateInput( cameraInputCtx, &win->input, 0.1f, deltaTime );
-        bxGfxCamera* topCamera = bxGfx::camera_get( vxscene._cameraManager, bxGfx::camera_top( vxscene._cameraManager ) );
+        bxGfxCamera* topCamera = bxGfx::camera_get( __scene._cameraManager, bxGfx::camera_top( __scene._cameraManager ) );
         topCamera->matrix.world = bxGfx::cameraUtil_movement( topCamera->matrix.world
-            , cameraInputCtx->leftInputX * 0.5f
-            , cameraInputCtx->leftInputY * 0.5f
-            , cameraInputCtx->rightInputX * deltaTime * 10.f
-            , cameraInputCtx->rightInputY * deltaTime * 10.f
-            , cameraInputCtx->upDown * 0.5f );
-        
-        bxGfx::cameraManager_update( vxscene._cameraManager, deltaTime );
-        
+                                                              , cameraInputCtx->leftInputX * 0.25f
+                                                              , cameraInputCtx->leftInputY * 0.25f
+                                                              , cameraInputCtx->rightInputX * deltaTime * 20.f
+                                                              , cameraInputCtx->rightInputY * deltaTime * 20.f
+                                                              , cameraInputCtx->upDown * 0.25f );
 
-        //bxGfx::cameraMatrix_compute( &currentCamera->matrix, currentCamera->params, currentCamera->matrix.world, 0, 0 );
+        bxGfx::cameraManager_update( __scene._cameraManager, deltaTime );
 
-        const bxGfxCamera& currentCamera = bxGfx::camera_current( vxscene._cameraManager );
 
-        //
-//         static float angle = 0.0f;
-//         angle += deltaTimeS;
-//         const float freq = 0.1f;
-//         for( int iobj = 0; iobj < N_OBJECTS-1; ++iobj )
-//         {
-//             Matrix4 pose = bxVoxel::object_pose( bxVoxel::manager( vxContext ), vxObject[iobj] );
-//             pose.setUpper3x3( Matrix3::rotationZYX( Vector3( angle + PI/2 * iobj ) ) );
-// 
-//             const float* a = (float*)&pose;
-//             const float* b = a + 4;
-//             const float* c = a + 8;
-//             const float x = bxNoise_perlin( a[0] * freq + iobj, a[1] * freq - iobj, a[2] * freq * iobj );
-//             const float y = bxNoise_perlin( b[0] * freq + x, b[1] * freq - x, b[2] * freq + x );
-//             const float z = bxNoise_perlin( c[0] * freq + iobj-y, c[1] * freq - iobj+x, c[2] * freq + y );
-// 
-//             //pose.setTranslation( Vector3( x, y, z ) *64 );
-//             bxVoxel::object_setPose( bxVoxel::manager( vxContext ), vxObject[iobj], pose );
-//         }
+        const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
 
         
-
-
-        bxGfxContext* gfxContext = _engine.gfxContext;
         bxGdiContext* gdiContext = _engine.gdiContext;
 
-        //bxGrid grid( GRID_SIZE,GRID_SIZE,GRID_SIZE );
-
-        //const int N_VOXELS_X = 128;
-        //const int N_VOXELS_Y = 128;
-        //const int N_VOXELS_Z = 128;
-        //const int N_VOXELS = N_VOXELS_X * N_VOXELS_Y * N_VOXELS_Z;
-        //static array_t<bxVoxel_GpuData> vxData;
-        //static bxVoxel_Octree* vxOctree = 0;
-        //static int nValidVoxels = 0;
-        //if( array::empty( vxData ) )
-        //{
-        //    vxOctree = bxVoxel::octree_new( 32 );
-        //    //vxData = new VoxelData[N_VOXELS];
-
-        //    const u32 colors[] = 
-        //    {
-        //        0xFF0000FF, 0x00FF00FF, 0x0000FFFF,
-        //        0xFFFF00FF, 0xFF00FFFF, 0x00FFFFFF,
-        //        0xFFFFFFFF, 0xF0F0F0FF, 0x0F0F0FFF,
-        //        0xFF0FF0FF, 0x0FF0FFFF, 0xFFF00FFF,
-        //        0xFF000FFF, 0xF000FFFF, 0x000FFFFF
-        //    };
-        //    const int nColors =sizeof(colors)/sizeof(*colors);
-
-        //    const float cellSize = 5.5f;
-        //    const Vector3 divider = Vector3( 1.f / GRID_SIZE );
-
-        //    int counter = 0;
-        //    const float angleXStep = PI2 / (N_VOXELS_X - 1);
-        //    const float angleYStep = PI / (N_VOXELS_X - 1);
-        //    const float radius = 15.f;
-        //    const float center = 15.f;
-        //    float zAngle = 0.f;
-        //    for( int iz = 1; iz < (int)radius; ++iz )
-        //    {
-        //        float yAngle = 0.1f;
-        //        for( int iy = 0; iy <= N_VOXELS_Y; ++iy )
-        //        {
-        //            float xAngle = 0.1f;
-        //            for( int ix = 0; ix <= N_VOXELS_X; ++ix )
-        //            {
-        //                const float x = center + iz * cos( xAngle ) * sin( yAngle );
-        //                const float y = center + iz * sin( xAngle ) * sin( yAngle );
-        //                const float z = center + iz * cos( yAngle );
-        //                
-        //                //const Vector3 rndOffset = Vector3( bxNoise_perlin( ix * cellSize + time, iy * cellSize + time, iz * cellSize  + time) ) * cellSize;
-        //                //const Vector3 rndOffset1 = mulPerElem( rndOffset, divider );
-        //            
-        //                //SSEScalar scalar( rndOffset.get128() );
-        //                
-        //                //const Vector3 point( ix * cellSize, iy * cellSize, iz * cellSize );
-        //                const Vector3 point( x, y, z );
-        //                const u32 color = colors[ counter % nColors ];
-        //                //bxGfxDebugDraw::addSphere( Vector4( point, 0.1f ), 0xFF00FF00, true );
-        //                bxVoxel::octree_insert( vxOctree, point, color );
-        //                
-        //                //vxData[counter].gridIndex = grid.index( ix * cellSize, iy * cellSize, iz * cellSize ) ; // + grid.index( (int)scalar.x * cellSize, (int)scalar.y * cellSize, (int)scalar.z*cellSize );
-        //                //vxData[counter].gridIndex = grid.index( (int)x, (int)y, (int)z );
-        //                //vxData[counter].colorRGBA = colors[ counter % nColors ];
-        //                ++counter;
-        //                xAngle += angleXStep;
-        //            }
-        //            yAngle += angleYStep;
-        //        }
-        //        //zAngle += angleStep;
-        //    }
-        //    nValidVoxels = counter;
-
-        //    bxVoxel::octree_getShell( vxData, vxOctree );
-        //    if( !array::empty( vxData ) )
-        //    {
-        //        u8* mappedVoxelDataBuffer = bxGdi::buffer_map( _engine.gdiContext->backend(), voxelDataBuffer, 0, counter );
-        //        memcpy( mappedVoxelDataBuffer, array::begin( vxData ), sizeof(bxVoxel_GpuData) * array::size( vxData ) );
-        //        gdiContext->backend()->unmap( voxelDataBuffer.rs );    
-        //    }
-        //    
-        //}
-        
-        bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::xAxis(), 0xFF0000FF, true );
-        bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
-        bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::zAxis(), 0x0000FFFF, true );
-        //bxVoxel::octree_debugDraw( vxOctree );
-
-
         gdiContext->clear();
-        gdiContext->changeRenderTargets( &fb.textures[0], 1, fb.textures[bxVoxelFramebuffer::eDEPTH] );
+        gdiContext->changeRenderTargets( &__framebuffer.textures[0], 1, __framebuffer.textures[bxDemoFramebuffer::eDEPTH] );
         gdiContext->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
-        bxGdi::context_setViewport( gdiContext, fb.textures[0] );
-        
-        bxVoxel::gfx_displayListBuild( vxscene._container, currentCamera );
-        bxVoxel::gfx_displayListDraw( gdiContext, vxscene._container, currentCamera );
+        bxGdi::context_setViewport( gdiContext, __framebuffer.textures[0] );
 
-        //bxVoxel::gfx_draw( gdiContext, vxscene._container, currentCamera );
-
-        //gdiContext->setBufferRO( voxelDataBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX );
-        //bxGdi::shaderFx_enable( gdiContext, fxI, 0 );
-        //bxGdi::renderSource_enable( gdiContext, rsource );
-        //
-        //const bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
-        //bxGdi::renderSurface_drawIndexedInstanced( gdiContext, surf, array::size( vxData ) );
-
-        
+        {
+            bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::xAxis(), 0xFF0000FF, true );
+            bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
+            bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::zAxis(), 0x0000FFFF, true );
+        }
 
         bxGfxDebugDraw::flush( gdiContext, currentCamera.matrix.viewProj );
-        gfxContext->frame_rasterizeFramebuffer( gdiContext, fb.textures[bxVoxelFramebuffer::eCOLOR], currentCamera );
+        bxGfx::rasterizeFramebuffer( gdiContext, __framebuffer.textures[bxDemoFramebuffer::eCOLOR], currentCamera );
 
-        
         bxGfxGUI::draw( gdiContext );
         gdiContext->backend()->swap();
 
-
-        //gfxContext->frame_begin( _engine.gdiContext );
-
-        
-
-
-        //gfxContext->frame_end( _engine.gdiContext );
-
-
-        //bxDemoSimpleScene_frame( win, &_engine, __simpleScene, deltaTimeUS );
-        //bxDemoEngine_frameDraw( win, &_engine, __simpleScene->rList, *__simpleScene->currentCamera_, deltaTime );
-        
         time += deltaTime;
 
         return true;
     }
     float time;
-    bxDemoEngine _engine;
+    //bxDemoEngine _dengine;
+    bxEngine _engine;
 };
 
 int main( int argc, const char* argv[] )
