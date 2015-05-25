@@ -7,6 +7,11 @@
 LRESULT CALLBACK default_window_message_proc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam );
 static bxWindow* __window;
 bxWindow* bxWindow_get() { return __window; }
+const bxInput* bxInput_get()
+{
+    return &__window->input;
+}
+
 
 namespace
 {

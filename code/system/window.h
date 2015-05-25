@@ -45,6 +45,7 @@ struct bxWindow
 };
 
 bxWindow* bxWindow_get();
+const bxInput* bxInput_get();
 
 bxWindow* bxWindow_create( const char* name, unsigned width, unsigned height, bool full_screen, HWND parent_hwnd );
 void bxWindow_release();
