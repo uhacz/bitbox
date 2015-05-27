@@ -9,6 +9,7 @@
 #include <gfx/gfx_camera.h>
 #include <gfx/gfx_debug_draw.h>
 #include "gfx/gfx_gui.h"
+#include "game.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 struct bxDemoFramebuffer
@@ -31,6 +32,9 @@ struct bxDemoScene
 {
     bxGfxCamera_Manager* _cameraManager;
     bxGfxCamera_InputContext cameraInputCtx;
+
+    bxGame::Character* character;
+
 };
 static bxDemoScene __scene;
 
@@ -68,10 +72,16 @@ public:
         }
         scriptFile.release();
 
+        
+        __scene.character = bxGame::character_new();
+        bxGame::character_init( __scene.character, Matrix4::rotationZ( 0.5f ) );
+        
         return true;
     }
     virtual void shutdown()
     {
+        bxGame::character_delete( &__scene.character );
+                
         bxGfx::cameraManager_delete( &__scene._cameraManager );
         for ( int ifb = 0; ifb < bxDemoFramebuffer::eCOUNT; ++ifb )
         {
@@ -115,6 +125,10 @@ public:
 
 
         const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
+
+        {
+            bxGame::character_tick( __scene.character, deltaTime );
+        }
 
         
         bxGdiContext* gdiContext = _engine.gdiContext;

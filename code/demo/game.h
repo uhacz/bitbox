@@ -1,5 +1,7 @@
 #pragma once
 
+#include <util/vectormath/vectormath.h>
+
 namespace bxGame
 {
     struct Character;
