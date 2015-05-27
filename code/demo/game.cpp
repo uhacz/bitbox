@@ -161,7 +161,7 @@ namespace bxGame
         const Vector4 groundPlane = makePlane( Vector3::yAxis(), groundPlaneOffset );
         bxGfxDebugDraw::addBox( Matrix4::translation( groundPlaneOffset ), Vector3( 10.f, 0.1f, 10.f ) , 0xFF0000FF, true );
 
-        const Vector3 gravity = Vector3( 0.f, -1.f, 0.f );
+        const Vector3 gravity = Vector3( 0.f, -0.1f, 0.f );
         const floatInVec dtv( deltaTime );
         const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.2f ), dtv );
         const int nPoints = cp.size;
@@ -209,9 +209,9 @@ namespace bxGame
             const Vector3& q = cp.restPos[ipoint];
             const Vector3 p = cp.pos1[ipoint] - com;
             const floatInVec mass( cp.mass[ipoint] );
-            col0 += p * q.getX() * mass;
-            col1 += p * q.getY() * mass;
-            col2 += p * q.getZ() * mass;
+            col0 += ( p * q.getX() ) * mass;
+            col1 += ( p * q.getY() ) * mass;
+            col2 += ( p * q.getZ() ) * mass;
         }
         col0 = normalize( col0 );
         col1 = normalize( col1 );
