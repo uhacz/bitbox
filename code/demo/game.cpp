@@ -134,8 +134,6 @@ namespace bxGame
 
         for( int i = 0; i < NUM_POINTS; ++i )
         {
-            cp.restPos[i] = restPos[i];
-            
             const Vector3 pos = mulAsVec4( worldPose, restPos[i] );
             cp.pos0[i] = pos;
             cp.pos1[i] = pos;
@@ -143,6 +141,20 @@ namespace bxGame
             cp.mass[i] = 1.f;
             cp.massInv[i] = 1.f;
         }
+
+        f32 massSum = 0.f;
+        Vector3 com( 0.f );
+        for ( int i = 0; i < NUM_POINTS; ++i )
+        {
+            com += cp.pos0[i];
+            massSum += cp.mass[i];
+        }
+        com /= massSum;
+        for ( int i = 0; i < NUM_POINTS; ++i )
+        {
+            cp.restPos[i] = cp.pos0[i] - com;
+        }
+
         cp.size = NUM_POINTS;
 
         character->centerOfMass.pos = worldPose.getTranslation();
@@ -161,7 +173,7 @@ namespace bxGame
         const Vector4 groundPlane = makePlane( Vector3::yAxis(), groundPlaneOffset );
         bxGfxDebugDraw::addBox( Matrix4::translation( groundPlaneOffset ), Vector3( 10.f, 0.1f, 10.f ) , 0xFF0000FF, true );
 
-        const Vector3 gravity = Vector3( 0.f, -0.1f, 0.f );
+        const Vector3 gravity = Vector3( 0.f, -1.1f, 0.f );
         const floatInVec dtv( deltaTime );
         const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.2f ), dtv );
         const int nPoints = cp.size;
