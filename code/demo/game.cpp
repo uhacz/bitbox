@@ -3,11 +3,96 @@
 #include <util/type.h>
 #include <util/buffer_utils.h>
 #include <util/array.h>
+#include <util/common.h>
 
 #include <gfx/gfx_debug_draw.h>
+namespace
+{
+    float abs_column_sum( const Matrix3& a, int i )
+    {
+        return sum( absPerElem( a[i] ) ).getAsFloat();
+        //return abs( a[0][i] ) + abs( a[1][i] ) + abs( a[2][i] );
+    }
+
+    float abs_row_sum( const Matrix3& a, int i )
+    {
+        return sum( absPerElem( Vector3( a[0][i], a[1][i], a[2][i] ) ) ).getAsFloat();
+        //return btFabs( a[i][0] ) + btFabs( a[i][1] ) + btFabs( a[i][2] );
+    }
+
+    float p1_norm( const Matrix3& a )
+    {
+        const float sum0 = abs_column_sum( a, 0 );
+        const float sum1 = abs_column_sum( a, 1 );
+        const float sum2 = abs_column_sum( a, 2 );
+        return maxOfPair( maxOfPair( sum0, sum1 ), sum2 );
+    }
+
+    float pinf_norm( const Matrix3& a )
+    {
+        const float sum0 = abs_row_sum( a, 0 );
+        const float sum1 = abs_row_sum( a, 1 );
+        const float sum2 = abs_row_sum( a, 2 );
+        return maxOfPair( maxOfPair( sum0, sum1 ), sum2 );
+    }
+
+    const float POLAR_DECOMPOSITION_DEFAULT_TOLERANCE = ( 0.0001f );
+    const unsigned int POLAR_DECOMPOSITION_DEFAULT_MAX_ITERATIONS = 16;
+}
+unsigned int bxPolarDecomposition( const Matrix3& a, Matrix3& u, Matrix3& h, unsigned maxIterations = POLAR_DECOMPOSITION_DEFAULT_MAX_ITERATIONS )
+{
+    const float tolerance = POLAR_DECOMPOSITION_DEFAULT_TOLERANCE;
+    // Use the 'u' and 'h' matrices for intermediate calculations
+    u = a;
+    h = inverse( a );
+
+    for ( unsigned int i = 0; i < maxIterations; ++i )
+    {
+        const float h_1 = p1_norm( h );
+        const float h_inf = pinf_norm( h );
+        const float u_1 = p1_norm( u );
+        const float u_inf = pinf_norm( u );
+
+        const float h_norm = h_1 * h_inf;
+        const float u_norm = u_1 * u_inf;
+
+        // The matrix is effectively singular so we cannot invert it
+        if ( ( h_norm < FLT_EPSILON) || ( u_norm < FLT_EPSILON) )
+            break;
+
+        const float gamma = pow( h_norm / u_norm, 0.25f );
+        const float inv_gamma = float( 1.0 ) / gamma;
+
+        // Determine the delta to 'u'
+        const Matrix3 delta = (u * (gamma - float( 2.0 )) + transpose( h ) * inv_gamma) * float( 0.5 );
+
+        // Update the matrices
+        u += delta;
+        h = inverse( u );
+
+        // Check for convergence
+        if ( p1_norm( delta ) <= tolerance * u_1 )
+        {
+            h = transpose( u ) * a;
+            h = (h + transpose( h )) * 0.5;
+            return i;
+        }
+    }
+
+    // The algorithm has failed to converge to the specified tolerance, but we
+    // want to make sure that the matrices returned are in the right form.
+    h = transpose( u ) * a;
+    h = (h + transpose( h )) * 0.5;
+
+    return maxIterations;
+}
+
 
 namespace bxGame
 {
+
+
+
 #define BX_GAME_COPY_DATA( to, from, field ) memcpy( to.field, from->field, from->size * sizeof( *from->field ) )
 
 
@@ -90,6 +175,12 @@ namespace bxGame
     {
         CharacterParticles particles;
         CharacterCenterOfMass centerOfMass;
+
+        f32 _dtAcc;
+
+        Character()
+            : _dtAcc(0.f)
+        {}
     };
 
 }///
@@ -161,98 +252,122 @@ namespace bxGame
         character->centerOfMass.rot = Quat( worldPose.getUpper3x3() );
     }
 
+    namespace
+    {
+        void character_simulate( Character* character, float deltaTime )
+        {
+            CharacterParticles& cp = character->particles;
+            for ( int i = 0; i < cp.size; ++i )
+            {
+                bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.1f ), 0x00FF00FF, true );
+            }
+
+            const Vector3 groundPlaneOffset = Vector3( 0.f, -2.f, 0.f );
+            const Vector4 groundPlane = makePlane( Vector3::yAxis(), groundPlaneOffset );
+            bxGfxDebugDraw::addBox( Matrix4::translation( groundPlaneOffset ), Vector3( 10.f, 0.1f, 10.f ), 0xFF0000FF, true );
+
+            const Vector3 gravity = Vector3( 0.f, -9.1f, 0.f );
+            const floatInVec dtv( deltaTime );
+            const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.1f ), dtv );
+            const int nPoints = cp.size;
+
+            for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
+            {
+                Vector3 pos = cp.pos0[ipoint];
+                Vector3 vel = cp.velocity[ipoint];
+
+                vel += gravity * dtv * floatInVec( cp.massInv[ipoint] );
+                vel *= dampingCoeff;
+
+                pos += vel * dtv;
+
+                cp.pos1[ipoint] = pos;
+                cp.velocity[ipoint] = vel;
+            }
+
+            for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
+            {
+                Vector3 pos = cp.pos1[ipoint];
+
+                const floatInVec d = dot( groundPlane, Vector4( pos, oneVec ) );
+                const Vector3 dpos = -groundPlane.getXYZ() * minf4( d, zeroVec );
+                pos += dpos;
+
+                cp.pos1[ipoint] = pos;
+            }
+
+            Vector3 com( 0.f );
+            floatInVec totalMass( 0.f );
+            for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
+            {
+                const floatInVec mass( cp.mass[ipoint] );
+                com += cp.pos1[ipoint] * mass;
+                totalMass += mass;
+            }
+            com /= totalMass;
+
+            Vector3 col0( FLT_EPSILON, 0.f, 0.f );
+            Vector3 col1( 0.f, FLT_EPSILON, 0.f );
+            Vector3 col2( 0.f, 0.f, FLT_EPSILON );
+            for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
+            {
+                const floatInVec mass( cp.mass[ipoint] );
+                const Vector3& q = cp.restPos[ipoint];
+                const Vector3 p = (cp.pos1[ipoint] - com) * mass;
+                col0 += p * q.getX();
+                col1 += p * q.getY();
+                col2 += p * q.getZ();
+            }
+            Matrix3 Apq( col0, col1, col2 );
+            Matrix3 R, S;
+            bxPolarDecomposition( Apq, R, S );
+
+            character->centerOfMass.pos = com;
+            character->centerOfMass.rot = Quat( R );
+
+            const floatInVec shapeStiffness( 1.f );
+            for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
+            {
+                const Vector3 goalPos = com + R * cp.restPos[ipoint];
+
+                Vector3 pos = cp.pos1[ipoint];
+                const Vector3 dpos = goalPos - pos;
+
+                pos += dpos * shapeStiffness;
+
+                cp.pos1[ipoint] = pos;
+            }
+
+            const floatInVec dtInv = select( zeroVec, oneVec / dtv, dtv > fltEpsVec );
+            for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
+            {
+                cp.velocity[ipoint] = (cp.pos1[ipoint] - cp.pos0[ipoint]) * dtInv;
+                cp.pos0[ipoint] = cp.pos1[ipoint];
+            }
+        }
+    }///
+
     void character_tick( Character* character, float deltaTime )
     {
+        const float fixedDt = 1.f / 60.f;
+        character->_dtAcc += deltaTime;
+
+        while( character->_dtAcc >= fixedDt )
+        {
+            character_simulate( character, fixedDt );
+            character->_dtAcc -= fixedDt;
+        }
+
         CharacterParticles& cp = character->particles;
-        for( int i = 0; i < cp.size; ++i )
+        for ( int i = 0; i < cp.size; ++i )
         {
             bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.1f ), 0x00FF00FF, true );
         }
-
-        const Vector3 groundPlaneOffset = Vector3( 0.f, -2.f, 0.f );
-        const Vector4 groundPlane = makePlane( Vector3::yAxis(), groundPlaneOffset );
-        bxGfxDebugDraw::addBox( Matrix4::translation( groundPlaneOffset ), Vector3( 10.f, 0.1f, 10.f ) , 0xFF0000FF, true );
-
-        const Vector3 gravity = Vector3( 0.f, -1.1f, 0.f );
-        const floatInVec dtv( deltaTime );
-        const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.2f ), dtv );
-        const int nPoints = cp.size;
-
-        for( int ipoint = 0; ipoint < nPoints; ++ipoint )
-        {
-            Vector3 pos = cp.pos0[ipoint];
-            Vector3 vel = cp.velocity[ipoint];
-            
-            vel += gravity * dtv * floatInVec( cp.massInv[ipoint] );
-            vel *= dampingCoeff;
-
-            pos += vel * dtv;
-
-            cp.pos1[ipoint] = pos;
-            cp.velocity[ipoint] = vel;
-        }
-
-        for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
-        {
-            Vector3 pos = cp.pos1[ipoint];
-
-            const floatInVec d = dot( groundPlane, Vector4( pos, oneVec ) );
-            const Vector3 dpos = -groundPlane.getXYZ() * minf4( d, zeroVec );
-            pos += dpos;
-
-            cp.pos1[ipoint] = pos;
-        }
-
-        Vector3 com( 0.f );
-        floatInVec totalMass( 0.f );
-        for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
-        {
-            const floatInVec mass( cp.mass[ipoint] );
-            com += cp.pos1[ipoint] * mass;
-            totalMass += mass;
-        }
-        com /= totalMass;
-
-        Vector3 col0( 0.f );
-        Vector3 col1( 0.f );
-        Vector3 col2( 0.f );
-        for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
-        {
-            const Vector3& q = cp.restPos[ipoint];
-            const Vector3 p = cp.pos1[ipoint] - com;
-            const floatInVec mass( cp.mass[ipoint] );
-            col0 += ( p * q.getX() ) * mass;
-            col1 += ( p * q.getY() ) * mass;
-            col2 += ( p * q.getZ() ) * mass;
-        }
-        col0 = normalize( col0 );
-        col1 = normalize( col1 );
-        col2 = normalize( col2 );
-        Matrix3 R( col0, col1, col2 );
-
-        bxGfxDebugDraw::addLine( com, com + col0, 0x990000FF, true );
-        bxGfxDebugDraw::addLine( com, com + col1, 0x009900FF, true );
-        bxGfxDebugDraw::addLine( com, com + col2, 0x000099FF, true );
-
-        const floatInVec shapeStiffness( 1.f );
-        for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
-        {
-            const Vector3 goalPos = com + R * cp.restPos[ipoint];
-            
-            Vector3 pos = cp.pos1[ipoint];
-            const Vector3 dpos = goalPos - pos;
-            
-            pos += dpos * shapeStiffness;
-
-            cp.pos1[ipoint] = pos;
-        }
-
-        const floatInVec dtInv = select( zeroVec, oneVec / dtv, dtv > fltEpsVec );
-        for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
-        {
-            cp.velocity[ipoint] = (cp.pos1[ipoint] - cp.pos0[ipoint]) * dtInv;
-            cp.pos0[ipoint] = cp.pos1[ipoint];
-        }
+        const Vector3& com = character->centerOfMass.pos;
+        const Matrix3 R( character->centerOfMass.rot );
+        bxGfxDebugDraw::addLine( com, com + R[0], 0x990000FF, true );
+        bxGfxDebugDraw::addLine( com, com + R[1], 0x009900FF, true );
+        bxGfxDebugDraw::addLine( com, com + R[2], 0x000099FF, true );
     }
 }///
 
