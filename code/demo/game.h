@@ -1,6 +1,7 @@
 #pragma once
 
 #include <util/vectormath/vectormath.h>
+#include <util/type.h>
 
 namespace bxGame
 {
@@ -13,3 +14,5 @@ namespace bxGame
     void character_tick( Character* character, float deltaTime );
     
 }///
+
+

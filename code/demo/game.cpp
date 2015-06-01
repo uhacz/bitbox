@@ -361,7 +361,7 @@ namespace bxGame
         CharacterParticles& cp = character->particles;
         for ( int i = 0; i < cp.size; ++i )
         {
-            bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.1f ), 0x00FF00FF, true );
+            bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.05f ), 0x00FF00FF, true );
         }
         const Vector3& com = character->centerOfMass.pos;
         const Matrix3 R( character->centerOfMass.rot );

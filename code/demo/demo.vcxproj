@@ -88,6 +88,7 @@
     <ClCompile Include="entity.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="physics.cpp" />
     <ClCompile Include="scene.cpp" />
     <ClCompile Include="simple_scene.cpp" />
     <ClCompile Include="test_console.cpp" />
@@ -126,6 +127,7 @@
     <ClInclude Include="demo_engine.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="game.h" />
+    <ClInclude Include="physics.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="simple_scene.h" />
     <ClInclude Include="test_console.h" />
