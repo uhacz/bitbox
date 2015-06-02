@@ -8,7 +8,9 @@
 #include <util/config.h>
 #include <gfx/gfx_camera.h>
 #include <gfx/gfx_debug_draw.h>
-#include "gfx/gfx_gui.h"
+#include <gfx/gfx_gui.h>
+
+#include "physics.h"
 #include "game.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -73,14 +75,19 @@ public:
         scriptFile.release();
 
         
+        bxPhysics::collisionSpace_new();
         __scene.character = bxGame::character_new();
         bxGame::character_init( __scene.character, Matrix4::rotationZ( 0.5f ) );
         
+        bxPhysics::collisionSpace_createPlane( bxPhysics::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
+        bxPhysics::collisionSpace_createBox( bxPhysics::__cspace, Vector3( 0.25f, -1.f, 0.f ), Quat::identity(), Vector3( 0.5f ) );
+
         return true;
     }
     virtual void shutdown()
     {
         bxGame::character_delete( &__scene.character );
+        bxPhysics::collisionSpace_delete( &bxPhysics::__cspace );
                 
         bxGfx::cameraManager_delete( &__scene._cameraManager );
         for ( int ifb = 0; ifb < bxDemoFramebuffer::eCOUNT; ++ifb )
@@ -142,6 +149,8 @@ public:
             bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::xAxis(), 0xFF0000FF, true );
             bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
             bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::zAxis(), 0x0000FFFF, true );
+
+            bxPhysics::collisionSpace_debugDraw( bxPhysics::__cspace );
         }
 
         bxGfxDebugDraw::flush( gdiContext, currentCamera.matrix.viewProj );

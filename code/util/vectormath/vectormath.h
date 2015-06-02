@@ -296,3 +296,18 @@ inline Vector3 projectVectorOnPlane( const Vector3& vec, const Vector4& plane )
     const Vector3 W = V - dot(V,n) * n;
     return W;
 }
+
+inline Matrix3 createBasis( const Vector3& n )
+{
+    if( n.getZ().getAsFloat() < -0.9999999f )
+    {
+        return Matrix3( Vector3( 0.f, -1.f, 0.f ), n, Vector3( -1.f, 0.f, 0.f ) );
+    }
+
+    const floatInVec a = oneVec / ( oneVec + n.getZ() );
+    const floatInVec b = -n.getX()*n.getY()*a;
+    const Vector3 x = Vector3( oneVec - n.getX()*n.getX()*a, b, -n.getX() );
+    const Vector3 z = Vector3( b, oneVec - n.getY()*n.getY()*a, -n.getY() );
+    return Matrix3( x, n, z );
+}
+
