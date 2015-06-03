@@ -101,4 +101,11 @@ namespace array
             array_internal::_Grow( arr, newCapacity );
     }
 
-}
+    template< typename T > void resize( array_t<T>& arr, int newSize )
+    {
+        if( newSize > (int)arr.capacity )
+            array_internal::_Grow( arr, newSize );
+
+        arr.size = newSize;
+    }
+}///

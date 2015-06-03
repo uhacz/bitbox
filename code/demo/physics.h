@@ -26,7 +26,12 @@ namespace bxPhysics
     //void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CCapsuleHandle** ch );
     //void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CTriHandle** ch );
 
+    void collisionSpace_newFrame( bxPhysics_CollisionSpace* cs );
+    void collisionSpace_detect( bxPhysics_CollisionSpace* cs );
+    void collisionSpace_resolve( bxPhysics_CollisionSpace* cs );
     void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs );
 
+
+    /// tmp solution
     extern bxPhysics_CollisionSpace* __cspace;
 }///

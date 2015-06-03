@@ -82,11 +82,21 @@ struct bxPhysics_CollisionTriangles
         u16 numIndices;
     };
     array_t< const Vector3* > pos;
-    array_t< const u16* > index;
-    array_t< Count > count;
+    array_t< const u16* >     index;
+    array_t< Count >          count;
+    array_t< u32 >            offset_dPos;
+    array_t< Vector3 >        dposData;
 
     int size() const { return array::size( pos ); }
     int empty() const { return array::empty( pos ); }
+    void clear()
+    {
+        array::clear( pos );
+        array::clear( index );
+        array::clear( count );
+        array::clear( offset_dPos );
+        array::clear( dposData );
+    }
 };
 
 namespace bxPhysics{
@@ -207,7 +217,85 @@ bxPhysics_CSphereHandle collisionSpace_createSphere( bxPhysics_CollisionSpace* c
 {
     return collisionSphere_create( &cs->sphere, sph );
 }
+bxPhysics_CTriHandle collisiosSpace_addTriangles( bxPhysics_CollisionSpace* cs, const Vector3* positions, int nPositions, const u16* indices, int nIndices )
+{
+    SYS_ASSERT( nPositions < 0xFFFF );
+    SYS_ASSERT( nIndices < 0xFFFF );
+    bxPhysics_CollisionTriangles::Count count;
+    count.numPoints = (u16)nPositions;
+    count.numIndices = (u16)nIndices;
 
+    bxPhysics_CollisionTriangles& ctri = cs->tri;
+
+    u32 offset_dPos = 0xFFFFFFFF;
+    {
+        const int curSize = array::size( ctri.dposData );
+        const int curCapacity = array::capacity( ctri.dposData );
+
+        offset_dPos = (u32)curSize;
+
+        const int spaceLeft = curCapacity - curSize;
+        if( spaceLeft < nPositions )
+        {
+            const int newCapacity = ( curCapacity + nPositions ) * 2;
+            array::reserve( ctri.dposData, newCapacity );
+            array::resize( ctri.dposData, curSize + nPositions );
+        }
+    }
+    
+    int i0 = array::push_back( ctri.pos, positions );
+    int i1 = array::push_back( ctri.index, indices );
+    int i2 = array::push_back( ctri.count, count );
+    int i3 = array::push_back( ctri.offset_dPos, offset_dPos );
+    
+    SYS_ASSERT( i0 == i1 );
+    SYS_ASSERT( i0 == i2 );
+    SYS_ASSERT( i0 == i3 );
+
+    return collisionHandle_create< bxPhysics_CTriHandle >( u32( i0 ) );
+}
+
+void collisionSpace_newFrame( bxPhysics_CollisionSpace* cs )
+{
+    cs->tri.clear();
+}
+
+namespace
+{
+#define BX_PHYSICS_COLLISION_HASH_PRIME1 73856093
+#define BX_PHYSICS_COLLISION_HASH_PRIME2 19349663
+#define BX_PHYSICS_COLLISION_HASH_PRIME3 83492791
+
+    inline u32 computeHash( const __m128 point, const __m128 cellSizeInv, unsigned hashTableSize )
+    {
+        const __m128i primes = { BX_PHYSICS_COLLISION_HASH_PRIME1, BX_PHYSICS_COLLISION_HASH_PRIME2, BX_PHYSICS_COLLISION_HASH_PRIME3, BX_PHYSICS_COLLISION_HASH_PRIME1 };
+        const __m128 gridPointF = vec_mul( point, cellSizeInv );
+        const __m128i gridPointI = _mm_cvttps_epi32( gridPointF );
+        const  SSEScalar s( vec_mul( gridPointI, primes ) );
+        return ( u32( s.ix ) ^ u32( s.iy ) ^ u32( s.iz ) ) % hashTableSize;
+    }
+}
+
+struct bxPhysics_CollisionHashBucket
+{
+        
+};
+
+struct bxPhysics_CollisionHashTable
+{
+    
+    u32 size;
+};
+
+void collisionSpace_detect( bxPhysics_CollisionSpace* cs )
+{
+
+}
+
+void collisionSpace_resolve( bxPhysics_CollisionSpace* cs )
+{
+
+}
 
 void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
 {
@@ -239,20 +327,11 @@ void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
         for( int i = 0; i < n; ++i )
         {
             const Vector3& pos = cs->box.pos[i];
-            const Quat& rot    = cs->box.rot[i];
+            const Quat& rot = cs->box.rot[i];
             const Vector3& ext = cs->box.ext[i];
             bxGfxDebugDraw::addBox( Matrix4( rot, pos ), ext, color, 1 );
         }
     }
-}
-
-bxPhysics_CTriHandle collisiosSpace_addTriangles( bxPhysics_CollisionSpace* cs, const Vector3* positions, int nPositions, const u16* indices, int nIndices )
-{
-    SYS_ASSERT( nPositions < 0xFFFF );
-    SYS_ASSERT( nIndices < 0xFFFF );
-
-
-
 }
 
 }///
