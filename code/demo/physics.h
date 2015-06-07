@@ -28,6 +28,7 @@ namespace bxPhysics
 
     //void collisionSpace_newFrame( bxPhysics_CollisionSpace* cs );
     void collisionSpace_collide( bxPhysics_CollisionSpace* cs, Vector3* points, int nPoints );
+    void collisionSpace_collide( bxPhysics_CollisionSpace* cs, Vector3* points, int nPoints, const u16* indices, int nIndices );
     void collisionSpace_detect( bxPhysics_CollisionSpace* cs );
     void collisionSpace_resolve( bxPhysics_CollisionSpace* cs );
     void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs );

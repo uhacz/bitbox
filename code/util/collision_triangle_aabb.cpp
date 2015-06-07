@@ -204,4 +204,22 @@ namespace bxOverlap
         return reference::triBoxOverlap( aabbCenter_flt, aabbExt_ftl, triPoints_flt );
 
     }
+
+    int triangle_aabb( const Vector3& minAABB, const Vector3& maxAABB, const Vector3* triPoints, const unsigned triIndices[3] )
+    {
+        const Vector3 size = maxAABB - minAABB;
+        const Vector3 ext = size * halfVec;
+        const Vector3 center = minAABB + ext;
+
+        const float* aabbCenter_flt = (const float *)&center;
+        const float* aabbExt_ftl = (const float *)&ext;
+        float triPoints_flt[3][3];
+
+        m128_to_xyz( triPoints_flt[0], triPoints[triIndices[0]].get128() );
+        m128_to_xyz( triPoints_flt[1], triPoints[triIndices[1]].get128() );
+        m128_to_xyz( triPoints_flt[2], triPoints[triIndices[2]].get128() );
+
+        return reference::triBoxOverlap( aabbCenter_flt, aabbExt_ftl, triPoints_flt );
+    }
+
 }///

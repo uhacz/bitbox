@@ -7,6 +7,7 @@
 #include <util/common.h>
 
 #include <gfx/gfx_debug_draw.h>
+#include "util/poly/poly_shape.h"
 namespace
 {
     float abs_column_sum( const Matrix3& a, int i )
@@ -207,26 +208,35 @@ namespace bxGame
     void character_init( Character* character, const Matrix4& worldPose )
     {
         const float a = 0.5f;
-        const int NUM_POINTS = 8;
-        const Vector3 restPos[NUM_POINTS] =
-        {
-            Vector3( -a, -a, a ),
-            Vector3( a, -a, a ),
-            Vector3( a, a, a ),
-            Vector3( -a, a, a ),
 
-            Vector3( -a, -a, -a ),
-            Vector3( a, -a, -a ),
-            Vector3( a, a, -a ),
-            Vector3( -a, a, -a ),
-        };
+        bxPolyShape shape;
+        bxPolyShape_createShpere( &shape, 2 );
+
+        const int NUM_POINTS = shape.num_vertices;
+        //const Vector3* restPos = (Vector3*)shape.positions;
+
+
+        //const Vector3 restPos[NUM_POINTS] =
+        //{
+        //    Vector3( -a, -a, a ),
+        //    Vector3( a, -a, a ),
+        //    Vector3( a, a, a ),
+        //    Vector3( -a, a, a ),
+
+        //    Vector3( -a, -a, -a ),
+        //    Vector3( a, -a, -a ),
+        //    Vector3( a, a, -a ),
+        //    Vector3( -a, a, -a ),
+        //};
 
         CharacterParticles& cp = character->particles;
         _CharacterParticles_allocateData( &cp, NUM_POINTS );
 
         for( int i = 0; i < NUM_POINTS; ++i )
         {
-            const Vector3 pos = mulAsVec4( worldPose, restPos[i] );
+            //const Vector3 pos = mulAsVec4( worldPose, restPos[i] );
+            const Vector3 restPos( xyz_to_m128( shape.position( i ) ) );
+            const Vector3 pos = mulAsVec4( worldPose, restPos );
             cp.pos0[i] = pos;
             cp.pos1[i] = pos;
             cp.velocity[i] = Vector3( 0.f );
@@ -251,6 +261,8 @@ namespace bxGame
 
         character->centerOfMass.pos = worldPose.getTranslation();
         character->centerOfMass.rot = Quat( worldPose.getUpper3x3() );
+
+        bxPolyShape_deallocateShape( &shape );
     }
 
     namespace
@@ -269,7 +281,7 @@ namespace bxGame
 
             const Vector3 gravity = Vector3( 0.f, -9.1f, 0.f );
             const floatInVec dtv( deltaTime );
-            const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.1f ), dtv );
+            const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.4f ), dtv );
             const int nPoints = cp.size;
 
             for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
@@ -330,7 +342,7 @@ namespace bxGame
             character->centerOfMass.pos = com;
             character->centerOfMass.rot = Quat( R );
 
-            const floatInVec shapeStiffness( 1.f );
+            const floatInVec shapeStiffness( 0.1f );
             for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
             {
                 const Vector3 goalPos = com + R * cp.restPos[ipoint];

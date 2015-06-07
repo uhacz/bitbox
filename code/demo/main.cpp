@@ -77,7 +77,7 @@ public:
         
         bxPhysics::collisionSpace_new();
         __scene.character = bxGame::character_new();
-        bxGame::character_init( __scene.character, Matrix4::rotationZ( 0.5f ) );
+        bxGame::character_init( __scene.character, Matrix4( Matrix3::rotationZ( 0.5f ), Vector3( 0.f, 2.f, 0.f ) ) );
         
         bxPhysics::collisionSpace_createPlane( bxPhysics::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
         bxPhysics::collisionSpace_createBox( bxPhysics::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );

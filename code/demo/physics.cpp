@@ -446,4 +446,40 @@ void collisionSpace_collide( bxPhysics_CollisionSpace* cs, Vector3* points, int 
     }
 }
 
+void collisionSpace_collide( bxPhysics_CollisionSpace* cs, Vector3* points, int nPoints, const u16* indices, int nIndices )
+{
+    SYS_ASSERT( (nIndices % 3) == 0 );
+    for( int itri = 0; itri < nIndices; itri += 3 )
+    {
+        const u32 triIndices[] = 
+        {
+            indices[itri + 0],
+            indices[itri + 1],
+            indices[itri + 2],
+        };
+
+        Vector3 triPoints[] =
+        {
+            points[triIndices[0]],
+            points[triIndices[1]],
+            points[triIndices[2]],
+        };
+
+        int n = 0;
+        n = cs->plane.size();
+        for ( int i = 0; i < n; ++i )
+        {
+            const Vector4& plane = cs->plane.value[i];
+            const floatInVec d0 = dot( plane, Vector4( triPoints[0], oneVec ) );
+            const floatInVec d1 = dot( plane, Vector4( triPoints[1], oneVec ) );
+            const floatInVec d2 = dot( plane, Vector4( triPoints[2], oneVec ) );
+            const floatInVec d = minf4( d0, minf4( d1, d2 ) );
+            const Vector3 displ = -plane.getXYZ() * minf4( d, zeroVec );
+            triPoints[0] += displ;
+            triPoints[1] += displ;
+            triPoints[2] += displ;
+        }
+    }
+}
+
 }///
