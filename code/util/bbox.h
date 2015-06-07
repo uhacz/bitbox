@@ -66,4 +66,10 @@ struct bxAABB
         //return boolInVec( pointInAABBf4( picoF128( bboxMin.get128() ), picoF128( bboxMax.get128() ), picoF128( point.get128() ) ) );
         return boolInVec( floatInVec( pointInAABBf4( aabb.min.get128(), aabb.max.get128(), point.get128() ) ) ).getAsBool();
     }
+
+    static inline Vector3 closestPointOnABB( const Vector3& bboxMin, const Vector3& bboxMax, const Vector3& point )
+    {
+        return minPerElem( maxPerElem( point, bboxMin ), bboxMax );
+    }
+
 };

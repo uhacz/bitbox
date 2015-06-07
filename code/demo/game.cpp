@@ -1,4 +1,5 @@
 #include "game.h"
+#include "physics.h"
 
 #include <util/type.h>
 #include <util/buffer_utils.h>
@@ -262,9 +263,9 @@ namespace bxGame
                 bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.1f ), 0x00FF00FF, true );
             }
 
-            const Vector3 groundPlaneOffset = Vector3( 0.f, -2.f, 0.f );
-            const Vector4 groundPlane = makePlane( Vector3::yAxis(), groundPlaneOffset );
-            bxGfxDebugDraw::addBox( Matrix4::translation( groundPlaneOffset ), Vector3( 10.f, 0.1f, 10.f ), 0xFF0000FF, true );
+            //const Vector3 groundPlaneOffset = Vector3( 0.f, -2.f, 0.f );
+            //const Vector4 groundPlane = makePlane( Vector3::yAxis(), groundPlaneOffset );
+            //bxGfxDebugDraw::addBox( Matrix4::translation( groundPlaneOffset ), Vector3( 10.f, 0.1f, 10.f ), 0xFF0000FF, true );
 
             const Vector3 gravity = Vector3( 0.f, -9.1f, 0.f );
             const floatInVec dtv( deltaTime );
@@ -285,16 +286,20 @@ namespace bxGame
                 cp.velocity[ipoint] = vel;
             }
 
-            for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
             {
-                Vector3 pos = cp.pos1[ipoint];
-
-                const floatInVec d = dot( groundPlane, Vector4( pos, oneVec ) );
-                const Vector3 dpos = -groundPlane.getXYZ() * minf4( d, zeroVec );
-                pos += dpos;
-
-                cp.pos1[ipoint] = pos;
+                bxPhysics::collisionSpace_collide( bxPhysics::__cspace, cp.pos1, nPoints );
             }
+
+            //for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
+            //{
+            //    Vector3 pos = cp.pos1[ipoint];
+
+            //    const floatInVec d = dot( groundPlane, Vector4( pos, oneVec ) );
+            //    const Vector3 dpos = -groundPlane.getXYZ() * minf4( d, zeroVec );
+            //    pos += dpos;
+
+            //    cp.pos1[ipoint] = pos;
+            //}
 
             Vector3 com( 0.f );
             floatInVec totalMass( 0.f );

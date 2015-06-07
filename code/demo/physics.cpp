@@ -1,6 +1,7 @@
 #include "physics.h"
 #include <util/array.h>
 #include <util/handle_manager.h>
+#include <util/bbox.h>
 #include <gfx/gfx_debug_draw.h>
 
 namespace bxPhysics{
@@ -217,85 +218,120 @@ bxPhysics_CSphereHandle collisionSpace_createSphere( bxPhysics_CollisionSpace* c
 {
     return collisionSphere_create( &cs->sphere, sph );
 }
-bxPhysics_CTriHandle collisiosSpace_addTriangles( bxPhysics_CollisionSpace* cs, const Vector3* positions, int nPositions, const u16* indices, int nIndices )
-{
-    SYS_ASSERT( nPositions < 0xFFFF );
-    SYS_ASSERT( nIndices < 0xFFFF );
-    bxPhysics_CollisionTriangles::Count count;
-    count.numPoints = (u16)nPositions;
-    count.numIndices = (u16)nIndices;
+//bxPhysics_CTriHandle collisiosSpace_addTriangles( bxPhysics_CollisionSpace* cs, const Vector3* positions, int nPositions, const u16* indices, int nIndices )
+//{
+//    SYS_ASSERT( nPositions < 0xFFFF );
+//    SYS_ASSERT( nIndices < 0xFFFF );
+//    bxPhysics_CollisionTriangles::Count count;
+//    count.numPoints = (u16)nPositions;
+//    count.numIndices = (u16)nIndices;
+//
+//    bxPhysics_CollisionTriangles& ctri = cs->tri;
+//
+//    u32 offset_dPos = 0xFFFFFFFF;
+//    {
+//        const int curSize = array::size( ctri.dposData );
+//        const int curCapacity = array::capacity( ctri.dposData );
+//
+//        offset_dPos = (u32)curSize;
+//
+//        const int spaceLeft = curCapacity - curSize;
+//        if( spaceLeft < nPositions )
+//        {
+//            const int newCapacity = ( curCapacity + nPositions ) * 2;
+//            array::reserve( ctri.dposData, newCapacity );
+//            array::resize( ctri.dposData, curSize + nPositions );
+//        }
+//    }
+//    
+//    int i0 = array::push_back( ctri.pos, positions );
+//    int i1 = array::push_back( ctri.index, indices );
+//    int i2 = array::push_back( ctri.count, count );
+//    int i3 = array::push_back( ctri.offset_dPos, offset_dPos );
+//    
+//    SYS_ASSERT( i0 == i1 );
+//    SYS_ASSERT( i0 == i2 );
+//    SYS_ASSERT( i0 == i3 );
+//
+//    return collisionHandle_create< bxPhysics_CTriHandle >( u32( i0 ) );
+//}
 
-    bxPhysics_CollisionTriangles& ctri = cs->tri;
+//void collisionSpace_newFrame( bxPhysics_CollisionSpace* cs )
+//{
+//    cs->tri.clear();
+//}
 
-    u32 offset_dPos = 0xFFFFFFFF;
-    {
-        const int curSize = array::size( ctri.dposData );
-        const int curCapacity = array::capacity( ctri.dposData );
-
-        offset_dPos = (u32)curSize;
-
-        const int spaceLeft = curCapacity - curSize;
-        if( spaceLeft < nPositions )
-        {
-            const int newCapacity = ( curCapacity + nPositions ) * 2;
-            array::reserve( ctri.dposData, newCapacity );
-            array::resize( ctri.dposData, curSize + nPositions );
-        }
-    }
-    
-    int i0 = array::push_back( ctri.pos, positions );
-    int i1 = array::push_back( ctri.index, indices );
-    int i2 = array::push_back( ctri.count, count );
-    int i3 = array::push_back( ctri.offset_dPos, offset_dPos );
-    
-    SYS_ASSERT( i0 == i1 );
-    SYS_ASSERT( i0 == i2 );
-    SYS_ASSERT( i0 == i3 );
-
-    return collisionHandle_create< bxPhysics_CTriHandle >( u32( i0 ) );
-}
-
-void collisionSpace_newFrame( bxPhysics_CollisionSpace* cs )
-{
-    cs->tri.clear();
-}
+//struct bxPhysics_CollisionHashTable
+//{
+//    union CellKey
+//    {
+//        u64 hash;
+//        struct {
+//            i16 x;
+//            i16 y;
+//            i16 z;
+//            i16 w; // padding
+//        };
+//    };
+//    union CellData
+//    {
+//        u64 hash;
+//        struct {
+//            u16 objIndex;
+//            u16 pointIndex;
+//            i16 next;
+//            i16 last;
+//        };
+//    };
+//    hashmap_t table;
+//    array_t< CellData > items;
+//};
 
 namespace
 {
-#define BX_PHYSICS_COLLISION_HASH_PRIME1 73856093
-#define BX_PHYSICS_COLLISION_HASH_PRIME2 19349663
-#define BX_PHYSICS_COLLISION_HASH_PRIME3 83492791
+//#define BX_PHYSICS_COLLISION_HASH_PRIME1 73856093
+//#define BX_PHYSICS_COLLISION_HASH_PRIME2 19349663
+//#define BX_PHYSICS_COLLISION_HASH_PRIME3 83492791
+//
+//    inline u32 computeHash( const __m128 point, const __m128 cellSizeInv, unsigned hashTableSize )
+//    {
+//        const __m128i primes = { BX_PHYSICS_COLLISION_HASH_PRIME1, BX_PHYSICS_COLLISION_HASH_PRIME2, BX_PHYSICS_COLLISION_HASH_PRIME3, BX_PHYSICS_COLLISION_HASH_PRIME1 };
+//        const __m128 gridPointF = vec_mul( point, cellSizeInv );
+//        const __m128i gridPointI = _mm_cvttps_epi32( gridPointF );
+//        const SSEScalar s( vec_mul( gridPointI, primes ) );
+//        return ( u32( s.ix ) ^ u32( s.iy ) ^ u32( s.iz ) ) % hashTableSize;
+//    }
 
-    inline u32 computeHash( const __m128 point, const __m128 cellSizeInv, unsigned hashTableSize )
-    {
-        const __m128i primes = { BX_PHYSICS_COLLISION_HASH_PRIME1, BX_PHYSICS_COLLISION_HASH_PRIME2, BX_PHYSICS_COLLISION_HASH_PRIME3, BX_PHYSICS_COLLISION_HASH_PRIME1 };
-        const __m128 gridPointF = vec_mul( point, cellSizeInv );
-        const __m128i gridPointI = _mm_cvttps_epi32( gridPointF );
-        const  SSEScalar s( vec_mul( gridPointI, primes ) );
-        return ( u32( s.ix ) ^ u32( s.iy ) ^ u32( s.iz ) ) % hashTableSize;
-    }
-}
+    //inline u64 computeHash( const __m128 point, const __m128 cellSizeInv )
+    //{
+    //    //const __m128i primes = { BX_PHYSICS_COLLISION_HASH_PRIME1, BX_PHYSICS_COLLISION_HASH_PRIME2, BX_PHYSICS_COLLISION_HASH_PRIME3, BX_PHYSICS_COLLISION_HASH_PRIME1 };
+    //    const __m128 gridPointF = vec_mul( point, cellSizeInv );
+    //    const __m128i gridPointI = _mm_cvttps_epi32( gridPointF );
+    //    const SSEScalar s( gridPointI );
+    //    
+    //    bxPhysics_CollisionHashTable::CellKey ckey = { 0 };
+    //    ckey.x = i16( s.ix );
+    //    ckey.y = i16( s.iy );
+    //    ckey.z = i16( s.iz );
 
-struct bxPhysics_CollisionHashBucket
-{
-        
-};
+    //    return ckey.hash;
+    //}
+}///
 
-struct bxPhysics_CollisionHashTable
-{
-    
-    u32 size;
-};
-
-void collisionSpace_detect( bxPhysics_CollisionSpace* cs )
-{
-
-}
-
-void collisionSpace_resolve( bxPhysics_CollisionSpace* cs )
-{
-
-}
+//void collisionHashTable_insert( bxPhysics_CollisionHashTable* table, bxPhysics_CollisionSpace* cs, bxPhysics_CTriHandle hTri )
+//{
+//    
+//}
+//
+//void collisionSpace_detect( bxPhysics_CollisionSpace* cs )
+//{
+//
+//}
+//
+//void collisionSpace_resolve( bxPhysics_CollisionSpace* cs )
+//{
+//
+//}
 
 void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
 {
@@ -331,6 +367,82 @@ void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
             const Vector3& ext = cs->box.ext[i];
             bxGfxDebugDraw::addBox( Matrix4( rot, pos ), ext, color, 1 );
         }
+    }
+}
+
+void collisionSpace_collide( bxPhysics_CollisionSpace* cs, Vector3* points, int nPoints )
+{
+    int n = 0;
+    for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
+    {
+        Vector3 pt = points[ipoint];
+
+        n = cs->plane.size();
+        for ( int i = 0; i < n; ++i )
+        {
+            const Vector4& plane = cs->plane.value[i];
+            const floatInVec d = dot( plane, Vector4( pt, oneVec ) );
+            pt += -plane.getXYZ() * minf4( d, zeroVec );
+        }
+
+        n = cs->sphere.size();
+        for ( int i = 0; i < n; ++i )
+        {
+            const Vector4& sphere = cs->sphere.value[i];
+            const Vector3 v = pt - sphere.getXYZ();
+            const floatInVec d = length( v );
+
+            pt += normalizeSafe( v ) * maxf4( sphere.getW() - d, zeroVec );
+        }
+
+        n = cs->box.size();
+        for ( int i = 0; i < n; ++i )
+        {
+            const Vector3& pos = cs->box.pos[i];
+            const Quat& rot = cs->box.rot[i];
+            const Vector3& ext = cs->box.ext[i];
+
+            const Vector3 ptInBoxSpace = fastRotateInv( rot, pt - pos );
+            if( !bxAABB::isPointInside( bxAABB( -ext, ext ), ptInBoxSpace ) )
+                continue;
+
+            const Vector3 absPtInBoxSpace = absPerElem( ptInBoxSpace );
+            const Vector3 distToSurface = ext - absPtInBoxSpace;
+
+            const SSEScalar dts( distToSurface.get128() );
+
+            Vector3 dpos( 0.f );
+            if( dts.y < dts.x )
+            {
+                if( dts.y < dts.z ) 
+                {
+                    // y
+                    dpos = select( Vector3( 0.f, -dts.y, 0.f ), Vector3( 0.f, dts.y, 0.f ), ptInBoxSpace.getY() > zeroVec );
+                }
+                else 
+                {
+                    // z
+                    dpos = select( Vector3( 0.f, 0.f, -dts.z ), Vector3( 0.f, 0.f, dts.z ), ptInBoxSpace.getZ() > zeroVec );
+                }
+            }
+            else
+            {
+                if ( dts.x < dts.z )
+                {
+                    // x
+                    dpos = select( Vector3( -dts.x, 0.f, 0.f ), Vector3( dts.x, 0.f, 0.f ), ptInBoxSpace.getX() > zeroVec );
+                }
+                else
+                {
+                    // z
+                    dpos = select( Vector3( 0.f, 0.f, -dts.z ), Vector3( 0.f, 0.f, dts.z ), ptInBoxSpace.getZ() > zeroVec );
+                }
+            }
+            dpos = fastRotate( rot, dpos );
+            pt += dpos;
+        }
+
+        points[ipoint] = pt;
     }
 }
 

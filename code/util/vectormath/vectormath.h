@@ -231,6 +231,11 @@ inline Vector3 fastRotate( const Quat& q, const Vector3& v )
     const Vector3 t = twoVec * cross( q.getXYZ(), v );
     return v + q.getW() * t + cross( q.getXYZ(), t );
 }
+inline Vector3 fastRotateInv( const Quat& q, const Vector3& v )
+{
+    const Vector3 t = twoVec * cross( q.getXYZ(), v );
+    return v - q.getW() * t + cross( q.getXYZ(), t );
+}
 inline Vector3 fastTransform( const Quat& rot, const Vector3& trans, const Vector3& point )
 {
     return trans + fastRotate( rot, point );
