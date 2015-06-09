@@ -85,7 +85,8 @@ struct bxInput_Pad
     bxInput_PadState state[2];
     u32 currentStateIndex : 1;
 
-    bxInput_PadState* currentState() { return &state[currentStateIndex]; }
+          bxInput_PadState* currentState()       { return &state[currentStateIndex]; }
+    const bxInput_PadState* currentState() const { return &state[currentStateIndex]; }
 };
 
 struct bxInput_Keyboard
@@ -93,7 +94,8 @@ struct bxInput_Keyboard
     bxInput_KeyboardState prevState;
     bxInput_KeyboardState currState;
 
-    bxInput_KeyboardState* currentState() { return &currState; }
+          bxInput_KeyboardState* currentState()       { return &currState; }
+    const bxInput_KeyboardState* currentState() const { return &currState; }
 };
 
 
@@ -146,7 +148,7 @@ void bxInput_updatePad( bxInput_PadState* pad_states, u32 n );
 //////////////////////////////////////////////////////////////////////////
 inline bool bxInput_isKeyPressed( const bxInput_Keyboard* input, unsigned char key )
 {
-    return input->currState.keys[key] > 0;
+    return ( input->currState.keys[key]) != 0;
 }
 inline bool bxInput_isKeyPressedOnce( const bxInput_Keyboard* input, unsigned char key )
 {

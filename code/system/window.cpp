@@ -216,24 +216,26 @@ LRESULT CALLBACK default_window_message_proc( HWND hwnd, UINT msg, WPARAM wParam
     bxInput_KeyboardState* kbdState = input->kbd.currentState();
     bxInput_MouseState* mouseState = input->mouse.currentState();
 
+    //GetKeyboardState( kbdState->keys );
+    
 	switch( msg )
 	{
-	case WM_KEYUP:
-		{
-			if ( wParam < 256 )
-			{
-				kbdState->keys[wParam] = false;
-			}
-			break;
-		}
-	case WM_KEYDOWN:
-		{
-			if ( wParam < 256 )
-			{
-                kbdState->keys[wParam] = true;
-			}
-			break;
-		}
+	//case WM_KEYUP:
+	//	{
+	//		if ( wParam < 256 )
+	//		{
+	//			kbdState->keys[wParam] = false;
+	//		}
+	//		break;
+	//	}
+	//case WM_KEYDOWN:
+	//	{
+	//		if ( wParam < 256 )
+	//		{
+ //               kbdState->keys[wParam] = true;
+	//		}
+	//		break;
+	//	}
 
 	case WM_LBUTTONDOWN:
 		{

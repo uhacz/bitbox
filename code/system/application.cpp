@@ -32,6 +32,13 @@ int bxApplication_run( bxApplication* app )
 			DispatchMessage( &msg );
 		}
 		
+        bxInput* input = &win->input;
+        bxInput_KeyboardState* kbdState = input->kbd.currentState();
+        for( int i = 0; i < 256; ++i )
+        {
+            kbdState->keys[i] = ( GetAsyncKeyState( i ) & 0x8000 ) != 0;
+        }
+
 		bxInput_updatePad( win->input.pad.currentState(), 1 );
 		bxInput_computeMouseDelta( win->input.mouse.currentState(), win->input.mouse.previousState() );
 

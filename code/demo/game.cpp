@@ -8,6 +8,8 @@
 
 #include <gfx/gfx_debug_draw.h>
 #include "util/poly/poly_shape.h"
+#include "system/input.h"
+#include "util/signal_filter.h"
 namespace
 {
     float abs_column_sum( const Matrix3& a, int i )
@@ -97,16 +99,6 @@ namespace bxGame
 
 #define BX_GAME_COPY_DATA( to, from, field ) memcpy( to.field, from->field, from->size * sizeof( *from->field ) )
 
-
-    struct Constraint
-    {
-        u16 p0;
-        u16 p1;
-        f32 len;
-    };
-
-    typedef array_t< Constraint > CharacterConstraints;
-
     struct CharacterParticles
     {
         void* memoryHandle;
@@ -173,10 +165,52 @@ namespace bxGame
         Quat rot;
     };
 
+    struct CharacterInput
+    {
+        f32 analogX;
+        f32 analogY;
+        f32 jump;
+        f32 crouch;
+    };
+    void characterInput_collectData( CharacterInput* charInput, const bxInput& input, float deltaTime )
+    {
+        const bxInput_Pad& pad = bxInput_getPad( input );
+        if( pad.currentState()->connected )
+        {
+
+        }
+        else
+        {
+            const bxInput_Keyboard* kbd = &input.kbd;
+
+            const int inLeft = bxInput_isKeyPressed( kbd, 'A' );
+            const int inRight = bxInput_isKeyPressed( kbd, 'D' );
+            const int inFwd = bxInput_isKeyPressed( kbd, 'W' );
+            const int inBack = bxInput_isKeyPressed( kbd, 'S' );
+            const int inJump = bxInput_isKeyPressedOnce( kbd, ' ' );
+            const int inCrouch = bxInput_isKeyPressedOnce( kbd, bxInput::eKEY_LSHIFT );
+
+            const float analogX = -(float)inLeft + (float)inRight;
+            const float analogY = -(float)inBack + (float)inFwd;
+
+            const float crouch = (f32)inCrouch;
+            const float jump = (f32)inJump;
+
+            const float RC = 0.1f;
+            charInput->analogX = signalFilter_lowPass( analogX, charInput->analogX, RC, deltaTime );
+            charInput->analogY = signalFilter_lowPass( analogY, charInput->analogY, RC, deltaTime );
+            charInput->jump = signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
+            charInput->crouch = signalFilter_lowPass( crouch, charInput->crouch, RC, deltaTime );
+
+            bxLogInfo( "x: %f, y: %f", charInput->analogX, charInput->analogY );
+        }
+    }
+
     struct Character
     {
         CharacterParticles particles;
         CharacterCenterOfMass centerOfMass;
+        CharacterInput input;
 
         f32 _dtAcc;
 
@@ -193,6 +227,7 @@ namespace bxGame
     {
         Character* character = BX_NEW( bxDefaultAllocator(), Character );
         memset( &character->particles, 0x00, sizeof( CharacterParticles ) );
+        memset( &character->input, 0x00, sizeof( CharacterInput ) );
 
         return character;
     }
@@ -267,17 +302,9 @@ namespace bxGame
 
     namespace
     {
-        void character_simulate( Character* character, float deltaTime )
+        void character_simulate( Character* character, const Vector3& externalForces, float deltaTime )
         {
             CharacterParticles& cp = character->particles;
-            for ( int i = 0; i < cp.size; ++i )
-            {
-                bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.1f ), 0x00FF00FF, true );
-            }
-
-            //const Vector3 groundPlaneOffset = Vector3( 0.f, -2.f, 0.f );
-            //const Vector4 groundPlane = makePlane( Vector3::yAxis(), groundPlaneOffset );
-            //bxGfxDebugDraw::addBox( Matrix4::translation( groundPlaneOffset ), Vector3( 10.f, 0.1f, 10.f ), 0xFF0000FF, true );
 
             const Vector3 gravity = Vector3( 0.f, -9.1f, 0.f );
             const floatInVec dtv( deltaTime );
@@ -289,8 +316,9 @@ namespace bxGame
                 Vector3 pos = cp.pos0[ipoint];
                 Vector3 vel = cp.velocity[ipoint];
 
-                vel += gravity * dtv * floatInVec( cp.massInv[ipoint] );
+                vel += ( gravity ) * dtv * floatInVec( cp.massInv[ipoint] );
                 vel *= dampingCoeff;
+                vel += externalForces;
 
                 pos += vel * dtv;
 
@@ -301,17 +329,6 @@ namespace bxGame
             {
                 bxPhysics::collisionSpace_collide( bxPhysics::__cspace, cp.pos1, nPoints );
             }
-
-            //for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
-            //{
-            //    Vector3 pos = cp.pos1[ipoint];
-
-            //    const floatInVec d = dot( groundPlane, Vector4( pos, oneVec ) );
-            //    const Vector3 dpos = -groundPlane.getXYZ() * minf4( d, zeroVec );
-            //    pos += dpos;
-
-            //    cp.pos1[ipoint] = pos;
-            //}
 
             Vector3 com( 0.f );
             floatInVec totalMass( 0.f );
@@ -324,8 +341,8 @@ namespace bxGame
             com /= totalMass;
 
             Vector3 col0( FLT_EPSILON, 0.f, 0.f );
-            Vector3 col1( 0.f, FLT_EPSILON, 0.f );
-            Vector3 col2( 0.f, 0.f, FLT_EPSILON );
+            Vector3 col1( 0.f, FLT_EPSILON * 2.f, 0.f );
+            Vector3 col2( 0.f, 0.f, FLT_EPSILON * 4.f );
             for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
             {
                 const floatInVec mass( cp.mass[ipoint] );
@@ -362,16 +379,29 @@ namespace bxGame
                 cp.pos0[ipoint] = cp.pos1[ipoint];
             }
         }
+    
+        
+        
+
     }///
 
-    void character_tick( Character* character, float deltaTime )
+
+
+    void character_tick( Character* character, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
     {
+        characterInput_collectData( &character->input, input, deltaTime );
+        Vector3 externalForces( 0.f );
+        {
+            externalForces += Vector3::xAxis() * character->input.analogX;
+            externalForces += Vector3::zAxis() * character->input.analogY;
+        }
+                
         const float fixedDt = 1.f / 60.f;
         character->_dtAcc += deltaTime;
 
         while( character->_dtAcc >= fixedDt )
         {
-            character_simulate( character, fixedDt );
+            character_simulate( character, externalForces, fixedDt );
             character->_dtAcc -= fixedDt;
         }
 
