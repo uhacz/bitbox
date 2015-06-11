@@ -30,3 +30,5 @@ void BX_DELETE( bxAllocator* alloc, T* ptr )
 }
 #define BX_DELETE0( a, ptr ) { BX_DELETE( a, ptr ); ptr = 0; }
 #define BX_DELETE01( ptr ) { BX_DELETE( bxDefaultAllocator(), ptr ); ptr = 0; }
+
+#define BX_CONTAINER_COPY_DATA( to, from, field ) memcpy( to.field, from->field, from->size * sizeof( *from->field ) )

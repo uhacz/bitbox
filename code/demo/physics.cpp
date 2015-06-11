@@ -2,6 +2,8 @@
 #include <util/array.h>
 #include <util/handle_manager.h>
 #include <util/bbox.h>
+#include <util/buffer_utils.h>
+
 #include <gfx/gfx_debug_draw.h>
 
 namespace bxPhysics{
@@ -218,6 +220,107 @@ bxPhysics_CSphereHandle collisionSpace_createSphere( bxPhysics_CollisionSpace* c
 {
     return collisionSphere_create( &cs->sphere, sph );
 }
+
+}///
+
+struct bxPhysics_Contacts
+{
+    void* memoryHandle;
+    Vector3* normal;
+    f32* depth;
+    u16* index;
+
+    i32 size;
+    i32 capacity;
+};
+
+namespace bxPhysics
+{
+
+
+
+void _Contacts_allocateData( bxPhysics_Contacts* con, int newCap )
+{
+    if( newCap <= con->capacity )
+        return;
+
+    int memSize = 0;
+    memSize += newCap * sizeof( *con->normal );
+    memSize += newCap * sizeof( *con->depth );
+    memSize += newCap * sizeof( *con->index );
+
+    void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 16 );
+    memset( mem, 0x00, memSize );
+
+    bxBufferChunker chunker( mem, memSize );
+
+    bxPhysics_Contacts newCon;
+    newCon.memoryHandle = mem;
+    newCon.normal = chunker.add< Vector3 >( newCap );
+    newCon.depth = chunker.add< f32 >( newCap );
+    newCon.index = chunker.add< u16 >( newCap );
+    chunker.check();
+
+    newCon.size = con->size;
+    newCon.capacity = newCap;
+
+    if( con->size )
+    {
+        BX_CONTAINER_COPY_DATA( newCon, con, normal );
+        BX_CONTAINER_COPY_DATA( newCon, con, depth );
+        BX_CONTAINER_COPY_DATA( newCon, con, index );
+    }
+
+    BX_FREE( bxDefaultAllocator(), con->memoryHandle );
+    *con = newCon;
+}
+bxPhysics_Contacts* contacts_new( int capacity )
+{
+    bxPhysics_Contacts* contacts = BX_NEW( bxDefaultAllocator(), bxPhysics_Contacts );
+    memset( contacts, 0x00, sizeof( bxPhysics_Contacts ) );
+    _Contacts_allocateData( contacts, capacity );
+    return contacts;
+}
+
+void contacts_delete( bxPhysics_Contacts** con )
+{
+    BX_DELETE0( bxDefaultAllocator(), con[0] );
+}
+void contacts_clear( bxPhysics_Contacts* con )
+{
+    con->size = 0;
+}
+
+int contacts_size( bxPhysics_Contacts* con )
+{
+    return con->size;
+}
+
+int contacts_pushBack( bxPhysics_Contacts* con, const Vector3& normal, float depth, u16 index )
+{
+    if( con->size + 1 > con->capacity )
+    {
+        _Contacts_allocateData( con, con->size * 2 + 8 );
+    }
+
+    int i = con->size++;
+    con->normal[i] = normal;
+    con->depth[i] = depth;
+    con->index[i] = index;
+    return i;
+}
+void contacts_get( bxPhysics_Contacts* con, Vector3* normal, float* depth, u16* index0, u16* index1, int i )
+{
+    SYS_ASSERT( i >= 0 || i < con->size );
+
+    normal[0] = con->normal[i];
+    depth[0] = con->depth[i];
+    index0[0] = con->index[i];
+    index1[0] = 0xFFFF;
+}
+}///
+
+
 //bxPhysics_CTriHandle collisiosSpace_addTriangles( bxPhysics_CollisionSpace* cs, const Vector3* positions, int nPositions, const u16* indices, int nIndices )
 //{
 //    SYS_ASSERT( nPositions < 0xFFFF );
@@ -332,50 +435,17 @@ namespace
 //{
 //
 //}
+namespace bxPhysics{
 
-void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
-{
-    {
-        const u32 color = 0xFF0000FF;
-        const int n = cs->plane.size();
-        for( int i = 0; i < n; ++i )
-        {
-            const Vector4& plane = cs->plane.value[i];
-            const Vector3 pos = projectPointOnPlane( Vector3( 0.f ), plane );
-            const Matrix3 rot = createBasis( plane.getXYZ() );
 
-            bxGfxDebugDraw::addBox( Matrix4( rot, pos ), Vector3( 10.f, FLT_EPSILON*2.f, 10.f ), color, 1 );
-        }
-    }
-    {
-        const u32 color = 0x00FF00FF;
-        const int n = cs->sphere.size();
-        for( int i = 0; i < n; ++i )
-        {
-            const Vector4& sphere = cs->sphere.value[i];
-            bxGfxDebugDraw::addSphere( sphere, color, 1 );
-        }
-    }
 
-    {
-        const u32 color = 0x0000FFFF;
-        const int n = cs->box.size();
-        for( int i = 0; i < n; ++i )
-        {
-            const Vector3& pos = cs->box.pos[i];
-            const Quat& rot = cs->box.rot[i];
-            const Vector3& ext = cs->box.ext[i];
-            bxGfxDebugDraw::addBox( Matrix4( rot, pos ), ext, color, 1 );
-        }
-    }
-}
-
-void collisionSpace_collide( bxPhysics_CollisionSpace* cs, Vector3* points, int nPoints )
+void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* contacts, Vector3* points, int nPoints )
 {
     int n = 0;
     for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
     {
-        Vector3 pt = points[ipoint];
+        const Vector3 pt0 = points[ipoint];
+        Vector3 pt = pt0;
 
         n = cs->plane.size();
         for ( int i = 0; i < n; ++i )
@@ -442,11 +512,20 @@ void collisionSpace_collide( bxPhysics_CollisionSpace* cs, Vector3* points, int 
             pt += dpos;
         }
 
+        const Vector3 dpos = pt - pt0;
+        const float depth = length( dpos ).getAsFloat();
+        if( depth > FLT_EPSILON )
+        {
+            SYS_ASSERT( ipoint < 0xFFFF );
+            const Vector3 normal = normalize( dpos );
+            contacts_pushBack( contacts, normal, depth, u16( ipoint ) );
+        }
+
         points[ipoint] = pt;
     }
 }
 
-void collisionSpace_collide( bxPhysics_CollisionSpace* cs, Vector3* points, int nPoints, const u16* indices, int nIndices )
+void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* contacts, Vector3* points, int nPoints, const u16* indices, int nIndices )
 {
     SYS_ASSERT( (nIndices % 3) == 0 );
     for( int itri = 0; itri < nIndices; itri += 3 )
@@ -478,6 +557,45 @@ void collisionSpace_collide( bxPhysics_CollisionSpace* cs, Vector3* points, int 
             triPoints[0] += displ;
             triPoints[1] += displ;
             triPoints[2] += displ;
+        }
+    }
+}
+
+////
+////
+void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
+{
+    {
+        const u32 color = 0xFF0000FF;
+        const int n = cs->plane.size();
+        for( int i = 0; i < n; ++i )
+        {
+            const Vector4& plane = cs->plane.value[i];
+            const Vector3 pos = projectPointOnPlane( Vector3( 0.f ), plane );
+            const Matrix3 rot = createBasis( plane.getXYZ() );
+
+            bxGfxDebugDraw::addBox( Matrix4( rot, pos ), Vector3( 10.f, FLT_EPSILON*2.f, 10.f ), color, 1 );
+        }
+    }
+    {
+        const u32 color = 0x00FF00FF;
+        const int n = cs->sphere.size();
+        for( int i = 0; i < n; ++i )
+        {
+            const Vector4& sphere = cs->sphere.value[i];
+            bxGfxDebugDraw::addSphere( sphere, color, 1 );
+        }
+    }
+
+    {
+        const u32 color = 0x0000FFFF;
+        const int n = cs->box.size();
+        for( int i = 0; i < n; ++i )
+        {
+            const Vector3& pos = cs->box.pos[i];
+            const Quat& rot = cs->box.rot[i];
+            const Vector3& ext = cs->box.ext[i];
+            bxGfxDebugDraw::addBox( Matrix4( rot, pos ), ext, color, 1 );
         }
     }
 }

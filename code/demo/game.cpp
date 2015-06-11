@@ -94,11 +94,6 @@ unsigned int bxPolarDecomposition( const Matrix3& a, Matrix3& u, Matrix3& h, uns
 
 namespace bxGame
 {
-
-
-
-#define BX_GAME_COPY_DATA( to, from, field ) memcpy( to.field, from->field, from->size * sizeof( *from->field ) )
-
     struct CharacterParticles
     {
         void* memoryHandle;
@@ -147,18 +142,20 @@ namespace bxGame
 
         if( cp->size )
         {
-            BX_GAME_COPY_DATA( newCP, cp, restPos );
-            BX_GAME_COPY_DATA( newCP, cp, pos0 );
-            BX_GAME_COPY_DATA( newCP, cp, pos0 );
-            BX_GAME_COPY_DATA( newCP, cp, velocity );
-            BX_GAME_COPY_DATA( newCP, cp, mass );
-            BX_GAME_COPY_DATA( newCP, cp, massInv );
+            BX_CONTAINER_COPY_DATA( newCP, cp, restPos );
+            BX_CONTAINER_COPY_DATA( newCP, cp, pos0 );
+            BX_CONTAINER_COPY_DATA( newCP, cp, pos0 );
+            BX_CONTAINER_COPY_DATA( newCP, cp, velocity );
+            BX_CONTAINER_COPY_DATA( newCP, cp, mass );
+            BX_CONTAINER_COPY_DATA( newCP, cp, massInv );
         }
 
         BX_FREE( bxDefaultAllocator(), cp->memoryHandle );
         *cp = newCP;
     }
 
+    
+    
     struct CharacterCenterOfMass
     {
         Vector3 pos;
@@ -211,11 +208,13 @@ namespace bxGame
         CharacterParticles particles;
         CharacterCenterOfMass centerOfMass;
         CharacterInput input;
+        bxPhysics_Contacts* contacts;
 
         f32 _dtAcc;
 
         Character()
-            : _dtAcc(0.f)
+            : _dtAcc( 0.f )
+            , contacts( 0 )
         {}
     };
 
@@ -228,7 +227,6 @@ namespace bxGame
         Character* character = BX_NEW( bxDefaultAllocator(), Character );
         memset( &character->particles, 0x00, sizeof( CharacterParticles ) );
         memset( &character->input, 0x00, sizeof( CharacterInput ) );
-
         return character;
     }
     void character_delete( Character** c )
@@ -236,6 +234,7 @@ namespace bxGame
         if ( !c[0] )
             return;
 
+        bxPhysics::contacts_delete( &c[0]->contacts );
         BX_FREE0( bxDefaultAllocator(), c[0]->particles.memoryHandle );
         BX_DELETE0( bxDefaultAllocator(), c[0] );
     }
@@ -296,6 +295,7 @@ namespace bxGame
 
         character->centerOfMass.pos = worldPose.getTranslation();
         character->centerOfMass.rot = Quat( worldPose.getUpper3x3() );
+        character->contacts = bxPhysics::contacts_new( NUM_POINTS );
 
         bxPolyShape_deallocateShape( &shape );
     }
@@ -327,7 +327,8 @@ namespace bxGame
             }
 
             {
-                bxPhysics::collisionSpace_collide( bxPhysics::__cspace, cp.pos1, nPoints );
+                bxPhysics::contacts_clear( character->contacts );
+                bxPhysics::collisionSpace_collide( bxPhysics::__cspace, character->contacts, cp.pos1, nPoints );
             }
 
             Vector3 com( 0.f );
@@ -372,12 +373,46 @@ namespace bxGame
                 cp.pos1[ipoint] = pos;
             }
 
+            {
+                bxPhysics_Contacts* contacts = character->contacts;
+                const floatInVec dfriction( 0.8f );
+                const floatInVec sfriction( 0.2f );
+                const int nContacts = bxPhysics::contacts_size( contacts );
+
+                Vector3 normal( 0.f );
+                float depth = 0.f;
+                u16 index0 = 0xFFFF;
+                u16 index1 = 0xFFFF;
+
+                for( int icontact = 0; icontact < nContacts; ++icontact )
+                {
+                    bxPhysics::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
+
+                    Vector3 v = cp.pos1[index0] - cp.pos0[index0];
+                    Vector3 t = projectVectorOnPlane( v, Vector4( normal ) );
+
+                    const floatInVec tspeed = length( t );
+                    const floatInVec speed = length( v );
+                    const floatInVec sd = speed * sfriction;
+                    const floatInVec dd = speed * dfriction;
+
+                    const Vector3 tmp = -t * minf4( oneVec, dd / tspeed );
+                    const Vector3 dpos = select( tmp, -t, tspeed < sd );
+
+                    cp.pos1[index0] += dpos;
+                }
+            }
+
             const floatInVec dtInv = select( zeroVec, oneVec / dtv, dtv > fltEpsVec );
             for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
             {
                 cp.velocity[ipoint] = (cp.pos1[ipoint] - cp.pos0[ipoint]) * dtInv;
                 cp.pos0[ipoint] = cp.pos1[ipoint];
             }
+
+            
+            
+
         }
     
         
