@@ -35,6 +35,7 @@
 using namespace Vectormath;
 using namespace Vectormath::Aos;
 
+
 #include <float.h>
 #define zeroVec floatInVec(0.f)
 #define oneVec floatInVec(1.f)

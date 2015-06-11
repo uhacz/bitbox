@@ -10,6 +10,7 @@
 #include "util/poly/poly_shape.h"
 #include "system/input.h"
 #include "util/signal_filter.h"
+#include "gfx/gfx_camera.h"
 namespace
 {
     float abs_column_sum( const Matrix3& a, int i )
@@ -196,24 +197,48 @@ namespace bxGame
             const float RC = 0.1f;
             charInput->analogX = signalFilter_lowPass( analogX, charInput->analogX, RC, deltaTime );
             charInput->analogY = signalFilter_lowPass( analogY, charInput->analogY, RC, deltaTime );
-            charInput->jump = signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
+            charInput->jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
             charInput->crouch = signalFilter_lowPass( crouch, charInput->crouch, RC, deltaTime );
 
-            bxLogInfo( "x: %f, y: %f", charInput->analogX, charInput->analogY );
+            bxLogInfo( "x: %f, y: %f", charInput->analogX, charInput->jump );
         }
     }
+
+    struct CharacterParams
+    {
+        f32 maxInputForce;
+        f32 jumpStrength;
+        f32 staticFriction;
+        f32 dynamicFriction;
+        f32 velocityDamping;
+        f32 shapeStiffness;
+
+        CharacterParams()
+            : maxInputForce( 0.15f )
+            , jumpStrength( 5.f )
+            , staticFriction( 0.2f )
+            , dynamicFriction( 0.8f )
+            , velocityDamping( 0.7f )
+            , shapeStiffness( 0.1f )
+        {}
+    };
 
     struct Character
     {
         CharacterParticles particles;
         CharacterCenterOfMass centerOfMass;
+        Vector3 upVector;
         CharacterInput input;
+        CharacterParams params;
         bxPhysics_Contacts* contacts;
 
         f32 _dtAcc;
+        f32 _jumpAcc;
 
         Character()
-            : _dtAcc( 0.f )
+            : upVector( Vector3::yAxis() )
+            , _dtAcc( 0.f )
+            , _jumpAcc( 0.f )
             , contacts( 0 )
         {}
     };
@@ -306,9 +331,9 @@ namespace bxGame
         {
             CharacterParticles& cp = character->particles;
 
-            const Vector3 gravity = Vector3( 0.f, -9.1f, 0.f );
+            const Vector3 gravity = character->upVector * -9.1f;
             const floatInVec dtv( deltaTime );
-            const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.4f ), dtv );
+            const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.6f ), dtv );
             const int nPoints = cp.size;
 
             for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
@@ -428,16 +453,27 @@ namespace bxGame
         Vector3 externalForces( 0.f );
         {
             externalForces += Vector3::xAxis() * character->input.analogX;
-            externalForces += Vector3::zAxis() * character->input.analogY;
-        }
+            externalForces -= Vector3::zAxis() * character->input.analogY;
+        
+            const floatInVec externalForcesValue = minf4( length( externalForces ), floatInVec( 0.15f ) );
+            externalForces = projectVectorOnPlane( camera.matrix.world.getUpper3x3() * externalForces, Vector4( character->upVector, oneVec ) );
+            externalForces = normalizeSafe( externalForces ) * externalForcesValue;
+
+            character->_jumpAcc += character->input.jump * 5.f;
+        } 
+        
                 
         const float fixedDt = 1.f / 60.f;
         character->_dtAcc += deltaTime;
 
         while( character->_dtAcc >= fixedDt )
         {
+            externalForces += character->upVector * character->_jumpAcc;
+
             character_simulate( character, externalForces, fixedDt );
             character->_dtAcc -= fixedDt;
+
+            character->_jumpAcc = 0.f;
         }
 
         CharacterParticles& cp = character->particles;

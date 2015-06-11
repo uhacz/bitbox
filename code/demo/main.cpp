@@ -134,7 +134,7 @@ public:
         const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
 
         {
-            bxGame::character_tick( __scene.character, currentCamera, win->input, deltaTime );
+            bxGame::character_tick( __scene.character, currentCamera, win->input, deltaTime * 2.f );
         }
 
         
