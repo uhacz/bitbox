@@ -135,7 +135,7 @@ namespace bxPhysics{
         bxPhysics_CollisionBox::Indices::Handle handle = cnt->indices.add( i0 );
         return collisionHandle_create< bxPhysics_CPlaneHandle >( handle.asU32() );
     }
-    void collisionPlane_release( bxPhysics_CollisionPlane* cnt, bxPhysics_CBoxHandle* h )
+    void collisionPlane_release( bxPhysics_CollisionPlane* cnt, bxPhysics_CPlaneHandle* h )
     {
         u32 removedIndex, lastIndex;
         int ierr = collisionContainer_removeHandle( &removedIndex, &lastIndex, cnt, h );
@@ -219,6 +219,30 @@ bxPhysics_CBoxHandle collisionSpace_createBox( bxPhysics_CollisionSpace* cs, con
 bxPhysics_CSphereHandle collisionSpace_createSphere( bxPhysics_CollisionSpace* cs, const Vector4& sph )
 {
     return collisionSphere_create( &cs->sphere, sph );
+}
+
+void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CPlaneHandle* ch )
+{
+    if( !ch->h )
+        return;
+
+    collisionPlane_release( &cs->plane, ch );
+}
+
+void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CBoxHandle* ch )
+{
+    if( !ch->h )
+        return;
+
+    collisionBox_release( &cs->box, ch );
+}
+
+void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CSphereHandle* ch )
+{
+    if( !ch->h )
+        return;
+
+    collisionSphere_release( &cs->sphere, ch );
 }
 
 }///
@@ -599,5 +623,7 @@ void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
         }
     }
 }
+
+
 
 }///

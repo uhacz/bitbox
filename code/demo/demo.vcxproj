@@ -87,6 +87,7 @@
     <ClCompile Include="demo_engine.cpp" />
     <ClCompile Include="entity.cpp" />
     <ClCompile Include="game.cpp" />
+    <ClCompile Include="game_character_camera.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="physics.cpp" />
     <ClCompile Include="scene.cpp" />

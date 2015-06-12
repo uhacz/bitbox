@@ -3,6 +3,7 @@
 #include <crtdbg.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <float.h>
 
 #ifdef _MBCS
 #pragma warning( disable: 4996 )
@@ -28,3 +29,20 @@ void bxDebugHalt( char *str )
 	//__asm { int 3 }
 	__debugbreak();
 }   
+
+void checkFloat( float x )
+{
+#ifdef _MSC_VER
+    const double d = (double)x;
+    const int cls = _fpclass( d );
+    if( cls == _FPCLASS_SNAN ||
+        cls == _FPCLASS_QNAN ||
+        cls == _FPCLASS_NINF ||
+        cls == _FPCLASS_PINF )
+    {
+        bxDebugAssert( 0, "invalid float" );
+    }
+#else
+    (void)x;
+#endif
+}

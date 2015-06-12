@@ -21,9 +21,9 @@ namespace bxPhysics
     bxPhysics_CBoxHandle     collisionSpace_createBox      ( bxPhysics_CollisionSpace* cs, const Vector3& pos, const Quat& rot, const Vector3& ext );
     bxPhysics_CSphereHandle  collisionSpace_createSphere   ( bxPhysics_CollisionSpace* cs, const Vector4& sph );
     
-    void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CPlaneHandle** ch );
-    void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CBoxHandle** ch );
-    void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CSphereHandle** ch );
+    void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CPlaneHandle* ch );
+    void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CBoxHandle* ch );
+    void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CSphereHandle* ch );
 
     void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* contacts, Vector3* points, int nPoints );
     void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* contacts, Vector3* points, int nPoints, const u16* indices, int nIndices );

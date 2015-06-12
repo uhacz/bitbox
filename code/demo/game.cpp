@@ -212,6 +212,7 @@ namespace bxGame
         f32 dynamicFriction;
         f32 velocityDamping;
         f32 shapeStiffness;
+        f32 gravity;
 
         CharacterParams()
             : maxInputForce( 0.15f )
@@ -220,6 +221,7 @@ namespace bxGame
             , dynamicFriction( 0.8f )
             , velocityDamping( 0.7f )
             , shapeStiffness( 0.1f )
+            , gravity( 9.1f )
         {}
     };
 
@@ -269,25 +271,9 @@ namespace bxGame
         const float a = 0.5f;
 
         bxPolyShape shape;
-        bxPolyShape_createShpere( &shape, 2 );
+        bxPolyShape_createShpere( &shape, 1 );
 
         const int NUM_POINTS = shape.num_vertices;
-        //const Vector3* restPos = (Vector3*)shape.positions;
-
-
-        //const Vector3 restPos[NUM_POINTS] =
-        //{
-        //    Vector3( -a, -a, a ),
-        //    Vector3( a, -a, a ),
-        //    Vector3( a, a, a ),
-        //    Vector3( -a, a, a ),
-
-        //    Vector3( -a, -a, -a ),
-        //    Vector3( a, -a, -a ),
-        //    Vector3( a, a, -a ),
-        //    Vector3( -a, a, -a ),
-        //};
-
         CharacterParticles& cp = character->particles;
         _CharacterParticles_allocateData( &cp, NUM_POINTS );
 
@@ -330,10 +316,11 @@ namespace bxGame
         void character_simulate( Character* character, const Vector3& externalForces, float deltaTime )
         {
             CharacterParticles& cp = character->particles;
+            const CharacterParams& params = character->params;
 
-            const Vector3 gravity = character->upVector * -9.1f;
+            const Vector3 gravity = -character->upVector * params.gravity;
             const floatInVec dtv( deltaTime );
-            const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.6f ), dtv );
+            const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( params.velocityDamping ), dtv );
             const int nPoints = cp.size;
 
             for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
@@ -344,6 +331,8 @@ namespace bxGame
                 vel += ( gravity ) * dtv * floatInVec( cp.massInv[ipoint] );
                 vel *= dampingCoeff;
                 vel += externalForces;
+
+                checkFloat( vel.getX().getAsFloat() );
 
                 pos += vel * dtv;
 
@@ -366,6 +355,8 @@ namespace bxGame
             }
             com /= totalMass;
 
+            
+
             Vector3 col0( FLT_EPSILON, 0.f, 0.f );
             Vector3 col1( 0.f, FLT_EPSILON * 2.f, 0.f );
             Vector3 col2( 0.f, 0.f, FLT_EPSILON * 4.f );
@@ -385,7 +376,7 @@ namespace bxGame
             character->centerOfMass.pos = com;
             character->centerOfMass.rot = Quat( R );
 
-            const floatInVec shapeStiffness( 0.1f );
+            const floatInVec shapeStiffness( params.shapeStiffness );
             for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
             {
                 const Vector3 goalPos = com + R * cp.restPos[ipoint];
@@ -400,8 +391,8 @@ namespace bxGame
 
             {
                 bxPhysics_Contacts* contacts = character->contacts;
-                const floatInVec dfriction( 0.8f );
-                const floatInVec sfriction( 0.2f );
+                const floatInVec dfriction( params.dynamicFriction );
+                const floatInVec sfriction( params.staticFriction );
                 const int nContacts = bxPhysics::contacts_size( contacts );
 
                 Vector3 normal( 0.f );
@@ -420,8 +411,8 @@ namespace bxGame
                     const floatInVec speed = length( v );
                     const floatInVec sd = speed * sfriction;
                     const floatInVec dd = speed * dfriction;
-
-                    const Vector3 tmp = -t * minf4( oneVec, dd / tspeed );
+                    const floatInVec tspeedInv = select( zeroVec, oneVec / tspeed, tspeed > fltEpsVec );
+                    const Vector3 tmp = -t * minf4( oneVec, dd * tspeedInv );
                     const Vector3 dpos = select( tmp, -t, tspeed < sd );
 
                     cp.pos1[index0] += dpos;
@@ -434,34 +425,24 @@ namespace bxGame
                 cp.velocity[ipoint] = (cp.pos1[ipoint] - cp.pos0[ipoint]) * dtInv;
                 cp.pos0[ipoint] = cp.pos1[ipoint];
             }
-
-            
-            
-
         }
-    
-        
-        
-
     }///
-
-
 
     void character_tick( Character* character, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
     {
+        const CharacterParams& params = character->params;
         characterInput_collectData( &character->input, input, deltaTime );
         Vector3 externalForces( 0.f );
         {
             externalForces += Vector3::xAxis() * character->input.analogX;
             externalForces -= Vector3::zAxis() * character->input.analogY;
         
-            const floatInVec externalForcesValue = minf4( length( externalForces ), floatInVec( 0.15f ) );
+            const floatInVec externalForcesValue = minf4( length( externalForces ), floatInVec( params.maxInputForce ) );
             externalForces = projectVectorOnPlane( camera.matrix.world.getUpper3x3() * externalForces, Vector4( character->upVector, oneVec ) );
             externalForces = normalizeSafe( externalForces ) * externalForcesValue;
 
-            character->_jumpAcc += character->input.jump * 5.f;
-        } 
-        
+            character->_jumpAcc += character->input.jump * params.jumpStrength;
+        }
                 
         const float fixedDt = 1.f / 60.f;
         character->_dtAcc += deltaTime;
@@ -487,5 +468,16 @@ namespace bxGame
         bxGfxDebugDraw::addLine( com, com + R[1], 0x009900FF, true );
         bxGfxDebugDraw::addLine( com, com + R[2], 0x000099FF, true );
     }
+
+    Matrix4 character_pose( const Character* character )
+    {
+        return Matrix4( character->centerOfMass.rot, character->centerOfMass.pos );
+    }
+
+    Vector3 character_upVector( const Character* character )
+    {
+        return character->upVector;
+    }
+
 }///
 

@@ -39,7 +39,8 @@ struct bxDemoScene
 
 };
 static bxDemoScene __scene;
-
+static bxPhysics_CBoxHandle collisionBox = { 0 };
+static bxPhysics_CPlaneHandle collisionPlane = { 0 };
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
@@ -79,13 +80,15 @@ public:
         __scene.character = bxGame::character_new();
         bxGame::character_init( __scene.character, Matrix4( Matrix3::rotationZ( 0.5f ), Vector3( 0.f, 2.f, 0.f ) ) );
         
-        bxPhysics::collisionSpace_createPlane( bxPhysics::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
-        bxPhysics::collisionSpace_createBox( bxPhysics::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
+        collisionPlane = bxPhysics::collisionSpace_createPlane( bxPhysics::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
+        collisionBox = bxPhysics::collisionSpace_createBox( bxPhysics::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
 
         return true;
     }
     virtual void shutdown()
     {
+        bxPhysics::collisionSpace_release( bxPhysics::__cspace, &collisionBox );
+        bxPhysics::collisionSpace_release( bxPhysics::__cspace, &collisionPlane );
         bxGame::character_delete( &__scene.character );
         bxPhysics::collisionSpace_delete( &bxPhysics::__cspace );
                 
@@ -128,14 +131,15 @@ public:
                                                               , cameraInputCtx->rightInputY * deltaTime * 20.f
                                                               , cameraInputCtx->upDown * 0.25f );
 
+        const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
+        {
+            bxGame::character_tick( __scene.character, currentCamera, win->input, deltaTime * 2.f );
+            bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime );
+        }
+        
         bxGfx::cameraManager_update( __scene._cameraManager, deltaTime );
 
 
-        const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
-
-        {
-            bxGame::character_tick( __scene.character, currentCamera, win->input, deltaTime * 2.f );
-        }
 
         
         bxGdiContext* gdiContext = _engine.gdiContext;

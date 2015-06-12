@@ -11,6 +11,7 @@ extern "C" {
 //////////////////////////////////////////////////////////////////////////
 extern void bxDebugAssert( int expression, const char *format, ... );
 extern void bxDebugHalt( char *str );
+extern void checkFloat( float x ); 
 #ifdef __cplusplus
 }
 #endif
@@ -40,4 +41,6 @@ extern void bxDebugHalt( char *str );
 SYS_ASSERT( expression )
 SYS_STATIC_ASSERT( expression )
 #endif
+
+
 
