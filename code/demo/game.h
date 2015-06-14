@@ -24,7 +24,7 @@ namespace bxGame
 namespace bxGame
 {
     //struct CharacterCamera;
-    void characterCamera_follow( bxGfxCamera* camera, const Character* character, float deltaTime );
+    void characterCamera_follow( bxGfxCamera* camera, const Character* character, float deltaTime, int cameraMoved = 0 );
 }///
 
 

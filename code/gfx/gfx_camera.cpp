@@ -271,6 +271,21 @@ namespace bxGfx
 
         return Matrix4( worldRot, worldPos );
     }
+
+
+    int cameraUtil_anyMovement( bxGfxCamera_InputContext* cameraCtx )
+    {
+        const float sum = 
+            ::abs( cameraCtx->leftInputX ) +
+            ::abs( cameraCtx->leftInputY ) +
+            ::abs( cameraCtx->rightInputX ) +
+            ::abs( cameraCtx->rightInputY ) +
+            ::abs( cameraCtx->upDown );
+
+        return sum > 0.01f;
+    }
+
+
 }///
 
 

@@ -1,97 +1,19 @@
 #include "game.h"
 #include "physics.h"
+#include "physics_pbd.h"
+
+#include <system/input.h>
 
 #include <util/type.h>
 #include <util/buffer_utils.h>
 #include <util/array.h>
 #include <util/common.h>
+#include <util/poly/poly_shape.h>
+#include <util/signal_filter.h>
 
 #include <gfx/gfx_debug_draw.h>
-#include "util/poly/poly_shape.h"
-#include "system/input.h"
-#include "util/signal_filter.h"
-#include "gfx/gfx_camera.h"
-namespace
-{
-    float abs_column_sum( const Matrix3& a, int i )
-    {
-        return sum( absPerElem( a[i] ) ).getAsFloat();
-        //return abs( a[0][i] ) + abs( a[1][i] ) + abs( a[2][i] );
-    }
-
-    float abs_row_sum( const Matrix3& a, int i )
-    {
-        return sum( absPerElem( Vector3( a[0][i], a[1][i], a[2][i] ) ) ).getAsFloat();
-        //return btFabs( a[i][0] ) + btFabs( a[i][1] ) + btFabs( a[i][2] );
-    }
-
-    float p1_norm( const Matrix3& a )
-    {
-        const float sum0 = abs_column_sum( a, 0 );
-        const float sum1 = abs_column_sum( a, 1 );
-        const float sum2 = abs_column_sum( a, 2 );
-        return maxOfPair( maxOfPair( sum0, sum1 ), sum2 );
-    }
-
-    float pinf_norm( const Matrix3& a )
-    {
-        const float sum0 = abs_row_sum( a, 0 );
-        const float sum1 = abs_row_sum( a, 1 );
-        const float sum2 = abs_row_sum( a, 2 );
-        return maxOfPair( maxOfPair( sum0, sum1 ), sum2 );
-    }
-
-    const float POLAR_DECOMPOSITION_DEFAULT_TOLERANCE = ( 0.0001f );
-    const unsigned int POLAR_DECOMPOSITION_DEFAULT_MAX_ITERATIONS = 16;
-}
-unsigned int bxPolarDecomposition( const Matrix3& a, Matrix3& u, Matrix3& h, unsigned maxIterations = POLAR_DECOMPOSITION_DEFAULT_MAX_ITERATIONS )
-{
-    const float tolerance = POLAR_DECOMPOSITION_DEFAULT_TOLERANCE;
-    // Use the 'u' and 'h' matrices for intermediate calculations
-    u = a;
-    h = inverse( a );
-
-    for ( unsigned int i = 0; i < maxIterations; ++i )
-    {
-        const float h_1 = p1_norm( h );
-        const float h_inf = pinf_norm( h );
-        const float u_1 = p1_norm( u );
-        const float u_inf = pinf_norm( u );
-
-        const float h_norm = h_1 * h_inf;
-        const float u_norm = u_1 * u_inf;
-
-        // The matrix is effectively singular so we cannot invert it
-        if ( ( h_norm < FLT_EPSILON) || ( u_norm < FLT_EPSILON) )
-            break;
-
-        const float gamma = pow( h_norm / u_norm, 0.25f );
-        const float inv_gamma = float( 1.0 ) / gamma;
-
-        // Determine the delta to 'u'
-        const Matrix3 delta = (u * (gamma - float( 2.0 )) + transpose( h ) * inv_gamma) * float( 0.5 );
-
-        // Update the matrices
-        u += delta;
-        h = inverse( u );
-
-        // Check for convergence
-        if ( p1_norm( delta ) <= tolerance * u_1 )
-        {
-            h = transpose( u ) * a;
-            h = (h + transpose( h )) * 0.5;
-            return i;
-        }
-    }
-
-    // The algorithm has failed to converge to the specified tolerance, but we
-    // want to make sure that the matrices returned are in the right form.
-    h = transpose( u ) * a;
-    h = (h + transpose( h )) * 0.5;
-
-    return maxIterations;
-}
-
+#include <gfx/gfx_camera.h>
+#include <gfx/gfx_gui.h>
 
 namespace bxGame
 {
@@ -100,7 +22,6 @@ namespace bxGame
         void* memoryHandle;
 
         Vector3* restPos;
-      
         Vector3* pos0;
         Vector3* pos1;
         Vector3* velocity;
@@ -197,10 +118,10 @@ namespace bxGame
             const float RC = 0.1f;
             charInput->analogX = signalFilter_lowPass( analogX, charInput->analogX, RC, deltaTime );
             charInput->analogY = signalFilter_lowPass( analogY, charInput->analogY, RC, deltaTime );
-            charInput->jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
+            charInput->jump = signalFilter_lowPass( jump, charInput->jump, RC, deltaTime );
             charInput->crouch = signalFilter_lowPass( crouch, charInput->crouch, RC, deltaTime );
 
-            bxLogInfo( "x: %f, y: %f", charInput->analogX, charInput->jump );
+            //bxLogInfo( "x: %f, y: %f", charInput->analogX, charInput->jump );
         }
     }
 
@@ -212,18 +133,36 @@ namespace bxGame
         f32 dynamicFriction;
         f32 velocityDamping;
         f32 shapeStiffness;
+        f32 shapeScale;
         f32 gravity;
 
         CharacterParams()
             : maxInputForce( 0.15f )
-            , jumpStrength( 5.f )
+            , jumpStrength( 15.f )
             , staticFriction( 0.2f )
             , dynamicFriction( 0.8f )
             , velocityDamping( 0.7f )
             , shapeStiffness( 0.1f )
+            , shapeScale( 1.f )
             , gravity( 9.1f )
         {}
     };
+
+    void _CharacterParams_show( CharacterParams* params )
+    {
+        if( ImGui::Begin( "Character" ) )
+        {
+            ImGui::InputFloat( "maxInputForce", &params->maxInputForce );
+            ImGui::InputFloat( "jumpStrength", &params->jumpStrength );
+            ImGui::SliderFloat( "staticFriction", &params->staticFriction, 0.f, 1.f );
+            ImGui::SliderFloat( "dynamicFriction", &params->dynamicFriction, 0.f, 1.f );
+            ImGui::SliderFloat( "velocityDamping", &params->velocityDamping, 0.f, 1.f );
+            ImGui::SliderFloat( "shapeStiffness", &params->shapeStiffness, 0.f, 1.f );
+            ImGui::SliderFloat( "shapeScale", &params->shapeScale, 0.f, 5.f );
+            ImGui::InputFloat( "gravity", &params->gravity );
+        }
+        ImGui::End();
+    }
 
     struct Character
     {
@@ -271,7 +210,7 @@ namespace bxGame
         const float a = 0.5f;
 
         bxPolyShape shape;
-        bxPolyShape_createShpere( &shape, 1 );
+        bxPolyShape_createShpere( &shape, 2 );
 
         const int NUM_POINTS = shape.num_vertices;
         CharacterParticles& cp = character->particles;
@@ -311,6 +250,8 @@ namespace bxGame
         bxPolyShape_deallocateShape( &shape );
     }
 
+
+
     namespace
     {
         void character_simulate( Character* character, const Vector3& externalForces, float deltaTime )
@@ -332,8 +273,6 @@ namespace bxGame
                 vel *= dampingCoeff;
                 vel += externalForces;
 
-                checkFloat( vel.getX().getAsFloat() );
-
                 pos += vel * dtv;
 
                 cp.pos1[ipoint] = pos;
@@ -345,54 +284,22 @@ namespace bxGame
                 bxPhysics::collisionSpace_collide( bxPhysics::__cspace, character->contacts, cp.pos1, nPoints );
             }
 
-            Vector3 com( 0.f );
-            floatInVec totalMass( 0.f );
-            for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
-            {
-                const floatInVec mass( cp.mass[ipoint] );
-                com += cp.pos1[ipoint] * mass;
-                totalMass += mass;
-            }
-            com /= totalMass;
-
-            
-
-            Vector3 col0( FLT_EPSILON, 0.f, 0.f );
-            Vector3 col1( 0.f, FLT_EPSILON * 2.f, 0.f );
-            Vector3 col2( 0.f, 0.f, FLT_EPSILON * 4.f );
-            for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
-            {
-                const floatInVec mass( cp.mass[ipoint] );
-                const Vector3& q = cp.restPos[ipoint];
-                const Vector3 p = (cp.pos1[ipoint] - com) * mass;
-                col0 += p * q.getX();
-                col1 += p * q.getY();
-                col2 += p * q.getZ();
-            }
-            Matrix3 Apq( col0, col1, col2 );
-            Matrix3 R, S;
-            bxPolarDecomposition( Apq, R, S );
-
+            Matrix3 R;
+            Vector3 com;
+            bxPhysics::pbd_softBodyUpdatePose( &R, &com, cp.pos1, cp.restPos, cp.mass, nPoints );
             character->centerOfMass.pos = com;
             character->centerOfMass.rot = Quat( R );
 
-            const floatInVec shapeStiffness( params.shapeStiffness );
+            const Matrix3 R1 = appendScale( R, Vector3( params.shapeScale ) );
             for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
             {
-                const Vector3 goalPos = com + R * cp.restPos[ipoint];
-
-                Vector3 pos = cp.pos1[ipoint];
-                const Vector3 dpos = goalPos - pos;
-
-                pos += dpos * shapeStiffness;
-
-                cp.pos1[ipoint] = pos;
+                Vector3 dpos( 0.f );
+                bxPhysics::pbd_solveShapeMatchingConstraint( &dpos, R1, com, cp.restPos[ipoint], cp.pos1[ipoint], params.shapeStiffness );
+                cp.pos1[ipoint] += dpos;
             }
 
             {
                 bxPhysics_Contacts* contacts = character->contacts;
-                const floatInVec dfriction( params.dynamicFriction );
-                const floatInVec sfriction( params.staticFriction );
                 const int nContacts = bxPhysics::contacts_size( contacts );
 
                 Vector3 normal( 0.f );
@@ -404,17 +311,8 @@ namespace bxGame
                 {
                     bxPhysics::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
 
-                    Vector3 v = cp.pos1[index0] - cp.pos0[index0];
-                    Vector3 t = projectVectorOnPlane( v, Vector4( normal ) );
-
-                    const floatInVec tspeed = length( t );
-                    const floatInVec speed = length( v );
-                    const floatInVec sd = speed * sfriction;
-                    const floatInVec dd = speed * dfriction;
-                    const floatInVec tspeedInv = select( zeroVec, oneVec / tspeed, tspeed > fltEpsVec );
-                    const Vector3 tmp = -t * minf4( oneVec, dd * tspeedInv );
-                    const Vector3 dpos = select( tmp, -t, tspeed < sd );
-
+                    Vector3 dpos( 0.f );
+                    bxPhysics::pbd_computeFriction( &dpos, cp.pos0[index0], cp.pos1[index0], normal, params.staticFriction, params.dynamicFriction );
                     cp.pos1[index0] += dpos;
                 }
             }
@@ -467,6 +365,8 @@ namespace bxGame
         bxGfxDebugDraw::addLine( com, com + R[0], 0x990000FF, true );
         bxGfxDebugDraw::addLine( com, com + R[1], 0x009900FF, true );
         bxGfxDebugDraw::addLine( com, com + R[2], 0x000099FF, true );
+
+        _CharacterParams_show( &character->params );
     }
 
     Matrix4 character_pose( const Character* character )
@@ -478,6 +378,8 @@ namespace bxGame
     {
         return character->upVector;
     }
+
+    
 
 }///
 

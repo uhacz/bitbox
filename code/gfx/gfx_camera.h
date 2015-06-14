@@ -83,6 +83,7 @@ namespace bxGfx
 {
     void cameraUtil_updateInput( bxGfxCamera_InputContext* cameraCtx, const bxInput* input, float mouseSensitivityInPix, float dt );
     Matrix4 cameraUtil_movement( const Matrix4& world, float leftInputX, float leftInputY, float rightInputX, float rightInputY, float upDown );
+    int cameraUtil_anyMovement( bxGfxCamera_InputContext* cameraCtx );
 
 }///
 

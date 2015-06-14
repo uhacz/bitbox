@@ -316,4 +316,23 @@ inline Matrix3 createBasis( const Vector3& n )
     const Vector3 z = Vector3( b, oneVec - n.getY()*n.getY()*a, -n.getY() );
     return Matrix3( x, n, z );
 }
+static inline Quat shortestRotation( const Vector3& v0, const Vector3& v1 )
+{
+    const float d = dot( v0, v1 ).getAsFloat();
+    const Vector3 c = cross( v0, v1 );
+    const SSEScalar s( v0.get128() );
+
+    Quat q = d > -1.f ? Quat( c, 1.f + d )
+        : fabs( s.x ) < 0.1f ? Quat( 0.0f, s.z, -s.y, 0.0f ) : Quat( s.y, -s.x, 0.0f, 0.0f );
+
+    return normalize( q );
+}
+
+inline float computeAngle( const Vector3& v0, const Vector3& v1 )
+{
+    const float cosine = dot( v0, v1 ).getAsFloat();
+    const float sine = length( cross( v0, v1 ) ).getAsFloat();
+
+    return ::atan2( sine, cosine );
+}
 

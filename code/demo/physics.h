@@ -45,3 +45,5 @@ namespace bxPhysics
     /// tmp solution
     extern bxPhysics_CollisionSpace* __cspace;
 }///
+
+

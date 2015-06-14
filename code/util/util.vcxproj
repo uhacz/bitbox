@@ -100,6 +100,7 @@
     <ClInclude Include="handle_manager.h" />
     <ClInclude Include="hash.h" />
     <ClInclude Include="hashmap.h" />
+    <ClInclude Include="math.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="perlin_noise.h" />
     <ClInclude Include="poly\poly_shape.h" />
@@ -138,6 +139,7 @@
     <ClCompile Include="filesystem.cpp" />
     <ClCompile Include="hash.cpp" />
     <ClCompile Include="hashmap.cpp" />
+    <ClCompile Include="math.cpp" />
     <ClCompile Include="memory.cpp" />
     <ClCompile Include="perlin_noise.cpp" />
     <ClCompile Include="poly\poly_shape.cpp" />

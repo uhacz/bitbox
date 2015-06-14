@@ -308,6 +308,7 @@ bxPhysics_Contacts* contacts_new( int capacity )
 
 void contacts_delete( bxPhysics_Contacts** con )
 {
+    BX_FREE0( bxDefaultAllocator(), con[0]->memoryHandle );
     BX_DELETE0( bxDefaultAllocator(), con[0] );
 }
 void contacts_clear( bxPhysics_Contacts* con )
@@ -623,7 +624,5 @@ void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
         }
     }
 }
-
-
 
 }///

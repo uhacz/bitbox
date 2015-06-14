@@ -134,7 +134,7 @@ public:
         const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
         {
             bxGame::character_tick( __scene.character, currentCamera, win->input, deltaTime * 2.f );
-            bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime );
+            bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime, bxGfx::cameraUtil_anyMovement( cameraInputCtx ) );
         }
         
         bxGfx::cameraManager_update( __scene._cameraManager, deltaTime );
@@ -163,12 +163,11 @@ public:
         bxGfxGUI::draw( gdiContext );
         gdiContext->backend()->swap();
 
-        time += deltaTime;
+        _time += deltaTime;
 
         return true;
     }
-    float time;
-    //bxDemoEngine _dengine;
+    float _time;
     bxEngine _engine;
 };
 
