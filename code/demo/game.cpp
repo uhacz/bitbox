@@ -14,6 +14,7 @@
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_camera.h>
 #include <gfx/gfx_gui.h>
+#include "util/random.h"
 
 namespace bxGame
 {
@@ -216,6 +217,8 @@ namespace bxGame
         CharacterParticles& cp = character->particles;
         _CharacterParticles_allocateData( &cp, NUM_POINTS );
 
+        //bxRandomGen rnd( 0xBAADC0DE );
+
         for( int i = 0; i < NUM_POINTS; ++i )
         {
             //const Vector3 pos = mulAsVec4( worldPose, restPos[i] );
@@ -224,8 +227,8 @@ namespace bxGame
             cp.pos0[i] = pos;
             cp.pos1[i] = pos;
             cp.velocity[i] = Vector3( 0.f );
-            cp.mass[i] = 1.f;
-            cp.massInv[i] = 1.f;
+            cp.mass[i] = 1.f; // bxRand::randomFloat( rnd, 1.f, 0.5f );
+            cp.massInv[i] = 1.f / cp.mass[i];
         }
 
         f32 massSum = 0.f;
