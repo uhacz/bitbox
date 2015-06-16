@@ -36,11 +36,12 @@ struct bxDemoScene
     bxGfxCamera_InputContext cameraInputCtx;
 
     bxGame::Character* character;
-
+    bxGame::Flock* flock;
+    bxPhysics_CBoxHandle collisionBox;
+    bxPhysics_CPlaneHandle collisionPlane;
 };
 static bxDemoScene __scene;
-static bxPhysics_CBoxHandle collisionBox = { 0 };
-static bxPhysics_CPlaneHandle collisionPlane = { 0 };
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
@@ -80,15 +81,18 @@ public:
         __scene.character = bxGame::character_new();
         bxGame::character_init( __scene.character, Matrix4( Matrix3::rotationZ( 0.5f ), Vector3( 0.f, 2.f, 0.f ) ) );
         
-        collisionPlane = bxPhysics::collisionSpace_createPlane( bxPhysics::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
-        collisionBox = bxPhysics::collisionSpace_createBox( bxPhysics::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
+        __scene.collisionPlane = bxPhysics::collisionSpace_createPlane( bxPhysics::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
+        __scene.collisionBox = bxPhysics::collisionSpace_createBox( bxPhysics::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
+        __scene.flock = bxGame::flock_new();
 
+        bxGame::flock_init( __scene.flock, 16, Vector3(0.f), 5.f );
         return true;
     }
     virtual void shutdown()
     {
-        bxPhysics::collisionSpace_release( bxPhysics::__cspace, &collisionBox );
-        bxPhysics::collisionSpace_release( bxPhysics::__cspace, &collisionPlane );
+        bxGame::flock_delete( &__scene.flock );
+        bxPhysics::collisionSpace_release( bxPhysics::__cspace, &__scene.collisionBox );
+        bxPhysics::collisionSpace_release( bxPhysics::__cspace, &__scene.collisionPlane );
         bxGame::character_delete( &__scene.character );
         bxPhysics::collisionSpace_delete( &bxPhysics::__cspace );
                 
@@ -133,6 +137,7 @@ public:
 
         const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
         {
+            bxGame::flock_tick( __scene.flock, deltaTime );
             bxGame::character_tick( __scene.character, currentCamera, win->input, deltaTime * 2.f );
             bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime, bxGfx::cameraUtil_anyMovement( cameraInputCtx ) );
         }

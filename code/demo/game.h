@@ -20,11 +20,22 @@ namespace bxGame
     Vector3 character_upVector( const Character* character );
 }///
 
+namespace bxGame
+{
+    void characterCamera_follow( bxGfxCamera* camera, const Character* character, float deltaTime, int cameraMoved = 0 );
+}///
 
 namespace bxGame
 {
-    //struct CharacterCamera;
-    void characterCamera_follow( bxGfxCamera* camera, const Character* character, float deltaTime, int cameraMoved = 0 );
+    struct Flock;
+    Flock* flock_new();
+    void flock_delete( Flock** flock );
+
+    void flock_init( Flock* flock, int nBoids, const Vector3& center, float radius );
+    void flock_addPredator( Flock* flock, const Matrix4& pose );
+
+    void flock_tick( Flock* flock, float deltaTime );
 }///
+
 
 

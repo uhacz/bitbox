@@ -290,9 +290,9 @@ void _Contacts_allocateData( bxPhysics_Contacts* con, int newCap )
 
     if( con->size )
     {
-        BX_CONTAINER_COPY_DATA( newCon, con, normal );
-        BX_CONTAINER_COPY_DATA( newCon, con, depth );
-        BX_CONTAINER_COPY_DATA( newCon, con, index );
+        BX_CONTAINER_COPY_DATA( &newCon, con, normal );
+        BX_CONTAINER_COPY_DATA( &newCon, con, depth );
+        BX_CONTAINER_COPY_DATA( &newCon, con, index );
     }
 
     BX_FREE( bxDefaultAllocator(), con->memoryHandle );
