@@ -85,7 +85,7 @@ public:
         __scene.collisionBox = bxPhysics::collisionSpace_createBox( bxPhysics::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
         __scene.flock = bxGame::flock_new();
 
-        bxGame::flock_init( __scene.flock, 16, Vector3(0.f), 5.f );
+        bxGame::flock_init( __scene.flock, 64, Vector3(0.f), 5.f );
         return true;
     }
     virtual void shutdown()

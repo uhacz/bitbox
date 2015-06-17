@@ -3,6 +3,7 @@
 #include <util/buffer_utils.h>
 #include "util/random.h"
 #include "gfx/gfx_debug_draw.h"
+#include "physics_pbd.h"
 
 namespace bxGame
 {
@@ -82,12 +83,15 @@ namespace bxGame
     struct Flock
     {
         FlockParticles particles;
+
+        f32 _dtAcc;
     };
 
     Flock* flock_new()
     {
         Flock* fl = BX_NEW( bxDefaultAllocator(), Flock );
         memset( &fl->particles, 0x00, sizeof( FlockParticles ) );
+        fl->_dtAcc = 0.f;
         return fl;
     }
 
@@ -118,18 +122,187 @@ namespace bxGame
         }
     }
 
-    void flock_tick( Flock* flock, float deltaTime )
+    void flock_simulate( Flock* flock, float deltaTime )
     {
-        const int nBoids = flock->particles.size;
-        for ( int iboid = 0; iboid < nBoids; ++iboid )
-        {
-            const Vector3& pos = flock->particles.pos0[iboid];
+        const Vector3 com( 0.f );
 
-            bxGfxDebugDraw::addSphere( Vector4( pos, 0.1f ), 0xFFFF00FF, true );
+        const float boidSpeed = 1.f;
+        const float boidRadius = 0.5f;
+        const float separation = 0.2f;
+        const float alignment = 0.01f;
+        const float cohesion = 0.01f;
+        const float cellSize = 2.f;
+        const float cellSizeSqr = cellSize * cellSize;
+
+        FlockParticles* fp = &flock->particles;
+
+        const int nBoids = flock->particles.size;
+        for( int iboid = 0; iboid < nBoids; ++iboid )
+        {
+            Vector3 pos = fp->pos0[iboid];
+            Vector3 vel = fp->vel[iboid];
+
+            Vector3 cohesionVec( 0.f );
+            { // cohesion
+                Vector3 localCom( 0.f );
+                int neighbourCount = 0;
+                for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+                {
+                    const Vector3& posB = fp->pos1[iboid1];
+                    const float dd = lengthSqr( posB - pos ).getAsFloat();
+
+                    if( dd > cellSizeSqr )
+                        continue;
+
+                    localCom += posB;
+                    ++neighbourCount;
+                }
+
+                cohesionVec = ( localCom - pos ) * cohesion;
+            }
+
+            Vector3 separationVec( 0.f );
+            { // separation
+                for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+                {
+                    const Vector3& posB = fp->pos1[iboid1];
+                    const float dd = lengthSqr( posB - pos ).getAsFloat();
+
+                    if( dd > cellSizeSqr )
+                        continue;
+
+                    separationVec += ( posB - pos ) * separation;
+                }
+            }
+
+            Vector3 alignmentVec( 0.f );
+            { // alignment
+                int neighbourCount = 0;
+                for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+                {
+                    const Vector3& posB = fp->pos1[iboid1];
+                    const float dd = lengthSqr( posB - pos ).getAsFloat();
+                    if( dd > cellSizeSqr )
+                        continue;
+
+                    alignmentVec += fp->vel[iboid1];
+                    ++neighbourCount;
+                }
+
+                if( neighbourCount )
+                {
+                    alignmentVec *= ( 1.f / neighbourCount ) * alignment;
+                }
+            }
+
+            const Vector3 toCom = com - pos;
+            vel += toCom * deltaTime * boidSpeed;
+            vel += alignmentVec;
+            vel += cohesionVec;
+            vel += separationVec;
+                       
+            pos += vel * deltaTime;
+
+            fp->pos0[iboid] = pos;
+            fp->vel[iboid] = vel;
         }
 
 
 
+        
+        //for( int iboid = 0; iboid < nBoids; ++iboid )
+        //{
+        //    Vector3 localCom( 0.f );
+        //    Vector3 avgVel( 0.f );
+        //    Vector3 posA = fp->pos1[iboid];
+        //    int neighbourCount = 0;
+        //    for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+        //    {
+        //        if( iboid1 == iboid )
+        //            continue;
+
+        //        const Vector3& posB = fp->pos1[iboid1];
+        //        const float dd = lengthSqr( posB - posA ).getAsFloat();
+
+        //        if( dd > cellSizeSqr )
+        //            continue;
+
+        //        localCom += posB;
+        //        avgVel += fp->vel[iboid1];
+        //        ++neighbourCount;
+        //    }
+
+        //    if( neighbourCount )
+        //    {
+        //        const float denom = 1.f / neighbourCount;
+        //        localCom *= denom;
+        //        avgVel *= denom;
+        //        {
+        //            Vector3 n = localCom - posA;
+        //            const float d = length( n ).getAsFloat();
+        //            n = ( d > FLT_EPSILON ) ? n / d : n;
+        //            posA += n * cohesion * d * deltaTime;
+        //        }
+        //        {
+        //            const Vector3& vel = fp->vel[iboid];
+        //            const Vector3 v = ( avgVel - vel );
+        //            posA += v * alignment * deltaTime;
+        //        }
+        //        fp->pos1[iboid] = posA;
+        //    }
+        //}
+
+        //for( int iboid = 0; iboid < nBoids; ++iboid )
+        //{
+        //    for( int iboid1 = iboid + 1; iboid1 < nBoids; ++iboid1 )
+        //    {
+        //        Vector3 posA = fp->pos1[iboid];
+        //        Vector3 posB = fp->pos1[iboid1];
+
+        //        Vector3 dposA, dposB;
+        //        bxPhysics::pbd_solveRepulsionConstraint( &dposA, &dposB, posA, posB, 1.f, 1.f, boidRadius, separation );
+
+        //        posA += dposA;
+        //        posB += dposB;
+
+        //        fp->pos1[iboid] = posA;
+        //        fp->pos1[iboid1] = posB;
+        //    }
+        //}
+
+        //const float deltaTimeInv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
+        //for( int iboid = 0; iboid < nBoids; ++iboid )
+        //{
+        //    const Vector3& pos0 = fp->pos0[iboid];
+        //    const Vector3& pos1 = fp->pos1[iboid];
+
+        //    fp->vel[iboid] = ( pos1 - pos0 ) * deltaTimeInv;
+        //    fp->pos0[iboid] = pos1;
+
+        //    
+        //}
+    }
+
+    void flock_tick( Flock* flock, float deltaTime )
+    {
+        flock->_dtAcc += deltaTime;
+
+        const float deltaTimeFixed = 1.f / 60.f;
+
+        while( flock->_dtAcc >= deltaTimeFixed )
+        {
+            flock_simulate( flock, deltaTimeFixed );
+            flock->_dtAcc -= deltaTimeFixed;
+        }
+
+        FlockParticles* fp = &flock->particles;
+
+        const int nBoids = flock->particles.size;
+        for( int iboid = 0; iboid < nBoids; ++iboid )
+        {
+            const Vector3& pos = fp->pos0[iboid];
+            bxGfxDebugDraw::addSphere( Vector4( pos, 0.1f ), 0xFFFF00FF, true );
+        }
     }
 
 }///

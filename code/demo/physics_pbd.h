@@ -21,7 +21,70 @@ namespace bxPhysics
         const Vector3 dpos = goalPos - pos;
         result[0] = dpos * shapeStiffness;
     }
+    ////
+    ////
+    inline int pbd_solveDistanceConstraint( 
+        Vector3* resultA, Vector3* resultB, 
+        const Vector3& posA, const Vector3& posB, 
+        float massInvA, float massInvB, 
+        float restLength, float compressionStiffness, float stretchStiffness )
+    {
+        float wSum = massInvA + massInvB;
+        if( wSum < FLT_EPSILON )
+            return 0;
 
+        float wSumInv = 1.f / wSum;
+
+
+        Vector3 n = posB - posA;
+        float d = length( n ).getAsFloat();
+        n = ( d > FLT_EPSILON ) ? n / d: n;
+        
+        const float diff = d - restLength;
+        const float stiffness = ( d < restLength ) ? compressionStiffness : stretchStiffness;
+        const Vector3 dpos = n * stiffness * diff * wSumInv;
+
+        resultA[0] = dpos * massInvA;
+        resultB[0] =-dpos * massInvB;
+
+        return 1;
+    }
+    ////
+    ////
+    inline int pbd_solveRepulsionConstraint(
+        Vector3* resultA, Vector3* resultB,
+        const Vector3& posA, const Vector3& posB,
+        float massInvA, float massInvB,
+        float restLength, float stiffness )
+    {
+        float wSum = massInvA + massInvB;
+        if( wSum < FLT_EPSILON )
+        {
+            resultA[0] = Vector3( 0.f );
+            resultB[0] = Vector3( 0.f );
+            return 0;
+        }
+        float wSumInv = 1.f / wSum;
+
+
+        Vector3 n = posB - posA;
+        float d = length( n ).getAsFloat();
+        if( d > restLength )
+        {
+            resultA[0] = Vector3( 0.f );
+            resultB[0] = Vector3( 0.f );
+            return 0;
+        }
+        n = ( d > FLT_EPSILON ) ? n / d : n;
+
+        const float diff = d - restLength;
+        const Vector3 dpos = n * stiffness * diff * wSumInv;
+
+        resultA[0] = dpos * massInvA;
+        resultB[0] = -dpos * massInvB;
+
+        return 1;
+    }
     ////
     ////
     inline void pbd_computeFriction( Vector3* result, const Vector3& pos0, const Vector3& pos1, const Vector3& normal, float sfriction, float dfriction )
