@@ -78,3 +78,32 @@ unsigned int bxPolarDecomposition( const Matrix3& a, Matrix3& u, Matrix3& h, uns
 
     return maxIterations;
 }
+
+Vector4 toAxisAngle( const Quat& q )
+{
+    const float quatEpsilon( 1.0e-8f );
+    const float s2 = lengthSqr( q.getXYZ() ).getAsFloat(); // x*x + y*y + z*z;
+    if( s2 < quatEpsilon*quatEpsilon )
+    {
+        return Vector4( 1.0f, 0.f, 0.f, 0.f );
+    }
+
+    const float s = ::sqrt( s2 );
+    const Vector3 axis = q.getXYZ() * s;
+    const float w = q.getW().getAsFloat();
+    const float angle = (abs( w ) < quatEpsilon) ? PI : ::atan2( s2*s, w ) * 2.f;
+    return Vector4( axis, angle );
+    
+    //if ( s2 < quatEpsilon*quatEpsilon )  // can't extract a sensible axis
+    //{
+    //    
+    //    //angle = 0.0f;
+    //    //axis = PxVec3( 1.0f, 0.0f, 0.0f );
+    //}
+    //else
+    //{
+    //    const float s = PxRecipSqrt( s2 );
+    //    axis = PxVec3( x, y, z ) * s;
+    //    angle = PxAbs( w ) < quatEpsilon ? PxPi : PxAtan2( s2*s, w ) * 2.0f;
+    //}
+}
