@@ -139,17 +139,42 @@ namespace bxGame
         }
     }
 
+    inline bool isInNeighbourhood( const Vector3& pos, const Vector3& posB, float radius )
+    {
+        const Vector3 vec = posB - pos;
+        const float dd = lengthSqr( vec ).getAsFloat();
+
+        return ( dd <= radius * radius );
+    }
+    Quat quatAim( const Vector3& v )
+    {
+        const Vector3 vn = normalize( v );
+
+        Quat qr;
+        qr.setX( v.getY() );
+        qr.setY( -v.getX() );
+        qr.setZ( zeroVec );
+        qr.setW( oneVec - v.getZ() );
+        return normalize( qr );
+    }
+    Quat quatAim( const Vector3& p1, const Vector3& p2 )
+    {
+        const Vector3 v = p2 - p1;
+        return quatAim( v );
+    }
+
     void flock_simulate( Flock* flock, float deltaTime )
     {
         const Vector3 com( 0.f );
 
         const float massInv = 1 / 1.f;
         const float boidMaxSpeed = 2.f;
-        const float boidRadius = 0.5f;
-        const float separation = 0.95f;
-        const float alignment = 0.01f;
-        const float cohesion = 0.01f;
-        const float cellSize = 2.f;
+        const float boidRadius = 1.5f;
+        const float separation = 1.0f;
+        const float alignment = 0.1f;
+        const float cohesion = 0.1f;
+        const float attraction = 0.6f;
+        const float cellSize = 8.f;
 
         const float cellSizeSqr = cellSize * cellSize;
         const float boidRadiusSqr = boidRadius * boidRadius;
@@ -157,204 +182,94 @@ namespace bxGame
         FlockParticles* fp = &flock->particles;
 
         const int nBoids = flock->particles.size;
-        //for( int iboid = 0; iboid < nBoids; ++iboid )
-        //{
-        //    Vector3 pos = fp->pos0[iboid];
-        //    Vector3 vel = fp->vel[iboid];
 
-        //    Vector3 cohesionVec( 0.f );
-        //    { // cohesion
-        //        Vector3 localCom( 0.f );
-        //        int neighbourCount = 0;
-        //        for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
-        //        {
-        //            if( iboid1 == iboid )
-        //                continue;
-
-        //            const Vector3& posB = fp->pos0[iboid1];
-        //            const float dd = lengthSqr( posB - pos ).getAsFloat();
-
-        //            if( dd > cellSizeSqr )
-        //                continue;
-
-        //            localCom += posB;
-        //            ++neighbourCount;
-        //        }
-
-        //        cohesionVec = ( localCom - pos ) * cohesion;
-        //    }
-
-        //    Vector3 separationVec( 0.f );
-        //    { // separation
-        //        for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
-        //        {
-        //            if ( iboid1 == iboid )
-        //                continue;
-
-        //            const Vector3& posB = fp->pos0[iboid1];
-        //            const float dd = lengthSqr( posB - pos ).getAsFloat();
-
-        //            if( dd > cellSizeSqr )
-        //                continue;
-
-        //            if( dd > boidRadiusSqr )
-        //                continue;
-
-        //            const float d = ::sqrt( dd );
-        //            separationVec -= (posB - pos) * (boidRadius - d) * separation;
-        //        }
-        //    }
-
-        //    Vector3 alignmentVec( 0.f );
-        //    { // alignment
-        //        int neighbourCount = 0;
-        //        for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
-        //        {
-        //            if ( iboid1 == iboid )
-        //                continue;
-
-        //            const Vector3& posB = fp->pos0[iboid1];
-        //            const float dd = lengthSqr( posB - pos ).getAsFloat();
-        //            if( dd > cellSizeSqr )
-        //                continue;
-
-        //            alignmentVec += fp->vel[iboid1];
-        //            ++neighbourCount;
-        //        }
-
-        //        if( neighbourCount )
-        //        {
-        //            alignmentVec *= ( 1.f / neighbourCount ) * alignment;
-        //        }
-        //    }
-
-        //    const Vector3 toCom = com - pos;
-        //    vel += ( toCom ) * massInv * separation;
-        //    vel += alignmentVec;
-        //    vel += cohesionVec;
-        //    vel += separationVec / deltaTime;
-        //    const float speed = length( vel ).getAsFloat();
-        //    if( speed > boidMaxSpeed )
-        //    {
-        //        vel = normalize( vel ) * boidMaxSpeed;
-        //    }
-
-        //    pos += vel * deltaTime;
-
-        //    fp->pos0[iboid] = pos;
-        //    fp->vel[iboid] = vel;
-        //}
-
-        for ( int iboid = 0; iboid < nBoids; ++iboid )
+        for( int iboid = 0; iboid < nBoids; ++iboid )
         {
+            Vector3 separationVec( 0.f );
+            Vector3 cohesionVec( 0.f );
+            Vector3 alignmentVec( 0.f );
+            int neighbours = 0;
+
             Vector3 pos = fp->pos0[iboid];
             Vector3 vel = fp->vel[iboid];
-            Quat rot = fp->rot0[iboid];
-            Vector3 avel = fp->avel[iboid];
 
-            rot += (deltaTime * 0.5f) * Quat( avel, 0.f ) * rot;
-            rot = normalize( rot );
-
-            vel = fastRotate( rot, Vector3::zAxis() ) * length( vel );
-            //vel += (com - pos) * deltaTime * massInv;
-            pos += vel * deltaTime;
-            
-            fp->pos1[iboid] = pos;
-            fp->vel[iboid] = vel;
-            fp->rot1[iboid] = rot;
-        }
-
-        for ( int iboid = 0; iboid < nBoids; ++iboid )
-        {
-            for ( int iboid1 = iboid + 1; iboid1 < nBoids; ++iboid1 )
-            {
-                Vector3 posA = fp->pos1[iboid];
-                Vector3 posB = fp->pos1[iboid1];
-
-                Vector3 dposA, dposB;
-                bxPhysics::pbd_solveRepulsionConstraint( &dposA, &dposB, posA, posB, 1.f, 1.f, boidRadius, separation );
-
-                posA += dposA;
-                posB += dposB;
-
-                fp->pos1[iboid] = posA;
-                fp->pos1[iboid1] = posB;
-            }
-        }
-
-        for ( int iboid = 0; iboid < nBoids; ++iboid )
-        {
-            Vector3 localCom( 0.f );
-            Vector3 avgVel( 0.f );
-            Vector3 posA = fp->pos1[iboid];
-            Vector3 velA = fp->vel[iboid];
-            const Vector3 dir0 = fastRotate( fp->rot1[iboid], Vector3::zAxis() );
-            Vector3 dir = dir0;
-
-            int neighbourCount = 0;
-            for ( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+            ////
+            ////
+            for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
             {
                 if ( iboid1 == iboid )
                     continue;
 
-                const Vector3& posB = fp->pos1[iboid1];
-                const float dd = lengthSqr( posB - posA ).getAsFloat();
-
-                if ( dd > cellSizeSqr )
+                const Vector3& posB = fp->pos0[iboid1];
+                const Vector3 vec = posB - pos;
+                const float dd = lengthSqr( vec ).getAsFloat();
+                if( dd > cellSizeSqr )
                     continue;
 
-                localCom += posB;
-                avgVel += fp->vel[iboid1];
-                ++neighbourCount;
+                const Vector3 displ = vec * ( 1.f / dd );
+                separationVec += displ;
+                ++neighbours;
             }
-
-            if ( neighbourCount )
-            {
-                const float denom = 1.f / neighbourCount;
-                localCom *= denom;
-                avgVel *= denom;
-
-                {
-                    Vector3 n = localCom - posA;
-                    posA += n * cohesion;
-                    dir += n * cohesion;
-                    //velA += (n * cohesion);
-                }
-                {
-                    dir = lerp( alignment, dir, avgVel );
-                    posA += ( avgVel - velA ) * alignment;// lerp( alignment, velA, avgVel );
-                }
-                
-            }
-
-            //dir += (com - posA) * cohesion;
-            dir = normalizeSafe( dir );
-            Quat drot = shortestRotation( dir0, dir );
-            fp->rot1[iboid] *= drot;
-
-            posA += (com - posA) * deltaTime;
-            fp->pos1[iboid] = posA;
-        }
-
-        const float deltaTimeInv = (deltaTime > FLT_EPSILON) ? 1.f / deltaTime : 0.f;
-        for ( int iboid = 0; iboid < nBoids; ++iboid )
-        {
-            const Vector3& pos0 = fp->pos0[iboid];
-            const Vector3& pos1 = fp->pos1[iboid];
+            separationVec = normalizeSafe( separationVec );
             
-            fp->vel[iboid] = (pos1 - pos0) * deltaTimeInv;
-            fp->pos0[iboid] = pos1;
+            ////
+            ////
+            neighbours = 0;
+            for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+            {
+                if( iboid1 == iboid )
+                    continue;
+            
+                const Vector3& posB = fp->pos0[iboid1];
+                if( !isInNeighbourhood( pos, posB, cellSize ) )
+                    continue;
 
-            const Quat& q0 = fp->rot0[iboid];
-            const Quat& q1 = fp->rot1[iboid];
-            const Quat drot = q1 * conj( q0 );
-            const Vector4 axisAngle = toAxisAngle( drot );
-            fp->avel[iboid] = ( axisAngle.getXYZ() * axisAngle.getW() ) * deltaTimeInv;
-            fp->rot0[iboid] = q1;
+                alignmentVec += fp->vel[iboid1];
+                ++neighbours;
+            }
+
+            if( neighbours > 0 )
+            {
+                alignmentVec = normalizeSafe( ( alignmentVec / (f32)neighbours ) - fp->vel[iboid] );
+            }
+
+            ////
+            ////
+            neighbours = 0;
+            for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+            {
+                if( iboid1 == iboid )
+                    continue;
+
+                const Vector3& posB = fp->pos0[iboid1];
+                if( !isInNeighbourhood( pos, posB, cellSize ) )
+                    continue;
+            
+                cohesionVec += posB;
+                ++neighbours;
+            }
+
+            if( neighbours )
+            {
+                cohesionVec = normalizeSafe( ( cohesionVec / (f32)neighbours ) - pos );
+            }
+
+
+            Vector3 steering( 0.f );
+            steering += separationVec * separation;
+            steering += alignmentVec * alignment;
+            steering += cohesionVec * cohesion;
+            steering += normalizeSafe( com - pos ) * attraction;
+
+            vel += steering * deltaTime;
+            pos += vel * deltaTime;
+
+            fp->pos0[iboid] = pos;
+            fp->vel[iboid] = vel;
+
+            //fp->rot0[iboid] = quatAim( -vel );
+
         }
-
-        
-
     }
 
     void flock_tick( Flock* flock, float deltaTime )
@@ -375,10 +290,15 @@ namespace bxGame
         for( int iboid = 0; iboid < nBoids; ++iboid )
         {
             const Vector3& pos = fp->pos0[iboid];
+            const Vector3& vel = fp->vel[iboid];
             const Matrix3 rot( fp->rot0[iboid] );
 
             bxGfxDebugDraw::addSphere( Vector4( pos, 0.1f ), 0xFFFF00FF, true );
-            bxGfxDebugDraw::addLine( pos, pos + rot.getCol2(), 0x0000FFFF, true );
+            //bxGfxDebugDraw::addLine( pos, pos + vel, 0x0000FFFF, true );
+            
+            //bxGfxDebugDraw::addLine( pos, pos + rot.getCol0(), 0x0F00FFFF, true );
+            //bxGfxDebugDraw::addLine( pos, pos + rot.getCol1(), 0xF000FFFF, true );
+            //bxGfxDebugDraw::addLine( pos, pos + rot.getCol2(), 0xFF00FFFF, true );
         }
     }
 
