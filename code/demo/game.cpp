@@ -1,10 +1,16 @@
 #include "game.h"
+#include "physics_pbd.h"
+
 #include <util/memory.h>
 #include <util/buffer_utils.h>
 #include <util/random.h>
 #include <util/math.h>
-#include "gfx/gfx_debug_draw.h"
-#include "physics_pbd.h"
+#include <util/hashmap.h>
+#include <util/array.h>
+
+#include <gfx/gfx_debug_draw.h>
+
+#include <smmintrin.h>
 
 namespace bxGame
 {
@@ -83,23 +89,115 @@ namespace bxGame
         return index;
     }
 
+    ////
+    ////
+    union FlockHashmap_Item
+    {
+        u64 hash;
+        struct {
+            u32 index;
+            u32 next;
+        };
+    };
+
+    union FlockHashmap_Key
+    {
+        u64 hash;
+        struct {
+            i16 x;
+            i16 y;
+            i16 z;
+            i16 w;
+        };
+    };
+
     struct FlockHashmap
     {
-        u32* items;
-        i32 numBuckets;
-        i32 bucketSize;
-        i32 bucketCapacity;
-
-        bxAllocator* alloc;
+        hashmap_t map;
+        array_t< FlockHashmap_Item > items;
     };
-    //void flock_hashMapAdd( FlockHashmap* hmap, const Vector3& pos, int index )
-    //{
-    //    
-    //}
+
+    
+    inline FlockHashmap_Key flock_makeKey( const Vector3& pos, float cellSizeInv )
+    {
+        const Vector3 gridPos = pos * cellSizeInv;
+        const __m128i rounded = _mm_cvtps_epi32( _mm_round_ps( gridPos.get128(), _MM_FROUND_FLOOR ) );
+        const SSEScalar tmp( rounded );
+
+        FlockHashmap_Key key = { 0 };
+        SYS_ASSERT( tmp.ix < (INT16_MAX) && tmp.ix >( INT16_MIN ) );
+        SYS_ASSERT( tmp.iy < (INT16_MAX) && tmp.iy >( INT16_MIN ) );
+        SYS_ASSERT( tmp.iz < (INT16_MAX) && tmp.iz >( INT16_MIN ) );
+        key.x = tmp.ix;
+        key.y = tmp.iy;
+        key.z = tmp.iz;
+        key.w = 1;
+        return key;
+    }
+    void flock_hashMapAdd( FlockHashmap* hmap, const Vector3& pos, int index, float cellSizeInv )
+    {
+        FlockHashmap_Key key = flock_makeKey( pos, cellSizeInv );
+        hashmap_t::cell_t* cell = hashmap::lookup( hmap->map, key.hash );
+        if( !cell )
+        {
+            cell = hashmap::insert( hmap->map, key.hash );
+            FlockHashmap_Item begin;
+            begin.index = index;
+            begin.next = 0xFFFFFFFF;
+            cell->value = begin.hash;
+        }
+        else
+        {
+            FlockHashmap_Item begin = { cell->value };
+            FlockHashmap_Item item = { 0 };
+            item.index = index;
+            item.next = begin.next;
+            begin.next = array::push_back( hmap->items, item );
+            cell->value = begin.hash;
+        }
+    }
+
+    void flock_hashMapDebugDraw( FlockHashmap* hmap, float cellSize, u32 color )
+    {
+        const Vector3 cellExt( cellSize * 0.5f );
+        hashmap::iterator it( hmap->map );
+        while ( it.next() )
+        {
+            FlockHashmap_Key key = { it->key };
+
+            Vector3 center( key.x, key.y, key.z );
+            center *= cellSize;
+            center += cellExt;
+
+            bxGfxDebugDraw::addBox( Matrix4::translation( center ), cellExt, color, 1 );
+        }
+    }
+
+    struct FlockParams
+    {
+        f32 boidRadius;
+        f32 separation;
+        f32 alignment;
+        f32 cohesion;
+        f32 attraction;
+        f32 cellSize;
+
+        FlockParams()
+            : boidRadius( 1.5f )
+            , separation( 1.0f )
+            , alignment( 0.1f )
+            , cohesion( 0.1f )
+            , attraction( 0.6f )
+            , cellSize( 2.f )
+        {}
+        
+    };
 
     struct Flock
     {
         FlockParticles particles;
+        FlockParams params;
+        FlockHashmap hmap;
 
         f32 _dtAcc;
     };
@@ -167,14 +265,13 @@ namespace bxGame
     {
         const Vector3 com( 0.f );
 
-        const float massInv = 1 / 1.f;
-        const float boidMaxSpeed = 2.f;
-        const float boidRadius = 1.5f;
-        const float separation = 1.0f;
-        const float alignment = 0.1f;
-        const float cohesion = 0.1f;
-        const float attraction = 0.6f;
-        const float cellSize = 8.f;
+        const float boidRadius = flock->params.boidRadius;
+        const float separation = flock->params.separation;
+        const float alignment  = flock->params.alignment;
+        const float cohesion   = flock->params.cohesion;
+        const float attraction = flock->params.attraction;
+        const float cellSize   = flock->params.cellSize;
+        const float cellSizeInv = 1.f / cellSize;
 
         const float cellSizeSqr = cellSize * cellSize;
         const float boidRadiusSqr = boidRadius * boidRadius;
@@ -192,6 +289,11 @@ namespace bxGame
 
             Vector3 pos = fp->pos0[iboid];
             Vector3 vel = fp->vel[iboid];
+
+            const FlockHashmap_Key gridKey = flock_makeKey( pos, cellSizeInv);
+            hashmap_t::cell_t* gridCell = hashmap::lookup( flock->hmap, gridKey.hash );
+
+
 
             ////
             ////
@@ -277,12 +379,19 @@ namespace bxGame
         flock->_dtAcc += deltaTime;
 
         const float deltaTimeFixed = 1.f / 60.f;
-
+        const float cellSizeInv = 1.f / flock->params.cellSize;
         while( flock->_dtAcc >= deltaTimeFixed )
         {
+            hashmap::clear( flock->hmap.map );
+            for( int iboid = 0; iboid < flock->particles.size; ++iboid )
+            {
+                flock_hashMapAdd( &flock->hmap, flock->particles.pos0[iboid], iboid, cellSizeInv );
+            }
+            
             flock_simulate( flock, deltaTimeFixed );
             flock->_dtAcc -= deltaTimeFixed;
         }
+        flock_hashMapDebugDraw( &flock->hmap, flock->params.cellSize, 0x222222FF );
 
         FlockParticles* fp = &flock->particles;
 
