@@ -9,8 +9,10 @@
 #include <util/array.h>
 
 #include <gfx/gfx_debug_draw.h>
+#include <gfx/gfx_gui.h>
 
 #include <smmintrin.h>
+#include "util/common.h"
 
 namespace bxGame
 {
@@ -19,12 +21,8 @@ namespace bxGame
         void* memoryHandle;
         
         Vector3* pos0;
-        Vector3* pos1;
         Vector3* vel;
-        
-        Quat* rot0;
-        Quat* rot1;
-        Vector3* avel;
+        f32* massInv;
 
         i32 size;
         i32 capacity;
@@ -36,11 +34,8 @@ namespace bxGame
 
         int memSize = 0;
         memSize += capacity * sizeof( *fp->pos0 );
-        memSize += capacity * sizeof( *fp->pos1 );
         memSize += capacity * sizeof( *fp->vel );
-        memSize += capacity * sizeof( *fp->rot0 );
-        memSize += capacity * sizeof( *fp->rot1 );
-        memSize += capacity * sizeof( *fp->avel );
+        memSize += capacity * sizeof( *fp->massInv );
 
         void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 16 );
         memset( mem, 0x00, memSize );
@@ -52,21 +47,15 @@ namespace bxGame
         newFp.size = fp->size;
         newFp.capacity = capacity;
         newFp.pos0 = chunker.add< Vector3 >( capacity );
-        newFp.pos1 = chunker.add< Vector3 >( capacity );
         newFp.vel = chunker.add< Vector3 >( capacity );
-        newFp.rot0 = chunker.add< Quat >( capacity );
-        newFp.rot1 = chunker.add< Quat >( capacity );
-        newFp.avel = chunker.add< Vector3 >( capacity );
+        newFp.massInv = chunker.add< f32 >( capacity );
         chunker.check();
 
         if( fp->size )
         {
             BX_CONTAINER_COPY_DATA( &newFp, fp, pos0 );
-            BX_CONTAINER_COPY_DATA( &newFp, fp, pos1 );
             BX_CONTAINER_COPY_DATA( &newFp, fp, vel );
-            BX_CONTAINER_COPY_DATA( &newFp, fp, rot0 );
-            BX_CONTAINER_COPY_DATA( &newFp, fp, rot1 );
-            BX_CONTAINER_COPY_DATA( &newFp, fp, avel );
+            BX_CONTAINER_COPY_DATA( &newFp, fp, massInv );
         }
 
         BX_FREE0( bxDefaultAllocator(), fp->memoryHandle );
@@ -79,13 +68,12 @@ namespace bxGame
             _FlockParticles_allocate( fp, fp->capacity * 2 + 8 );
         }
 
+        bxRandomGen rnd( u32( u64( fp ) ^ ((fp->size << fp->capacity) << 13) ) );
+
         const int index = fp->size++;
         fp->pos0[index] = pos;
-        fp->pos1[index] = pos;
         fp->vel[index] = Vector3( 0.f );
-        fp->rot0[index] = Quat::identity();
-        fp->rot1[index] = Quat::identity();
-        fp->avel[index] = Vector3( 0.f );
+        fp->massInv[index] = 1.f / bxRand::randomFloat( rnd, 1.f, 0.5f );
         return index;
     }
 
@@ -99,6 +87,13 @@ namespace bxGame
             u32 next;
         };
     };
+    inline FlockHashmap_Item makeItem( u64 hash )
+    {
+        FlockHashmap_Item item = { hash };
+        return item;
+    }
+    inline bool isValid( FlockHashmap_Item item ) { return item.hash != UINT64_MAX; }
+    inline bool isSentinel( FlockHashmap_Item item ) { return item.next == UINT32_MAX; }
 
     union FlockHashmap_Key
     {
@@ -117,33 +112,38 @@ namespace bxGame
         array_t< FlockHashmap_Item > items;
     };
 
-    
-    inline FlockHashmap_Key flock_makeKey( const Vector3& pos, float cellSizeInv )
+    inline FlockHashmap_Key makeKey( int x, int y, int z )
+    {
+        FlockHashmap_Key key = { 0 };
+        SYS_ASSERT( x < (INT16_MAX) && x >( INT16_MIN ) );
+        SYS_ASSERT( y < (INT16_MAX) && y >( INT16_MIN ) );
+        SYS_ASSERT( z < (INT16_MAX) && z >( INT16_MIN ) );
+        key.x = x;
+        key.y = y;
+        key.z = z;
+        key.w = 1;
+        return key;
+    }
+    inline FlockHashmap_Key makeKey( const Vector3& pos, float cellSizeInv )
     {
         const Vector3 gridPos = pos * cellSizeInv;
         const __m128i rounded = _mm_cvtps_epi32( _mm_round_ps( gridPos.get128(), _MM_FROUND_FLOOR ) );
         const SSEScalar tmp( rounded );
-
-        FlockHashmap_Key key = { 0 };
-        SYS_ASSERT( tmp.ix < (INT16_MAX) && tmp.ix >( INT16_MIN ) );
-        SYS_ASSERT( tmp.iy < (INT16_MAX) && tmp.iy >( INT16_MIN ) );
-        SYS_ASSERT( tmp.iz < (INT16_MAX) && tmp.iz >( INT16_MIN ) );
-        key.x = tmp.ix;
-        key.y = tmp.iy;
-        key.z = tmp.iz;
-        key.w = 1;
-        return key;
+        return makeKey( tmp.ix, tmp.iy, tmp.iz );
     }
-    void flock_hashMapAdd( FlockHashmap* hmap, const Vector3& pos, int index, float cellSizeInv )
+
+
+
+    void hashMapAdd( FlockHashmap* hmap, const Vector3& pos, int index, float cellSizeInv )
     {
-        FlockHashmap_Key key = flock_makeKey( pos, cellSizeInv );
+        FlockHashmap_Key key = makeKey( pos, cellSizeInv );
         hashmap_t::cell_t* cell = hashmap::lookup( hmap->map, key.hash );
         if( !cell )
         {
             cell = hashmap::insert( hmap->map, key.hash );
             FlockHashmap_Item begin;
             begin.index = index;
-            begin.next = 0xFFFFFFFF;
+            begin.next = UINT32_MAX;
             cell->value = begin.hash;
         }
         else
@@ -155,6 +155,16 @@ namespace bxGame
             begin.next = array::push_back( hmap->items, item );
             cell->value = begin.hash;
         }
+    }
+    
+    FlockHashmap_Item hashMapItemFirst( const FlockHashmap& hmap, FlockHashmap_Key key )
+    {
+        const hashmap_t::cell_t* cell = hashmap::lookup( hmap.map, key.hash );
+        return (cell) ? makeItem( cell->value ) : makeItem( UINT64_MAX );
+    }
+    FlockHashmap_Item hashMapItemNext( const FlockHashmap& hmap, const FlockHashmap_Item current )
+    {
+        return (current.next != UINT64_MAX) ? hmap.items[current.next] : makeItem( UINT64_MAX );
     }
 
     void flock_hashMapDebugDraw( FlockHashmap* hmap, float cellSize, u32 color )
@@ -183,15 +193,27 @@ namespace bxGame
         f32 cellSize;
 
         FlockParams()
-            : boidRadius( 1.5f )
+            : boidRadius( 1.f )
             , separation( 1.0f )
-            , alignment( 0.1f )
-            , cohesion( 0.1f )
+            , alignment( 0.2f )
+            , cohesion( 0.05f )
             , attraction( 0.6f )
             , cellSize( 2.f )
         {}
-        
     };
+    void _FlockParams_show( FlockParams* params )
+    {
+        if ( ImGui::Begin( "Flock" ) )
+        {
+            ImGui::InputFloat( "boidRadius", &params->boidRadius );
+            ImGui::SliderFloat( "separation", &params->separation, 0.f, 1.f );
+            ImGui::SliderFloat( "alignment", &params->alignment, 0.f, 1.f );
+            ImGui::SliderFloat( "cohesion", &params->cohesion, 0.f, 1.f );
+            ImGui::SliderFloat( "attraction", &params->attraction, 0.f, 1.f );
+            ImGui::InputFloat( "cellSize", &params->cellSize );
+        }
+        ImGui::End();
+    }
 
     struct Flock
     {
@@ -261,6 +283,20 @@ namespace bxGame
         return quatAim( v );
     }
 
+    inline void flock_computeSeparation( Vector3* separationVec, const Vector3& vA, const Vector3& vB, float cellSizeSqr )
+    {
+        const Vector3 vec = vB - vA;
+        float dd = lengthSqr( vec ).getAsFloat();
+        if ( dd > cellSizeSqr )
+        {
+            separationVec[0] = Vector3( 0.f );
+            return;
+        }
+        dd = maxOfPair( dd, 0.001f );
+        const Vector3 displ = vec * (1.f / dd);
+        separationVec[0] = displ;
+    }
+
     void flock_simulate( Flock* flock, float deltaTime )
     {
         const Vector3 com( 0.f );
@@ -285,77 +321,65 @@ namespace bxGame
             Vector3 separationVec( 0.f );
             Vector3 cohesionVec( 0.f );
             Vector3 alignmentVec( 0.f );
-            int neighbours = 0;
+            //int neighbours = 0;
 
             Vector3 pos = fp->pos0[iboid];
             Vector3 vel = fp->vel[iboid];
 
-            const FlockHashmap_Key gridKey = flock_makeKey( pos, cellSizeInv);
-            hashmap_t::cell_t* gridCell = hashmap::lookup( flock->hmap, gridKey.hash );
+            const FlockHashmap_Key mainKey = makeKey( pos, cellSizeInv);
+            hashmap_t::cell_t* mainCell = hashmap::lookup( flock->hmap.map, mainKey.hash );
+            int xBegin = -1, xEnd = 1;
+            int yBegin = -1, yEnd = 1;
+            int zBegin = -1, zEnd = 1;
 
-
-
-            ////
-            ////
-            for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+            for( int iz = zBegin; iz <= zEnd; ++iz )
             {
-                if ( iboid1 == iboid )
-                    continue;
+                for( int iy = yBegin; iy <= yEnd; ++iy )
+                {
+                    for( int ix = xBegin; ix <= xEnd; ++ix )
+                    {
+                        FlockHashmap_Key key = makeKey( mainKey.x + ix, mainKey.y + iy, mainKey.z + iz );
+                        FlockHashmap_Item item = hashMapItemFirst( flock->hmap, key );
 
-                const Vector3& posB = fp->pos0[iboid1];
-                const Vector3 vec = posB - pos;
-                const float dd = lengthSqr( vec ).getAsFloat();
-                if( dd > cellSizeSqr )
-                    continue;
+                        int neighboursAlignment = 0;
+                        int neighboursCohesion = 0;
+                        
+                        while( !isSentinel( item ) )
+                        {
+                            const int iboid1 = item.index;
+                            if( iboid1 != iboid )
+                            {
+                                const Vector3& posB = fp->pos0[iboid1];
+                                const Vector3& velB = fp->vel[iboid1];
 
-                const Vector3 displ = vec * ( 1.f / dd );
-                separationVec += displ;
-                ++neighbours;
+                                Vector3 output( 0.f );
+                                flock_computeSeparation( &output, pos, posB, boidRadiusSqr );
+                                separationVec += output;
+
+                                if( isInNeighbourhood( pos, posB, cellSize ) )
+                                {
+                                    alignmentVec += velB;
+                                    ++neighboursAlignment;
+
+                                    cohesionVec += posB;
+                                    ++neighboursCohesion;
+                                }
+                            }
+                            item = hashMapItemNext( flock->hmap, item );
+
+                            separationVec = normalizeSafe( separationVec );
+                            if ( neighboursAlignment > 0 )
+                            {
+                                alignmentVec = normalizeSafe( (alignmentVec / (f32)neighboursAlignment) - vel );
+                            }
+                            if ( neighboursCohesion )
+                            {
+                                cohesionVec = normalizeSafe( (cohesionVec / (f32)neighboursCohesion) - pos );
+                            }
+                        }
+                    }
+                }
             }
-            separationVec = normalizeSafe( separationVec );
-            
-            ////
-            ////
-            neighbours = 0;
-            for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
-            {
-                if( iboid1 == iboid )
-                    continue;
-            
-                const Vector3& posB = fp->pos0[iboid1];
-                if( !isInNeighbourhood( pos, posB, cellSize ) )
-                    continue;
-
-                alignmentVec += fp->vel[iboid1];
-                ++neighbours;
-            }
-
-            if( neighbours > 0 )
-            {
-                alignmentVec = normalizeSafe( ( alignmentVec / (f32)neighbours ) - fp->vel[iboid] );
-            }
-
-            ////
-            ////
-            neighbours = 0;
-            for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
-            {
-                if( iboid1 == iboid )
-                    continue;
-
-                const Vector3& posB = fp->pos0[iboid1];
-                if( !isInNeighbourhood( pos, posB, cellSize ) )
-                    continue;
-            
-                cohesionVec += posB;
-                ++neighbours;
-            }
-
-            if( neighbours )
-            {
-                cohesionVec = normalizeSafe( ( cohesionVec / (f32)neighbours ) - pos );
-            }
-
 
             Vector3 steering( 0.f );
             steering += separationVec * separation;
@@ -363,11 +387,86 @@ namespace bxGame
             steering += cohesionVec * cohesion;
             steering += normalizeSafe( com - pos ) * attraction;
 
-            vel += steering * deltaTime;
+            vel += ( steering * fp->massInv[iboid] ) * deltaTime;
             pos += vel * deltaTime;
 
             fp->pos0[iboid] = pos;
             fp->vel[iboid] = vel;
+
+
+            //////
+            //////
+            //for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+            //{
+            //    if ( iboid1 == iboid )
+            //        continue;
+
+            //    const Vector3& posB = fp->pos0[iboid1];
+            //    const Vector3 vec = posB - pos;
+            //    const float dd = lengthSqr( vec ).getAsFloat();
+            //    if( dd > cellSizeSqr )
+            //        continue;
+
+            //    const Vector3 displ = vec * ( 1.f / dd );
+            //    separationVec += displ;
+            //    ++neighbours;
+            //}
+            //separationVec = normalizeSafe( separationVec );
+            //
+            //////
+            //////
+            //neighbours = 0;
+            //for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+            //{
+            //    if( iboid1 == iboid )
+            //        continue;
+            //
+            //    const Vector3& posB = fp->pos0[iboid1];
+            //    if( !isInNeighbourhood( pos, posB, cellSize ) )
+            //        continue;
+
+            //    alignmentVec += fp->vel[iboid1];
+            //    ++neighbours;
+            //}
+
+            //if( neighbours > 0 )
+            //{
+            //    alignmentVec = normalizeSafe( ( alignmentVec / (f32)neighbours ) - fp->vel[iboid] );
+            //}
+
+            //////
+            //////
+            //neighbours = 0;
+            //for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
+            //{
+            //    if( iboid1 == iboid )
+            //        continue;
+
+            //    const Vector3& posB = fp->pos0[iboid1];
+            //    if( !isInNeighbourhood( pos, posB, cellSize ) )
+            //        continue;
+            //
+            //    cohesionVec += posB;
+            //    ++neighbours;
+            //}
+
+            //if( neighbours )
+            //{
+            //    cohesionVec = normalizeSafe( ( cohesionVec / (f32)neighbours ) - pos );
+            //}
+
+
+            //Vector3 steering( 0.f );
+            //steering += separationVec * separation;
+            //steering += alignmentVec * alignment;
+            //steering += cohesionVec * cohesion;
+            //steering += normalizeSafe( com - pos ) * attraction;
+
+            //vel += steering * deltaTime;
+            //pos += vel * deltaTime;
+
+            //fp->pos0[iboid] = pos;
+            //fp->vel[iboid] = vel;
 
             //fp->rot0[iboid] = quatAim( -vel );
 
@@ -385,7 +484,7 @@ namespace bxGame
             hashmap::clear( flock->hmap.map );
             for( int iboid = 0; iboid < flock->particles.size; ++iboid )
             {
-                flock_hashMapAdd( &flock->hmap, flock->particles.pos0[iboid], iboid, cellSizeInv );
+                hashMapAdd( &flock->hmap, flock->particles.pos0[iboid], iboid, cellSizeInv );
             }
             
             flock_simulate( flock, deltaTimeFixed );
@@ -400,7 +499,6 @@ namespace bxGame
         {
             const Vector3& pos = fp->pos0[iboid];
             const Vector3& vel = fp->vel[iboid];
-            const Matrix3 rot( fp->rot0[iboid] );
 
             bxGfxDebugDraw::addSphere( Vector4( pos, 0.1f ), 0xFFFF00FF, true );
             //bxGfxDebugDraw::addLine( pos, pos + vel, 0x0000FFFF, true );
@@ -409,6 +507,8 @@ namespace bxGame
             //bxGfxDebugDraw::addLine( pos, pos + rot.getCol1(), 0xF000FFFF, true );
             //bxGfxDebugDraw::addLine( pos, pos + rot.getCol2(), 0xFF00FFFF, true );
         }
+
+        _FlockParams_show( &flock->params );
     }
 
 }///
