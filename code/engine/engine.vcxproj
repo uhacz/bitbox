@@ -81,6 +81,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine.h" />
+    <ClInclude Include="profiler.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="engine.cpp" />

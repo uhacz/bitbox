@@ -7,12 +7,14 @@
 #include <util/math.h>
 #include <util/hashmap.h>
 #include <util/array.h>
+#include <util/common.h>
+
+#include <engine/profiler.h>
 
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_gui.h>
 
 #include <smmintrin.h>
-#include "util/common.h"
 
 namespace bxGame
 {
@@ -332,6 +334,9 @@ namespace bxGame
             int yBegin = -1, yEnd = 1;
             int zBegin = -1, zEnd = 1;
 
+
+            int neighboursAlignment = 0;
+            int neighboursCohesion = 0;
             for( int iz = zBegin; iz <= zEnd; ++iz )
             {
                 for( int iy = yBegin; iy <= yEnd; ++iy )
@@ -340,9 +345,6 @@ namespace bxGame
                     {
                         FlockHashmap_Key key = makeKey( mainKey.x + ix, mainKey.y + iy, mainKey.z + iz );
                         FlockHashmap_Item item = hashMapItemFirst( flock->hmap, key );
-
-                        int neighboursAlignment = 0;
-                        int neighboursCohesion = 0;
                         
                         while( !isSentinel( item ) )
                         {
@@ -356,30 +358,35 @@ namespace bxGame
                                 flock_computeSeparation( &output, pos, posB, boidRadiusSqr );
                                 separationVec += output;
 
-                                if( isInNeighbourhood( pos, posB, cellSize ) )
                                 {
-                                    alignmentVec += velB;
-                                    ++neighboursAlignment;
+                                    if( isInNeighbourhood( pos, posB, cellSize ) )
+                                    {
+                                        alignmentVec += velB;
+                                        ++neighboursAlignment;
 
-                                    cohesionVec += posB;
-                                    ++neighboursCohesion;
+                                        cohesionVec += posB;
+                                        ++neighboursCohesion;
+                                    }
                                 }
                             }
                             item = hashMapItemNext( flock->hmap, item );
-
-                            separationVec = normalizeSafe( separationVec );
-                            if ( neighboursAlignment > 0 )
-                            {
-                                alignmentVec = normalizeSafe( (alignmentVec / (f32)neighboursAlignment) - vel );
-                            }
-                            if ( neighboursCohesion )
-                            {
-                                cohesionVec = normalizeSafe( (cohesionVec / (f32)neighboursCohesion) - pos );
-                            }
                         }
                     }
                 }
             }
+
+            {
+                separationVec = normalizeSafe( separationVec );
+                if( neighboursAlignment > 0 )
+                {
+                    alignmentVec = normalizeSafe( ( alignmentVec / (f32)neighboursAlignment ) - vel );
+                }
+                if( neighboursCohesion )
+                {
+                    cohesionVec = normalizeSafe( ( cohesionVec / (f32)neighboursCohesion ) - pos );
+                }
+            }
+
 
             Vector3 steering( 0.f );
             steering += separationVec * separation;
@@ -475,22 +482,37 @@ namespace bxGame
 
     void flock_tick( Flock* flock, float deltaTime )
     {
-        flock->_dtAcc += deltaTime;
+        rmt_ScopedCPUSample( Flock_tick );
 
         const float deltaTimeFixed = 1.f / 60.f;
         const float cellSizeInv = 1.f / flock->params.cellSize;
+
+        //deltaTime = deltaTimeFixed;
+        flock->_dtAcc += deltaTime;
+
+        
+
         while( flock->_dtAcc >= deltaTimeFixed )
         {
-            hashmap::clear( flock->hmap.map );
-            for( int iboid = 0; iboid < flock->particles.size; ++iboid )
             {
-                hashMapAdd( &flock->hmap, flock->particles.pos0[iboid], iboid, cellSizeInv );
+                rmt_ScopedCPUSample( Flock_recreateGrid );
+                hashmap::clear( flock->hmap.map );
+                for( int iboid = 0; iboid < flock->particles.size; ++iboid )
+                {
+                    hashMapAdd( &flock->hmap, flock->particles.pos0[iboid], iboid, cellSizeInv );
+                }
             }
             
-            flock_simulate( flock, deltaTimeFixed );
+            {
+                rmt_ScopedCPUSample( Flock_simulate );
+                flock_simulate( flock, deltaTimeFixed );
+            }
             flock->_dtAcc -= deltaTimeFixed;
         }
-        flock_hashMapDebugDraw( &flock->hmap, flock->params.cellSize, 0x222222FF );
+        {
+            rmt_ScopedCPUSample( Flock_debugDraw );
+            flock_hashMapDebugDraw( &flock->hmap, flock->params.cellSize, 0x222222FF );
+        }
 
         FlockParticles* fp = &flock->particles;
 

@@ -32,6 +32,7 @@
 #define __SSE__
 #define _VECTORMATH_NO_SCALAR_CAST 1
 #include "SSE/vectormath_aos.h"
+
 using namespace Vectormath;
 using namespace Vectormath::Aos;
 
@@ -51,6 +52,25 @@ using namespace Vectormath::Aos;
 #define vec_cmplt(a,b) _mm_cmplt_ps( a, b )
 #define vec_cmple( a, b ) _mm_cmple_ps( a, b )
 #define vec_cmpge( a, b ) _mm_cmpge_ps( a, b )
+#define vec_div(a,b) _mm_div_ps( a, b )
+#define vec_min( a, b ) _mm_min_ps( a, b )
+#define vec_max( a, b ) _mm_max_ps( a, b )
+
+inline vec_float4 copysignf4( vec_float4 x, vec_float4 y ) { return vec_sel( x, y, ( 0x80000000 ) ); }
+inline vec_float4 recipi_f4( vec_float4 vec, vec_float4 estimate )
+{
+    return vec_nmsub( estimate, _mm_mul_ps( vec, estimate ), _mm_add_ps( estimate, estimate ) );
+}
+
+static __forceinline __m128 recipf4_newtonrapson( const __m128 x )
+{
+    __m128 estimate = _mm_rcp_ps( x );
+    estimate = recipi_f4( x, estimate );
+    estimate = recipi_f4( x, estimate );
+    return estimate;
+}
+
+#include "SSE/vectormath_soa.h"
 
 struct Vector2
 {

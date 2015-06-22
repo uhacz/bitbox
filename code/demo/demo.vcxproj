@@ -120,6 +120,9 @@
     <ProjectReference Include="..\tools\lua\lua.vcxproj">
       <Project>{492e3cd2-c843-46bc-87b3-048b85e35866}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\tools\remotery\remotery.vcxproj">
+      <Project>{6a836590-4d80-4a33-947d-702be7147a02}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\util\util.vcxproj">
       <Project>{c72ded4c-e82a-4e26-b7a8-715f4747ccec}</Project>
     </ProjectReference>

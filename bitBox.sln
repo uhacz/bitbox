@@ -39,6 +39,13 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo_voxel", "code\demo_vox
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "engine", "code\engine\engine.vcxproj", "{B8C282A6-C75B-40D0-A85D-461B0893E8A7}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "remotery", "code\tools\remotery\remotery.vcxproj", "{6A836590-4D80-4A33-947D-702BE7147A02}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8BA9AF19-5B58-4DE8-8A6F-D532B29C3B54}"
+	ProjectSection(SolutionItems) = preProject
+		Performance1.psess = Performance1.psess
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -97,6 +104,10 @@ Global
 		{B8C282A6-C75B-40D0-A85D-461B0893E8A7}.Debug|x64.Build.0 = Debug|x64
 		{B8C282A6-C75B-40D0-A85D-461B0893E8A7}.Release|x64.ActiveCfg = Release|x64
 		{B8C282A6-C75B-40D0-A85D-461B0893E8A7}.Release|x64.Build.0 = Release|x64
+		{6A836590-4D80-4A33-947D-702BE7147A02}.Debug|x64.ActiveCfg = Debug|x64
+		{6A836590-4D80-4A33-947D-702BE7147A02}.Debug|x64.Build.0 = Debug|x64
+		{6A836590-4D80-4A33-947D-702BE7147A02}.Release|x64.ActiveCfg = Release|x64
+		{6A836590-4D80-4A33-947D-702BE7147A02}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -105,5 +116,9 @@ Global
 		{18B49F0B-C441-4267-94E1-1E71E803B040} = {B7E1E07F-7431-4C42-B994-C5B0E3182C80}
 		{752EE42B-6767-4D1C-8CE2-227E00965D51} = {003D57C0-1648-4695-B5FC-16BDF0A2CBA9}
 		{492E3CD2-C843-46BC-87B3-048B85E35866} = {B7E1E07F-7431-4C42-B994-C5B0E3182C80}
+		{6A836590-4D80-4A33-947D-702BE7147A02} = {B7E1E07F-7431-4C42-B994-C5B0E3182C80}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal

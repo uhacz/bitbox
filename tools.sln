@@ -11,6 +11,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "util", "code\util\util.vcxp
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "code\tools\lua\lua.vcxproj", "{492E3CD2-C843-46BC-87B3-048B85E35866}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "remotery", "code\tools\remotery\remotery.vcxproj", "{6A836590-4D80-4A33-947D-702BE7147A02}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -33,6 +35,10 @@ Global
 		{492E3CD2-C843-46BC-87B3-048B85E35866}.Debug|x64.Build.0 = Debug|x64
 		{492E3CD2-C843-46BC-87B3-048B85E35866}.Release|x64.ActiveCfg = Release|x64
 		{492E3CD2-C843-46BC-87B3-048B85E35866}.Release|x64.Build.0 = Release|x64
+		{6A836590-4D80-4A33-947D-702BE7147A02}.Debug|x64.ActiveCfg = Debug|x64
+		{6A836590-4D80-4A33-947D-702BE7147A02}.Debug|x64.Build.0 = Debug|x64
+		{6A836590-4D80-4A33-947D-702BE7147A02}.Release|x64.ActiveCfg = Release|x64
+		{6A836590-4D80-4A33-947D-702BE7147A02}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
