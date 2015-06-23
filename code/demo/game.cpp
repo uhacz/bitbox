@@ -268,36 +268,36 @@ namespace bxGame
 
         return ( dd <= radius * radius );
     }
-    Quat quatAim( const Vector3& v )
-    {
-        const Vector3 vn = normalize( v );
+    //Quat quatAim( const Vector3& v )
+    //{
+    //    const Vector3 vn = normalize( v );
 
-        Quat qr;
-        qr.setX( v.getY() );
-        qr.setY( -v.getX() );
-        qr.setZ( zeroVec );
-        qr.setW( oneVec - v.getZ() );
-        return normalize( qr );
-    }
-    Quat quatAim( const Vector3& p1, const Vector3& p2 )
-    {
-        const Vector3 v = p2 - p1;
-        return quatAim( v );
-    }
+    //    Quat qr;
+    //    qr.setX( v.getY() );
+    //    qr.setY( -v.getX() );
+    //    qr.setZ( zeroVec );
+    //    qr.setW( oneVec - v.getZ() );
+    //    return normalize( qr );
+    //}
+    //Quat quatAim( const Vector3& p1, const Vector3& p2 )
+    //{
+    //    const Vector3 v = p2 - p1;
+    //    return quatAim( v );
+    //}
 
-    inline void flock_computeSeparation( Vector3* separationVec, const Vector3& vA, const Vector3& vB, float cellSizeSqr )
-    {
-        const Vector3 vec = vB - vA;
-        float dd = lengthSqr( vec ).getAsFloat();
-        if ( dd > cellSizeSqr )
-        {
-            separationVec[0] = Vector3( 0.f );
-            return;
-        }
-        dd = maxOfPair( dd, 0.001f );
-        const Vector3 displ = vec * (1.f / dd);
-        separationVec[0] = displ;
-    }
+    //inline void flock_computeSeparation( Vector3* separationVec, const Vector3& vA, const Vector3& vB, float cellSizeSqr )
+    //{
+    //    const Vector3 vec = vB - vA;
+    //    float dd = lengthSqr( vec ).getAsFloat();
+    //    if ( dd > cellSizeSqr )
+    //    {
+    //        separationVec[0] = Vector3( 0.f );
+    //        return;
+    //    }
+    //    dd = maxOfPair( dd, 0.001f );
+    //    const Vector3 displ = vec * (1.f / dd);
+    //    separationVec[0] = displ;
+    //}
 
     void flock_simulate( Flock* flock, float deltaTime )
     {
@@ -323,7 +323,6 @@ namespace bxGame
             Vector3 separationVec( 0.f );
             Vector3 cohesionVec( 0.f );
             Vector3 alignmentVec( 0.f );
-            //int neighbours = 0;
 
             Vector3 pos = fp->pos0[iboid];
             Vector3 vel = fp->vel[iboid];
@@ -354,19 +353,21 @@ namespace bxGame
                                 const Vector3& posB = fp->pos0[iboid1];
                                 const Vector3& velB = fp->vel[iboid1];
 
-                                Vector3 output( 0.f );
-                                flock_computeSeparation( &output, pos, posB, boidRadiusSqr );
-                                separationVec += output;
-
                                 {
-                                    if( isInNeighbourhood( pos, posB, cellSize ) )
-                                    {
-                                        alignmentVec += velB;
-                                        ++neighboursAlignment;
+                                    const Vector3 vec = posB - pos;
+                                    const floatInVec vecLen = length( vec );
+                                    const floatInVec displ = maxf4( floatInVec( boidRadius ) - vecLen, zeroVec );
+                                    Vector3 dpos = vec * floatInVec( recipf4_newtonrapson( vecLen.get128() ) ) * displ;
+                                    separationVec -= dpos;
+                                }
+                                
+                                if( isInNeighbourhood( pos, posB, cellSize ) )
+                                {
+                                    alignmentVec += velB;
+                                    ++neighboursAlignment;
 
-                                        cohesionVec += posB;
-                                        ++neighboursCohesion;
-                                    }
+                                    cohesionVec += posB;
+                                    ++neighboursCohesion;
                                 }
                             }
                             item = hashMapItemNext( flock->hmap, item );
@@ -399,84 +400,6 @@ namespace bxGame
 
             fp->pos0[iboid] = pos;
             fp->vel[iboid] = vel;
-
-
-            //////
-            //////
-            //for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
-            //{
-            //    if ( iboid1 == iboid )
-            //        continue;
-
-            //    const Vector3& posB = fp->pos0[iboid1];
-            //    const Vector3 vec = posB - pos;
-            //    const float dd = lengthSqr( vec ).getAsFloat();
-            //    if( dd > cellSizeSqr )
-            //        continue;
-
-            //    const Vector3 displ = vec * ( 1.f / dd );
-            //    separationVec += displ;
-            //    ++neighbours;
-            //}
-            //separationVec = normalizeSafe( separationVec );
-            //
-            //////
-            //////
-            //neighbours = 0;
-            //for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
-            //{
-            //    if( iboid1 == iboid )
-            //        continue;
-            //
-            //    const Vector3& posB = fp->pos0[iboid1];
-            //    if( !isInNeighbourhood( pos, posB, cellSize ) )
-            //        continue;
-
-            //    alignmentVec += fp->vel[iboid1];
-            //    ++neighbours;
-            //}
-
-            //if( neighbours > 0 )
-            //{
-            //    alignmentVec = normalizeSafe( ( alignmentVec / (f32)neighbours ) - fp->vel[iboid] );
-            //}
-
-            //////
-            //////
-            //neighbours = 0;
-            //for( int iboid1 = 0; iboid1 < nBoids; ++iboid1 )
-            //{
-            //    if( iboid1 == iboid )
-            //        continue;
-
-            //    const Vector3& posB = fp->pos0[iboid1];
-            //    if( !isInNeighbourhood( pos, posB, cellSize ) )
-            //        continue;
-            //
-            //    cohesionVec += posB;
-            //    ++neighbours;
-            //}
-
-            //if( neighbours )
-            //{
-            //    cohesionVec = normalizeSafe( ( cohesionVec / (f32)neighbours ) - pos );
-            //}
-
-
-            //Vector3 steering( 0.f );
-            //steering += separationVec * separation;
-            //steering += alignmentVec * alignment;
-            //steering += cohesionVec * cohesion;
-            //steering += normalizeSafe( com - pos ) * attraction;
-
-            //vel += steering * deltaTime;
-            //pos += vel * deltaTime;
-
-            //fp->pos0[iboid] = pos;
-            //fp->vel[iboid] = vel;
-
-            //fp->rot0[iboid] = quatAim( -vel );
-
         }
     }
 
@@ -509,10 +432,11 @@ namespace bxGame
             }
             flock->_dtAcc -= deltaTimeFixed;
         }
-        {
-            rmt_ScopedCPUSample( Flock_debugDraw );
-            flock_hashMapDebugDraw( &flock->hmap, flock->params.cellSize, 0x222222FF );
-        }
+
+        //{
+        //    rmt_ScopedCPUSample( Flock_debugDraw );
+        //    flock_hashMapDebugDraw( &flock->hmap, flock->params.cellSize, 0x222222FF );
+        //}
 
         FlockParticles* fp = &flock->particles;
 

@@ -32,8 +32,16 @@ namespace bxGame
     void flock_delete( Flock** flock );
 
     void flock_init( Flock* flock, int nBoids, const Vector3& center, float radius );
-    void flock_addPredator( Flock* flock, const Matrix4& pose );
+    
+    struct Predator
+    {
+        enum { eMAX_COUNT = 4, };
+        Vector3 pos[ eMAX_COUNT ];
+        Vector3 vel[ eMAX_COUNT ];
 
+        i32 count;
+    };
+    
     void flock_tick( Flock* flock, float deltaTime );
 }///
 
