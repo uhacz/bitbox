@@ -285,20 +285,6 @@ namespace bxGame
     //    return quatAim( v );
     //}
 
-    //inline void flock_computeSeparation( Vector3* separationVec, const Vector3& vA, const Vector3& vB, float cellSizeSqr )
-    //{
-    //    const Vector3 vec = vB - vA;
-    //    float dd = lengthSqr( vec ).getAsFloat();
-    //    if ( dd > cellSizeSqr )
-    //    {
-    //        separationVec[0] = Vector3( 0.f );
-    //        return;
-    //    }
-    //    dd = maxOfPair( dd, 0.001f );
-    //    const Vector3 displ = vec * (1.f / dd);
-    //    separationVec[0] = displ;
-    //}
-
     void flock_simulate( Flock* flock, float deltaTime )
     {
         const Vector3 com( 0.f );

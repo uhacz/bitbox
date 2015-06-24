@@ -6,7 +6,7 @@
 #include "memory.h"
 #include <memory.h>
 
-template<class TpType, u32 TpGranularity = 32, u32 TpNIndexBits = 14>
+template<class TpType, u32 TpNIndexBits = 14>
 class bxHandleManager
 {
 private:
@@ -262,7 +262,7 @@ private:
     ////
     void _AllocateMore( bxAllocator* allocator )
     {
-        uint32_t newCount = minOfPair( _capacity + TpGranularity, (u32)(eABSOLUTE_MAX_ENTRIES-1) );
+        uint32_t newCount = minOfPair( _capacity * 2 + 8, (u32)(eABSOLUTE_MAX_ENTRIES-1) );
         Entry* newEntries = (Entry*)BX_MALLOC( allocator, sizeof(Entry)*newCount, 64 ); //reinterpret_cast<Entry*>( picoMallocAligned(, 64) );
         if ( _capacity )
         {
