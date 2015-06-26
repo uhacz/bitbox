@@ -1,5 +1,8 @@
 #pragma once
 
+#include <util/type.h>
+#include <util/vectormath/vectormath.h>
+
 struct bxRenderer_HMesh       { u32 h; };
 struct bxRenderer_HTransform  { u32 h; };
 struct bxRenderer_HSunLight   { u32 h; };

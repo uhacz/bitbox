@@ -49,3 +49,45 @@ struct hashmap_t
     hashmap_t( int initSize = 16, bxAllocator* alloc = bxDefaultAllocator() );
     ~hashmap_t();
 };
+
+
+#define BX_INVALID_ID UINT16_MAX
+union id_t
+{
+    u32 hash;
+    struct{
+        u16 id;
+        u16 index;
+    };
+};
+
+template <typename T, u32 MAX >
+struct id_array_t
+{
+    id_array_t();
+
+    T& operator[]( u32 index );
+    const T& operator[]( u32 index ) const;
+
+    u16 _freelist;
+    u16 _next_id;
+    u16 _size;
+
+    id_t _sparse[MAX];
+    u16 _sparse_to_dense[MAX];
+    u16 _dense_to_sparse[MAX];
+    T _objects[MAX];
+};
+
+template <u32 MAX>
+struct id_table_t
+{
+    id_table_t();
+
+    u16 _freelist;
+
+    u16 _next_id;
+    u16 _size;
+
+    id_t _ids[MAX];
+};

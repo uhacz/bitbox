@@ -34,12 +34,14 @@ extern void checkFloat( float x );
 
 #define AT __FILE__ ":" MAKE_STR(__LINE__)
 #define SYS_ASSERT( expression ) bxDebugAssert( expression, "ASSERTION FAILED " AT " " #expression "\n" )
+#define SYS_ASSERT_TXT( expression, txt, ... ) bxDebugAssert( expression, "ASSERTION FAILED " AT " " #expression "\n" #txt, __VA_ARGS__ )
 #define SYS_STATIC_ASSERT( expression ) typedef char(&foobar)[ (expression) ? 1 : 0 ]
 #define SYS_NOT_IMPLEMENTED SYS_ASSERT( false && "not implemented" )
 
 #else
-SYS_ASSERT( expression )
-SYS_STATIC_ASSERT( expression )
+#define SYS_ASSERT( expression )
+#define SYS_ASSERT_TXT( expression, txt )
+#define SYS_STATIC_ASSERT( expression )
 #endif
 
 
