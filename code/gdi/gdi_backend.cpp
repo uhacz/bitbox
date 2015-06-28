@@ -24,6 +24,37 @@ void bxGdiVertexStreamDesc::addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType 
     }
 }
 
+bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::begin( int norm /*= 0 */ )
+{
+    SYS_ASSERT_TXT( count >= eMAX_BLOCKS, "can not add block to vertex stream " );
+    return *this;
+}
+
+bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::slot( bxGdi::EVertexSlot s )
+{
+    blocks[count].slot = s;
+    return *this;
+}
+
+bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::type( bxGdi::EDataType t )
+{
+    blocks[count].dataType = t;
+    return *this;
+}
+
+bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::numElements( int numElements )
+{
+    blocks[count].numElements = numElements;
+    return *this;
+}
+
+bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::end()
+{
+    ++count;
+    return *this;
+}
+
+
 namespace bxGdi
 {
     EDataType typeFromName( const char* name )
