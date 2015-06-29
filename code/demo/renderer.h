@@ -8,7 +8,7 @@ struct bxGdiRenderSource;
 struct bxGdiShaderFx_Instance;
 struct bxGdiDeviceBackend;
 struct bxGdiContext;
-struct bxResourceManager;
+class bxResourceManager;
 
 struct bxGfxCamera;
 
@@ -20,7 +20,6 @@ struct bxGfx_HPointLight { u32 h; };
 struct bxGfx_HWorld      { u32 h; };
 struct bxGfx_HInstanceBuffer { u32 h; };
 
-
 struct bxGfx_StreamsDesc
 {
     enum { eMAX_STREAMS = 6, };
@@ -28,23 +27,27 @@ struct bxGfx_StreamsDesc
     bxGdiVertexStreamDesc vdesc[eMAX_STREAMS];
     const void* vdata[eMAX_STREAMS];
     i32 numVStreams;
-
+    
     i32 idataType;
     const void* idata;
 
-
-    bxGfx_StreamsDesc();
+    i32 numVertices;
+    i32 numIndices;
+    ////
+    ////
+    bxGfx_StreamsDesc( int numVerts, int numIndis = 0 );
     bxGdiVertexStreamDesc& vstream_begin( const void* data = 0 );
     bxGfx_StreamsDesc& vstream_end();
     bxGfx_StreamsDesc& istream_set( bxGdi::EDataType dataType, const void* data = 0 );
 };
 
-
-
+////
+////
 namespace bxGfx
 {
     void startup();
     void shutdown();
+    void frameBegin( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 
     bxGfx_HMesh mesh_create();
     void mesh_release( bxGfx_HMesh* h );
@@ -55,7 +58,6 @@ namespace bxGfx
 
     int instance_get( bxGfx_HInstanceBuffer hinstance, Matrix4* buffer, int bufferSize, int startIndex = 0 );
     int instance_set( bxGfx_HInstanceBuffer hinstance, const Matrix4* buffer, int bufferSize, int startIndex = 0 );
-
 
     bxGfx_HWorld world_create();
     void world_release( bxGfx_HWorld* h );

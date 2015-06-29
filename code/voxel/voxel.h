@@ -12,7 +12,7 @@ class bxResourceManager;
 namespace bxVoxel
 {
     void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void _Shutdown( bxGdiDeviceBackend* dev );
+    void _Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 
     bxVoxel_Container* container_new();
     void container_load( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Container* cnt );

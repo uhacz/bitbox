@@ -236,7 +236,7 @@ void bxGfxGUI_Impl::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resou
 
     dev->releaseTexture( &_fontTexture );
     dev->releaseBuffer( &_cbuffer );
-    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI );
+    bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &_fxI );
     bxGdi::renderSource_releaseAndFree( dev, &_rsource );
 
     ImGui::Shutdown();

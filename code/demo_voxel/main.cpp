@@ -96,7 +96,7 @@ public:
 
         bxVoxel::container_unload( _engine.gdiDevice, vxscene._container );
         bxVoxel::container_delete( &vxscene._container );
-        bxVoxel::_Shutdown( _engine.gdiDevice );
+        bxVoxel::_Shutdown( _engine.gdiDevice, _engine.resourceManager );
 
         for ( int ifb = 0; ifb < bxVoxelFramebuffer::eCOUNT; ++ifb )
         {

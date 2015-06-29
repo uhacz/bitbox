@@ -40,10 +40,10 @@ void bxGfxPostprocess::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* re
     dev->releaseTexture( &_toneMapping.adaptedLuminance[1] );
     dev->releaseTexture( &_toneMapping.adaptedLuminance[0] );
 
-    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_fxaa );
-    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_ssao );
-    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_fog );
-    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI_toneMapping );
+    bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &_fxI_fxaa );
+    bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &_fxI_ssao );
+    bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &_fxI_fog );
+    bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &_fxI_toneMapping );
 }
 
 void bxGfxPostprocess::toneMapping( bxGdiContext* ctx, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime )

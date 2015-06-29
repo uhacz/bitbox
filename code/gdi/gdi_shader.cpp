@@ -338,6 +338,14 @@ namespace bxGdi
         char fullFilename[256] = {0};
         sprintf_s( fullFilename, "shader/%s/%s.%s", shaderApi, fileNameWithoutExt, shaderApi );
 
+        bxResourceID resourceId = bxResourceManager::createResourceID( fullFilename );
+        uptr dataPointer = resourceManager->lookup( resourceId );
+        if( dataPointer )
+        {
+            resourceManager->referenceAdd( resourceId );
+            return (bxGdiShaderFx*)dataPointer;
+        }
+
         bxFS::File shaderFile = resourceManager->readTextFileSync( fullFilename );
         if( !shaderFile.ok() )
         {
@@ -445,9 +453,12 @@ namespace bxGdi
         _ShaderFx_initParams( fx, global_reflection );
         shaderFile.release();
         fxTool::release( &fxSrc );
+
+        resourceManager->insert( resourceId, uptr( fx ) );
+
         return fx;
     }
-    void shaderFx_release( bxGdiDeviceBackend* dev, bxGdiShaderFx** fxPtr, bxAllocator* allocator )
+    void shaderFx_release( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx** fxPtr, bxAllocator* allocator )
     {
         if( !fxPtr[0] )
         {
@@ -457,8 +468,12 @@ namespace bxGdi
 
         bxGdiShaderFx* fx = fxPtr[0];
         SYS_ASSERT( fx->_numInstances == 0 );
-        _ShaderFx_deinitParams( fx );
 
+        bxResourceID resourceId = resourceManager->find( uptr( fx ) );
+        SYS_ASSERT( resourceId != 0 );
+        resourceManager->referenceRemove( resourceId );
+        
+        _ShaderFx_deinitParams( fx );
         for( int ipass = 0; ipass < fx->_numPasses; ++ipass )
         {
             bxGdiShaderPass& pass = fx->_passes[ipass];
@@ -555,11 +570,11 @@ namespace bxGdi
         return shaderFx_createInstance( dev, fx, allocator );
     }
 
-    void shaderFx_releaseWithInstance(bxGdiDeviceBackend* dev, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator)
+    void shaderFx_releaseWithInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator )
     {
         bxGdiShaderFx* fx = fxInstance[0]->shaderFx();
         shaderFx_releaseInstance( dev, fxInstance, allocator );
-        shaderFx_release( dev, &fx, allocator );
+        shaderFx_release( dev, resourceManager, &fx, allocator );
     }
 
     void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName )

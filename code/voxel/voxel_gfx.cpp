@@ -379,7 +379,7 @@ namespace
 
 
 	}
-	void _Gfx_shutdown( bxGdiDeviceBackend* dev, bxVoxel_Gfx* gfx )
+    void _Gfx_shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxVoxel_Gfx* gfx )
 	{
 		bxVoxel::gfx_displayListDelete( &gfx->_dlist );
 		bxGdi::sortList_delete( &gfx->_slist_depth );
@@ -395,7 +395,7 @@ namespace
 		array::clear( gfx->colorPalette_data );
 		array::clear( gfx->colorPalette_name );
 
-		bxGdi::shaderFx_releaseWithInstance( dev, &gfx->fxI );
+		bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gfx->fxI );
 		bxGdi::renderSource_releaseAndFree( dev, &gfx->rsource );
 	}
 }
@@ -408,9 +408,9 @@ namespace bxVoxel
 		__gfx = BX_NEW( bxDefaultAllocator(), bxVoxel_Gfx );
 		_Gfx_startup( dev, resourceManager, __gfx );
 	}
-	void gfx_shutdown( bxGdiDeviceBackend* dev )
+    void gfx_shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 	{
-		_Gfx_shutdown( dev, __gfx );
+		_Gfx_shutdown( dev, resourceManager, __gfx );
 		BX_DELETE0( bxDefaultAllocator(), __gfx );
 	}
 }

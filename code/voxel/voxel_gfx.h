@@ -98,7 +98,7 @@ struct bxVoxel_Gfx
 namespace bxVoxel
 {
 	void gfx_startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-	void gfx_shutdown( bxGdiDeviceBackend* dev );
+    void gfx_shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 
     //bxVoxel_GfxDisplayList* gfx_displayListNew( int capacity, bxAllocator* alloc = bxDefaultAllocator() );
     //void gfx_displayListDelete( bxVoxel_GfxDisplayList** dlist );

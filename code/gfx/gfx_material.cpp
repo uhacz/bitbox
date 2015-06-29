@@ -68,7 +68,7 @@ void bxGfxMaterialManager::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager
     }
     hashmap::clear( _map );
 
-    bxGdi::shaderFx_release( dev, &_nativeFx );
+    bxGdi::shaderFx_release( dev, resourceManager, &_nativeFx );
 }
 
 namespace

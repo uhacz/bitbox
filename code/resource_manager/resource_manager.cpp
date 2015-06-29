@@ -6,9 +6,9 @@
 #include <util/thread/mutex.h>
 #include <util/debug.h>
 
-ResourceID bxResourceManager::createResourceID( const char* path )
+bxResourceID bxResourceManager::createResourceID( const char* path )
 {
-	const size_t NAME_SIZE = 128;
+	const size_t NAME_SIZE = 256;
 	const size_t TYPE_SIZE = 32;
 	char name[NAME_SIZE];
 	char type[TYPE_SIZE];
@@ -84,7 +84,7 @@ public:
         _fs.absolutePath( &path, relativePath );
         return path;
     }
-    virtual void insert( ResourceID id, uptr data )
+    virtual void insert( bxResourceID id, uptr data )
 	{
 		_mapLock.lock();
 		SYS_ASSERT( !hashmap::lookup( _map, id ) );
@@ -95,7 +95,7 @@ public:
 		
         _mapLock.unlock();
 	}
-	virtual uptr lookup( ResourceID id )
+	virtual uptr lookup( bxResourceID id )
 	{
 		uptr result = 0;
 		_mapLock.lock();
@@ -111,9 +111,9 @@ public:
 
 		return result;
 	}
-    virtual ResourceID find( uptr data )
+    virtual bxResourceID find( uptr data )
     {
-        ResourceID result = 0;
+        bxResourceID result = 0;
 		_mapLock.lock();
 
         hashmap::iterator it( _map );
@@ -131,7 +131,7 @@ public:
 
 		return result;
     }
-    virtual int referenceAdd( ResourceID id )
+    virtual int referenceAdd( bxResourceID id )
 	{
 		_mapLock.lock();
         hashmap_t::cell_t* cell = hashmap::lookup( _map, id );
@@ -146,7 +146,7 @@ public:
         return resource->referenceCounter;
 	
 	}
-	virtual int referenceRemove( ResourceID id )
+	virtual int referenceRemove( bxResourceID id )
 	{
 		_mapLock.lock();
 		hashmap_t::cell_t* cell = hashmap::lookup( _map, id );

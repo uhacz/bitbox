@@ -33,7 +33,7 @@ void bxEngine_shutdown( bxEngine* e )
     bxGfxDebugDraw::_Shutdown( e->gdiDevice, e->resourceManager );
     bxGfxGUI::shutdown( e->gdiDevice, e->resourceManager, bxWindow_get() );
 
-    bxGfx::globalResources_shutdown( e->gdiDevice );
+    bxGfx::globalResources_shutdown( e->gdiDevice, e->resourceManager );
 
     e->gdiContext->_Shutdown();
     BX_DELETE0( bxDefaultAllocator(), e->gdiContext );

@@ -27,7 +27,7 @@ struct bxGfx_GlobalResources
 namespace bxGfx
 {
     void globalResources_startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void globalResources_shutdown( bxGdiDeviceBackend* dev );
+    void globalResources_shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 
     bxGfx_GlobalResources* globalResources();
 

@@ -125,7 +125,7 @@ namespace bxGfx
 
         __globalResources = gr;
     }
-    void globalResources_shutdown( bxGdiDeviceBackend* dev )
+    void globalResources_shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         if ( !__globalResources )
             return;
@@ -139,8 +139,8 @@ namespace bxGfx
             bxGdi::renderSource_releaseAndFree( dev, &gr->mesh.fullScreenQuad );
         }
         {
-            bxGdi::shaderFx_releaseWithInstance( dev, &gr->fx.texUtils );
-            bxGdi::shaderFx_releaseWithInstance( dev, &gr->fx.utils );
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.texUtils );
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.utils );
         }
 
         BX_DELETE( bxDefaultAllocator(), gr );

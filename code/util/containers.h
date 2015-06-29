@@ -60,6 +60,10 @@ union id_t
         u16 index;
     };
 };
+inline id_t make_id( u32 hash ){
+    id_t id = { hash };
+    return id;
+}
 
 template <typename T, u32 MAX >
 struct id_array_t

@@ -110,7 +110,7 @@ namespace bxGfxDebugDraw
         bxGdi::renderSource_releaseAndFree( dev, &__dd->rSource_lines );
         bxGdi::renderSource_releaseAndFree( dev, &__dd->rSource_box );
         bxGdi::renderSource_releaseAndFree( dev, &__dd->rSource_sphere );
-        bxGdi::shaderFx_releaseWithInstance( dev, &__dd->fxI );
+        bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__dd->fxI );
         dev->releaseBuffer( &__dd->cbuffer_instances );
 
         BX_DELETE0( bxDefaultAllocator(), __dd );

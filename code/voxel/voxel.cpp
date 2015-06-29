@@ -16,9 +16,9 @@ namespace bxVoxel
 		gfx_startup(dev, resourceManager);
     }
 
-    void _Shutdown( bxGdiDeviceBackend* dev )
+    void _Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
-		gfx_shutdown(dev);
+		gfx_shutdown(dev, resourceManager);
     }
 
   //  void gfx_draw( bxGdiContext* ctx, bxVoxel_Container* cnt, const bxGfxCamera& camera )

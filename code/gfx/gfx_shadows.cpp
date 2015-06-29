@@ -66,7 +66,7 @@ void bxGfxShadows::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourc
 
 void bxGfxShadows::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
-    bxGdi::shaderFx_releaseWithInstance( dev, &_fxI );
+    bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &_fxI );
     dev->releaseTexture( &_depthTexture );
 }
 
