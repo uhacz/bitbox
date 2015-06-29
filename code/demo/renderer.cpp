@@ -264,34 +264,56 @@ namespace bxGfx
 
     void frameBegin( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
-        bxScopeBenaphore lock( __ctx->_lock_toRelease );
-        for( int i = 0; i < array::size( __ctx->toRelease ); ++i )
-        {
-            ToReleaseEntry& e = __ctx->toRelease[i];
-            switch( e.type )
+        { /// release pending objects
+            bxScopeBenaphore lock( __ctx->_lock_toRelease );
+            for ( int i = 0; i < array::size( __ctx->toRelease ); ++i )
             {
-            case ToReleaseEntry::eMESH:
-            {
-                bxGfx_HMesh hmesh = { e.handle };
-                bxGdiRenderSource* rsource = _Mesh_rsource( &__ctx->mesh, make_id( hmesh.h ) );
-                bxGdiShaderFx_Instance* fxI = _Mesh_fxI( &__ctx->mesh, make_id( hmesh.h ) );
+                ToReleaseEntry& e = __ctx->toRelease[i];
+                switch ( e.type )
+                {
+                case ToReleaseEntry::eMESH:
+                    {
+                        bxGfx_HMesh hmesh = { e.handle };
+                        bxGdiRenderSource* rsource = _Mesh_rsource( &__ctx->mesh, make_id( hmesh.h ) );
+                        bxGdiShaderFx_Instance* fxI = _Mesh_fxI( &__ctx->mesh, make_id( hmesh.h ) );
 
-                bxGdi::renderSource_releaseAndFree( dev, &rsource, __ctx->_alloc_renderSource );
-                bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &fxI, __ctx->_alloc_shaderFx );
+                        bxGdi::renderSource_releaseAndFree( dev, &rsource, __ctx->_alloc_renderSource );
+                        bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &fxI, __ctx->_alloc_shaderFx );
 
-                _Mesh_remove( &__ctx->mesh, make_id( e.handle ) );
+                        _Mesh_remove( &__ctx->mesh, make_id( e.handle ) );
 
-            }break;
-            case ToReleaseEntry::eINSTANCE_BUFFER:
+                    }break;
+                case ToReleaseEntry::eINSTANCE_BUFFER:
+                    {
+                        _Instance_remove( &__ctx->instance, make_id( e.handle ) );
+                    }break;
+                case ToReleaseEntry::eLIGHT:
+                    {}break;
+                default:
+                    {
+                        bxLogError( "Invalid handle" );
+                    }break;
+                }
+            }
+        }
+
+        { /// world garbage collector
+            const int nWorlds = array::size( __ctx->world );
+            for( int iworld = 0; iworld < nWorlds; ++iworld )
             {
-                _Instance_remove( &__ctx->instance, make_id( e.handle ) );
-            }break;
-            case ToReleaseEntry::eLIGHT:
-            {}break;
-            default:
-            {
-                bxLogError( "Invalid handle" );
-            }break;
+                World* world = __ctx->world[iworld];
+                for( int imesh = 0; imesh < array::size( world->mesh ); )
+                {
+                    bxGfx_HMesh hmesh = world->mesh[imesh];
+                    if ( !_Mesh_valid( &__ctx->mesh, make_id( hmesh.h ) ) )
+                    {
+                        _World_meshRemove( world, hmesh );
+                    }
+                    else
+                    {
+                        ++imesh;
+                    }
+                }
             }
         }
     }
@@ -368,12 +390,24 @@ namespace bxGfx
         if( !_Mesh_valid( &__ctx->mesh, make_id( hmesh.h ) ) )
             return handle;
 
+        id_t id = _Instance_add( &__ctx->instance );
+        _Instance_allocateData( &__ctx->instance, id, nInstances );
+
+        handle.h = id.hash;
+
+        id_t idMesh = { hmesh.h };
+        __ctx->mesh.instances[idMesh.index] = handle;
+
+        return handle;
     }
 
     int instance_get( bxGfx_HInstanceBuffer hinstance, Matrix4* buffer, int bufferSize, int startIndex /*= 0 */ )
     {
         SYS_ASSERT( _Instance_valid( &__ctx->instance, make_id( hinstance.h ) ) );
         int result = 0;
+
+
+
         return result;
     }
 
