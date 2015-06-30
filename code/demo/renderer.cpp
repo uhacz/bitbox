@@ -1,12 +1,16 @@
 #include "renderer.h"
 #include <util/debug.h>
-#include <util/id_table.h>
-#include <util/pool_allocator.h>
+#include <util/common.h>
 #include <util/thread/mutex.h>
+#include <util/id_table.h>
 #include <util/array.h>
 #include <util/array_util.h>
-#include "gdi/gdi_render_source.h"
-#include "gdi/gdi_shader.h"
+#include <util/id_array.h>
+#include <util/pool_allocator.h>
+
+#include <gdi/gdi_render_source.h>
+#include <gdi/gdi_shader.h>
+#include "gdi/gdi_context.h"
 
 inline bool operator == ( bxGfx_HMesh a, bxGfx_HMesh b ){
     return a.h == b.h;
@@ -15,6 +19,8 @@ inline bool operator == ( bxGfx_HMesh a, bxGfx_HMesh b ){
 bxGfx_StreamsDesc::bxGfx_StreamsDesc( int numVerts, int numIndis )
 {
     memset( this, 0x00, sizeof( *this ) );
+    
+    SYS_ASSERT( numVerts > 0 );
     numVertices = numVerts;
     numIndices = numIndis;
     idataType = -1;
@@ -22,16 +28,22 @@ bxGfx_StreamsDesc::bxGfx_StreamsDesc( int numVerts, int numIndis )
 
 bxGdiVertexStreamDesc& bxGfx_StreamsDesc::vstream_begin( const void* data /*= 0 */ )
 {
-    return *this;
+    SYS_ASSERT( numVStreams < eMAX_STREAMS );
+    
+    vdata[numVStreams] = data;
+    return vdesc[numVStreams];
 }
 
 bxGfx_StreamsDesc& bxGfx_StreamsDesc::vstream_end()
 {
+    ++numVStreams;
     return *this;
 }
 
 bxGfx_StreamsDesc& bxGfx_StreamsDesc::istream_set( bxGdi::EDataType dataType, const void* data /*= 0 */ )
 {
+    idataType = dataType;
+    idata = data;
     return *this;
 }
 
@@ -41,13 +53,10 @@ namespace bxGfx
 {
     enum
     {
+        eMAX_WORLDS = 32,
         eMAX_MESHES = 1024,
         eMAX_INSTANCES = 1024,
     };
-
-    ////
-    ////
-    
     ////
     ////
     struct MeshContainer
@@ -105,13 +114,13 @@ namespace bxGfx
     ////
     struct InstanceContainer
     {
-        struct Entry
+        struct Data
         {
             Matrix4* pose;
             i32 count;
         };
         id_table_t<bxGfx::eMAX_INSTANCES> idTable;
-        Entry entries[bxGfx::eMAX_INSTANCES];
+        Data data[bxGfx::eMAX_INSTANCES];
 
         bxPoolAllocator _alloc_single;
         bxAllocator* _alloc_multi;
@@ -129,7 +138,7 @@ namespace bxGfx
     void _Instance_shutdown( InstanceContainer* cnt )
     {
         cnt->_alloc_multi = 0;
-        cnt->_alloc_single.shutdown( bxDefaultAllocator() );
+        cnt->_alloc_single.shutdown();
     }
 
     inline bool _Instance_valid( InstanceContainer* cnt, id_t id )
@@ -139,8 +148,8 @@ namespace bxGfx
     id_t _Instance_add( InstanceContainer* cnt )
     {
         id_t id = id_table::create( cnt->idTable );
-        cnt->entries[id.index].pose = 0;
-        cnt->entries[id.index].count = 0;
+        cnt->data[id.index].pose = 0;
+        cnt->data[id.index].count = 0;
         return id;
     }
     void _Instance_allocateData( InstanceContainer* cnt, id_t id, int nInstances )
@@ -149,7 +158,7 @@ namespace bxGfx
             return;
 
         bxAllocator* alloc = (nInstances == 1) ? &cnt->_alloc_single : cnt->_alloc_multi;
-        InstanceContainer::Entry& e = cnt->entries[id.index];
+        InstanceContainer::Data& e = cnt->data[id.index];
 
         e.pose = (Matrix4*)alloc->alloc( nInstances * sizeof( Matrix4 ), ALIGNOF( Matrix4 ) );
         e.count = nInstances;
@@ -159,13 +168,19 @@ namespace bxGfx
         if ( !_Instance_valid( cnt, id ) )
             return;
 
-        InstanceContainer::Entry& e = cnt->entries[id.index];
+        InstanceContainer::Data& e = cnt->data[id.index];
         bxAllocator* alloc = (e.count == 1) ? &cnt->_alloc_single : cnt->_alloc_multi;
         alloc->free( e.pose );
         e.pose = 0;
         e.count = 0;
 
         id_table::destroy( cnt->idTable, id );
+    }
+
+    inline InstanceContainer::Data _Instance_data( InstanceContainer* cnt, id_t id )
+    {
+        SYS_ASSERT( _Instance_valid( cnt, id ) );
+        return cnt->data[id.index];
     }
     ////
     ////
@@ -216,25 +231,42 @@ namespace bxGfx
         explicit ToReleaseEntry( bxGfx_HMesh h ) : handle( h.h ), type( eMESH ) {}
         explicit ToReleaseEntry( bxGfx_HInstanceBuffer h ) : handle( h.h ), type( eINSTANCE_BUFFER ) {}
     };
+
+    typedef id_array_t< bxGfx::World*, eMAX_WORLDS > WorldContainer;
+    typedef array_t< bxGfx::ToReleaseEntry > ToReleaseContainer;
 }///
-struct bxGfx_World;
+
 struct bxGfx_Context
 {
     bxGfx::MeshContainer mesh;
     bxGfx::InstanceContainer instance;
-    array_t< bxGfx_World* > world;
-
-    array_t< bxGfx::ToReleaseEntry > toRelease;
+    bxGfx::WorldContainer world;
+    bxGfx::ToReleaseContainer toRelease;
 
     bxAllocator* _alloc_renderSource;
     bxAllocator* _alloc_shaderFx;
+    bxAllocator* _alloc_world;
 
     bxBenaphore _lock_mesh;
     bxBenaphore _lock_instance;
     bxBenaphore _lock_world;
     bxBenaphore _lock_toRelease;
 };
-
+namespace bxGfx
+{
+    World* _Context_world( bxGfx_Context* ctx, bxGfx_HWorld hworld )
+    {
+        bxScopeBenaphore lock( ctx->_lock_world );
+        if( !id_array::has( ctx->world, make_id( hworld.h ) ) )
+        {
+            return 0;
+        }
+        else
+        {
+            return id_array::get( ctx->world, make_id( hworld.h ) );
+        }
+    }
+}
 
 
 static bxGfx_Context* __ctx = 0;
@@ -248,9 +280,13 @@ namespace bxGfx
         __ctx->_alloc_renderSource = bxDefaultAllocator();
         __ctx->_alloc_shaderFx = bxDefaultAllocator();
         
+        {
+            bxPoolAllocator* allocWorld = BX_NEW( bxDefaultAllocator(), bxPoolAllocator );
+            allocWorld->startup( sizeof( bxGfx::World ), bxGfx::eMAX_WORLDS, bxDefaultAllocator(), 8 );
+            __ctx->_alloc_world = allocWorld;
+        }
+        
         _Instance_startup( &__ctx->instance );
-
-
     }
 
     void shutdown()
@@ -259,6 +295,12 @@ namespace bxGfx
             return;
 
         _Instance_shutdown( &__ctx->instance );
+        
+        {
+            bxPoolAllocator* allocWorld = (bxPoolAllocator*)__ctx->_alloc_world;
+            allocWorld->shutdown();
+            BX_DELETE0( bxDefaultAllocator(), __ctx->_alloc_world );
+        }
         BX_DELETE0( bxDefaultAllocator(), __ctx );
     }
 
@@ -298,10 +340,11 @@ namespace bxGfx
         }
 
         { /// world garbage collector
-            const int nWorlds = array::size( __ctx->world );
+            const int nWorlds = id_array::size( __ctx->world );
+            bxGfx::World** worlds = id_array::begin( __ctx->world );
             for( int iworld = 0; iworld < nWorlds; ++iworld )
             {
-                World* world = __ctx->world[iworld];
+                World* world = worlds[iworld];
                 for( int imesh = 0; imesh < array::size( world->mesh ); )
                 {
                     bxGfx_HMesh hmesh = world->mesh[imesh];
@@ -406,16 +449,68 @@ namespace bxGfx
         SYS_ASSERT( _Instance_valid( &__ctx->instance, make_id( hinstance.h ) ) );
         int result = 0;
 
-
-
-        return result;
+        const InstanceContainer::Data data = _Instance_data( &__ctx->instance, make_id( hinstance.h ) );
+        const int endIndex = minOfPair( startIndex + bufferSize, data.count );
+        const int count = endIndex - startIndex;
+        
+        memcpy( buffer, data.pose, count * sizeof( Matrix4 ) );
+        
+        return count;
     }
 
     int instance_set( bxGfx_HInstanceBuffer hinstance, const Matrix4* buffer, int bufferSize, int startIndex /*= 0 */ )
     {
         SYS_ASSERT( _Instance_valid( &__ctx->instance, make_id( hinstance.h ) ) );
-        int result = 0;
+        
+        InstanceContainer::Data data = _Instance_data( &__ctx->instance, make_id( hinstance.h ) );
+        const int endIndex = minOfPair( startIndex + bufferSize, data.count );
+        const int count = endIndex - startIndex;
+        
+        memcpy( data.pose, buffer, count * sizeof( Matrix4 ) );
+
+        return count;
+    }
+
+    bxGfx_HWorld world_create()
+    {
+        bxScopeBenaphore lock( __ctx->_lock_world );
+        bxGfx::World* world = BX_NEW( __ctx->_alloc_world, bxGfx::World );
+        id_t id = id_array::create( __ctx->world, world );
+
+        bxGfx_HWorld result = { id.hash };
         return result;
+    }
+
+    void world_release( bxGfx_HWorld* h )
+    {
+        bxScopeBenaphore lock( __ctx->_lock_world );
+
+    }
+
+    void world_add( bxGfx_HWorld hworld, bxGfx_HMesh hmesh )
+    {
+        bxGfx::World* world = _Context_world( __ctx, hworld );
+        if( !world )
+            return;
+        
+        int index = _World_meshFind( world, hmesh );
+        if( index == -1 )
+        {
+            _World_meshAdd( world, hmesh );
+        }
+        else
+        {
+            bxLogWarning( "Mesh already in world" );
+        }
+    }
+
+    void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera )
+    {
+        bxGfx::World* world = _Context_world( __ctx, hworld );
+        if( !world )
+            return;
+
+        
     }
 
 }///

@@ -7,7 +7,7 @@ bxGdiVertexStreamDesc::bxGdiVertexStreamDesc()
     count = 0;
     memset( blocks, 0, sizeof( blocks ) );
 }
-void bxGdiVertexStreamDesc::addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements, int norm )
+bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements, int norm )
 {
     if( count >= eMAX_BLOCKS )
     {
@@ -22,38 +22,9 @@ void bxGdiVertexStreamDesc::addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType 
         blocks[index].numElements = numElements;
         ++count;
     }
-}
 
-bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::begin( int norm /*= 0 */ )
-{
-    SYS_ASSERT_TXT( count >= eMAX_BLOCKS, "can not add block to vertex stream " );
     return *this;
 }
-
-bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::slot( bxGdi::EVertexSlot s )
-{
-    blocks[count].slot = s;
-    return *this;
-}
-
-bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::type( bxGdi::EDataType t )
-{
-    blocks[count].dataType = t;
-    return *this;
-}
-
-bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::numElements( int numElements )
-{
-    blocks[count].numElements = numElements;
-    return *this;
-}
-
-bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::end()
-{
-    ++count;
-    return *this;
-}
-
 
 namespace bxGdi
 {

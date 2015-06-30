@@ -39,13 +39,7 @@ struct bxGdiVertexStreamDesc
     i16 count;
 
     bxGdiVertexStreamDesc();
-    void addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements, int norm = 0 );
-
-    bxGdiVertexStreamDesc& begin( int norm = 0 );
-    bxGdiVertexStreamDesc& slot( bxGdi::EVertexSlot s );
-    bxGdiVertexStreamDesc& type( bxGdi::EDataType t );
-    bxGdiVertexStreamDesc& numElements( int numElements );
-    bxGdiVertexStreamDesc& end();
+    bxGdiVertexStreamDesc& addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements, int norm = 0 );
 };
 
 

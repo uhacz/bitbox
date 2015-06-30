@@ -62,6 +62,6 @@ namespace bxGfx
     bxGfx_HWorld world_create();
     void world_release( bxGfx_HWorld* h );
 
-    void world_add ( bxGfx_HWorld world, bxGfx_HMesh hmesh );
-    void world_draw( bxGfx_HWorld world, const bxGfxCamera& camera );
+    void world_add ( bxGfx_HWorld hworld, bxGfx_HMesh hmesh );
+    void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera );
 }///

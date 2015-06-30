@@ -228,7 +228,7 @@ public:
 
 
 ///
-///
+/// not used. 
 class bxGdiDrawCall
 {
 public:

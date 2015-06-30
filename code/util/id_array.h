@@ -1,7 +1,7 @@
 #include "containers.h"
 
 template <typename T, u32 MAX>
-inline id_array_t<MAX, T>::id_array_t()
+inline id_array_t<T, MAX>::id_array_t()
     : _freelist( BX_INVALID_ID )
     , _next_id( 0 )
     , _size( 0 )
@@ -13,14 +13,14 @@ inline id_array_t<MAX, T>::id_array_t()
 }
 
 template <typename T, u32 MAX>
-inline T& id_array_t<MAX, T>::operator[]( u32 i )
+inline T& id_array_t<T, MAX>::operator[]( u32 i )
 {
     SYS_ASSERT_TXT( i < _size, "Index out of bounds" );
     return _objects[i];
 }
 
 template <typename T, u32 MAX>
-inline const T& id_array_t<MAX, T>::operator[]( u32 i ) const
+inline const T& id_array_t<T, MAX>::operator[]( u32 i ) const
 {
     SYS_ASSERT_TXT( i < _size, "Index out of bounds" );
     return _objects[i];
@@ -29,7 +29,7 @@ inline const T& id_array_t<MAX, T>::operator[]( u32 i ) const
 namespace id_array
 {
     template <typename T, u32 MAX>
-    inline id_t create( id_array_t<MAX, T>& a, const T& object )
+    inline id_t create( id_array_t<T, MAX>& a, const T& object )
     {
         SYS_ASSERT_TXT( a._size < MAX, "Object list full" );
 
@@ -58,7 +58,7 @@ namespace id_array
     }
 
     template <typename T, u32 MAX>
-    inline void destroy( id_array_t<MAX, T>& a, id_t id )
+    inline void destroy( id_array_t<T, MAX>& a, id_t id )
     {
         SYS_ASSERT_TXT( has( a, id ), "IdArray does not have ID: %d,%d", id.id, id.index );
 
@@ -80,7 +80,7 @@ namespace id_array
     }
 
     template <typename T, u32 MAX>
-    inline T& get( id_array_t<MAX, T>& a, const id_t& id )
+    inline T& get( id_array_t<T, MAX>& a, const id_t& id )
     {
         SYS_ASSERT_TXT( has( a, id ), "IdArray does not have ID: %d,%d", id.id, id.index );
 
@@ -88,37 +88,37 @@ namespace id_array
     }
 
     template <typename T, u32 MAX>
-    inline bool has( const id_array_t<MAX, T>& a, id_t id )
+    inline bool has( const id_array_t<T, MAX>& a, id_t id )
     {
         return id.index < MAX && a._sparse[id.index].id == id.id;
     }
 
     template <typename T, u32 MAX>
-    inline u32 size( const id_array_t<MAX, T>& a )
+    inline u32 size( const id_array_t<T, MAX>& a )
     {
         return a._size;
     }
 
     template <typename T, u32 MAX>
-    inline T* begin( id_array_t<MAX, T>& a )
+    inline T* begin( id_array_t<T, MAX>& a )
     {
         return a._objects;
     }
 
     template <typename T, u32 MAX>
-    inline const T* begin( const id_array_t<MAX, T>& a )
+    inline const T* begin( const id_array_t<T, MAX>& a )
     {
         return a._objects;
     }
 
     template <typename T, u32 MAX>
-    inline T* end( id_array_t<MAX, T>& a )
+    inline T* end( id_array_t<T, MAX>& a )
     {
         return a._objects + a._size;
     }
 
     template <typename T, u32 MAX>
-    inline const T* end( const id_array_t<MAX, T>& a )
+    inline const T* end( const id_array_t<T, MAX>& a )
     {
         return a._objects + a._size;
     }

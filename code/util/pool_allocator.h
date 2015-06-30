@@ -37,28 +37,23 @@ private:
 class bxPoolAllocator : public bxAllocator
 {
 public:
-    bxPoolAllocator() {}
-    virtual ~bxPoolAllocator() {}
+    bxPoolAllocator();
+    virtual ~bxPoolAllocator();
 	
     /// Allocator
-    virtual void *alloc( size_t size, size_t align ) { (void)size; ( void )align; return _mempool.alloc(); }
-    virtual void free( void *p ) { void* tmp = p; _mempool.free( tmp ); }
-    virtual size_t allocatedSize()  const { return _mempool.allocatedSize(); }
+    virtual void *alloc( size_t size, size_t align );
+    virtual void free( void *p );
+    virtual size_t allocatedSize()  const;
     
     ///
-    void* alloc() { return _mempool.alloc(); }
+    void* alloc();
 
-	void startup( u32 chunkSize, u32 chunkCount, bxAllocator* allocator = bxDefaultAllocator(), u32 alignment = 4 )
-    {
-        _mempool.init( chunkSize, chunkCount, allocator, alignment );
-    }
-	void shutdown( bxAllocator* allocator = bxDefaultAllocator() )
-    {
-        _mempool.deinit( allocator );
-    }
+	void startup( u32 chunkSize, u32 chunkCount, bxAllocator* allocator = bxDefaultAllocator(), u32 alignment = 4 );
+	void shutdown();
 	
 private:
     bxMemoryPool _mempool;
+    bxAllocator* _baseAllocator;
 };
 
 template< class T >

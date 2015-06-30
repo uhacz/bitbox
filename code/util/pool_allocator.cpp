@@ -82,6 +82,53 @@ void bxMemoryPool::free( void*& address )
     address = 0;
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+bxPoolAllocator::bxPoolAllocator()
+    : _baseAllocator(0)
+{}
+
+bxPoolAllocator::~bxPoolAllocator()
+{}
+
+void * bxPoolAllocator::alloc( size_t size, size_t align )
+{
+    (void)size; (void)align; return _mempool.alloc();
+}
+
+void* bxPoolAllocator::alloc()
+{
+    return _mempool.alloc();
+}
+
+void bxPoolAllocator::free( void *p )
+{
+    void* tmp = p; _mempool.free( tmp );
+}
+
+size_t bxPoolAllocator::allocatedSize() const
+{
+    return _mempool.allocatedSize();
+}
+
+void bxPoolAllocator::startup( u32 chunkSize, u32 chunkCount, bxAllocator* allocator /*= bxDefaultAllocator()*/, u32 alignment /*= 4 */ )
+{
+    _baseAllocator = allocator;
+    _mempool.init( chunkSize, chunkCount, allocator, alignment );
+}
+
+void bxPoolAllocator::shutdown()
+{
+    _mempool.deinit( _baseAllocator );
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
 bxDynamicPoolAllocator::bxDynamicPoolAllocator()
 : _begin(0)
 , _baseAllocator(0)
@@ -177,3 +224,4 @@ void bxDynamicPoolAllocator::_free( void*& address )
         node->pool.free( address );
     }
 }
+
