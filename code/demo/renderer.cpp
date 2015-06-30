@@ -187,6 +187,12 @@ namespace bxGfx
     struct World
     {
         array_t< bxGfx_HMesh > mesh;
+
+        u32 flag_active : 1;
+
+        World()
+            : flag_active(0)
+        {}
     };
 
     int _World_meshFind( World* world, bxGfx_HMesh hmesh )
@@ -224,12 +230,14 @@ namespace bxGfx
             eMESH,
             eINSTANCE_BUFFER,
             eLIGHT,
+            eWORLD,
         };
         u32 handle;
         u32 type;
         ToReleaseEntry() : handle( 0 ), type( eINVALID ) {}
         explicit ToReleaseEntry( bxGfx_HMesh h ) : handle( h.h ), type( eMESH ) {}
         explicit ToReleaseEntry( bxGfx_HInstanceBuffer h ) : handle( h.h ), type( eINSTANCE_BUFFER ) {}
+        explicit ToReleaseEntry( bxGfx_HWorld h ) : handle( h.h ), type( eWORLD ) {}
     };
 
     typedef id_array_t< bxGfx::World*, eMAX_WORLDS > WorldContainer;
@@ -483,8 +491,13 @@ namespace bxGfx
 
     void world_release( bxGfx_HWorld* h )
     {
-        bxScopeBenaphore lock( __ctx->_lock_world );
+        bxGfx::World* world = _Context_world( __ctx, h[0] );
+        if ( !world )
+            return;
 
+        world->flag_active = 0;
+        bxScopeBenaphore lock( __ctx->_lock_toRelease );
+        array::push_back( __ctx->toRelease, bxGfx::ToReleaseEntry( h[0] ) );
     }
 
     void world_add( bxGfx_HWorld hworld, bxGfx_HMesh hmesh )
