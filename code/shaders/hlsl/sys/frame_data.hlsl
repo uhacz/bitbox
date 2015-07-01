@@ -21,7 +21,6 @@ shared cbuffer FrameData : register(b0)
     float _camera_zFar;
     float _reprojectDepthScale; // (g_zFar - g_zNear) / (-g_zFar * g_zNear)
     float _reprojectDepthBias; // g_zFar / (g_zFar * g_zNear)
-    
 };
 
 #endif
