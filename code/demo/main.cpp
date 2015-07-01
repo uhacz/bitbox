@@ -11,6 +11,7 @@
 #include <gfx/gfx_gui.h>
 
 #include "physics.h"
+#include "renderer.h"
 #include "game.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -34,6 +35,7 @@ struct bxDemoScene
 {
     bxGfxCamera_Manager* _cameraManager;
     bxGfxCamera_InputContext cameraInputCtx;
+    bxGfx_HWorld gfxWorld;
 
     bxGame::Character* character;
     bxGame::Flock* flock;
@@ -52,6 +54,7 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxEngine_startup( &_engine );
+        bxGfx::startup();
 
         const int fbWidth = 1920;
         const int fbHeight = 1080;
@@ -59,6 +62,8 @@ public:
         __framebuffer.textures[bxDemoFramebuffer::eDEPTH] = _engine.gdiDevice->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
 
         __scene._cameraManager = bxGfx::cameraManager_new();
+
+        __scene.gfxWorld = bxGfx::world_create();
         
         bxGfxCamera_SceneScriptCallback cameraScriptCallback;
         cameraScriptCallback._menago = __scene._cameraManager;
@@ -96,11 +101,15 @@ public:
         bxGame::character_delete( &__scene.character );
         bxPhysics::collisionSpace_delete( &bxPhysics::__cspace );
                 
+        bxGfx::world_release( &__scene.gfxWorld );
+
         bxGfx::cameraManager_delete( &__scene._cameraManager );
         for ( int ifb = 0; ifb < bxDemoFramebuffer::eCOUNT; ++ifb )
         {
             _engine.gdiDevice->releaseTexture( &__framebuffer.textures[ifb] );
         }
+        
+        bxGfx::shutdown( _engine.gdiDevice, _engine.resourceManager );
         bxEngine_shutdown( &_engine );
     }
 
@@ -115,6 +124,7 @@ public:
             return false;
         }
 
+        bxGfx::frameBegin( _engine.gdiDevice, _engine.resourceManager );
         bxGfxGUI::newFrame( (float)deltaTimeS );
 
         {

@@ -47,6 +47,9 @@ namespace bxGdi
 
     void renderSource_release( bxGdiDeviceBackend* dev, bxGdiRenderSource* rsource )
     {
+        if( !rsource )
+            return;
+
         dev->releaseIndexBuffer( &rsource->indexBuffer );
         for( int ibuffer = 0; ibuffer < rsource->numVertexBuffers; ++ibuffer )
         {

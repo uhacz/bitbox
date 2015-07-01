@@ -46,7 +46,7 @@ struct bxGfx_StreamsDesc
 namespace bxGfx
 {
     void startup();
-    void shutdown();
+    void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void frameBegin( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 
     bxGfx_HMesh mesh_create();

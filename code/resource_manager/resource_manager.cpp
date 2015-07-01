@@ -164,7 +164,7 @@ public:
 		}
 		_mapLock.unlock();
         
-        return resource->referenceCounter;
+        return ( resource ) ? resource->referenceCounter : 0;
 	}
 };
 

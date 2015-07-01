@@ -15,6 +15,7 @@
 #include <gfx/gfx_gui.h>
 
 #include <smmintrin.h>
+#include "renderer.h"
 
 namespace bxGame
 {
@@ -222,7 +223,9 @@ namespace bxGame
         FlockParticles particles;
         FlockParams params;
         FlockHashmap hmap;
-
+        
+        bxGfx_HMesh hMesh;
+        
         f32 _dtAcc;
     };
 
@@ -238,6 +241,8 @@ namespace bxGame
     {
         if ( !flock[0] )
             return;
+
+        bxGfx::mesh_release( &flock[0]->hMesh );
 
         BX_FREE0( bxDefaultAllocator(), flock[0]->particles.memoryHandle );
         BX_DELETE0( bxDefaultAllocator(), flock[0] );
@@ -259,6 +264,9 @@ namespace bxGame
 
             _FlockParticles_add( &flock->particles, pos );
         }
+
+        flock->hMesh = bxGfx::mesh_create();
+        bxGfx::mesh_createInstanceBuffer( flock->hMesh, nBoids );
     }
 
     inline bool isInNeighbourhood( const Vector3& pos, const Vector3& posB, float radius )

@@ -104,6 +104,10 @@ namespace bxGfx
         SYS_ASSERT( _Mesh_valid( cnt, id ) );
         return cnt->instances[id.index];
     }
+    inline int _Mesh_index( bxGfx_HMesh hmesh )
+    {
+        return make_id( hmesh.h ).index;
+    }
 
     struct LightContainer
     {
@@ -297,10 +301,74 @@ namespace bxGfx
         _Instance_startup( &__ctx->instance );
     }
 
-    void shutdown()
+    static void _Context_manageResources( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    {
+        for( int i = 0; i < array::size( __ctx->toRelease ); ++i )
+        {
+            ToReleaseEntry& e = __ctx->toRelease[i];
+            switch( e.type )
+            {
+            case ToReleaseEntry::eMESH:
+                {
+                    bxGfx_HMesh hmesh = { e.handle };
+                    bxGdiRenderSource* rsource = _Mesh_rsource( &__ctx->mesh, make_id( hmesh.h ) );
+                    bxGdiShaderFx_Instance* fxI = _Mesh_fxI( &__ctx->mesh, make_id( hmesh.h ) );
+
+                    bxGdi::renderSource_releaseAndFree( dev, &rsource, __ctx->_alloc_renderSource );
+                    bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &fxI, __ctx->_alloc_shaderFx );
+
+                    _Mesh_remove( &__ctx->mesh, make_id( e.handle ) );
+
+                }break;
+            case ToReleaseEntry::eINSTANCE_BUFFER:
+                {
+                    _Instance_remove( &__ctx->instance, make_id( e.handle ) );
+                }break;
+            case ToReleaseEntry::eLIGHT:
+                {}break;
+            case ToReleaseEntry::eWORLD:
+                {
+                    id_t id = { e.handle };
+                    World* world = id_array::get( __ctx->world, id );
+                    BX_DELETE0( __ctx->_alloc_world, world );
+                    id_array::destroy( __ctx->world, id );
+                }break;
+            default:
+                {
+                    bxLogError( "Invalid handle" );
+                }break;
+            }
+        }
+    }
+    static void _Context_worldsGC()
+    {
+        const int nWorlds = id_array::size( __ctx->world );
+        bxGfx::World** worlds = id_array::begin( __ctx->world );
+        for( int iworld = 0; iworld < nWorlds; ++iworld )
+        {
+            World* world = worlds[iworld];
+            for( int imesh = 0; imesh < array::size( world->mesh ); )
+            {
+                bxGfx_HMesh hmesh = world->mesh[imesh];
+                if( !_Mesh_valid( &__ctx->mesh, make_id( hmesh.h ) ) )
+                {
+                    _World_meshRemove( world, hmesh );
+                }
+                else
+                {
+                    ++imesh;
+                }
+            }
+        }
+    }
+
+    void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         if ( !__ctx )
             return;
+        
+        _Context_worldsGC();
+        _Context_manageResources( dev, resourceManager );
 
         _Instance_shutdown( &__ctx->instance );
         
@@ -314,58 +382,13 @@ namespace bxGfx
 
     void frameBegin( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
+        { /// world garbage collector
+            _Context_worldsGC();
+        }
+        
         { /// release pending objects
             bxScopeBenaphore lock( __ctx->_lock_toRelease );
-            for ( int i = 0; i < array::size( __ctx->toRelease ); ++i )
-            {
-                ToReleaseEntry& e = __ctx->toRelease[i];
-                switch ( e.type )
-                {
-                case ToReleaseEntry::eMESH:
-                    {
-                        bxGfx_HMesh hmesh = { e.handle };
-                        bxGdiRenderSource* rsource = _Mesh_rsource( &__ctx->mesh, make_id( hmesh.h ) );
-                        bxGdiShaderFx_Instance* fxI = _Mesh_fxI( &__ctx->mesh, make_id( hmesh.h ) );
-
-                        bxGdi::renderSource_releaseAndFree( dev, &rsource, __ctx->_alloc_renderSource );
-                        bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &fxI, __ctx->_alloc_shaderFx );
-
-                        _Mesh_remove( &__ctx->mesh, make_id( e.handle ) );
-
-                    }break;
-                case ToReleaseEntry::eINSTANCE_BUFFER:
-                    {
-                        _Instance_remove( &__ctx->instance, make_id( e.handle ) );
-                    }break;
-                case ToReleaseEntry::eLIGHT:
-                    {}break;
-                default:
-                    {
-                        bxLogError( "Invalid handle" );
-                    }break;
-                }
-            }
-        }
-
-        { /// world garbage collector
-            const int nWorlds = id_array::size( __ctx->world );
-            bxGfx::World** worlds = id_array::begin( __ctx->world );
-            for( int iworld = 0; iworld < nWorlds; ++iworld )
-            {
-                World* world = worlds[iworld];
-                for( int imesh = 0; imesh < array::size( world->mesh ); )
-                {
-                    bxGfx_HMesh hmesh = world->mesh[imesh];
-                    if ( !_Mesh_valid( &__ctx->mesh, make_id( hmesh.h ) ) )
-                    {
-                        _World_meshRemove( world, hmesh );
-                    }
-                    else
-                    {
-                        ++imesh;
-                    }
-                }
-            }
+            _Context_manageResources( dev, resourceManager );
         }
     }
 
@@ -520,12 +543,22 @@ namespace bxGfx
     void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera )
     {
         bxGfx::World* world = _Context_world( __ctx, hworld );
-        if( !world )
+        if( !world || !world->flag_active )
             return;
 
+        MeshContainer* meshContainer = &__ctx->mesh;
+
+        bxGfx_HMesh* hmeshArray = array::begin( world->mesh );
+        const int nHmesh = array::size( world->mesh );
         
+        for( int imesh = 0; imesh > nHmesh; ++imesh )
+        {
+            bxGfx_HMesh hmesh = hmeshArray[imesh];
+            const int index = _Mesh_index( hmesh );
+
+            bxGdiRenderSource* rsource = meshContainer->rsource[index];
+            bxGdiShaderFx_Instance* fxI = meshContainer->fxI[index];
+
+        }
     }
-
 }///
-
-

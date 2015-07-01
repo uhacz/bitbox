@@ -35,7 +35,7 @@ namespace id_array
 
         // Obtain a new id
         id_t id;
-        id.id = a._next_id++;
+        id.id = ++a._next_id;
 
         // Recycle slot if there are any
         if( a._freelist != BX_INVALID_ID )

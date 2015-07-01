@@ -572,6 +572,9 @@ namespace bxGdi
 
     void shaderFx_releaseWithInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator )
     {
+        if( !fxInstance[0] )
+            return;
+
         bxGdiShaderFx* fx = fxInstance[0]->shaderFx();
         shaderFx_releaseInstance( dev, fxInstance, allocator );
         shaderFx_release( dev, resourceManager, &fx, allocator );
