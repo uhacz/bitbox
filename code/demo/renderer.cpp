@@ -10,7 +10,9 @@
 
 #include <gdi/gdi_render_source.h>
 #include <gdi/gdi_shader.h>
-#include "gdi/gdi_context.h"
+#include <gdi/gdi_context.h>
+
+#include <gfx/gfx_type.h>
 
 inline bool operator == ( bxGfx_HMesh a, bxGfx_HMesh b ){
     return a.h == b.h;
@@ -257,6 +259,13 @@ struct bxGfx_Context
     bxGfx::WorldContainer world;
     bxGfx::ToReleaseContainer toRelease;
 
+    array_t<u32> _instanceOffset;
+    bxGdiBuffer _cbuffer_frameData;
+    bxGdiBuffer _cbuffer_instanceOffset;
+    bxGdiBuffer _buffer_instanceWorld;
+    bxGdiBuffer _buffer_instanceWorldIT;
+    u32 _maxInstances;
+
     bxAllocator* _alloc_renderSource;
     bxAllocator* _alloc_shaderFx;
     bxAllocator* _alloc_world;
@@ -287,7 +296,7 @@ static bxGfx_Context* __ctx = 0;
 
 namespace bxGfx
 {
-    void startup()
+    void startup( bxGdiDeviceBackend* dev )
     {
         SYS_ASSERT( __ctx == 0 );
         __ctx = BX_NEW( bxDefaultAllocator(), bxGfx_Context );
@@ -301,6 +310,18 @@ namespace bxGfx
         }
         
         _Instance_startup( &__ctx->instance );
+
+        { /// gpu buffers
+            __ctx->_cbuffer_frameData = dev->createConstantBuffer( sizeof( bxGfx::FrameData ) );
+            __ctx->_cbuffer_instanceOffset = dev->createConstantBuffer( sizeof( u32 ) );
+            
+            const int maxInstances = eMAX_INSTANCES * 2;
+            const int numElements = maxInstances * 3; /// 3 * row
+            __ctx->_buffer_instanceWorld   = dev->createBuffer( numElements, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+            __ctx->_buffer_instanceWorldIT = dev->createBuffer( numElements, bxGdiFormat( bxGdi::eTYPE_FLOAT, 3 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+            __ctx->_maxInstances = maxInstances;
+            array::reserve( __ctx->_instanceOffset, maxInstances );
+        }
     }
 
     static void _Context_manageResources( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
@@ -371,6 +392,13 @@ namespace bxGfx
         
         _Context_worldsGC();
         _Context_manageResources( dev, resourceManager );
+
+        {
+            dev->releaseBuffer( &__ctx->_buffer_instanceWorldIT );
+            dev->releaseBuffer( &__ctx->_buffer_instanceWorld );
+            dev->releaseBuffer( &__ctx->_cbuffer_instanceOffset );
+            dev->releaseBuffer( &__ctx->_cbuffer_frameData );
+        }
 
         _Instance_shutdown( &__ctx->instance );
         
@@ -556,7 +584,50 @@ namespace bxGfx
         bxGfx_HInstanceBuffer* hinstanceArray = array::begin( world->instance );
 
         const int nHmesh = array::size( world->mesh );
-        
+        {
+            float4_t* dataWorld = (float4_t*)bxGdi::buffer_map( ctx->backend(), __ctx->_buffer_instanceWorld, 0, __ctx->_maxInstances );
+            float3_t* dataWorldIT = (float3_t*)bxGdi::buffer_map( ctx->backend(), __ctx->_buffer_instanceWorldIT, 0, __ctx->_maxInstances );
+            
+            array::clear( __ctx->_instanceOffset );
+            u32 currentOffset = 0;
+            u32 instanceCounter = 0;
+            for( int imesh = 0; imesh > nHmesh; ++imesh )
+            {
+                InstanceContainer::Data idata = _Instance_data( instanceContainer, make_id( hinstanceArray[imesh].h ) );
+                
+                for( int imatrix = 0; imatrix < idata.count; ++imatrix, ++instanceCounter )
+                {
+                    SYS_ASSERT( instanceCounter < __ctx->_maxInstances );
+
+                    const u32 dataOffset = ( currentOffset + imatrix ) * 3;
+                    const Matrix4 worldRows = transpose( idata.pose[imatrix] );
+                    const Matrix3 worldITRows = transpose( inverse( idata.pose[imatrix].getUpper3x3() ) );
+
+                    const float4_t* worldRowsPtr = (float4_t*)&worldRows;
+                    memcpy( dataWorld + currentOffset, worldRowsPtr, sizeof( float4_t ) * 3 );
+
+                    const float4_t* worldITRowsPtr = (float4_t*)&worldITRows;
+                    memcpy( dataWorldIT + currentOffset, worldITRowsPtr, sizeof( float3_t ) * 3 );
+                }
+
+                array::push_back( __ctx->_instanceOffset, currentOffset );
+                currentOffset += idata.count;
+            }
+            array::push_back( __ctx->_instanceOffset, currentOffset );
+
+            ctx->backend()->unmap( __ctx->_buffer_instanceWorldIT.rs );
+            ctx->backend()->unmap( __ctx->_buffer_instanceWorld.rs );
+        }
+        SYS_ASSERT( array::size( __ctx->_instanceOffset ) == nHmesh + 1 );
+        bxGfx::FrameData fdata;
+        bxGfx::frameData_fill( &fdata, camera, 1920, 1080 );
+        ctx->backend()->updateCBuffer( __ctx->_cbuffer_frameData, &fdata );
+
+        ctx->setBufferRO( __ctx->_buffer_instanceWorld, 0, bxGdi::eSTAGE_MASK_VERTEX );
+        ctx->setBufferRO( __ctx->_buffer_instanceWorldIT, 1, bxGdi::eSTAGE_MASK_VERTEX );
+        ctx->setCbuffer( __ctx->_cbuffer_frameData, 0, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
+        ctx->setCbuffer( __ctx->_cbuffer_instanceOffset, 1, bxGdi::eSTAGE_MASK_VERTEX );
+
         for( int imesh = 0; imesh > nHmesh; ++imesh )
         {
             bxGfx_HMesh hmesh = hmeshArray[imesh];
@@ -564,8 +635,16 @@ namespace bxGfx
             
             bxGdiRenderSource* rsource = meshContainer->rsource[meshDataIndex];
             bxGdiShaderFx_Instance* fxI = meshContainer->fxI[meshDataIndex];
-            InstanceContainer::Data idata = _Instance_data( instanceContainer, make_id( hinstanceArray[imesh] ) );
 
+            u32 instanceOffset = __ctx->_instanceOffset[imesh];
+            u32 instanceCount = __ctx->_instanceOffset[imesh + 1] - instanceOffset;
+            ctx->backend()->updateCBuffer( __ctx->_cbuffer_instanceOffset, &instanceOffset );
+
+            bxGdi::renderSource_enable( ctx, rsource );
+            bxGdi::shaderFx_enable( ctx, fxI, 0 );
+
+            bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
+            bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, instanceCount );
         }
     }
 }///

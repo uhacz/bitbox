@@ -30,6 +30,11 @@ struct out_PS
 #include <sys/types.hlsl>
 #include <sys/frame_data.hlsl>
 
+shared cbuffer InstanceOffset : register( b1 )
+{
+    uint _begin;
+};
+
 Buffer<float4> _instance_world : register(t0);
 Buffer<float3> _instance_worldIT : register(t1);
 
@@ -37,7 +42,7 @@ in_PS vs_main( in_VS IN )
 {
     in_PS OUT = (in_PS)0;
 
-    uint row0Index = IN.instanceID * 3;
+    uint row0Index = ( _begin + IN.instanceID ) * 3;
     float4 row0 = _instance_world[row0Index];
     float4 row1 = _instance_world[row0Index + 1];
     float4 row2 = _instance_world[row0Index + 2];

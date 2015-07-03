@@ -45,7 +45,7 @@ struct bxGfx_StreamsDesc
 ////
 namespace bxGfx
 {
-    void startup();
+    void startup( bxGdiDeviceBackend* dev );
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void frameBegin( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 
