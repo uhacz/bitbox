@@ -59,6 +59,15 @@ namespace bxGfx
         eMAX_MESHES = 1024,
         eMAX_INSTANCES = 1024,
     };
+    union MeshFlags
+    {
+        u8 all;
+        struct  
+        {
+            u8 own_rsource : 1;
+            u8 own_fxI : 1;
+        };
+    };
     ////
     ////
     struct MeshContainer
@@ -66,12 +75,14 @@ namespace bxGfx
         id_table_t<bxGfx::eMAX_MESHES> idTable;
         bxGdiRenderSource* rsource[bxGfx::eMAX_MESHES];
         bxGdiShaderFx_Instance* fxI[bxGfx::eMAX_MESHES];
+        MeshFlags flags[bxGfx::eMAX_MESHES];
     };
     id_t _Mesh_add( MeshContainer* cnt )
     {
         id_t id = id_table::create( cnt->idTable );
         cnt->rsource[id.index] = 0;
         cnt->fxI[id.index] = 0;
+        cnt->flags[id.index].all = 0;
         return id;
     }
     void _Mesh_remove( MeshContainer* cnt, id_t id )
@@ -81,6 +92,7 @@ namespace bxGfx
 
         cnt->rsource[id.index] = 0;
         cnt->fxI[id.index] = 0;
+        cnt->flags[id.index].all = 0;
         id_table::destroy( cnt->idTable, id );
     }
 
@@ -334,11 +346,20 @@ namespace bxGfx
             case ToReleaseEntry::eMESH:
                 {
                     bxGfx_HMesh hmesh = { e.handle };
-                    bxGdiRenderSource* rsource = _Mesh_rsource( &__ctx->mesh, make_id( hmesh.h ) );
-                    bxGdiShaderFx_Instance* fxI = _Mesh_fxI( &__ctx->mesh, make_id( hmesh.h ) );
+                    const int index = _Mesh_index( hmesh );
+                    MeshFlags flags = __ctx->mesh.flags[index];
 
-                    bxGdi::renderSource_releaseAndFree( dev, &rsource, __ctx->_alloc_renderSource );
-                    bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &fxI, __ctx->_alloc_shaderFx );
+                    if( flags.own_rsource )
+                    {
+                        bxGdiRenderSource* rsource = _Mesh_rsource( &__ctx->mesh, make_id( hmesh.h ) );
+                        bxGdi::renderSource_releaseAndFree( dev, &rsource, __ctx->_alloc_renderSource );
+                    }
+
+                    if( flags.own_fxI )
+                    {
+                        bxGdiShaderFx_Instance* fxI = _Mesh_fxI( &__ctx->mesh, make_id( hmesh.h ) );
+                        bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &fxI, __ctx->_alloc_shaderFx );
+                    }
 
                     _Mesh_remove( &__ctx->mesh, make_id( e.handle ) );
 
@@ -460,12 +481,32 @@ namespace bxGfx
             bxGdi::renderSource_setIndexBuffer( rsource, ibuffer );
         }
 
-        const id_t id = make_id( hmesh.h );
-        if( __ctx->mesh.rsource[id.index] )
+        const int index = _Mesh_index( hmesh );
+        MeshFlags& flags = __ctx->mesh.flags[index];
+
+        if( flags.own_rsource )
         {
-            bxGdi::renderSource_releaseAndFree( dev, &__ctx->mesh.rsource[id.index], __ctx->_alloc_renderSource );
+            bxGdi::renderSource_releaseAndFree( dev, &__ctx->mesh.rsource[index], __ctx->_alloc_renderSource );
         }
-        __ctx->mesh.rsource[id.index] = rsource;
+
+        flags.own_rsource = 1;
+        __ctx->mesh.rsource[index] = rsource;
+        return 0;
+    }
+
+    int mesh_setStreams( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxGdiRenderSource* rsource )
+    {
+        if ( !_Mesh_valid( &__ctx->mesh, make_id( hmesh.h ) ) )
+            return -1;
+
+        const int index = _Mesh_index( hmesh );
+        MeshFlags& flags = __ctx->mesh.flags[index];
+        if ( flags.own_rsource )
+        {
+            bxGdi::renderSource_releaseAndFree( dev, &__ctx->mesh.rsource[index], __ctx->_alloc_renderSource );
+        }
+        flags.own_rsource = 0;
+        __ctx->mesh.rsource[index] = rsource;
         return 0;
     }
 
@@ -478,13 +519,30 @@ namespace bxGfx
         if( !fxI )
             return -1;
 
-        const id_t id = make_id( hmesh.h );
-        if( __ctx->mesh.fxI[id.index] )
+        const int index = _Mesh_index( hmesh );
+        MeshFlags& flags = __ctx->mesh.flags[index];
+        if( flags.own_fxI )
         {
-            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__ctx->mesh.fxI[id.index], __ctx->_alloc_shaderFx );
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__ctx->mesh.fxI[index], __ctx->_alloc_shaderFx );
         }
+        flags.own_fxI = 1;
+        __ctx->mesh.fxI[index] = fxI;
+        return 0;
+    }
 
-        __ctx->mesh.fxI[id.index] = fxI;
+    int mesh_setShader( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance* fxI )
+    {
+        if ( !_Mesh_valid( &__ctx->mesh, make_id( hmesh.h ) ) )
+            return -1;
+
+        const int index = _Mesh_index( hmesh );
+        MeshFlags& flags = __ctx->mesh.flags[index];
+        if ( flags.own_fxI )
+        {
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__ctx->mesh.fxI[index], __ctx->_alloc_shaderFx );
+        }
+        flags.own_fxI = 0;
+        __ctx->mesh.fxI[index] = fxI;
         return 0;
     }
 
@@ -506,7 +564,7 @@ namespace bxGfx
         hinstance->h = 0;
     }
     
-    int instance_get( bxGfx_HInstanceBuffer hinstance, Matrix4* buffer, int bufferSize, int startIndex /*= 0 */ )
+    int instanceBuffer_get( bxGfx_HInstanceBuffer hinstance, Matrix4* buffer, int bufferSize, int startIndex /*= 0 */ )
     {
         SYS_ASSERT( _Instance_valid( &__ctx->instance, make_id( hinstance.h ) ) );
         int result = 0;
@@ -520,7 +578,7 @@ namespace bxGfx
         return count;
     }
 
-    int instance_set( bxGfx_HInstanceBuffer hinstance, const Matrix4* buffer, int bufferSize, int startIndex /*= 0 */ )
+    int instanceBuffer_set( bxGfx_HInstanceBuffer hinstance, const Matrix4* buffer, int bufferSize, int startIndex /*= 0 */ )
     {
         SYS_ASSERT( _Instance_valid( &__ctx->instance, make_id( hinstance.h ) ) );
         
@@ -528,7 +586,7 @@ namespace bxGfx
         const int endIndex = minOfPair( startIndex + bufferSize, data.count );
         const int count = endIndex - startIndex;
         
-        memcpy( data.pose, buffer, count * sizeof( Matrix4 ) );
+        memcpy( data.pose + startIndex, buffer, count * sizeof( Matrix4 ) );
 
         return count;
     }
@@ -537,6 +595,7 @@ namespace bxGfx
     {
         bxScopeBenaphore lock( __ctx->_lock_world );
         bxGfx::World* world = BX_NEW( __ctx->_alloc_world, bxGfx::World );
+        world->flag_active = 1;
         id_t id = id_array::create( __ctx->world, world );
 
         bxGfx_HWorld result = { id.hash };
@@ -554,7 +613,7 @@ namespace bxGfx
         array::push_back( __ctx->toRelease, bxGfx::ToReleaseEntry( h[0] ) );
     }
 
-    void world_add( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    void world_meshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
     {
         bxGfx::World* world = _Context_world( __ctx, hworld );
         if( !world )
@@ -591,7 +650,7 @@ namespace bxGfx
             array::clear( __ctx->_instanceOffset );
             u32 currentOffset = 0;
             u32 instanceCounter = 0;
-            for( int imesh = 0; imesh > nHmesh; ++imesh )
+            for( int imesh = 0; imesh < nHmesh; ++imesh )
             {
                 InstanceContainer::Data idata = _Instance_data( instanceContainer, make_id( hinstanceArray[imesh].h ) );
                 
@@ -601,13 +660,15 @@ namespace bxGfx
 
                     const u32 dataOffset = ( currentOffset + imatrix ) * 3;
                     const Matrix4 worldRows = transpose( idata.pose[imatrix] );
-                    const Matrix3 worldITRows = transpose( inverse( idata.pose[imatrix].getUpper3x3() ) );
+                    const Matrix3 worldITRows = inverse( idata.pose[imatrix].getUpper3x3() );
 
                     const float4_t* worldRowsPtr = (float4_t*)&worldRows;
-                    memcpy( dataWorld + currentOffset, worldRowsPtr, sizeof( float4_t ) * 3 );
+                    memcpy( dataWorld + dataOffset, worldRowsPtr, sizeof( float4_t ) * 3 );
 
                     const float4_t* worldITRowsPtr = (float4_t*)&worldITRows;
-                    memcpy( dataWorldIT + currentOffset, worldITRowsPtr, sizeof( float3_t ) * 3 );
+                    memcpy( dataWorldIT + dataOffset    , worldITRowsPtr    , sizeof( float3_t ) );
+                    memcpy( dataWorldIT + dataOffset + 1, worldITRowsPtr + 1, sizeof( float3_t ) );
+                    memcpy( dataWorldIT + dataOffset + 2, worldITRowsPtr + 2, sizeof( float3_t ) );
                 }
 
                 array::push_back( __ctx->_instanceOffset, currentOffset );
@@ -628,7 +689,7 @@ namespace bxGfx
         ctx->setCbuffer( __ctx->_cbuffer_frameData, 0, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
         ctx->setCbuffer( __ctx->_cbuffer_instanceOffset, 1, bxGdi::eSTAGE_MASK_VERTEX );
 
-        for( int imesh = 0; imesh > nHmesh; ++imesh )
+        for( int imesh = 0; imesh < nHmesh; ++imesh )
         {
             bxGfx_HMesh hmesh = hmeshArray[imesh];
             const int meshDataIndex = _Mesh_index( hmesh );

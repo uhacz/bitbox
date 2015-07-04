@@ -2,6 +2,7 @@
 
 #include <util/vectormath/vectormath.h>
 #include <util/type.h>
+#include "renderer.h"
 
 struct bxInput;
 struct bxGfxCamera;
@@ -32,6 +33,7 @@ namespace bxGame
     void flock_delete( Flock** flock );
 
     void flock_init( Flock* flock, int nBoids, const Vector3& center, float radius );
+    void flock_loadResources( Flock* flock, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld gfxWorld );
     
     struct Predator
     {

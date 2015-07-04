@@ -54,7 +54,7 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxEngine_startup( &_engine );
-        bxGfx::startup();
+        bxGfx::startup( _engine.gdiDevice );
 
         const int fbWidth = 1920;
         const int fbHeight = 1080;
@@ -90,7 +90,8 @@ public:
         __scene.collisionBox = bxPhysics::collisionSpace_createBox( bxPhysics::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
         __scene.flock = bxGame::flock_new();
 
-        bxGame::flock_init( __scene.flock, 128, Vector3(0.f), 5.f );
+        bxGame::flock_init( __scene.flock, 128, Vector3( 0.f ), 5.f );
+        bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager, __scene.gfxWorld );
         return true;
     }
     virtual void shutdown()
@@ -171,6 +172,8 @@ public:
 
             bxPhysics::collisionSpace_debugDraw( bxPhysics::__cspace );
         }
+
+        bxGfx::world_draw( gdiContext, __scene.gfxWorld, currentCamera );
 
         bxGfxDebugDraw::flush( gdiContext, currentCamera.matrix.viewProj );
         bxGfx::rasterizeFramebuffer( gdiContext, __framebuffer.textures[bxDemoFramebuffer::eCOLOR], currentCamera );

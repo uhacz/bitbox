@@ -19,7 +19,7 @@ struct in_PS
     float4 h_pos	: SV_Position;
     float4 s_pos    : TEXCOORD0;
     float3 w_pos	: TEXCOORD1;
-    /*nointerpolation*/ float3 w_normal:TEXCOORD2;
+    nointerpolation float3 w_normal:TEXCOORD2;
 };
 
 struct out_PS
@@ -64,6 +64,13 @@ in_PS vs_main( in_VS IN )
 out_PS ps_main( in_PS input )
 {
     out_PS OUT;
-    OUT.rgba = float4(1.0, 0.0, 0.0, 1.0);
+
+    float3 L = normalize( float3(-1.f, 1.f, 1.f) );
+    float3 N = normalize( input.w_normal );
+    float3 C = float3( 1.0, 1.0, 1.0 );
+    float NdotL = saturate( dot( N, L ) );
+
+    
+    OUT.rgba = float4( C * NdotL, 1.0 );
     return OUT;
 }

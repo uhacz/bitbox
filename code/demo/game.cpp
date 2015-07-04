@@ -15,7 +15,7 @@
 #include <gfx/gfx_gui.h>
 
 #include <smmintrin.h>
-#include "renderer.h"
+
 
 namespace bxGame
 {
@@ -225,6 +225,7 @@ namespace bxGame
         FlockHashmap hmap;
         
         bxGfx_HMesh hMesh;
+        bxGfx_HInstanceBuffer hInstanceBuffer;
         
         f32 _dtAcc;
     };
@@ -264,10 +265,20 @@ namespace bxGame
 
             _FlockParticles_add( &flock->particles, pos );
         }
-
-        flock->hMesh = bxGfx::mesh_create();
-        bxGfx::mesh_createInstanceBuffer( flock->hMesh, nBoids );
     }
+
+    void flock_loadResources( Flock* flock, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld gfxWorld )
+    {
+        flock->hMesh = bxGfx::mesh_create();
+        flock->hInstanceBuffer = bxGfx::instanceBuffer_create( flock->particles.size );
+
+        bxGdiRenderSource* rsource = bxGfx::globalResources()->mesh.box;
+        bxGfx::mesh_setStreams( flock->hMesh, dev, rsource );
+        bxGfx::mesh_setShader( flock->hMesh, dev, resourceManager, "native1" );
+        
+        bxGfx::world_meshAdd( gfxWorld, flock->hMesh, flock->hInstanceBuffer );
+    }
+
 
     inline bool isInNeighbourhood( const Vector3& pos, const Vector3& posB, float radius )
     {
@@ -440,7 +451,12 @@ namespace bxGame
             const Vector3& pos = fp->pos0[iboid];
             const Vector3& vel = fp->vel[iboid];
 
-            bxGfxDebugDraw::addSphere( Vector4( pos, 0.1f ), 0xFFFF00FF, true );
+            //Vector3 posGrid( _mm_round_ps( pos.get128(), _MM_FROUND_NINT ) );
+
+            //bxGfxDebugDraw::addSphere( Vector4( pos, 0.1f ), 0xFFFF00FF, true );
+            const Matrix3 rotation = Matrix3::identity(); // createBasis( normalizeSafe( vel ) );
+            const Matrix4 pose = appendScale( Matrix4( rotation, pos ), Vector3( 0.1f ) );
+            bxGfx::instanceBuffer_set( flock->hInstanceBuffer, &pose, 1, iboid );
             //bxGfxDebugDraw::addLine( pos, pos + vel, 0x0000FFFF, true );
             
             //bxGfxDebugDraw::addLine( pos, pos + rot.getCol0(), 0x0F00FFFF, true );

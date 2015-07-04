@@ -49,21 +49,30 @@ namespace bxGfx
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void frameBegin( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 
+    ////
+    //
     bxGfx_HMesh mesh_create();
     void mesh_release( bxGfx_HMesh* h );
 
     int  mesh_setStreams( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, const bxGfx_StreamsDesc& sdesc );
-    int  mesh_setShader ( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* shaderName );
+    int  mesh_setStreams( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxGdiRenderSource* rsource );
+    
+    int  mesh_setShader( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* shaderName );
+    int  mesh_setShader( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance* fxI );
+
+    ////
+    //
     bxGfx_HInstanceBuffer instanceBuffer_create( int nInstances );
     void instanceBuffer_release( bxGfx_HInstanceBuffer* hinstance );
 
+    int instanceBuffer_get( bxGfx_HInstanceBuffer hinstance, Matrix4* buffer, int bufferSize, int startIndex = 0 );
+    int instanceBuffer_set( bxGfx_HInstanceBuffer hinstance, const Matrix4* buffer, int bufferSize, int startIndex = 0 );
 
-    int instance_get( bxGfx_HInstanceBuffer hinstance, Matrix4* buffer, int bufferSize, int startIndex = 0 );
-    int instance_set( bxGfx_HInstanceBuffer hinstance, const Matrix4* buffer, int bufferSize, int startIndex = 0 );
-
+    ////
+    //
     bxGfx_HWorld world_create();
     void world_release( bxGfx_HWorld* h );
 
-    void world_add ( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
+    void world_meshAdd ( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
     void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera );
 }///
