@@ -48,4 +48,20 @@ namespace bxGame
 }///
 
 
+struct bxDesignBlock_World;
+struct bxDesignBlock_Handle;
+
+namespace bxDesignBlock
+{
+    enum EShape
+    {
+        eBOX = 0,
+        eSPHERE,
+    };
+    bxDesignBlock_World* world_new();
+    void world_delete( bxDesignBlock_World** world );
+
+
+
+}//
 
