@@ -39,8 +39,8 @@ struct bxDemoScene
 
     bxGame::Character* character;
     bxGame::Flock* flock;
-    bxPhysics_CBoxHandle collisionBox;
-    bxPhysics_CPlaneHandle collisionPlane;
+    bxPhysics_HBoxShape collisionBox;
+    bxPhysics_HPlaneShape collisionPlane;
 };
 static bxDemoScene __scene;
 

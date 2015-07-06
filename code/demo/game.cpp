@@ -502,6 +502,10 @@ struct bxDesignBlock_World
 };
 namespace bxDesignBlock
 {
-
+    enum EShape
+    {
+        eBOX = 0,
+        eSPHERE,
+    };
 }///
 

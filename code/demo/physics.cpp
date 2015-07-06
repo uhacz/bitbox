@@ -103,7 +103,7 @@ struct bxPhysics_CollisionTriangles
 };
 
 namespace bxPhysics{
-    bxPhysics_CBoxHandle collisionBox_create( bxPhysics_CollisionBox* cnt, const Vector3& pos, const Quat& rot, const Vector3& ext )
+    bxPhysics_HBoxShape collisionBox_create( bxPhysics_CollisionBox* cnt, const Vector3& pos, const Quat& rot, const Vector3& ext )
     {
         int i0 = array::push_back( cnt->pos, pos );
         int i1 = array::push_back( cnt->rot, rot );
@@ -111,9 +111,9 @@ namespace bxPhysics{
         SYS_ASSERT( i0 == i1 && i0 == i2 );
 
         bxPhysics_CollisionBox::Indices::Handle handle = cnt->indices.add( i0 );
-        return collisionHandle_create< bxPhysics_CBoxHandle>(  handle.asU32() );
+        return collisionHandle_create< bxPhysics_HBoxShape>(  handle.asU32() );
     }
-    void collisionBox_release( bxPhysics_CollisionBox* cnt, bxPhysics_CBoxHandle* h )
+    void collisionBox_release( bxPhysics_CollisionBox* cnt, bxPhysics_HBoxShape* h )
     {
         u32 removedIndex, lastIndex;
         int ierr = collisionContainer_removeHandle( &removedIndex, &lastIndex, cnt, h );
@@ -129,13 +129,13 @@ namespace bxPhysics{
         array::pop_back( cnt->ext );
     }
 
-    bxPhysics_CPlaneHandle collisionPlane_create( bxPhysics_CollisionPlane* cnt, const Vector4& plane )
+    bxPhysics_HPlaneShape collisionPlane_create( bxPhysics_CollisionPlane* cnt, const Vector4& plane )
     {
         int i0 = array::push_back( cnt->value, plane );
         bxPhysics_CollisionBox::Indices::Handle handle = cnt->indices.add( i0 );
-        return collisionHandle_create< bxPhysics_CPlaneHandle >( handle.asU32() );
+        return collisionHandle_create< bxPhysics_HPlaneShape >( handle.asU32() );
     }
-    void collisionPlane_release( bxPhysics_CollisionPlane* cnt, bxPhysics_CPlaneHandle* h )
+    void collisionPlane_release( bxPhysics_CollisionPlane* cnt, bxPhysics_HPlaneShape* h )
     {
         u32 removedIndex, lastIndex;
         int ierr = collisionContainer_removeHandle( &removedIndex, &lastIndex, cnt, h );
@@ -146,13 +146,13 @@ namespace bxPhysics{
         cnt->value[removedIndex] = cnt->value[lastIndex];
         array::pop_back( cnt->value );
     }
-    bxPhysics_CSphereHandle collisionSphere_create( bxPhysics_CollisionSphere* cnt, const Vector4& sph )
+    bxPhysics_HSphereShape collisionSphere_create( bxPhysics_CollisionSphere* cnt, const Vector4& sph )
     {
         int i0 = array::push_back( cnt->value, sph );
         bxPhysics_CollisionBox::Indices::Handle handle = cnt->indices.add( i0 );
-        return collisionHandle_create< bxPhysics_CSphereHandle >( handle.asU32() );
+        return collisionHandle_create< bxPhysics_HSphereShape >( handle.asU32() );
     }
-    void collisionSphere_release( bxPhysics_CollisionSphere* cnt, bxPhysics_CSphereHandle* h )
+    void collisionSphere_release( bxPhysics_CollisionSphere* cnt, bxPhysics_HSphereShape* h )
     {
         u32 removedIndex, lastIndex;
         int ierr = collisionContainer_removeHandle( &removedIndex, &lastIndex, cnt, h );
@@ -206,22 +206,22 @@ void bxPhysics::collisionSpace_delete( bxPhysics_CollisionSpace** cs )
     __cspace = 0;
 }
 
-bxPhysics_CPlaneHandle collisionSpace_createPlane( bxPhysics_CollisionSpace* cs, const Vector4& plane )
+bxPhysics_HPlaneShape collisionSpace_createPlane( bxPhysics_CollisionSpace* cs, const Vector4& plane )
 {
     return collisionPlane_create( &cs->plane, plane );
 }
 
-bxPhysics_CBoxHandle collisionSpace_createBox( bxPhysics_CollisionSpace* cs, const Vector3& pos, const Quat& rot, const Vector3& ext )
+bxPhysics_HBoxShape collisionSpace_createBox( bxPhysics_CollisionSpace* cs, const Vector3& pos, const Quat& rot, const Vector3& ext )
 {
     return collisionBox_create( &cs->box, pos, rot, ext );
 }
 
-bxPhysics_CSphereHandle collisionSpace_createSphere( bxPhysics_CollisionSpace* cs, const Vector4& sph )
+bxPhysics_HSphereShape collisionSpace_createSphere( bxPhysics_CollisionSpace* cs, const Vector4& sph )
 {
     return collisionSphere_create( &cs->sphere, sph );
 }
 
-void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CPlaneHandle* ch )
+void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_HPlaneShape* ch )
 {
     if( !ch->h )
         return;
@@ -229,7 +229,7 @@ void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CPlaneHandl
     collisionPlane_release( &cs->plane, ch );
 }
 
-void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CBoxHandle* ch )
+void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_HBoxShape* ch )
 {
     if( !ch->h )
         return;
@@ -237,7 +237,7 @@ void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CBoxHandle*
     collisionBox_release( &cs->box, ch );
 }
 
-void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_CSphereHandle* ch )
+void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_HSphereShape* ch )
 {
     if( !ch->h )
         return;

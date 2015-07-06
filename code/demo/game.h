@@ -48,18 +48,18 @@ namespace bxGame
 }///
 
 
-struct bxDesignBlock_World;
-struct bxDesignBlock_Handle;
-
+struct bxDesignBlock_HBlock;
 namespace bxDesignBlock
 {
-    enum EShape
-    {
-        eBOX = 0,
-        eSPHERE,
-    };
-    bxDesignBlock_World* world_new();
-    void world_delete( bxDesignBlock_World** world );
+    bxDesignBlock_HBlock block_create();
+    void block_release( bxDesignBlock_HBlock* h );
+
+    void assignTag( bxDesignBlock_HBlock h, u64 tag );
+    void assignMesh( bxDesignBlock_HBlock h, bxGfx_HInstanceBuffer hinstance );
+    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HBoxShape hc );
+    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HSphereShape hc );
+    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HCapsuleShape hc );
+    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HPlaneShape hc );
 
 
 
