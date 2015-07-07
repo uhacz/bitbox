@@ -19,6 +19,7 @@ struct bxGfx_HSunLight   { u32 h; };
 struct bxGfx_HPointLight { u32 h; };
 struct bxGfx_HWorld      { u32 h; };
 struct bxGfx_HInstanceBuffer { u32 h; };
+struct bxGfx_IdxMeshInstance { u32 index; };
 
 struct bxGfx_StreamsDesc
 {
@@ -73,6 +74,6 @@ namespace bxGfx
     bxGfx_HWorld world_create();
     void world_release( bxGfx_HWorld* h );
 
-    void world_meshAdd ( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
+    void world_meshAdd ( bxGfx_HWorld hworld, bxEntity_Id eid, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
     void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera );
 }///
