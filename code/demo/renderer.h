@@ -13,13 +13,17 @@ class bxResourceManager;
 struct bxGfxCamera;
 
 ////
-////
+//// zero means invalid handle
 struct bxGfx_HMesh       { u32 h; };
 struct bxGfx_HSunLight   { u32 h; };
 struct bxGfx_HPointLight { u32 h; };
 struct bxGfx_HWorld      { u32 h; };
 struct bxGfx_HInstanceBuffer { u32 h; };
-struct bxGfx_IdxMeshInstance { u32 index; };
+struct bxGfx_MeshInstance 
+{ 
+    bxGfx_HMesh mesh;
+    bxGfx_HInstanceBuffer instance;
+};
 
 struct bxGfx_StreamsDesc
 {
@@ -75,5 +79,8 @@ namespace bxGfx
     void world_release( bxGfx_HWorld* h );
 
     void world_meshAdd ( bxGfx_HWorld hworld, bxEntity_Id eid, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
+    bxGfx_MeshInstance world_lookupMesh( bxGfx_HWorld hworld, bxEntity_Id eid );
+    
+    void world_entityGC( bxEntity_Manager* entityManager, bxGfx_HWorld hworld );
     void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera );
 }///
