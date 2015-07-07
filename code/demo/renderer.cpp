@@ -110,11 +110,7 @@ namespace bxGfx
         SYS_ASSERT( _Mesh_valid( cnt, id ) );
         return cnt->fxI[id.index];
     }
-    //inline bxGfx_HInstanceBuffer _Mesh_instanceBuffer( MeshContainer* cnt, id_t id )
-    //{
-    //    SYS_ASSERT( _Mesh_valid( cnt, id ) );
-    //    return cnt->instances[id.index];
-    //}
+
     inline int _Mesh_index( bxGfx_HMesh hmesh )
     {
         return make_id( hmesh.h ).index;

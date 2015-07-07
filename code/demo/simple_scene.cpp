@@ -110,7 +110,7 @@ void bxDemoSimpleScene_startup(bxDemoEngine* engine, bxDemoSimpleScene* scene)
                 const Matrix4 pose = appendScale( Matrix4( Matrix3::identity(), Vector3( x, y, z ) + rndOffset ), rndScale );
 
 
-                bxEntity e = engine->entityManager.create();
+                bxEntity_Id e = engine->entityManager.create();
                 bxMeshComponent_Instance cMeshI = scene->componentMesh.create( e, 1 );
 
                 bxMeshComponent_Data cMeshData = scene->componentMesh.mesh( cMeshI );
@@ -134,7 +134,7 @@ void bxDemoSimpleScene_startup(bxDemoEngine* engine, bxDemoSimpleScene* scene)
 
             bxGdiShaderFx_Instance* fxI = engine->gfxMaterials->findMaterial( "blue" );
 
-            bxEntity e = engine->entityManager.create();
+            bxEntity_Id e = engine->entityManager.create();
             bxMeshComponent_Instance cMeshI = scene->componentMesh.create( e, 1 );
 
             bxMeshComponent_Data cMeshData = scene->componentMesh.mesh( cMeshI );

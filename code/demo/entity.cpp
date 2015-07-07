@@ -11,7 +11,7 @@
 #include <gfx/gfx_type.h>
 #include <string.h>
 
-bxEntity bxEntity_Manager::create()
+bxEntity_Id bxEntity_Manager::create()
 {
     u32 idx;
     if( queue::size( _freeIndeices ) > eMINIMUM_FREE_INDICES )
@@ -22,17 +22,17 @@ bxEntity bxEntity_Manager::create()
     else
     {
         idx = array::push_back( _generation, u8(1) );
-        SYS_ASSERT( idx < (1 << bxEntity::eINDEX_BITS) );
+        SYS_ASSERT( idx < (1 << bxEntity_Id::eINDEX_BITS) );
     }
 
-    bxEntity e;
+    bxEntity_Id e;
     e.generation = _generation[idx];
     e.index = idx;
 
     return e;
 }
 
-void bxEntity_Manager::release( bxEntity* e )
+void bxEntity_Manager::release( bxEntity_Id* e )
 {
     for( int icb = 0; icb < array::size( _callback_releaseEntity ); ++icb )
     {

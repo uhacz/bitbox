@@ -73,6 +73,13 @@ namespace bxGfx
     bxGfx_HWorld world_create();
     void world_release( bxGfx_HWorld* h );
 
-    void world_meshAdd ( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
+    void world_meshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
     void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera );
 }///
+
+namespace bxGfx
+{
+    void mesh_assignEntity( bxGfx_HMesh hmesh, bxEntity_Id eid );
+    void instanceBuffer_assignEntity( bxGfx_HInstanceBuffer, bxEntity_Id eid );
+}///
+

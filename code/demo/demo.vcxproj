@@ -85,7 +85,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ai.cpp" />
-    <ClCompile Include="demo_engine.cpp" />
     <ClCompile Include="entity.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="game_character.cpp" />
@@ -95,7 +94,6 @@
     <ClCompile Include="physics_pbd.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="scene.cpp" />
-    <ClCompile Include="simple_scene.cpp" />
     <ClCompile Include="test_console.cpp" />
     <ClCompile Include="tree.cpp" />
   </ItemGroup>
@@ -133,14 +131,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ai.h" />
-    <ClInclude Include="demo_engine.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="physics.h" />
     <ClInclude Include="physics_pbd.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="scene.h" />
-    <ClInclude Include="simple_scene.h" />
     <ClInclude Include="test_console.h" />
     <ClInclude Include="tree.h" />
   </ItemGroup>
