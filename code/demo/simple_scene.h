@@ -22,7 +22,7 @@ struct bxDemoSimpleScene
     bxGfxCamera_InputContext cameraInputCtx;
 
     array_t<bxGfxLightManager::PointInstance> pointLights;
-    array_t<bxEntity> entities;
+    array_t<bxEntity_Id> entities;
     
     bxGfxCamera* currentCamera;
 };

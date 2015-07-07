@@ -48,20 +48,20 @@ namespace bxGame
 }///
 
 
-struct bxDesignBlock_HBlock;
-namespace bxDesignBlock
-{
-    bxDesignBlock_HBlock block_create();
-    void block_release( bxDesignBlock_HBlock* h );
-
-    void assignTag( bxDesignBlock_HBlock h, u64 tag );
-    void assignMesh( bxDesignBlock_HBlock h, bxGfx_HInstanceBuffer hinstance );
-    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HBoxShape hc );
-    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HSphereShape hc );
-    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HCapsuleShape hc );
-    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HPlaneShape hc );
-
-
-
-}//
+//struct bxDesignBlock_HBlock;
+//namespace bxDesignBlock
+//{
+//    bxDesignBlock_HBlock block_create();
+//    void block_release( bxDesignBlock_HBlock* h );
+//
+//    void assignTag( bxDesignBlock_HBlock h, u64 tag );
+//    void assignMesh( bxDesignBlock_HBlock h, bxGfx_HInstanceBuffer hinstance );
+//    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HBoxShape hc );
+//    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HSphereShape hc );
+//    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HCapsuleShape hc );
+//    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HPlaneShape hc );
+//
+//
+//
+//}//
 
