@@ -197,30 +197,100 @@ namespace bxGfx
     ////
     struct World
     {
-        array_t< bxGfx_HMesh > mesh;
-        array_t< bxGfx_HInstanceBuffer > instance;
-        
+        struct Data
+        {
+            bxEntity_Id* entity;
+            bxGfx_HMesh* mesh;
+            bxGfx_HInstanceBuffer* instance;
+
+            void* memoryHandle;
+            i32 size;
+            i32 capacity;
+        };
+        Data _data;
+        hashmap_t _entityMap;
+
         u32 flag_active : 1;
+
+        bxAllocator* _alloc_data;
 
         World()
             : flag_active(0)
-        {}
+        {
+            memset( &_data, 0x00, sizeof( World::Data ) );
+            _alloc_data = bxDefaultAllocator();
+        }
     };
+
+    void _World_allocateData( World::Data* data, int newcap, bxAllocator* alloc )
+    {
+        SYS_ASSERT( newcap > data->size );
+        
+        int memSize = 0;
+        memSize += newcap * sizeof( *data->entity );
+        memSize += newcap * sizeof( *data->mesh );
+        memSize += newcap * sizeof( *data->instance );
+
+        void* memory = BX_MALLOC( alloc, memSize, ALIGNOF(bxEntity_Id) );
+        memset( memory, 0x00, memSize );
+
+        World::Data newData;
+        memset( &newData, 0x00, sizeof( World::Data ) );
+        newData.size = data->size;
+        newData.capacity = newcap;
+        newData.memoryHandle = memory;
+
+        bxBufferChunker chunker( memory, memSize );
+        newData.entity = chunker.add< bxEntity_Id >( newcap );
+        newData.mesh = chunker.add< bxGfx_HMesh >( newcap );
+        newData.instance = chunker.add< bxGfx_HInstanceBuffer >( newcap );                                                              
+        chunker.check();
+
+        if( data->size )
+        {
+            BX_CONTAINER_COPY_DATA( newData, data, entity );
+            BX_CONTAINER_COPY_DATA( newData, data, mesh );
+            BX_CONTAINER_COPY_DATA( newData, data, instance );
+        }
+
+        BX_FREE0( alloc, data->memoryHandle );
+
+        data[0] = newData;
+    }
 
     int _World_meshFind( World* world, bxGfx_HMesh hmesh )
     {
-        return array::find1( array::begin( world->mesh ), array::end( world->mesh ), array::OpEqual<bxGfx_HMesh>( hmesh ) );
+        return array::find1( world->_data.mesh, world->_data.mesh + world->_data.size, array::OpEqual<bxGfx_HMesh>( hmesh ) );
     }
 
-    int _World_meshAdd( World* world, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    int _World_meshAdd( World* world, bxEntity_Id eid, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
     {
         int index = _World_meshFind( world, hmesh );
         if( index != -1 )
             return index;
 
-        index = array::push_back( world->mesh, hmesh );
-        int index1 = array::push_back( world->instance, hinstance );
-        SYS_ASSERT( index == index1 );
+        if( world->_data.size + 1 > world->_data.capacity )
+        {
+            const int newcap = world->_data.capacity * 2 + 8;
+            _World_allocateData( &world->_data, newcap, world->_alloc_data );
+        }
+
+        if( hashmap::lookup( world->_entityMap, eid.hash ) )
+        {
+            SYS_NOT_IMPLEMENTED;
+            return -1;
+        }
+
+        World::Data& data = world->_data;
+        index = data.size++;
+        
+        data.entity[index] = eid;
+        data.mesh[index] = hmesh;
+        data.instance[index] = hinstance;
+
+        hashmap_t::cell_t* mapCell = hashmap::insert( world->_entityMap, eid.hash );
+        mapCell->value = size_t( index );
+
 
         return index;
     }
@@ -232,8 +302,30 @@ namespace bxGfx
             return;
         }
 
-        array::erase_swap( world->mesh, index );
-        array::erase_swap( world->instance, index );
+        World::Data& data = world->_data;
+        if( data.size == 0 )
+            return;
+
+        const int lastIndex = --data->size;
+        
+        {
+            bxEntity_Id eid = data.entity[index];
+            hashmap::eraseByKey( world->_entityMap, eid.hash );
+        }
+
+        data.entity[index] = data.entity[lastIndex];
+        data.mesh[index] = data.mesh[lastIndex];
+        data.instance[index] = data.instance[lastIndex];
+
+        {
+            bxEntity_Id eid = data.entity[index];
+            hashmap_t::cell_t* mapCell = hashmap::lookup( world->_entityMap, eid.hash );
+            SYS_ASSERT( mapCell != 0 );
+            mapCell->value = size_t( index );
+        }
+
+        //array::erase_swap( world->mesh, index );
+        //array::erase_swap( world->instance, index );
     }
 
     ////
@@ -609,7 +701,7 @@ namespace bxGfx
         array::push_back( __ctx->toRelease, bxGfx::ToReleaseEntry( h[0] ) );
     }
 
-    void world_meshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    void world_meshAdd( bxGfx_HWorld hworld, bxEntity_Id eid, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
     {
         bxGfx::World* world = _Context_world( __ctx, hworld );
         if( !world )
@@ -618,7 +710,7 @@ namespace bxGfx
         int index = _World_meshFind( world, hmesh );
         if( index == -1 )
         {
-            _World_meshAdd( world, hmesh, hinstance );
+            _World_meshAdd( world, eid, hmesh, hinstance );
         }
         else
         {
@@ -635,10 +727,12 @@ namespace bxGfx
         MeshContainer* meshContainer = &__ctx->mesh;
         InstanceContainer* instanceContainer = &__ctx->instance;
 
-        bxGfx_HMesh* hmeshArray = array::begin( world->mesh );
-        bxGfx_HInstanceBuffer* hinstanceArray = array::begin( world->instance );
+        const bxGfx::World::Data& worldData = world->_data;
 
-        const int nHmesh = array::size( world->mesh );
+        bxGfx_HMesh* hmeshArray = worldData.mesh;
+        bxGfx_HInstanceBuffer* hinstanceArray = worldData.instance;
+
+        const int nHmesh = worldData.size;
         {
             float4_t* dataWorld = (float4_t*)bxGdi::buffer_map( ctx->backend(), __ctx->_buffer_instanceWorld, 0, __ctx->_maxInstances );
             float3_t* dataWorldIT = (float3_t*)bxGdi::buffer_map( ctx->backend(), __ctx->_buffer_instanceWorldIT, 0, __ctx->_maxInstances );
