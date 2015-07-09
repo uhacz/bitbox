@@ -3,6 +3,7 @@
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
 #include <gdi/gdi_backend_struct.h>
+#include "entity.h"
 
 struct bxGdiRenderSource;
 struct bxGdiShaderFx_Instance;
@@ -52,7 +53,7 @@ namespace bxGfx
 {
     void startup( bxGdiDeviceBackend* dev );
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void frameBegin( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void frameBegin( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxEntity_Manager* entityManager );
 
     ////
     //
@@ -79,8 +80,9 @@ namespace bxGfx
     void world_release( bxGfx_HWorld* h );
 
     void world_meshAdd ( bxGfx_HWorld hworld, bxEntity_Id eid, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
+    void world_meshRemove( bxGfx_HWorld hworld, bxEntity_Id eid );
+    void world_meshRemoveAndRelease( bxGfx_HWorld hworld, bxEntity_Id eid );
     bxGfx_MeshInstance world_lookupMesh( bxGfx_HWorld hworld, bxEntity_Id eid );
     
-    void world_entityGC( bxEntity_Manager* entityManager, bxGfx_HWorld hworld );
     void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera );
 }///
