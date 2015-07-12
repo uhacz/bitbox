@@ -1,7 +1,10 @@
 #include "containers.h"
 
-template <u32 MAX>
-inline id_table_t<MAX>::id_table_t()
+#define BX_ID_TABLE_T_DEF u32 MAX, typename Tid
+#define BX_ID_TABLE_T_ARG MAX, Tid
+
+template <BX_ID_TABLE_T_DEF>
+inline id_table_t<BX_ID_TABLE_T_ARG>::id_table_t()
     : _freelist( BX_INVALID_ID )
     , _next_id( 0 )
     , _size( 0 )
@@ -14,12 +17,12 @@ inline id_table_t<MAX>::id_table_t()
 
 namespace id_table
 {
-    template <u32 MAX>
-    inline id_t create( id_table_t<MAX>& a )
+    template <BX_ID_TABLE_T_DEF>
+    inline Tid create( id_table_t<BX_ID_TABLE_T_ARG>& a )
     {
         SYS_ASSERT( a._size < MAX );
         // Obtain a new id
-        id_t id;
+        Tid id;
         id.id = ++a._next_id;
 
         // Recycle slot if there are any
@@ -39,8 +42,8 @@ namespace id_table
         return id;
     }
 
-    template <u32 MAX>
-    inline void destroy( id_table_t<MAX>& a, id_t id )
+    template <BX_ID_TABLE_T_DEF>
+    inline void destroy( id_table_t<BX_ID_TABLE_T_ARG>& a, Tid id )
     {
         SYS_ASSERT_TXT( has( a, id ), "IdTable does not have ID: %d,%d", id.id, id.index );
 
@@ -50,26 +53,26 @@ namespace id_table
         a._size--;
     }
 
-    template <u32 MAX>
-    inline bool has( const id_table_t<MAX>& a, id_t id )
+    template <BX_ID_TABLE_T_DEF>
+    inline bool has( const id_table_t<BX_ID_TABLE_T_ARG>& a, Tid id )
     {
         return id.index < MAX && a._ids[id.index].id == id.id;
     }
 
-    template <u32 MAX>
-    inline u16 size( const id_table_t<MAX>& a )
+    template <BX_ID_TABLE_T_DEF>
+    inline u16 size( const id_table_t<BX_ID_TABLE_T_ARG>& a )
     {
         return a._size;
     }
 
-    template <u32 MAX>
-    inline const id_t* begin( const id_table_t<MAX>& a )
+    template <BX_ID_TABLE_T_DEF>
+    inline const Tid* begin( const id_table_t<BX_ID_TABLE_T_ARG>& a )
     {
         return a._ids;
     }
 
-    template <u32 MAX>
-    inline const id_t* end( const id_table_t<MAX>& a )
+    template <BX_ID_TABLE_T_DEF>
+    inline const Tid* end( const id_table_t<BX_ID_TABLE_T_ARG>& a )
     {
         return a._ids + MAX;
     }

@@ -46,10 +46,8 @@ struct bxEntity_Manager
 
     bxEntity_Manager();
     ~bxEntity_Manager();
-    void register_releaseCallback( bxEntity_releaseCallback* cb, void* userData );
-    void register_garbageCollectorCallback( bxEntity_garbageCollectorCallback* cb, void* userData );
 
-    void _GarbageCollector();
+    void register_releaseCallback( bxEntity_releaseCallback* cb, void* userData );
 private:
     enum 
     {
@@ -65,8 +63,6 @@ private:
         void* userData;
     };
     array_t<Callback> _callback_releaseEntity;
-    array_t<Callback> _callback_garbageCollector;
-
 };
 ////
 ////

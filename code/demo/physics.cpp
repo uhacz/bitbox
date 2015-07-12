@@ -5,73 +5,144 @@
 #include <util/buffer_utils.h>
 
 #include <gfx/gfx_debug_draw.h>
+#include "util/id_array.h"
 
 namespace bxPhysics{
-    template< typename T >
-    inline T collisionHandle_create( u32 uhandle )
+    enum
     {
-        T h = { uhandle };
-        return h;
-    }
+        eMAX_SHAPES_BITS = 14,
+        eID_SHAPES_BITS = 14,
+        eMAX_SHAPES = 1 << eMAX_SHAPES_BITS,
+    };
+    
 
-    template< typename Tcontainer, typename Thandle >
-    inline int collisionContainer_has( Tcontainer* cnt, Thandle handle )
+    union IdInternal
     {
-        return cnt->indices.isValid( Tcontainer::Indices::Handle( handle.h ) );
-    }
-
-    template< typename Tcontainer, typename Thandle >
-    int collisionContainer_removeHandle( u32* removedIndex, u32* lastIndex, Tcontainer* cnt, Thandle* h )
-    {
-        if( !collisionContainer_has( cnt, h[0] ) )
-            return -1;
-
-        if( cnt->empty() )
+        u32 hash;
+        struct
         {
-            bxLogWarning( "No box instances left!!!" );
-            return -1;
+            u32 id : eID_SHAPES_BITS;
+            u32 index : eMAX_SHAPES_BITS;
+            u32 type : 4;
+        };
+
+        bxPhysics_HShape toHandle()
+        {
+            bxPhysics_HShape h = { hash };
+            return h;
         }
+    };
+    SYS_STATIC_ASSERT( sizeof( IdInternal ) == sizeof( u32 ) );
+    //typedef id_array_t<eMAX_SHAPES, HandleInternal> HandleContainer;
 
-        int count = cnt->size();
-        SYS_ASSERT( count == cnt->indices.size() );
+    //inline bxPhysics_HShape collisionHandle_create( u32 uhandle, bxPhysics::EShape shapeType )
+    //{
+    //    HandleHelper helper = { uhandle };
+    //    helper.type = shapeType;
 
-        bxPhysics_CollisionBox::Indices::Handle handle( h->h );
-        lastIndex[0] = count - 1;
-        removedIndex[0] = packedArrayHandle_remove( &cnt->indices, handle, lastIndex[0] );
+    //    bxPhysics_HShape h = { helper.hash };
+    //    return h;
+    //}
 
-        h->h = 0;
-        return 0;
-    }
+    //inline id_t collisionHandle_makeId( bxPhysics_HShape hshape )
+    //{
+    //    HandleHelper helper = { hshape.h };
+    //    helper.type = 0;
+    //    return make_id( helper.hash );
+    //}
+
+
+
+    //template< typename Tcontainer, typename Thandle >
+    //inline int collisionContainer_has( Tcontainer* cnt, Thandle handle )
+    //{
+    //    return cnt->indices.isValid( Tcontainer::Indices::Handle( handle.h ) );
+    //}
+
+    //template< typename Tcontainer, typename Thandle >
+    //int collisionContainer_removeHandle( u32* removedIndex, u32* lastIndex, Tcontainer* cnt, Thandle* h )
+    //{
+    //    if( !collisionContainer_has( cnt, h[0] ) )
+    //        return -1;
+
+    //    if( cnt->empty() )
+    //    {
+    //        bxLogWarning( "No box instances left!!!" );
+    //        return -1;
+    //    }
+
+    //    int count = cnt->size();
+    //    SYS_ASSERT( count == cnt->indices.size() );
+
+    //    bxPhysics_CollisionBox::Indices::Handle handle( h->h );
+    //    lastIndex[0] = count - 1;
+    //    removedIndex[0] = packedArrayHandle_remove( &cnt->indices, handle, lastIndex[0] );
+
+    //    h->h = 0;
+    //    return 0;
+    //}
 }///
 
 struct bxPhysics_CollisionBox
 {
-    typedef bxHandleManager<u32> Indices;
-    Indices indices;
-
-    array_t< Vector3 > pos;
-    array_t< Quat > rot;
-    array_t< Vector3 > ext;
+    //typedef bxHandleManager<u32> Indices;
+    //Indices indices;
+    //bxPhysics::IndexContainer indices;
+    array_t< Vector3 > _pos;
+    array_t< Quat >    _rot;
+    array_t< Vector3 > _ext;
 
     bxPhysics_CollisionBox()
     {}
 
-    int size () const { return array::size( pos ); }
-    int empty() const { return array::empty( pos ); }
+    int size () const { return array::size( _pos ); }
+    int empty() const { return array::empty( _pos ); }
+
+    int add( const Vector3& pos, const Quat& rot, const Vector3& ext )
+    {
+        int i0 = array::push_back( _pos, pos );
+        int i1 = array::push_back( _rot, rot );
+        int i2 = array::push_back( _ext, ext );
+        SYS_ASSERT( i0 == i1 && i0 == i2 );
+        return i0;
+    }
+    void remove( int index )
+    {
+        if ( empty() )
+            return;
+
+        array::erase_swap( _pos, index );
+        array::erase_swap( _rot, index );
+        array::erase_swap( _ext, index );
+    }
+
 };
 
 struct bxPhysics_CollisionVector4
 {
-    typedef bxHandleManager<u32> Indices;
-    Indices indices;
-
-    array_t< Vector4 > value;
+    //typedef bxHandleManager<u32> Indices;
+    //Indices indices;
+    //bxPhysics::IndexContainer indices;
+    array_t< Vector4 > _value;
 
     bxPhysics_CollisionVector4()
     {}
 
-    int size() const { return array::size( value ); }
-    int empty() const { return array::empty( value ); }
+    int size() const { return array::size( _value ); }
+    int empty() const { return array::empty( _value ); }
+
+    int add( const Vector4& v )
+    {
+        return array::push_back( _value, v );
+    }
+    void remove( int index )
+    {
+        if ( empty() )
+            return;
+
+        array::erase_swap( _value, index );
+    }
+
 };
 typedef bxPhysics_CollisionVector4 bxPhysics_CollisionSphere;
 typedef bxPhysics_CollisionVector4 bxPhysics_CollisionPlane;
@@ -103,66 +174,73 @@ struct bxPhysics_CollisionTriangles
 };
 
 namespace bxPhysics{
-    bxPhysics_HBoxShape collisionBox_create( bxPhysics_CollisionBox* cnt, const Vector3& pos, const Quat& rot, const Vector3& ext )
-    {
-        int i0 = array::push_back( cnt->pos, pos );
-        int i1 = array::push_back( cnt->rot, rot );
-        int i2 = array::push_back( cnt->ext, ext );
-        SYS_ASSERT( i0 == i1 && i0 == i2 );
+    //bxPhysics_HShape collisionBox_create( bxPhysics_CollisionBox* cnt, const Vector3& pos, const Quat& rot, const Vector3& ext )
+    //{
+        //int i0 = array::push_back( cnt->pos, pos );
+        //int i1 = array::push_back( cnt->rot, rot );
+        //int i2 = array::push_back( cnt->ext, ext );
+        //SYS_ASSERT( i0 == i1 && i0 == i2 );
 
-        bxPhysics_CollisionBox::Indices::Handle handle = cnt->indices.add( i0 );
-        return collisionHandle_create< bxPhysics_HBoxShape>(  handle.asU32() );
-    }
-    void collisionBox_release( bxPhysics_CollisionBox* cnt, bxPhysics_HBoxShape* h )
-    {
-        u32 removedIndex, lastIndex;
-        int ierr = collisionContainer_removeHandle( &removedIndex, &lastIndex, cnt, h );
-        if( ierr == -1 )
-        {
-            return;
-        }
-        cnt->pos[removedIndex] = cnt->pos[lastIndex];
-        cnt->rot[removedIndex] = cnt->rot[lastIndex];
-        cnt->ext[removedIndex] = cnt->ext[lastIndex];
-        array::pop_back( cnt->pos );
-        array::pop_back( cnt->rot );
-        array::pop_back( cnt->ext );
-    }
+        //IdShape id = id_array::create( cnt->indices );
+        //int index = id_array::index( cnt->indices, id );
+        //SYS_ASSERT( index == i0 );
+        //id.type = eSHAPE_BOX;
 
-    bxPhysics_HPlaneShape collisionPlane_create( bxPhysics_CollisionPlane* cnt, const Vector4& plane )
-    {
-        int i0 = array::push_back( cnt->value, plane );
-        bxPhysics_CollisionBox::Indices::Handle handle = cnt->indices.add( i0 );
-        return collisionHandle_create< bxPhysics_HPlaneShape >( handle.asU32() );
-    }
-    void collisionPlane_release( bxPhysics_CollisionPlane* cnt, bxPhysics_HPlaneShape* h )
-    {
-        u32 removedIndex, lastIndex;
-        int ierr = collisionContainer_removeHandle( &removedIndex, &lastIndex, cnt, h );
-        if( ierr == -1 )
-        {
-            return;
-        }
-        cnt->value[removedIndex] = cnt->value[lastIndex];
-        array::pop_back( cnt->value );
-    }
-    bxPhysics_HSphereShape collisionSphere_create( bxPhysics_CollisionSphere* cnt, const Vector4& sph )
-    {
-        int i0 = array::push_back( cnt->value, sph );
-        bxPhysics_CollisionBox::Indices::Handle handle = cnt->indices.add( i0 );
-        return collisionHandle_create< bxPhysics_HSphereShape >( handle.asU32() );
-    }
-    void collisionSphere_release( bxPhysics_CollisionSphere* cnt, bxPhysics_HSphereShape* h )
-    {
-        u32 removedIndex, lastIndex;
-        int ierr = collisionContainer_removeHandle( &removedIndex, &lastIndex, cnt, h );
-        if( ierr == -1 )
-        {
-            return;
-        }
-        cnt->value[removedIndex] = cnt->value[lastIndex];
-        array::pop_back( cnt->value );
-    }
+        //return id.toHandle();
+        //bxPhysics_CollisionBox::Indices::Handle handle = cnt->indices.add( i0 );
+
+        //return collisionHandle_create< bxPhysics_HBoxShape>(  handle.asU32() );
+    //}
+    //void collisionBox_release( bxPhysics_CollisionBox* cnt, bxPhysics_HShape* h )
+    //{
+        //u32 removedIndex, lastIndex;
+        //int ierr = collisionContainer_removeHandle( &removedIndex, &lastIndex, cnt, h );
+        //if( ierr == -1 )
+        //{
+        //    return;
+        //}
+        //cnt->pos[removedIndex] = cnt->pos[lastIndex];
+        //cnt->rot[removedIndex] = cnt->rot[lastIndex];
+        //cnt->ext[removedIndex] = cnt->ext[lastIndex];
+        //array::pop_back( cnt->pos );
+        //array::pop_back( cnt->rot );
+        //array::pop_back( cnt->ext );
+    //}
+
+    //bxPhysics_HShape collisionPlane_create( bxPhysics_CollisionPlane* cnt, const Vector4& plane )
+    //{
+        //int i0 = array::push_back( cnt->value, plane );
+        //bxPhysics_CollisionBox::Indices::Handle handle = cnt->indices.add( i0 );
+        //return collisionHandle_create< bxPhysics_HPlaneShape >( handle.asU32() );
+    //}
+//     void collisionPlane_release( bxPhysics_CollisionPlane* cnt, bxPhysics_HShape* h )
+//     {
+//         u32 removedIndex, lastIndex;
+//         int ierr = collisionContainer_removeHandle( &removedIndex, &lastIndex, cnt, h );
+//         if( ierr == -1 )
+//         {
+//             return;
+//         }
+//         cnt->value[removedIndex] = cnt->value[lastIndex];
+//         array::pop_back( cnt->value );
+//     }
+    //bxPhysics_HShape collisionSphere_create( bxPhysics_CollisionSphere* cnt, const Vector4& sph )
+    //{
+        //int i0 = array::push_back( cnt->value, sph );
+        //bxPhysics_CollisionBox::Indices::Handle handle = cnt->indices.add( i0 );
+        //return collisionHandle_create< bxPhysics_HSphereShape >( handle.asU32() );
+    //}
+//     void collisionSphere_release( bxPhysics_CollisionSphere* cnt, bxPhysics_HSphereShape* h )
+//     {
+//         u32 removedIndex, lastIndex;
+//         int ierr = collisionContainer_removeHandle( &removedIndex, &lastIndex, cnt, h );
+//         if( ierr == -1 )
+//         {
+//             return;
+//         }
+//         cnt->value[removedIndex] = cnt->value[lastIndex];
+//         array::pop_back( cnt->value );
+//     }
 }
 
 struct bxPhysics_CollisionSpace
@@ -170,7 +248,12 @@ struct bxPhysics_CollisionSpace
     bxPhysics_CollisionPlane plane;
     bxPhysics_CollisionSphere sphere;
     bxPhysics_CollisionBox box;
-    bxPhysics_CollisionTriangles tri;
+    //bxPhysics_CollisionTriangles tri;
+
+
+    id_table<bxPhysics::eMAX_SHAPES, bxPhysics::IdInternal> idTable;
+    array_t<i16> dataIndex;    
+    hashmap_t map_dataIndexToId;
 };
 
 namespace bxPhysics{
@@ -180,6 +263,7 @@ namespace bxPhysics{
 bxPhysics_CollisionSpace* collisionSpace_new()
 {
     bxPhysics_CollisionSpace* cspace = BX_NEW( bxDefaultAllocator(), bxPhysics_CollisionSpace );
+    array::reserve( cspace->dataIndex, eMAX_SHAPES );
     __cspace = cspace;
     return cspace;
 }
@@ -206,44 +290,152 @@ void bxPhysics::collisionSpace_delete( bxPhysics_CollisionSpace** cs )
     __cspace = 0;
 }
 
-bxPhysics_HPlaneShape collisionSpace_createPlane( bxPhysics_CollisionSpace* cs, const Vector4& plane )
+namespace
 {
-    return collisionPlane_create( &cs->plane, plane );
+    union ShapeMapKey
+    {
+        size_t hash;
+        struct  
+        {
+            u32 dataIndex;
+            u32 shapeType;
+        };
+    };
+
+    inline void shapeId_insertToMap( hashmap_t& map, IdInternal id, int dataIndex )
+    {
+        ShapeMapKey key;
+        key.shapeType = id.type;
+        key.dataIndex = dataIndex;
+        SYS_ASSERT( hashmap::lookup( map, key.hash ) == 0 );
+        hashmap_t::cell_t* cell = hashmap::insert( map, key.hash );
+        cell->value = id.hash;
+    }
+}///
+
+bxPhysics_HShape collisionSpace_createPlane( bxPhysics_CollisionSpace* cs, const Vector4& plane )
+{
+    int dataIndex = cs->plane.add( plane );
+    IdInternal id = id_table::create( cs->idTable );
+    id.type = eSHAPE_PLANE;
+    cs->dataIndex[id.index] = dataIndex;
+
+    shapeId_insertToMap( cs->map_dataIndexToId, id, dataIndex );
+
+    return id.toHandle();
 }
 
-bxPhysics_HBoxShape collisionSpace_createBox( bxPhysics_CollisionSpace* cs, const Vector3& pos, const Quat& rot, const Vector3& ext )
+bxPhysics_HShape collisionSpace_createBox( bxPhysics_CollisionSpace* cs, const Vector3& pos, const Quat& rot, const Vector3& ext )
 {
-    return collisionBox_create( &cs->box, pos, rot, ext );
+    int dataIndex = cs->box.add( pos, rot, ext );
+    IdInternal id = id_table::create( cs->idTable );
+    id.type = eSHAPE_BOX;
+    cs->dataIndex[id.index] = dataIndex;
+
+    shapeId_insertToMap( cs->map_dataIndexToId, id, dataIndex );
+
+    return id.toHandle();
+    //return collisionBox_create( &cs->box, pos, rot, ext );
 }
 
-bxPhysics_HSphereShape collisionSpace_createSphere( bxPhysics_CollisionSpace* cs, const Vector4& sph )
+bxPhysics_HShape collisionSpace_createSphere( bxPhysics_CollisionSpace* cs, const Vector4& sph )
 {
-    return collisionSphere_create( &cs->sphere, sph );
+    int dataIndex = cs->sphere.add( sph );
+    IdInternal id = id_table::create( cs->idTable );
+    id.type = eSHAPE_SPHERE;
+    cs->dataIndex[id.index] = dataIndex;
+
+    shapeId_insertToMap( cs->map_dataIndexToId, id, dataIndex );
+
+    return id.toHandle();
+    //return collisionSphere_create( &cs->sphere, sph );
 }
 
-void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_HPlaneShape* ch )
+void collisionSpace_releaseShape( bxPhysics_CollisionSpace* cs, bxPhysics_HShape* h )
 {
-    if( !ch->h )
+    if( !h->h )
         return;
 
-    collisionPlane_release( &cs->plane, ch );
-}
 
-void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_HBoxShape* ch )
-{
-    if( !ch->h )
+    IdInternal id = { h->h };
+    if ( !id_table::has( cs->idTable, id ) )
+    {
         return;
+    }
+    
+    const int dataIndex = cs->dataIndex[id.index];
 
-    collisionBox_release( &cs->box, ch );
+    
+    int dataIndexToSwap = -1;
+    switch( id.type )
+    {
+    case eSHAPE_SPHERE:
+        {
+            dataIndexToSwap = cs->sphere.size() - 1;
+            cs->sphere.remove( dataIndex );
+        }break;
+    case eSHAPE_CAPSULE:
+        {
+            SYS_NOT_IMPLEMENTED;
+        }break;
+    case eSHAPE_BOX:
+        {
+            dataIndexToSwap = cs->box.size() - 1;
+            cs->box.remove( dataIndex );
+        }break;
+    case eSHAPE_PLANE:
+        {
+            dataIndexToSwap = cs->plane.size() - 1;
+            cs->plane.remove( dataIndex );
+        }break;
+    default:
+        {
+            SYS_NOT_IMPLEMENTED;
+        }break;
+    }
+
+    SYS_ASSERT( dataIndexToSwap >= 0 );
+
+    ShapeMapKey mapKeySwap = { 0 };
+    mapKeySwap.shapeType = id.type;
+    mapKeySwap.dataIndex = (u32)dataIndexToSwap;
+    hashmap_t::cell_t* cellSwap = hashmap::lookup( cs->map_dataIndexToId, mapKeySwap.hash );
+    SYS_ASSERT( cellSwap != 0 );
+
+    ShapeMapKey mapKey = { 0 };
+    mapKey.shapeType = id.type;
+    mapKey.dataIndex = dataIndex;
+    hashmap_t::cell_t* cell = hashmap::lookup( cs->map_dataIndexToId, mapKey.hash );
+    SYS_ASSERT( cell != 0 );
+    cell->value = cellSwap->value;
+
+    hashmap::erase( cs->map_dataIndexToId, cellSwap );
+    //collisionPlane_release( &cs->plane, ch );
 }
 
-void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_HSphereShape* ch )
-{
-    if( !ch->h )
-        return;
-
-    collisionSphere_release( &cs->sphere, ch );
-}
+//void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_HPlaneShape* ch )
+//{
+//    if( !ch->h )
+//        return;
+//
+//    collisionPlane_release( &cs->plane, ch );
+//}
+//
+//void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_HBoxShape* ch )
+//{
+//    if( !ch->h )
+//        return;
+//
+//    collisionBox_release( &cs->box, ch );
+//}
+//
+//void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_HSphereShape* ch )
+//{
+//    if( !ch->h )
+//        return;
+//
+//    collisionSphere_release( &cs->sphere, ch );
+//}
 
 }///
 
@@ -475,7 +667,7 @@ void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* c
         n = cs->plane.size();
         for ( int i = 0; i < n; ++i )
         {
-            const Vector4& plane = cs->plane.value[i];
+            const Vector4& plane = cs->plane._value[i];
             const floatInVec d = dot( plane, Vector4( pt, oneVec ) );
             pt += -plane.getXYZ() * minf4( d, zeroVec );
         }
@@ -483,7 +675,7 @@ void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* c
         n = cs->sphere.size();
         for ( int i = 0; i < n; ++i )
         {
-            const Vector4& sphere = cs->sphere.value[i];
+            const Vector4& sphere = cs->sphere._value[i];
             const Vector3 v = pt - sphere.getXYZ();
             const floatInVec d = length( v );
 
@@ -493,9 +685,9 @@ void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* c
         n = cs->box.size();
         for ( int i = 0; i < n; ++i )
         {
-            const Vector3& pos = cs->box.pos[i];
-            const Quat& rot = cs->box.rot[i];
-            const Vector3& ext = cs->box.ext[i];
+            const Vector3& pos = cs->box._pos[i];
+            const Quat& rot = cs->box._rot[i];
+            const Vector3& ext = cs->box._ext[i];
 
             const Vector3 ptInBoxSpace = fastRotateInv( rot, pt - pos );
             if( !bxAABB::isPointInside( bxAABB( -ext, ext ), ptInBoxSpace ) )

@@ -1,7 +1,10 @@
 #include "containers.h"
 
-template <typename T, u32 MAX>
-inline id_array_t<T, MAX>::id_array_t()
+#define BX_ID_ARRAY_T_DEF u32 MAX, typename Tid
+#define BX_ID_ARRAY_T_ARG MAX, Tid
+
+template <BX_ID_ARRAY_T_DEF>
+inline id_array_t<BX_ID_ARRAY_T_ARG>::id_array_t()
     : _freelist( BX_INVALID_ID )
     , _next_id( 0 )
     , _size( 0 )
@@ -12,29 +15,29 @@ inline id_array_t<T, MAX>::id_array_t()
     }
 }
 
-template <typename T, u32 MAX>
-inline T& id_array_t<T, MAX>::operator[]( u32 i )
-{
-    SYS_ASSERT_TXT( i < _size, "Index out of bounds" );
-    return _objects[i];
-}
-
-template <typename T, u32 MAX>
-inline const T& id_array_t<T, MAX>::operator[]( u32 i ) const
-{
-    SYS_ASSERT_TXT( i < _size, "Index out of bounds" );
-    return _objects[i];
-}
+//template <u32 MAX>
+//inline T& id_array_t<T, MAX>::operator[]( u32 i )
+//{
+//    SYS_ASSERT_TXT( i < _size, "Index out of bounds" );
+//    return _objects[i];
+//}
+//
+//template <u32 MAX>
+//inline const T& id_array_t<T, MAX>::operator[]( u32 i ) const
+//{
+//    SYS_ASSERT_TXT( i < _size, "Index out of bounds" );
+//    return _objects[i];
+//}
 
 namespace id_array
 {
-    template <typename T, u32 MAX>
-    inline id_t create( id_array_t<T, MAX>& a, const T& object )
+    template <BX_ID_ARRAY_T_DEF>
+    inline Tid create( id_array_t<BX_ID_ARRAY_T_ARG>& a )
     {
         SYS_ASSERT_TXT( a._size < MAX, "Object list full" );
 
         // Obtain a new id
-        id_t id;
+        Tid id;
         id.id = ++a._next_id;
 
         // Recycle slot if there are any
@@ -51,14 +54,14 @@ namespace id_array
         a._sparse[id.index] = id;
         a._sparse_to_dense[id.index] = a._size;
         a._dense_to_sparse[a._size] = id.index;
-        a._objects[a._size] = object;
+        //a._objects[a._size] = object;
         a._size++;
 
         return id;
     }
 
-    template <typename T, u32 MAX>
-    inline void destroy( id_array_t<T, MAX>& a, id_t id )
+    template <BX_ID_ARRAY_T_DEF>
+    inline void destroy( id_array_t<BX_ID_ARRAY_T_ARG>& a, Tid id )
     {
         SYS_ASSERT_TXT( has( a, id ), "IdArray does not have ID: %d,%d", id.id, id.index );
 
@@ -69,7 +72,7 @@ namespace id_array
         // Swap with last element
         const u32 last = a._size - 1;
         SYS_ASSERT_TXT( last >= a._sparse_to_dense[id.index], "Swapping with previous item" );
-        a._objects[a._sparse_to_dense[id.index]] = a._objects[last];
+        //a._objects[a._sparse_to_dense[id.index]] = a._objects[last];
 
         // Update tables
         u16 std = a._sparse_to_dense[id.index];
@@ -79,48 +82,48 @@ namespace id_array
         a._size--;
     }
 
-    template <typename T, u32 MAX>
-    inline T& get( id_array_t<T, MAX>& a, const id_t& id )
+    template <BX_ID_ARRAY_T_DEF>
+    inline int index( id_array_t<BX_ID_ARRAY_T_ARG>& a, const Tid& id )
     {
         SYS_ASSERT_TXT( has( a, id ), "IdArray does not have ID: %d,%d", id.id, id.index );
 
-        return a._objects[a._sparse_to_dense[id.index]];
+        return (int)a._sparse_to_dense[id.index];
     }
 
-    template <typename T, u32 MAX>
-    inline bool has( const id_array_t<T, MAX>& a, id_t id )
+    template <BX_ID_ARRAY_T_DEF>
+    inline bool has( const id_array_t<BX_ID_ARRAY_T_ARG>& a, Tid id )
     {
         return id.index < MAX && a._sparse[id.index].id == id.id;
     }
 
-    template <typename T, u32 MAX>
-    inline u32 size( const id_array_t<T, MAX>& a )
+    template <BX_ID_ARRAY_T_DEF>
+    inline u32 size( const id_array_t<BX_ID_ARRAY_T_ARG>& a )
     {
         return a._size;
     }
 
-    template <typename T, u32 MAX>
-    inline T* begin( id_array_t<T, MAX>& a )
-    {
-        return a._objects;
-    }
+    //template <u32 MAX>
+    //inline T* begin( id_array_t<BX_ID_ARRAY_T_ARG>& a )
+    //{
+    //    return a._objects;
+    //}
 
-    template <typename T, u32 MAX>
-    inline const T* begin( const id_array_t<T, MAX>& a )
-    {
-        return a._objects;
-    }
+    //template <u32 MAX>
+    //inline const T* begin( const id_array_t<BX_ID_ARRAY_T_ARG>& a )
+    //{
+    //    return a._objects;
+    //}
 
-    template <typename T, u32 MAX>
-    inline T* end( id_array_t<T, MAX>& a )
-    {
-        return a._objects + a._size;
-    }
+    //template <u32 MAX>
+    //inline u16* end( id_array_t<BX_ID_ARRAY_T_ARG>& a )
+    //{
+    //    return a._objects + a._size;
+    //}
 
-    template <typename T, u32 MAX>
-    inline const T* end( const id_array_t<T, MAX>& a )
-    {
-        return a._objects + a._size;
-    }
+    //template <u32 MAX>
+    //inline const u16* end( const id_array_t<BX_ID_ARRAY_T_ARG>& a )
+    //{
+    //    return a._objects + a._size;
+    //}
 
 }///

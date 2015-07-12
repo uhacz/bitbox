@@ -60,30 +60,31 @@ union id_t
         u16 index;
     };
 };
+
 inline id_t make_id( u32 hash ){
     id_t id = { hash };
     return id;
 }
 
-template <typename T, u32 MAX >
+template <u32 MAX, typename Tid = id_t >
 struct id_array_t
 {
     id_array_t();
 
-    T& operator[]( u32 index );
-    const T& operator[]( u32 index ) const;
+    //T& operator[]( u32 index );
+    //const T& operator[]( u32 index ) const;
 
     u16 _freelist;
     u16 _next_id;
     u16 _size;
 
-    id_t _sparse[MAX];
+    Tid _sparse[MAX];
     u16 _sparse_to_dense[MAX];
     u16 _dense_to_sparse[MAX];
-    T _objects[MAX];
+    //T _objects[MAX];
 };
 
-template <u32 MAX>
+template <u32 MAX, typename Tid = id_t>
 struct id_table_t
 {
     id_table_t();
@@ -93,5 +94,5 @@ struct id_table_t
     u16 _next_id;
     u16 _size;
 
-    id_t _ids[MAX];
+    Tid _ids[MAX];
 };
