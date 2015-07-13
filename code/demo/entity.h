@@ -53,21 +53,40 @@ private:
     {
         eMINIMUM_FREE_INDICES = 1024,
     };
-
-    array_t<u8> _generation;
-    queue_t<u32> _freeIndeices;
-
+    
     struct Callback
     {
         void* ptr;
         void* userData;
     };
+
+    array_t<u8> _generation;
+    queue_t<u32> _freeIndeices;
+
     array_t<Callback> _callback_releaseEntity;
 };
 ////
 ////
 
-namespace bxEntity
+union bxEntity_ComponentItem
 {
+    u64 hash;
+    struct  
+    {
+        u32 handle;
+        i32 next;
+    };
+};
+
+struct bxEntity_ComponentMap
+{
+    void add( bxEntity_Id eid, u32 component );
+    void remove( bxEntity_Id eid, u32 component );
     
-}///
+    bxEntity_ComponentItem begin( bxEntity_Id eid );
+    bxEntity_ComponentItem next( bxEntity_Id eid, bxEntity_ComponentItem current );
+
+private:
+    hashmap_t _map;
+    array_t<bxEntity_ComponentItem> _items;
+};

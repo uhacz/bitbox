@@ -218,7 +218,43 @@ namespace bxGfx
     };
 
     struct World;
-    typedef id_array_t< bxGfx::World*, eMAX_WORLDS > WorldContainer;
+    struct WorldContainer
+    {
+        id_array_t< eMAX_WORLDS > idArray;
+        array_t< World* > world;
+
+        id_t add( World* w )
+        {
+            id_t id = id_array::create( idArray );
+            int index = array::push_back( world, w );
+            SYS_ASSERT( id_array::index( idArray, id ) == index );
+
+            return id;
+        }
+        
+        void remove( id_t id )
+        {
+            if( !id_array::has( idArray, id ) )
+                return;
+
+            int last = id_array::size( idArray ) - 1;
+            int index = id_array::index( idArray, id );
+            id_array::destroy( idArray, id );
+            
+            world[index] = world[last];
+            array::pop_back( world );
+        }
+
+        World* get( id_t id )
+        {
+            return ( id_array::has( idArray, id ) ) ? world[id_array::index( idArray, id )] : 0;
+        }
+
+        WorldContainer()
+        {
+            array::reserve( world, eMAX_WORLDS );
+        }
+    };
     typedef array_t< bxGfx::ToReleaseEntry > ToReleaseContainer;
 }///
 
@@ -254,14 +290,7 @@ namespace bxGfx
     World* _Context_world( bxGfx_Context* ctx, bxGfx_HWorld hworld )
     {
         bxScopeBenaphore lock( ctx->_lock_world );
-        if( !id_array::has( ctx->_world, make_id( hworld.h ) ) )
-        {
-            return 0;
-        }
-        else
-        {
-            return id_array::get( ctx->_world, make_id( hworld.h ) );
-        }
+        return ctx->_world.get( make_id( hworld.h ) );
     }
 }
 
@@ -528,10 +557,11 @@ namespace bxGfx
             case ToReleaseEntry::eWORLD:
                 {
                     id_t id = { e.handle };
-                    World* world = id_array::get( __ctx->_world, id );
+                    World* world = __ctx->_world.get( id );
+                    __ctx->_world.remove( id );
+                    
                     _World_shutdown( world );
                     BX_DELETE0( __ctx->_alloc_world, world );
-                    id_array::destroy( __ctx->_world, id );
                 }break;
             default:
                 {
@@ -547,8 +577,8 @@ namespace bxGfx
     static void _Context_worldsGC()
     {
         const bool checkResources = __ctx->_flag_resourceReleased == 1;
-        const int nWorlds = id_array::size( __ctx->_world );
-        bxGfx::World** worlds = id_array::begin( __ctx->_world );
+        const int nWorlds = array::size( __ctx->_world.world );
+        bxGfx::World** worlds = array::begin( __ctx->_world.world );
         for( int iworld = 0; iworld < nWorlds; ++iworld )
         {
             World* world = worlds[iworld];
@@ -744,8 +774,8 @@ namespace bxGfx
         bxScopeBenaphore lock( __ctx->_lock_world );
         bxGfx::World* world = BX_NEW( __ctx->_alloc_world, bxGfx::World );
         world->flag_active = 1;
-        id_t id = id_array::create( __ctx->_world, world );
-
+        id_t id = __ctx->_world.add( world );
+        
         bxGfx_HWorld result = { id.hash };
         return result;
     }

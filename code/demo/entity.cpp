@@ -87,3 +87,67 @@ void bxEntity_Manager::register_releaseCallback( bxEntity_releaseCallback* cb, v
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+
+void bxEntity_ComponentMap::add( bxEntity_Id eid, u32 component )
+{
+    hashmap_t::cell_t* cell = hashmap::lookup( _map, eid.hash );
+    if( !cell )
+    {
+        cell = hashmap::insert( _map, eid.hash );
+        bxEntity_ComponentItem empty = { 0 };
+        empty.next = -1;
+        cell->value = empty.hash;
+    }
+    
+    bxEntity_ComponentItem item = { cell->value };
+    if( item.handle == 0 )
+    {
+        item.handle = component;
+        item.next = -1;
+        cell->value = item.hash;
+    }
+    else
+    {
+        bxEntity_ComponentItem newItem;
+        newItem.handle = component;
+        newItem.next = item.next;
+        item.next = array::push_back( _items, newItem );
+    }
+}
+
+void bxEntity_ComponentMap::remove( bxEntity_Id eid, u32 component )
+{
+    hashmap_t::cell_t* cell = hashmap::lookup( _map, eid.hash );
+    if( !cell )
+    {
+        bxLogError( "entity not found" );
+        return;
+    }
+
+    aaa
+    bxEntity_ComponentItem item = { cell->value };
+    while( item.handle )
+    {
+        if( item.handle == component )
+        {
+            
+            break;
+        }
+
+        if( item.next == -1 )
+            break;
+
+        item = _items[item.next];
+    }
+    
+}
+
+bxEntity_ComponentItem bxEntity_ComponentMap::begin( bxEntity_Id eid )
+{
+
+}
+
+bxEntity_ComponentItem bxEntity_ComponentMap::next( bxEntity_Id eid, bxEntity_ComponentItem current )
+{
+
+}

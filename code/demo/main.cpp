@@ -39,8 +39,8 @@ struct bxDemoScene
 
     bxGame::Character* character;
     bxGame::Flock* flock;
-    bxPhysics_HBoxShape collisionBox;
-    bxPhysics_HPlaneShape collisionPlane;
+    bxPhysics_HShape collisionBox;
+    bxPhysics_HShape collisionPlane;
 };
 static bxDemoScene __scene;
 
@@ -97,8 +97,8 @@ public:
     virtual void shutdown()
     {
         bxGame::flock_delete( &__scene.flock );
-        bxPhysics::collisionSpace_release( bxPhysics::__cspace, &__scene.collisionBox );
-        bxPhysics::collisionSpace_release( bxPhysics::__cspace, &__scene.collisionPlane );
+        bxPhysics::collisionSpace_releaseShape( bxPhysics::__cspace, &__scene.collisionBox );
+        bxPhysics::collisionSpace_releaseShape( bxPhysics::__cspace, &__scene.collisionPlane );
         bxGame::character_delete( &__scene.character );
         bxPhysics::collisionSpace_delete( &bxPhysics::__cspace );
                 

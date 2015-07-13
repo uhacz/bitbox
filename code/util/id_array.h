@@ -102,6 +102,7 @@ namespace id_array
         return a._size;
     }
 
+
     //template <u32 MAX>
     //inline T* begin( id_array_t<BX_ID_ARRAY_T_ARG>& a )
     //{

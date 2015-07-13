@@ -6,6 +6,7 @@
 
 #include <gfx/gfx_debug_draw.h>
 #include "util/id_array.h"
+#include "util/id_table.h"
 
 namespace bxPhysics{
     enum
@@ -251,7 +252,7 @@ struct bxPhysics_CollisionSpace
     //bxPhysics_CollisionTriangles tri;
 
 
-    id_table<bxPhysics::eMAX_SHAPES, bxPhysics::IdInternal> idTable;
+    id_table_t<bxPhysics::eMAX_SHAPES, bxPhysics::IdInternal> idTable;
     array_t<i16> dataIndex;    
     hashmap_t map_dataIndexToId;
 };
@@ -765,7 +766,7 @@ void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* c
         n = cs->plane.size();
         for ( int i = 0; i < n; ++i )
         {
-            const Vector4& plane = cs->plane.value[i];
+            const Vector4& plane = cs->plane._value[i];
             const floatInVec d0 = dot( plane, Vector4( triPoints[0], oneVec ) );
             const floatInVec d1 = dot( plane, Vector4( triPoints[1], oneVec ) );
             const floatInVec d2 = dot( plane, Vector4( triPoints[2], oneVec ) );
@@ -787,7 +788,7 @@ void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
         const int n = cs->plane.size();
         for( int i = 0; i < n; ++i )
         {
-            const Vector4& plane = cs->plane.value[i];
+            const Vector4& plane = cs->plane._value[i];
             const Vector3 pos = projectPointOnPlane( Vector3( 0.f ), plane );
             const Matrix3 rot = createBasis( plane.getXYZ() );
 
@@ -799,7 +800,7 @@ void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
         const int n = cs->sphere.size();
         for( int i = 0; i < n; ++i )
         {
-            const Vector4& sphere = cs->sphere.value[i];
+            const Vector4& sphere = cs->sphere._value[i];
             bxGfxDebugDraw::addSphere( sphere, color, 1 );
         }
     }
@@ -809,9 +810,9 @@ void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
         const int n = cs->box.size();
         for( int i = 0; i < n; ++i )
         {
-            const Vector3& pos = cs->box.pos[i];
-            const Quat& rot = cs->box.rot[i];
-            const Vector3& ext = cs->box.ext[i];
+            const Vector3& pos = cs->box._pos[i];
+            const Quat& rot    = cs->box._rot[i];
+            const Vector3& ext = cs->box._ext[i];
             bxGfxDebugDraw::addBox( Matrix4( rot, pos ), ext, color, 1 );
         }
     }
