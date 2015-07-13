@@ -15,6 +15,8 @@
 #include <gfx/gfx_gui.h>
 
 #include <smmintrin.h>
+#include "util/hash.h"
+#include "util/string_util.h"
 
 
 namespace bxGame
@@ -474,38 +476,156 @@ namespace bxGame
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-struct bxDesignBlock_Shape
+namespace bxDesignBlock_Util
 {
-    union{
-        struct{
-            f32 halfw;
-            f32 halfh;
-            f32 halfd;
-        }box;
-        struct{
-            f32 radius;
-            f32 __padding[2];
-        }sphere;
+    static inline bxDesignBlock::Handle makeInvalidHandle()
+    {
+        bxDesignBlock::Handle h = { 0 };
+        return h;
+    }
+    static inline bxDesignBlock::Handle makeHandle( id_t id )
+    {
+        bxDesignBlock::Handle h = { id.hash };
+        return h;
+    }
+    static inline id_t makeId( bxDesignBlock::Handle h )
+    {
+        return make_id( h.h );
+    }
+
+    inline u32 makeNameHash( const char* name )
+    {
+        const u32 SEED = u32( this ) ^ 0xDEADF00D;
+        return murmur3_hash32( name, string::length( name ), SEED );
+    }
+
+}///
+struct bxDesignBlock_Impl : public bxDesignBlock
+{
+    using namespace bxDesignBlock_Util;
+
+    static const u64 DEFAULT_TAG = bxTag64( "_DBLOCK_" );
+    enum 
+    {
+        eMAX_BLOCKS = 0xFFFF,
     };
-    u32 type;
-};
-struct bxDesignBlock_World
-{
+    
     struct Data
     {
-        
+        u32* name;
+        u64* tag;
+        bxGfx_HMesh* mesh;
+        bxGfx_HInstanceBuffer* instance;
+        bxPhysics_HShape* cshape;
 
-
-
-
+        void* memoryHandle;
+        i32 size;
+        i32 capacity;
     };
-};
-namespace bxDesignBlock
-{
-    enum EShape
+
+    id_array_t< eMAX_BLOCKS > _idTable;
+    Data _data;
+    
+    
+
+    void _AllocateData( int newcap )
     {
-        eBOX = 0,
-        eSPHERE,
-    };
-}///
+        if ( newcap <= _data.capacity )
+            return;
 
+        int memSize = 0;
+        memSize += newcap * sizeof( *_data.name );
+        memSize += newcap * sizeof( *_data.tag );
+        memSize += newcap * sizeof( *_data.mesh );
+        memSize += newcap * sizeof( *_data.instance );
+        memSize += newcap * sizeof( *_data.cshape );
+
+        void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 8 );
+        
+        Data newdata;
+        newdata.memoryHandle = mem;
+        newdata.size = _data.size;
+        newdata.capacity = newcap;
+        
+        bxBufferChunker chunker( mem, memSize );
+        newdata.name = chunker.add< u32 >( newcap );
+        newdata.tag  = chunker.add< u64 >( newcap );
+        newdata.mesh = chunker.add< bxGfx_HMesh >( newcap );
+        newdata.instance = chunker.add< bxGfx_HInstanceBuffer >( newcap );
+        newdata.cshape = chunker.add< bxPhysics_HShape >( newcap );
+        chunker.check();
+
+        if( _data.size )
+        {
+            BX_CONTAINER_COPY_DATA( &newdata, &_data, name );
+            BX_CONTAINER_COPY_DATA( &newdata, &_data, tag );
+            BX_CONTAINER_COPY_DATA( &newdata, &_data, mesh );
+            BX_CONTAINER_COPY_DATA( &newdata, &_data, instance );
+            BX_CONTAINER_COPY_DATA( &newdata, &_data, cshape );
+        }
+
+        BX_FREE0( bxDefaultAllocator(), _data.memoryHandle );
+        _data = newdata;
+    }
+    
+    
+
+    int findByHash( u32 hash )
+    {
+        return array::find1( _data.name, _data.name + _data.size, array::OpEqual( hash ) );
+    }
+
+    virtual Handle create( const char* name )
+    {
+        const u32 nameHash = makeNameHash( name );
+        int index = findByHash( nameHash );
+        if( index != -1 )
+        {
+            bxLogError( "Block with given name '%s' already exists at index: %d!", name, index );
+            return makeInvalidHandle();
+        }
+
+        SYS_ASSERT( id_array::size( _idTable ) == _data.size );
+
+        id_t id = id_array::create();
+        int index = id_array::index( _idTable, id );
+        while( index >= _data.capacity )
+        {
+            _AllocateData( _data.capacity * 2 + 8 );
+        }
+
+        SYS_ASSERT( index == _data.size );
+        ++_data.size;
+
+        _data.name[index] = nameHash;
+        _data.tag[index] = DEFAULT_TAG;
+        _data.mesh[index] = makeInvalidHandle< bxGfx_HMesh >();
+        _data.instance[index] = makeInvalidHandle< bxGfx_HInstanceBuffer >();
+        _data.cshape[index] = makeInvalidHandle< bxPhysics_HShape >();
+
+        return makeHandle( id );
+
+    }
+    virtual void release( Handle* h )
+    {
+    
+    }
+
+    virtual void assignTag( Handle h, u64 tag )
+    {
+    
+    }
+    virtual void assignMesh( Handle h, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    {
+    
+    }
+    virtual void assignCollisionShape( Handle h, bxPhysics_HShape hshape )
+    {
+    
+    }
+
+    virtual void tick()
+    {
+    
+    }
+};

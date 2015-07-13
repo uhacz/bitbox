@@ -96,3 +96,9 @@ struct id_table_t
 
     Tid _ids[MAX];
 };
+
+template< typename T > T makeInvalidHandle()
+{
+    T h = { 0 };
+    return h;
+}

@@ -48,6 +48,25 @@ namespace bxGame
 }///
 
 
+struct bxDesignBlock
+{
+    struct Handle 
+    {
+        u32 h;
+    };
+
+    virtual Handle create( const char* name ) = 0;
+    virtual void release( Handle* h ) = 0;
+
+    virtual void assignTag( Handle h, u64 tag ) = 0;
+    virtual void assignMesh( Handle h, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance ) = 0;
+    virtual void assignCollisionShape( Handle h, bxPhysics_HShape hshape ) = 0;
+
+    virtual void tick() = 0;
+};
+bxDesignBlock* bxDesignBlock_new();
+void bxDesignBlock_delete( bxDesignBlock** dblock );
+
 //struct bxDesignBlock_HBlock;
 //namespace bxDesignBlock
 //{
