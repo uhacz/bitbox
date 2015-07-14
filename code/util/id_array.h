@@ -83,6 +83,17 @@ namespace id_array
     }
 
     template <BX_ID_ARRAY_T_DEF>
+    inline void destroyAll( id_array_t<BX_ID_ARRAY_T_ARG>& a )
+    {
+        while( a._size )
+        {
+            const u32 last = a._size - 1;
+            Tid lastId = a._sparse[a._dense_to_sparse[last]];
+            destroy( a, lastId );
+        }
+    }
+
+    template <BX_ID_ARRAY_T_DEF>
     inline int index( id_array_t<BX_ID_ARRAY_T_ARG>& a, const Tid& id )
     {
         SYS_ASSERT_TXT( has( a, id ), "IdArray does not have ID: %d,%d", id.id, id.index );

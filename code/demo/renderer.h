@@ -20,11 +20,7 @@ struct bxGfx_HSunLight   { u32 h; };
 struct bxGfx_HPointLight { u32 h; };
 struct bxGfx_HWorld      { u32 h; };
 struct bxGfx_HInstanceBuffer { u32 h; };
-struct bxGfx_MeshInstance 
-{ 
-    bxGfx_HMesh mesh;
-    bxGfx_HInstanceBuffer instance;
-};
+struct bxGfx_HMeshInstance{ u64 h; };
 
 struct bxGfx_StreamsDesc
 {
@@ -79,7 +75,8 @@ namespace bxGfx
     bxGfx_HWorld world_create();
     void world_release( bxGfx_HWorld* h );
 
-    void world_meshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
+    bxGfx_HMeshInstance world_meshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
+    void world_meshRemove( bxGfx_HMeshInstance hmeshi );
     //void world_meshRemove( bxGfx_HWorld hworld, bxEntity_Id eid );
     //void world_meshRemoveAndRelease( bxGfx_HWorld hworld );
     //bxGfx_MeshInstance world_lookupMesh( bxGfx_HWorld hworld, bxEntity_Id eid );

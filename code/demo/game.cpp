@@ -637,7 +637,10 @@ struct bxDesignBlock_Impl : public bxDesignBlock
 
     void cleanUp( bxPhx_CollisionSpace* cs, bxGfx_HWorld gfxWorld )
     {
-
+        for( int i = 0; i < _data.size; ++i )
+        {
+            
+        }
     }
 
 
