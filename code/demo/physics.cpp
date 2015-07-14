@@ -8,7 +8,7 @@
 #include "util/id_array.h"
 #include "util/id_table.h"
 
-namespace bxPhysics{
+namespace bxPhx{
     enum
     {
         eMAX_SHAPES_BITS = 14,
@@ -27,9 +27,9 @@ namespace bxPhysics{
             u32 type : 4;
         };
 
-        bxPhysics_HShape toHandle()
+        bxPhx_HShape toHandle()
         {
-            bxPhysics_HShape h = { hash };
+            bxPhx_HShape h = { hash };
             return h;
         }
     };
@@ -174,7 +174,7 @@ struct bxPhysics_CollisionTriangles
     }
 };
 
-namespace bxPhysics{
+namespace bxPhx{
     //bxPhysics_HShape collisionBox_create( bxPhysics_CollisionBox* cnt, const Vector3& pos, const Quat& rot, const Vector3& ext )
     //{
         //int i0 = array::push_back( cnt->pos, pos );
@@ -244,7 +244,7 @@ namespace bxPhysics{
 //     }
 }
 
-struct bxPhysics_CollisionSpace
+struct bxPhx_CollisionSpace
 {
     bxPhysics_CollisionPlane plane;
     bxPhysics_CollisionSphere sphere;
@@ -252,23 +252,23 @@ struct bxPhysics_CollisionSpace
     //bxPhysics_CollisionTriangles tri;
 
 
-    id_table_t<bxPhysics::eMAX_SHAPES, bxPhysics::IdInternal> idTable;
+    id_table_t<bxPhx::eMAX_SHAPES, bxPhx::IdInternal> idTable;
     array_t<i16> dataIndex;    
     hashmap_t map_dataIndexToId;
 };
 
-namespace bxPhysics{
+namespace bxPhx{
 
-    bxPhysics_CollisionSpace* __cspace = 0;
+    bxPhx_CollisionSpace* __cspace = 0;
 
-bxPhysics_CollisionSpace* collisionSpace_new()
+bxPhx_CollisionSpace* collisionSpace_new()
 {
-    bxPhysics_CollisionSpace* cspace = BX_NEW( bxDefaultAllocator(), bxPhysics_CollisionSpace );
+    bxPhx_CollisionSpace* cspace = BX_NEW( bxDefaultAllocator(), bxPhx_CollisionSpace );
     array::reserve( cspace->dataIndex, eMAX_SHAPES );
     __cspace = cspace;
     return cspace;
 }
-void bxPhysics::collisionSpace_delete( bxPhysics_CollisionSpace** cs )
+void bxPhx::collisionSpace_delete( bxPhx_CollisionSpace** cs )
 {
     if( !cs[0] )
         return;
@@ -314,7 +314,7 @@ namespace
     }
 }///
 
-bxPhysics_HShape collisionSpace_createPlane( bxPhysics_CollisionSpace* cs, const Vector4& plane )
+bxPhx_HShape shape_createPlane( bxPhx_CollisionSpace* cs, const Vector4& plane )
 {
     int dataIndex = cs->plane.add( plane );
     IdInternal id = id_table::create( cs->idTable );
@@ -326,7 +326,7 @@ bxPhysics_HShape collisionSpace_createPlane( bxPhysics_CollisionSpace* cs, const
     return id.toHandle();
 }
 
-bxPhysics_HShape collisionSpace_createBox( bxPhysics_CollisionSpace* cs, const Vector3& pos, const Quat& rot, const Vector3& ext )
+bxPhx_HShape shape_createBox( bxPhx_CollisionSpace* cs, const Vector3& pos, const Quat& rot, const Vector3& ext )
 {
     int dataIndex = cs->box.add( pos, rot, ext );
     IdInternal id = id_table::create( cs->idTable );
@@ -339,7 +339,7 @@ bxPhysics_HShape collisionSpace_createBox( bxPhysics_CollisionSpace* cs, const V
     //return collisionBox_create( &cs->box, pos, rot, ext );
 }
 
-bxPhysics_HShape collisionSpace_createSphere( bxPhysics_CollisionSpace* cs, const Vector4& sph )
+bxPhx_HShape shape_createSphere( bxPhx_CollisionSpace* cs, const Vector4& sph )
 {
     int dataIndex = cs->sphere.add( sph );
     IdInternal id = id_table::create( cs->idTable );
@@ -352,7 +352,7 @@ bxPhysics_HShape collisionSpace_createSphere( bxPhysics_CollisionSpace* cs, cons
     //return collisionSphere_create( &cs->sphere, sph );
 }
 
-void collisionSpace_releaseShape( bxPhysics_CollisionSpace* cs, bxPhysics_HShape* h )
+void shape_release( bxPhx_CollisionSpace* cs, bxPhx_HShape* h )
 {
     if( !h->h )
         return;
@@ -414,6 +414,90 @@ void collisionSpace_releaseShape( bxPhysics_CollisionSpace* cs, bxPhysics_HShape
     //collisionPlane_release( &cs->plane, ch );
 }
 
+Matrix4 shape_pose( bxPhx_CollisionSpace* cs, bxPhx_HShape h, Vector4* shapeParams )
+{
+    IdInternal id = { h.h };
+    if( !id_table::has( cs->idTable, id ) )
+    {
+        return Matrix4::identity();
+    }
+
+    const int dataIndex = cs->dataIndex[id.index];
+
+    switch( id.type )
+    {
+    case eSHAPE_SPHERE: 
+        {
+            if( shapeParams )
+            {
+                shapeParams[0] = Vector4( cs->sphere._value[dataIndex].getW() );
+            }
+            return Matrix4::translation( cs->sphere._value[dataIndex].getXYZ() );
+        }break;
+    case eSHAPE_CAPSULE:
+        {
+            SYS_NOT_IMPLEMENTED;
+            return Matrix4::identity();
+        }break;
+    case eSHAPE_BOX:
+        {
+            if( shapeParams )
+            {
+                shapeParams->setXYZ( cs->box._ext[dataIndex] );
+            }
+            return Matrix4( cs->box._rot[dataIndex], cs->box._pos[dataIndex] );
+        }break;
+    case eSHAPE_PLANE:
+        {
+            const Vector4& plane = cs->plane._value[dataIndex];
+            const Vector3 pos = projectPointOnPlane( Vector3( 0.f ), plane );
+            const Matrix3 rot = computeBasis( plane.getXYZ() );
+            return Matrix4( rot, pos );
+        }break;
+    default:
+        {
+            SYS_NOT_IMPLEMENTED;
+            return Matrix4::identity();
+        }break;
+    }
+}
+
+void shape_poseSet( bxPhx_CollisionSpace* cs, bxPhx_HShape h, const Matrix4& pose )
+{
+    IdInternal id = { h.h };
+    if( !id_table::has( cs->idTable, id ) )
+    {
+        return;
+    }
+
+    const int dataIndex = cs->dataIndex[id.index];
+    switch( id.type )
+    {
+    case eSHAPE_SPHERE:
+        {
+            cs->sphere._value[dataIndex].setXYZ( pose.getTranslation() );
+        }break;
+    case eSHAPE_CAPSULE:
+        {
+            SYS_NOT_IMPLEMENTED;
+        }break;
+    case eSHAPE_BOX:
+        {
+            cs->box._rot[dataIndex] = Quat( pose.getUpper3x3() );
+            cs->box._pos[dataIndex] = pose.getTranslation();
+        }break;
+    case eSHAPE_PLANE:
+        {
+            cs->plane._value[dataIndex] = makePlane( pose.getCol1().getXYZ(), pose.getTranslation() );
+        }break;
+    default:
+        {
+            SYS_NOT_IMPLEMENTED;
+        }break;
+    }
+}
+
+
 //void collisionSpace_release( bxPhysics_CollisionSpace* cs, bxPhysics_HPlaneShape* ch )
 //{
 //    if( !ch->h )
@@ -440,7 +524,7 @@ void collisionSpace_releaseShape( bxPhysics_CollisionSpace* cs, bxPhysics_HShape
 
 }///
 
-struct bxPhysics_Contacts
+struct bxPhx_Contacts
 {
     void* memoryHandle;
     Vector3* normal;
@@ -451,12 +535,12 @@ struct bxPhysics_Contacts
     i32 capacity;
 };
 
-namespace bxPhysics
+namespace bxPhx
 {
 
 
 
-void _Contacts_allocateData( bxPhysics_Contacts* con, int newCap )
+void _Contacts_allocateData( bxPhx_Contacts* con, int newCap )
 {
     if( newCap <= con->capacity )
         return;
@@ -471,7 +555,7 @@ void _Contacts_allocateData( bxPhysics_Contacts* con, int newCap )
 
     bxBufferChunker chunker( mem, memSize );
 
-    bxPhysics_Contacts newCon;
+    bxPhx_Contacts newCon;
     newCon.memoryHandle = mem;
     newCon.normal = chunker.add< Vector3 >( newCap );
     newCon.depth = chunker.add< f32 >( newCap );
@@ -491,30 +575,30 @@ void _Contacts_allocateData( bxPhysics_Contacts* con, int newCap )
     BX_FREE( bxDefaultAllocator(), con->memoryHandle );
     *con = newCon;
 }
-bxPhysics_Contacts* contacts_new( int capacity )
+bxPhx_Contacts* contacts_new( int capacity )
 {
-    bxPhysics_Contacts* contacts = BX_NEW( bxDefaultAllocator(), bxPhysics_Contacts );
-    memset( contacts, 0x00, sizeof( bxPhysics_Contacts ) );
+    bxPhx_Contacts* contacts = BX_NEW( bxDefaultAllocator(), bxPhx_Contacts );
+    memset( contacts, 0x00, sizeof( bxPhx_Contacts ) );
     _Contacts_allocateData( contacts, capacity );
     return contacts;
 }
 
-void contacts_delete( bxPhysics_Contacts** con )
+void contacts_delete( bxPhx_Contacts** con )
 {
     BX_FREE0( bxDefaultAllocator(), con[0]->memoryHandle );
     BX_DELETE0( bxDefaultAllocator(), con[0] );
 }
-void contacts_clear( bxPhysics_Contacts* con )
+void contacts_clear( bxPhx_Contacts* con )
 {
     con->size = 0;
 }
 
-int contacts_size( bxPhysics_Contacts* con )
+int contacts_size( bxPhx_Contacts* con )
 {
     return con->size;
 }
 
-int contacts_pushBack( bxPhysics_Contacts* con, const Vector3& normal, float depth, u16 index )
+int contacts_pushBack( bxPhx_Contacts* con, const Vector3& normal, float depth, u16 index )
 {
     if( con->size + 1 > con->capacity )
     {
@@ -527,7 +611,7 @@ int contacts_pushBack( bxPhysics_Contacts* con, const Vector3& normal, float dep
     con->index[i] = index;
     return i;
 }
-void contacts_get( bxPhysics_Contacts* con, Vector3* normal, float* depth, u16* index0, u16* index1, int i )
+void contacts_get( bxPhx_Contacts* con, Vector3* normal, float* depth, u16* index0, u16* index1, int i )
 {
     SYS_ASSERT( i >= 0 || i < con->size );
 
@@ -653,11 +737,11 @@ namespace
 //{
 //
 //}
-namespace bxPhysics{
+namespace bxPhx{
 
 
 
-void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* contacts, Vector3* points, int nPoints )
+void collisionSpace_collide( bxPhx_CollisionSpace* cs, bxPhx_Contacts* contacts, Vector3* points, int nPoints )
 {
     int n = 0;
     for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
@@ -743,7 +827,7 @@ void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* c
     }
 }
 
-void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* contacts, Vector3* points, int nPoints, const u16* indices, int nIndices )
+void collisionSpace_collide( bxPhx_CollisionSpace* cs, bxPhx_Contacts* contacts, Vector3* points, int nPoints, const u16* indices, int nIndices )
 {
     SYS_ASSERT( (nIndices % 3) == 0 );
     for( int itri = 0; itri < nIndices; itri += 3 )
@@ -781,7 +865,7 @@ void collisionSpace_collide( bxPhysics_CollisionSpace* cs, bxPhysics_Contacts* c
 
 ////
 ////
-void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
+void collisionSpace_debugDraw( bxPhx_CollisionSpace* cs )
 {
     {
         const u32 color = 0xFF0000FF;
@@ -790,7 +874,7 @@ void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
         {
             const Vector4& plane = cs->plane._value[i];
             const Vector3 pos = projectPointOnPlane( Vector3( 0.f ), plane );
-            const Matrix3 rot = createBasis( plane.getXYZ() );
+            const Matrix3 rot = computeBasis( plane.getXYZ() );
 
             bxGfxDebugDraw::addBox( Matrix4( rot, pos ), Vector3( 10.f, FLT_EPSILON*2.f, 10.f ), color, 1 );
         }
@@ -817,5 +901,7 @@ void collisionSpace_debugDraw( bxPhysics_CollisionSpace* cs )
         }
     }
 }
+
+
 
 }///

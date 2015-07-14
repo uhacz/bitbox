@@ -323,7 +323,7 @@ inline Vector3 projectVectorOnPlane( const Vector3& vec, const Vector4& plane )
     return W;
 }
 
-inline Matrix3 createBasis( const Vector3& n )
+inline Matrix3 computeBasis( const Vector3& n )
 {
     if( n.getZ().getAsFloat() < -0.9999999f )
     {

@@ -3,7 +3,7 @@
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
 
-namespace bxPhysics
+namespace bxPhx
 {
     ////
     ////

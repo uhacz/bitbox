@@ -173,7 +173,7 @@ namespace bxGame
         Vector3 upVector;
         CharacterInput input;
         CharacterParams params;
-        bxPhysics_Contacts* contacts;
+        bxPhx_Contacts* contacts;
 
         f32 _dtAcc;
         f32 _jumpAcc;
@@ -202,7 +202,7 @@ namespace bxGame
         if ( !c[0] )
             return;
 
-        bxPhysics::contacts_delete( &c[0]->contacts );
+        bxPhx::contacts_delete( &c[0]->contacts );
         BX_FREE0( bxDefaultAllocator(), c[0]->particles.memoryHandle );
         BX_DELETE0( bxDefaultAllocator(), c[0] );
     }
@@ -249,7 +249,7 @@ namespace bxGame
 
         character->centerOfMass.pos = worldPose.getTranslation();
         character->centerOfMass.rot = Quat( worldPose.getUpper3x3() );
-        character->contacts = bxPhysics::contacts_new( NUM_POINTS );
+        character->contacts = bxPhx::contacts_new( NUM_POINTS );
 
         bxPolyShape_deallocateShape( &shape );
     }
@@ -284,13 +284,13 @@ namespace bxGame
             }
 
             {
-                bxPhysics::contacts_clear( character->contacts );
-                bxPhysics::collisionSpace_collide( bxPhysics::__cspace, character->contacts, cp.pos1, nPoints );
+                bxPhx::contacts_clear( character->contacts );
+                bxPhx::collisionSpace_collide( bxPhx::__cspace, character->contacts, cp.pos1, nPoints );
             }
 
             Matrix3 R;
             Vector3 com;
-            bxPhysics::pbd_softBodyUpdatePose( &R, &com, cp.pos1, cp.restPos, cp.mass, nPoints );
+            bxPhx::pbd_softBodyUpdatePose( &R, &com, cp.pos1, cp.restPos, cp.mass, nPoints );
             character->centerOfMass.pos = com;
             character->centerOfMass.rot = Quat( R );
 
@@ -298,13 +298,13 @@ namespace bxGame
             for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
             {
                 Vector3 dpos( 0.f );
-                bxPhysics::pbd_solveShapeMatchingConstraint( &dpos, R1, com, cp.restPos[ipoint], cp.pos1[ipoint], params.shapeStiffness );
+                bxPhx::pbd_solveShapeMatchingConstraint( &dpos, R1, com, cp.restPos[ipoint], cp.pos1[ipoint], params.shapeStiffness );
                 cp.pos1[ipoint] += dpos;
             }
 
             {
-                bxPhysics_Contacts* contacts = character->contacts;
-                const int nContacts = bxPhysics::contacts_size( contacts );
+                bxPhx_Contacts* contacts = character->contacts;
+                const int nContacts = bxPhx::contacts_size( contacts );
 
                 Vector3 normal( 0.f );
                 float depth = 0.f;
@@ -313,10 +313,10 @@ namespace bxGame
 
                 for ( int icontact = 0; icontact < nContacts; ++icontact )
                 {
-                    bxPhysics::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
+                    bxPhx::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
 
                     Vector3 dpos( 0.f );
-                    bxPhysics::pbd_computeFriction( &dpos, cp.pos0[index0], cp.pos1[index0], normal, params.staticFriction, params.dynamicFriction );
+                    bxPhx::pbd_computeFriction( &dpos, cp.pos0[index0], cp.pos1[index0], normal, params.staticFriction, params.dynamicFriction );
                     cp.pos1[index0] += dpos;
                 }
             }

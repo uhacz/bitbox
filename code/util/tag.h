@@ -35,7 +35,6 @@ union Tag32ToString
     char as_str[5];
 };
 
-
 union bxTag64
 {
     bxTag64() : _lo(0), _hi(0) {}

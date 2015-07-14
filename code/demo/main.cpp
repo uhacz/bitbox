@@ -39,8 +39,8 @@ struct bxDemoScene
 
     bxGame::Character* character;
     bxGame::Flock* flock;
-    bxPhysics_HShape collisionBox;
-    bxPhysics_HShape collisionPlane;
+    bxPhx_HShape collisionBox;
+    bxPhx_HShape collisionPlane;
 };
 static bxDemoScene __scene;
 
@@ -82,12 +82,12 @@ public:
         scriptFile.release();
 
         
-        bxPhysics::collisionSpace_new();
+        bxPhx::collisionSpace_new();
         __scene.character = bxGame::character_new();
         bxGame::character_init( __scene.character, Matrix4( Matrix3::rotationZ( 0.5f ), Vector3( 0.f, 2.f, 0.f ) ) );
         
-        __scene.collisionPlane = bxPhysics::collisionSpace_createPlane( bxPhysics::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
-        __scene.collisionBox = bxPhysics::collisionSpace_createBox( bxPhysics::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
+        __scene.collisionPlane = bxPhx::shape_createPlane( bxPhx::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
+        __scene.collisionBox = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
         __scene.flock = bxGame::flock_new();
 
         bxGame::flock_init( __scene.flock, 128, Vector3( 0.f ), 5.f );
@@ -97,10 +97,10 @@ public:
     virtual void shutdown()
     {
         bxGame::flock_delete( &__scene.flock );
-        bxPhysics::collisionSpace_releaseShape( bxPhysics::__cspace, &__scene.collisionBox );
-        bxPhysics::collisionSpace_releaseShape( bxPhysics::__cspace, &__scene.collisionPlane );
+        bxPhx::shape_release( bxPhx::__cspace, &__scene.collisionBox );
+        bxPhx::shape_release( bxPhx::__cspace, &__scene.collisionPlane );
         bxGame::character_delete( &__scene.character );
-        bxPhysics::collisionSpace_delete( &bxPhysics::__cspace );
+        bxPhx::collisionSpace_delete( &bxPhx::__cspace );
                 
         bxGfx::world_release( &__scene.gfxWorld );
 
@@ -170,7 +170,7 @@ public:
             bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
             bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::zAxis(), 0x0000FFFF, true );
 
-            bxPhysics::collisionSpace_debugDraw( bxPhysics::__cspace );
+            bxPhx::collisionSpace_debugDraw( bxPhx::__cspace );
         }
 
         bxGfx::world_draw( gdiContext, __scene.gfxWorld, currentCamera );

@@ -7,7 +7,11 @@
 #include <util/math.h>
 #include <util/hashmap.h>
 #include <util/array.h>
+#include <util/array_util.h>
 #include <util/common.h>
+#include <util/hash.h>
+#include <util/string_util.h>
+#include <util/id_array.h>
 
 #include <engine/profiler.h>
 
@@ -15,8 +19,7 @@
 #include <gfx/gfx_gui.h>
 
 #include <smmintrin.h>
-#include "util/hash.h"
-#include "util/string_util.h"
+
 
 
 namespace bxGame
@@ -493,18 +496,17 @@ namespace bxDesignBlock_Util
         return make_id( h.h );
     }
 
-    inline u32 makeNameHash( const char* name )
+    inline u32 makeNameHash( bxDesignBlock* _this, const char* name )
     {
-        const u32 SEED = u32( this ) ^ 0xDEADF00D;
+        const u32 SEED = u32( _this ) ^ 0xDEADF00D;
         return murmur3_hash32( name, string::length( name ), SEED );
     }
 
 }///
+using namespace bxDesignBlock_Util;
 struct bxDesignBlock_Impl : public bxDesignBlock
 {
-    using namespace bxDesignBlock_Util;
-
-    static const u64 DEFAULT_TAG = bxTag64( "_DBLOCK_" );
+    static const u64 DEFAULT_TAG = bxMakeTag64<'_', 'D', 'B', 'L', 'O', 'C', 'K', '_'>::tag;
     enum 
     {
         eMAX_BLOCKS = 0xFFFF,
@@ -516,17 +518,23 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         u64* tag;
         bxGfx_HMesh* mesh;
         bxGfx_HInstanceBuffer* instance;
-        bxPhysics_HShape* cshape;
+        bxPhx_HShape* cshape;
 
         void* memoryHandle;
         i32 size;
         i32 capacity;
     };
 
-    id_array_t< eMAX_BLOCKS > _idTable;
+    id_array_t< eMAX_BLOCKS > _idContainer;
     Data _data;
     
+    array_t< Handle > _list_updateMeshInstance;
     
+    inline int dataIndex_get( Handle h )
+    {
+        id_t id = makeId( h );
+        return ( id_array::has( _idContainer, id ) ) ? id_array::index( _idContainer, id ) : -1;
+    }
 
     void _AllocateData( int newcap )
     {
@@ -552,7 +560,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         newdata.tag  = chunker.add< u64 >( newcap );
         newdata.mesh = chunker.add< bxGfx_HMesh >( newcap );
         newdata.instance = chunker.add< bxGfx_HInstanceBuffer >( newcap );
-        newdata.cshape = chunker.add< bxPhysics_HShape >( newcap );
+        newdata.cshape = chunker.add< bxPhx_HShape >( newcap );
         chunker.check();
 
         if( _data.size )
@@ -572,12 +580,12 @@ struct bxDesignBlock_Impl : public bxDesignBlock
 
     int findByHash( u32 hash )
     {
-        return array::find1( _data.name, _data.name + _data.size, array::OpEqual( hash ) );
+        return array::find1( _data.name, _data.name + _data.size, array::OpEqual<u32>( hash ) );
     }
 
     virtual Handle create( const char* name )
     {
-        const u32 nameHash = makeNameHash( name );
+        const u32 nameHash = makeNameHash( this, name );
         int index = findByHash( nameHash );
         if( index != -1 )
         {
@@ -585,10 +593,10 @@ struct bxDesignBlock_Impl : public bxDesignBlock
             return makeInvalidHandle();
         }
 
-        SYS_ASSERT( id_array::size( _idTable ) == _data.size );
+        SYS_ASSERT( id_array::size( _idContainer ) == _data.size );
 
-        id_t id = id_array::create();
-        int index = id_array::index( _idTable, id );
+        id_t id = id_array::create( _idContainer );
+        index = id_array::index( _idContainer, id );
         while( index >= _data.capacity )
         {
             _AllocateData( _data.capacity * 2 + 8 );
@@ -601,31 +609,100 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         _data.tag[index] = DEFAULT_TAG;
         _data.mesh[index] = makeInvalidHandle< bxGfx_HMesh >();
         _data.instance[index] = makeInvalidHandle< bxGfx_HInstanceBuffer >();
-        _data.cshape[index] = makeInvalidHandle< bxPhysics_HShape >();
+        _data.cshape[index] = makeInvalidHandle< bxPhx_HShape >();
 
         return makeHandle( id );
 
     }
     virtual void release( Handle* h )
     {
-    
+        id_t id = makeId( h[0] );
+        if( !id_array::has( _idContainer, id ) )
+            return;
+
+        int thisIndex = id_array::index( _idContainer, id );
+        int lastIndex = id_array::size( _idContainer ) - 1;
+        SYS_ASSERT( lastIndex == (_data.size - 1) );
+
+        id_array::destroy( _idContainer, id );
+
+        _data.name[thisIndex]     = _data.name[lastIndex];
+        _data.tag[thisIndex]      = _data.tag[lastIndex];
+        _data.mesh[thisIndex]     = _data.mesh[lastIndex];
+        _data.instance[thisIndex] = _data.instance[lastIndex];
+        _data.cshape[thisIndex]   = _data.cshape[lastIndex];
+
+        h[0] = makeInvalidHandle();
     }
+
+    void cleanUp( bxPhx_CollisionSpace* cs, bxGfx_HWorld gfxWorld )
+    {
+
+    }
+
 
     virtual void assignTag( Handle h, u64 tag )
     {
-    
+        int dataIndex = dataIndex_get( h );
+        if( dataIndex == -1 )
+            return;
+
+        _data.tag[dataIndex] = tag;
     }
     virtual void assignMesh( Handle h, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
     {
-    
+        int dataIndex = dataIndex_get( h );
+        if( dataIndex == -1 )
+            return;
+
+        _data.mesh[dataIndex] = hmesh;
+        _data.instance[dataIndex] = hinstance;
+
+        array::push_back( _list_updateMeshInstance, h );
+
     }
-    virtual void assignCollisionShape( Handle h, bxPhysics_HShape hshape )
+    virtual void assignCollisionShape( Handle h, bxPhx_HShape hshape )
     {
-    
+        int dataIndex = dataIndex_get( h );
+        if( dataIndex == -1 )
+            return;
+
+        _data.cshape[dataIndex] = hshape;
+        
+        array::push_back( _list_updateMeshInstance, h );
     }
 
-    virtual void tick()
+    virtual void tick( bxPhx_CollisionSpace* cs )
     {
-    
+        {
+            for( int i = 0; i < array::size( _list_updateMeshInstance ); ++i )
+            {
+                int dataIndex = dataIndex_get( _list_updateMeshInstance[i] );
+                if( dataIndex == -1 )
+                    continue;
+
+                const Matrix4 pose = bxPhx::shape_pose( cs, _data.cshape[dataIndex] );
+                bxGfx::instanceBuffer_set( _data.instance[dataIndex], &pose, 1, 0 );
+
+            }
+            array::clear( _list_updateMeshInstance );
+        }
     }
 };
+
+bxDesignBlock* bxDesignBlock_new()
+{
+    bxDesignBlock_Impl* impl = BX_NEW( bxDefaultAllocator(), bxDesignBlock_Impl );
+    memset( &impl->_data, 0x00, sizeof( bxDesignBlock_Impl::Data ) );
+    return impl;
+}
+
+void bxDesignBlock_delete( bxDesignBlock** dblock )
+{
+    bxDesignBlock_Impl* impl = (bxDesignBlock_Impl*)dblock[0];
+
+    BX_FREE0( bxDefaultAllocator(), impl->_data.memoryHandle );
+    BX_DELETE0( bxDefaultAllocator(), impl );
+
+    dblock[0] = 0;
+}

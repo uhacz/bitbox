@@ -3,6 +3,7 @@
 #include <util/vectormath/vectormath.h>
 #include <util/type.h>
 #include "renderer.h"
+#include "physics.h"
 
 struct bxInput;
 struct bxGfxCamera;
@@ -55,14 +56,18 @@ struct bxDesignBlock
         u32 h;
     };
 
+
+
     virtual Handle create( const char* name ) = 0;
     virtual void release( Handle* h ) = 0;
+    virtual void cleanUp( bxPhx_CollisionSpace* cs, bxGfx_HWorld gfxWorld ) = 0;
+
 
     virtual void assignTag( Handle h, u64 tag ) = 0;
     virtual void assignMesh( Handle h, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance ) = 0;
-    virtual void assignCollisionShape( Handle h, bxPhysics_HShape hshape ) = 0;
+    virtual void assignCollisionShape( Handle h, bxPhx_HShape hshape ) = 0;
 
-    virtual void tick() = 0;
+    virtual void tick( bxPhx_CollisionSpace* cs ) = 0;
 };
 bxDesignBlock* bxDesignBlock_new();
 void bxDesignBlock_delete( bxDesignBlock** dblock );

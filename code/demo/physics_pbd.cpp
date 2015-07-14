@@ -1,7 +1,7 @@
 #include "physics_pbd.h"
 #include <util/math.h>
 
-namespace bxPhysics
+namespace bxPhx
 {
     void pbd_softBodyUpdatePose( Matrix3* rotation, Vector3* centerOfMass, const Vector3* pos, const Vector3* restPos, const f32* mass, int nPoints )
     {
