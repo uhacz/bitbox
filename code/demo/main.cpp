@@ -39,8 +39,10 @@ struct bxDemoScene
 
     bxGame::Character* character;
     bxGame::Flock* flock;
-    bxPhx_HShape collisionBox;
-    bxPhx_HShape collisionPlane;
+
+    bxDesignBlock* dblock;
+    //bxPhx_HShape collisionBox;
+    //bxPhx_HShape collisionPlane;
 };
 static bxDemoScene __scene;
 
@@ -86,8 +88,38 @@ public:
         __scene.character = bxGame::character_new();
         bxGame::character_init( __scene.character, Matrix4( Matrix3::rotationZ( 0.5f ), Vector3( 0.f, 2.f, 0.f ) ) );
         
-        __scene.collisionPlane = bxPhx::shape_createPlane( bxPhx::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
-        __scene.collisionBox = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
+        __scene.dblock = bxDesignBlock_new();
+
+        //bxPhx_HShape hplane = bxPhx::shape_createPlane( bxPhx::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
+        bxPhx_HShape hbox0 = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -2.0f, 0.f ), Quat::identity(), Vector3( 100.0f, 0.1f, 100.f ) );
+        bxPhx_HShape hbox1 = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
+        bxGdiRenderSource* boxRsource = bxGfx::globalResources()->mesh.box;
+        bxGdiShaderFx_Instance* redFxI = bxGfx::globalResources()->fx.materialRed;
+        bxGdiShaderFx_Instance* greenFxI = bxGfx::globalResources()->fx.materialGreen;
+        {
+            bxGfx_HMesh hmesh = bxGfx::mesh_create();
+            bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffer_create( 1 );
+            bxGfx::mesh_setStreams( hmesh, _engine.gdiDevice, boxRsource );
+            bxGfx::mesh_setShader( hmesh, _engine.gdiDevice, _engine.resourceManager, greenFxI );
+            bxGfx_HMeshInstance hmeshi = bxGfx::world_meshAdd( __scene.gfxWorld, hmesh, hibuff );
+
+            bxDesignBlock::Handle h = __scene.dblock->create( "ground" );
+            __scene.dblock->assignMesh( h, hmeshi );
+            __scene.dblock->assignCollisionShape( h, hbox0 );
+        }
+        {
+            bxGfx_HMesh hmesh = bxGfx::mesh_create();
+            bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffer_create( 1 );
+            bxGfx::mesh_setStreams( hmesh, _engine.gdiDevice, boxRsource );
+            bxGfx::mesh_setShader( hmesh, _engine.gdiDevice, _engine.resourceManager, redFxI );
+            bxGfx_HMeshInstance hmeshi = bxGfx::world_meshAdd( __scene.gfxWorld, hmesh, hibuff );
+
+            bxDesignBlock::Handle h = __scene.dblock->create( "box0" );
+            __scene.dblock->assignMesh( h, hmeshi );
+            __scene.dblock->assignCollisionShape( h, hbox0 );
+        }
+
+
         __scene.flock = bxGame::flock_new();
 
         bxGame::flock_init( __scene.flock, 128, Vector3( 0.f ), 5.f );
@@ -97,8 +129,10 @@ public:
     virtual void shutdown()
     {
         bxGame::flock_delete( &__scene.flock );
-        bxPhx::shape_release( bxPhx::__cspace, &__scene.collisionBox );
-        bxPhx::shape_release( bxPhx::__cspace, &__scene.collisionPlane );
+        __scene.dblock->cleanUp( bxPhx::__cspace, __scene.gfxWorld );
+        bxDesignBlock_delete( &__scene.dblock );
+        //bxPhx::shape_release( bxPhx::__cspace, &__scene.collisionBox );
+        //bxPhx::shape_release( bxPhx::__cspace, &__scene.collisionPlane );
         bxGame::character_delete( &__scene.character );
         bxPhx::collisionSpace_delete( &bxPhx::__cspace );
                 
@@ -148,6 +182,7 @@ public:
 
         const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
         {
+            __scene.dblock->tick( bxPhx::__cspace );
             bxGame::flock_tick( __scene.flock, deltaTime );
             bxGame::character_tick( __scene.character, currentCamera, win->input, deltaTime * 2.f );
             bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime, bxGfx::cameraUtil_anyMovement( cameraInputCtx ) );

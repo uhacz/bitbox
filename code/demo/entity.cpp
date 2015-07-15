@@ -124,7 +124,6 @@ void bxEntity_ComponentMap::remove( bxEntity_Id eid, u32 component )
         return;
     }
 
-    aaa
     bxEntity_ComponentItem item = { cell->value };
     while( item.handle )
     {
@@ -142,12 +141,12 @@ void bxEntity_ComponentMap::remove( bxEntity_Id eid, u32 component )
     
 }
 
-bxEntity_ComponentItem bxEntity_ComponentMap::begin( bxEntity_Id eid )
-{
-
-}
-
-bxEntity_ComponentItem bxEntity_ComponentMap::next( bxEntity_Id eid, bxEntity_ComponentItem current )
-{
-
-}
+//bxEntity_ComponentItem bxEntity_ComponentMap::begin( bxEntity_Id eid )
+//{
+//
+//}
+//
+//bxEntity_ComponentItem bxEntity_ComponentMap::next( bxEntity_Id eid, bxEntity_ComponentItem current )
+//{
+//
+//}

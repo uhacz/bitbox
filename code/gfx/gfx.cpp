@@ -91,6 +91,11 @@ namespace bxGfx
         {
             gr->fx.utils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "utils" );
             gr->fx.texUtils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "texutils" );
+
+            gr->fx.materialRed = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "native1" );
+            gr->fx.materialGreen = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "native1" );
+            gr->fx.materialBlue = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "native1" );
+
         }
 
         {//// fullScreenQuad
@@ -139,6 +144,10 @@ namespace bxGfx
             bxGdi::renderSource_releaseAndFree( dev, &gr->mesh.fullScreenQuad );
         }
         {
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.materialBlue );
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.materialGreen );
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.materialRed );
+            
             bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.texUtils );
             bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.utils );
         }

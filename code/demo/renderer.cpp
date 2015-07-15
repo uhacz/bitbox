@@ -209,6 +209,7 @@ namespace bxGfx
             eINSTANCE_BUFFER,
             eLIGHT,
             eWORLD,
+            eMESH_INSTANCE,
         };
         union
         {
@@ -220,6 +221,7 @@ namespace bxGfx
         explicit ToReleaseEntry( bxGfx_HMesh h ) : handle32( h.h ), type( eMESH ) {}
         explicit ToReleaseEntry( bxGfx_HInstanceBuffer h ) : handle32( h.h ), type( eINSTANCE_BUFFER ) {}
         explicit ToReleaseEntry( bxGfx_HWorld h ) : handle32( h.h ), type( eWORLD ) {}
+        explicit ToReleaseEntry( bxGfx_HMeshInstance h ): handle64( h.h ), type( eMESH_INSTANCE ) {}
     };
 
     struct World;
@@ -298,7 +300,7 @@ struct bxGfx_Context
         bxScopeBenaphore lock( _lock_world );
         return _world.get( make_id( hworld.h ) );
     }
-    bxGfx_HWorld hWorld( bxGfx_HMeshInstance hmeshi )
+    bxGfx_HWorld lookupWorld( bxGfx_HMeshInstance hmeshi )
     {
         hashmap_t::cell_t* cell = hashmap::lookup( _map_meshInstanceToWorld, hmeshi.h );
         bxGfx_HWorld result = 
@@ -310,7 +312,25 @@ struct bxGfx_Context
 };
 namespace bxGfx
 {
-    
+    inline bxGfx_HMeshInstance makeMeshInstance( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    {
+        bxGfx_HMeshInstance result = { 0 };
+        result.h = u64( hmesh.h ) << 32 | u64( hinstance.h );
+        return result;
+    }
+
+    inline bxGfx_HMesh getHMesh( bxGfx_HMeshInstance hMeshInstance )
+    {
+        bxGfx_HMesh result = { 0 };
+        result.h = u32( hMeshInstance.h >> 32 );
+        return result;
+    }
+    inline bxGfx_HInstanceBuffer getHInstanceBuffer( bxGfx_HMeshInstance hMeshInstance )
+    {
+        bxGfx_HInstanceBuffer result = { 0 };
+        result.h = u32( hMeshInstance.h & 0xFFFFFFFF );
+        return result;
+    }
 }
 
 static bxGfx_Context* __ctx = 0;
@@ -584,6 +604,20 @@ namespace bxGfx
                 }break;
             case ToReleaseEntry::eLIGHT:
                 {}break;
+            case ToReleaseEntry::eMESH_INSTANCE:
+                {
+                    bxGfx_HMeshInstance hmeshi = { e.handle64 };
+                    bxGfx_HWorld hworld = __ctx->lookupWorld( hmeshi );
+                    bxGfx::World* world = __ctx->world( hworld );
+                    if( world )
+                    {
+                        bxGfx_HMesh hmesh = getHMesh( hmeshi );
+                        bxGfx_HInstanceBuffer hinstane = getHInstanceBuffer( hmeshi );
+
+                        world->remove( hmesh, hinstane );
+                        hashmap::eraseByKey( __ctx->_map_meshInstanceToWorld, hmeshi.h );
+                    }
+                }break;
             case ToReleaseEntry::eWORLD:
                 {
                     id_t id = { e.handle32 };
@@ -821,28 +855,6 @@ namespace bxGfx
         array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( h[0] ) );
     }
 
-    inline bxGfx_HMeshInstance makeMeshInstance( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
-    {
-        bxGfx_HMeshInstance result = { 0 };
-        result.h = u64( hmesh.h ) << 32 | u64( hinstance.h );
-        return result;
-    }
-
-    inline bxGfx_HMesh getHMesh( bxGfx_HMeshInstance hMeshInstance )
-    {
-        bxGfx_HMesh result = { 0 };
-        result.h = u32( hMeshInstance.h >> 32 );
-        return result;
-    }
-    inline bxGfx_HInstanceBuffer getHInstanceBuffer( bxGfx_HMeshInstance hMeshInstance )
-    {
-        bxGfx_HInstanceBuffer result = { 0 };
-        result.h = u32( hMeshInstance.h & 0xFFFFFFFF );
-        return result;
-    }
-
-    
-
     bxGfx_HMeshInstance world_meshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
     {
         bxGfx::World* world = __ctx->world( hworld );
@@ -850,7 +862,7 @@ namespace bxGfx
             return makeInvalidHandle<bxGfx_HMeshInstance>();
         
         bxGfx_HMeshInstance meshi = makeMeshInstance( hmesh, hinstance );
-        bxGfx_HWorld foundHWorld = __ctx->hWorld( meshi );
+        bxGfx_HWorld foundHWorld = __ctx->lookupWorld( meshi );
         if( !foundHWorld.h )
         {
             SYS_ASSERT( world->meshFind( hmesh ) == -1 );
@@ -870,49 +882,14 @@ namespace bxGfx
 
     void world_meshRemove( bxGfx_HMeshInstance hmeshi )
     {
-
+        bxScopeBenaphore lock( __ctx->_lock_toRelease );
+        array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( hmeshi ) );
     }
-
-
-    //bxGfx_MeshInstance world_lookupMesh( bxGfx_HWorld hworld, bxEntity_Id eid )
-    //{
-    //    bxGfx_MeshInstance mi = { 0, 0 };
-
-    //    bxGfx::World* world = _Context_world( __ctx, hworld );
-    //    if( !world )
-    //        return mi;
-
-    //    int index = _World_meshLookup( world, eid );
-    //    if( index == -1 )
-    //        return mi;
-
-    //    mi.mesh = world->_data.mesh[index];
-    //    mi.instance = world->_data.instance[index];
-
-    //    return mi;
-    //}
-
-    //void world_meshRemove( bxGfx_HWorld hworld, bxEntity_Id eid )
-    //{
-    //    bxGfx::World* world = _Context_world( __ctx, hworld );
-    //    if( !world )
-    //        return;
-
-    //    bxScopeBenaphore lock( world->_lock_toRemove );
-    //    array::push_back( world->_toRemove, eid );
-    //}
-
-    //void world_meshRemoveAndRelease( bxGfx_HWorld hworld, bxEntity_Id eid )
-    //{
-    //    bxGfx_MeshInstance mi = world_lookupMesh( hworld, eid );
-    //    if( mi.mesh.h == 0 )
-    //        return;
-
-    //    mesh_release( &mi.mesh );
-    //    instanceBuffer_release( &mi.instance );
-    //}
-
-
+    void world_instance( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi )
+    {
+        hmesh[0] = getHMesh( hmeshi );
+        hinstance[0] = getHInstanceBuffer( hmeshi );
+    }
 
     void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera )
     {
@@ -994,4 +971,45 @@ namespace bxGfx
             bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, instanceCount );
         }
     }
+
+
+
+    //bxGfx_MeshInstance world_lookupMesh( bxGfx_HWorld hworld, bxEntity_Id eid )
+    //{
+    //    bxGfx_MeshInstance mi = { 0, 0 };
+
+    //    bxGfx::World* world = _Context_world( __ctx, hworld );
+    //    if( !world )
+    //        return mi;
+
+    //    int index = _World_meshLookup( world, eid );
+    //    if( index == -1 )
+    //        return mi;
+
+    //    mi.mesh = world->_data.mesh[index];
+    //    mi.instance = world->_data.instance[index];
+
+    //    return mi;
+    //}
+
+    //void world_meshRemove( bxGfx_HWorld hworld, bxEntity_Id eid )
+    //{
+    //    bxGfx::World* world = _Context_world( __ctx, hworld );
+    //    if( !world )
+    //        return;
+
+    //    bxScopeBenaphore lock( world->_lock_toRemove );
+    //    array::push_back( world->_toRemove, eid );
+    //}
+
+    //void world_meshRemoveAndRelease( bxGfx_HWorld hworld, bxEntity_Id eid )
+    //{
+    //    bxGfx_MeshInstance mi = world_lookupMesh( hworld, eid );
+    //    if( mi.mesh.h == 0 )
+    //        return;
+
+    //    mesh_release( &mi.mesh );
+    //    instanceBuffer_release( &mi.instance );
+    //}
+
 }///

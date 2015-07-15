@@ -16,6 +16,9 @@ struct bxGfx_GlobalResources
     struct{
         bxGdiShaderFx_Instance* utils;
         bxGdiShaderFx_Instance* texUtils;
+        bxGdiShaderFx_Instance* materialRed;
+        bxGdiShaderFx_Instance* materialGreen;
+        bxGdiShaderFx_Instance* materialBlue;
     } fx;
 
     struct{
