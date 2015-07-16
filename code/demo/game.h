@@ -55,34 +55,55 @@ struct bxDesignBlock
     {
         u32 h;
     };
+    union Shape
+    {
+        enum
+        {
+            eSPHERE, eCAPSULE, eBOX,
+        };
+        vec_float4 vec4;
+        struct
+        {
+            f32 param0, param1, param2;
+            u32 type;
+        };
+        struct
+        {
+            f32 ex, ey, ez;
+        };
+        struct
+        {
+            f32 radius;
+            f32 halfHeight;
+        };
 
-    virtual Handle create( const char* name ) = 0;
+        explicit Shape( f32 sphere ): radius( sphere ), param1(0.f), param2(0.f), type( eSPHERE ) {}
+        explicit Shape( f32 capR, f32 capHH ) : radius( capR), halfHeight( capHH ), param2( 0.f ), type( eCAPSULE ) {}
+        explicit Shape( f32 boxHX, f32 boxHY, f32 boxHZ ) : ex( boxHX ), ey( boxHY), ez( boxHZ ), type( eBOX ) {}
+    };
+
+    ////
+    ////
+    virtual Handle create( const char* name, const Matrix4& pose, const Shape& shape ) = 0;
     virtual void release( Handle* h ) = 0;
-    virtual void cleanUp( bxPhx_CollisionSpace* cs, bxGfx_HWorld gfxWorld ) = 0;
     
-    virtual void assignTag( Handle h, u64 tag ) = 0;
-    virtual void assignMesh( Handle h, bxGfx_HMeshInstance meshi ) = 0;
-    virtual void assignCollisionShape( Handle h, bxPhx_HShape hshape ) = 0;
+    virtual void cleanUp() = 0;
+    virtual void manageResources( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxPhx_CollisionSpace* cs, bxGfx_HWorld gfxWorld ) = 0;
+    virtual void tick( bxPhx_CollisionSpace* cs, bxGfx_HWorld gfxWorld ) = 0;
 
-    virtual void tick( bxPhx_CollisionSpace* cs ) = 0;
+    virtual void assignTag( Handle h, u64 tag ) = 0;
+    //virtual void assignMesh( Handle h, bxGfx_HMeshInstance meshi ) = 0;
+    //virtual void assignCollisionShape( Handle h, bxPhx_HShape hshape ) = 0;
+
+    ////
+    ////
+    static Matrix4 poseGet( bxDesignBlock* dblock, Handle h );
+    static void poseSet( bxDesignBlock* dblock, Handle h, const Matrix4& pose );
+
+    static Shape shapeGet( bxDesignBlock* dblock, Handle h );
+    //static void shapeSet( bxDesignBlock* dblock, Handle h, const Shape& shape );
 };
+
 bxDesignBlock* bxDesignBlock_new();
 void bxDesignBlock_delete( bxDesignBlock** dblock );
-
-//struct bxDesignBlock_HBlock;
-//namespace bxDesignBlock
-//{
-//    bxDesignBlock_HBlock block_create();
-//    void block_release( bxDesignBlock_HBlock* h );
-//
-//    void assignTag( bxDesignBlock_HBlock h, u64 tag );
-//    void assignMesh( bxDesignBlock_HBlock h, bxGfx_HInstanceBuffer hinstance );
-//    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HBoxShape hc );
-//    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HSphereShape hc );
-//    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HCapsuleShape hc );
-//    void assignCollisionShape( bxDesignBlock_HBlock h, bxPhysics_HPlaneShape hc );
-//
-//
-//
-//}//
 

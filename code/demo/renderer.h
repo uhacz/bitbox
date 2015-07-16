@@ -77,6 +77,7 @@ namespace bxGfx
 
     bxGfx_HMeshInstance world_meshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
     void world_meshRemove( bxGfx_HMeshInstance hmeshi );
+    void world_meshRemoveAndRelease( bxGfx_HMeshInstance* hmeshi );
     void world_instance( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi );
 
     void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera );

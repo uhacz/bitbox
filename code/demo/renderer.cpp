@@ -885,6 +885,16 @@ namespace bxGfx
         bxScopeBenaphore lock( __ctx->_lock_toRelease );
         array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( hmeshi ) );
     }
+    void world_meshRemoveAndRelease( bxGfx_HMeshInstance* hmeshi )
+    {
+        bxScopeBenaphore lock( __ctx->_lock_toRelease );
+        array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( hmeshi[0] ) );
+        array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( getHMesh( hmeshi[0] ) ) );
+        array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( getHInstanceBuffer( hmeshi[0] ) ) );
+
+        hmeshi->h = 0;
+    }
+
     void world_instance( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi )
     {
         hmesh[0] = getHMesh( hmeshi );

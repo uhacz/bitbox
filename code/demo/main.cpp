@@ -90,34 +90,44 @@ public:
         
         __scene.dblock = bxDesignBlock_new();
 
+        __scene.dblock->create( "ground", 
+                                Matrix4::translation( Vector3(0.f, -2.f, 0.f ) ),
+                                bxDesignBlock::Shape( 100.f, 0.1f, 100.f ) 
+                                );
+
+        __scene.dblock->create( "box0",
+                                Matrix4::translation( Vector3( 0.f, -1.5f, 0.f ) ),
+                                bxDesignBlock::Shape( 1.f, 1.f, 1.f )
+                                );
+
         //bxPhx_HShape hplane = bxPhx::shape_createPlane( bxPhx::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
-        bxPhx_HShape hbox0 = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -2.0f, 0.f ), Quat::identity(), Vector3( 100.0f, 0.1f, 100.f ) );
-        bxPhx_HShape hbox1 = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
-        bxGdiRenderSource* boxRsource = bxGfx::globalResources()->mesh.box;
-        bxGdiShaderFx_Instance* redFxI = bxGfx::globalResources()->fx.materialRed;
-        bxGdiShaderFx_Instance* greenFxI = bxGfx::globalResources()->fx.materialGreen;
-        {
-            bxGfx_HMesh hmesh = bxGfx::mesh_create();
-            bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffer_create( 1 );
-            bxGfx::mesh_setStreams( hmesh, _engine.gdiDevice, boxRsource );
-            bxGfx::mesh_setShader( hmesh, _engine.gdiDevice, _engine.resourceManager, greenFxI );
-            bxGfx_HMeshInstance hmeshi = bxGfx::world_meshAdd( __scene.gfxWorld, hmesh, hibuff );
+        //bxPhx_HShape hbox0 = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -2.0f, 0.f ), Quat::identity(), Vector3( 100.0f, 0.1f, 100.f ) );
+        //bxPhx_HShape hbox1 = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
+        //bxGdiRenderSource* boxRsource = bxGfx::globalResources()->mesh.box;
+        //bxGdiShaderFx_Instance* redFxI = bxGfx::globalResources()->fx.materialRed;
+        //bxGdiShaderFx_Instance* greenFxI = bxGfx::globalResources()->fx.materialGreen;
+        //{
+        //    bxGfx_HMesh hmesh = bxGfx::mesh_create();
+        //    bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffer_create( 1 );
+        //    bxGfx::mesh_setStreams( hmesh, _engine.gdiDevice, boxRsource );
+        //    bxGfx::mesh_setShader( hmesh, _engine.gdiDevice, _engine.resourceManager, greenFxI );
+        //    bxGfx_HMeshInstance hmeshi = bxGfx::world_meshAdd( __scene.gfxWorld, hmesh, hibuff );
 
-            bxDesignBlock::Handle h = __scene.dblock->create( "ground" );
-            __scene.dblock->assignMesh( h, hmeshi );
-            __scene.dblock->assignCollisionShape( h, hbox0 );
-        }
-        {
-            bxGfx_HMesh hmesh = bxGfx::mesh_create();
-            bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffer_create( 1 );
-            bxGfx::mesh_setStreams( hmesh, _engine.gdiDevice, boxRsource );
-            bxGfx::mesh_setShader( hmesh, _engine.gdiDevice, _engine.resourceManager, redFxI );
-            bxGfx_HMeshInstance hmeshi = bxGfx::world_meshAdd( __scene.gfxWorld, hmesh, hibuff );
+        //    bxDesignBlock::Handle h = __scene.dblock->create( "ground" );
+        //    __scene.dblock->assignMesh( h, hmeshi );
+        //    __scene.dblock->assignCollisionShape( h, hbox0 );
+        //}
+        //{
+        //    bxGfx_HMesh hmesh = bxGfx::mesh_create();
+        //    bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffer_create( 1 );
+        //    bxGfx::mesh_setStreams( hmesh, _engine.gdiDevice, boxRsource );
+        //    bxGfx::mesh_setShader( hmesh, _engine.gdiDevice, _engine.resourceManager, redFxI );
+        //    bxGfx_HMeshInstance hmeshi = bxGfx::world_meshAdd( __scene.gfxWorld, hmesh, hibuff );
 
-            bxDesignBlock::Handle h = __scene.dblock->create( "box0" );
-            __scene.dblock->assignMesh( h, hmeshi );
-            __scene.dblock->assignCollisionShape( h, hbox0 );
-        }
+        //    bxDesignBlock::Handle h = __scene.dblock->create( "box0" );
+        //    __scene.dblock->assignMesh( h, hmeshi );
+        //    __scene.dblock->assignCollisionShape( h, hbox0 );
+        //}
 
 
         __scene.flock = bxGame::flock_new();
@@ -129,7 +139,9 @@ public:
     virtual void shutdown()
     {
         bxGame::flock_delete( &__scene.flock );
-        __scene.dblock->cleanUp( bxPhx::__cspace, __scene.gfxWorld );
+        __scene.dblock->cleanUp();
+        __scene.dblock->manageResources( _engine.gdiDevice, _engine.resourceManager, bxPhx::__cspace, __scene.gfxWorld );
+
         bxDesignBlock_delete( &__scene.dblock );
         //bxPhx::shape_release( bxPhx::__cspace, &__scene.collisionBox );
         //bxPhx::shape_release( bxPhx::__cspace, &__scene.collisionPlane );
@@ -160,6 +172,7 @@ public:
         }
 
         bxGfx::frameBegin( _engine.gdiDevice, _engine.resourceManager );
+        __scene.dblock->manageResources( _engine.gdiDevice, _engine.resourceManager, bxPhx::__cspace, __scene.gfxWorld );
         bxGfxGUI::newFrame( (float)deltaTimeS );
 
         {
@@ -182,7 +195,7 @@ public:
 
         const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
         {
-            __scene.dblock->tick( bxPhx::__cspace );
+            __scene.dblock->tick( bxPhx::__cspace, __scene.gfxWorld );
             bxGame::flock_tick( __scene.flock, deltaTime );
             bxGame::character_tick( __scene.character, currentCamera, win->input, deltaTime * 2.f );
             bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime, bxGfx::cameraUtil_anyMovement( cameraInputCtx ) );
