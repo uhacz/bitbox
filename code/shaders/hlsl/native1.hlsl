@@ -29,6 +29,8 @@ struct out_PS
 
 #include <sys/types.hlsl>
 #include <sys/frame_data.hlsl>
+#include <sys/material.hlsl>
+#include <sys/brdf.hlsl>
 
 shared cbuffer InstanceOffset : register( b1 )
 {
@@ -37,6 +39,8 @@ shared cbuffer InstanceOffset : register( b1 )
 
 Buffer<float4> _instance_world : register(t0);
 Buffer<float3> _instance_worldIT : register(t1);
+
+
 
 in_PS vs_main( in_VS IN )
 {
@@ -61,16 +65,31 @@ in_PS vs_main( in_VS IN )
     return OUT;
 }
 
+shared cbuffer MaterialData: register(b3)
+{
+    MATERIAL_VARIABLES;
+};
+
 out_PS ps_main( in_PS input )
 {
     out_PS OUT;
-
-    float3 L = normalize( float3(-1.f, 1.f, 1.f) );
-    float3 N = normalize( input.w_normal );
-    float3 C = float3( 1.0, 1.0, 1.0 );
-    float NdotL = saturate( dot( N, L ) );
-
     
-    OUT.rgba = float4( C * NdotL, 1.0 );
+    
+
+    float3 L = normalize( float3(-1.f, 1.f, 0.f) );
+    
+    ShadingData shd;
+    shd.N = normalize( input.w_normal );
+    shd.V = _camera_viewDir.xyz;
+    shd.shadow = 1;
+    shd.ssao = 1;
+    
+    Material mat;
+    ASSIGN_MATERIAL_FROM_CBUFFER( mat );
+    float3 c = BRDF( L, shd, mat );
+    //float3 C = diffuseColor;
+    //float NdotL = saturate( dot( N, L ) );
+        
+    OUT.rgba = float4( c, 1.0 );
     return OUT;
 }

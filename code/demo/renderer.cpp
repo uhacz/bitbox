@@ -752,14 +752,14 @@ namespace bxGfx
         return 0;
     }
 
-    int mesh_setShader( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* shaderName )
+    bxGdiShaderFx_Instance* mesh_setShader( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* shaderName )
     {
         if( !__ctx->_mesh.has( make_id( hmesh.h ) ) )
-            return -1;
+            return 0;
 
         bxGdiShaderFx_Instance* fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, shaderName, __ctx->_alloc_shaderFx );
         if( !fxI )
-            return -1;
+            return 0;
 
         const int index = _Mesh_index( hmesh );
         MeshFlags& flags = __ctx->_mesh._flags[index];
@@ -769,7 +769,7 @@ namespace bxGfx
         }
         flags.own_fxI = 1;
         __ctx->_mesh._fxI[index] = fxI;
-        return 0;
+        return fxI;
     }
 
     int mesh_setShader( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance* fxI )

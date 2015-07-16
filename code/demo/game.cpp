@@ -17,6 +17,7 @@
 
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_gui.h>
+#include <gfx/gfx_material.h>
 
 #include <smmintrin.h>
 
@@ -277,9 +278,11 @@ namespace bxGame
         flock->hMesh = bxGfx::mesh_create();
         flock->hInstanceBuffer = bxGfx::instanceBuffer_create( flock->particles.size );
 
-        bxGdiRenderSource* rsource = bxGfx::globalResources()->mesh.box;
+        bxGdiRenderSource* rsource = bxGfx::globalResources()->mesh.sphere;
         bxGfx::mesh_setStreams( flock->hMesh, dev, rsource );
-        bxGfx::mesh_setShader( flock->hMesh, dev, resourceManager, "native1" );
+
+        bxGdiShaderFx_Instance* materialFx = bxGfxMaterialManager::findMaterial( "blue" );
+        bxGfx::mesh_setShader( flock->hMesh, dev, resourceManager, materialFx );
         
         bxGfx::world_meshAdd( gfxWorld, flock->hMesh, flock->hInstanceBuffer );
     }
@@ -502,6 +505,12 @@ namespace bxDesignBlock_Util
         return murmur3_hash32( name, string::length( name ), SEED );
     }
 
+    struct CreateDesc
+    {
+        bxDesignBlock::Handle h;
+        bxGdiShaderFx_Instance* material;
+    };
+
 }///
 using namespace bxDesignBlock_Util;
 struct bxDesignBlock_Impl : public bxDesignBlock
@@ -531,7 +540,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
     Data _data;
 
     array_t< Handle > _list_updatePose;
-    array_t< Handle > _list_create;
+    array_t< CreateDesc > _list_create;
     array_t< Handle > _list_release;
 
     u32 _flag_releaseAll : 1;
@@ -608,7 +617,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         return array::find1( _data.name, _data.name + _data.size, array::OpEqual<u32>( hash ) );
     }
 
-    virtual Handle create( const char* name, const Matrix4& pose, const Shape& shape )
+    virtual Handle create( const char* name, const Matrix4& pose, const Shape& shape, const char* material )
     {
         const u32 nameHash = makeNameHash( this, name );
         int index = findByHash( nameHash );
@@ -638,7 +647,15 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         _data.phxShape[index] = makeInvalidHandle< bxPhx_HShape >();
         
         Handle handle = makeHandle( id );
-        array::push_back( _list_create, handle );
+
+        CreateDesc createDesc;
+        createDesc.h = handle;
+        createDesc.material = bxGfxMaterialManager::findMaterial( material );
+        if( !createDesc.material )
+        {
+            createDesc.material = bxGfxMaterialManager::findMaterial( "red" );
+        }
+        array::push_back( _list_create, createDesc );
 
         return handle;
 
@@ -690,7 +707,8 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         ////
         for( int ihandle = 0; ihandle < array::size( _list_create ); ++ihandle )
         {
-            Handle h = _list_create[ihandle];
+            const CreateDesc& createDesc = _list_create[ihandle];
+            Handle h = createDesc.h;
             int index = dataIndex_get( h );
             if( index == -1 )
                 continue;
@@ -703,7 +721,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
             Vector3 scale( 1.f );
             bxPhx_HShape phxShape = makeInvalidHandle< bxPhx_HShape >();
             bxGdiRenderSource* rsource = 0;
-            bxGdiShaderFx_Instance* fxI = bxGfx::globalResources()->fx.materialGreen;
+            bxGdiShaderFx_Instance* fxI = createDesc.material;
             switch( shape.type )
             {
             case Shape::eSPHERE:

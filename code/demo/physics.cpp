@@ -298,9 +298,16 @@ namespace
         size_t hash;
         struct  
         {
-            u32 dataIndex;
+            u32 forceNoZero : 1;
+            u32 dataIndex : 31;
             u32 shapeType;
         };
+
+        ShapeMapKey()
+            : forceNoZero(1)
+            , dataIndex(0)
+            , shapeType(0)
+        {}
     };
 
     inline void shapeId_insertToMap( hashmap_t& map, IdInternal id, int dataIndex )
@@ -308,6 +315,7 @@ namespace
         ShapeMapKey key;
         key.shapeType = id.type;
         key.dataIndex = dataIndex;
+        key.forceNoZero = 1;
         SYS_ASSERT( hashmap::lookup( map, key.hash ) == 0 );
         hashmap_t::cell_t* cell = hashmap::insert( map, key.hash );
         cell->value = id.hash;
@@ -397,21 +405,22 @@ void shape_release( bxPhx_CollisionSpace* cs, bxPhx_HShape* h )
 
     SYS_ASSERT( dataIndexToSwap >= 0 );
 
-    ShapeMapKey mapKeySwap = { 0 };
+    ShapeMapKey mapKeySwap;
     mapKeySwap.shapeType = id.type;
     mapKeySwap.dataIndex = (u32)dataIndexToSwap;
     hashmap_t::cell_t* cellSwap = hashmap::lookup( cs->map_dataIndexToId, mapKeySwap.hash );
     SYS_ASSERT( cellSwap != 0 );
 
-    ShapeMapKey mapKey = { 0 };
-    mapKey.shapeType = id.type;
-    mapKey.dataIndex = dataIndex;
-    hashmap_t::cell_t* cell = hashmap::lookup( cs->map_dataIndexToId, mapKey.hash );
-    SYS_ASSERT( cell != 0 );
-    cell->value = cellSwap->value;
-
+    if( hashmap::size( cs->map_dataIndexToId ) > 1 )
+    {
+        ShapeMapKey mapKey;
+        mapKey.shapeType = id.type;
+        mapKey.dataIndex = dataIndex;
+        hashmap_t::cell_t* cell = hashmap::lookup( cs->map_dataIndexToId, mapKey.hash );
+        SYS_ASSERT( cell != 0 );
+        cell->value = cellSwap->value;
+    }
     hashmap::erase( cs->map_dataIndexToId, cellSwap );
-    //collisionPlane_release( &cs->plane, ch );
 }
 
 Matrix4 shape_pose( bxPhx_CollisionSpace* cs, bxPhx_HShape h, Vector4* shapeParams )

@@ -467,23 +467,24 @@ namespace bxGdi
 
 
         bxGdiShaderFx* fx = fxPtr[0];
-        SYS_ASSERT( fx->_numInstances == 0 );
-
         bxResourceID resourceId = resourceManager->find( uptr( fx ) );
         SYS_ASSERT( resourceId != 0 );
-        resourceManager->referenceRemove( resourceId );
-        
-        _ShaderFx_deinitParams( fx );
-        for( int ipass = 0; ipass < fx->_numPasses; ++ipass )
+        int instancesLeft = resourceManager->referenceRemove( resourceId );
+        if( instancesLeft == 0 )
         {
-            bxGdiShaderPass& pass = fx->_passes[ipass];
-            for( int istage = 0; istage < bxGdi::eDRAW_STAGES_COUNT; ++istage )
+            SYS_ASSERT( fx->_numInstances == instancesLeft );
+            _ShaderFx_deinitParams( fx );
+            for ( int ipass = 0; ipass < fx->_numPasses; ++ipass )
             {
-                dev->releaseShader( &pass.progs[istage] );
+                bxGdiShaderPass& pass = fx->_passes[ipass];
+                for ( int istage = 0; istage < bxGdi::eDRAW_STAGES_COUNT; ++istage )
+                {
+                    dev->releaseShader( &pass.progs[istage] );
+                }
             }
-        }
 
-        BX_FREE0( allocator, fx );
+            BX_FREE0( allocator, fx );
+        }
         fxPtr[0] = 0;
     }
 
@@ -498,7 +499,7 @@ namespace bxGdi
         return size;
     }
     
-    bxGdiShaderFx_Instance* shaderFx_createInstance( bxGdiDeviceBackend* dev, bxGdiShaderFx* fx, bxAllocator* allocator )
+    bxGdiShaderFx_Instance* shaderFx_createInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx* fx, bxAllocator* allocator )
     {
         const int cbuffersSize = _ShaderFx_calculateBufferMemorySize( fx );
 
@@ -516,8 +517,7 @@ namespace bxGdi
         void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, sizeof(void*) ); // util::default_allocator()->allocate( mem_size, sizeof( void* ) );
         memset( mem, 0, memSize );
 
-        bxBufferChunker chunker( mem, memSize )
-            ;
+        bxBufferChunker chunker( mem, memSize );
         bxGdiShaderFx_Instance* fxInstance = chunker.add< bxGdiShaderFx_Instance >();
         fxInstance->_sortHash = chunker.add< u32 >( fx->_numPasses );
         fxInstance->_textures = chunker.add<bxGdiTexture>( fx->_numTextures );
@@ -539,9 +539,15 @@ namespace bxGdi
         fxInstance->_fx = fx;
         ++fx->_numInstances;
 
+        {
+            bxResourceID resourceId = resourceManager->find( uptr( fx ) );
+            SYS_ASSERT( resourceId != 0 );
+            resourceManager->referenceAdd( resourceId );
+        }
+
         return fxInstance;
     }
-    void shaderFx_releaseInstance( bxGdiDeviceBackend* dev, bxGdiShaderFx_Instance** fxInstancePtr, bxAllocator* allocator )
+    void shaderFx_releaseInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstancePtr, bxAllocator* allocator )
     {
         if( !fxInstancePtr[0] )
             return;
@@ -550,7 +556,11 @@ namespace bxGdi
         bxGdiShaderFx* fx = fxInstance->shaderFx();
         SYS_ASSERT( fx->_numInstances > 0 );
         --fx->_numInstances;
-
+        {
+            bxResourceID resourceId = resourceManager->find( uptr( fx ) );
+            SYS_ASSERT( resourceId != 0 );
+            resourceManager->referenceRemove( resourceId );
+        }
         for( int i = 0; i < fx->_numCBuffers; ++i )
         {
             dev->releaseBuffer( &fxInstance->_cbuffers[i] );
@@ -567,7 +577,7 @@ namespace bxGdi
         if ( !fx )
             return 0;
 
-        return shaderFx_createInstance( dev, fx, allocator );
+        return shaderFx_createInstance( dev, resourceManager, fx, allocator );
     }
 
     void shaderFx_releaseWithInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator )
@@ -576,7 +586,7 @@ namespace bxGdi
             return;
 
         bxGdiShaderFx* fx = fxInstance[0]->shaderFx();
-        shaderFx_releaseInstance( dev, fxInstance, allocator );
+        shaderFx_releaseInstance( dev, resourceManager, fxInstance, allocator );
         shaderFx_release( dev, resourceManager, &fx, allocator );
     }
 

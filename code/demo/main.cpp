@@ -95,10 +95,10 @@ public:
                                 bxDesignBlock::Shape( 100.f, 0.1f, 100.f ) 
                                 );
 
-        __scene.dblock->create( "box0",
+        __scene.dblock->create( "sphere",
                                 Matrix4::translation( Vector3( 0.f, -1.5f, 0.f ) ),
-                                bxDesignBlock::Shape( 1.f, 1.f, 1.f )
-                                );
+                                bxDesignBlock::Shape( 1.f ),
+                                "red" );
 
         //bxPhx_HShape hplane = bxPhx::shape_createPlane( bxPhx::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
         //bxPhx_HShape hbox0 = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -2.0f, 0.f ), Quat::identity(), Vector3( 100.0f, 0.1f, 100.f ) );
@@ -218,7 +218,7 @@ public:
             bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
             bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::zAxis(), 0x0000FFFF, true );
 
-            bxPhx::collisionSpace_debugDraw( bxPhx::__cspace );
+            //bxPhx::collisionSpace_debugDraw( bxPhx::__cspace );
         }
 
         bxGfx::world_draw( gdiContext, __scene.gfxWorld, currentCamera );

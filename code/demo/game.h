@@ -84,7 +84,7 @@ struct bxDesignBlock
 
     ////
     ////
-    virtual Handle create( const char* name, const Matrix4& pose, const Shape& shape ) = 0;
+    virtual Handle create( const char* name, const Matrix4& pose, const Shape& shape, const char* material = "green" ) = 0;
     virtual void release( Handle* h ) = 0;
     
     virtual void cleanUp() = 0;

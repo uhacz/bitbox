@@ -27,19 +27,21 @@ struct bxGfxMaterial_Textures
 ////
 struct bxGfxMaterialManager
 {
-    bxGdiShaderFx_Instance* createMaterial( bxGdiDeviceBackend* dev, const char* name, const bxGfxMaterial_Params& params, const bxGfxMaterial_Textures* textures = 0 );
-    bxGdiShaderFx_Instance* findMaterial( const char* name );
+    static bxGdiShaderFx_Instance* findMaterial( const char* name );
 
 public:
     bxGfxMaterialManager();
     ~bxGfxMaterialManager();
-    int _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    int _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* nativeShaderName = "native" );
     void _Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-
+    
+    bxGdiShaderFx_Instance* createMaterial( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* name, const bxGfxMaterial_Params& params, const bxGfxMaterial_Textures* textures = 0 );
 private:
     typedef hashmap_t Map_Material;
     Map_Material _map;
 
     bxGdiShaderFx* _nativeFx;
+
+    static bxGfxMaterialManager* __this;
 };
 

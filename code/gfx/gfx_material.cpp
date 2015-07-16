@@ -11,9 +11,11 @@ bxGfxMaterialManager::~bxGfxMaterialManager()
 {
 }
 
-int bxGfxMaterialManager::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+bxGfxMaterialManager* bxGfxMaterialManager::__this = 0;
+
+int bxGfxMaterialManager::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* nativeShaderName )
 {
-    _nativeFx = bxGdi::shaderFx_createFromFile( dev, resourceManager, "native" );
+    _nativeFx = bxGdi::shaderFx_createFromFile( dev, resourceManager, nativeShaderName );
 
 
     if( _nativeFx )
@@ -27,7 +29,7 @@ int bxGfxMaterialManager::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* 
             params.specularCoeff = 0.9f;
             params.ambientCoeff = 0.2f;
 
-            createMaterial( dev, "red", params );
+            createMaterial( dev, resourceManager, "red", params );
         }
         {
             params.diffuseColor = float3_t( 0.f, 1.f, 0.f );
@@ -35,7 +37,7 @@ int bxGfxMaterialManager::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* 
             params.diffuseCoeff = 0.25f;
             params.roughnessCoeff = 0.5f;
             params.specularCoeff = 0.5f;
-            createMaterial( dev, "green", params );
+            createMaterial( dev, resourceManager, "green", params );
         }
         {
             params.diffuseColor = float3_t( 0.f, 0.f, 1.f );
@@ -43,7 +45,7 @@ int bxGfxMaterialManager::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* 
             params.diffuseCoeff = 0.7f;
             params.roughnessCoeff = 0.7f;
 
-            createMaterial( dev, "blue", params );
+            createMaterial( dev, resourceManager, "blue", params );
         }
         {
             params.diffuseColor = float3_t( 1.f, 1.f, 1.f );
@@ -51,20 +53,25 @@ int bxGfxMaterialManager::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* 
             params.roughnessCoeff = 1.0f;
             params.specularCoeff = 0.1f;
 
-            createMaterial( dev, "white", params );
+            createMaterial( dev, resourceManager, "white", params );
         }
     }
+
+    SYS_ASSERT( __this == 0 );
+    __this = this;
 
     return _nativeFx ? 0 : -1;
 }
 
 void bxGfxMaterialManager::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
+    SYS_ASSERT( __this == this );
+    __this = 0;
     hashmap::iterator it( _map );
     while( it.next() )
     {
         bxGdiShaderFx_Instance* fxI = (bxGdiShaderFx_Instance*)it->value;
-        bxGdi::shaderFx_releaseInstance( dev, &fxI );
+        bxGdi::shaderFx_releaseInstance( dev, resourceManager, &fxI );
     }
     hashmap::clear( _map );
 
@@ -92,12 +99,12 @@ namespace
     }
 }
 
-bxGdiShaderFx_Instance* bxGfxMaterialManager::createMaterial( bxGdiDeviceBackend* dev, const char* name, const bxGfxMaterial_Params& params, const bxGfxMaterial_Textures* textures )
+bxGdiShaderFx_Instance* bxGfxMaterialManager::createMaterial( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* name, const bxGfxMaterial_Params& params, const bxGfxMaterial_Textures* textures )
 {
     const u64 key = createMaterialNameHash( name );
     SYS_ASSERT( hashmap::lookup( _map, key) == 0 );
 
-    bxGdiShaderFx_Instance* fxI = bxGdi::shaderFx_createInstance( dev, _nativeFx );
+    bxGdiShaderFx_Instance* fxI = bxGdi::shaderFx_createInstance( dev, resourceManager, _nativeFx );
     SYS_ASSERT( fxI != 0 );
 
     setMaterialParams( fxI, params );
@@ -111,7 +118,7 @@ bxGdiShaderFx_Instance* bxGfxMaterialManager::createMaterial( bxGdiDeviceBackend
 bxGdiShaderFx_Instance* bxGfxMaterialManager::findMaterial(const char* name)
 {
     const u64 key = createMaterialNameHash( name );
-    hashmap_t::cell_t* cell = hashmap::lookup( _map, key );
+    hashmap_t::cell_t* cell = hashmap::lookup( __this->_map, key );
 
     return (cell) ? (bxGdiShaderFx_Instance*)cell->value : 0;
 }
