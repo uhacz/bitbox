@@ -837,9 +837,6 @@ struct bxDesignBlock_Impl : public bxDesignBlock
 
     ////
     ////
-    
-
-
 };
 
 bxDesignBlock* bxDesignBlock_new()
@@ -856,4 +853,98 @@ void bxDesignBlock_delete( bxDesignBlock** dblock )
     BX_DELETE0( bxDefaultAllocator(), impl );
 
     dblock[0] = 0;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+bxDesignBlock_SceneScriptCallback::bxDesignBlock_SceneScriptCallback()
+    : dblock(0)
+{
+    memset( &desc.name, 0x00, sizeof( desc.name ) );
+    memset( &desc.material, 0x00, sizeof( desc.material ) );
+    memset( &desc.shape, 0x00, sizeof( bxDesignBlock::Shape ) );
+    desc.pose = Matrix4::identity();
+}
+
+void bxDesignBlock_SceneScriptCallback::onCreate( const char* typeName, const char* objectName )
+{
+    const size_t bufferSize = sizeof( desc.name ) - 1;
+    sprintf_s( desc.name, bufferSize, "%s", objectName );
+}
+
+void bxDesignBlock_SceneScriptCallback::onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData )
+{
+    if( string::equal( attrName, "pos" ) )
+    {
+        if( attribData.dataSizeInBytes() != 12 )
+            goto label_besignBlockAttributeInvalidSize;
+        
+        desc.pose.setTranslation( Vector3( attribData.fnumber[0], attribData.fnumber[1], attribData.fnumber[2] ) );
+    }
+    else if( string::equal( attrName, "rot" ) )
+    {
+        if( attribData.dataSizeInBytes() != 12 )
+            goto label_besignBlockAttributeInvalidSize;
+
+        const Vector3 eulerXYZ( attribData.fnumber[0], attribData.fnumber[1], attribData.fnumber[2] );
+        desc.pose.setUpper3x3( Matrix3::rotationZYX( eulerXYZ ) );
+    }
+    else if( string::equal( attrName, "material" ) )
+    {
+        if( attribData.dataSizeInBytes() <= 0 )
+            goto label_besignBlockAttributeInvalidSize;
+
+        const size_t bufferSize = sizeof( desc.material ) - 1;
+        sprintf_s( desc.material, bufferSize, "%s", attribData.string );
+    }
+    else if( string::equal( attrName, "shape" ) )
+    {
+        if( attribData.dataSizeInBytes() < 4 )
+            goto label_besignBlockAttributeInvalidSize;
+
+        if( attribData.dataSizeInBytes() == 4 )
+        {
+            desc.shape = bxDesignBlock::Shape( attribData.fnumber[0] );
+        }
+        else if( attribData.dataSizeInBytes() == 8 )
+        {
+            desc.shape = bxDesignBlock::Shape( attribData.fnumber[0], attribData.fnumber[1] );
+        }
+        else if( attribData.dataSizeInBytes() == 12 )
+        {
+            desc.shape = bxDesignBlock::Shape( attribData.fnumber[0], attribData.fnumber[1], attribData.fnumber[2] );
+        }
+        else
+        {
+            goto label_besignBlockAttributeInvalidSize;
+        }
+    }
+
+    return;
+
+label_besignBlockAttributeInvalidSize:
+    bxLogError( "invalid data size" );
+}
+
+void bxDesignBlock_SceneScriptCallback::onCommand( const char* cmdName, const bxAsciiScript_AttribData& args )
+{
+    (void)args;
+    if( string::equal( cmdName, "dblock_commit" ) )
+    {
+        int descValid = 1;
+        descValid &= string::length( desc.name ) > 0;
+        descValid &= string::length( desc.material ) > 0;
+        descValid &= ( desc.shape.type != UINT32_MAX  );
+
+        if( !descValid )
+        {
+            bxLogError( "Design block desc invalid!" );
+        }
+        else
+        {
+            dblock->create( desc.name, desc.pose, desc.shape, desc.material );
+        }
+    }
 }

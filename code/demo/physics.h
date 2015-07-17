@@ -64,10 +64,6 @@ namespace bxPhx
     int contacts_size( bxPhx_Contacts* con );
     void contacts_get( bxPhx_Contacts* con, Vector3* normal, float* depth, u16* index0, u16* index1, int i );
     void contacts_clear( bxPhx_Contacts* con );
-
-
-    /// tmp solution
-    extern bxPhx_CollisionSpace* __cspace;
 }///
 
 

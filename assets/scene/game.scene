@@ -2,3 +2,21 @@
 $pos 0.0 0.0 10.0
 $zFar 1000.0
 :camera_push "persp"
+
+@dblock ground
+$pos 0.0 -2.0 0.0
+$shape 100.0 0.1 100.0
+$material "green"
+:dblock_commit
+
+@dblock block0
+$pos -2.0 -1.5 0.0
+$shape 1.0
+$material "red"
+:dblock_commit
+
+@dblock block1
+$pos 2.0 -1.5 0.0
+$shape 1.0, 0.5 1.0
+$material "red"
+:dblock_commit

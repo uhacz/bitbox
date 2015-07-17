@@ -258,14 +258,10 @@ struct bxPhx_CollisionSpace
 };
 
 namespace bxPhx{
-
-    bxPhx_CollisionSpace* __cspace = 0;
-
 bxPhx_CollisionSpace* collisionSpace_new()
 {
     bxPhx_CollisionSpace* cspace = BX_NEW( bxDefaultAllocator(), bxPhx_CollisionSpace );
     array::reserve( cspace->dataIndex, eMAX_SHAPES );
-    __cspace = cspace;
     return cspace;
 }
 void bxPhx::collisionSpace_delete( bxPhx_CollisionSpace** cs )
@@ -287,8 +283,6 @@ void bxPhx::collisionSpace_delete( bxPhx_CollisionSpace** cs )
     }
 
     BX_DELETE0( bxDefaultAllocator(), cs[0] );
-
-    __cspace = 0;
 }
 
 namespace

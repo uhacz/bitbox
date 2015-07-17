@@ -258,7 +258,7 @@ namespace bxGame
 
     namespace
     {
-        void character_simulate( Character* character, const Vector3& externalForces, float deltaTime )
+        void character_simulate( Character* character, bxPhx_CollisionSpace* cspace, const Vector3& externalForces, float deltaTime )
         {
             CharacterParticles& cp = character->particles;
             const CharacterParams& params = character->params;
@@ -285,7 +285,7 @@ namespace bxGame
 
             {
                 bxPhx::contacts_clear( character->contacts );
-                bxPhx::collisionSpace_collide( bxPhx::__cspace, character->contacts, cp.pos1, nPoints );
+                bxPhx::collisionSpace_collide( cspace, character->contacts, cp.pos1, nPoints );
             }
 
             Matrix3 R;
@@ -330,7 +330,7 @@ namespace bxGame
         }
     }///
 
-    void character_tick( Character* character, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
+    void character_tick( Character* character, bxPhx_CollisionSpace* cspace, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
     {
         const CharacterParams& params = character->params;
         characterInput_collectData( &character->input, input, deltaTime );
@@ -353,7 +353,7 @@ namespace bxGame
         {
             externalForces += character->upVector * character->_jumpAcc;
 
-            character_simulate( character, externalForces, fixedDt );
+            character_simulate( character, cspace, externalForces, fixedDt );
             character->_dtAcc -= fixedDt;
 
             character->_jumpAcc = 0.f;

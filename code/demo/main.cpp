@@ -10,9 +10,8 @@
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_gui.h>
 
-#include "physics.h"
-#include "renderer.h"
-#include "game.h"
+
+#include "scene.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 struct bxDemoFramebuffer
@@ -30,26 +29,10 @@ struct bxDemoFramebuffer
     int height() const { return textures[0].height; }
 };
 static bxDemoFramebuffer __framebuffer;
-
-struct bxDemoScene
-{
-    bxGfxCamera_Manager* _cameraManager;
-    bxGfxCamera_InputContext cameraInputCtx;
-    bxGfx_HWorld gfxWorld;
-
-    bxGame::Character* character;
-    bxGame::Flock* flock;
-
-    bxDesignBlock* dblock;
-    //bxPhx_HShape collisionBox;
-    //bxPhx_HShape collisionPlane;
-};
 static bxDemoScene __scene;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-
-
 class bxDemoApp : public bxApplication
 {
 public:
@@ -63,94 +46,48 @@ public:
         __framebuffer.textures[bxDemoFramebuffer::eCOLOR] = _engine.gdiDevice->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
         __framebuffer.textures[bxDemoFramebuffer::eDEPTH] = _engine.gdiDevice->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
 
-        __scene._cameraManager = bxGfx::cameraManager_new();
+        bxDemoScene_startup( &__scene, &_engine );
 
-        __scene.gfxWorld = bxGfx::world_create();
-        
+        //__scene.dblock->create( "ground", 
+        //                        Matrix4::translation( Vector3(0.f, -2.f, 0.f ) ),
+        //                        bxDesignBlock::Shape( 100.f, 0.1f, 100.f ) 
+        //                        );
+
+        //__scene.dblock->create( "sphere",
+        //                        Matrix4::translation( Vector3( 0.f, -1.5f, 0.f ) ),
+        //                        bxDesignBlock::Shape( 1.f ),
+        //                        "red" );
+                        
+        bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager, __scene.gfxWorld );
+
         bxGfxCamera_SceneScriptCallback cameraScriptCallback;
         cameraScriptCallback._menago = __scene._cameraManager;
+
+        bxDesignBlock_SceneScriptCallback dblockScriptCallback;
+        dblockScriptCallback.dblock = __scene.dblock;
 
         bxAsciiScript sceneScript;
         bxScene::script_addCallback( &sceneScript, "camera", &cameraScriptCallback );
         bxScene::script_addCallback( &sceneScript, "camera_push", &cameraScriptCallback );
 
+        bxScene::script_addCallback( &sceneScript, "dblock", &dblockScriptCallback );
+        bxScene::script_addCallback( &sceneScript, "dblock_commit", &dblockScriptCallback );
+
         const char* sceneName = bxConfig::global_string( "scene" );
         bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( sceneName );
 
-        if ( scriptFile.ok() )
+        if( scriptFile.ok() )
         {
             bxScene::script_run( &sceneScript, scriptFile.txt );
         }
         scriptFile.release();
 
-        
-        bxPhx::collisionSpace_new();
-        __scene.character = bxGame::character_new();
-        bxGame::character_init( __scene.character, Matrix4( Matrix3::rotationZ( 0.5f ), Vector3( 0.f, 2.f, 0.f ) ) );
-        
-        __scene.dblock = bxDesignBlock_new();
-
-        __scene.dblock->create( "ground", 
-                                Matrix4::translation( Vector3(0.f, -2.f, 0.f ) ),
-                                bxDesignBlock::Shape( 100.f, 0.1f, 100.f ) 
-                                );
-
-        __scene.dblock->create( "sphere",
-                                Matrix4::translation( Vector3( 0.f, -1.5f, 0.f ) ),
-                                bxDesignBlock::Shape( 1.f ),
-                                "red" );
-
-        //bxPhx_HShape hplane = bxPhx::shape_createPlane( bxPhx::__cspace, makePlane( Vector3::yAxis(), Vector3( 0.f, -2.f, 0.f ) ) );
-        //bxPhx_HShape hbox0 = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -2.0f, 0.f ), Quat::identity(), Vector3( 100.0f, 0.1f, 100.f ) );
-        //bxPhx_HShape hbox1 = bxPhx::shape_createBox( bxPhx::__cspace, Vector3( 0.5f, -1.5f, 0.f ), Quat::identity(), Vector3( 1.0f ) );
-        //bxGdiRenderSource* boxRsource = bxGfx::globalResources()->mesh.box;
-        //bxGdiShaderFx_Instance* redFxI = bxGfx::globalResources()->fx.materialRed;
-        //bxGdiShaderFx_Instance* greenFxI = bxGfx::globalResources()->fx.materialGreen;
-        //{
-        //    bxGfx_HMesh hmesh = bxGfx::mesh_create();
-        //    bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffer_create( 1 );
-        //    bxGfx::mesh_setStreams( hmesh, _engine.gdiDevice, boxRsource );
-        //    bxGfx::mesh_setShader( hmesh, _engine.gdiDevice, _engine.resourceManager, greenFxI );
-        //    bxGfx_HMeshInstance hmeshi = bxGfx::world_meshAdd( __scene.gfxWorld, hmesh, hibuff );
-
-        //    bxDesignBlock::Handle h = __scene.dblock->create( "ground" );
-        //    __scene.dblock->assignMesh( h, hmeshi );
-        //    __scene.dblock->assignCollisionShape( h, hbox0 );
-        //}
-        //{
-        //    bxGfx_HMesh hmesh = bxGfx::mesh_create();
-        //    bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffer_create( 1 );
-        //    bxGfx::mesh_setStreams( hmesh, _engine.gdiDevice, boxRsource );
-        //    bxGfx::mesh_setShader( hmesh, _engine.gdiDevice, _engine.resourceManager, redFxI );
-        //    bxGfx_HMeshInstance hmeshi = bxGfx::world_meshAdd( __scene.gfxWorld, hmesh, hibuff );
-
-        //    bxDesignBlock::Handle h = __scene.dblock->create( "box0" );
-        //    __scene.dblock->assignMesh( h, hmeshi );
-        //    __scene.dblock->assignCollisionShape( h, hbox0 );
-        //}
-
-
-        __scene.flock = bxGame::flock_new();
-
-        bxGame::flock_init( __scene.flock, 128, Vector3( 0.f ), 5.f );
-        bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager, __scene.gfxWorld );
         return true;
     }
     virtual void shutdown()
     {
-        bxGame::flock_delete( &__scene.flock );
-        __scene.dblock->cleanUp();
-        __scene.dblock->manageResources( _engine.gdiDevice, _engine.resourceManager, bxPhx::__cspace, __scene.gfxWorld );
+        bxDemoScene_shutdown( &__scene, &_engine );
 
-        bxDesignBlock_delete( &__scene.dblock );
-        //bxPhx::shape_release( bxPhx::__cspace, &__scene.collisionBox );
-        //bxPhx::shape_release( bxPhx::__cspace, &__scene.collisionPlane );
-        bxGame::character_delete( &__scene.character );
-        bxPhx::collisionSpace_delete( &bxPhx::__cspace );
-                
-        bxGfx::world_release( &__scene.gfxWorld );
-
-        bxGfx::cameraManager_delete( &__scene._cameraManager );
         for ( int ifb = 0; ifb < bxDemoFramebuffer::eCOUNT; ++ifb )
         {
             _engine.gdiDevice->releaseTexture( &__framebuffer.textures[ifb] );
@@ -172,7 +109,7 @@ public:
         }
 
         bxGfx::frameBegin( _engine.gdiDevice, _engine.resourceManager );
-        __scene.dblock->manageResources( _engine.gdiDevice, _engine.resourceManager, bxPhx::__cspace, __scene.gfxWorld );
+        __scene.dblock->manageResources( _engine.gdiDevice, _engine.resourceManager, __scene.collisionSpace, __scene.gfxWorld );
         bxGfxGUI::newFrame( (float)deltaTimeS );
 
         {
@@ -195,9 +132,9 @@ public:
 
         const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
         {
-            __scene.dblock->tick( bxPhx::__cspace, __scene.gfxWorld );
+            __scene.dblock->tick( __scene.collisionSpace, __scene.gfxWorld );
             bxGame::flock_tick( __scene.flock, deltaTime );
-            bxGame::character_tick( __scene.character, currentCamera, win->input, deltaTime * 2.f );
+            bxGame::character_tick( __scene.character, __scene.collisionSpace, currentCamera, win->input, deltaTime * 2.f );
             bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime, bxGfx::cameraUtil_anyMovement( cameraInputCtx ) );
         }
         
