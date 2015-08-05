@@ -44,3 +44,20 @@ void context_deinit( bxAnim_Context** ctx )
 }
 
 }///
+
+
+namespace bxAnimExt
+{
+    
+
+    bxAnim_Skel* loadSkelFromFile( bxResourceManager* resourceManager, const char* relativePath )
+    {
+
+    }
+
+    bxAnim_Clip* loadAnimFromFile( bxResourceManager* resourceManager, const char* relativePath )
+    {
+
+    }
+
+}///

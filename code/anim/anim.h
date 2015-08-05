@@ -20,4 +20,10 @@ void evaluate( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frame_inte
 void localJointsToWorldMatrices4x4( Matrix4* out_matrices, const bxAnim_Joint* in_joints, const unsigned short* parent_indices, unsigned count, const bxAnim_Joint& root_joint );
 void localJointsToWorldJoints( bxAnim_Joint* out_joints, const bxAnim_Joint* in_joints, const unsigned short* parent_indices, unsigned count, const bxAnim_Joint& root_joint );
 
-}//
+}///
+
+namespace bxAnimExt
+{
+    bxAnim_Skel* loadSkelFromFile( bxResourceManager* resourceManager, const char* relativePath );
+    bxAnim_Clip* loadAnimFromFile( bxResourceManager* resourceManager, const char* relativePath );
+}///
