@@ -45,19 +45,73 @@ void context_deinit( bxAnim_Context** ctx )
 
 }///
 
-
+#include <resource_manager/resource_manager.h>
 namespace bxAnimExt
 {
-    
+    static uptr _LoadResource( bxResourceManager* resourceManager, const char* relativePath )
+    {
+        bxResourceID resourceId = bxResourceManager::createResourceID( relativePath );
+        uptr resourceData = resourceManager->lookup( resourceId );
+        if ( resourceData )
+        {
+            resourceManager->referenceAdd( resourceId );
+        }
+        else
+        {
+            bxFS::File file = resourceManager->readFileSync( relativePath );
+            if ( file.ok() )
+            {
+                resourceData = uptr( file.bin );
+                resourceManager->insert( resourceId, resourceData );
+            }
+        }
+        return resourceData;
+    }
+    static void _UnloadResource( bxResourceManager* resourceManager, uptr resourceData )
+    {
+        bxResourceID resourceId = resourceManager->find( resourceData );
+        if ( !resourceId )
+        {
+            bxLogError( "resource not found!" );
+            return;
+        }
+
+        int refLeft = resourceManager->referenceRemove( resourceId );
+        if ( refLeft == 0 )
+        {
+            void* ptr = (void*)resourceData;
+            BX_FREE( bxDefaultAllocator(), ptr );
+        }
+    }
 
     bxAnim_Skel* loadSkelFromFile( bxResourceManager* resourceManager, const char* relativePath )
     {
-
+        uptr resourceData = _LoadResource( resourceManager, relativePath );
+        return (bxAnim_Skel*)resourceData;
     }
 
     bxAnim_Clip* loadAnimFromFile( bxResourceManager* resourceManager, const char* relativePath )
     {
+        uptr resourceData = _LoadResource( resourceManager, relativePath );
+        return (bxAnim_Clip*)resourceData;
+    }
 
+    void unloadSkelFromFile( bxResourceManager* resourceManager, bxAnim_Skel** skel )
+    {
+        if ( !skel[0] )
+            return;
+
+        _UnloadResource( resourceManager, uptr( skel[0] ) );
+        skel[0] = 0;
+    }
+
+    void unloadAnimFromFile( bxResourceManager* resourceManager, bxAnim_Clip** clip )
+    {
+        if( !clip[0] )
+            return;
+    
+        _UnloadResource( resourceManager, uptr( clip[0] ) );
+        clip[0] = 0;
     }
 
 }///

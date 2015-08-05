@@ -22,8 +22,12 @@ void localJointsToWorldJoints( bxAnim_Joint* out_joints, const bxAnim_Joint* in_
 
 }///
 
+class bxResourceManager;
 namespace bxAnimExt
 {
     bxAnim_Skel* loadSkelFromFile( bxResourceManager* resourceManager, const char* relativePath );
     bxAnim_Clip* loadAnimFromFile( bxResourceManager* resourceManager, const char* relativePath );
+
+    void unloadSkelFromFile( bxResourceManager* resourceManager, bxAnim_Skel** skel );
+    void unloadAnimFromFile( bxResourceManager* resourceManager, bxAnim_Clip** clip );
 }///

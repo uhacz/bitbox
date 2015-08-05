@@ -78,7 +78,15 @@ namespace bxGame
         *cp = newCP;
     }
 
-
+    struct CharacterAnimation
+    {
+        bxAnim_Skel* skel;
+        bxAnim_Clip* clip;
+    };
+    void _CharacterAnimation_load( bxResourceManager* resourceManager )
+    {
+        
+    }
 
     struct CharacterCenterOfMass
     {
