@@ -14,9 +14,9 @@ namespace animTool
 
 	struct Skeleton
 	{
-		std::vector<u16> parent_indices;
-		std::vector<Joint> base_pose;
-		std::vector<u32> joint_name_hashes;
+		std::vector<u16> parentIndices;
+		std::vector<Joint> basePose;
+		std::vector<u32> jointNames;
 	};
 
 	struct AnimKeyframe
@@ -37,21 +37,21 @@ namespace animTool
 
 	struct Animation
 	{
-		float start_time;
-		float end_time;
-		float sample_frequency;
-		u32 num_frames;
+		float startTime;
+		float endTime;
+		float sampleFrequency;
+		u32 numFrames;
 
 		std::vector< JointAnimation > joints;
 	};
 
-	u32 generate_skeleton_tag();
-	u32 generate_animation_tag();
+	u32 skelTag();
+	u32 animTag();
 
-	bool export_skeleton( const i8* out_filename, const Skeleton& in_skeleton );
-	bool export_animation( const i8* out_filename, const Animation& in_animation, const Skeleton& in_skeleton );
+	bool exportSkeleton( const char* out_filename, const Skeleton& in_skeleton );
+    bool exportAnimation( const char* out_filename, const Animation& in_animation, const Skeleton& in_skeleton );
 
-    bool export_skeleton( const i8* out_filename, const i8* in_filename );
-    bool export_animation( const i8* out_filename, const i8* in_filename );
+    bool exportSkeleton( const char* out_filename, const char* in_filename );
+    bool exportAnimation( const char* out_filename, const char* in_filename );
 
 }//
