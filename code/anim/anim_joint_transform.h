@@ -8,6 +8,12 @@ struct BIT_ALIGNMENT_16 bxAnim_Joint
 	Quat rotation;
 	Vector3 position;
 	Vector3 scale;
+
+    static bxAnim_Joint identity()
+    {
+        bxAnim_Joint joint = { Quat::identity(), Vector3( 0.f ), Vector3( 1.f ) };
+        return joint;
+    }
 };
 
 inline Matrix4 toMatrix4( const bxAnim_Joint& j )

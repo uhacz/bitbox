@@ -98,6 +98,9 @@
     <ClCompile Include="tree.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\anim\anim.vcxproj">
+      <Project>{5a1545e2-b111-442d-880c-8c86869270b4}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\engine\engine.vcxproj">
       <Project>{b8c282a6-c75b-40d0-a85d-461b0893e8a7}</Project>
     </ProjectReference>

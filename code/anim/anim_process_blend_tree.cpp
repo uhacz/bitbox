@@ -83,7 +83,7 @@ static void traverseBlendTree( bxAnim_Cmd* cmdArray, u8* cmdArraySize, u16 curre
 
 namespace bxAnim{
 
-void blendTree_process( bxAnim_Context* ctx, const u16 root_index , const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton )
+void processBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton )
 {
 	const u16 is_root_branch = root_index & bxAnim::eBLEND_TREE_BRANCH;
     const u16 is_root_leaf = root_index & bxAnim::eBLEND_TREE_LEAF;
@@ -112,7 +112,7 @@ void blendTree_process( bxAnim_Context* ctx, const u16 root_index , const bxAnim
 	ctx->cmdArraySize = cmd_array_size;
 }
 
-void commandList_process( bxAnim_Context* ctx, const bxAnim_Cmd* cmdList,  const bxAnim_BlendBranch* blendBranches, unsigned int numBranches, const bxAnim_BlendLeaf* blendLeaves, unsigned int numLeaves, const bxAnim_Skel* skeleton )
+void processCommandList( bxAnim_Context* ctx, const bxAnim_Cmd* cmdList,  const bxAnim_BlendBranch* blendBranches, unsigned int numBranches, const bxAnim_BlendLeaf* blendLeaves, unsigned int numLeaves, const bxAnim_Skel* skeleton )
 {
 	u8 counter = 0;
 

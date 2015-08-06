@@ -7,11 +7,11 @@
 namespace bxAnim
 {
 
-bxAnim_Context* context_init( const bxAnim_Skel& skel );
-void context_deinit( bxAnim_Context** ctx );
+bxAnim_Context* contextInit( const bxAnim_Skel& skel );
+void contextDeinit( bxAnim_Context** ctx );
 
-void blendTree_process( bxAnim_Context* ctx, const u16 root_index , const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton );
-void commandList_process( bxAnim_Context* ctx, const bxAnim_Cmd* command_list,  const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton );
+void processBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton );
+void processCommandList( bxAnim_Context* ctx, const bxAnim_Cmd* command_list,  const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton );
 void blendJointsLinear( bxAnim_Joint* out_joints, const bxAnim_Joint* left_joints, const bxAnim_Joint* right_joints, float blend_factor, unsigned short num_joints);
 
 void evaluate( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 eval_time );
@@ -30,4 +30,6 @@ namespace bxAnimExt
 
     void unloadSkelFromFile( bxResourceManager* resourceManager, bxAnim_Skel** skel );
     void unloadAnimFromFile( bxResourceManager* resourceManager, bxAnim_Clip** clip );
+
+    void localJointsToWorldJoints( bxAnim_Joint* outJoints, const bxAnim_Joint* inJoints, const bxAnim_Skel* skel, const bxAnim_Joint& rootJoint );
 }///

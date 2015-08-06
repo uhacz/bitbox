@@ -11,11 +11,12 @@
 #include <util/common.h>
 #include <util/poly/poly_shape.h>
 #include <util/signal_filter.h>
+#include <util/random.h>
 
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_camera.h>
 #include <gfx/gfx_gui.h>
-#include "util/random.h"
+#include <anim/anim.h>
 
 namespace bxGame
 {
@@ -82,10 +83,24 @@ namespace bxGame
     {
         bxAnim_Skel* skel;
         bxAnim_Clip* clip;
+        bxAnim_Context* ctx;
     };
-    void _CharacterAnimation_load( bxResourceManager* resourceManager )
+    void _CharacterAnimation_load( CharacterAnimation* ca, bxResourceManager* resourceManager )
     {
-        
+        ca->skel = bxAnimExt::loadSkelFromFile( resourceManager, "anim/human.skel" );
+        ca->clip = bxAnimExt::loadAnimFromFile( resourceManager, "anim/walk.anim" );
+
+        if( ca->skel )
+        {
+            ca->ctx = bxAnim::contextInit( *ca->skel );
+        }
+
+    }
+    void _CharacterAnimation_unload( CharacterAnimation* ca, bxResourceManager* resourceManager )
+    {
+        bxAnim::contextDeinit( &ca->ctx );
+        bxAnimExt::unloadAnimFromFile( resourceManager, &ca->clip );
+        bxAnimExt::unloadSkelFromFile( resourceManager, &ca->skel );
     }
 
     struct CharacterCenterOfMass
@@ -176,6 +191,7 @@ namespace bxGame
 
     struct Character
     {
+        CharacterAnimation anim;
         CharacterParticles particles;
         CharacterCenterOfMass centerOfMass;
         Vector3 upVector;
@@ -185,12 +201,14 @@ namespace bxGame
 
         f32 _dtAcc;
         f32 _jumpAcc;
+        u64 _timeMS;
 
         Character()
             : upVector( Vector3::yAxis() )
+            , contacts( 0 )
             , _dtAcc( 0.f )
             , _jumpAcc( 0.f )
-            , contacts( 0 )
+            , _timeMS(0)
         {}
     };
 
@@ -203,6 +221,7 @@ namespace bxGame
         Character* character = BX_NEW( bxDefaultAllocator(), Character );
         memset( &character->particles, 0x00, sizeof( CharacterParticles ) );
         memset( &character->input, 0x00, sizeof( CharacterInput ) );
+        memset( &character->anim, 0x00, sizeof( CharacterAnimation ) );
         return character;
     }
     void character_delete( Character** c )
@@ -215,7 +234,7 @@ namespace bxGame
         BX_DELETE0( bxDefaultAllocator(), c[0] );
     }
 
-    void character_init( Character* character, const Matrix4& worldPose )
+    void character_init( Character* character, bxResourceManager* resourceManager, const Matrix4& worldPose )
     {
         const float a = 0.5f;
 
@@ -260,8 +279,14 @@ namespace bxGame
         character->contacts = bxPhx::contacts_new( NUM_POINTS );
 
         bxPolyShape_deallocateShape( &shape );
+
+        _CharacterAnimation_load( &character->anim, resourceManager );
     }
 
+    void character_deinit( Character* character, bxResourceManager* resourceManager )
+    {
+        _CharacterAnimation_unload( &character->anim, resourceManager );
+    }
 
 
     namespace
@@ -367,6 +392,25 @@ namespace bxGame
             character->_jumpAcc = 0.f;
         }
 
+        {
+            CharacterAnimation& anim = character->anim;
+
+            const float time = (float)( (double)character->_timeMS * 0.001 );
+            bxAnim_Joint* localJoints = bxAnim::poseFromStack( anim.ctx, 0 );
+            bxAnim_Joint* worldJoints = bxAnim::poseFromStack( anim.ctx, 1 );
+            bxAnim::evaluate( localJoints, anim.clip, time );
+
+            bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, anim.skel, bxAnim_Joint::identity() );
+
+            for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
+            {
+                const bxAnim_Joint& joint = worldJoints[ijoint];
+                bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.1f ), 0xFF00FF00, true );
+            }
+        }
+
+        character->_timeMS += (u64)( (double)deltaTime * 1000.0 );
+
         CharacterParticles& cp = character->particles;
         for ( int i = 0; i < cp.size; ++i )
         {
@@ -379,6 +423,9 @@ namespace bxGame
         bxGfxDebugDraw::addLine( com, com + R[2], 0x000099FF, true );
 
         _CharacterParams_show( &character->params );
+
+
+
     }
 
     Matrix4 character_pose( const Character* character )

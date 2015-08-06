@@ -3,7 +3,7 @@
 
 namespace bxAnim
 {
-bxAnim_Context* context_init( const bxAnim_Skel& skel )
+bxAnim_Context* contextInit( const bxAnim_Skel& skel )
 {
 	const u32 poseMemorySize = skel.numJoints * sizeof( bxAnim_Joint );
 	
@@ -38,7 +38,7 @@ bxAnim_Context* context_init( const bxAnim_Skel& skel )
 	return ctx;
 }
 
-void context_deinit( bxAnim_Context** ctx )
+void contextDeinit( bxAnim_Context** ctx )
 {
 	BX_FREE0( bxDefaultAllocator(), ctx[0] );
 }
@@ -112,6 +112,12 @@ namespace bxAnimExt
     
         _UnloadResource( resourceManager, uptr( clip[0] ) );
         clip[0] = 0;
+    }
+
+    void localJointsToWorldJoints( bxAnim_Joint* outJoints, const bxAnim_Joint* inJoints, const bxAnim_Skel* skel, const bxAnim_Joint& rootJoint )
+    {
+        const u16* parentIndices = TYPE_OFFSET_GET_POINTER( const u16, skel->offsetParentIndices );
+        bxAnim::localJointsToWorldJoints( outJoints, inJoints, parentIndices, skel->numJoints, rootJoint );
     }
 
 }///
