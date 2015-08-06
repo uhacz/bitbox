@@ -73,7 +73,7 @@ namespace animTool
 
         return UINT32_MAX;
     }
-    static void _ExtractAnimation( Animation* anim, const Skeleton& skel, const aiScene* scene )
+    static void _ExtractAnimation( Animation* anim, const Skeleton& skel, const aiScene* scene, unsigned flags )
     {
         aiAnimation* animation = scene->mAnimations[0];
 
@@ -356,7 +356,7 @@ bool exportSkeleton( const char* out_filename, const char* in_filename )
     return bres;
 }
 
-bool exportAnimation( const char* out_filename, const char* in_filename )
+bool exportAnimation( const char* out_filename, const char* in_filename, unsigned flags )
 {
     const unsigned import_flags = 0;
     initAssImp();
@@ -376,7 +376,7 @@ bool exportAnimation( const char* out_filename, const char* in_filename )
     Animation anim;
 
     _ExtractSkeleton( &skel, aiscene );
-    _ExtractAnimation( &anim, skel, aiscene );
+    _ExtractAnimation( &anim, skel, aiscene, flags );
 
     const bool bres = exportAnimation( out_filename, anim, skel );
     deinitAssImp( aiscene );
