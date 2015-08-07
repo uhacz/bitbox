@@ -405,7 +405,7 @@ namespace bxGame
             for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
             {
                 const bxAnim_Joint& joint = worldJoints[ijoint];
-                bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.1f ), 0xFF00FF00, true );
+                bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.05f ), 0xFF00FF00, true );
             }
         }
 
