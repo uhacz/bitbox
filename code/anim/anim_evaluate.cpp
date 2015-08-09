@@ -1,6 +1,6 @@
 #include "anim.h"
 
-void bxAnim::evaluate( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 evalTime )
+void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 evalTime )
 {
 	f32 frame = evalTime * anim->sampleFrequency;
 	if( frame < 0.f )
@@ -9,10 +9,10 @@ void bxAnim::evaluate( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 ev
 	u32 frameInteger = (u32)frame;
 	f32 frameFraction = frame - (f32)frameInteger;
 
-	evaluate( out_joints, anim, frameInteger, frameFraction );
+	evaluateClip( out_joints, anim, frameInteger, frameFraction );
 }
 
-void bxAnim::evaluate( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frameInteger, f32 frameFraction )
+void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frameInteger, f32 frameFraction )
 {
 	const u16 numJoints    = anim->numJoints;
 	const u32 currentFrame = ( frameInteger ) % anim->numFrames;

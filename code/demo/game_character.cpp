@@ -79,11 +79,23 @@ namespace bxGame
         *cp = newCP;
     }
 
+
+    enum ECharacterAnimation_Pose
+    {
+        eANIM_POSE_WALK0,
+        eANIM_POSE_WALK1,
+
+        eANIM_POSE_COUNT,
+    };
     struct CharacterAnimation
     {
         bxAnim_Skel* skel;
         bxAnim_Clip* clip;
         bxAnim_Context* ctx;
+
+        void* poseMemoryHandle_;
+        bxAnim_Joint* pose[eANIM_POSE_COUNT];
+
     };
     void _CharacterAnimation_load( CharacterAnimation* ca, bxResourceManager* resourceManager )
     {
@@ -95,9 +107,32 @@ namespace bxGame
             ca->ctx = bxAnim::contextInit( *ca->skel );
         }
 
+        {
+            const int numJoints = ca->skel->numJoints;
+
+            int memSize = eANIM_POSE_COUNT * sizeof( bxAnim_Joint ) * numJoints;
+            void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 16 );
+            memset( mem, 0x00, memSize );
+
+            bxBufferChunker chunker( mem, memSize );
+            for( int ipose = 0; ipose < eANIM_POSE_COUNT; ++ipose )
+            {
+                ca->pose[ipose] = chunker.add< bxAnim_Joint >( numJoints );
+            }
+            chunker.check();
+
+            bxAnim::evaluateClip( ca->pose[eANIM_POSE_WALK0], ca->clip, 1, 0 );
+            bxAnim::evaluateClip( ca->pose[eANIM_POSE_WALK1], ca->clip, 17, 0 );
+
+        }
+
+
     }
     void _CharacterAnimation_unload( CharacterAnimation* ca, bxResourceManager* resourceManager )
     {
+        BX_FREE0( bxDefaultAllocator(), ca->poseMemoryHandle_ );
+        memset( ca->pose, 0x00, sizeof( ca->pose ) );
+
         bxAnim::contextDeinit( &ca->ctx );
         bxAnimExt::unloadAnimFromFile( resourceManager, &ca->clip );
         bxAnimExt::unloadSkelFromFile( resourceManager, &ca->skel );
@@ -398,14 +433,26 @@ namespace bxGame
             const float time = (float)( (double)character->_timeMS * 0.001 );
             bxAnim_Joint* localJoints = bxAnim::poseFromStack( anim.ctx, 0 );
             bxAnim_Joint* worldJoints = bxAnim::poseFromStack( anim.ctx, 1 );
-            bxAnim::evaluate( localJoints, anim.clip, time );
+            bxAnim::evaluateClip( localJoints, anim.clip, time * 0.5f );
+
+
+            //float blendFactor = ( ::sin( time ) * 0.5f ) + 0.5f;
+            //bxAnim_Joint* leftJoints = anim.pose[eANIM_POSE_WALK0];
+            //bxAnim_Joint* rightJoints = anim.pose[eANIM_POSE_WALK1];
+            //bxAnim::blendJointsLinear( localJoints, leftJoints, rightJoints, blendFactor, anim.skel->numJoints );
 
             bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, anim.skel, bxAnim_Joint::identity() );
 
+            const i16* parentIndices = TYPE_OFFSET_GET_POINTER( const i16, anim.skel->offsetParentIndices );
             for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
             {
                 const bxAnim_Joint& joint = worldJoints[ijoint];
                 bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.05f ), 0xFF00FF00, true );
+                if( parentIndices[ijoint] != -1 )
+                {
+                    const bxAnim_Joint& parentJoint = worldJoints[parentIndices[ijoint]];
+                    bxGfxDebugDraw::addLine( joint.position, parentJoint.position, 0xFF00FF00, true );
+                }
             }
         }
 
