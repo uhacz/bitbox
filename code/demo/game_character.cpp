@@ -151,6 +151,7 @@ namespace bxGame
             , prevRot( Quat::identity() )
             , pos( 0.f )
             , rot( Quat::identity() )
+        {}
     };
 
     struct CharacterInput
@@ -447,26 +448,26 @@ namespace bxGame
 
         while ( character->_dtAcc >= fixedDt )
         {
+            character->centerOfMass.prevPos = character->centerOfMass.pos;
+            character->centerOfMass.prevRot = character->centerOfMass.rot;
+
             externalForces += character->upVector * character->_jumpAcc;
 
             character_simulate( character, cspace, externalForces, fixedDt );
             character->_dtAcc -= fixedDt;
 
             character->_jumpAcc = 0.f;
-            
-            {
-                CharacterCenterOfMass& com = character->centerOfMass;
-                const Vector3 velocity = ( com.pos - com.prevPos ) * fixedFreq;
-                const Vector3 spin = angularVelocityFromOrientations( com.prevRot, com.rot, fixedFreq );
-
-
-
-
-            }
-            
-            character->centerOfMass.prevPos = character->centerOfMass.pos;
-            character->centerOfMass.prevRot = character->centerOfMass.rot;
         }
+
+        {
+            CharacterCenterOfMass& com = character->centerOfMass;
+            const Vector3 velocity = ( com.pos - com.prevPos ) * fixedFreq;
+            const Vector3 spin = angularVelocityFromOrientations( com.prevRot, com.rot, fixedFreq );
+
+            bxGfxDebugDraw::addLine( com.pos, com.pos + velocity, 0xFF0000FF, true );
+            bxGfxDebugDraw::addLine( com.pos, com.pos + spin, 0x0000FFFF, true );
+        }
+
 
         {
             CharacterAnimation& anim = character->anim;
