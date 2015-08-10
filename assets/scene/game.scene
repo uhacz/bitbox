@@ -5,7 +5,7 @@ $zFar 1000.0
 
 @dblock ground
 $pos 0.0 -2.0 0.0
-$shape 100.0 0.1 100.0
+$shape 100.0 0.5 100.0
 $material "green"
 :dblock_commit
 

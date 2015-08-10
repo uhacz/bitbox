@@ -83,7 +83,7 @@ static void traverseBlendTree( bxAnim_Cmd* cmdArray, u8* cmdArraySize, u16 curre
 
 namespace bxAnim{
 
-void processBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton )
+void evaluateBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton )
 {
 	const u16 is_root_branch = root_index & bxAnim::eBLEND_TREE_BRANCH;
     const u16 is_root_leaf = root_index & bxAnim::eBLEND_TREE_LEAF;
@@ -112,7 +112,7 @@ void processBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim_
 	ctx->cmdArraySize = cmd_array_size;
 }
 
-void processCommandList( bxAnim_Context* ctx, const bxAnim_Cmd* cmdList,  const bxAnim_BlendBranch* blendBranches, unsigned int numBranches, const bxAnim_BlendLeaf* blendLeaves, unsigned int numLeaves, const bxAnim_Skel* skeleton )
+void evaluateCommandList( bxAnim_Context* ctx, const bxAnim_Cmd* cmdList,  const bxAnim_BlendBranch* blendBranches, unsigned int numBranches, const bxAnim_BlendLeaf* blendLeaves, unsigned int numLeaves, const bxAnim_Skel* skeleton )
 {
 	u8 counter = 0;
 
@@ -128,7 +128,7 @@ void processCommandList( bxAnim_Context* ctx, const bxAnim_Cmd* cmdList,  const 
 			{
 				bxAnim_Joint* joints = allocateTmpPose( ctx );
                 bxAnim_Clip* clip = (bxAnim_Clip*)cmdList->leaf->anim;
-				evaluate( joints, clip, cmdList->leaf->evalTime );
+				evaluateClip( joints, clip, cmdList->leaf->evalTime );
 				break;
 			}
         case bxAnim::eCMD_OP_PUSH_AND_EVAL:
@@ -136,7 +136,7 @@ void processCommandList( bxAnim_Context* ctx, const bxAnim_Cmd* cmdList,  const 
 				poseStackPush( ctx );
 				bxAnim_Joint* joints = poseFromStack( ctx, 0 );
                 bxAnim_Clip* clip = (bxAnim_Clip*)cmdList->leaf->anim;
-				evaluate( joints, clip, cmdList->leaf->evalTime );
+				evaluateClip( joints, clip, cmdList->leaf->evalTime );
 				break;
 			}
         case bxAnim::eCMD_OP_BLEND_STACK:
