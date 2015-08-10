@@ -105,8 +105,17 @@ namespace bxGame
 
     struct CharacterCenterOfMass
     {
+        Vector3 prevPos;
+        Quat prevRot;
+        
         Vector3 pos;
         Quat rot;
+
+        CharacterCenterOfMass()
+            : prevPos( 0.f )
+            , prevRot( Quat::identity() )
+            , pos( 0.f )
+            , rot( Quat::identity() )
     };
 
     struct CharacterInput
@@ -194,7 +203,10 @@ namespace bxGame
         CharacterAnimation anim;
         CharacterParticles particles;
         CharacterCenterOfMass centerOfMass;
+        
         Vector3 upVector;
+        Vector3 dirVector;
+
         CharacterInput input;
         CharacterParams params;
         bxPhx_Contacts* contacts;
@@ -205,6 +217,7 @@ namespace bxGame
 
         Character()
             : upVector( Vector3::yAxis() )
+            , dirVector( Vector3::zAxis() )
             , contacts( 0 )
             , _dtAcc( 0.f )
             , _jumpAcc( 0.f )
@@ -276,6 +289,9 @@ namespace bxGame
 
         character->centerOfMass.pos = worldPose.getTranslation();
         character->centerOfMass.rot = Quat( worldPose.getUpper3x3() );
+        character->centerOfMass.prevPos = character->centerOfMass.pos;
+        character->centerOfMass.prevRot = character->centerOfMass.rot;
+        
         character->contacts = bxPhx::contacts_new( NUM_POINTS );
 
         bxPolyShape_deallocateShape( &shape );
@@ -361,7 +377,17 @@ namespace bxGame
                 cp.pos0[ipoint] = cp.pos1[ipoint];
             }
         }
+    
+        inline Vector3 angularVelocityFromOrientations( const Quat& q0, const Quat& q1, float deltaTimeInv )
+        {
+            const Quat diffQ = q1 - q0;
+            //Quat W( -diffQ.getXYZ(), diffQ.getW() );
+            const Quat velQ = ( ( diffQ * 2.f ) * deltaTimeInv ) * conj( q0 );
+            return velQ.getXYZ();
+        }
     }///
+
+
 
     void character_tick( Character* character, bxPhx_CollisionSpace* cspace, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
     {
@@ -379,7 +405,9 @@ namespace bxGame
             character->_jumpAcc += character->input.jump * params.jumpStrength;
         }
 
-        const float fixedDt = 1.f / 60.f;
+        const float fixedFreq = 60.f;
+        const float fixedDt = 1.f / fixedFreq;
+
         character->_dtAcc += deltaTime;
 
         while ( character->_dtAcc >= fixedDt )
@@ -390,6 +418,19 @@ namespace bxGame
             character->_dtAcc -= fixedDt;
 
             character->_jumpAcc = 0.f;
+            
+            {
+                CharacterCenterOfMass& com = character->centerOfMass;
+                const Vector3 velocity = ( com.pos - com.prevPos ) * fixedFreq;
+                const Vector3 spin = angularVelocityFromOrientations( com.prevRot, com.rot, fixedFreq );
+
+
+
+
+            }
+            
+            character->centerOfMass.prevPos = character->centerOfMass.pos;
+            character->centerOfMass.prevRot = character->centerOfMass.rot;
         }
 
         {
