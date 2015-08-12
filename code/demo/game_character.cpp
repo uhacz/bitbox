@@ -84,6 +84,7 @@ namespace bxGame
     {
         eANIM_POSE_WALK0,
         eANIM_POSE_WALK1,
+        eANIM_POSE_WALK2,
 
         eANIM_POSE_COUNT,
     };
@@ -121,8 +122,9 @@ namespace bxGame
             }
             chunker.check();
 
-            bxAnim::evaluateClip( ca->pose[eANIM_POSE_WALK0], ca->clip, 1, 0 );
-            bxAnim::evaluateClip( ca->pose[eANIM_POSE_WALK1], ca->clip, 17, 0 );
+            bxAnim::evaluateClip( ca->pose[eANIM_POSE_WALK0], ca->clip, 26, 0 );
+            bxAnim::evaluateClip( ca->pose[eANIM_POSE_WALK1], ca->clip, 30, 0 );
+            bxAnim::evaluateClip( ca->pose[eANIM_POSE_WALK2], ca->clip, 47, 0 );
 
         }
 
@@ -207,12 +209,12 @@ namespace bxGame
         f32 gravity;
 
         CharacterParams()
-            : maxInputForce( 0.15f )
+            : maxInputForce( 1.15f )
             , jumpStrength( 15.f )
-            , staticFriction( 0.2f )
-            , dynamicFriction( 0.8f )
+            , staticFriction( 0.1f )
+            , dynamicFriction( 0.1f )
             , velocityDamping( 0.7f )
-            , shapeStiffness( 0.1f )
+            , shapeStiffness( 0.05f )
             , shapeScale( 1.f )
             , gravity( 9.1f )
         {}
@@ -240,6 +242,7 @@ namespace bxGame
         CharacterParticles particles;
         CharacterCenterOfMass centerOfMass;
         
+        Vector3 footPos;
         Vector3 upVector;
         Vector3 dirVector;
 
@@ -252,7 +255,8 @@ namespace bxGame
         u64 _timeMS;
 
         Character()
-            : upVector( Vector3::yAxis() )
+            : footPos( 0.f )
+            , upVector( Vector3::yAxis() )
             , dirVector( Vector3::zAxis() )
             , contacts( 0 )
             , _dtAcc( 0.f )
@@ -285,12 +289,35 @@ namespace bxGame
 
     void character_init( Character* character, bxResourceManager* resourceManager, const Matrix4& worldPose )
     {
-        const float a = 0.5f;
+        const float a = 0.125f;
+        const float b = 0.5f;
+        const float c = 2.f;
+        const float ab = lerp( 0.25f, a, b );
+        const float zc = lerp( 0.25f, 0.f, c );
+        //bxPolyShape shape;
+        //bxPolyShape_createShpere( &shape, 2 );
 
-        bxPolyShape shape;
-        bxPolyShape_createShpere( &shape, 2 );
+        //const int NUM_POINTS = shape.num_vertices;
+        const int NUM_POINTS = 12;
 
-        const int NUM_POINTS = shape.num_vertices;
+        const Vector3 localPoints[NUM_POINTS] =
+        {
+            Vector3( -b, 0.f, b ),
+            Vector3(  b, 0.f, b ),
+            Vector3(  b, 0.f,-b ),
+            Vector3( -b, 0.f,-b ),
+
+            Vector3( -ab, zc,  ab ),
+            Vector3(  ab, zc,  ab ),
+            Vector3(  ab, zc, -ab ),
+            Vector3( -ab, zc, -ab ),
+
+            Vector3( -a, c, a ),
+            Vector3(  a, c, a ),
+            Vector3(  a, c,-a ),
+            Vector3( -a, c,-a ),
+        };
+
         CharacterParticles& cp = character->particles;
         _CharacterParticles_allocateData( &cp, NUM_POINTS );
 
@@ -299,26 +326,34 @@ namespace bxGame
         for ( int i = 0; i < NUM_POINTS; ++i )
         {
             //const Vector3 pos = mulAsVec4( worldPose, restPos[i] );
-            const Vector3 restPos( xyz_to_m128( shape.position( i ) ) );
-            const Vector3 pos = mulAsVec4( worldPose, restPos );
+            //const Vector3 restPos( xyz_to_m128( shape.position( i ) ) );
+            const Vector3 restPos = localPoints[i];
+            const Vector3 pos = restPos;
             cp.pos0[i] = pos;
             cp.pos1[i] = pos;
             cp.velocity[i] = Vector3( 0.f );
-            cp.mass[i] = 1.f; // bxRand::randomFloat( rnd, 1.f, 0.5f );
-            cp.massInv[i] = 1.f / cp.mass[i];
+            
+            float mass = maxOfPair( 0.5f, c - restPos.getY().getAsFloat() ); // +maxOfPair( 0.f, dot( Vector3::zAxis() - Vector3::yAxis(), restPos ).getAsFloat() ) * 7;
+            if ( i < 4 )
+                mass += 1.f;
+            cp.mass[i] = mass; // bxRand::randomFloat( rnd, 1.f, 0.5f );
+
+            cp.massInv[i] = 1.f / mass;
         }
 
         f32 massSum = 0.f;
         Vector3 com( 0.f );
         for ( int i = 0; i < NUM_POINTS; ++i )
         {
-            com += cp.pos0[i];
+            com += cp.pos0[i] * cp.mass[i];
             massSum += cp.mass[i];
         }
         com /= massSum;
         for ( int i = 0; i < NUM_POINTS; ++i )
         {
             cp.restPos[i] = cp.pos0[i] - com;
+            cp.pos0[i] = mulAsVec4( worldPose, cp.pos0[i] );
+            cp.pos1[i] = cp.pos0[i];
         }
 
         cp.size = NUM_POINTS;
@@ -330,7 +365,7 @@ namespace bxGame
         
         character->contacts = bxPhx::contacts_new( NUM_POINTS );
 
-        bxPolyShape_deallocateShape( &shape );
+        //bxPolyShape_deallocateShape( &shape );
 
         _CharacterAnimation_load( &character->anim, resourceManager );
     }
@@ -358,9 +393,12 @@ namespace bxGame
                 Vector3 pos = cp.pos0[ipoint];
                 Vector3 vel = cp.velocity[ipoint];
 
-                vel += (gravity)* dtv * floatInVec( cp.massInv[ipoint] );
+                vel += (gravity) * dtv;
                 vel *= dampingCoeff;
-                vel += externalForces;
+                if( ipoint < 4 )
+                {
+                    vel += externalForces * floatInVec( cp.massInv[ipoint] );
+                }
 
                 pos += vel * dtv;
 
@@ -459,13 +497,29 @@ namespace bxGame
             character->_jumpAcc = 0.f;
         }
 
+        Matrix3 rot;
         {
             CharacterCenterOfMass& com = character->centerOfMass;
             const Vector3 velocity = ( com.pos - com.prevPos ) * fixedFreq;
-            const Vector3 spin = angularVelocityFromOrientations( com.prevRot, com.rot, fixedFreq );
+            const Vector3 avelocity = angularVelocityFromOrientations( com.prevRot, com.rot, fixedFreq );
+            
+            float speed = length( velocity ).getAsFloat();
+            float spin = length( avelocity ).getAsFloat();
 
-            bxGfxDebugDraw::addLine( com.pos, com.pos + velocity, 0xFF0000FF, true );
-            bxGfxDebugDraw::addLine( com.pos, com.pos + spin, 0x0000FFFF, true );
+            Vector3 up = character->upVector;
+            Vector3 dir = character->dirVector;
+            if( speed > 0.1f )
+            {
+                dir = normalize( velocity );
+            }
+            
+            Vector3 side = normalize( cross( up, dir ) );
+
+            rot = Matrix3( side, up, dir );
+
+            //bxGfxDebugDraw::addLine( com.pos, com.pos + side, 0xFF0000FF, true );
+            //bxGfxDebugDraw::addLine( com.pos, com.pos + dir, 0x0000FFFF, true );
+            //bxGfxDebugDraw::addLine( com.pos, com.pos + up, 0x00FF00FF, true );
         }
 
 
@@ -477,25 +531,29 @@ namespace bxGame
             bxAnim_Joint* worldJoints = bxAnim::poseFromStack( anim.ctx, 1 );
             bxAnim::evaluateClip( localJoints, anim.clip, time * 0.5f );
 
-
-            //float blendFactor = ( ::sin( time ) * 0.5f ) + 0.5f;
+            //float blendFactor = (::sin( time ));// *0.5f ) + 0.5f;
             //bxAnim_Joint* leftJoints = anim.pose[eANIM_POSE_WALK0];
-            //bxAnim_Joint* rightJoints = anim.pose[eANIM_POSE_WALK1];
+            //bxAnim_Joint* rightJoints = (blendFactor > 0.f) ? anim.pose[eANIM_POSE_WALK1] : anim.pose[eANIM_POSE_WALK2];
+            //blendFactor = smoothstep( 0.f, 1.f, ::abs( blendFactor ) );
             //bxAnim::blendJointsLinear( localJoints, leftJoints, rightJoints, blendFactor, anim.skel->numJoints );
 
-            bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, anim.skel, bxAnim_Joint::identity() );
+            bxAnim_Joint rootJoint = bxAnim_Joint::identity();
+            rootJoint.position = character->centerOfMass.pos;
+            rootJoint.rotation = Quat( rot );
 
-            const i16* parentIndices = TYPE_OFFSET_GET_POINTER( const i16, anim.skel->offsetParentIndices );
-            for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
-            {
-                const bxAnim_Joint& joint = worldJoints[ijoint];
-                bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.05f ), 0xFF00FF00, true );
-                if( parentIndices[ijoint] != -1 )
-                {
-                    const bxAnim_Joint& parentJoint = worldJoints[parentIndices[ijoint]];
-                    bxGfxDebugDraw::addLine( joint.position, parentJoint.position, 0xFF00FF00, true );
-                }
-            }
+            bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, anim.skel, rootJoint );
+
+            //const i16* parentIndices = TYPE_OFFSET_GET_POINTER( const i16, anim.skel->offsetParentIndices );
+            //for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
+            //{
+            //    const bxAnim_Joint& joint = worldJoints[ijoint];
+            //    bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.05f ), 0xFF00FF00, true );
+            //    if( parentIndices[ijoint] != -1 )
+            //    {
+            //        const bxAnim_Joint& parentJoint = worldJoints[parentIndices[ijoint]];
+            //        bxGfxDebugDraw::addLine( joint.position, parentJoint.position, 0xFF00FF00, true );
+            //    }
+            //}
         }
 
         character->_timeMS += (u64)( (double)deltaTime * 1000.0 );
@@ -503,7 +561,7 @@ namespace bxGame
         CharacterParticles& cp = character->particles;
         for ( int i = 0; i < cp.size; ++i )
         {
-            bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.05f ), 0x00FF00FF, true );
+            bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.05f * cp.mass[i] ), 0x00FF00FF, true );
         }
         const Vector3& com = character->centerOfMass.pos;
         const Matrix3 R( character->centerOfMass.rot );

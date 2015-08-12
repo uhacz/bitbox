@@ -17,7 +17,7 @@ namespace bxPhx
     ////
     inline void pbd_solveShapeMatchingConstraint( Vector3* result, const Matrix3& R, const Vector3& com, const Vector3& restPos, const Vector3& pos, float shapeStiffness )
     {
-        const Vector3 goalPos = com + R * restPos;
+        const Vector3 goalPos = com + R * ( restPos );
         const Vector3 dpos = goalPos - pos;
         result[0] = dpos * shapeStiffness;
     }
