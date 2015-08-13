@@ -289,16 +289,16 @@ namespace bxGame
 
     void character_init( Character* character, bxResourceManager* resourceManager, const Matrix4& worldPose )
     {
-        const float a = 0.125f;
+        const float a = 0.25f;
         const float b = 0.5f;
-        const float c = 2.f;
+        const float c = 1.f;
         const float ab = lerp( 0.25f, a, b );
         const float zc = lerp( 0.25f, 0.f, c );
         //bxPolyShape shape;
         //bxPolyShape_createShpere( &shape, 2 );
 
         //const int NUM_POINTS = shape.num_vertices;
-        const int NUM_POINTS = 12;
+        const int NUM_POINTS = 8;
 
         const Vector3 localPoints[NUM_POINTS] =
         {
@@ -307,10 +307,10 @@ namespace bxGame
             Vector3(  b, 0.f,-b ),
             Vector3( -b, 0.f,-b ),
 
-            Vector3( -ab, zc,  ab ),
-            Vector3(  ab, zc,  ab ),
-            Vector3(  ab, zc, -ab ),
-            Vector3( -ab, zc, -ab ),
+            //Vector3( -ab, zc,  ab ),
+            //Vector3(  ab, zc,  ab ),
+            //Vector3(  ab, zc, -ab ),
+            //Vector3( -ab, zc, -ab ),
 
             Vector3( -a, c, a ),
             Vector3(  a, c, a ),
@@ -378,10 +378,17 @@ namespace bxGame
 
     namespace
     {
-        void character_simulate( Character* character, bxPhx_CollisionSpace* cspace, const Vector3& externalForces, float deltaTime )
+        void character_simulate( Character* character, bxPhx_CollisionSpace* cspace, const Vector3& steeringForce, float deltaTime )
         {
             CharacterParticles& cp = character->particles;
             const CharacterParams& params = character->params;
+
+            const Vector3& upVector = character->upVector;
+            const Vector3  dirVector = fastRotate( character->centerOfMass.rot, Vector3::zAxis() );
+
+            const Vector3 steeringForceXZ = projectVectorOnPlane( steeringForce, Vector4( upVector, 0.f ) );
+            const Vector3 steeringForceY = upVector * dot( upVector, steeringForce );
+            const Vector3 currentCom = character->centerOfMass.pos;
 
             const Vector3 gravity = -character->upVector * params.gravity;
             const floatInVec dtv( deltaTime );
@@ -394,12 +401,16 @@ namespace bxGame
                 Vector3 vel = cp.velocity[ipoint];
 
                 vel += (gravity) * dtv;
-                vel *= dampingCoeff;
                 if( ipoint < 4 )
                 {
-                    vel += externalForces * floatInVec( cp.massInv[ipoint] );
+                    
+                    Vector3 steering = cross( cross( dirVector, steeringForceXZ ), pos - currentCom );
+                    steering += steeringForceY;
+                    steering += steeringForceXZ;
+                    
+                    vel += steering * floatInVec( cp.massInv[ipoint] );
                 }
-
+                vel *= dampingCoeff;
                 pos += vel * dtv;
 
                 cp.pos1[ipoint] = pos;
@@ -476,7 +487,10 @@ namespace bxGame
             externalForces = projectVectorOnPlane( camera.matrix.world.getUpper3x3() * externalForces, Vector4( character->upVector, oneVec ) );
             externalForces = normalizeSafe( externalForces ) * externalForcesValue;
 
-            character->_jumpAcc += character->input.jump * params.jumpStrength;
+            if ( character->_jumpAcc < params.jumpStrength*2 )
+            {
+                character->_jumpAcc += character->input.jump * params.jumpStrength;
+            }
         }
 
         const float fixedFreq = 60.f;
