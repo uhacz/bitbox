@@ -34,6 +34,104 @@ namespace bxGame
         i32 size;
         i32 capacity;
     };
+
+    struct CharacterCenterOfMass
+    {
+        Vector3 pos;
+        Quat rot;
+
+        CharacterCenterOfMass()
+            : pos( 0.f )
+            , rot( Quat::identity() )
+        {}
+    };
+
+    struct CharacterBody
+    {
+        CharacterParticles* particles;
+        CharacterCenterOfMass com;
+    };
+
+    struct CharacterInput
+    {
+        f32 analogX;
+        f32 analogY;
+        f32 jump;
+        f32 crouch;
+    };
+    
+    enum ECharacterAnimation_Pose
+    {
+        eANIM_POSE_WALK0,
+        eANIM_POSE_WALK1,
+        eANIM_POSE_WALK2,
+
+        eANIM_POSE_COUNT,
+    };
+    struct CharacterAnimation
+    {
+        bxAnim_Skel* skel;
+        bxAnim_Clip* clip;
+        bxAnim_Context* ctx;
+
+        void* poseMemoryHandle_;
+        bxAnim_Joint* pose[eANIM_POSE_COUNT];
+
+    };
+    
+    struct CharacterParams
+    {
+        f32 maxInputForce;
+        f32 jumpStrength;
+        f32 staticFriction;
+        f32 dynamicFriction;
+        f32 velocityDamping;
+        f32 shapeStiffness;
+        f32 shapeScale;
+        f32 gravity;
+
+        CharacterParams()
+            : maxInputForce( 1.15f )
+            , jumpStrength( 15.f )
+            , staticFriction( 0.1f )
+            , dynamicFriction( 0.1f )
+            , velocityDamping( 0.7f )
+            , shapeStiffness( 0.1f )
+            , shapeScale( 1.f )
+            , gravity( 9.1f )
+        {}
+    };
+
+    struct Character
+    {
+        CharacterAnimation anim;
+        CharacterParticles particles;
+        CharacterCenterOfMass centerOfMass;
+
+        Vector3 footPos;
+        Vector3 upVector;
+        Vector3 dirVector;
+
+        CharacterInput input;
+        CharacterParams params;
+        bxPhx_Contacts* contacts;
+
+        f32 _dtAcc;
+        f32 _jumpAcc;
+        u64 _timeMS;
+
+        Character()
+            : footPos( 0.f )
+            , upVector( Vector3::yAxis() )
+            , dirVector( Vector3::zAxis() )
+            , contacts( 0 )
+            , _dtAcc( 0.f )
+            , _jumpAcc( 0.f )
+            , _timeMS( 0 )
+        {}
+    };
+
+
     void _CharacterParticles_allocateData( CharacterParticles* cp, int newCap )
     {
         if ( newCap <= cp->capacity )
@@ -80,24 +178,7 @@ namespace bxGame
     }
 
 
-    enum ECharacterAnimation_Pose
-    {
-        eANIM_POSE_WALK0,
-        eANIM_POSE_WALK1,
-        eANIM_POSE_WALK2,
-
-        eANIM_POSE_COUNT,
-    };
-    struct CharacterAnimation
-    {
-        bxAnim_Skel* skel;
-        bxAnim_Clip* clip;
-        bxAnim_Context* ctx;
-
-        void* poseMemoryHandle_;
-        bxAnim_Joint* pose[eANIM_POSE_COUNT];
-
-    };
+    
     void _CharacterAnimation_load( CharacterAnimation* ca, bxResourceManager* resourceManager )
     {
         ca->skel = bxAnimExt::loadSkelFromFile( resourceManager, "anim/human.skel" );
@@ -127,8 +208,6 @@ namespace bxGame
             bxAnim::evaluateClip( ca->pose[eANIM_POSE_WALK2], ca->clip, 47, 0 );
 
         }
-
-
     }
     void _CharacterAnimation_unload( CharacterAnimation* ca, bxResourceManager* resourceManager )
     {
@@ -140,30 +219,8 @@ namespace bxGame
         bxAnimExt::unloadSkelFromFile( resourceManager, &ca->skel );
     }
 
-    struct CharacterCenterOfMass
-    {
-        Vector3 prevPos;
-        Quat prevRot;
-        
-        Vector3 pos;
-        Quat rot;
-
-        CharacterCenterOfMass()
-            : prevPos( 0.f )
-            , prevRot( Quat::identity() )
-            , pos( 0.f )
-            , rot( Quat::identity() )
-        {}
-    };
-
-    struct CharacterInput
-    {
-        f32 analogX;
-        f32 analogY;
-        f32 jump;
-        f32 crouch;
-    };
-    void characterInput_collectData( CharacterInput* charInput, const bxInput& input, float deltaTime )
+    
+    void _CharacterInput_collectData( CharacterInput* charInput, const bxInput& input, float deltaTime )
     {
         const bxInput_Pad& pad = bxInput_getPad( input );
         if ( pad.currentState()->connected )
@@ -197,28 +254,7 @@ namespace bxGame
         }
     }
 
-    struct CharacterParams
-    {
-        f32 maxInputForce;
-        f32 jumpStrength;
-        f32 staticFriction;
-        f32 dynamicFriction;
-        f32 velocityDamping;
-        f32 shapeStiffness;
-        f32 shapeScale;
-        f32 gravity;
-
-        CharacterParams()
-            : maxInputForce( 1.15f )
-            , jumpStrength( 15.f )
-            , staticFriction( 0.1f )
-            , dynamicFriction( 0.1f )
-            , velocityDamping( 0.7f )
-            , shapeStiffness( 0.05f )
-            , shapeScale( 1.f )
-            , gravity( 9.1f )
-        {}
-    };
+    
 
     void _CharacterParams_show( CharacterParams* params )
     {
@@ -236,34 +272,7 @@ namespace bxGame
         ImGui::End();
     }
 
-    struct Character
-    {
-        CharacterAnimation anim;
-        CharacterParticles particles;
-        CharacterCenterOfMass centerOfMass;
-        
-        Vector3 footPos;
-        Vector3 upVector;
-        Vector3 dirVector;
 
-        CharacterInput input;
-        CharacterParams params;
-        bxPhx_Contacts* contacts;
-
-        f32 _dtAcc;
-        f32 _jumpAcc;
-        u64 _timeMS;
-
-        Character()
-            : footPos( 0.f )
-            , upVector( Vector3::yAxis() )
-            , dirVector( Vector3::zAxis() )
-            , contacts( 0 )
-            , _dtAcc( 0.f )
-            , _jumpAcc( 0.f )
-            , _timeMS(0)
-        {}
-    };
 
 }///
 
@@ -289,15 +298,10 @@ namespace bxGame
 
     void character_init( Character* character, bxResourceManager* resourceManager, const Matrix4& worldPose )
     {
-        const float a = 0.25f;
+        const float a = 0.5f;
         const float b = 0.5f;
         const float c = 1.f;
-        const float ab = lerp( 0.25f, a, b );
-        const float zc = lerp( 0.25f, 0.f, c );
-        //bxPolyShape shape;
-        //bxPolyShape_createShpere( &shape, 2 );
-
-        //const int NUM_POINTS = shape.num_vertices;
+        
         const int NUM_POINTS = 8;
 
         const Vector3 localPoints[NUM_POINTS] =
@@ -306,11 +310,6 @@ namespace bxGame
             Vector3(  b, 0.f, b ),
             Vector3(  b, 0.f,-b ),
             Vector3( -b, 0.f,-b ),
-
-            //Vector3( -ab, zc,  ab ),
-            //Vector3(  ab, zc,  ab ),
-            //Vector3(  ab, zc, -ab ),
-            //Vector3( -ab, zc, -ab ),
 
             Vector3( -a, c, a ),
             Vector3(  a, c, a ),
@@ -360,8 +359,8 @@ namespace bxGame
 
         character->centerOfMass.pos = worldPose.getTranslation();
         character->centerOfMass.rot = Quat( worldPose.getUpper3x3() );
-        character->centerOfMass.prevPos = character->centerOfMass.pos;
-        character->centerOfMass.prevRot = character->centerOfMass.rot;
+        //character->centerOfMass.prevPos = character->centerOfMass.pos;
+        //character->centerOfMass.prevRot = character->centerOfMass.rot;
         
         character->contacts = bxPhx::contacts_new( NUM_POINTS );
 
@@ -477,7 +476,7 @@ namespace bxGame
     void character_tick( Character* character, bxPhx_CollisionSpace* cspace, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
     {
         const CharacterParams& params = character->params;
-        characterInput_collectData( &character->input, input, deltaTime );
+        _CharacterInput_collectData( &character->input, input, deltaTime );
         Vector3 externalForces( 0.f );
         {
             externalForces += Vector3::xAxis() * character->input.analogX;
@@ -500,8 +499,8 @@ namespace bxGame
 
         while ( character->_dtAcc >= fixedDt )
         {
-            character->centerOfMass.prevPos = character->centerOfMass.pos;
-            character->centerOfMass.prevRot = character->centerOfMass.rot;
+            //character->centerOfMass.prevPos = character->centerOfMass.pos;
+            //character->centerOfMass.prevRot = character->centerOfMass.rot;
 
             externalForces += character->upVector * character->_jumpAcc;
 
@@ -510,32 +509,6 @@ namespace bxGame
 
             character->_jumpAcc = 0.f;
         }
-
-        Matrix3 rot;
-        {
-            CharacterCenterOfMass& com = character->centerOfMass;
-            const Vector3 velocity = ( com.pos - com.prevPos ) * fixedFreq;
-            const Vector3 avelocity = angularVelocityFromOrientations( com.prevRot, com.rot, fixedFreq );
-            
-            float speed = length( velocity ).getAsFloat();
-            float spin = length( avelocity ).getAsFloat();
-
-            Vector3 up = character->upVector;
-            Vector3 dir = character->dirVector;
-            if( speed > 0.1f )
-            {
-                dir = normalize( velocity );
-            }
-            
-            Vector3 side = normalize( cross( up, dir ) );
-
-            rot = Matrix3( side, up, dir );
-
-            //bxGfxDebugDraw::addLine( com.pos, com.pos + side, 0xFF0000FF, true );
-            //bxGfxDebugDraw::addLine( com.pos, com.pos + dir, 0x0000FFFF, true );
-            //bxGfxDebugDraw::addLine( com.pos, com.pos + up, 0x00FF00FF, true );
-        }
-
 
         {
             CharacterAnimation& anim = character->anim;
@@ -553,21 +526,21 @@ namespace bxGame
 
             bxAnim_Joint rootJoint = bxAnim_Joint::identity();
             rootJoint.position = character->centerOfMass.pos;
-            rootJoint.rotation = Quat( rot );
+            rootJoint.rotation = character->centerOfMass.rot;
 
             bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, anim.skel, rootJoint );
 
-            //const i16* parentIndices = TYPE_OFFSET_GET_POINTER( const i16, anim.skel->offsetParentIndices );
-            //for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
-            //{
-            //    const bxAnim_Joint& joint = worldJoints[ijoint];
-            //    bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.05f ), 0xFF00FF00, true );
-            //    if( parentIndices[ijoint] != -1 )
-            //    {
-            //        const bxAnim_Joint& parentJoint = worldJoints[parentIndices[ijoint]];
-            //        bxGfxDebugDraw::addLine( joint.position, parentJoint.position, 0xFF00FF00, true );
-            //    }
-            //}
+            const i16* parentIndices = TYPE_OFFSET_GET_POINTER( const i16, anim.skel->offsetParentIndices );
+            for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
+            {
+                const bxAnim_Joint& joint = worldJoints[ijoint];
+                bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.05f ), 0xFF00FF00, true );
+                if( parentIndices[ijoint] != -1 )
+                {
+                    const bxAnim_Joint& parentJoint = worldJoints[parentIndices[ijoint]];
+                    bxGfxDebugDraw::addLine( joint.position, parentJoint.position, 0xFF00FF00, true );
+                }
+            }
         }
 
         character->_timeMS += (u64)( (double)deltaTime * 1000.0 );
