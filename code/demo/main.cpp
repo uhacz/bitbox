@@ -48,16 +48,6 @@ public:
 
         bxDemoScene_startup( &__scene, &_engine );
 
-        //__scene.dblock->create( "ground", 
-        //                        Matrix4::translation( Vector3(0.f, -2.f, 0.f ) ),
-        //                        bxDesignBlock::Shape( 100.f, 0.1f, 100.f ) 
-        //                        );
-
-        //__scene.dblock->create( "sphere",
-        //                        Matrix4::translation( Vector3( 0.f, -1.5f, 0.f ) ),
-        //                        bxDesignBlock::Shape( 1.f ),
-        //                        "red" );
-                        
         bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager, __scene.gfxWorld );
 
         bxGfxCamera_SceneScriptCallback cameraScriptCallback;

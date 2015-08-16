@@ -105,7 +105,7 @@ namespace bxGame
             , staticFriction( 0.1f )
             , dynamicFriction( 0.1f )
             , velocityDamping( 0.7f )
-            , shapeStiffness( 0.1f )
+            , shapeStiffness( 0.025f )
             , shapeScale( 1.f )
             , gravity( 9.1f )
         {}
@@ -301,6 +301,31 @@ namespace bxGame
         BX_DELETE0( bxDefaultAllocator(), c[0] );
     }
 
+    void _CharacterBody_initCenterOfMass( CharacterBody* body, const Matrix4& worldPose )
+    {
+        CharacterParticles& cp = body->particles[0];
+
+        int begin = body->particleBegin;
+        int end = begin + body->particleCount;
+        f32 massSum = 0.f;
+        Vector3 com( 0.f );
+        for ( int i = begin; i < end; ++i )
+        {
+            com += cp.pos0[i] * cp.mass[i];
+            massSum += cp.mass[i];
+        }
+        com /= massSum;
+        for ( int i = begin; i < end; ++i )
+        {
+            cp.restPos[i] = cp.pos0[i] - com;
+            cp.pos0[i] = mulAsVec4( worldPose, cp.pos0[i] );
+            cp.pos1[i] = cp.pos0[i];
+        }
+
+        body->com.pos = com;
+        body->com.rot = Quat( worldPose.getUpper3x3() );
+    }
+
     void character_init( Character* character, bxResourceManager* resourceManager, const Matrix4& worldPose )
     {
         const float a = 0.5f;
@@ -323,14 +348,15 @@ namespace bxGame
             Vector3(  a, c,-a ),
             Vector3( -a, c,-a ),
 
-            Vector3( 0.f, lerp( 0.00f, c, d ), 0.f ),
-            Vector3( 0.f, lerp( 0.33f, c, d ), 0.f ),
-            Vector3( 0.f, lerp( 0.66f, c, d ), 0.f ),
-            Vector3( 0.f, lerp( 1.00f, c, d ), 0.f ),
+            Vector3( 0.f, lerp( 0.00f, 0.f, d ), 0.f ),
+            Vector3( 0.f, lerp( 0.33f, 0.f, d ), 0.f ),
+            Vector3( 0.f, lerp( 0.66f, 0.f, d ), 0.f ),
+            Vector3( 0.f, lerp( 1.00f, 0.f, d ), 0.f ),
         };
 
         CharacterParticles& cp = character->particles;
         _CharacterParticles_allocateData( &cp, NUM_POINTS );
+        cp.size = NUM_POINTS;
 
         //bxRandomGen rnd( 0xBAADC0DE );
 
@@ -344,30 +370,17 @@ namespace bxGame
             cp.pos1[i] = pos;
             cp.velocity[i] = Vector3( 0.f );
             
-            float mass = maxOfPair( 0.5f, c - restPos.getY().getAsFloat() ); // +maxOfPair( 0.f, dot( Vector3::zAxis() - Vector3::yAxis(), restPos ).getAsFloat() ) * 7;
+            float mass = 1.f; // maxOfPair( 0.5f, c - restPos.getY().getAsFloat() ); // +maxOfPair( 0.f, dot( Vector3::zAxis() - Vector3::yAxis(), restPos ).getAsFloat() ) * 7;
             if ( i < 4 )
                 mass += 1.f;
+
+            if ( i == NUM_POINTS - 1 )
+                mass = 8.f;
+
             cp.mass[i] = mass; // bxRand::randomFloat( rnd, 1.f, 0.5f );
 
             cp.massInv[i] = 1.f / mass;
         }
-
-        f32 massSum = 0.f;
-        Vector3 com( 0.f );
-        for ( int i = 0; i < NUM_POINTS; ++i )
-        {
-            com += cp.pos0[i] * cp.mass[i];
-            massSum += cp.mass[i];
-        }
-        com /= massSum;
-        for ( int i = 0; i < NUM_POINTS; ++i )
-        {
-            cp.restPos[i] = cp.pos0[i] - com;
-            cp.pos0[i] = mulAsVec4( worldPose, cp.pos0[i] );
-            cp.pos1[i] = cp.pos0[i];
-        }
-
-        cp.size = NUM_POINTS;
 
         character->bottomBody.particles = &character->particles;
         character->bottomBody.particleBegin = 0;
@@ -377,10 +390,17 @@ namespace bxGame
         character->spineBody.particleBegin = NUM_POINTS_BOTTOM;
         character->spineBody.particleCount = NUM_POINTS_SPINE;
 
+        _CharacterBody_initCenterOfMass( &character->bottomBody, worldPose );
+        _CharacterBody_initCenterOfMass( &character->spineBody, worldPose );
 
 
-        character->centerOfMass.pos = worldPose.getTranslation();
-        character->centerOfMass.rot = Quat( worldPose.getUpper3x3() );
+
+        
+
+
+
+        //character->centerOfMass.pos = worldPose.getTranslation();
+        //character->centerOfMass.rot = Quat( worldPose.getUpper3x3() );
         //character->centerOfMass.prevPos = character->centerOfMass.pos;
         //character->centerOfMass.prevRot = character->centerOfMass.rot;
         
@@ -450,8 +470,68 @@ namespace bxGame
             }
         }
 
+        void _BeginSimulation_Spine( Character* character, const Vector3& steeringForce, float deltaTime )
+        {
+            const CharacterParams& params = character->params;
 
-        void _BeginSimulation_Bottom( Character* character, bxPhx_CollisionSpace* cspace, const Vector3& steeringForce, float deltaTime )
+            CharacterBody& body = character->spineBody;
+            CharacterParticles& cp = body.particles[0];
+            CharacterCenterOfMass& centerOfMass = body.com;
+
+            const Vector3& upVector = character->upVector;
+            const Vector3  dirVector = fastRotate( centerOfMass.rot, Vector3::zAxis() );
+
+            const Vector3 steeringForceXZ = projectVectorOnPlane( steeringForce, Vector4( upVector, 0.f ) );
+            const Vector3 steeringForceY = upVector * dot( upVector, steeringForce );
+            const Vector3 currentCom = centerOfMass.pos;
+
+            const Vector3 gravity = character->upVector * params.gravity;
+            const floatInVec dtv( deltaTime );
+            const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( params.velocityDamping ), dtv );
+            //const int nPoints = cp.size;
+            const int beginPoints = body.particleBegin;
+            const int countPoints = body.particleCount;
+            const int endPoints = beginPoints + countPoints;
+
+            for ( int ipoint = beginPoints; ipoint < endPoints; ++ipoint )
+            {
+                Vector3 pos = cp.pos0[ipoint];
+                Vector3 vel = cp.velocity[ipoint];
+
+                vel += (gravity)* dtv;
+                vel *= dampingCoeff;
+                if ( ipoint == (endPoints-1) )
+                {
+                    vel += steeringForce * floatInVec( cp.massInv[ipoint] );
+                }
+                pos += vel * dtv;
+                
+                cp.pos1[ipoint] = pos;
+                cp.velocity[ipoint] = vel;
+            }
+
+
+            const Vector3 btmPoint = cp.pos1[beginPoints];
+            const Vector3 topPoint = cp.pos1[endPoints - 1];
+            const Vector3 up = topPoint - btmPoint;
+            const floatInVec len = length( up );
+            const Vector3 upDir = up / len;
+            const float cosine = dot( upDir, upVector ).getAsFloat();
+            const float angle = ::acos( clamp( cosine, -1.f, 1.f ) );
+            const float maxAngle = PI / 8.f;
+            if( angle > maxAngle )
+            {
+                const Vector3 axis = normalize( cross( upVector, upDir ) );
+                const Vector3 newUp = fastRotate( Quat::rotation( floatInVec( maxAngle ), axis ), upVector );
+                const Vector3 newTop = btmPoint + normalize( newUp ) * len;
+                bxGfxDebugDraw::addSphere( Vector4( newTop, 0.1f ), 0xFF0000FF, true );
+                cp.pos1[endPoints - 1] += ( newTop - topPoint ) * cp.massInv[endPoints-1];
+            }
+        
+
+        }
+
+        void _BeginSimulation_Bottom( Character* character, const Vector3& steeringForce, float deltaTime )
         {
             const CharacterParams& params = character->params;
             
@@ -480,13 +560,13 @@ namespace bxGame
                 Vector3 vel = cp.velocity[ipoint];
 
                 vel += (gravity) * dtv;
-                if( ipoint < 4 )
+
+                if ( ipoint < 4 )
                 {
-                    
-                    Vector3 steering = cross( cross( dirVector, steeringForceXZ ), pos - currentCom );
+                    Vector3 steering = cross( cross( dirVector, steeringForceXZ ), pos - currentCom ) * cp.mass[ipoint];
                     steering += steeringForceY;
                     steering += steeringForceXZ;
-                    
+
                     vel += steering * floatInVec( cp.massInv[ipoint] );
                 }
                 vel *= dampingCoeff;
@@ -495,12 +575,9 @@ namespace bxGame
                 cp.pos1[ipoint] = pos;
                 cp.velocity[ipoint] = vel;
             }
-
-            {
-                bxPhx::contacts_clear( character->contacts );
-                bxPhx::collisionSpace_collide( cspace, character->contacts, cp.pos1, nPoints );
-            }
         }
+
+
     
         inline Vector3 angularVelocityFromOrientations( const Quat& q0, const Quat& q1, float deltaTimeInv )
         {
@@ -537,18 +614,49 @@ namespace bxGame
 
         character->_dtAcc += deltaTime;
 
+        int iteration = 0;
         while ( character->_dtAcc >= fixedDt )
         {
             //character->centerOfMass.prevPos = character->centerOfMass.pos;
             //character->centerOfMass.prevRot = character->centerOfMass.rot;
 
-            externalForces += character->upVector * character->_jumpAcc;
+            if( iteration == 0 )
+            {
+                externalForces += character->upVector * character->_jumpAcc;
+            }
+            _BeginSimulation_Spine( character, externalForces, fixedDt );
+            
+            Vector3 bottomSteeringForce( 0.f );
+            {
+                int spineFirst = character->spineBody.particleBegin;
+                int spineLast = spineFirst + character->spineBody.particleCount - 1;
+                Vector3 spineUpDir = normalize( character->particles.pos1[spineLast] - character->particles.pos1[spineFirst] );
+                bottomSteeringForce = (spineUpDir - character->upVector);
+            }
+            _BeginSimulation_Bottom( character, bottomSteeringForce, fixedDt );
 
-            _BeginSimulation_Bottom( character, cspace, externalForces, fixedDt );
-            _Ha
+            {
+                Vector3 pos0 = character->bottomBody.com.pos;
+                Vector3 pos1 = character->particles.pos1[character->spineBody.particleBegin];
+                float massInv1 = character->particles.massInv[character->spineBody.particleBegin];
+
+                Vector3 dpos0, dpos1;
+                bxPhx::pbd_solveDistanceConstraint( &dpos0, &dpos1, pos0, pos1, 0.f, massInv1, 0.f, 1.f, 1.f );
+
+                character->particles.pos1[character->spineBody.particleBegin] = pos1 + dpos1;
+            }
+
+            {
+                bxPhx::contacts_clear( character->contacts );
+                bxPhx::collisionSpace_collide( cspace, character->contacts, character->particles.pos1, character->particles.size );
+            }
+            _UpdateSoftBody( &character->spineBody, params.shapeScale, 0.5f );
+            _UpdateSoftBody( &character->bottomBody, params.shapeScale, params.shapeStiffness );
+            _FinalizeSimulation( &character->particles, character->contacts, params.staticFriction, params.dynamicFriction, fixedDt );
+
             character->_dtAcc -= fixedDt;
-
             character->_jumpAcc = 0.f;
+            ++iteration;
         }
 
         {
@@ -566,22 +674,22 @@ namespace bxGame
             //bxAnim::blendJointsLinear( localJoints, leftJoints, rightJoints, blendFactor, anim.skel->numJoints );
 
             bxAnim_Joint rootJoint = bxAnim_Joint::identity();
-            rootJoint.position = character->centerOfMass.pos;
-            rootJoint.rotation = character->centerOfMass.rot;
+            rootJoint.position = character->bottomBody.com.pos;
+            rootJoint.rotation = character->bottomBody.com.rot;
 
             bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, anim.skel, rootJoint );
 
-            const i16* parentIndices = TYPE_OFFSET_GET_POINTER( const i16, anim.skel->offsetParentIndices );
-            for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
-            {
-                const bxAnim_Joint& joint = worldJoints[ijoint];
-                bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.05f ), 0xFF00FF00, true );
-                if( parentIndices[ijoint] != -1 )
-                {
-                    const bxAnim_Joint& parentJoint = worldJoints[parentIndices[ijoint]];
-                    bxGfxDebugDraw::addLine( joint.position, parentJoint.position, 0xFF00FF00, true );
-                }
-            }
+            //const i16* parentIndices = TYPE_OFFSET_GET_POINTER( const i16, anim.skel->offsetParentIndices );
+            //for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
+            //{
+            //    const bxAnim_Joint& joint = worldJoints[ijoint];
+            //    bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.05f ), 0xFF00FF00, true );
+            //    if( parentIndices[ijoint] != -1 )
+            //    {
+            //        const bxAnim_Joint& parentJoint = worldJoints[parentIndices[ijoint]];
+            //        bxGfxDebugDraw::addLine( joint.position, parentJoint.position, 0xFF00FF00, true );
+            //    }
+            //}
         }
 
         character->_timeMS += (u64)( (double)deltaTime * 1000.0 );
@@ -591,8 +699,8 @@ namespace bxGame
         {
             bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.05f * cp.mass[i] ), 0x00FF00FF, true );
         }
-        const Vector3& com = character->centerOfMass.pos;
-        const Matrix3 R( character->centerOfMass.rot );
+        const Vector3& com = character->bottomBody.com.pos;
+        const Matrix3 R( character->bottomBody.com.rot );
         bxGfxDebugDraw::addLine( com, com + R[0], 0x990000FF, true );
         bxGfxDebugDraw::addLine( com, com + R[1], 0x009900FF, true );
         bxGfxDebugDraw::addLine( com, com + R[2], 0x000099FF, true );
@@ -605,7 +713,7 @@ namespace bxGame
 
     Matrix4 character_pose( const Character* character )
     {
-        return Matrix4( character->centerOfMass.rot, character->centerOfMass.pos );
+        return Matrix4( character->bottomBody.com.rot, character->bottomBody.com.pos );
     }
 
     Vector3 character_upVector( const Character* character )
