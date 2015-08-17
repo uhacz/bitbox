@@ -105,7 +105,7 @@ namespace bxGame
             , staticFriction( 0.1f )
             , dynamicFriction( 0.1f )
             , velocityDamping( 0.7f )
-            , shapeStiffness( 0.025f )
+            , shapeStiffness( 0.1f )
             , shapeScale( 1.f )
             , gravity( 9.1f )
         {}
@@ -328,9 +328,9 @@ namespace bxGame
 
     void character_init( Character* character, bxResourceManager* resourceManager, const Matrix4& worldPose )
     {
-        const float a = 0.5f;
-        const float b = 0.5f;
-        const float c = 1.f;
+        const float a = 0.25f;
+        const float b = 0.25f;
+        const float c = 0.15f;
         const float d = 3.f;
         
         const int NUM_POINTS_BOTTOM = 8;
@@ -372,10 +372,10 @@ namespace bxGame
             
             float mass = 1.f; // maxOfPair( 0.5f, c - restPos.getY().getAsFloat() ); // +maxOfPair( 0.f, dot( Vector3::zAxis() - Vector3::yAxis(), restPos ).getAsFloat() ) * 7;
             if ( i < 4 )
-                mass += 1.f;
+                mass += 2.f;
 
             if ( i == NUM_POINTS - 1 )
-                mass = 8.f;
+                mass = 2.f;
 
             cp.mass[i] = mass; // bxRand::randomFloat( rnd, 1.f, 0.5f );
 
@@ -393,21 +393,7 @@ namespace bxGame
         _CharacterBody_initCenterOfMass( &character->bottomBody, worldPose );
         _CharacterBody_initCenterOfMass( &character->spineBody, worldPose );
 
-
-
-        
-
-
-
-        //character->centerOfMass.pos = worldPose.getTranslation();
-        //character->centerOfMass.rot = Quat( worldPose.getUpper3x3() );
-        //character->centerOfMass.prevPos = character->centerOfMass.pos;
-        //character->centerOfMass.prevRot = character->centerOfMass.rot;
-        
         character->contacts = bxPhx::contacts_new( NUM_POINTS );
-
-        //bxPolyShape_deallocateShape( &shape );
-
         _CharacterAnimation_load( &character->anim, resourceManager );
     }
 
@@ -518,7 +504,7 @@ namespace bxGame
             const Vector3 upDir = up / len;
             const float cosine = dot( upDir, upVector ).getAsFloat();
             const float angle = ::acos( clamp( cosine, -1.f, 1.f ) );
-            const float maxAngle = PI / 8.f;
+            const float maxAngle = PI / 16.f;
             if( angle > maxAngle )
             {
                 const Vector3 axis = normalize( cross( upVector, upDir ) );
@@ -563,7 +549,7 @@ namespace bxGame
 
                 if ( ipoint < 4 )
                 {
-                    Vector3 steering = cross( cross( dirVector, steeringForceXZ ), pos - currentCom ) * cp.mass[ipoint];
+                    Vector3 steering = cross( cross( dirVector, steeringForceXZ ), pos - currentCom );
                     steering += steeringForceY;
                     steering += steeringForceXZ;
 
@@ -631,7 +617,7 @@ namespace bxGame
                 int spineFirst = character->spineBody.particleBegin;
                 int spineLast = spineFirst + character->spineBody.particleCount - 1;
                 Vector3 spineUpDir = normalize( character->particles.pos1[spineLast] - character->particles.pos1[spineFirst] );
-                bottomSteeringForce = (spineUpDir - character->upVector);
+                bottomSteeringForce = externalForces + ( spineUpDir - character->upVector );
             }
             _BeginSimulation_Bottom( character, bottomSteeringForce, fixedDt );
 
@@ -659,6 +645,18 @@ namespace bxGame
             ++iteration;
         }
 
+
+        Matrix4 animationRoot = Matrix4::identity();
+        {
+            int spineFirst = character->spineBody.particleBegin;
+            int spineLast = spineFirst + character->spineBody.particleCount - 1;
+            Vector3 spineUpDir = normalize( character->particles.pos1[spineLast] - character->particles.pos1[spineFirst] );
+            Vector3 sideDir = fastRotate( character->bottomBody.com.rot, Vector3::xAxis() );
+            Vector3 frontDir = normalize( cross( sideDir, spineUpDir ) );
+
+            animationRoot = Matrix4( Matrix3( sideDir, spineUpDir, frontDir ), character->bottomBody.com.pos );
+        }
+
         {
             CharacterAnimation& anim = character->anim;
 
@@ -674,22 +672,22 @@ namespace bxGame
             //bxAnim::blendJointsLinear( localJoints, leftJoints, rightJoints, blendFactor, anim.skel->numJoints );
 
             bxAnim_Joint rootJoint = bxAnim_Joint::identity();
-            rootJoint.position = character->bottomBody.com.pos;
-            rootJoint.rotation = character->bottomBody.com.rot;
+            rootJoint.position = animationRoot.getTranslation();
+            rootJoint.rotation = Quat( animationRoot.getUpper3x3() );
 
             bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, anim.skel, rootJoint );
 
-            //const i16* parentIndices = TYPE_OFFSET_GET_POINTER( const i16, anim.skel->offsetParentIndices );
-            //for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
-            //{
-            //    const bxAnim_Joint& joint = worldJoints[ijoint];
-            //    bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.05f ), 0xFF00FF00, true );
-            //    if( parentIndices[ijoint] != -1 )
-            //    {
-            //        const bxAnim_Joint& parentJoint = worldJoints[parentIndices[ijoint]];
-            //        bxGfxDebugDraw::addLine( joint.position, parentJoint.position, 0xFF00FF00, true );
-            //    }
-            //}
+            const i16* parentIndices = TYPE_OFFSET_GET_POINTER( const i16, anim.skel->offsetParentIndices );
+            for( int ijoint = 0; ijoint < anim.skel->numJoints; ++ijoint )
+            {
+                const bxAnim_Joint& joint = worldJoints[ijoint];
+                bxGfxDebugDraw::addSphere( Vector4( joint.position, 0.05f ), 0xFF0000FF, true );
+                if( parentIndices[ijoint] != -1 )
+                {
+                    const bxAnim_Joint& parentJoint = worldJoints[parentIndices[ijoint]];
+                    bxGfxDebugDraw::addLine( joint.position, parentJoint.position, 0xFF0000FF, true );
+                }
+            }
         }
 
         character->_timeMS += (u64)( (double)deltaTime * 1000.0 );
