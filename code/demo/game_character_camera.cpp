@@ -17,7 +17,7 @@ namespace bxGame
         const Vector3 toPlayerVec = ( characterPosition - cameraPos);
         const Vector3 toPlayerDir = normalize( toPlayerVec );
         
-        const float RC = (cameraMoved) ? 0.01f : 0.5f;
+        const float RC = (cameraMoved) ? 0.01f : 0.1f;
         const Vector3 z = signalFilter_lowPass( -toPlayerDir, cameraRot.getCol2(), RC, deltaTime );
         const Vector3 x = normalize( cross( playerUpVector, z ) );
         const Vector3 y = normalize( cross( z, x ) );

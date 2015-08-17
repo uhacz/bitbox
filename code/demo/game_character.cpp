@@ -254,7 +254,7 @@ namespace bxGame
             const float RC = 0.1f;
             charInput->analogX = signalFilter_lowPass( analogX, charInput->analogX, RC, deltaTime );
             charInput->analogY = signalFilter_lowPass( analogY, charInput->analogY, RC, deltaTime );
-            charInput->jump = signalFilter_lowPass( jump, charInput->jump, RC, deltaTime );
+            charInput->jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
             charInput->crouch = signalFilter_lowPass( crouch, charInput->crouch, RC, deltaTime );
 
             //bxLogInfo( "x: %f, y: %f", charInput->analogX, charInput->jump );
@@ -328,9 +328,9 @@ namespace bxGame
 
     void character_init( Character* character, bxResourceManager* resourceManager, const Matrix4& worldPose )
     {
-        const float a = 0.25f;
-        const float b = 0.25f;
-        const float c = 0.15f;
+        const float a = 0.5f;
+        const float b = 0.5f;
+        const float c = 0.5f;
         const float d = 3.f;
         
         const int NUM_POINTS_BOTTOM = 8;
@@ -466,9 +466,6 @@ namespace bxGame
 
             const Vector3& upVector = character->upVector;
             const Vector3  dirVector = fastRotate( centerOfMass.rot, Vector3::zAxis() );
-
-            const Vector3 steeringForceXZ = projectVectorOnPlane( steeringForce, Vector4( upVector, 0.f ) );
-            const Vector3 steeringForceY = upVector * dot( upVector, steeringForce );
             const Vector3 currentCom = centerOfMass.pos;
 
             const Vector3 gravity = character->upVector * params.gravity;
@@ -488,7 +485,7 @@ namespace bxGame
                 vel *= dampingCoeff;
                 if ( ipoint == (endPoints-1) )
                 {
-                    vel += steeringForce * floatInVec( cp.massInv[ipoint] );
+                    vel += steeringForce;
                 }
                 pos += vel * dtv;
                 
@@ -593,6 +590,8 @@ namespace bxGame
             {
                 character->_jumpAcc += character->input.jump * params.jumpStrength;
             }
+
+            bxGfxDebugDraw::addLine( character->bottomBody.com.pos, character->bottomBody.com.pos + externalForces + character->upVector*character->_jumpAcc, 0xFFFFFFFF, true );
         }
 
         const float fixedFreq = 60.f;
@@ -603,9 +602,6 @@ namespace bxGame
         int iteration = 0;
         while ( character->_dtAcc >= fixedDt )
         {
-            //character->centerOfMass.prevPos = character->centerOfMass.pos;
-            //character->centerOfMass.prevRot = character->centerOfMass.rot;
-
             if( iteration == 0 )
             {
                 externalForces += character->upVector * character->_jumpAcc;
@@ -695,7 +691,7 @@ namespace bxGame
         CharacterParticles& cp = character->particles;
         for ( int i = 0; i < cp.size; ++i )
         {
-            bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.05f * cp.mass[i] ), 0x00FF00FF, true );
+            bxGfxDebugDraw::addSphere( Vector4( cp.pos0[i], 0.01f * cp.mass[i] ), 0x002200FF, true );
         }
         const Vector3& com = character->bottomBody.com.pos;
         const Matrix3 R( character->bottomBody.com.rot );
