@@ -189,7 +189,7 @@ namespace bxGame
     void _CharacterAnimation_load( CharacterAnimation* ca, bxResourceManager* resourceManager )
     {
         ca->skel = bxAnimExt::loadSkelFromFile( resourceManager, "anim/human.skel" );
-        ca->clip = bxAnimExt::loadAnimFromFile( resourceManager, "anim/walk.anim" );
+        ca->clip = bxAnimExt::loadAnimFromFile( resourceManager, "anim/run.anim" );
 
         if( ca->skel )
         {

@@ -25,7 +25,21 @@ namespace bxGame
 
 namespace bxGame
 {
-    void characterCamera_follow( bxGfxCamera* camera, const Character* character, float deltaTime, int cameraMoved = 0 );
+    struct Character1;
+    Character1* character1_new();
+    void character1_delete( Character1** character );
+
+    void character1_init( Character1* character, bxResourceManager* resourceManager, const Matrix4& worldPose );
+    void character1_deinit( Character1* character, bxResourceManager* resourceManager );
+    void character1_tick( Character1* character, bxPhx_CollisionSpace* cspace, const bxGfxCamera& camera, const bxInput& input, float deltaTime );
+
+    Matrix4 character1_pose( const Character1* character );
+    Vector3 character1_upVector( const Character1* character );
+};
+
+namespace bxGame
+{
+    void characterCamera_follow( bxGfxCamera* camera, const Character1* character, float deltaTime, int cameraMoved = 0 );
 }///
 
 namespace bxGame

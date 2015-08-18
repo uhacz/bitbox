@@ -15,7 +15,7 @@ struct bxDemoScene
     bxGfx_HWorld gfxWorld;
 
 
-    bxGame::Character* character;
+    bxGame::Character1* character;
     bxGame::Flock* flock;
 
     bxGfxCamera_InputContext cameraInputCtx;

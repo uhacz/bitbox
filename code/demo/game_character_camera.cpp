@@ -5,14 +5,14 @@
 
 namespace bxGame
 {
-    void characterCamera_follow( bxGfxCamera* camera, const Character* character, float deltaTime, int cameraMoved )
+    void characterCamera_follow( bxGfxCamera* camera, const Character1* character, float deltaTime, int cameraMoved )
     {
         const Matrix4& cameraPose = camera->matrix.world;
         const Matrix3 cameraRot = cameraPose.getUpper3x3();
         const Vector3 cameraPos = camera->matrix.worldEye();
-        const Matrix4 characterPose = character_pose( character );
+        const Matrix4 characterPose = character1_pose( character );
         const Vector3 characterPosition = characterPose.getTranslation();
-        const Vector3 playerUpVector = character_upVector( character );
+        const Vector3 playerUpVector = character1_upVector( character );
         
         const Vector3 toPlayerVec = ( characterPosition - cameraPos);
         const Vector3 toPlayerDir = normalize( toPlayerVec );
