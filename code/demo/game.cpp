@@ -978,8 +978,10 @@ namespace bxGame
             eCONSTRAINT_COUNT = 3,
         };
         
+        Vector3 footPos;
         Vector3 upVector;
-        
+        Vector3 frontVector;
+        Vector3 sideVector;
 
         struct Particles
         {
@@ -1148,7 +1150,7 @@ namespace bxGame
 
             const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.1f ), dtv );
             const Vector3 gravity = -character->upVector * 9.1f;
-            const Vector3 jumpVector = character->upVector * character->_jumpAcc * 20.f;
+            const Vector3 jumpVector = character->upVector * character->_jumpAcc * 5.f;
             
             
             const int nPoint = Character1::ePARTICLE_COUNT;
@@ -1162,8 +1164,9 @@ namespace bxGame
                 
                 if( ipoint == 0 )
                 {
-                    vel += externalForces + jumpVector;
+                    vel += externalForces;
                 }
+                vel += jumpVector;
                 pos += vel * dtv;
 
                 cp->pos1[ipoint] = pos;
@@ -1222,8 +1225,31 @@ namespace bxGame
                 cp->pos0[ipoint] = cp->pos1[ipoint];
             }
 
+            {
+                Vector3 com( 0.f );
+                float massSum = 0.f;
+                for( int ipoint = 0; ipoint < nPoint; ++ipoint )
+                {
+                    com += cp->pos0[ipoint] * cp->mass[ipoint];
+                    massSum += cp->mass[ipoint];
+                }
+                com /= massSum;
+
+                Vector3 dir = normalize( cp->pos0[0] - com );
+                Vector3 side = normalize( cross( character->upVector, dir ) );
+
+                character->frontVector = dir;
+                character->sideVector = side;
+                character->footPos = com;
+            }
+
+
+
             character->_dtAcc -= fixedDt;
             character->_jumpAcc = 0.f;
+        
+        
+            
         }
 
 
@@ -1241,6 +1267,11 @@ namespace bxGame
                 const Constraint& c = character->constraints[iconstraint];
                 bxGfxDebugDraw::addLine( cp->pos0[c.i0], cp->pos1[c.i1], 0xFF0000FF, true );
             }
+
+            bxGfxDebugDraw::addLine( character->footPos, character->footPos + character->sideVector, 0xFF0000FF, true );
+            bxGfxDebugDraw::addLine( character->footPos, character->footPos + character->upVector, 0x00FF00FF, true );
+            bxGfxDebugDraw::addLine( character->footPos, character->footPos + character->frontVector, 0x0000FFFF, true );
+
         }
     
         
