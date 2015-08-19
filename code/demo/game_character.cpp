@@ -174,7 +174,7 @@ namespace bxGame
         {
             BX_CONTAINER_COPY_DATA( &newCP, cp, restPos );
             BX_CONTAINER_COPY_DATA( &newCP, cp, pos0 );
-            BX_CONTAINER_COPY_DATA( &newCP, cp, pos0 );
+            BX_CONTAINER_COPY_DATA( &newCP, cp, pos1 );
             BX_CONTAINER_COPY_DATA( &newCP, cp, velocity );
             BX_CONTAINER_COPY_DATA( &newCP, cp, mass );
             BX_CONTAINER_COPY_DATA( &newCP, cp, massInv );
