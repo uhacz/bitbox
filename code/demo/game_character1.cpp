@@ -21,7 +21,11 @@ Character1* character1_new()
     ch->_dtAcc = 0.f;
     ch->_jumpAcc = 0.f;
     memset( &ch->particles, 0x00, sizeof( ParticleData ) );
+    memset( &ch->mainBody, 0x00, sizeof( Character1::Body ) );
+    memset( &ch->wheelBody, 0x00, sizeof( Character1::Body ) );
+    memset( ch->wheelRestPos, 0x00, sizeof( ch->wheelRestPos ) );
     memset( &ch->mainBodyConstraints, 0x00, sizeof( bxGame::Constraint ) );
+    memset( &ch->wheelBodyConstraints, 0x00, sizeof( bxGame::Constraint ) );
     memset( &ch->input, 0x00, sizeof( Character1::Input ) );
 
     return ch;
@@ -33,25 +37,26 @@ void character1_delete( Character1** character )
 
     BX_DELETE0( bxDefaultAllocator(), character[0] );
 }
-void character1_init( Character1* character, bxResourceManager* resourceManager, const Matrix4& worldPose )
+void character1_init( Character1* ch, bxResourceManager* resourceManager, const Matrix4& worldPose )
 {
-    particleDataAllocate( &character->particles, Character1::eTOTAL_PARTICLE_COUNT );        
+    ParticleData::alloc( &ch->particles, Character1::eTOTAL_PARTICLE_COUNT );        
+    ch->particles.size = Character1::eTOTAL_PARTICLE_COUNT;
+    
+    ch->mainBody.begin = 0;
+    ch->mainBody.end = Character1::eMAIN_BODY_PARTICLE_COUNT;
 
-    character->mainBody.begin = 0;
-    character->mainBody.end = Character1::eMAIN_BODY_PARTICLE_COUNT;
+    ch->wheelBody.begin = ch->mainBody.end;
+    ch->wheelBody.end = ch->wheelBody.begin + Character1::eWHEEL_BODY_PARTICLE_COUNT;
 
-    character->wheelBody.begin = character->mainBody.end;
-    character->wheelBody.end = character->wheelBody.begin + Character1::eWHEEL_BODY_PARTICLE_COUNT;
-
-    CharacterInternal::initMainBody( character, worldPose );
-    character->particles.size = 3;
-
-    character->contacts = bxPhx::contacts_new( Character1::eTOTAL_PARTICLE_COUNT );
+    CharacterInternal::initMainBody( ch, worldPose );
+    CharacterInternal::initWheelBody( ch, worldPose );
+    
+    ch->contacts = bxPhx::contacts_new( Character1::eTOTAL_PARTICLE_COUNT );
 }
 void character1_deinit( Character1* character, bxResourceManager* resourceManager )
 {
     bxPhx::contacts_delete( &character->contacts );
-    particleDataFree( &character->particles );
+    ParticleData::free( &character->particles );
 }
 
 void character1_tick( Character1* character, bxPhx_CollisionSpace* cspace, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
@@ -73,6 +78,7 @@ void character1_tick( Character1* character, bxPhx_CollisionSpace* cspace, const
 
     const float staticFriction = 0.1f;
     const float dynamicFriction = 0.1f;
+    const float shapeStiffness = 0.1f;
 
     const float fixedFreq = 60.f;
     const float fixedDt = 1.f / fixedFreq;
@@ -85,9 +91,12 @@ void character1_tick( Character1* character, bxPhx_CollisionSpace* cspace, const
     while( character->_dtAcc >= fixedDt )
     {
         CharacterInternal::simulateMainBodyBegin( character, externalForces, fixedDt );
+        CharacterInternal::simulateWheelBodyBegin( character, externalForces, fixedDt );
 
         bxPhx::contacts_clear( character->contacts );
         bxPhx::collisionSpace_collide( cspace, character->contacts, character->particles.pos1, Character1::eTOTAL_PARTICLE_COUNT );
+
+        CharacterInternal::simulateWheelUpdatePose( character, 1.f, shapeStiffness );
 
         CharacterInternal::simulateFinalize( character, staticFriction, dynamicFriction, fixedDt );
         CharacterInternal::computeCharacterPose( character );
@@ -109,7 +118,7 @@ Vector3 character1_upVector( const Character1* ch )
 }
 
 //////////////////////////////////////////////////////////////////////////
-void particleDataAllocate( ParticleData* data, int newcap )
+void ParticleData::alloc( ParticleData* data, int newcap )
 {
     if( newcap <= data->capacity )
         return;
@@ -150,14 +159,11 @@ void particleDataAllocate( ParticleData* data, int newcap )
     BX_FREE( bxDefaultAllocator(), data->memoryHandle );
     *data = newdata;
 }
-void particleDataFree( ParticleData* data )
+void ParticleData::free( ParticleData* data )
 {
     BX_FREE( bxDefaultAllocator(), data->memoryHandle );
     memset( data, 0x00, sizeof( ParticleData ) );
 }
-
-
-
 
 }///
 
@@ -225,11 +231,32 @@ static inline void initConstraint( Constraint* c, const Vector3& p0, const Vecto
     c->i1 = (i16)i1;
     c->d = length( p0 - p1 ).getAsFloat();
 }
+static inline void projectDistanceConstraints( ParticleData* pdata, const Constraint* constraints, int nConstraints, float stiffness, int iterationCount )
+{
+    for( int iter = 0; iter < iterationCount; ++iter )
+    {
+        for( int iconstraint = 0; iconstraint < nConstraints; ++iconstraint )
+        {
+            const Constraint& c = constraints[iconstraint];
+
+            const Vector3& p0 = pdata->pos1[c.i0];
+            const Vector3& p1 = pdata->pos1[c.i1];
+            const float massInv0 = pdata->massInv[c.i0];
+            const float massInv1 = pdata->massInv[c.i1];
+
+            Vector3 dpos0, dpos1;
+            bxPhx::pbd_solveDistanceConstraint( &dpos0, &dpos1, p0, p1, massInv0, massInv1, c.d, stiffness, stiffness );
+
+            pdata->pos1[c.i0] += dpos0;
+            pdata->pos1[c.i1] += dpos1;
+        }
+    }
+}
 
 void initMainBody( Character1* ch, const Matrix4& worldPose )
 {
     ParticleData& p = ch->particles;
-    Character1::Body body = ch->mainBody;
+    Character1::Body& body = ch->mainBody;
 
     const float a = 0.5f;
     const float b = 0.4f;
@@ -240,9 +267,14 @@ void initMainBody( Character1* ch, const Matrix4& worldPose )
     const Vector3 axisZ = worldRot.getCol2();
     const Vector3 worldPos = worldPose.getTranslation();
 
-    p.pos0[body.begin  ] = worldPos + axisZ * a * 0.5f;
-    p.pos0[body.begin+1] = worldPos + axisX * b - axisZ * a * 0.5f;
-    p.pos0[body.begin+2] = worldPos - axisX * b - axisZ * a * 0.5f;
+    p.pos0[0] = worldPos + axisZ * a * 0.5f;
+    p.pos0[1] = worldPos + axisX * b - axisZ * a * 0.5f;
+    p.pos0[2] = worldPos - axisX * b - axisZ * a * 0.5f;
+
+
+    float massSum = 0.f;
+    body.com.pos = Vector3( 0.f );
+    body.com.rot = Quat( worldPose.getUpper3x3() );
 
     for( int i = body.begin; i < body.end; ++i )
     {
@@ -255,19 +287,84 @@ void initMainBody( Character1* ch, const Matrix4& worldPose )
 
         p.mass[i] = mass;
         p.massInv[i] = 1.f / mass;
+
+        body.com.pos += p.pos0[0];
+        massSum += mass;
     }
+
+    body.com.pos /= massSum;
     
-{
+    {
         initConstraint( &ch->mainBodyConstraints[0], p.pos0[body.begin + 0], p.pos0[body.begin + 1], body.begin + 0, body.begin + 1 );
         initConstraint( &ch->mainBodyConstraints[1], p.pos0[body.begin + 0], p.pos0[body.begin + 2], body.begin + 0, body.begin + 2 );
         initConstraint( &ch->mainBodyConstraints[2], p.pos0[body.begin + 1], p.pos0[body.begin + 2], body.begin + 1, body.begin + 2 );
     }
 }
 
+
+void initWheelBody( Character1* ch, const Matrix4& worldPose )
+{
+    ParticleData& p = ch->particles;
+    Character1::Body& body = ch->wheelBody;
+
+    const float a = 0.5f;
+
+    Vector3 localPoints[Character1::eWHEEL_BODY_PARTICLE_COUNT] =
+    {
+        Vector3( 0.0f, 0.f, 0.f ),
+        
+        normalize( Vector3( 0.f, 1.f, 0.f ) ) * a,
+        normalize( Vector3( 0.f, 1.f, 1.f ) ) * a,
+        normalize( Vector3( 0.f, 0.f, 1.f ) ) * a,
+        normalize( Vector3( 0.f,-1.f, 1.f ) ) * a,
+        
+        normalize( Vector3( 0.f,-1.f, 0.f ) ) * a,
+        normalize( Vector3( 0.f,-1.f,-1.f ) ) * a,
+        normalize( Vector3( 0.f, 0.f,-1.f ) ) * a,
+        normalize( Vector3( 0.f, 1.f,-1.f ) ) * a,
+    };
+
+    for( int ipoint = body.begin, irestpos = 0; ipoint < body.end; ++ipoint, ++irestpos )
+    {
+        const Vector3 restPos = localPoints[irestpos];
+        const Vector3 pos = restPos;
+        p.pos0[ipoint] = pos;
+        p.pos1[ipoint] = pos;
+        p.vel[ipoint] = Vector3( 0.f );
+
+        float mass = 0.1f;
+        p.mass[ipoint] = mass;
+        p.massInv[ipoint] = 1.f / mass;
+    }
+
+    f32 massSum = 0.f;
+    Vector3 com( 0.f );
+    for( int ipoint = body.begin; ipoint < body.end; ++ipoint )
+    {
+        com += p.pos0[ipoint] * p.mass[ipoint];
+        massSum += p.mass[ipoint];
+    }
+    com /= massSum;
+    for( int ipoint = body.begin, irestpos = 0; ipoint < body.end; ++ipoint, ++irestpos )
+    {
+        ch->wheelRestPos[irestpos] = p.pos0[ipoint] - com;
+        p.pos0[ipoint] = mulAsVec4( worldPose, p.pos0[ipoint] );
+        p.pos1[ipoint] = p.pos0[ipoint];
+    }
+
+    body.com.pos = com;
+    body.com.rot = Quat( worldPose.getUpper3x3() );
+
+    initConstraint( &ch->wheelBodyConstraints[0], p.pos0[0], p.pos0[body.begin], 0, body.begin );
+    initConstraint( &ch->wheelBodyConstraints[1], p.pos0[1], p.pos0[body.begin], 1, body.begin );
+    initConstraint( &ch->wheelBodyConstraints[2], p.pos0[2], p.pos0[body.begin], 2, body.begin );
+}
+
+
 void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime )
 {
     ParticleData* cp = &ch->particles;
-    Character1::Body body = ch->mainBody;
+    const Character1::Body& body = ch->mainBody;
 
     const floatInVec dtv( deltaTime );
     const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.1f ), dtv );
@@ -295,16 +392,45 @@ void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float delta
         cp->vel[ipoint] = vel;
     }
 
-    const int nConstraint = Character1::eMAIN_BODY_CONSTRAINT_COUNT;
+    projectDistanceConstraints( cp, ch->mainBodyConstraints, Character1::eMAIN_BODY_CONSTRAINT_COUNT, 1.f, 4 );
+}
+
+void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime )
+{
+    ParticleData* cp = &ch->particles;
+    const Character1::Body& body = ch->wheelBody;
+
+    const floatInVec dtv( deltaTime );
+    const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.6f ), dtv );
+    const Vector3 gravity = -ch->upVector * 9.1f;
+    const Vector3 jumpVector = ch->upVector * ch->_jumpAcc * 5.f;
+
+
+    const int nPoint = body.count();
+    for( int ipoint = body.begin; ipoint < body.end; ++ipoint )
+    {
+        Vector3 pos = cp->pos0[ipoint];
+        Vector3 vel = cp->vel[ipoint];
+
+        vel += (gravity)* dtv;
+        vel *= dampingCoeff;
+
+        vel += jumpVector;
+        pos += vel * dtv;
+
+        cp->pos1[ipoint] = pos;
+        cp->vel[ipoint] = vel;
+    }
+
     for( int iter = 0; iter < 4; ++iter )
     {
-        for( int iconstraint = 0; iconstraint < nConstraint; ++iconstraint )
+        for( int iconstraint = 0; iconstraint < Character1::eWHEEL_BODY_CONSTRAINT_COUNT; ++iconstraint )
         {
-            const Constraint& c = ch->mainBodyConstraints[iconstraint];
+            const Constraint& c = ch->wheelBodyConstraints[iconstraint];
 
             const Vector3& p0 = cp->pos1[c.i0];
             const Vector3& p1 = cp->pos1[c.i1];
-            const float massInv0 = cp->massInv[c.i0];
+            const float massInv0 = 0.f; // cp->massInv[c.i0];
             const float massInv1 = cp->massInv[c.i1];
 
             Vector3 dpos0, dpos1;
@@ -313,6 +439,29 @@ void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float delta
             cp->pos1[c.i0] += dpos0;
             cp->pos1[c.i1] += dpos1;
         }
+    }
+
+    //projectDistanceConstraints( cp, ch->wheelBodyConstraints, Character1::eWHEEL_BODY_CONSTRAINT_COUNT, 0.1f, 4 );
+}
+
+void simulateWheelUpdatePose( Character1* ch, float shapeScale, float shapeStiffness )
+{
+    ParticleData* cp = &ch->particles;
+    Character1::Body& body = ch->wheelBody;
+
+    Matrix3 R;
+    Vector3 com;
+    bxPhx::pbd_softBodyUpdatePose( &R, &com, cp->pos1 + body.begin, ch->wheelRestPos, cp->mass + body.begin, body.count() );
+    body.com.pos = com;
+    body.com.rot = normalize( Quat( R ) );
+
+    const Matrix3 R1 = appendScale( R, Vector3( shapeScale ) );
+    for( int ipoint = body.begin, irestpos = 0; ipoint < body.end; ++ipoint, ++irestpos )
+    {
+        SYS_ASSERT( irestpos < Character1::eWHEEL_BODY_PARTICLE_COUNT );
+        Vector3 dpos( 0.f );
+        bxPhx::pbd_solveShapeMatchingConstraint( &dpos, R1, com, ch->wheelRestPos[irestpos], cp->pos1[ipoint], shapeStiffness );
+        cp->pos1[ipoint] += dpos;
     }
 }
 
@@ -367,6 +516,9 @@ void computeCharacterPose( Character1* ch )
     ch->frontVector = dir;
     ch->sideVector = side;
     ch->footPos = com;
+
+    body.com.pos = com;
+    body.com.rot = Quat( Matrix3( dir, ch->upVector, side ) );
 }
 
 }}///

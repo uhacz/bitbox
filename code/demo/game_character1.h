@@ -15,35 +15,46 @@ namespace bxGame
         f32 d;
     };
 
+
     struct ParticleData
     {
+        void* memoryHandle;
+        i32 size;
+        i32 capacity;
+        
         Vector3* pos0;
         Vector3* pos1;
         Vector3* vel;
         f32* mass;
         f32* massInv;
 
-        void* memoryHandle;
-        i32 size;
-        i32 capacity;
+        static void alloc( ParticleData* data, int newcap );
+        static void free( ParticleData* data );
     };
-    void particleDataAllocate( ParticleData* data, int newcap );
-    void particleDataFree( ParticleData* data );
-    
+
     struct Character1
     {
         enum
         {
             eMAIN_BODY_PARTICLE_COUNT = 3,
             eMAIN_BODY_CONSTRAINT_COUNT = 3,
-            eWHEEL_BODY_PARTICLE_COUNT = 8,
+            
+            eWHEEL_BODY_PARTICLE_COUNT = 9,
+            eWHEEL_BODY_CONSTRAINT_COUNT = 3,
 
             eTOTAL_PARTICLE_COUNT = eMAIN_BODY_PARTICLE_COUNT + eWHEEL_BODY_PARTICLE_COUNT,
 
         };
 
+        struct CenterOfMass
+        {
+            Vector3 pos;
+            Quat rot;
+        };
+
         struct Body
         {
+            CenterOfMass com;
             i16 begin;
             i16 end;
 
@@ -64,19 +75,15 @@ namespace bxGame
         Vector3 sideVector;
 
         ParticleData particles;
+
         Body mainBody;
         Body wheelBody;
-        Constraint mainBodyConstraints[eMAIN_BODY_CONSTRAINT_COUNT];
-        Input input;
 
-        //struct Particles
-        //{
-        //    Vector3 pos0[ePARTICLE_COUNT];
-        //    Vector3 pos1[ePARTICLE_COUNT];
-        //    Vector3 vel[ePARTICLE_COUNT];
-        //    f32 mass[ePARTICLE_COUNT];
-        //    f32 massInv[ePARTICLE_COUNT];
-        //};
+        Vector3 wheelRestPos[eWHEEL_BODY_PARTICLE_COUNT];
+        Constraint mainBodyConstraints[eMAIN_BODY_CONSTRAINT_COUNT];
+        Constraint wheelBodyConstraints[eMAIN_BODY_CONSTRAINT_COUNT];
+
+        Input input;
 
         bxPhx_Contacts* contacts;
         f32 _dtAcc;
@@ -89,7 +96,11 @@ namespace bxGame
         void debugDraw( Character1* ch );
 
         void initMainBody( Character1* ch, const Matrix4& worldPose );
+        void initWheelBody( Character1* ch, const Matrix4& worldPose );
+
         void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
+        void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
+        void simulateWheelUpdatePose( Character1* ch, float shapeScale, float shapeStiffness );
         void simulateFinalize( Character1* ch, float staticFriction, float dynamicFriction, float deltaTime );
 
         void computeCharacterPose( Character1* ch );
