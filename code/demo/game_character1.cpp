@@ -78,7 +78,7 @@ void character1_tick( Character1* character, bxPhx_CollisionSpace* cspace, const
 
     const float staticFriction = 0.1f;
     const float dynamicFriction = 0.1f;
-    const float shapeStiffness = 0.1f;
+    const float shapeStiffness = 0.15f;
 
     const float fixedFreq = 60.f;
     const float fixedDt = 1.f / fixedFreq;
@@ -178,10 +178,17 @@ void debugDraw( Character1* character )
         bxGfxDebugDraw::addSphere( Vector4( cp->pos0[ipoint], 0.05f ), 0x00FF00FF, true );
     }
 
-    const int nConstraint = Character1::eMAIN_BODY_CONSTRAINT_COUNT;
+    int nConstraint = Character1::eMAIN_BODY_CONSTRAINT_COUNT;
     for( int iconstraint = 0; iconstraint < nConstraint; ++iconstraint )
     {
         const Constraint& c = character->mainBodyConstraints[iconstraint];
+        bxGfxDebugDraw::addLine( cp->pos0[c.i0], cp->pos1[c.i1], 0xFF0000FF, true );
+    }
+
+    nConstraint = Character1::eWHEEL_BODY_CONSTRAINT_COUNT;
+    for ( int iconstraint = 0; iconstraint < nConstraint; ++iconstraint )
+    {
+        const Constraint& c = character->wheelBodyConstraints[iconstraint];
         bxGfxDebugDraw::addLine( cp->pos0[c.i0], cp->pos1[c.i1], 0xFF0000FF, true );
     }
 
@@ -308,28 +315,33 @@ void initWheelBody( Character1* ch, const Matrix4& worldPose )
     Character1::Body& body = ch->wheelBody;
 
     const float a = 0.5f;
-
+    const float b = 0.5f;
     Vector3 localPoints[Character1::eWHEEL_BODY_PARTICLE_COUNT] =
     {
-        Vector3( 0.0f, 0.f, 0.f ),
+        Vector3( -a, 0.f, 0.f ),
+        Vector3(  a, 0.f, 0.f ),
+
+        Vector3( 0.f, 1.f, 0.f ),
+        Vector3( 0.f, 1.f, 1.f ),
+        Vector3( 0.f, 0.f, 1.f ),
+        Vector3( 0.f,-1.f, 1.f ),
         
-        normalize( Vector3( 0.f, 1.f, 0.f ) ) * a,
-        normalize( Vector3( 0.f, 1.f, 1.f ) ) * a,
-        normalize( Vector3( 0.f, 0.f, 1.f ) ) * a,
-        normalize( Vector3( 0.f,-1.f, 1.f ) ) * a,
-        
-        normalize( Vector3( 0.f,-1.f, 0.f ) ) * a,
-        normalize( Vector3( 0.f,-1.f,-1.f ) ) * a,
-        normalize( Vector3( 0.f, 0.f,-1.f ) ) * a,
-        normalize( Vector3( 0.f, 1.f,-1.f ) ) * a,
+        Vector3( 0.f,-1.f, 0.f ),
+        Vector3( 0.f,-1.f,-1.f ),
+        Vector3( 0.f, 0.f,-1.f ),
+        Vector3( 0.f, 1.f,-1.f ),
     };
+    for( int ipoint = 2; ipoint < Character1::eWHEEL_BODY_PARTICLE_COUNT; ++ipoint )
+    {
+        localPoints[ipoint] = mulPerElem( normalize( localPoints[ipoint] ), Vector3( a, b, a ) );
+    }
+
 
     for( int ipoint = body.begin, irestpos = 0; ipoint < body.end; ++ipoint, ++irestpos )
     {
-        const Vector3 restPos = localPoints[irestpos];
-        const Vector3 pos = restPos;
-        p.pos0[ipoint] = pos;
-        p.pos1[ipoint] = pos;
+        const Vector3 restPos = localPoints[irestpos] + Vector3( 0.f, 0.f, 0.f );
+        p.pos0[ipoint] = restPos;
+        p.pos1[ipoint] = restPos;
         p.vel[ipoint] = Vector3( 0.f );
 
         float mass = 0.1f;
@@ -355,9 +367,18 @@ void initWheelBody( Character1* ch, const Matrix4& worldPose )
     body.com.pos = com;
     body.com.rot = Quat( worldPose.getUpper3x3() );
 
-    initConstraint( &ch->wheelBodyConstraints[0], p.pos0[0], p.pos0[body.begin], 0, body.begin );
-    initConstraint( &ch->wheelBodyConstraints[1], p.pos0[1], p.pos0[body.begin], 1, body.begin );
-    initConstraint( &ch->wheelBodyConstraints[2], p.pos0[2], p.pos0[body.begin], 2, body.begin );
+    int left = body.begin;
+    int right = body.begin + 1;
+    
+    initConstraint( &ch->wheelBodyConstraints[0], p.pos0[left], p.pos0[right], left, right);
+
+    initConstraint( &ch->wheelBodyConstraints[1], p.pos0[0], p.pos0[left], 0, left );
+    initConstraint( &ch->wheelBodyConstraints[2], p.pos0[1], p.pos0[left], 1, left );
+    initConstraint( &ch->wheelBodyConstraints[3], p.pos0[2], p.pos0[left], 2, left );
+
+    initConstraint( &ch->wheelBodyConstraints[4], p.pos0[0], p.pos0[right], 0, right );
+    initConstraint( &ch->wheelBodyConstraints[5], p.pos0[1], p.pos0[right], 1, right );
+    initConstraint( &ch->wheelBodyConstraints[6], p.pos0[2], p.pos0[right], 2, right );
 }
 
 
@@ -401,7 +422,7 @@ void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float delt
     const Character1::Body& body = ch->wheelBody;
 
     const floatInVec dtv( deltaTime );
-    const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.6f ), dtv );
+    const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.9f ), dtv );
     const Vector3 gravity = -ch->upVector * 9.1f;
     const Vector3 jumpVector = ch->upVector * ch->_jumpAcc * 5.f;
 
@@ -415,7 +436,7 @@ void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float delt
         vel += (gravity)* dtv;
         vel *= dampingCoeff;
 
-        vel += jumpVector;
+        //vel += jumpVector;
         pos += vel * dtv;
 
         cp->pos1[ipoint] = pos;
@@ -430,7 +451,7 @@ void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float delt
 
             const Vector3& p0 = cp->pos1[c.i0];
             const Vector3& p1 = cp->pos1[c.i1];
-            const float massInv0 = 0.f; // cp->massInv[c.i0];
+            const float massInv0 = (iconstraint == 0) ? cp->massInv[c.i0] : 0.f;
             const float massInv1 = cp->massInv[c.i1];
 
             Vector3 dpos0, dpos1;
@@ -481,8 +502,10 @@ void simulateFinalize( Character1* ch, float staticFriction, float dynamicFricti
     {
         bxPhx::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
 
+        float fd = (index0 < Character1::eMAIN_BODY_PARTICLE_COUNT) ? dynamicFriction : 0.6f;
+
         Vector3 dpos( 0.f );
-        bxPhx::pbd_computeFriction( &dpos, cp->pos0[index0], cp->pos1[index0], normal, staticFriction, dynamicFriction );
+        bxPhx::pbd_computeFriction( &dpos, cp->pos0[index0], cp->pos1[index0], normal, staticFriction, fd );
         cp->pos1[index0] += dpos;
     }
 

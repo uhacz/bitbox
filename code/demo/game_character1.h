@@ -39,8 +39,8 @@ namespace bxGame
             eMAIN_BODY_PARTICLE_COUNT = 3,
             eMAIN_BODY_CONSTRAINT_COUNT = 3,
             
-            eWHEEL_BODY_PARTICLE_COUNT = 9,
-            eWHEEL_BODY_CONSTRAINT_COUNT = 3,
+            eWHEEL_BODY_PARTICLE_COUNT = 10,
+            eWHEEL_BODY_CONSTRAINT_COUNT = 7,
 
             eTOTAL_PARTICLE_COUNT = eMAIN_BODY_PARTICLE_COUNT + eWHEEL_BODY_PARTICLE_COUNT,
 
@@ -81,7 +81,7 @@ namespace bxGame
 
         Vector3 wheelRestPos[eWHEEL_BODY_PARTICLE_COUNT];
         Constraint mainBodyConstraints[eMAIN_BODY_CONSTRAINT_COUNT];
-        Constraint wheelBodyConstraints[eMAIN_BODY_CONSTRAINT_COUNT];
+        Constraint wheelBodyConstraints[eWHEEL_BODY_CONSTRAINT_COUNT];
 
         Input input;
 
