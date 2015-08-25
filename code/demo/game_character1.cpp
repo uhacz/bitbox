@@ -5,6 +5,7 @@
 #include <util/memory.h>
 #include <util/signal_filter.h>
 #include <util/buffer_utils.h>
+#include <util/common.h>
 
 #include <resource_manager/resource_manager.h>
 #include <gfx/gfx_debug_draw.h>
@@ -110,7 +111,7 @@ void character1_tick( Character1* character, bxPhx_CollisionSpace* cspace, const
 
 Matrix4 character1_pose( const Character1* ch )
 {
-    return Matrix4( Matrix3(  ch->sideVector, ch->upVector, ch->frontVector ), ch->footPos );
+    return Matrix4( Matrix3(  ch->sideVector, ch->upVector, ch->frontVector ), ch->feetCenterPos );
 }
 Vector3 character1_upVector( const Character1* ch )
 {
@@ -173,10 +174,20 @@ void debugDraw( Character1* character )
 {
     ParticleData* cp = &character->particles;
     const int nPoint = cp->size;
-    for( int ipoint = 0; ipoint < nPoint; ++ipoint )
+    for( int ipoint = character->mainBody.begin; ipoint < character->mainBody.end; ++ipoint )
     {
         bxGfxDebugDraw::addSphere( Vector4( cp->pos0[ipoint], 0.05f ), 0x00FF00FF, true );
     }
+
+    const int wheelBegin = character->wheelBody.begin;
+    const int wheelEnd = character->wheelBody.end;
+    for( int ipoint = wheelBegin; ipoint < wheelEnd; ++ipoint )
+    {
+        bxGfxDebugDraw::addSphere( Vector4( cp->pos0[ipoint], 0.05f ), 0x333333FF, true );
+    }
+    bxGfxDebugDraw::addSphere( Vector4( character->leftFootPos, 0.075f ), 0xFFFF00FF, true );
+    bxGfxDebugDraw::addSphere( Vector4( character->rightFootPos, 0.075f ), 0xFFFF00FF, true );
+
 
     int nConstraint = Character1::eMAIN_BODY_CONSTRAINT_COUNT;
     for( int iconstraint = 0; iconstraint < nConstraint; ++iconstraint )
@@ -192,9 +203,9 @@ void debugDraw( Character1* character )
         bxGfxDebugDraw::addLine( cp->pos0[c.i0], cp->pos1[c.i1], 0xFF0000FF, true );
     }
 
-    bxGfxDebugDraw::addLine( character->footPos, character->footPos + character->sideVector, 0xFF0000FF, true );
-    bxGfxDebugDraw::addLine( character->footPos, character->footPos + character->upVector, 0x00FF00FF, true );
-    bxGfxDebugDraw::addLine( character->footPos, character->footPos + character->frontVector, 0x0000FFFF, true );
+    bxGfxDebugDraw::addLine( character->feetCenterPos, character->feetCenterPos + character->sideVector, 0xFF0000FF, true );
+    bxGfxDebugDraw::addLine( character->feetCenterPos, character->feetCenterPos + character->upVector, 0x00FF00FF, true );
+    bxGfxDebugDraw::addLine( character->feetCenterPos, character->feetCenterPos + character->frontVector, 0x0000FFFF, true );
 
 }
 void collectInputData( Character1::Input* charInput, const bxInput& input, float deltaTime )
@@ -538,10 +549,38 @@ void computeCharacterPose( Character1* ch )
 
     ch->frontVector = dir;
     ch->sideVector = side;
-    ch->footPos = com;
+    ch->feetCenterPos = com;
 
     body.com.pos = com;
     body.com.rot = Quat( Matrix3( dir, ch->upVector, side ) );
+
+
+    const int leftFootParticleIndex = ch->wheelBody.begin + 2;
+    const int rightFootParticleIndex = ch->wheelBody.begin + 6;
+    const float sideLen = 0.35f;
+
+    const Vector3& leftVelocity = ch->particles.vel[leftFootParticleIndex];
+    const Vector3& rightVelocity = ch->particles.vel[rightFootParticleIndex];
+
+    const float leftSpeed = length( leftVelocity ).getAsFloat();
+    const float rightSpeed = length( rightVelocity ).getAsFloat();
+
+    const Vector3 footOffsetX = side * sideLen;
+    
+    Vector3 leftWalkPos = ch->particles.pos0[leftFootParticleIndex] - footOffsetX;
+    Vector3 rightWalkPos = ch->particles.pos0[rightFootParticleIndex] + footOffsetX;
+
+    const Vector4 footPlane = makePlane( ch->upVector, com );
+    Vector3 leftRestPos = projectPointOnPlane( leftWalkPos, footPlane );
+    Vector3 rightRestPos = projectPointOnPlane( rightWalkPos, footPlane );
+
+    
+
+    const float leftAlpha = smoothstep( 0.f, 2.f, leftSpeed );
+    const float rightAlpha = smoothstep( 0.f, 2.f, rightSpeed );
+
+    ch->leftFootPos = lerp( leftAlpha, leftRestPos, leftWalkPos );
+    ch->rightFootPos = lerp( rightAlpha, rightRestPos, rightWalkPos );
 }
 
 }}///

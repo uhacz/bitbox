@@ -69,10 +69,13 @@ namespace bxGame
             f32 crouch;
         };
 
-        Vector3 footPos;
+        Vector3 feetCenterPos;
         Vector3 upVector;
         Vector3 frontVector;
         Vector3 sideVector;
+        
+        Vector3 leftFootPos;
+        Vector3 rightFootPos;
 
         ParticleData particles;
 
