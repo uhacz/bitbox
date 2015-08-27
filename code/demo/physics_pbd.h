@@ -87,15 +87,15 @@ namespace bxPhx
     }
     ////
     ////
-    inline void pbd_computeFriction( Vector3* result, const Vector3& pos0, const Vector3& pos1, const Vector3& normal, float sfriction, float dfriction )
+    inline void pbd_computeFriction( Vector3* result, const Vector3& pos0, const Vector3& pos1, const Vector3& normal, float depth, float sfriction, float dfriction )
     {
         const Vector3 v = pos1 - pos0;
         const Vector3 t = projectVectorOnPlane( v, Vector4( normal, zeroVec ) );
 
         const floatInVec tspeed = length( t );
-        const floatInVec speed = length( v );
-        const floatInVec sd = speed * floatInVec( sfriction );
-        const floatInVec dd = speed * floatInVec( dfriction );
+        //const floatInVec speed = length( v );
+        const floatInVec sd = floatInVec( depth ) * floatInVec( sfriction );
+        const floatInVec dd = floatInVec( depth ) * floatInVec( dfriction );
         const floatInVec tspeedInv = select( zeroVec, oneVec / tspeed, tspeed > fltEpsVec );
         const Vector3 tmp = -t * minf4( oneVec, dd * tspeedInv );
         result[0] = select( tmp, -t, tspeed < sd );

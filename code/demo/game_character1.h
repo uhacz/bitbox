@@ -10,8 +10,8 @@ namespace bxGame
 {
     struct Constraint
     {
-        i16 i0;
-        i16 i1;
+        u16 i0;
+        u16 i1;
         f32 d;
     };
 

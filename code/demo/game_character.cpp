@@ -443,7 +443,7 @@ namespace bxGame
                 bxPhx::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
 
                 Vector3 dpos( 0.f );
-                bxPhx::pbd_computeFriction( &dpos, cp->pos0[index0], cp->pos1[index0], normal, staticFriction, dynamicFriction );
+                bxPhx::pbd_computeFriction( &dpos, cp->pos0[index0], cp->pos1[index0], normal, depth, staticFriction, dynamicFriction );
                 cp->pos1[index0] += dpos;
             }
 

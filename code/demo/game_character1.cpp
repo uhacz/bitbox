@@ -77,8 +77,8 @@ void character1_tick( Character1* character, bxPhx_CollisionSpace* cspace, const
         //bxGfxDebugDraw::addLine( character->bottomBody.com.pos, character->bottomBody.com.pos + externalForces + character->upVector*character->_jumpAcc, 0xFFFFFFFF, true );
     }
 
-    const float staticFriction = 0.1f;
-    const float dynamicFriction = 0.1f;
+    const float staticFriction = 0.5f;
+    const float dynamicFriction = 0.9f;
     const float shapeStiffness = 0.15f;
 
     const float fixedFreq = 60.f;
@@ -299,9 +299,9 @@ void initMainBody( Character1* ch, const Matrix4& worldPose )
         p.pos1[i] = p.pos0[i];
         p.vel[i] = Vector3( 0.f );
 
-        float mass = 1.f;
+        float mass = 2.f;
         if( i == 0 )
-            mass += 2.f;
+            mass += 4.f;
 
         p.mass[i] = mass;
         p.massInv[i] = 1.f / mass;
@@ -392,77 +392,91 @@ void initWheelBody( Character1* ch, const Matrix4& worldPose )
     initConstraint( &ch->wheelBodyConstraints[6], p.pos0[2], p.pos0[right], 2, right );
 }
 
-
-void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime )
+struct PBD_Simulate
 {
-    ParticleData* cp = &ch->particles;
-    const Character1::Body& body = ch->mainBody;
-
-    const floatInVec dtv( deltaTime );
-    const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.1f ), dtv );
-    const Vector3 gravity = -ch->upVector * 9.1f;
-    const Vector3 jumpVector = ch->upVector * ch->_jumpAcc * 5.f;
-
-
-    const int nPoint = body.count();
-    for( int ipoint = body.begin; ipoint < body.end; ++ipoint )
+    template< class TVelPlug >
+    static void predictPosition( ParticleData* cp, int pointBegin, int pointEnd, const Vector3& gravityVec, float damping, float deltaTime, TVelPlug& velPlug )
     {
-        Vector3 pos = cp->pos0[ipoint];
-        Vector3 vel = cp->vel[ipoint];
+        const floatInVec dtv( deltaTime );
+        const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( damping ), dtv );
 
-        vel += (gravity)* dtv;
-        vel *= dampingCoeff;
-
-        if( ipoint == body.begin )
+        for( int ipoint = pointBegin; ipoint < pointEnd; ++ipoint )
         {
-            vel += extForce;
+            Vector3 pos = cp->pos0[ipoint];
+            Vector3 vel = cp->vel[ipoint];
+
+            vel += gravityVec * dtv;
+            vel *= dampingCoeff;
+
+            velPlug( vel, ipoint );
+            
+            pos += vel * dtv;
+
+            cp->pos1[ipoint] = pos;
+            cp->vel[ipoint] = vel;
         }
-        vel += jumpVector;
-        pos += vel * dtv;
-
-        cp->pos1[ipoint] = pos;
-        cp->vel[ipoint] = vel;
     }
 
-    projectDistanceConstraints( cp, ch->mainBodyConstraints, Character1::eMAIN_BODY_CONSTRAINT_COUNT, 1.f, 4 );
-}
-
-void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime )
-{
-    ParticleData* cp = &ch->particles;
-    const Character1::Body& body = ch->wheelBody;
-
-    const floatInVec dtv( deltaTime );
-    const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.9f ), dtv );
-    const Vector3 gravity = -ch->upVector * 9.1f;
-    const Vector3 jumpVector = ch->upVector * ch->_jumpAcc * 5.f;
-
-
-    const int nPoint = body.count();
-    for( int ipoint = body.begin; ipoint < body.end; ++ipoint )
+    static void applyFriction( ParticleData* cp, bxPhx_Contacts* contacts, float staticFriction, float dynamicFriction )
     {
-        Vector3 pos = cp->pos0[ipoint];
-        Vector3 vel = cp->vel[ipoint];
+        const int nContacts = bxPhx::contacts_size( contacts );
 
-        vel += (gravity)* dtv;
-        vel *= dampingCoeff;
+        Vector3 normal( 0.f );
+        float depth = 0.f;
+        u16 index0 = 0xFFFF;
+        u16 index1 = 0xFFFF;
 
-        //vel += jumpVector;
-        pos += vel * dtv;
-
-        cp->pos1[ipoint] = pos;
-        cp->vel[ipoint] = vel;
-    }
-
-    for( int iter = 0; iter < 4; ++iter )
-    {
-        for( int iconstraint = 0; iconstraint < Character1::eWHEEL_BODY_CONSTRAINT_COUNT; ++iconstraint )
+        for( int icontact = 0; icontact < nContacts; ++icontact )
         {
-            const Constraint& c = ch->wheelBodyConstraints[iconstraint];
+            bxPhx::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
+
+            //float fd = ( index0 < Character1::eMAIN_BODY_PARTICLE_COUNT ) ? dynamicFriction : 0.6f;
+
+            Vector3 dpos( 0.f );
+            bxPhx::pbd_computeFriction( &dpos, cp->pos0[index0], cp->pos1[index0], normal, depth, staticFriction, dynamicFriction );
+            cp->pos1[index0] += dpos;
+        }
+    }
+
+    static void softBodyUpdatePose( Vector3* comPos, Quat* comRot, ParticleData* cp, int pointBegin, int pointEnd, const Vector3* restPositions, float shapeStiffness )
+    {
+        const int pointCount = pointEnd - pointBegin;
+        SYS_ASSERT( pointCount > 0 );
+
+        Matrix3 R;
+        Vector3 com;
+        bxPhx::pbd_softBodyUpdatePose( &R, &com, cp->pos1 + pointBegin, restPositions, cp->mass + pointBegin, pointCount );
+        comPos[0] = com;
+        comRot[0] = normalize( Quat( R ) );
+
+        //const Matrix3 R1 = appendScale( R, Vector3( shapeScale ) );
+        for( int ipoint = pointBegin, irestpos = 0; ipoint < pointEnd; ++ipoint, ++irestpos )
+        {
+            SYS_ASSERT( irestpos < pointCount );
+            Vector3 dpos( 0.f );
+            bxPhx::pbd_solveShapeMatchingConstraint( &dpos, R, com, restPositions[irestpos], cp->pos1[ipoint], shapeStiffness );
+            cp->pos1[ipoint] += dpos;
+        }
+    }
+
+    static void updateVelocity( ParticleData* cp, int pointBegin, int pointEnd, float deltaTimeInv )
+    {
+        for( int ipoint = pointBegin; ipoint < pointEnd; ++ipoint )
+        {
+            cp->vel[ipoint] = ( cp->pos1[ipoint] - cp->pos0[ipoint] ) * deltaTimeInv;
+            cp->pos0[ipoint] = cp->pos1[ipoint];
+        }
+    }
+
+    static void projectDistanceConstraint( ParticleData* cp, const Constraint* constraints, int nConstraints, float stiffness )
+    {
+        for( int iconstraint = 0; iconstraint < nConstraints; ++iconstraint )
+        {
+            const Constraint& c = constraints[iconstraint];
 
             const Vector3& p0 = cp->pos1[c.i0];
             const Vector3& p1 = cp->pos1[c.i1];
-            const float massInv0 = (iconstraint == 0) ? cp->massInv[c.i0] : 0.f;
+            const float massInv0 = cp->massInv[c.i0];
             const float massInv1 = cp->massInv[c.i1];
 
             Vector3 dpos0, dpos1;
@@ -472,6 +486,124 @@ void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float delt
             cp->pos1[c.i1] += dpos1;
         }
     }
+
+};
+
+struct PBD_VelPlug_Null
+{
+    void operator() ( Vector3& vel, int ipoint ) { (void)vel; (void)ipoint; }
+};
+
+struct PBD_VelPlug_MainBody
+{
+    Vector3 inputVec;
+    Vector3 jumpVec;
+    Character1::Body* body;
+    
+    void operator() ( Vector3& vel, int ipoint )
+    {
+        if( ipoint == body->begin )
+        {
+            vel += inputVec;
+        }
+
+        vel += jumpVec;
+    }
+};
+
+
+
+void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime )
+{
+    ParticleData* cp = &ch->particles;
+    const Character1::Body& body = ch->mainBody;
+
+    //const floatInVec dtv( deltaTime );
+    //const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.1f ), dtv );
+    
+    const Vector3 gravity = -ch->upVector * 9.1f;
+    const Vector3 jumpVector = ch->upVector * ch->_jumpAcc * 5.f;
+
+    PBD_VelPlug_MainBody velPlug;
+    velPlug.body = &ch->mainBody;
+    velPlug.inputVec = extForce;
+    velPlug.jumpVec = jumpVector;
+
+    PBD_Simulate::predictPosition( cp, body.begin, body.end, gravity, 0.1f, deltaTime, velPlug );
+    
+    for( int iiter = 0; iiter < 4; ++iiter )
+        PBD_Simulate::projectDistanceConstraint( cp, ch->mainBodyConstraints, Character1::eMAIN_BODY_CONSTRAINT_COUNT, 1.f );
+
+    //const int nPoint = body.count();
+    //for( int ipoint = body.begin; ipoint < body.end; ++ipoint )
+    //{
+    //    Vector3 pos = cp->pos0[ipoint];
+    //    Vector3 vel = cp->vel[ipoint];
+
+    //    vel += (gravity)* dtv;
+    //    vel *= dampingCoeff;
+
+    //    if( ipoint == body.begin )
+    //    {
+    //        vel += extForce;
+    //    }
+    //    vel += jumpVector;
+    //    pos += vel * dtv;
+
+    //    cp->pos1[ipoint] = pos;
+    //    cp->vel[ipoint] = vel;
+    //}
+
+    //projectDistanceConstraints( cp, ch->mainBodyConstraints, Character1::eMAIN_BODY_CONSTRAINT_COUNT, 1.f, 4 );
+}
+
+void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime )
+{
+    ParticleData* cp = &ch->particles;
+    const Character1::Body& body = ch->wheelBody;
+
+    //const floatInVec dtv( deltaTime );
+    //const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.9f ), dtv );
+    const Vector3 gravity = -ch->upVector * 9.1f;
+    //const Vector3 jumpVector = ch->upVector * ch->_jumpAcc * 5.f;
+
+    PBD_Simulate::predictPosition( cp, body.begin, body.end, gravity, 0.9f, deltaTime, PBD_VelPlug_Null() );
+    PBD_Simulate::projectDistanceConstraint( cp, ch->wheelBodyConstraints, Character1::eWHEEL_BODY_CONSTRAINT_COUNT, 1.f );
+
+    //const int nPoint = body.count();
+    //for( int ipoint = body.begin; ipoint < body.end; ++ipoint )
+    //{
+    //    Vector3 pos = cp->pos0[ipoint];
+    //    Vector3 vel = cp->vel[ipoint];
+
+    //    vel += (gravity)* dtv;
+    //    vel *= dampingCoeff;
+
+    //    //vel += jumpVector;
+    //    pos += vel * dtv;
+
+    //    cp->pos1[ipoint] = pos;
+    //    cp->vel[ipoint] = vel;
+    //}
+
+    //for( int iter = 0; iter < 4; ++iter )
+    //{
+    //    for( int iconstraint = 0; iconstraint < Character1::eWHEEL_BODY_CONSTRAINT_COUNT; ++iconstraint )
+    //    {
+    //        const Constraint& c = ch->wheelBodyConstraints[iconstraint];
+
+    //        const Vector3& p0 = cp->pos1[c.i0];
+    //        const Vector3& p1 = cp->pos1[c.i1];
+    //        const float massInv0 = (iconstraint == 0) ? cp->massInv[c.i0] : 0.f;
+    //        const float massInv1 = cp->massInv[c.i1];
+
+    //        Vector3 dpos0, dpos1;
+    //        bxPhx::pbd_solveDistanceConstraint( &dpos0, &dpos1, p0, p1, massInv0, massInv1, c.d, 1.f, 1.f );
+
+    //        cp->pos1[c.i0] += dpos0;
+    //        cp->pos1[c.i1] += dpos1;
+    //    }
+    //}
 
     //projectDistanceConstraints( cp, ch->wheelBodyConstraints, Character1::eWHEEL_BODY_CONSTRAINT_COUNT, 0.1f, 4 );
 }
@@ -499,34 +631,40 @@ void simulateWheelUpdatePose( Character1* ch, float shapeScale, float shapeStiff
 
 void simulateFinalize( Character1* ch, float staticFriction, float dynamicFriction, float deltaTime )
 {
-    bxPhx_Contacts* contacts = ch->contacts;
-    const int nContacts = bxPhx::contacts_size( contacts );
+    const float deltaTimeInv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
+    
+    PBD_Simulate::applyFriction( &ch->particles, ch->contacts, staticFriction, dynamicFriction );
+    
+    //bxPhx_Contacts* contacts = ch->contacts;
+    //const int nContacts = bxPhx::contacts_size( contacts );
 
-    Vector3 normal( 0.f );
-    float depth = 0.f;
-    u16 index0 = 0xFFFF;
-    u16 index1 = 0xFFFF;
+    //Vector3 normal( 0.f );
+    //float depth = 0.f;
+    //u16 index0 = 0xFFFF;
+    //u16 index1 = 0xFFFF;
 
-    ParticleData* cp = &ch->particles;
+    //ParticleData* cp = &ch->particles;
 
-    for( int icontact = 0; icontact < nContacts; ++icontact )
-    {
-        bxPhx::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
+    //for( int icontact = 0; icontact < nContacts; ++icontact )
+    //{
+    //    bxPhx::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
 
-        float fd = (index0 < Character1::eMAIN_BODY_PARTICLE_COUNT) ? dynamicFriction : 0.6f;
+    //    float fd = ( index0 < Character1::eMAIN_BODY_PARTICLE_COUNT ) ? dynamicFriction : 0.6f;
 
-        Vector3 dpos( 0.f );
-        bxPhx::pbd_computeFriction( &dpos, cp->pos0[index0], cp->pos1[index0], normal, staticFriction, fd );
-        cp->pos1[index0] += dpos;
-    }
+    //    Vector3 dpos( 0.f );
+    //    bxPhx::pbd_computeFriction( &dpos, cp->pos0[index0], cp->pos1[index0], normal, depth, staticFriction, fd );
+    //    cp->pos1[index0] += dpos;
+    //}
 
-    const floatInVec dtvInv( ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f );
+    PBD_Simulate::updateVelocity( &ch->particles, 0, ch->particles.size, deltaTimeInv );
 
-    for( int ipoint = 0; ipoint < cp->size; ++ipoint )
-    {
-        cp->vel[ipoint] = ( cp->pos1[ipoint] - cp->pos0[ipoint] ) * dtvInv;
-        cp->pos0[ipoint] = cp->pos1[ipoint];
-    }
+    //const floatInVec dtvInv( ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f );
+
+    //for( int ipoint = 0; ipoint < cp->size; ++ipoint )
+    //{
+    //    cp->vel[ipoint] = ( cp->pos1[ipoint] - cp->pos0[ipoint] ) * dtvInv;
+    //    cp->pos0[ipoint] = cp->pos1[ipoint];
+    //}
 }
 
 void computeCharacterPose( Character1* ch )
