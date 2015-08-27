@@ -43,7 +43,6 @@ namespace bxGame
             eWHEEL_BODY_CONSTRAINT_COUNT = 7,
 
             eTOTAL_PARTICLE_COUNT = eMAIN_BODY_PARTICLE_COUNT + eWHEEL_BODY_PARTICLE_COUNT,
-
         };
 
         struct CenterOfMass

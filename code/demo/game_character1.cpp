@@ -68,16 +68,16 @@ void character1_tick( Character1* character, bxPhx_CollisionSpace* cspace, const
         externalForces += Vector3::xAxis() * character->input.analogX;
         externalForces -= Vector3::zAxis() * character->input.analogY;
 
-        const float maxInputForce = 0.5f;
+        const float maxInputForce = 0.25f;
         const floatInVec externalForcesValue = minf4( length( externalForces ), floatInVec( maxInputForce ) );
         externalForces = projectVectorOnPlane( camera.matrix.world.getUpper3x3() * externalForces, Vector4( character->upVector, oneVec ) );
         externalForces = normalizeSafe( externalForces ) * externalForcesValue;
-        character->_jumpAcc += character->input.jump;
+        character->_jumpAcc += character->input.jump * 2;
 
         //bxGfxDebugDraw::addLine( character->bottomBody.com.pos, character->bottomBody.com.pos + externalForces + character->upVector*character->_jumpAcc, 0xFFFFFFFF, true );
     }
 
-    const float staticFriction = 0.5f;
+    const float staticFriction = 0.95f;
     const float dynamicFriction = 0.9f;
     const float shapeStiffness = 0.15f;
 
@@ -329,8 +329,8 @@ void initWheelBody( Character1* ch, const Matrix4& worldPose )
     const float b = 0.5f;
     Vector3 localPoints[Character1::eWHEEL_BODY_PARTICLE_COUNT] =
     {
-        Vector3( -a, 0.f, 0.f ),
-        Vector3(  a, 0.f, 0.f ),
+        Vector3( -a*0.66f, 0.f, 0.f ),
+        Vector3(  a*0.66f, 0.f, 0.f ),
 
         Vector3( 0.f, 1.f, 0.f ),
         Vector3( 0.f, 1.f, 1.f ),
@@ -355,7 +355,7 @@ void initWheelBody( Character1* ch, const Matrix4& worldPose )
         p.pos1[ipoint] = restPos;
         p.vel[ipoint] = Vector3( 0.f );
 
-        float mass = 0.1f;
+        float mass = 0.01f;
         p.mass[ipoint] = mass;
         p.massInv[ipoint] = 1.f / mass;
     }
@@ -408,7 +408,7 @@ struct PBD_Simulate
             vel += gravityVec * dtv;
             vel *= dampingCoeff;
 
-            velPlug( vel, ipoint );
+            velPlug( vel, ipoint, deltaTime );
             
             pos += vel * dtv;
 
@@ -468,7 +468,8 @@ struct PBD_Simulate
         }
     }
 
-    static void projectDistanceConstraint( ParticleData* cp, const Constraint* constraints, int nConstraints, float stiffness )
+    template< class TParamEval >
+    static void projectDistanceConstraint( ParticleData* cp, const Constraint* constraints, int nConstraints, float stiffness, TParamEval paramEval )
     {
         for( int iconstraint = 0; iconstraint < nConstraints; ++iconstraint )
         {
@@ -476,8 +477,12 @@ struct PBD_Simulate
 
             const Vector3& p0 = cp->pos1[c.i0];
             const Vector3& p1 = cp->pos1[c.i1];
-            const float massInv0 = cp->massInv[c.i0];
-            const float massInv1 = cp->massInv[c.i1];
+
+            float massInv0 = cp->massInv[c.i0];
+            float massInv1 = cp->massInv[c.i1];
+            float len = c.d;
+
+            paramEval( massInv0, massInv1, len, c, iconstraint );
 
             Vector3 dpos0, dpos1;
             bxPhx::pbd_solveDistanceConstraint( &dpos0, &dpos1, p0, p1, massInv0, massInv1, c.d, 1.f, 1.f );
@@ -486,12 +491,11 @@ struct PBD_Simulate
             cp->pos1[c.i1] += dpos1;
         }
     }
-
 };
 
 struct PBD_VelPlug_Null
 {
-    void operator() ( Vector3& vel, int ipoint ) { (void)vel; (void)ipoint; }
+    void operator() ( Vector3& vel, int ipoint, float deltaTime ) { (void)vel; (void)ipoint; }
 };
 
 struct PBD_VelPlug_MainBody
@@ -500,7 +504,7 @@ struct PBD_VelPlug_MainBody
     Vector3 jumpVec;
     Character1::Body* body;
     
-    void operator() ( Vector3& vel, int ipoint )
+    void operator() ( Vector3& vel, int ipoint, float deltaTime )
     {
         if( ipoint == body->begin )
         {
@@ -511,7 +515,26 @@ struct PBD_VelPlug_MainBody
     }
 };
 
+struct PBD_ConstraintParamEval_Null
+{
+    void operator() ( float& massInv0, float& massInv1, float& restLength, const Constraint& c, int iconstrait )
+    {
+        (void)massInv0;
+        (void)massInv1;
+        (void)restLength;
+        (void)c;
+        (void)iconstrait;
+    }
+};
 
+struct PBD_ConstraintParamEval_Wheel
+{
+    void operator() ( float& massInv0, float& massInv1, float& restLength, const Constraint& c, int iconstrait )
+    {
+        if ( iconstrait != 0 )
+            massInv0 = 0.f;
+    }
+};
 
 void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime )
 {
@@ -529,10 +552,10 @@ void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float delta
     velPlug.inputVec = extForce;
     velPlug.jumpVec = jumpVector;
 
-    PBD_Simulate::predictPosition( cp, body.begin, body.end, gravity, 0.1f, deltaTime, velPlug );
+    PBD_Simulate::predictPosition( cp, body.begin, body.end, gravity, 0.5f, deltaTime, velPlug );
     
     for( int iiter = 0; iiter < 4; ++iiter )
-        PBD_Simulate::projectDistanceConstraint( cp, ch->mainBodyConstraints, Character1::eMAIN_BODY_CONSTRAINT_COUNT, 1.f );
+        PBD_Simulate::projectDistanceConstraint( cp, ch->mainBodyConstraints, Character1::eMAIN_BODY_CONSTRAINT_COUNT, 1.f, PBD_ConstraintParamEval_Null() );
 
     //const int nPoint = body.count();
     //for( int ipoint = body.begin; ipoint < body.end; ++ipoint )
@@ -568,7 +591,9 @@ void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float delt
     //const Vector3 jumpVector = ch->upVector * ch->_jumpAcc * 5.f;
 
     PBD_Simulate::predictPosition( cp, body.begin, body.end, gravity, 0.9f, deltaTime, PBD_VelPlug_Null() );
-    PBD_Simulate::projectDistanceConstraint( cp, ch->wheelBodyConstraints, Character1::eWHEEL_BODY_CONSTRAINT_COUNT, 1.f );
+    
+    for( int iiter = 0; iiter < 4; ++iiter )
+        PBD_Simulate::projectDistanceConstraint( cp, ch->wheelBodyConstraints, Character1::eWHEEL_BODY_CONSTRAINT_COUNT, 1.f, PBD_ConstraintParamEval_Wheel() );
 
     //const int nPoint = body.count();
     //for( int ipoint = body.begin; ipoint < body.end; ++ipoint )
