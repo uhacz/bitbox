@@ -32,18 +32,43 @@ namespace bxGame
         static void free( ParticleData* data );
     };
 
+    struct ConstraintData
+    {
+        void* memoryHandle;
+        i32 size;
+        i32 capacity;
+
+        Constraint* desc;
+
+        static void alloc( ConstraintData* data, int newcap );
+        static void free( ConstraintData* data );
+    };
+
+    struct BodyRestPosition
+    {
+        void* memoryHandle;
+        i32 size;
+
+        Vector3* box;
+        Vector3* sphere;
+        Vector3* current;
+
+        static void alloc( BodyRestPosition* data, int newcap );
+        static void free( BodyRestPosition* data );
+    };
+
     struct Character1
     {
-        enum
-        {
-            eMAIN_BODY_PARTICLE_COUNT = 3,
-            eMAIN_BODY_CONSTRAINT_COUNT = 3,
-            
-            eWHEEL_BODY_PARTICLE_COUNT = 10,
-            eWHEEL_BODY_CONSTRAINT_COUNT = 7,
+        //enum
+        //{
+        //    eMAIN_BODY_PARTICLE_COUNT = 3,
+        //    eMAIN_BODY_CONSTRAINT_COUNT = 3,
+        //    
+        //    eWHEEL_BODY_PARTICLE_COUNT = 10,
+        //    eWHEEL_BODY_CONSTRAINT_COUNT = 7,
 
-            eTOTAL_PARTICLE_COUNT = eMAIN_BODY_PARTICLE_COUNT + eWHEEL_BODY_PARTICLE_COUNT,
-        };
+        //    eTOTAL_PARTICLE_COUNT = eMAIN_BODY_PARTICLE_COUNT + eWHEEL_BODY_PARTICLE_COUNT,
+        //};
 
         struct CenterOfMass
         {
@@ -54,10 +79,14 @@ namespace bxGame
         struct Body
         {
             CenterOfMass com;
-            i16 begin;
-            i16 end;
+            i16 particleBegin;
+            i16 particleEnd;
 
-            i16 count() const { return end - begin; }
+            i16 constraintBegin;
+            i16 constraintEnd;
+
+            i16 particleCount() const { return particleEnd - particleBegin; }
+            i16 constaintCount() const{ return constraintEnd - constraintBegin; }
         };
 
         struct Input
@@ -77,13 +106,15 @@ namespace bxGame
         Vector3 rightFootPos;
 
         ParticleData particles;
+        ConstraintData constraints;
+        BodyRestPosition restPos;
 
         Body mainBody;
         Body wheelBody;
-
-        Vector3 wheelRestPos[eWHEEL_BODY_PARTICLE_COUNT];
-        Constraint mainBodyConstraints[eMAIN_BODY_CONSTRAINT_COUNT];
-        Constraint wheelBodyConstraints[eWHEEL_BODY_CONSTRAINT_COUNT];
+        
+        //Vector3 wheelRestPos[eWHEEL_BODY_PARTICLE_COUNT];
+        //Constraint mainBodyConstraints[eMAIN_BODY_CONSTRAINT_COUNT];
+        //Constraint wheelBodyConstraints[eWHEEL_BODY_CONSTRAINT_COUNT];
 
         Input input;
 
@@ -98,7 +129,7 @@ namespace bxGame
         void debugDraw( Character1* ch );
 
         void initMainBody( Character1* ch, const Matrix4& worldPose );
-        void initWheelBody( Character1* ch, const Matrix4& worldPose );
+        void initWheelBody( Character1* ch, int shapeIterations, const Matrix4& worldPose );
 
         void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
         void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
