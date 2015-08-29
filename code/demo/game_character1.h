@@ -59,17 +59,6 @@ namespace bxGame
 
     struct Character1
     {
-        //enum
-        //{
-        //    eMAIN_BODY_PARTICLE_COUNT = 3,
-        //    eMAIN_BODY_CONSTRAINT_COUNT = 3,
-        //    
-        //    eWHEEL_BODY_PARTICLE_COUNT = 10,
-        //    eWHEEL_BODY_CONSTRAINT_COUNT = 7,
-
-        //    eTOTAL_PARTICLE_COUNT = eMAIN_BODY_PARTICLE_COUNT + eWHEEL_BODY_PARTICLE_COUNT,
-        //};
-
         struct CenterOfMass
         {
             Vector3 pos;
@@ -95,12 +84,14 @@ namespace bxGame
             f32 analogY;
             f32 jump;
             f32 crouch;
+            f32 L2;
+            f32 R2;
         };
 
-        Vector3 feetCenterPos;
+        //Vector3 feetCenterPos;
         Vector3 upVector;
-        Vector3 frontVector;
-        Vector3 sideVector;
+        //Vector3 frontVector;
+        //Vector3 sideVector;
         
         Vector3 leftFootPos;
         Vector3 rightFootPos;
@@ -109,8 +100,8 @@ namespace bxGame
         ConstraintData constraints;
         BodyRestPosition restPos;
 
-        Body mainBody;
-        Body wheelBody;
+        //Body mainBody;
+        Body shapeBody;
         
         //Vector3 wheelRestPos[eWHEEL_BODY_PARTICLE_COUNT];
         //Constraint mainBodyConstraints[eMAIN_BODY_CONSTRAINT_COUNT];
@@ -121,6 +112,7 @@ namespace bxGame
         bxPhx_Contacts* contacts;
         f32 _dtAcc;
         f32 _jumpAcc;
+        f32 _shapeBlendAlpha;
     };
 
     namespace CharacterInternal
@@ -128,18 +120,15 @@ namespace bxGame
         void collectInputData( Character1::Input* charInput, const bxInput& input, float deltaTime );
         void debugDraw( Character1* ch );
 
-        void initMainBody( Character1* ch, const Matrix4& worldPose );
-        void initWheelBody( Character1* ch, int shapeIterations, const Matrix4& worldPose );
+        //void initMainBody( Character1* ch, const Matrix4& worldPose );
+        void initShapeBody( Character1* ch, int shapeIterations, const Matrix4& worldPose );
 
-        void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
-        void simulateWheelBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
-        void simulateWheelUpdatePose( Character1* ch, float shapeScale, float shapeStiffness );
+        //void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
+        void simulateShapeBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
+        void simulateShapeUpdatePose( Character1* ch, float shapeScale, float shapeStiffness );
         void simulateFinalize( Character1* ch, float staticFriction, float dynamicFriction, float deltaTime );
 
         void computeCharacterPose( Character1* ch );
-
-
-
     }
 
 }///
