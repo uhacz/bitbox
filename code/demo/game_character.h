@@ -57,7 +57,7 @@ namespace bxGame
         static void free( BodyRestPosition* data );
     };
 
-    struct Character1
+    struct Character
     {
         struct CenterOfMass
         {
@@ -117,18 +117,18 @@ namespace bxGame
 
     namespace CharacterInternal
     {
-        void collectInputData( Character1::Input* charInput, const bxInput& input, float deltaTime );
-        void debugDraw( Character1* ch );
+        void collectInputData( Character::Input* charInput, const bxInput& input, float deltaTime );
+        void debugDraw( Character* ch );
 
         //void initMainBody( Character1* ch, const Matrix4& worldPose );
-        void initShapeBody( Character1* ch, int shapeIterations, const Matrix4& worldPose );
+        void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose );
 
         //void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
-        void simulateShapeBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
-        void simulateShapeUpdatePose( Character1* ch, float shapeScale, float shapeStiffness );
-        void simulateFinalize( Character1* ch, float staticFriction, float dynamicFriction, float deltaTime );
+        void simulateShapeBodyBegin( Character* ch, const Vector3& extForce, float deltaTime );
+        void simulateShapeUpdatePose( Character* ch, float shapeScale, float shapeStiffness );
+        void simulateFinalize( Character* ch, float staticFriction, float dynamicFriction, float deltaTime );
 
-        void computeCharacterPose( Character1* ch );
+        void computeCharacterPose( Character* ch );
     }
 
 }///

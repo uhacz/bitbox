@@ -895,7 +895,7 @@ namespace bxGfx
         hmeshi->h = 0;
     }
 
-    void world_instance( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi )
+    void meshInstance_get( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi )
     {
         hmesh[0] = getHMesh( hmeshi );
         hinstance[0] = getHInstanceBuffer( hmeshi );

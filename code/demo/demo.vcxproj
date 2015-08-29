@@ -85,10 +85,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ai.cpp" />
+    <ClCompile Include="design_block.cpp" />
     <ClCompile Include="entity.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="game_character.cpp" />
-    <ClCompile Include="game_character1.cpp" />
     <ClCompile Include="game_character_camera.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="physics.cpp" />
@@ -135,9 +135,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ai.h" />
+    <ClInclude Include="design_block.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="game.h" />
-    <ClInclude Include="game_character1.h" />
+    <ClInclude Include="game_character.h" />
     <ClInclude Include="physics.h" />
     <ClInclude Include="physics_pbd.h" />
     <ClInclude Include="renderer.h" />

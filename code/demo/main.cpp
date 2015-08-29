@@ -124,7 +124,7 @@ public:
         {
             __scene.dblock->tick( __scene.collisionSpace, __scene.gfxWorld );
             bxGame::flock_tick( __scene.flock, deltaTime );
-            bxGame::character1_tick( __scene.character, __scene.collisionSpace, currentCamera, win->input, deltaTime * 2.f );
+            bxGame::character_tick( __scene.character, __scene.collisionSpace, currentCamera, win->input, deltaTime * 2.f );
             bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime, bxGfx::cameraUtil_anyMovement( cameraInputCtx ) );
         }
         
