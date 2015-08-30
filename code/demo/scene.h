@@ -3,6 +3,7 @@
 #include "physics.h"
 #include "renderer.h"
 #include "game.h"
+#include "design_block.h"
 #include <gfx/gfx_camera.h>
 
 struct bxEngine;
