@@ -2,6 +2,7 @@
 
 #include <util/vectormath/vectormath.h>
 #include <system/input.h>
+#include "renderer.h"
 
 struct bxPhx_Contacts;
 struct bxGfxCamera;
@@ -57,6 +58,28 @@ namespace bxGame
         static void free( BodyRestPosition* data );
     };
 
+    struct MeshVertex
+    {
+        f32 pos[3];
+        f32 nrm[3];
+    };
+    void inline storeVertex( MeshVertex* vtx, const Vector3& pos, const Vector3& nrm )
+    {
+        storeXYZ( pos, vtx->pos );
+        storeXYZ( nrm, vtx->nrm );
+    }
+
+    struct MeshData
+    {
+        u16* indices;
+        i32 nIndices;
+
+        static void alloc( MeshData* data, int newcap );
+        static void free( MeshData* data );
+    };
+
+
+
     struct Character
     {
         struct CenterOfMass
@@ -99,10 +122,12 @@ namespace bxGame
         ParticleData particles;
         ConstraintData constraints;
         BodyRestPosition restPos;
-
+        MeshData shapeMeshData;
         //Body mainBody;
         Body shapeBody;
         
+        bxGfx_HMeshInstance shapeMeshI;
+
         //Vector3 wheelRestPos[eWHEEL_BODY_PARTICLE_COUNT];
         //Constraint mainBodyConstraints[eMAIN_BODY_CONSTRAINT_COUNT];
         //Constraint wheelBodyConstraints[eWHEEL_BODY_CONSTRAINT_COUNT];

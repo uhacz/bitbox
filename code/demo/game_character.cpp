@@ -6,6 +6,7 @@
 #include <util/signal_filter.h>
 #include <util/buffer_utils.h>
 #include <util/common.h>
+#include <util/poly/poly_shape.h>
 
 #include <resource_manager/resource_manager.h>
 #include <gfx/gfx_debug_draw.h>
@@ -27,6 +28,7 @@ Character* character_new()
     memset( &ch->constraints, 0x00, sizeof( ConstraintData ) );
     memset( &ch->restPos, 0x00, sizeof( BodyRestPosition ) );
     //memset( &ch->mainBody, 0x00, sizeof( Character1::Body ) );
+    memset( &ch->shapeMeshData, 0x00, sizeof( MeshData ) );
     memset( &ch->shapeBody, 0x00, sizeof( Character::Body ) );
     //memset( ch->wheelRestPos, 0x00, sizeof( ch->wheelRestPos ) );
     //memset( &ch->mainBodyConstraints, 0x00, sizeof( bxGame::Constraint ) );
@@ -45,9 +47,17 @@ void character_delete( Character** character )
 
 static inline int computeShapeParticleCount( int nIterations )
 {
-    int outer = ( int )::pow( 2 + nIterations, 3.0 );
-    int inner = ( int )::pow( nIterations, 3.0 );
-    return ( outer - inner ) + 1;
+    //int outer = ( int )::pow( 2 + nIterations, 3.0 );
+    //int inner = ( int )::pow( nIterations, 3.0 );
+    //return ( outer - inner ) + 1;
+
+    int iter[6] = { nIterations, nIterations, nIterations, nIterations, nIterations, nIterations };
+    return bxPolyShape_computeNumPoints( iter );
+}
+static inline int computeShapeTriangleCount( int nIterations )
+{
+    int iter[6] = { nIterations, nIterations, nIterations, nIterations, nIterations, nIterations };
+    return bxPolyShape_computeNumTriangles( iter );
 }
 
 void character_init( Character* ch, bxResourceManager* resourceManager, const Matrix4& worldPose )
@@ -72,6 +82,12 @@ void character_init( Character* ch, bxResourceManager* resourceManager, const Ma
     //nPoints += ch->mainBody.particleCount();
     nPoints += ch->shapeBody.particleCount();
 
+    int nIndices = 0;
+    nIndices += computeShapeTriangleCount( BODY_SHAPE_ITERATIONS ) * 3;
+
+    MeshData::alloc( &ch->shapeMeshData, nIndices );
+
+
     ParticleData::alloc( &ch->particles, nPoints );
     ch->particles.size = nPoints;
 
@@ -91,6 +107,7 @@ void character_deinit( Character* character, bxResourceManager* resourceManager 
     BodyRestPosition::free( &character->restPos );
     ConstraintData::free( &character->constraints );
     ParticleData::free( &character->particles );
+    MeshData::free( &character->shapeMeshData );
 }
 
 void character_tick( Character* character, bxPhx_CollisionSpace* cspace, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
@@ -301,6 +318,25 @@ void BodyRestPosition::free( BodyRestPosition* data )
     memset( data, 0x00, sizeof( BodyRestPosition ) );
 }
 
+
+void MeshData::alloc( MeshData* data, int newcap )
+{
+    int memSize = 0;
+    memSize += newcap * sizeof( *data->indices );
+
+    void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 2 );
+    memset( mem, 0x00, memSize );
+
+    data->indices = (u16*)mem;
+    data->nIndices = newcap;
+}
+
+void MeshData::free( MeshData* data )
+{
+    BX_FREE0( bxDefaultAllocator(), data->indices );
+    memset( data, 0x00, sizeof( MeshData ) );
+}
+
 }///
 
 namespace bxGame{ namespace CharacterInternal {
@@ -478,67 +514,37 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
     Vector3* localPointsBox = ch->restPos.box;
     Vector3* localPointsSphere = ch->restPos.sphere;
 
-    const int nEdgePoints = shapeIterations + 2;
-    const float step = 1.f / ( nEdgePoints - 1 );
-    int pointCounter = 0;
+    bxPolyShape shape;
+    bxPolyShape_createBox( &shape, shapeIterations );
 
-    localPointsBox[0] = Vector3( 0.f );
-    localPointsSphere[0] = Vector3( 0.f );
-    ++pointCounter;
+    MeshVertex* vertices = (MeshVertex*)BX_MALLOC( bxDefaultAllocator(), nPoints, 4 );a
 
-    for( int iz = 0; iz < nEdgePoints; ++iz )
+    SYS_ASSERT( shape.nvertices() == nPoints );
+
+    for( int ipoint = 0; ipoint < nPoints; ++ipoint )
     {
-        const float z = -0.5f + iz * step;
-        const bool edgez = iz == 0 || iz == ( nEdgePoints - 1 );
-        
-        for( int iy = 0; iy < nEdgePoints; ++iy )
-        {
-            const float y = -0.5f + iy * step;
-            const bool edgey = iy == 0 || iy == ( nEdgePoints - 1 );
-            
-            for( int ix = 0; ix < nEdgePoints; ++ix )
-            {
-                const bool edgex = ix == 0 || ix == ( nEdgePoints - 1 );
-                
-                if( !edgex && !edgey && !edgez )
-                    continue;
-                
-                const float x = -0.5f + ix * step;
-
-                SYS_ASSERT( pointCounter < nPoints );
-
-                Vector3 pos( x, y, z );
-
-                localPointsBox[pointCounter] = pos;
-                localPointsSphere[pointCounter] = normalize( pos );
-
-                ++pointCounter;
-            }
-        }
+        Vector3 pos;
+        loadXYZ( pos, shape.position( ipoint ) );
+        localPointsBox[ipoint] = pos;
+        localPointsSphere[ipoint] = normalize( pos );
     }
 
+    SYS_ASSERT( ch->shapeMeshData.nIndices == shape.num_indices );
+    SYS_ASSERT( nPoints < 0xFFFFFF );
+    for( int iindex = 0; iindex < shape.num_indices; ++iindex )
+    {
+        ch->shapeMeshData.indices[iindex] = (u16)shape.num_indices;
+    }
 
-    //Vector3 localPoints[Character1::eWHEEL_BODY_PARTICLE_COUNT] =
-    //{
-    //    Vector3( -a*0.66f, 0.f, 0.f ),
-    //    Vector3(  a*0.66f, 0.f, 0.f ),
-
-    //    Vector3( 0.f, 1.f, 0.f ),
-    //    Vector3( 0.f, 1.f, 1.f ),
-    //    Vector3( 0.f, 0.f, 1.f ),
-    //    Vector3( 0.f,-1.f, 1.f ),
-    //    
-    //    Vector3( 0.f,-1.f, 0.f ),
-    //    Vector3( 0.f,-1.f,-1.f ),
-    //    Vector3( 0.f, 0.f,-1.f ),
-    //    Vector3( 0.f, 1.f,-1.f ),
-    //};
     Vector3* localPointsCurrent = ch->restPos.current;
     for( int ipoint = 0; ipoint < nPoints; ++ipoint )
     {
         localPointsBox[ipoint] = mulPerElem( localPointsBox[ipoint], Vector3( a, b, a ) );
         localPointsSphere[ipoint] = mulPerElem( localPointsSphere[ipoint], Vector3( a, b, a ) );
         localPointsCurrent[ipoint] = localPointsSphere[ipoint];
+
+
+
     }
 
 
@@ -546,6 +552,7 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
     {
         SYS_ASSERT( irestpos < nPoints );
 
+        const float* uv = shape.texcoord( irestpos );
         const Vector3 restPos = localPointsCurrent[irestpos];
         p.pos0[ipoint] = restPos;
         p.pos1[ipoint] = restPos;
@@ -553,11 +560,17 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
 
         float mass = 1.0f;
 
-        if( ipoint == 0 )
-        {
-            mass += 2.f;
-        }
+        bool edge0 = uv[0] < FLT_EPSILON || uv[0] > ( 1.f - FLT_EPSILON );
+        bool edge1 = uv[1] < FLT_EPSILON || uv[1] > ( 1.f - FLT_EPSILON );
 
+        if( edge0 && edge1 )
+        {
+            mass /= 3.f;
+        }
+        else if( (!edge0 && edge1) || (edge0 && !edge1) )
+        {
+            mass /= 2.f;
+        }
         p.mass[ipoint] = mass;
         p.massInv[ipoint] = 1.f / mass;
     }
@@ -577,8 +590,70 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
         p.pos1[ipoint] = p.pos0[ipoint];
     }
 
-    body.com.pos = com;
+    body.com.pos = mulAsVec4( worldPose, com );
     body.com.rot = Quat( worldPose.getUpper3x3() );
+
+
+
+    bxGfx_StreamsDesc sdesc( nPoints, ch->shapeMeshData.nIndices );
+
+
+
+
+    //const int nEdgePoints = shapeIterations + 2;
+    //const float step = 1.f / ( nEdgePoints - 1 );
+    //int pointCounter = 0;
+
+    //localPointsBox[0] = Vector3( 0.f );
+    //localPointsSphere[0] = Vector3( 0.f );
+    //++pointCounter;
+
+    //for( int iz = 0; iz < nEdgePoints; ++iz )
+    //{
+    //    const float z = -0.5f + iz * step;
+    //    const bool edgez = iz == 0 || iz == ( nEdgePoints - 1 );
+    //    
+    //    for( int iy = 0; iy < nEdgePoints; ++iy )
+    //    {
+    //        const float y = -0.5f + iy * step;
+    //        const bool edgey = iy == 0 || iy == ( nEdgePoints - 1 );
+    //        
+    //        for( int ix = 0; ix < nEdgePoints; ++ix )
+    //        {
+    //            const bool edgex = ix == 0 || ix == ( nEdgePoints - 1 );
+    //            
+    //            if( !edgex && !edgey && !edgez )
+    //                continue;
+    //            
+    //            const float x = -0.5f + ix * step;
+
+    //            SYS_ASSERT( pointCounter < nPoints );
+
+    //            Vector3 pos( x, y, z );
+
+    //            localPointsBox[pointCounter] = pos;
+    //            localPointsSphere[pointCounter] = normalize( pos );
+
+    //            ++pointCounter;
+    //        }
+    //    }
+    //}
+    //Vector3 localPoints[Character1::eWHEEL_BODY_PARTICLE_COUNT] =
+    //{
+    //    Vector3( -a*0.66f, 0.f, 0.f ),
+    //    Vector3(  a*0.66f, 0.f, 0.f ),
+
+    //    Vector3( 0.f, 1.f, 0.f ),
+    //    Vector3( 0.f, 1.f, 1.f ),
+    //    Vector3( 0.f, 0.f, 1.f ),
+    //    Vector3( 0.f,-1.f, 1.f ),
+    //    
+    //    Vector3( 0.f,-1.f, 0.f ),
+    //    Vector3( 0.f,-1.f,-1.f ),
+    //    Vector3( 0.f, 0.f,-1.f ),
+    //    Vector3( 0.f, 1.f,-1.f ),
+    //};
+
 
     //int mainBegin = ch->mainBody.particleBegin;
     //int shapeBegin = body.particleBegin;
@@ -603,6 +678,8 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
     //initConstraint( &ch->wheelBodyConstraints[4], p.pos0[0], p.pos0[right], 0, right );
     //initConstraint( &ch->wheelBodyConstraints[5], p.pos0[1], p.pos0[right], 1, right );
     //initConstraint( &ch->wheelBodyConstraints[6], p.pos0[2], p.pos0[right], 2, right );
+
+    bxPolyShape_deallocateShape( &shape );
 }
 
 struct PBD_Simulate
