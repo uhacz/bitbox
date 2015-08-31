@@ -14,7 +14,7 @@ namespace bxGame
     Character* character_new();
     void character_delete( Character** character );
 
-    void character_init( Character* character, bxResourceManager* resourceManager, const Matrix4& worldPose );
+    void character_init( Character* character, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld hworld, const Matrix4& worldPose );
     void character_deinit( Character* character, bxResourceManager* resourceManager );
     void character_tick( Character* character, bxPhx_CollisionSpace* cspace, const bxGfxCamera& camera, const bxInput& input, float deltaTime );
 

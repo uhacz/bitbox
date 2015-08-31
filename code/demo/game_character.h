@@ -147,7 +147,7 @@ namespace bxGame
 
         //void initMainBody( Character1* ch, const Matrix4& worldPose );
         void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose );
-
+        void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld gfxWorld );
         //void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
         void simulateShapeBodyBegin( Character* ch, const Vector3& extForce, float deltaTime );
         void simulateShapeUpdatePose( Character* ch, float shapeScale, float shapeStiffness );

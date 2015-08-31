@@ -11,6 +11,7 @@
 #include <resource_manager/resource_manager.h>
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_camera.h>
+#include "gfx/gfx_material.h"
 
 namespace bxGame{
 
@@ -60,7 +61,7 @@ static inline int computeShapeTriangleCount( int nIterations )
     return bxPolyShape_computeNumTriangles( iter );
 }
 
-void character_init( Character* ch, bxResourceManager* resourceManager, const Matrix4& worldPose )
+void character_init( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld gfxWorld, const Matrix4& worldPose )
 {
     const int BODY_SHAPE_ITERATIONS = 2;
     
@@ -98,7 +99,7 @@ void character_init( Character* ch, bxResourceManager* resourceManager, const Ma
 
     //CharacterInternal::initMainBody( ch, worldPose );
     CharacterInternal::initShapeBody( ch, BODY_SHAPE_ITERATIONS, worldPose );
-    
+    CharacterInternal::initShapeMesh( ch, dev, resourceManager, gfxWorld );
     ch->contacts = bxPhx::contacts_new( nPoints );
 }
 void character_deinit( Character* character, bxResourceManager* resourceManager )
@@ -110,7 +111,7 @@ void character_deinit( Character* character, bxResourceManager* resourceManager 
     MeshData::free( &character->shapeMeshData );
 }
 
-void character_tick( Character* character, bxPhx_CollisionSpace* cspace, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
+void character_tick( Character* character, bxPhx_CollisionSpace* cspace, bxGdiContextBackend* ctx, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
 {
     CharacterInternal::collectInputData( &character->input, input, deltaTime );
     Vector3 externalForces( 0.f );
@@ -167,6 +168,8 @@ void character_tick( Character* character, bxPhx_CollisionSpace* cspace, const b
         externalForces *= dot( externalForces, character->upVector );
     }
 
+    const bool doIteration = character->_dtAcc >= fixedDt;
+
     while( character->_dtAcc >= fixedDt )
     {
     
@@ -184,6 +187,13 @@ void character_tick( Character* character, bxPhx_CollisionSpace* cspace, const b
         character->_dtAcc -= fixedDt;
         character->_jumpAcc = 0.f;
     }
+
+    if( doIteration )
+    {
+        
+        updateMesh( 
+    }
+
     CharacterInternal::debugDraw( character );
 }
 
@@ -500,6 +510,92 @@ static inline void initConstraint( Constraint* c, const Vector3& p0, const Vecto
 //    }
 //}
 
+void updateMesh( MeshVertex* vertices, const Vector3* points, int nPoints, const u16* indices, int nIndices )
+{
+    for( int ipoint = 0; ipoint < nPoints; ++ipoint )
+    {
+        storeXYZ( points[ipoint], vertices[ipoint].pos );
+        memset( vertices[ipoint].nrm, 0x00, 12 );
+    }
+
+    SYS_ASSERT( (nIndices % 3) == 0 );
+    for ( int iindex = 0; iindex < nIndices; iindex += 3 )
+    {
+        u16 i0 = indices[iindex];
+        u16 i1 = indices[iindex+1];
+        u16 i2 = indices[iindex+2];
+
+        const Vector3& p0 = points[i0];
+        const Vector3& p1 = points[i1];
+        const Vector3& p2 = points[i2];
+
+        const Vector3 v01 = p1 - p0;
+        const Vector3 v02 = p2 - p0;
+
+        const Vector3 n = cross( v01, v02 );
+        const SSEScalar ns( n.get128() );
+
+        MeshVertex& vtx0 = vertices[i0];
+        MeshVertex& vtx1 = vertices[i1];
+        MeshVertex& vtx2 = vertices[i2];
+
+        Vector3 n0, n1, n2;
+        loadXYZ( n0, vtx0.nrm );
+        loadXYZ( n1, vtx1.nrm );
+        loadXYZ( n2, vtx2.nrm );
+
+        n0 += n;
+        n1 += n;
+        n2 += n;
+
+        storeXYZ( n0, vtx0.nrm );
+        storeXYZ( n1, vtx1.nrm );
+        storeXYZ( n2, vtx2.nrm );
+    }
+
+    for ( int ipoint = 0; ipoint < nPoints; ++ipoint )
+    {
+        Vector3 n;
+        loadXYZ( n, vertices[ipoint].nrm );
+        storeXYZ( normalize( n ), vertices[ipoint].nrm );
+    }
+
+
+}
+
+void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld gfxWorld )
+{
+    const ParticleData& p = ch->particles;
+    const Character::Body& body = ch->shapeBody;
+    const int nPoints = body.particleCount();
+
+    MeshVertex* vertices = (MeshVertex*)BX_MALLOC( bxDefaultAllocator(), nPoints, 4 );
+    updateMesh( vertices, p.pos0, nPoints, ch->shapeMeshData.indices, ch->shapeMeshData.nIndices );
+
+    bxGfx_StreamsDesc sdesc( nPoints, ch->shapeMeshData.nIndices );
+    sdesc.vstream_begin().addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 ).addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
+    sdesc.vstream_end();
+    sdesc.istream_set( bxGdi::eTYPE_USHORT, ch->shapeMeshData.indices );
+
+    bxGfx_HMesh hmesh = bxGfx::mesh_create();
+    bxGfx::mesh_setStreams( hmesh, dev, sdesc );
+    bxGfx::mesh_setShader( hmesh, dev, resourceManager, bxGfxMaterialManager::findMaterial( "red" ) );
+
+    bxGfx_HInstanceBuffer hinst = bxGfx::instanceBuffer_create( 1 );
+    
+    Matrix4 pose = Matrix4::identity();
+    bxGfx::instanceBuffer_set( hinst, &pose, 1 );
+
+    ch->shapeMeshI = bxGfx::world_meshAdd( gfxWorld, hmesh, hinst );
+    
+    BX_FREE0( bxDefaultAllocator(), vertices );
+}
+void releaseShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+{
+    (void)dev;
+    (void)resourceManager;
+    bxGfx::world_meshRemoveAndRelease( &ch->shapeMeshI );
+}
 
 void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose )
 {
@@ -516,9 +612,7 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
 
     bxPolyShape shape;
     bxPolyShape_createBox( &shape, shapeIterations );
-
-    MeshVertex* vertices = (MeshVertex*)BX_MALLOC( bxDefaultAllocator(), nPoints, 4 );a
-
+    
     SYS_ASSERT( shape.nvertices() == nPoints );
 
     for( int ipoint = 0; ipoint < nPoints; ++ipoint )
@@ -542,9 +636,6 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
         localPointsBox[ipoint] = mulPerElem( localPointsBox[ipoint], Vector3( a, b, a ) );
         localPointsSphere[ipoint] = mulPerElem( localPointsSphere[ipoint], Vector3( a, b, a ) );
         localPointsCurrent[ipoint] = localPointsSphere[ipoint];
-
-
-
     }
 
 
@@ -592,13 +683,6 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
 
     body.com.pos = mulAsVec4( worldPose, com );
     body.com.rot = Quat( worldPose.getUpper3x3() );
-
-
-
-    bxGfx_StreamsDesc sdesc( nPoints, ch->shapeMeshData.nIndices );
-
-
-
 
     //const int nEdgePoints = shapeIterations + 2;
     //const float step = 1.f / ( nEdgePoints - 1 );
@@ -678,7 +762,7 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
     //initConstraint( &ch->wheelBodyConstraints[4], p.pos0[0], p.pos0[right], 0, right );
     //initConstraint( &ch->wheelBodyConstraints[5], p.pos0[1], p.pos0[right], 1, right );
     //initConstraint( &ch->wheelBodyConstraints[6], p.pos0[2], p.pos0[right], 2, right );
-
+    
     bxPolyShape_deallocateShape( &shape );
 }
 
