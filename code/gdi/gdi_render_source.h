@@ -49,6 +49,13 @@ namespace bxGdi
     void renderSource_setVertexBuffer( bxGdiRenderSource* rsource, bxGdiVertexBuffer vBuffer, int idx );
     void renderSource_setIndexBuffer( bxGdiRenderSource* rsource, bxGdiIndexBuffer iBuffer );
 
+    inline const bxGdiVertexBuffer& renderSourceVertexBuffer( bxGdiRenderSource* rsource, int idx )
+    {
+        SYS_ASSERT( idx < rsource->numVertexBuffers );
+        return rsource->vertexBuffers[idx];
+    }
+
+
     void renderSource_enable( bxGdiContext* ctx, bxGdiRenderSource* rsource );
     void renderSurface_draw( bxGdiContext* ctx, const bxGdiRenderSurface& surf );
     void renderSurface_drawIndexed( bxGdiContext* ctx, const bxGdiRenderSurface& surf, int baseVertex = 0 );

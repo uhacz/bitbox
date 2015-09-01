@@ -34,7 +34,7 @@ bxGfx_StreamsDesc::bxGfx_StreamsDesc( int numVerts, int numIndis )
     idataType = -1;
 }
 
-bxGdiVertexStreamDesc& bxGfx_StreamsDesc::vstream_begin( const void* data /*= 0 */ )
+bxGdiVertexStreamDesc& bxGfx_StreamsDesc::vstreamBegin( const void* data /*= 0 */ )
 {
     SYS_ASSERT( numVStreams < eMAX_STREAMS );
     
@@ -42,13 +42,13 @@ bxGdiVertexStreamDesc& bxGfx_StreamsDesc::vstream_begin( const void* data /*= 0 
     return vdesc[numVStreams];
 }
 
-bxGfx_StreamsDesc& bxGfx_StreamsDesc::vstream_end()
+bxGfx_StreamsDesc& bxGfx_StreamsDesc::vstreamEnd()
 {
     ++numVStreams;
     return *this;
 }
 
-bxGfx_StreamsDesc& bxGfx_StreamsDesc::istream_set( bxGdi::EDataType dataType, const void* data /*= 0 */ )
+bxGfx_StreamsDesc& bxGfx_StreamsDesc::istreamSet( bxGdi::EDataType dataType, const void* data /*= 0 */ )
 {
     idataType = dataType;
     idata = data;
@@ -690,7 +690,7 @@ namespace bxGfx
         __ctx->_flag_resourceReleased = 0;
     }
 
-    bxGfx_HMesh mesh_create()
+    bxGfx_HMesh meshCreate()
     {
         bxScopeBenaphore lock( __ctx->_lock_mesh );
         id_t id = __ctx->_mesh.add();
@@ -698,14 +698,14 @@ namespace bxGfx
         return handle;
     }
 
-    void mesh_release( bxGfx_HMesh* h )
+    void meshRelease( bxGfx_HMesh* h )
     {
         bxScopeBenaphore lock( __ctx->_lock_toRelease );
         array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( h[0] ) );
         h->h = 0;
     }
 
-    int mesh_setStreams( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, const bxGfx_StreamsDesc& sdesc )
+    int meshStreamsSet( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, const bxGfx_StreamsDesc& sdesc )
     {
         if( !__ctx->_mesh.has( make_id( hmesh.h ) ) )
             return -1;
@@ -736,7 +736,7 @@ namespace bxGfx
         return 0;
     }
 
-    int mesh_setStreams( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxGdiRenderSource* rsource )
+    int meshStreamsSet( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxGdiRenderSource* rsource )
     {
         if ( !__ctx->_mesh.has( make_id( hmesh.h ) ) )
             return -1;
@@ -752,7 +752,7 @@ namespace bxGfx
         return 0;
     }
 
-    bxGdiShaderFx_Instance* mesh_setShader( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* shaderName )
+    bxGdiShaderFx_Instance* meshShaderSet( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* shaderName )
     {
         if( !__ctx->_mesh.has( make_id( hmesh.h ) ) )
             return 0;
@@ -772,7 +772,7 @@ namespace bxGfx
         return fxI;
     }
 
-    int mesh_setShader( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance* fxI )
+    int meshShaderSet( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance* fxI )
     {
         if ( !__ctx->_mesh.has( make_id( hmesh.h ) ) )
             return -1;
@@ -788,7 +788,25 @@ namespace bxGfx
         return 0;
     }
 
-    bxGfx_HInstanceBuffer instanceBuffer_create( int nInstances )
+    bxGdiRenderSource* meshRenderSource( bxGfx_HMesh hmesh )
+    {
+        const id_t id = make_id( hmesh.h );
+        if( !__ctx->_mesh.has( id ) )
+            return nullptr;
+
+        return __ctx->_mesh.rsource( id );
+    }
+
+    bxGdiShaderFx_Instance* meshShader( bxGfx_HMesh hmesh )
+    {
+        const id_t id = make_id( hmesh.h );
+        if( !__ctx->_mesh.has( id ) )
+            return nullptr;
+
+        return __ctx->_mesh.fxI( id );
+    }
+
+    bxGfx_HInstanceBuffer instanceBuffeCreate( int nInstances )
     {
         bxGfx_HInstanceBuffer handle = { 0 };
         
@@ -799,14 +817,14 @@ namespace bxGfx
         return handle;
     }
 
-    void instanceBuffer_release( bxGfx_HInstanceBuffer* hinstance )
+    void instanceBufferRelease( bxGfx_HInstanceBuffer* hinstance )
     {
         bxScopeBenaphore lock( __ctx->_lock_toRelease );
         array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( hinstance[0] ) );
         hinstance->h = 0;
     }
     
-    int instanceBuffer_get( bxGfx_HInstanceBuffer hinstance, Matrix4* buffer, int bufferSize, int startIndex /*= 0 */ )
+    int instanceBufferData( bxGfx_HInstanceBuffer hinstance, Matrix4* buffer, int bufferSize, int startIndex /*= 0 */ )
     {
         SYS_ASSERT( __ctx->_instance.has( make_id( hinstance.h ) ) );
         int result = 0;
@@ -820,7 +838,7 @@ namespace bxGfx
         return count;
     }
 
-    int instanceBuffer_set( bxGfx_HInstanceBuffer hinstance, const Matrix4* buffer, int bufferSize, int startIndex /*= 0 */ )
+    int instanceBufferDataSet( bxGfx_HInstanceBuffer hinstance, const Matrix4* buffer, int bufferSize, int startIndex /*= 0 */ )
     {
         SYS_ASSERT( __ctx->_instance.has( make_id( hinstance.h ) ) );
         
@@ -833,7 +851,7 @@ namespace bxGfx
         return count;
     }
 
-    bxGfx_HWorld world_create()
+    bxGfx_HWorld worldCreate()
     {
         bxScopeBenaphore lock( __ctx->_lock_world );
         bxGfx::World* world = BX_NEW( __ctx->_alloc_world, bxGfx::World );
@@ -844,7 +862,7 @@ namespace bxGfx
         return result;
     }
 
-    void world_release( bxGfx_HWorld* h )
+    void worldRelease( bxGfx_HWorld* h )
     {
         bxGfx::World* world = __ctx->world( h[0] );
         if ( !world )
@@ -855,7 +873,7 @@ namespace bxGfx
         array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( h[0] ) );
     }
 
-    bxGfx_HMeshInstance world_meshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    bxGfx_HMeshInstance worldMeshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
     {
         bxGfx::World* world = __ctx->world( hworld );
         if( !world )
@@ -880,12 +898,12 @@ namespace bxGfx
         return meshi;
     }
 
-    void world_meshRemove( bxGfx_HMeshInstance hmeshi )
+    void worldMeshRemove( bxGfx_HMeshInstance hmeshi )
     {
         bxScopeBenaphore lock( __ctx->_lock_toRelease );
         array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( hmeshi ) );
     }
-    void world_meshRemoveAndRelease( bxGfx_HMeshInstance* hmeshi )
+    void worldMeshRemoveAndRelease( bxGfx_HMeshInstance* hmeshi )
     {
         bxScopeBenaphore lock( __ctx->_lock_toRelease );
         array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( hmeshi[0] ) );
@@ -895,13 +913,13 @@ namespace bxGfx
         hmeshi->h = 0;
     }
 
-    void meshInstance_get( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi )
+    void meshInstance( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi )
     {
         hmesh[0] = getHMesh( hmeshi );
         hinstance[0] = getHInstanceBuffer( hmeshi );
     }
 
-    void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera )
+    void worldDraw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera )
     {
         bxGfx::World* world = __ctx->world( hworld );
         if( !world || !world->flag_active )
@@ -981,6 +999,8 @@ namespace bxGfx
             bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, instanceCount );
         }
     }
+
+
 
 
 

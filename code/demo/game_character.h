@@ -63,11 +63,6 @@ namespace bxGame
         f32 pos[3];
         f32 nrm[3];
     };
-    void inline storeVertex( MeshVertex* vtx, const Vector3& pos, const Vector3& nrm )
-    {
-        storeXYZ( pos, vtx->pos );
-        storeXYZ( nrm, vtx->nrm );
-    }
 
     struct MeshData
     {
@@ -148,10 +143,13 @@ namespace bxGame
         //void initMainBody( Character1* ch, const Matrix4& worldPose );
         void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose );
         void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld gfxWorld );
+        void deinitShapeMesh( Character* ch );
         //void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
         void simulateShapeBodyBegin( Character* ch, const Vector3& extForce, float deltaTime );
         void simulateShapeUpdatePose( Character* ch, float shapeScale, float shapeStiffness );
         void simulateFinalize( Character* ch, float staticFriction, float dynamicFriction, float deltaTime );
+
+        void updateMesh( MeshVertex* vertices, const Vector3* points, int nPoints, const u16* indices, int nIndices );
 
         void computeCharacterPose( Character* ch );
     }

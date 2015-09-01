@@ -253,7 +253,7 @@ namespace bxGame
         if ( !flock[0] )
             return;
 
-        bxGfx::mesh_release( &flock[0]->hMesh );
+        bxGfx::meshRelease( &flock[0]->hMesh );
 
         BX_FREE0( bxDefaultAllocator(), flock[0]->particles.memoryHandle );
         BX_DELETE0( bxDefaultAllocator(), flock[0] );
@@ -279,16 +279,16 @@ namespace bxGame
 
     void flock_loadResources( Flock* flock, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld gfxWorld )
     {
-        flock->hMesh = bxGfx::mesh_create();
-        flock->hInstanceBuffer = bxGfx::instanceBuffer_create( flock->particles.size );
+        flock->hMesh = bxGfx::meshCreate();
+        flock->hInstanceBuffer = bxGfx::instanceBuffeCreate( flock->particles.size );
 
         bxGdiRenderSource* rsource = bxGfx::globalResources()->mesh.sphere;
-        bxGfx::mesh_setStreams( flock->hMesh, dev, rsource );
+        bxGfx::meshStreamsSet( flock->hMesh, dev, rsource );
 
         bxGdiShaderFx_Instance* materialFx = bxGfxMaterialManager::findMaterial( "blue" );
-        bxGfx::mesh_setShader( flock->hMesh, dev, resourceManager, materialFx );
+        bxGfx::meshShaderSet( flock->hMesh, dev, resourceManager, materialFx );
         
-        bxGfx::world_meshAdd( gfxWorld, flock->hMesh, flock->hInstanceBuffer );
+        bxGfx::worldMeshAdd( gfxWorld, flock->hMesh, flock->hInstanceBuffer );
     }
 
 
@@ -468,7 +468,7 @@ namespace bxGame
             //bxGfxDebugDraw::addSphere( Vector4( pos, 0.1f ), 0xFFFF00FF, true );
             const Matrix3 rotation = Matrix3::identity(); // createBasis( normalizeSafe( vel ) );
             const Matrix4 pose = appendScale( Matrix4( rotation, pos ), Vector3( 0.1f ) );
-            bxGfx::instanceBuffer_set( flock->hInstanceBuffer, &pose, 1, iboid );
+            bxGfx::instanceBufferDataSet( flock->hInstanceBuffer, &pose, 1, iboid );
             //bxGfxDebugDraw::addLine( pos, pos + vel, 0x0000FFFF, true );
             
             //bxGfxDebugDraw::addLine( pos, pos + rot.getCol0(), 0x0F00FFFF, true );

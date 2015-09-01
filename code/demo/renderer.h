@@ -38,9 +38,9 @@ struct bxGfx_StreamsDesc
     ////
     ////
     bxGfx_StreamsDesc( int numVerts, int numIndis = 0 );
-    bxGdiVertexStreamDesc& vstream_begin( const void* data = 0 );
-    bxGfx_StreamsDesc& vstream_end();
-    bxGfx_StreamsDesc& istream_set( bxGdi::EDataType dataType, const void* data = 0 );
+    bxGdiVertexStreamDesc& vstreamBegin( const void* data = 0 );
+    bxGfx_StreamsDesc& vstreamEnd();
+    bxGfx_StreamsDesc& istreamSet( bxGdi::EDataType dataType, const void* data = 0 );
 };
 
 ////
@@ -53,38 +53,50 @@ namespace bxGfx
 
     ////
     //
-    bxGfx_HMesh mesh_create();
-    void mesh_release( bxGfx_HMesh* h );
+    bxGfx_HMesh meshCreate();
+    void meshRelease( bxGfx_HMesh* h );
 
-    int  mesh_setStreams( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, const bxGfx_StreamsDesc& sdesc );
-    int  mesh_setStreams( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxGdiRenderSource* rsource );
+    int  meshStreamsSet( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, const bxGfx_StreamsDesc& sdesc );
+    int  meshStreamsSet( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxGdiRenderSource* rsource );
     
-    bxGdiShaderFx_Instance* mesh_setShader( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* shaderName );
-    int  mesh_setShader( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance* fxI );
+    bxGdiShaderFx_Instance* meshShaderSet( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* shaderName );
+    int  meshShaderSet( bxGfx_HMesh hmesh, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance* fxI );
+
+    bxGdiRenderSource* meshRenderSource( bxGfx_HMesh hmesh );
+    bxGdiShaderFx_Instance* meshShader( bxGfx_HMesh hmesh );
 
     ////
     //
-    bxGfx_HInstanceBuffer instanceBuffer_create( int nInstances );
-    void instanceBuffer_release( bxGfx_HInstanceBuffer* hinstance );
+    bxGfx_HInstanceBuffer instanceBuffeCreate( int nInstances );
+    void instanceBufferRelease( bxGfx_HInstanceBuffer* hinstance );
 
-    int instanceBuffer_get( bxGfx_HInstanceBuffer hinstance, Matrix4* buffer, int bufferSize, int startIndex = 0 );
-    int instanceBuffer_set( bxGfx_HInstanceBuffer hinstance, const Matrix4* buffer, int bufferSize, int startIndex = 0 );
+    int instanceBufferData( bxGfx_HInstanceBuffer hinstance, Matrix4* buffer, int bufferSize, int startIndex = 0 );
+    int instanceBufferDataSet( bxGfx_HInstanceBuffer hinstance, const Matrix4* buffer, int bufferSize, int startIndex = 0 );
 
     ////
     //
-    bxGfx_HWorld world_create();
-    void world_release( bxGfx_HWorld* h );
+    bxGfx_HWorld worldCreate();
+    void worldRelease( bxGfx_HWorld* h );
 
-    bxGfx_HMeshInstance world_meshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
-    void world_meshRemove( bxGfx_HMeshInstance hmeshi );
-    void world_meshRemoveAndRelease( bxGfx_HMeshInstance* hmeshi );
-    void meshInstance_get( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi );
+    bxGfx_HMeshInstance worldMeshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
+    void worldMeshRemove( bxGfx_HMeshInstance hmeshi );
+    void worldMeshRemoveAndRelease( bxGfx_HMeshInstance* hmeshi );
+    void meshInstance( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi );
 
-    void world_draw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera );
-
-
+    void worldDraw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera );
 
     //void world_meshRemove( bxGfx_HWorld hworld, bxEntity_Id eid );
     //void world_meshRemoveAndRelease( bxGfx_HWorld hworld );
     //bxGfx_MeshInstance world_lookupMesh( bxGfx_HWorld hworld, bxEntity_Id eid );
+}///
+
+namespace bxGfxExt
+{
+    inline bxGdiRenderSource* meshInstanceRenderSource( bxGfx_HMeshInstance hmeshI )
+    {
+        bxGfx_HMesh hmesh;
+        bxGfx_HInstanceBuffer hinst;
+        bxGfx::meshInstance( &hmesh, &hinst, hmeshI );
+        return bxGfx::meshRenderSource( hmesh );
+    }
 }///

@@ -7,6 +7,7 @@
 
 struct bxInput;
 struct bxGfxCamera;
+struct bxGdiContextBackend;
 
 namespace bxGame
 {
@@ -16,7 +17,7 @@ namespace bxGame
 
     void character_init( Character* character, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld hworld, const Matrix4& worldPose );
     void character_deinit( Character* character, bxResourceManager* resourceManager );
-    void character_tick( Character* character, bxPhx_CollisionSpace* cspace, const bxGfxCamera& camera, const bxInput& input, float deltaTime );
+    void character_tick( Character* character, bxPhx_CollisionSpace* cspace, bxGdiContextBackend* ctx, const bxGfxCamera& camera, const bxInput& input, float deltaTime );
 
     Matrix4 character_pose( const Character* character );
     Vector3 character_upVector( const Character* character );

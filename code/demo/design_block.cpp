@@ -225,7 +225,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
             for ( int i = 0; i < _data.size; ++i )
             {
                 bxPhx::shape_release( cs, &_data.phxShape[i] );
-                bxGfx::world_meshRemoveAndRelease( &_data.gfxMeshI[i] );
+                bxGfx::worldMeshRemoveAndRelease( &_data.gfxMeshI[i] );
             }
             id_array::destroyAll( _idContainer );
             array::clear( _list_updatePose );
@@ -271,16 +271,16 @@ struct bxDesignBlock_Impl : public bxDesignBlock
                 }break;
             }
 
-            bxGfx_HMesh hmesh = bxGfx::mesh_create();
-            bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffer_create( 1 );
+            bxGfx_HMesh hmesh = bxGfx::meshCreate();
+            bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffeCreate( 1 );
 
-            bxGfx::mesh_setStreams( hmesh, dev, rsource );
-            bxGfx::mesh_setShader( hmesh, dev, resourceManager, fxI );
+            bxGfx::meshStreamsSet( hmesh, dev, rsource );
+            bxGfx::meshShaderSet( hmesh, dev, resourceManager, fxI );
 
             const Matrix4 poseWithScale = appendScale( pose, scale );
-            bxGfx::instanceBuffer_set( hibuff, &poseWithScale, 1, 0 );
+            bxGfx::instanceBufferDataSet( hibuff, &poseWithScale, 1, 0 );
 
-            bxGfx_HMeshInstance gfxMeshI = bxGfx::world_meshAdd( gfxWorld, hmesh, hibuff );
+            bxGfx_HMeshInstance gfxMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, hibuff );
 
             _data.phxShape[index] = phxShape;
             _data.gfxMeshI[index] = gfxMeshI;
@@ -300,7 +300,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
 
             id_array::destroy( _idContainer, id );
 
-            bxGfx::world_meshRemoveAndRelease( &_data.gfxMeshI[thisIndex] );
+            bxGfx::worldMeshRemoveAndRelease( &_data.gfxMeshI[thisIndex] );
             bxPhx::shape_release( cs, &_data.phxShape[thisIndex] );
 
             _data.pose[thisIndex] = _data.pose[lastIndex];
@@ -355,10 +355,10 @@ struct bxDesignBlock_Impl : public bxDesignBlock
 
                 bxGfx_HMesh hmesh;
                 bxGfx_HInstanceBuffer hibuffer;
-                bxGfx::meshInstance_get( &hmesh, &hibuffer, _data.gfxMeshI[dataIndex] );
+                bxGfx::meshInstance( &hmesh, &hibuffer, _data.gfxMeshI[dataIndex] );
 
                 const Matrix4 pose = bxPhx::shape_pose( cs, _data.phxShape[dataIndex] );
-                bxGfx::instanceBuffer_set( hibuffer, &pose, 1, 0 );
+                bxGfx::instanceBufferDataSet( hibuffer, &pose, 1, 0 );
             }
             array::clear( _list_updatePose );
         }

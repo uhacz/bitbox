@@ -218,7 +218,7 @@
 void bxDemoScene_startup( bxDemoScene* scene, bxEngine* engine )
 {
     scene->_cameraManager = bxGfx::cameraManager_new();
-    scene->gfxWorld = bxGfx::world_create();
+    scene->gfxWorld = bxGfx::worldCreate();
 
     scene->collisionSpace = bxPhx::collisionSpace_new();
     scene->dblock = bxDesignBlock_new();
@@ -226,7 +226,7 @@ void bxDemoScene_startup( bxDemoScene* scene, bxEngine* engine )
     scene->character = bxGame::character_new();
     scene->flock = bxGame::flock_new();
 
-    bxGame::character_init( scene->character, engine->resourceManager, Matrix4( Matrix3::identity(), Vector3( 0.f, 2.f, 0.f ) ) );
+    bxGame::character_init( scene->character, engine->gdiDevice, engine->resourceManager, scene->gfxWorld, Matrix4( Matrix3::identity(), Vector3( 0.f, 2.f, 0.f ) ) );
     bxGame::flock_init( scene->flock, 128, Vector3( 0.f ), 5.f );
 }
 
@@ -242,6 +242,6 @@ void bxDemoScene_shutdown( bxDemoScene* scene, bxEngine* engine )
     bxDesignBlock_delete( &scene->dblock );
 
     bxPhx::collisionSpace_delete( &scene->collisionSpace );
-    bxGfx::world_release( &scene->gfxWorld );
+    bxGfx::worldRelease( &scene->gfxWorld );
     bxGfx::cameraManager_delete( &scene->_cameraManager );
 }
