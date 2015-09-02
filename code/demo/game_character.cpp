@@ -154,8 +154,8 @@ void character_tick( Character* character, bxPhx_CollisionSpace* cspace, bxGdiCo
     }
 
     const float staticFriction = 0.95f;
-    const float dynamicFriction = 0.9f;
-    const float shapeStiffness = 0.15f;
+    const float dynamicFriction = 0.6f;
+    const float shapeStiffness = 0.4f;
 
     const float fixedFreq = 60.f;
     const float fixedDt = 1.f / fixedFreq;
@@ -422,7 +422,7 @@ void collectInputData( Character::Input* charInput, const bxInput& input, float 
         const float crouch = (f32)inCrouch;
         const float jump = (f32)inJump;
 
-        const float RC = 0.1f;
+        const float RC = 0.01f;
         charInput->analogX = signalFilter_lowPass( analogX, charInput->analogX, RC, deltaTime );
         charInput->analogY = signalFilter_lowPass( analogY, charInput->analogY, RC, deltaTime );
         charInput->jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
@@ -984,7 +984,7 @@ void simulateShapeBodyBegin( Character* ch, const Vector3& extForce, float delta
     PBD_VelPlug_ShapeBody velPlug;
     velPlug.inputVec = extForce;
     velPlug.jumpVec = jumpVector;
-    PBD_Simulate::predictPosition( cp, body.particleBegin, body.particleEnd, gravity, 0.8f, deltaTime, velPlug );
+    PBD_Simulate::predictPosition( cp, body.particleBegin, body.particleEnd, gravity, 0.7f, deltaTime, velPlug );
     
     //const Constraint* cs = ch->constraints.desc + body.constaintCount();
     //for( int iiter = 0; iiter < 4; ++iiter )
@@ -1001,23 +1001,6 @@ void simulateShapeUpdatePose( Character* ch, float shapeScale, float shapeStiffn
 
     body.com.pos = comPos;
     body.com.rot = comRot;
-
-    //ParticleData* cp = &ch->particles;
-
-    //Matrix3 R;
-    //Vector3 com;
-    //bxPhx::pbd_softBodyUpdatePose( &R, &com, cp->pos1 + body.particleBegin, ch->restPos.current, cp->mass + body.particleBegin, body.particleCount() );
-    //body.com.pos = com;
-    //body.com.rot = normalize( Quat( R ) );
-
-    //const Matrix3 R1 = appendScale( R, Vector3( shapeScale ) );
-    //for( int ipoint = body.particleBegin, irestpos = 0; ipoint < body.particleEnd; ++ipoint, ++irestpos )
-    //{
-    //    SYS_ASSERT( irestpos < body.particleCount() );
-    //    Vector3 dpos( 0.f );
-    //    bxPhx::pbd_solveShapeMatchingConstraint( &dpos, R1, com, ch->restPos.current[irestpos], cp->pos1[ipoint], shapeStiffness );
-    //    cp->pos1[ipoint] += dpos;
-    //}
 }
 
 void simulateFinalize( Character* ch, float staticFriction, float dynamicFriction, float deltaTime )
@@ -1025,37 +1008,7 @@ void simulateFinalize( Character* ch, float staticFriction, float dynamicFrictio
     const float deltaTimeInv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
     
     PBD_Simulate::applyFriction( &ch->particles, ch->contacts, staticFriction, dynamicFriction );
-    
-    //bxPhx_Contacts* contacts = ch->contacts;
-    //const int nContacts = bxPhx::contacts_size( contacts );
-
-    //Vector3 normal( 0.f );
-    //float depth = 0.f;
-    //u16 index0 = 0xFFFF;
-    //u16 index1 = 0xFFFF;
-
-    //ParticleData* cp = &ch->particles;
-
-    //for( int icontact = 0; icontact < nContacts; ++icontact )
-    //{
-    //    bxPhx::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
-
-    //    float fd = ( index0 < Character1::eMAIN_BODY_PARTICLE_COUNT ) ? dynamicFriction : 0.6f;
-
-    //    Vector3 dpos( 0.f );
-    //    bxPhx::pbd_computeFriction( &dpos, cp->pos0[index0], cp->pos1[index0], normal, depth, staticFriction, fd );
-    //    cp->pos1[index0] += dpos;
-    //}
-
     PBD_Simulate::updateVelocity( &ch->particles, 0, ch->particles.size, deltaTimeInv );
-
-    //const floatInVec dtvInv( ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f );
-
-    //for( int ipoint = 0; ipoint < cp->size; ++ipoint )
-    //{
-    //    cp->vel[ipoint] = ( cp->pos1[ipoint] - cp->pos0[ipoint] ) * dtvInv;
-    //    cp->pos0[ipoint] = cp->pos1[ipoint];
-    //}
 }
 
 void computeCharacterPose( Character* ch )
