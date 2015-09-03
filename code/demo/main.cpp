@@ -72,6 +72,16 @@ public:
         }
         scriptFile.release();
 
+        {
+            char const* cameraName = bxConfig::global_string( "camera" );
+            bxGfxCamera_Id id = bxGfx::camera_find( __scene._cameraManager, cameraName );
+            if ( id.hash != bxGfx::camera_top( __scene._cameraManager ).hash )
+            {
+                bxGfx::camera_push( __scene._cameraManager, id );
+            }
+        }
+
+
         return true;
     }
     virtual void shutdown()
