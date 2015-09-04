@@ -216,7 +216,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         _flag_releaseAll = 1;
     }
 
-    void bxDesignBlock::manageResources( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxPhx_CollisionSpace* cs, bxGfx_HWorld gfxWorld )
+    void bxDesignBlock::manageResources( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxPhx_CollisionSpace* cs, bxGfx_World* gfxWorld )
     {
         if ( _flag_releaseAll )
         {
@@ -272,15 +272,14 @@ struct bxDesignBlock_Impl : public bxDesignBlock
             }
 
             bxGfx_HMesh hmesh = bxGfx::meshCreate();
-            bxGfx_HInstanceBuffer hibuff = bxGfx::instanceBuffeCreate( 1 );
-
             bxGfx::meshStreamsSet( hmesh, dev, rsource );
             bxGfx::meshShaderSet( hmesh, dev, resourceManager, fxI );
 
+            bxGfx_HMeshInstance gfxMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, 1 );
+            
+            bxGfx_HInstanceBuffer hibuff = bxGfx::meshInstanceHInstanceBuffer( gfxMeshI );
             const Matrix4 poseWithScale = appendScale( pose, scale );
             bxGfx::instanceBufferDataSet( hibuff, &poseWithScale, 1, 0 );
-
-            bxGfx_HMeshInstance gfxMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, hibuff );
 
             _data.phxShape[index] = phxShape;
             _data.gfxMeshI[index] = gfxMeshI;
@@ -344,7 +343,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
     //    array::push_back( _list_updateMeshInstance, h );
     //}
 
-    virtual void tick( bxPhx_CollisionSpace* cs, bxGfx_HWorld gfxWorld )
+    virtual void tick( bxPhx_CollisionSpace* cs )
     {
         {
             for ( int i = 0; i < array::size( _list_updatePose ); ++i )

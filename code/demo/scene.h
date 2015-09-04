@@ -13,7 +13,7 @@ struct bxDemoScene
     bxGfxCamera_Manager* _cameraManager;
     bxDesignBlock* dblock;
     bxPhx_CollisionSpace* collisionSpace;
-    bxGfx_HWorld gfxWorld;
+    bxGfx_World* gfxWorld;
 
 
     bxGame::Character* character;

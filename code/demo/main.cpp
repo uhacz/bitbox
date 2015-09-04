@@ -74,10 +74,13 @@ public:
 
         {
             char const* cameraName = bxConfig::global_string( "camera" );
-            bxGfxCamera_Id id = bxGfx::camera_find( __scene._cameraManager, cameraName );
-            if ( id.hash != bxGfx::camera_top( __scene._cameraManager ).hash )
+            if( cameraName )
             {
-                bxGfx::camera_push( __scene._cameraManager, id );
+                bxGfxCamera_Id id = bxGfx::camera_find( __scene._cameraManager, cameraName );
+                if ( id.hash != bxGfx::camera_top( __scene._cameraManager ).hash )
+                {
+                    bxGfx::camera_push( __scene._cameraManager, id );
+                }
             }
         }
 
@@ -132,7 +135,7 @@ public:
 
         const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
         {
-            __scene.dblock->tick( __scene.collisionSpace, __scene.gfxWorld );
+            __scene.dblock->tick( __scene.collisionSpace );
             bxGame::flock_tick( __scene.flock, deltaTime );
             bxGame::character_tick( __scene.character, __scene.collisionSpace, _engine.gdiContext->backend(), currentCamera, win->input, deltaTime * 2.f );
             bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime, bxGfx::cameraUtil_anyMovement( cameraInputCtx ) );

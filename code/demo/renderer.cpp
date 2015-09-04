@@ -215,47 +215,56 @@ namespace bxGfx
         {
             u32 handle32;
             u64 handle64;
+            uptr handlePtr;
         };
         u32 type;
         ToReleaseEntry() : handle64( 0 ), type( eINVALID ) {}
         explicit ToReleaseEntry( bxGfx_HMesh h ) : handle32( h.h ), type( eMESH ) {}
         explicit ToReleaseEntry( bxGfx_HInstanceBuffer h ) : handle32( h.h ), type( eINSTANCE_BUFFER ) {}
-        explicit ToReleaseEntry( bxGfx_HWorld h ) : handle32( h.h ), type( eWORLD ) {}
+        explicit ToReleaseEntry( bxGfx_World* h ) : handlePtr( (uptr)h ), type( eWORLD ) {}
         explicit ToReleaseEntry( bxGfx_HMeshInstance h ): handle64( h.h ), type( eMESH_INSTANCE ) {}
     };
 
-    struct World;
     struct WorldContainer
     {
-        id_array_t< eMAX_WORLDS > idArray;
-        array_t< World* > world;
+        //id_array_t< eMAX_WORLDS > idArray;
+        array_t< bxGfx_World* > world;
 
-        id_t add( World* w )
+        int add( bxGfx_World* w )
         {
-            id_t id = id_array::create( idArray );
+            //id_t id = id_array::create( idArray );
             int index = array::push_back( world, w );
-            SYS_ASSERT( id_array::index( idArray, id ) == index );
+            //SYS_ASSERT( id_array::index( idArray, id ) == index );
 
-            return id;
+            return index;
         }
         
-        void remove( id_t id )
+        void remove( /*id_t id*/int index )
         {
-            if( !id_array::has( idArray, id ) )
+            //if( !id_array::has( idArray, id ) )
+            //    return;
+            if( index == -1 || index > array::size( world ) )
                 return;
 
-            int last = id_array::size( idArray ) - 1;
-            int index = id_array::index( idArray, id );
-            id_array::destroy( idArray, id );
+            array::erase_swap( world, index );
+
+            //int last = id_array::size( idArray ) - 1;
+            //int index = id_array::index( idArray, id );
+            //id_array::destroy( idArray, id );
             
-            world[index] = world[last];
-            array::pop_back( world );
+            //world[index] = world[last];
+            //array::pop_back( world );
         }
 
-        World* get( id_t id )
+        int indexGet( bxGfx_World* ptr )
         {
-            return ( id_array::has( idArray, id ) ) ? world[id_array::index( idArray, id )] : 0;
+            return array::find1( array::begin( world ), array::end( world ), array::OpEqual<bxGfx_World*>( ptr ) );
         }
+
+        //World* get( id_t id )
+        //{
+        //    return ( id_array::has( idArray, id ) ) ? world[id_array::index( idArray, id )] : 0;
+        //}
 
         WorldContainer()
         {
@@ -264,6 +273,30 @@ namespace bxGfx
     };
     typedef array_t< bxGfx::ToReleaseEntry > ToReleaseContainer;
 }///
+
+namespace bxGfx
+{
+    inline bxGfx_HMeshInstance makeMeshInstance( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    {
+        bxGfx_HMeshInstance result = { 0 };
+        result.h = u64( hmesh.h ) << 32 | u64( hinstance.h );
+        return result;
+    }
+
+    inline bxGfx_HMesh hMeshGet( bxGfx_HMeshInstance hMeshInstance )
+    {
+        bxGfx_HMesh result = { 0 };
+        result.h = u32( hMeshInstance.h >> 32 );
+        return result;
+    }
+    inline bxGfx_HInstanceBuffer hInstanceBufferGet( bxGfx_HMeshInstance hMeshInstance )
+    {
+        bxGfx_HInstanceBuffer result = { 0 };
+        result.h = u32( hMeshInstance.h & 0xFFFFFFFF );
+        return result;
+    }
+}
+
 
 
 struct bxGfx_Context
@@ -295,254 +328,220 @@ struct bxGfx_Context
 
     ////
     ////
-    bxGfx::World* world( bxGfx_HWorld hworld )
-    {
-        bxScopeBenaphore lock( _lock_world );
-        return _world.get( make_id( hworld.h ) );
-    }
-    bxGfx_HWorld lookupWorld( bxGfx_HMeshInstance hmeshi )
+    //bxGfx::World* world( bxGfx_HWorld hworld )
+    //{
+    //    bxScopeBenaphore lock( _lock_world );
+    //    return _world.get( make_id( hworld.h ) );
+    //}
+    bxGfx_World* lookupWorld( bxGfx_HMeshInstance hmeshi )
     {
         hashmap_t::cell_t* cell = hashmap::lookup( _map_meshInstanceToWorld, hmeshi.h );
-        bxGfx_HWorld result = 
+        bxGfx_World* result = 
         {
-            (cell) ? (u32)cell->value : 0,
+            (cell) ? (bxGfx_World*)cell->value : 0,
         };
         return  result;
     }
 };
-namespace bxGfx
-{
-    inline bxGfx_HMeshInstance makeMeshInstance( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
-    {
-        bxGfx_HMeshInstance result = { 0 };
-        result.h = u64( hmesh.h ) << 32 | u64( hinstance.h );
-        return result;
-    }
-
-    inline bxGfx_HMesh getHMesh( bxGfx_HMeshInstance hMeshInstance )
-    {
-        bxGfx_HMesh result = { 0 };
-        result.h = u32( hMeshInstance.h >> 32 );
-        return result;
-    }
-    inline bxGfx_HInstanceBuffer getHInstanceBuffer( bxGfx_HMeshInstance hMeshInstance )
-    {
-        bxGfx_HInstanceBuffer result = { 0 };
-        result.h = u32( hMeshInstance.h & 0xFFFFFFFF );
-        return result;
-    }
-}
-
 static bxGfx_Context* __ctx = 0;
 
-namespace bxGfx
+struct bxGfx_World
 {
-    ////
-    ////
-
-    
-
-    struct World
+    struct Data
     {
-        struct Data
+        //bxEntity_Id* entity;
+        bxGfx_HMesh* mesh;
+        bxGfx_HInstanceBuffer* instance;
+
+        void* memoryHandle;
+        i32 size;
+        i32 capacity;
+    };
+    Data _data;
+    //hashmap_t _entityMap;
+    array_t< i32 > _toRemove;
+    u32 flag_active : 1;
+
+    bxBenaphore _lock_toRemove;
+    bxAllocator* _alloc_data;
+
+    bxGfx_World()
+        : flag_active( 0 )
+    {
+        memset( &_data, 0x00, sizeof( bxGfx_World::Data ) );
+        _alloc_data = bxDefaultAllocator();
+    }
+
+    void shutdown()
+    {
+        BX_FREE0( _alloc_data, _data.memoryHandle );
+        memset( &_data, 0x00, sizeof( bxGfx_World::Data ) );
+    }
+
+    static void allocateData( bxGfx_World::Data* data, int newcap, bxAllocator* alloc )
+    {
+        SYS_ASSERT( newcap > data->size );
+
+        int memSize = 0;
+        //memSize += newcap * sizeof( *data->entity );
+        memSize += newcap * sizeof( *data->mesh );
+        memSize += newcap * sizeof( *data->instance );
+
+        void* memory = BX_MALLOC( alloc, memSize, ALIGNOF( bxEntity_Id ) );
+        memset( memory, 0x00, memSize );
+
+        bxGfx_World::Data newData;
+        memset( &newData, 0x00, sizeof( bxGfx_World::Data ) );
+        newData.size = data->size;
+        newData.capacity = newcap;
+        newData.memoryHandle = memory;
+
+        bxBufferChunker chunker( memory, memSize );
+        //newData.entity = chunker.add< bxEntity_Id >( newcap );
+        newData.mesh = chunker.add< bxGfx_HMesh >( newcap );
+        newData.instance = chunker.add< bxGfx_HInstanceBuffer >( newcap );
+        chunker.check();
+
+        if( data->size )
         {
-            //bxEntity_Id* entity;
-            bxGfx_HMesh* mesh;
-            bxGfx_HInstanceBuffer* instance;
-
-            void* memoryHandle;
-            i32 size;
-            i32 capacity;
-        };
-        Data _data;
-        //hashmap_t _entityMap;
-        array_t< i32 > _toRemove;
-        u32 flag_active : 1;
-
-        bxBenaphore _lock_toRemove;
-        bxAllocator* _alloc_data;
-
-        World()
-            : flag_active(0)
-        {
-            memset( &_data, 0x00, sizeof( World::Data ) );
-            _alloc_data = bxDefaultAllocator();
+            //BX_CONTAINER_COPY_DATA( &newData, data, entity );
+            BX_CONTAINER_COPY_DATA( &newData, data, mesh );
+            BX_CONTAINER_COPY_DATA( &newData, data, instance );
         }
 
-        void shutdown()
+        BX_FREE0( alloc, data->memoryHandle );
+
+        data[0] = newData;
+    }
+
+    inline int meshFind( bxGfx_HMesh hmesh )
+    {
+        return array::find1( _data.mesh, _data.mesh + _data.size, array::OpEqual<bxGfx_HMesh>( hmesh ) );
+    }
+    inline int instanceFind( bxGfx_HInstanceBuffer hinstance )
+    {
+        return array::find1( _data.instance, _data.instance + _data.size, array::OpEqual<bxGfx_HInstanceBuffer>( hinstance ) );
+    }
+
+    //int _World_meshLookup( World* world, bxEntity_Id eid )
+    //{
+    //    hashmap_t::cell_t* cell = hashmap::lookup( world->_entityMap, eid.hash );
+    //    return ( cell ) ? (int)cell->value : -1;
+    //}
+
+    int add( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    {
+        int index = meshFind( hmesh );
+        if( index != -1 )
+            return index;
+
+        if( _data.size + 1 > _data.capacity )
         {
-            BX_FREE0( _alloc_data, _data.memoryHandle );
-            memset( &_data, 0x00, sizeof( bxGfx::World::Data ) );
+            const int newcap = _data.capacity * 2 + 8;
+            allocateData( &_data, newcap, _alloc_data );
         }
 
-        static void allocateData( World::Data* data, int newcap, bxAllocator* alloc )
-        {
-            SYS_ASSERT( newcap > data->size );
-
-            int memSize = 0;
-            //memSize += newcap * sizeof( *data->entity );
-            memSize += newcap * sizeof( *data->mesh );
-            memSize += newcap * sizeof( *data->instance );
-
-            void* memory = BX_MALLOC( alloc, memSize, ALIGNOF( bxEntity_Id ) );
-            memset( memory, 0x00, memSize );
-
-            World::Data newData;
-            memset( &newData, 0x00, sizeof( World::Data ) );
-            newData.size = data->size;
-            newData.capacity = newcap;
-            newData.memoryHandle = memory;
-
-            bxBufferChunker chunker( memory, memSize );
-            //newData.entity = chunker.add< bxEntity_Id >( newcap );
-            newData.mesh = chunker.add< bxGfx_HMesh >( newcap );
-            newData.instance = chunker.add< bxGfx_HInstanceBuffer >( newcap );
-            chunker.check();
-
-            if ( data->size )
-            {
-                //BX_CONTAINER_COPY_DATA( &newData, data, entity );
-                BX_CONTAINER_COPY_DATA( &newData, data, mesh );
-                BX_CONTAINER_COPY_DATA( &newData, data, instance );
-            }
-
-            BX_FREE0( alloc, data->memoryHandle );
-
-            data[0] = newData;
-        }
-
-        inline int meshFind( bxGfx_HMesh hmesh )
-        {
-            return array::find1( _data.mesh, _data.mesh + _data.size, array::OpEqual<bxGfx_HMesh>( hmesh ) );
-        }
-        inline int instanceFind( bxGfx_HInstanceBuffer hinstance )
-        {
-            return array::find1( _data.instance, _data.instance + _data.size, array::OpEqual<bxGfx_HInstanceBuffer>( hinstance ) );
-        }
-
-        //int _World_meshLookup( World* world, bxEntity_Id eid )
+        //if( hashmap::lookup( world->_entityMap, eid.hash ) )
         //{
-        //    hashmap_t::cell_t* cell = hashmap::lookup( world->_entityMap, eid.hash );
-        //    return ( cell ) ? (int)cell->value : -1;
+        //    SYS_NOT_IMPLEMENTED;
+        //    return -1;
         //}
 
-        int add( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+        bxGfx_World::Data& data = _data;
+        index = data.size++;
+
+        //data.entity[index] = eid;
+        data.mesh[index] = hmesh;
+        data.instance[index] = hinstance;
+
+        //hashmap_t::cell_t* mapCell = hashmap::insert( world->_entityMap, eid.hash );
+        //mapCell->value = size_t( index );
+
+
+        return index;
+    }
+
+    void removeByIndex( int index )
+    {
+        if( index == -1 || index > _data.size )
+            return;
+
+        bxGfx_World::Data& data = _data;
+        if( data.size == 0 )
+            return;
+
+        const int lastIndex = --data.size;
+
+        //{
+        //    bxEntity_Id eid = data.entity[index];
+        //    hashmap::eraseByKey( world->_entityMap, eid.hash );
+        //}
+
+        //data.entity[index] = data.entity[lastIndex];
+        data.mesh[index] = data.mesh[lastIndex];
+        data.instance[index] = data.instance[lastIndex];
+
+        //{
+        //    bxEntity_Id eid = data.entity[index];
+        //    hashmap_t::cell_t* mapCell = hashmap::lookup( world->_entityMap, eid.hash );
+        //    SYS_ASSERT( mapCell != 0 );
+        //    mapCell->value = size_t( index );
+        //}
+    }
+
+    void remove( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    {
+        int index0 = meshFind( hmesh );
+        int index1 = instanceFind( hinstance );
+
+        if( index0 == index1 )
         {
-            int index = meshFind( hmesh );
-            if ( index != -1 )
-                return index;
-
-            if ( _data.size + 1 > _data.capacity )
-            {
-                const int newcap = _data.capacity * 2 + 8;
-                allocateData( &_data, newcap, _alloc_data );
-            }
-
-            //if( hashmap::lookup( world->_entityMap, eid.hash ) )
-            //{
-            //    SYS_NOT_IMPLEMENTED;
-            //    return -1;
-            //}
-
-            World::Data& data = _data;
-            index = data.size++;
-
-            //data.entity[index] = eid;
-            data.mesh[index] = hmesh;
-            data.instance[index] = hinstance;
-
-            //hashmap_t::cell_t* mapCell = hashmap::insert( world->_entityMap, eid.hash );
-            //mapCell->value = size_t( index );
-
-
-            return index;
+            removeByIndex( index0 );
         }
+    }
 
-        void removeByIndex( int index )
+    void gc( bool checkResources )
+    {
+        bxGfx_World::Data& data = _data;
+
+        //if( entityManager )
+        //{
+        //    bxRandomGen rnd( (u32)bxTime::ms() );
+
+        //    unsigned aliveInRow = 0;
+        //    while( data.size > 0 && aliveInRow < 4 )
+        //    {
+        //        unsigned i = rnd.get0n( data.size );
+        //        if( entityManager->alive( data.entity[i] ) )
+        //        {
+        //            ++aliveInRow;
+        //            continue;
+        //        }
+
+        //        aliveInRow = 0;
+        //        _World_meshRemoveByIndex( world, i );
+        //    }
+        //}
+
+        if( checkResources )
         {
-            if ( index == -1 || index > _data.size )
-                return;
-
-            World::Data& data = _data;
-            if ( data.size == 0 )
-                return;
-
-            const int lastIndex = --data.size;
-
-            //{
-            //    bxEntity_Id eid = data.entity[index];
-            //    hashmap::eraseByKey( world->_entityMap, eid.hash );
-            //}
-
-            //data.entity[index] = data.entity[lastIndex];
-            data.mesh[index] = data.mesh[lastIndex];
-            data.instance[index] = data.instance[lastIndex];
-
-            //{
-            //    bxEntity_Id eid = data.entity[index];
-            //    hashmap_t::cell_t* mapCell = hashmap::lookup( world->_entityMap, eid.hash );
-            //    SYS_ASSERT( mapCell != 0 );
-            //    mapCell->value = size_t( index );
-            //}
-        }
-
-        void remove( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
-        {
-            int index0 = meshFind( hmesh );
-            int index1 = instanceFind( hinstance );
-
-            if ( index0 == index1 )
+            for( int i = 0; i < data.size; ++i )
             {
-                removeByIndex( index0 );
-            }
-        }
-
-        void gc( bool checkResources )
-        {
-            World::Data& data = _data;
-
-            //if( entityManager )
-            //{
-            //    bxRandomGen rnd( (u32)bxTime::ms() );
-
-            //    unsigned aliveInRow = 0;
-            //    while( data.size > 0 && aliveInRow < 4 )
-            //    {
-            //        unsigned i = rnd.get0n( data.size );
-            //        if( entityManager->alive( data.entity[i] ) )
-            //        {
-            //            ++aliveInRow;
-            //            continue;
-            //        }
-
-            //        aliveInRow = 0;
-            //        _World_meshRemoveByIndex( world, i );
-            //    }
-            //}
-
-            if ( checkResources )
-            {
-                for ( int i = 0; i < data.size; ++i )
+                if( !__ctx->_mesh.has( make_id( data.mesh[i].h ) ) )
                 {
-                    if ( !__ctx->_mesh.has( make_id( data.mesh[i].h ) ) )
-                    {
-                        array::push_back( _toRemove, i );
-                    }
+                    array::push_back( _toRemove, i );
                 }
             }
-
-            for ( int i = 0; i < array::size( _toRemove ); ++i )
-            {
-                int index = _toRemove[i];
-                removeByIndex( index );
-            }
-            array::clear( _toRemove );
         }
-    };
 
-    
-}///
-
+        for( int i = 0; i < array::size( _toRemove ); ++i )
+        {
+            int index = _toRemove[i];
+            removeByIndex( index );
+        }
+        array::clear( _toRemove );
+    }
+};
 namespace bxGfx
 {
     void startup( bxGdiDeviceBackend* dev )
@@ -555,7 +554,7 @@ namespace bxGfx
 
         {
             bxPoolAllocator* allocWorld = BX_NEW( bxDefaultAllocator(), bxPoolAllocator );
-            allocWorld->startup( sizeof( bxGfx::World ), bxGfx::eMAX_WORLDS, bxDefaultAllocator(), 8 );
+            allocWorld->startup( sizeof( bxGfx_World ), bxGfx::eMAX_WORLDS, bxDefaultAllocator(), 8 );
             __ctx->_alloc_world = allocWorld;
         }
         
@@ -610,12 +609,12 @@ namespace bxGfx
             case ToReleaseEntry::eMESH_INSTANCE:
                 {
                     bxGfx_HMeshInstance hmeshi = { e.handle64 };
-                    bxGfx_HWorld hworld = __ctx->lookupWorld( hmeshi );
-                    bxGfx::World* world = __ctx->world( hworld );
+                    //bxGfx_HWorld hworld = __ctx->lookupWorld( hmeshi );
+                    bxGfx_World* world = __ctx->lookupWorld( hmeshi ); // __ctx->world( hworld );
                     if( world )
                     {
-                        bxGfx_HMesh hmesh = getHMesh( hmeshi );
-                        bxGfx_HInstanceBuffer hinstane = getHInstanceBuffer( hmeshi );
+                        bxGfx_HMesh hmesh = hMeshGet( hmeshi );
+                        bxGfx_HInstanceBuffer hinstane = hInstanceBufferGet( hmeshi );
 
                         world->remove( hmesh, hinstane );
                         hashmap::eraseByKey( __ctx->_map_meshInstanceToWorld, hmeshi.h );
@@ -623,9 +622,10 @@ namespace bxGfx
                 }break;
             case ToReleaseEntry::eWORLD:
                 {
-                    id_t id = { e.handle32 };
-                    World* world = __ctx->_world.get( id );
-                    __ctx->_world.remove( id );
+                    //id_t id = { e.handle32 };
+                    bxGfx_World* world = (bxGfx_World*)e.handlePtr;// __ctx->_world.get( id );
+                    int index = __ctx->_world.indexGet( world );
+                    __ctx->_world.remove( index );
                     
                     world->shutdown();
                     BX_DELETE0( __ctx->_alloc_world, world );
@@ -645,10 +645,10 @@ namespace bxGfx
     {
         const bool checkResources = __ctx->_flag_resourceReleased == 1;
         const int nWorlds = array::size( __ctx->_world.world );
-        bxGfx::World** worlds = array::begin( __ctx->_world.world );
+        bxGfx_World** worlds = array::begin( __ctx->_world.world );
         for( int iworld = 0; iworld < nWorlds; ++iworld )
         {
-            World* world = worlds[iworld];
+            bxGfx_World* world = worlds[iworld];
             bxScopeBenaphore lock( world->_lock_toRemove );
             world->gc( checkResources );
         }
@@ -854,44 +854,49 @@ namespace bxGfx
         return count;
     }
 
-    bxGfx_HWorld worldCreate()
+    bxGfx_World* worldCreate()
     {
         bxScopeBenaphore lock( __ctx->_lock_world );
-        bxGfx::World* world = BX_NEW( __ctx->_alloc_world, bxGfx::World );
+        bxGfx_World* world = BX_NEW( __ctx->_alloc_world, bxGfx_World );
         world->flag_active = 1;
-        id_t id = __ctx->_world.add( world );
+        int index = __ctx->_world.add( world );
         
-        bxGfx_HWorld result = { id.hash };
-        return result;
+        //bxGfx_HWorld result = { id.hash };
+        return world;
     }
 
-    void worldRelease( bxGfx_HWorld* h )
+    void worldRelease( bxGfx_World** w )
     {
-        bxGfx::World* world = __ctx->world( h[0] );
-        if ( !world )
+        if( !w[0] )
             return;
+        //bxGfx::World* world = __ctx->world( h[0] );
+        //if ( !world )
+        //    return;
 
-        world->flag_active = 0;
+        w[0]->flag_active = 0;
         bxScopeBenaphore lock( __ctx->_lock_toRelease );
-        array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( h[0] ) );
+        array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( w[0] ) );
+
+        w[0] = 0;
     }
 
-    bxGfx_HMeshInstance worldMeshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    bxGfx_HMeshInstance worldMeshAdd( bxGfx_World* world, bxGfx_HMesh hmesh, int nInstances )
     {
-        bxGfx::World* world = __ctx->world( hworld );
-        if( !world )
-            return makeInvalidHandle<bxGfx_HMeshInstance>();
+        //bxGfx::World* world = __ctx->world( hworld );
+        //if( !world )
+        //    return makeInvalidHandle<bxGfx_HMeshInstance>();
         
+        bxGfx_HInstanceBuffer hinstance = instanceBuffeCreate( nInstances );
         bxGfx_HMeshInstance meshi = makeMeshInstance( hmesh, hinstance );
-        bxGfx_HWorld foundHWorld = __ctx->lookupWorld( meshi );
-        if( !foundHWorld.h )
+        bxGfx_World* foundHWorld = __ctx->lookupWorld( meshi );
+        if( !foundHWorld )
         {
             SYS_ASSERT( world->meshFind( hmesh ) == -1 );
             SYS_ASSERT( world->instanceFind( hinstance ) == -1 );
             world->add( hmesh, hinstance );
 
             hashmap_t::cell_t* cell = hashmap::insert( __ctx->_map_meshInstanceToWorld, meshi.h );
-            cell->value = size_t( hworld.h );
+            cell->value = size_t( world );
         }
         else
         {
@@ -910,28 +915,38 @@ namespace bxGfx
     {
         bxScopeBenaphore lock( __ctx->_lock_toRelease );
         array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( hmeshi[0] ) );
-        array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( getHMesh( hmeshi[0] ) ) );
-        array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( getHInstanceBuffer( hmeshi[0] ) ) );
+        array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( hMeshGet( hmeshi[0] ) ) );
+        array::push_back( __ctx->_toRelease, bxGfx::ToReleaseEntry( hInstanceBufferGet( hmeshi[0] ) ) );
 
         hmeshi->h = 0;
     }
 
     void meshInstance( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi )
     {
-        hmesh[0] = getHMesh( hmeshi );
-        hinstance[0] = getHInstanceBuffer( hmeshi );
+        hmesh[0] = hMeshGet( hmeshi );
+        hinstance[0] = hInstanceBufferGet( hmeshi );
+    }
+    bxGfx_HMesh meshInstanceHMesh( bxGfx_HMeshInstance hmeshi )
+    {
+        return hMeshGet( hmeshi );
+    }
+    bxGfx_HInstanceBuffer meshInstanceHInstanceBuffer( bxGfx_HMeshInstance hmeshi )
+    {
+        return hInstanceBufferGet( hmeshi );
     }
 
-    void worldDraw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera )
+    void worldDraw( bxGdiContext* ctx, bxGfx_World* world, const bxGfxCamera& camera )
     {
-        bxGfx::World* world = __ctx->world( hworld );
-        if( !world || !world->flag_active )
+        //bxGfx::World* world = __ctx->world( hworld );
+        //if( !world || !world->flag_active )
+        //    return;
+        if( !world->flag_active )
             return;
 
         MeshContainer* meshContainer = &__ctx->_mesh;
         InstanceContainer* instanceContainer = &__ctx->_instance;
 
-        const bxGfx::World::Data& worldData = world->_data;
+        const bxGfx_World::Data& worldData = world->_data;
 
         bxGfx_HMesh* hmeshArray = worldData.mesh;
         bxGfx_HInstanceBuffer* hinstanceArray = worldData.instance;

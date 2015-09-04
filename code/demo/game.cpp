@@ -234,8 +234,7 @@ namespace bxGame
         FlockParams params;
         FlockHashmap hmap;
         
-        bxGfx_HMesh hMesh;
-        bxGfx_HInstanceBuffer hInstanceBuffer;
+        bxGfx_HMeshInstance hMeshI;
         
         f32 _dtAcc;
     };
@@ -253,7 +252,7 @@ namespace bxGame
         if ( !flock[0] )
             return;
 
-        bxGfx::meshRelease( &flock[0]->hMesh );
+        bxGfx::worldMeshRemoveAndRelease( &flock[0]->hMeshI );
 
         BX_FREE0( bxDefaultAllocator(), flock[0]->particles.memoryHandle );
         BX_DELETE0( bxDefaultAllocator(), flock[0] );
@@ -277,18 +276,18 @@ namespace bxGame
         }
     }
 
-    void flock_loadResources( Flock* flock, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld gfxWorld )
+    void flock_loadResources( Flock* flock, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_World* gfxWorld )
     {
-        flock->hMesh = bxGfx::meshCreate();
-        flock->hInstanceBuffer = bxGfx::instanceBuffeCreate( flock->particles.size );
+        bxGfx_HMesh hmesh = bxGfx::meshCreate();
+        //flock->hInstanceBuffer = bxGfx::instanceBuffeCreate( flock->particles.size );
 
         bxGdiRenderSource* rsource = bxGfx::globalResources()->mesh.sphere;
-        bxGfx::meshStreamsSet( flock->hMesh, dev, rsource );
+        bxGfx::meshStreamsSet( hmesh, dev, rsource );
 
         bxGdiShaderFx_Instance* materialFx = bxGfxMaterialManager::findMaterial( "blue" );
-        bxGfx::meshShaderSet( flock->hMesh, dev, resourceManager, materialFx );
+        bxGfx::meshShaderSet( hmesh, dev, resourceManager, materialFx );
         
-        bxGfx::worldMeshAdd( gfxWorld, flock->hMesh, flock->hInstanceBuffer );
+        flock->hMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, flock->particles.size );
     }
 
 
@@ -468,7 +467,8 @@ namespace bxGame
             //bxGfxDebugDraw::addSphere( Vector4( pos, 0.1f ), 0xFFFF00FF, true );
             const Matrix3 rotation = Matrix3::identity(); // createBasis( normalizeSafe( vel ) );
             const Matrix4 pose = appendScale( Matrix4( rotation, pos ), Vector3( 0.1f ) );
-            bxGfx::instanceBufferDataSet( flock->hInstanceBuffer, &pose, 1, iboid );
+            bxGfx_HInstanceBuffer hinstance = bxGfx::meshInstanceHInstanceBuffer( flock->hMeshI );
+            bxGfx::instanceBufferDataSet( hinstance, &pose, 1, iboid );
             //bxGfxDebugDraw::addLine( pos, pos + vel, 0x0000FFFF, true );
             
             //bxGfxDebugDraw::addLine( pos, pos + rot.getCol0(), 0x0F00FFFF, true );

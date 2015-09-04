@@ -63,7 +63,7 @@ static inline int computeShapeTriangleCount( int nIterations )
     return bxPolyShape_computeNumTriangles( iter );
 }
 
-void character_init( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld gfxWorld, const Matrix4& worldPose )
+void character_init( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_World* gfxWorld, const Matrix4& worldPose )
 {
     const int BODY_SHAPE_ITERATIONS = 3;
     
@@ -567,7 +567,7 @@ void updateMesh( MeshVertex* vertices, const Vector3* points, int nPoints, const
     }
 }
 
-void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_HWorld gfxWorld )
+void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_World* gfxWorld )
 {
     const ParticleData& p = ch->particles;
     const Character::Body& body = ch->shapeBody;
@@ -585,12 +585,12 @@ void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* r
     bxGfx::meshStreamsSet( hmesh, dev, sdesc );
     bxGfx::meshShaderSet( hmesh, dev, resourceManager, bxGfxMaterialManager::findMaterial( "red" ) );
 
-    bxGfx_HInstanceBuffer hinst = bxGfx::instanceBuffeCreate( 1 );
-    
+    //bxGfx_HInstanceBuffer hinst = bxGfx::instanceBuffeCreate( 1 );
+    ch->shapeMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, 1 );
+
+    bxGfx_HInstanceBuffer hinst = bxGfx::meshInstanceHInstanceBuffer( ch->shapeMeshI );
     Matrix4 pose = Matrix4::identity();
     bxGfx::instanceBufferDataSet( hinst, &pose, 1 );
-
-    ch->shapeMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, hinst );
     
     BX_FREE0( bxDefaultAllocator(), vertices );
 }

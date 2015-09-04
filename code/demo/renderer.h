@@ -18,9 +18,10 @@ struct bxGfxCamera;
 struct bxGfx_HMesh       { u32 h; };
 struct bxGfx_HSunLight   { u32 h; };
 struct bxGfx_HPointLight { u32 h; };
-struct bxGfx_HWorld      { u32 h; };
 struct bxGfx_HInstanceBuffer { u32 h; };
 struct bxGfx_HMeshInstance{ u64 h; };
+
+struct bxGfx_World;
 
 struct bxGfx_StreamsDesc
 {
@@ -75,19 +76,18 @@ namespace bxGfx
 
     ////
     //
-    bxGfx_HWorld worldCreate();
-    void worldRelease( bxGfx_HWorld* h );
+    bxGfx_World* worldCreate();
+    void worldRelease( bxGfx_World** h );
 
-    bxGfx_HMeshInstance worldMeshAdd( bxGfx_HWorld hworld, bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance );
+    bxGfx_HMeshInstance worldMeshAdd( bxGfx_World* hworld, bxGfx_HMesh hmesh, int nInstances );
     void worldMeshRemove( bxGfx_HMeshInstance hmeshi );
     void worldMeshRemoveAndRelease( bxGfx_HMeshInstance* hmeshi );
+    
     void meshInstance( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi );
+    bxGfx_HMesh meshInstanceHMesh( bxGfx_HMeshInstance hmeshi );
+    bxGfx_HInstanceBuffer meshInstanceHInstanceBuffer( bxGfx_HMeshInstance hmeshi );
 
-    void worldDraw( bxGdiContext* ctx, bxGfx_HWorld hworld, const bxGfxCamera& camera );
-
-    //void world_meshRemove( bxGfx_HWorld hworld, bxEntity_Id eid );
-    //void world_meshRemoveAndRelease( bxGfx_HWorld hworld );
-    //bxGfx_MeshInstance world_lookupMesh( bxGfx_HWorld hworld, bxEntity_Id eid );
+    void worldDraw( bxGdiContext* ctx, bxGfx_World* hworld, const bxGfxCamera& camera );
 }///
 
 namespace bxGfxExt
