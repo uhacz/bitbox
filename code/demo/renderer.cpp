@@ -64,6 +64,7 @@ namespace bxGfx
         eMAX_WORLDS = 32,
         eMAX_MESHES = 1024,
         eMAX_INSTANCES = 1024,
+        eNUM_SHADOW_CASCADES = 4,
     };
     union MeshFlags
     {
@@ -345,28 +346,72 @@ struct bxGfx_Context
 };
 static bxGfx_Context* __ctx = 0;
 
+
+namespace bxGfx
+{
+
+union SortKeyColor
+{
+    u64 hash;
+    struct
+    {
+        u64 mesh : 24;
+        u64 shader : 32;
+        u64 layer : 8;
+    };
+};
+
+union SortKeyDepth
+{
+    u16 hash;
+    u16 depth;
+};
+union SortKeyShadow
+{
+    u32 hash;
+    struct  
+    {
+        u16 depth;
+        u16 cascade;
+    };
+};
+
+
+}///
+
+typedef bxGdiSortList< bxGfx::SortKeyColor > bxGfx_SortListColor;
+typedef bxGdiSortList< bxGfx::SortKeyDepth > bxGfx_SortListDepth;
+
 struct bxGfx_World
 {
     struct Data
     {
-        //bxEntity_Id* entity;
         bxGfx_HMesh* mesh;
         bxGfx_HInstanceBuffer* instance;
+        bxAABB* localAABB;
 
         void* memoryHandle;
         i32 size;
         i32 capacity;
     };
     Data _data;
-    //hashmap_t _entityMap;
-    array_t< i32 > _toRemove;
-    u32 flag_active : 1;
-
-    bxBenaphore _lock_toRemove;
     bxAllocator* _alloc_data;
 
+    bxBenaphore _lock_toRemove;
+    array_t< i32 > _toRemove;
+
+    bxGfx_SortListColor* _sList_color;
+    bxGfx_SortListDepth* _sList_depth;
+    bxGfx_SortListDepth* _sList_shadow;
+
+    u32 flag_active : 1;
+
     bxGfx_World()
-        : flag_active( 0 )
+        : _sList_color( nullptr )
+        , _sList_depth( nullptr )
+        , _sList_shadow( nullptr )
+        , flag_active( 0 )
+        
     {
         memset( &_data, 0x00, sizeof( bxGfx_World::Data ) );
         _alloc_data = bxDefaultAllocator();
@@ -375,6 +420,11 @@ struct bxGfx_World
     void shutdown()
     {
         BX_FREE0( _alloc_data, _data.memoryHandle );
+
+        bxGdi::sortList_delete( &_sList_shadow );
+        bxGdi::sortList_delete( &_sList_depth );
+        bxGdi::sortList_delete( &_sList_color );
+
         memset( &_data, 0x00, sizeof( bxGfx_World::Data ) );
     }
 
@@ -386,6 +436,7 @@ struct bxGfx_World
         //memSize += newcap * sizeof( *data->entity );
         memSize += newcap * sizeof( *data->mesh );
         memSize += newcap * sizeof( *data->instance );
+        memSize += newcap * sizeof( *data->localAABB );
 
         void* memory = BX_MALLOC( alloc, memSize, ALIGNOF( bxEntity_Id ) );
         memset( memory, 0x00, memSize );
@@ -400,6 +451,7 @@ struct bxGfx_World
         //newData.entity = chunker.add< bxEntity_Id >( newcap );
         newData.mesh = chunker.add< bxGfx_HMesh >( newcap );
         newData.instance = chunker.add< bxGfx_HInstanceBuffer >( newcap );
+        newData.localAABB = chunker.add< bxAABB >( newcap );
         chunker.check();
 
         if( data->size )
@@ -407,6 +459,7 @@ struct bxGfx_World
             //BX_CONTAINER_COPY_DATA( &newData, data, entity );
             BX_CONTAINER_COPY_DATA( &newData, data, mesh );
             BX_CONTAINER_COPY_DATA( &newData, data, instance );
+            BX_CONTAINER_COPY_DATA( &newData, data, localAABB );
         }
 
         BX_FREE0( alloc, data->memoryHandle );
@@ -429,7 +482,7 @@ struct bxGfx_World
     //    return ( cell ) ? (int)cell->value : -1;
     //}
 
-    int add( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    bxGfx_HMeshInstance add( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
     {
         int index = meshFind( hmesh );
         if( index != -1 )
@@ -441,22 +494,13 @@ struct bxGfx_World
             allocateData( &_data, newcap, _alloc_data );
         }
 
-        //if( hashmap::lookup( world->_entityMap, eid.hash ) )
-        //{
-        //    SYS_NOT_IMPLEMENTED;
-        //    return -1;
-        //}
+        aaa tutej
 
         bxGfx_World::Data& data = _data;
         index = data.size++;
 
-        //data.entity[index] = eid;
         data.mesh[index] = hmesh;
         data.instance[index] = hinstance;
-
-        //hashmap_t::cell_t* mapCell = hashmap::insert( world->_entityMap, eid.hash );
-        //mapCell->value = size_t( index );
-
 
         return index;
     }
@@ -503,26 +547,6 @@ struct bxGfx_World
     void gc( bool checkResources )
     {
         bxGfx_World::Data& data = _data;
-
-        //if( entityManager )
-        //{
-        //    bxRandomGen rnd( (u32)bxTime::ms() );
-
-        //    unsigned aliveInRow = 0;
-        //    while( data.size > 0 && aliveInRow < 4 )
-        //    {
-        //        unsigned i = rnd.get0n( data.size );
-        //        if( entityManager->alive( data.entity[i] ) )
-        //        {
-        //            ++aliveInRow;
-        //            continue;
-        //        }
-
-        //        aliveInRow = 0;
-        //        _World_meshRemoveByIndex( world, i );
-        //    }
-        //}
-
         if( checkResources )
         {
             for( int i = 0; i < data.size; ++i )
@@ -887,21 +911,25 @@ namespace bxGfx
         //    return makeInvalidHandle<bxGfx_HMeshInstance>();
         
         bxGfx_HInstanceBuffer hinstance = instanceBuffeCreate( nInstances );
-        bxGfx_HMeshInstance meshi = makeMeshInstance( hmesh, hinstance );
-        bxGfx_World* foundHWorld = __ctx->lookupWorld( meshi );
-        if( !foundHWorld )
-        {
-            SYS_ASSERT( world->meshFind( hmesh ) == -1 );
-            SYS_ASSERT( world->instanceFind( hinstance ) == -1 );
-            world->add( hmesh, hinstance );
+        bxGfx_HMeshInstance meshi = world->add( hmesh, hinstance );
+        hashmap_t::cell_t* cell = hashmap::insert( __ctx->_map_meshInstanceToWorld, meshi.h );
+        cell->value = size_t( world );
 
-            hashmap_t::cell_t* cell = hashmap::insert( __ctx->_map_meshInstanceToWorld, meshi.h );
-            cell->value = size_t( world );
-        }
-        else
-        {
-            bxLogWarning( "Mesh already in world" );
-        }
+        //bxGfx_HMeshInstance meshi = makeMeshInstance( hmesh, hinstance );
+        //bxGfx_World* foundHWorld = __ctx->lookupWorld( meshi );
+        //if( !foundHWorld )
+        //{
+        //    SYS_ASSERT( world->meshFind( hmesh ) == -1 );
+        //    SYS_ASSERT( world->instanceFind( hinstance ) == -1 );
+        //    world->add( hmesh, hinstance );
+
+        //    hashmap_t::cell_t* cell = hashmap::insert( __ctx->_map_meshInstanceToWorld, meshi.h );
+        //    cell->value = size_t( world );
+        //}
+        //else
+        //{
+        //    bxLogWarning( "Mesh already in world" );
+        //}
 
         return meshi;
     }
@@ -935,11 +963,38 @@ namespace bxGfx
         return hInstanceBufferGet( hmeshi );
     }
 
+    void worldBuildDrawListColorDepth( bxGfx_World* world, const bxGfxCamera& camera )
+    {
+        const bxGfx_World::Data& worldData = world->_data;
+
+        bxGfx_HMesh* hmeshArray = worldData.mesh;
+        bxGfx_HInstanceBuffer* hinstanceArray = worldData.instance;
+
+
+        if( !world->_sList_color || world->_sList_color->capacity < worldData.size )
+        {
+            bxGdi::sortList_delete( &world->_sList_color );
+            bxGdi::sortList_delete( &world->_sList_depth );
+            bxGdi::sortList_new( &world->_sList_color, worldData.size, bxDefaultAllocator() );
+            bxGdi::sortList_new( &world->_sList_depth, worldData.size, bxDefaultAllocator() );
+        }
+
+        bxGfx_SortListColor* colorList = world->_sList_color;
+        bxGfx_SortListColor* depthList = world->_sList_depth;
+
+        bxChunk colorChunk, depthChunk;
+        bxChunk_create( &colorChunk, 1, colorList->capacity );
+        bxChunk_create( &depthChunk, 1, depthList->capacity );
+
+        const int n = worldData.size;
+        for( int iitem = 0; iitem < n; ++iitem )
+        {
+            
+        }
+    }
+
     void worldDraw( bxGdiContext* ctx, bxGfx_World* world, const bxGfxCamera& camera )
     {
-        //bxGfx::World* world = __ctx->world( hworld );
-        //if( !world || !world->flag_active )
-        //    return;
         if( !world->flag_active )
             return;
 
@@ -1017,47 +1072,4 @@ namespace bxGfx
             bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, instanceCount );
         }
     }
-
-
-
-
-
-    //bxGfx_MeshInstance world_lookupMesh( bxGfx_HWorld hworld, bxEntity_Id eid )
-    //{
-    //    bxGfx_MeshInstance mi = { 0, 0 };
-
-    //    bxGfx::World* world = _Context_world( __ctx, hworld );
-    //    if( !world )
-    //        return mi;
-
-    //    int index = _World_meshLookup( world, eid );
-    //    if( index == -1 )
-    //        return mi;
-
-    //    mi.mesh = world->_data.mesh[index];
-    //    mi.instance = world->_data.instance[index];
-
-    //    return mi;
-    //}
-
-    //void world_meshRemove( bxGfx_HWorld hworld, bxEntity_Id eid )
-    //{
-    //    bxGfx::World* world = _Context_world( __ctx, hworld );
-    //    if( !world )
-    //        return;
-
-    //    bxScopeBenaphore lock( world->_lock_toRemove );
-    //    array::push_back( world->_toRemove, eid );
-    //}
-
-    //void world_meshRemoveAndRelease( bxGfx_HWorld hworld, bxEntity_Id eid )
-    //{
-    //    bxGfx_MeshInstance mi = world_lookupMesh( hworld, eid );
-    //    if( mi.mesh.h == 0 )
-    //        return;
-
-    //    mesh_release( &mi.mesh );
-    //    instanceBuffer_release( &mi.instance );
-    //}
-
 }///
