@@ -16,8 +16,8 @@ struct bxGfxCamera;
 ////
 //// zero means invalid handle
 struct bxGfx_HMesh       { u32 h; };
-struct bxGfx_HSunLight   { u32 h; };
-struct bxGfx_HPointLight { u32 h; };
+//struct bxGfx_HSunLight   { u32 h; };
+//struct bxGfx_HPointLight { u32 h; };
 struct bxGfx_HInstanceBuffer { u32 h; };
 struct bxGfx_HMeshInstance{ u64 h; };
 
@@ -43,6 +43,7 @@ struct bxGfx_StreamsDesc
     bxGfx_StreamsDesc& vstreamEnd();
     bxGfx_StreamsDesc& istreamSet( bxGdi::EDataType dataType, const void* data = 0 );
 };
+
 
 ////
 ////
@@ -80,23 +81,22 @@ namespace bxGfx
     void worldRelease( bxGfx_World** h );
 
     bxGfx_HMeshInstance worldMeshAdd( bxGfx_World* hworld, bxGfx_HMesh hmesh, int nInstances );
+    void worldMeshLocalAABBSet( bxGfx_HMeshInstance hmeshi, const Vector3& minAABB, const Vector3& maxAABB );
     void worldMeshRemove( bxGfx_HMeshInstance hmeshi );
     void worldMeshRemoveAndRelease( bxGfx_HMeshInstance* hmeshi );
     
-    void meshInstance( bxGfx_HMesh* hmesh, bxGfx_HInstanceBuffer* hinstance, bxGfx_HMeshInstance hmeshi );
+    
     bxGfx_HMesh meshInstanceHMesh( bxGfx_HMeshInstance hmeshi );
     bxGfx_HInstanceBuffer meshInstanceHInstanceBuffer( bxGfx_HMeshInstance hmeshi );
 
-    void worldDraw( bxGdiContext* ctx, bxGfx_World* hworld, const bxGfxCamera& camera );
+    void worldDraw( bxGdiContext* ctx, bxGfx_World* world, const bxGfxCamera& camera );
 }///
 
 namespace bxGfxExt
 {
     inline bxGdiRenderSource* meshInstanceRenderSource( bxGfx_HMeshInstance hmeshI )
     {
-        bxGfx_HMesh hmesh;
-        bxGfx_HInstanceBuffer hinst;
-        bxGfx::meshInstance( &hmesh, &hinst, hmeshI );
+        bxGfx_HMesh hmesh = meshInstanceHMesh( hmeshI );
         return bxGfx::meshRenderSource( hmesh );
     }
 }///
