@@ -12,10 +12,14 @@ namespace bx
 {
     struct GfxCommandQueue
     {
+        
+
+
         u32 _acquireCounter;
 
         GfxCommandQueue()
             : _acquireCounter(0)
+            
         {}
     };
 
@@ -294,6 +298,138 @@ namespace bx
         SYS_ASSERT( cmdQueue[0]->_acquireCounter == 1 );
         --cmdQueue[0]->_acquireCounter;
         cmdQueue[0] = nullptr;
+    }
+
+}////
+
+namespace bx
+{
+    float gfxCameraAspect( const GfxCamera& cam )
+    {
+        return ( abs( cam.vAperture ) < 0.0001f ) ? cam.hAperture : cam.hAperture / cam.vAperture;
+    }
+
+    float gfxCameraFov( const GfxCamera& cam )
+    {
+        return 2.f * atan( ( 0.5f * cam.hAperture ) / ( cam.focalLength * 0.03937f ) );
+    }
+
+    void gfxCameraViewport( GfxViewport* vp, const GfxCamera& cam, int dstWidth, int dstHeight, int srcWidth, int srcHeight )
+    {
+        const int windowWidth = dstWidth;
+        const int windowHeight = dstHeight;
+
+        const float aspectRT = (float)srcWidth / (float)srcHeight;
+        const float aspectCamera = gfxCameraAspect(cam);
+
+        int imageWidth;
+        int imageHeight;
+        int offsetX = 0, offsetY = 0;
+
+
+        if( aspectCamera > aspectRT )
+        {
+            imageWidth = windowWidth;
+            imageHeight = (int)( windowWidth / aspectCamera + 0.0001f );
+            offsetY = windowHeight - imageHeight;
+            offsetY = offsetY / 2;
+        }
+        else
+        {
+            float aspect_window = (float)windowWidth / (float)windowHeight;
+            if( aspect_window <= aspectRT )
+            {
+                imageWidth = windowWidth;
+                imageHeight = (int)( windowWidth / aspectRT + 0.0001f );
+                offsetY = windowHeight - imageHeight;
+                offsetY = offsetY / 2;
+            }
+            else
+            {
+                imageWidth = (int)( windowHeight * aspectRT + 0.0001f );
+                imageHeight = windowHeight;
+                offsetX = windowWidth - imageWidth;
+                offsetX = offsetX / 2;
+            }
+        }
+        vp[0] = GfxViewport( offsetX, offsetY, imageWidth, imageHeight );
+    }
+
+    void gfxCameraComputeMatrices( GfxCamera* cam )
+    {
+        const float fov = gfxCameraFov( *cam );
+        const float aspect = gfxCameraAspect( *cam );
+        
+        cam->view = inverse( cam->world );
+        cam->proj = Matrix4::perspective( fov, aspect, cam->zNear, cam->zFar );
+        cam->viewProj = cam->proj * cam->view;
+
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    ////
+    struct GfxViewShaderData
+    {
+        Matrix4 _cmeraView;
+        Matrix4 _cameraProj;
+        Matrix4 _cameraViewProj;
+        Matrix4 _cameraWorld;
+        float4_t _cameraEyePos;
+        float4_t _cameraViewDir;
+        float2_t _renderTargetRcp;
+        float2_t _renderTargetSize;
+        float _cameraFov;
+        float _cameraAspect;
+        float _cameraZNear;
+        float _cameraZFar;
+    };
+
+
+    void gfxViewCreate( GfxView* view, GfxContext* ctx, int maxInstances )
+    {
+        (void)ctx;
+        glGenBuffers( 1, &view->_viewParamsBuffer );
+        glGenBuffers( 1, &view->_instanceWorldBuffer );
+        glGenBuffers( 1, &view->_instanceWorldITBuffer );
+
+        glBindBuffer( GL_UNIFORM_BUFFER, view->_viewParamsBuffer );
+        glBufferStorage( GL_UNIFORM_BUFFER, sizeof( GfxViewShaderData ), nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT );
+        glBindBuffer( GL_UNIFORM_BUFFER, 0 );
+
+        glBindBuffer( GL_SHADER_STORAGE_BUFFER, view->_instanceWorldBuffer );
+        glBufferStorage( GL_SHADER_STORAGE_BUFFER, maxInstances * sizeof( Matrix4 ), nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT );
+
+        glBindBuffer( GL_SHADER_STORAGE_BUFFER, view->_instanceWorldITBuffer );
+        glBufferStorage( GL_SHADER_STORAGE_BUFFER, maxInstances * sizeof( Matrix3 ), nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT );
+        glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );
+    }
+
+    void gfxViewDestroy( GfxView* view, GfxContext* ctx )
+    {
+        (void)ctx;
+        glDeleteBuffers( 1, &view->_instanceWorldITBuffer );
+        glDeleteBuffers( 1, &view->_instanceWorldBuffer );
+        glDeleteBuffers( 1, &view->_viewParamsBuffer );
+    }
+
+    void gfxViewCameraSet( GfxView* view, const GfxCamera& camera )
+    {
+
+    }
+
+    void gfxViewInstanceSet( GfxView* view, int nMatrices, const Matrix4* matrices )
+    {
+
+    }
+
+    void gfxViewSet( GfxCommandQueue* cmdQueue, const GfxView& view )
+    {
+
+    }
+
+    void gfxViewportSet( GfxCommandQueue* cmdQueue, const GfxViewport& vp )
+    {
+
     }
 
 }///
