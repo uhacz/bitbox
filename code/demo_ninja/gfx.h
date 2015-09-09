@@ -2,6 +2,7 @@
 
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
+#include <resource_manager/resource_manager.h>
 
 namespace bx
 {
@@ -10,18 +11,10 @@ namespace bx
     struct GfxCommandQueue;
     void gfxStartup( GfxContext** ctx, void* hwnd, bool debugContext, bool coreContext );
     void gfxShutdown( GfxContext** ctx );
+    
 
     GfxCommandQueue* gfxAcquireCommandQueue( GfxContext* ctx );
     void gfxReleaseCommandQueue( GfxCommandQueue** cmdQueue );
-
-
-    struct GfxLines;
-    void gfxLinesCreate( GfxLines** lines, int initialCapacity );
-    void gfxLinesDestroy();
-
-    void gfxLinesAdd( GfxLines* lines, int count, const Vector3* points, const Vector3* normals, const u32* colors );
-    void gfxLinesFlush( GfxCommandQueue* cmdQueue, GfxLines* lines );
-
 }///
 
 namespace bx
@@ -53,34 +46,29 @@ namespace bx
 
     float gfxCameraAspect( const GfxCamera& cam );
     float gfxCameraFov( const GfxCamera& cam );
+    Vector3 gfxCameraEye( const GfxCamera& cam );
+    Vector3 gfxCameraDir( const GfxCamera& cam );
     void gfxCameraViewport( GfxViewport* vp, const GfxCamera& cam, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
     void gfxCameraComputeMatrices( GfxCamera* cam );
     
-
-    struct GfxView
-    {
-        u32 _viewParamsBuffer;
-        u32 _instanceWorldBuffer;
-        u32 _instanceWorldITBuffer;
-
-        i32 _maxInstances;
-
-        GfxView()
-            : _viewParamsBuffer( 0 )
-            , _instanceWorldBuffer( 0 )
-            , _instanceWorldITBuffer( 0 )
-            , _maxInstances(0)
-        {}
-    };
-    void gfxViewCreate( GfxView* view, GfxContext* ctx, int maxInstances );
-    void gfxViewDestroy( GfxView* view, GfxContext* ctx );
-    
-    void gfxViewCameraSet( GfxView* view, const GfxCamera& camera, int rtWidth, int rtHeight );
-    void gfxViewInstanceSet( GfxView* view, int nMatrices, const Matrix4* matrices );
-
-    void gfxViewSet( GfxCommandQueue* cmdQueue, const GfxView& view );
+    void gfxCameraSet( GfxCommandQueue* cmdQueue, const GfxCamera& camera, int rtWidth, int rtHeight );
+    void gfxInstanceSet( GfxCommandQueue* cmdQueue, int nMatrices, const Matrix4* matrices );
     void gfxViewportSet( GfxCommandQueue* cmdQueue, const GfxViewport& vp );
 
 
 
 }////
+
+namespace bx
+{
+    struct GfxLinesContext;
+    void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager );
+    void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx );
+
+    struct GfxLinesData;
+    void gfxLinesDataCreate( GfxLinesData** lines, int initialCapacity );
+    void gfxLinesDataDestroy();
+
+    void gfxLinesDataAdd( GfxLinesData* lines, int count, const Vector3* points, const Vector3* normals, const u32* colors );
+    void gfxLinesDataFlush( GfxCommandQueue* cmdQueue, GfxLinesContext* linesCtx, GfxLinesData* lines );
+}///
