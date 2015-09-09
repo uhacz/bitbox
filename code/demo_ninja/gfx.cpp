@@ -10,11 +10,146 @@
 
 namespace bx
 {
-    struct GfxCommandQueue
+    static const u32 cMAX_INSTANCES = 256;
+
+    struct GfxView
+    {
+        u32 _viewParamsBufferId;
+        u32 _instanceWorldBufferId;
+        u32 _instanceWorldITBufferId;
+
+        i32 _maxInstances;
+
+        GfxView()
+            : _viewParamsBufferId( 0 )
+            , _instanceWorldBufferId( 0 )
+            , _instanceWorldITBufferId( 0 )
+            , _maxInstances( 0 )
+        {}
+    };
+
+    struct GfxShader
+    {
+        u32 _programId;
+        u32 _paramsBufferId;
+        u32 _vertexFormatId;
+    };
+    int gfxShaderCreate( GfxShader* sh, const char* source )
     {
         
+    }
+    void gfxShaderDestroy( GfxShader* sh )
+    {
+        
+    }
+    //////////////////////////////////////////////////////////////////////////
+    ////
+    struct GfxViewShaderData
+    {
+        Matrix4 _cameraView;
+        Matrix4 _cameraProj;
+        Matrix4 _cameraViewProj;
+        Matrix4 _cameraWorld;
+        float4_t _cameraEyePos;
+        float4_t _cameraViewDir;
+        float2_t _renderTargetRcp;
+        float2_t _renderTargetSize;
+        float _cameraFov;
+        float _cameraAspect;
+        float _cameraZNear;
+        float _cameraZFar;
+    };
+    void gfxViewShaderDataFill( GfxViewShaderData* sdata, const GfxCamera& camera, int rtWidth, int rtHeight )
+    {
+        //SYS_STATIC_ASSERT( sizeof( FrameData ) == 376 );
 
+        const Matrix4 sc = Matrix4::scale( Vector3( 1, 1, 0.5f ) );
+        const Matrix4 tr = Matrix4::translation( Vector3( 0, 0, 1 ) );
+        const Matrix4 proj = sc * tr * camera.proj;
 
+        sdata->_cameraView = camera.view;
+        sdata->_cameraProj = proj;
+        sdata->_cameraViewProj = proj * camera.view;
+        sdata->_cameraWorld = camera.world;
+
+        const float fov = gfxCameraFov( camera );
+        const float aspect = gfxCameraAspect( camera );
+        sdata->_cameraFov = fov;
+        sdata->_cameraAspect = aspect;
+
+        const float zNear = camera.zNear;
+        const float zFar = camera.zFar;
+        sdata->_cameraZNear = zNear;
+        sdata->_cameraZFar = zFar;
+        //sdata->_reprojectDepthScale = ( zFar - zNear ) / ( -zFar * zNear );
+        //sdata->_reprojectDepthBias = zFar / ( zFar * zNear );
+
+        sdata->_renderTargetRcp = float2_t( 1.f / (float)rtWidth, 1.f / (float)rtHeight );
+        sdata->_renderTargetSize = float2_t( (float)rtWidth, (float)rtHeight );
+
+        //frameData->cameraParams = Vector4( fov, aspect, camera.params.zNear, camera.params.zFar );
+        {
+            const float m11 = proj.getElem( 0, 0 ).getAsFloat();//getCol0().getX().getAsFloat();
+            const float m22 = proj.getElem( 1, 1 ).getAsFloat();//getCol1().getY().getAsFloat();
+            const float m33 = proj.getElem( 2, 2 ).getAsFloat();//getCol2().getZ().getAsFloat();
+            const float m44 = proj.getElem( 3, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+
+            const float m13 = proj.getElem( 0, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+            const float m23 = proj.getElem( 1, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+
+            //sdata->_reprojectInfo = float4_t( 1.f / m11, 1.f / m22, m33, -m44 );
+            ////frameData->_reprojectInfo = float4_t( 
+            ////    -2.f / ( (float)rtWidth*m11 ), 
+            ////    -2.f / ( (float)rtHeight*m22 ), 
+            ////    (1.f - m13) / m11, 
+            ////    (1.f + m23) / m22 );
+            //sdata->_reprojectInfoFromInt = float4_t(
+            //    ( -sdata->_reprojectInfo.x * 2.f ) * sdata->_renderTarget_rcp.x,
+            //    ( -sdata->_reprojectInfo.y * 2.f ) * sdata->_renderTarget_rcp.y,
+            //    sdata->_reprojectInfo.x,
+            //    sdata->_reprojectInfo.y
+            //    );
+            //frameData->_reprojectInfoFromInt = float4_t(
+            //    frameData->_reprojectInfo.x,
+            //    frameData->_reprojectInfo.y,
+            //    frameData->_reprojectInfo.z + frameData->_reprojectInfo.x * 0.5f,
+            //    frameData->_reprojectInfo.w + frameData->_reprojectInfo.y * 0.5f
+            //    );
+        }
+
+        m128_to_xyzw( sdata->_cameraEyePos.xyzw, Vector4( gfxCameraEye( camera ), oneVec ).get128() );
+        m128_to_xyzw( sdata->_cameraViewDir.xyzw, Vector4( gfxCameraDir( camera ), zeroVec ).get128() );
+        //m128_to_xyzw( frameData->_renderTarget_rcp_size.xyzw, Vector4( 1.f / float( rtWidth ), 1.f / float( rtHeight ), float( rtWidth ), float( rtHeight ) ).get128() );    
+    }
+
+    void gfxViewCreate( GfxView* view, int maxInstances )
+    {
+        glGenBuffers( 1, &view->_viewParamsBufferId );
+        glGenBuffers( 1, &view->_instanceWorldBufferId );
+        glGenBuffers( 1, &view->_instanceWorldITBufferId );
+
+        glBindBuffer( GL_UNIFORM_BUFFER, view->_viewParamsBufferId );
+        glBufferStorage( GL_UNIFORM_BUFFER, sizeof( GfxViewShaderData ), nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT );
+        glBindBuffer( GL_UNIFORM_BUFFER, 0 );
+
+        glBindBuffer( GL_SHADER_STORAGE_BUFFER, view->_instanceWorldBufferId );
+        glBufferStorage( GL_SHADER_STORAGE_BUFFER, maxInstances * sizeof( Matrix4 ), nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT );
+
+        glBindBuffer( GL_SHADER_STORAGE_BUFFER, view->_instanceWorldITBufferId );
+        glBufferStorage( GL_SHADER_STORAGE_BUFFER, maxInstances * sizeof( Matrix3 ), nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT );
+        glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );
+    }
+
+    void gfxViewDestroy( GfxView* view )
+    {
+        glDeleteBuffers( 1, &view->_instanceWorldITBufferId );
+        glDeleteBuffers( 1, &view->_instanceWorldBufferId );
+        glDeleteBuffers( 1, &view->_viewParamsBufferId );
+    }
+
+    struct GfxCommandQueue
+    {
+        GfxView _view;
         u32 _acquireCounter;
 
         GfxCommandQueue()
@@ -261,12 +396,16 @@ namespace bx
         context->_flag_coreContext = coreContext;
         context->_flag_debugContext = debugContext;
 
+        gfxViewCreate( &context->_commandQueue._view, cMAX_INSTANCES );
+
         ctx[0] = context;
     }
 
     void gfxShutdown( GfxContext** ctx )
     {
         GfxContext* context = ctx[0];
+        gfxViewDestroy( &context->_commandQueue._view );
+
         if ( context->_hGLrc )
         {
             wglDeleteContext( context->_hGLrc );
@@ -282,6 +421,16 @@ namespace bx
         context->_hWnd = NULL;
 
         BX_DELETE0( bxDefaultAllocator(), ctx[0] );
+
+    }
+
+    void gfxContextLoadResources( GfxContext* ctx, bxResourceManager* resourceManager )
+    {
+
+    }
+
+    void gfxContextUnloadResources( GfxContext* ctx, bxResourceManager* resourceManager )
+    {
 
     }
 
@@ -312,6 +461,14 @@ namespace bx
     float gfxCameraFov( const GfxCamera& cam )
     {
         return 2.f * atan( ( 0.5f * cam.hAperture ) / ( cam.focalLength * 0.03937f ) );
+    }
+    Vector3 gfxCameraEye( const GfxCamera& cam )
+    {
+        return cam.world.getTranslation();
+    }
+    Vector3 gfxCameraDir( const GfxCamera& cam )
+    {
+        return -cam.world.getCol2().getXYZ();
     }
 
     void gfxCameraViewport( GfxViewport* vp, const GfxCamera& cam, int dstWidth, int dstHeight, int srcWidth, int srcHeight )
@@ -363,73 +520,30 @@ namespace bx
         cam->view = inverse( cam->world );
         cam->proj = Matrix4::perspective( fov, aspect, cam->zNear, cam->zFar );
         cam->viewProj = cam->proj * cam->view;
-
     }
-
-    //////////////////////////////////////////////////////////////////////////
-    ////
-    struct GfxViewShaderData
+    
+    void gfxViewCameraSet( GfxCommandQueue* cmdQueue, const GfxCamera& camera, int rtWidth, int rtHeight )
     {
-        Matrix4 _cmeraView;
-        Matrix4 _cameraProj;
-        Matrix4 _cameraViewProj;
-        Matrix4 _cameraWorld;
-        float4_t _cameraEyePos;
-        float4_t _cameraViewDir;
-        float2_t _renderTargetRcp;
-        float2_t _renderTargetSize;
-        float _cameraFov;
-        float _cameraAspect;
-        float _cameraZNear;
-        float _cameraZFar;
-    };
+        GfxViewShaderData shaderData;
+        memset( &shaderData, 0x00, sizeof( GfxViewShaderData ) );
+        gfxViewShaderDataFill( &shaderData, camera, rtWidth, rtHeight );
 
-
-    void gfxViewCreate( GfxView* view, GfxContext* ctx, int maxInstances )
-    {
-        (void)ctx;
-        glGenBuffers( 1, &view->_viewParamsBuffer );
-        glGenBuffers( 1, &view->_instanceWorldBuffer );
-        glGenBuffers( 1, &view->_instanceWorldITBuffer );
-
-        glBindBuffer( GL_UNIFORM_BUFFER, view->_viewParamsBuffer );
-        glBufferStorage( GL_UNIFORM_BUFFER, sizeof( GfxViewShaderData ), nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT );
+        glBindBuffer( GL_UNIFORM_BUFFER, cmdQueue->_view._viewParamsBufferId );
+        glBufferSubData( GL_UNIFORM_BUFFER, 0, sizeof( GfxViewShaderData ), &shaderData );
         glBindBuffer( GL_UNIFORM_BUFFER, 0 );
-
-        glBindBuffer( GL_SHADER_STORAGE_BUFFER, view->_instanceWorldBuffer );
-        glBufferStorage( GL_SHADER_STORAGE_BUFFER, maxInstances * sizeof( Matrix4 ), nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT );
-
-        glBindBuffer( GL_SHADER_STORAGE_BUFFER, view->_instanceWorldITBuffer );
-        glBufferStorage( GL_SHADER_STORAGE_BUFFER, maxInstances * sizeof( Matrix3 ), nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT );
-        glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );
     }
 
-    void gfxViewDestroy( GfxView* view, GfxContext* ctx )
-    {
-        (void)ctx;
-        glDeleteBuffers( 1, &view->_instanceWorldITBuffer );
-        glDeleteBuffers( 1, &view->_instanceWorldBuffer );
-        glDeleteBuffers( 1, &view->_viewParamsBuffer );
-    }
-
-    void gfxViewCameraSet( GfxView* view, const GfxCamera& camera )
-    {
-
-    }
-
-    void gfxViewInstanceSet( GfxView* view, int nMatrices, const Matrix4* matrices )
-    {
-
-    }
-
-    void gfxViewSet( GfxCommandQueue* cmdQueue, const GfxView& view )
+    void gfxViewInstanceSet( GfxCommandQueue* cmdQueue, int nMatrices, const Matrix4* matrices )
     {
 
     }
 
     void gfxViewportSet( GfxCommandQueue* cmdQueue, const GfxViewport& vp )
     {
-
+        (void)cmdQueue;
+        glViewport( vp.x, vp.y, vp.w, vp.h );
     }
+
+
 
 }///
