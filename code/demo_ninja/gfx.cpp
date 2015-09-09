@@ -28,20 +28,6 @@ namespace bx
         {}
     };
 
-    struct GfxShader
-    {
-        u32 _programId;
-        u32 _paramsBufferId;
-        u32 _vertexFormatId;
-    };
-    int gfxShaderCreate( GfxShader* sh, const char* source )
-    {
-        
-    }
-    void gfxShaderDestroy( GfxShader* sh )
-    {
-        
-    }
     //////////////////////////////////////////////////////////////////////////
     ////
     struct GfxViewShaderData
@@ -424,16 +410,6 @@ namespace bx
 
     }
 
-    void gfxContextLoadResources( GfxContext* ctx, bxResourceManager* resourceManager )
-    {
-
-    }
-
-    void gfxContextUnloadResources( GfxContext* ctx, bxResourceManager* resourceManager )
-    {
-
-    }
-
     GfxCommandQueue* gfxAcquireCommandQueue( GfxContext* ctx )
     {
         GfxCommandQueue* cmdQueue = &ctx->_commandQueue;
@@ -543,7 +519,120 @@ namespace bx
         (void)cmdQueue;
         glViewport( vp.x, vp.y, vp.w, vp.h );
     }
-
-
-
 }///
+
+namespace bx
+{
+    struct GfxLinesContext
+    {
+        u32 _programId;
+        u32 _paramsBufferId;
+        u32 _vertexFormatId; /// VAO
+
+        GfxLinesContext()
+            : _programId( 0 )
+            , _paramsBufferId( 0 )
+            , _vertexFormatId( 0 )
+        {}
+    };
+
+    static const char shaderSource[] =
+    {
+        "#ifdef __vertex__"
+        "in vec3 _pos;"
+        "void main()"
+        "{"
+        "   gl_Position = vec4( _pos, 1.0 );"
+        "}"
+        "#endif"
+
+        "#ifdef __fragment__"
+        "out vec4 _color;"
+        "void main()"
+        "{"
+        "   _color = vec4( 1.0, 0.0, 0.0, 1.0 );"
+        "}"
+        "#endif"
+    };
+
+
+    void gfxPrintShaderInfoLog( GLuint shaderId ) 
+    {
+        int maxLength = 2048;
+        int actualLength = 0;
+        char log[2048];
+        glGetShaderInfoLog( shaderId, maxLength, &actualLength, log );
+        printf_s( "shader info log for GL index %u:\n%s\n", shaderId, log );
+    }
+    void gfxPrintProgramIngoLog( GLuint programId )
+    {
+        int maxLength = 2048;
+        int actualLength = 0;
+        char log[2048];
+        glGetProgramInfoLog( programId, maxLength, &actualLength, log );
+        printf_s( "program info log for GL index %u:\n%s\n", programId, log );
+    }
+
+    void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager )
+    {
+        GfxLinesContext* lctx = BX_NEW( bxDefaultAllocator(), GfxLinesContext );
+
+        u32 vertexShaderId = glCreateShader( GL_VERTEX_SHADER );
+        u32 fragmentShaderId = glCreateShader( GL_FRAGMENT_SHADER );
+        u32 programId = glCreateProgram();
+
+        const char version[] = "#version 330";
+        const char vertexMacro[] = "#define __vertex__";
+        const char fragmentMacro[] = "#define __fragment__";
+
+        const char* vertexSources[] =
+        {
+            version, vertexMacro, shaderSource,
+        };
+        const char* fragmentSources[] =
+        {
+            version, fragmentMacro, shaderSource,
+        };
+
+        glShaderSource( vertexShaderId, 3, vertexSources, NULL );
+        glShaderSource( fragmentShaderId, 3, fragmentSources, NULL );
+
+        int params = -1;
+        glCompileShader( vertexShaderId );
+        glGetShaderiv( vertexShaderId, GL_COMPILE_STATUS, &params );
+        if( params != GL_TRUE )
+        {
+            fprintf_s( stderr, "ERROR: GL vertex shader did not compile\n" );
+            gfxPrintShaderInfoLog( vertexShaderId );
+            SYS_ASSERT( false );
+        }
+
+        glCompileShader( fragmentShaderId );
+        glGetShaderiv( fragmentShaderId, GL_COMPILE_STATUS, &params );
+        if( params != GL_TRUE )
+        {
+            fprintf_s( stderr, "ERROR: GL vertex shader did not compile\n" );
+            gfxPrintShaderInfoLog( fragmentShaderId );
+            SYS_ASSERT( false );
+        }
+
+        glAttachShader( programId, vertexShaderId );
+        glAttachShader( programId, fragmentShaderId );
+        glLinkProgram( programId );
+        glGetProgramiv( programId, GL_LINK_STATUS, &params );
+        if( params != GL_TRUE )
+        {
+            fprintf_s( stderr, "ERROR: GL shader program did not link\n" );
+            gfxPrintProgramIngoLog( programId );
+            SYS_ASSERT( false );
+        }
+
+        lctx->_programId = programId;
+    }
+
+    void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx )
+    {
+
+    }
+
+}////

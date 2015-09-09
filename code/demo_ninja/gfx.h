@@ -11,19 +11,10 @@ namespace bx
     struct GfxCommandQueue;
     void gfxStartup( GfxContext** ctx, void* hwnd, bool debugContext, bool coreContext );
     void gfxShutdown( GfxContext** ctx );
-    void gfxContextLoadResources( GfxContext* ctx, bxResourceManager* resourceManager );
-    void gfxContextUnloadResources( GfxContext* ctx, bxResourceManager* resourceManager );
+    
 
     GfxCommandQueue* gfxAcquireCommandQueue( GfxContext* ctx );
     void gfxReleaseCommandQueue( GfxCommandQueue** cmdQueue );
-
-    struct GfxLines;
-    void gfxLinesCreate( GfxLines** lines, int initialCapacity );
-    void gfxLinesDestroy();
-
-    void gfxLinesAdd( GfxLines* lines, int count, const Vector3* points, const Vector3* normals, const u32* colors );
-    void gfxLinesFlush( GfxCommandQueue* cmdQueue, GfxLines* lines );
-
 }///
 
 namespace bx
@@ -67,3 +58,17 @@ namespace bx
 
 
 }////
+
+namespace bx
+{
+    struct GfxLinesContext;
+    void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager );
+    void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx );
+
+    struct GfxLinesData;
+    void gfxLinesDataCreate( GfxLinesData** lines, int initialCapacity );
+    void gfxLinesDataDestroy();
+
+    void gfxLinesDataAdd( GfxLinesData* lines, int count, const Vector3* points, const Vector3* normals, const u32* colors );
+    void gfxLinesDataFlush( GfxCommandQueue* cmdQueue, GfxLinesContext* linesCtx, GfxLinesData* lines );
+}///
