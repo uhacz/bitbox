@@ -75,7 +75,7 @@ namespace bx
     void gfxViewCreate( GfxView* view, GfxContext* ctx, int maxInstances );
     void gfxViewDestroy( GfxView* view, GfxContext* ctx );
     
-    void gfxViewCameraSet( GfxView* view, const GfxCamera& camera );
+    void gfxViewCameraSet( GfxView* view, const GfxCamera& camera, int rtWidth, int rtHeight );
     void gfxViewInstanceSet( GfxView* view, int nMatrices, const Matrix4* matrices );
 
     void gfxViewSet( GfxCommandQueue* cmdQueue, const GfxView& view );
