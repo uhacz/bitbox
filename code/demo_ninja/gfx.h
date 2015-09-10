@@ -15,6 +15,10 @@ namespace bx
 
     GfxCommandQueue* gfxAcquireCommandQueue( GfxContext* ctx );
     void gfxReleaseCommandQueue( GfxCommandQueue** cmdQueue );
+
+    void gfxFrameBegin( GfxCommandQueue* cmdQueue );
+    void gfxFrameEnd( GfxContext* ctx );
+
 }///
 
 namespace bx
@@ -66,9 +70,11 @@ namespace bx
     void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx );
 
     struct GfxLinesData;
-    void gfxLinesDataCreate( GfxLinesData** lines, int initialCapacity );
-    void gfxLinesDataDestroy();
+    void gfxLinesDataCreate( GfxLinesData** lines, GfxContext* ctx, int initialCapacity );
+    void gfxLinesDataDestroy( GfxLinesData** lines, GfxContext* ctx );
 
     void gfxLinesDataAdd( GfxLinesData* lines, int count, const Vector3* points, const Vector3* normals, const u32* colors );
+    void gfxLinesDataClear( GfxLinesData* lines );
+    void gfxLinesDataUpload( GfxCommandQueue* cmdQueue, const GfxLinesData* lines );
     void gfxLinesDataFlush( GfxCommandQueue* cmdQueue, GfxLinesContext* linesCtx, GfxLinesData* lines );
 }///

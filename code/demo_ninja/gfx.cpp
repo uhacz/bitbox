@@ -2,6 +2,8 @@
 #include <util/type.h>
 #include <util/debug.h>
 #include <util/memory.h>
+#include <util/buffer_utils.h>
+#include <util/common.h>
 
 #include <GL/glew.h>
 #include <GL/wglew.h>
@@ -442,6 +444,18 @@ namespace bx
         cmdQueue[0] = nullptr;
     }
 
+    void gfxFrameBegin( GfxCommandQueue* cmdQueue )
+    {
+        glClearColor( 0.f, 0.f, 0.f, 1.f );
+        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+        glViewport( 0, 0, 800, 600 );
+    }
+
+    void gfxFrameEnd( GfxContext* ctx )
+    {
+        SwapBuffers( ctx->_hDC );
+    }
+
 }////
 
 namespace bx
@@ -544,18 +558,16 @@ namespace bx
     {
         u32 _programId;
         u32 _paramsBufferId;
-        u32 _vertexFormatId; /// VAO
-
+        
         GfxLinesContext()
             : _programId( 0 )
             , _paramsBufferId( 0 )
-            , _vertexFormatId( 0 )
         {}
     };
 
     static const char shaderSource[] =
     {
-        "#if defined( __vertex__ )\n"
+        "#if defined( bx__vertex__ )\n"
         "in vec3 POSITION;\n"
         "void main()\n"
         "{\n"
@@ -563,7 +575,7 @@ namespace bx
         "}\n"
         "#endif\n"
 
-        "#if defined( __fragment__ )\n"
+        "#if defined( bx__fragment__ )\n"
         "out vec4 _color;\n"
         "void main()\n"
         "{\n"
@@ -590,22 +602,20 @@ namespace bx
         printf_s( "program info log for GL index %u:\n%s\n", programId, log );
     }
 
-    void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager )
+    u32 gfxShaderCreate( GfxContext* ctx, const char* shaderSource )
     {
-        GfxLinesContext* lctx = BX_NEW( bxDefaultAllocator(), GfxLinesContext );
-
         u32 vertexShaderId = glCreateShader( GL_VERTEX_SHADER );
         u32 fragmentShaderId = glCreateShader( GL_FRAGMENT_SHADER );
         u32 programId = glCreateProgram();
 
-        for ( int iattr = 0; iattr < eATTRIB_COUNT; ++iattr )
+        for( int iattr = 0; iattr < eATTRIB_COUNT; ++iattr )
         {
             glBindAttribLocation( programId, iattr, vertexAttribName[iattr] );
         }
 
         const char version[] = "#version 330\n";
-        const char vertexMacro[] = "#define __vertex__\n";
-        const char fragmentMacro[] = "#define __fragment__\n";
+        const char vertexMacro[] = "#define bx__vertex__\n";
+        const char fragmentMacro[] = "#define bx__fragment__\n";
 
         const char* vertexSources[] =
         {
@@ -649,11 +659,18 @@ namespace bx
             SYS_ASSERT( false );
         }
 
-        lctx->_programId = programId;
-
         glDeleteShader( fragmentShaderId );
         glDeleteShader( vertexShaderId );
 
+        return programId;
+    }
+
+    void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager )
+    {
+        GfxLinesContext* lctx = BX_NEW( bxDefaultAllocator(), GfxLinesContext );
+
+        lctx->_programId = gfxShaderCreate( ctx, shaderSource );;
+        
         linesCtx[0] = lctx;
     }
 
@@ -667,5 +684,205 @@ namespace bx
 
         BX_DELETE0( bxDefaultAllocator(), linesCtx[0] );
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    ////
+    struct GfxLinesData
+    {
+        struct Data
+        {
+            void* memoryHandle;
+            i32 size;
+            i32 capacity;
+
+            float3_t* position;
+            float3_t* normal;
+            u32* color;
+        };
+
+        Data _data;
+        u32 _vertexArrayId;
+        u32 _vertexBufferPositionId;
+        u32 _vertexBufferNormalId;
+        u32 _vertexBufferColorId;
+
+        GfxLinesData()
+            : _vertexArrayId( 0 )
+            , _vertexBufferPositionId( 0 )
+            , _vertexBufferNormalId( 0 )
+            , _vertexBufferColorId( 0 )
+        {
+            memset( &_data, 0x00, sizeof( GfxLinesData::Data ) );
+        }
+    };
+    void gfxLinesDataAllocate( GfxLinesData::Data* data, int newcap, bxAllocator* alloc )
+    {
+        int memSize = 0;
+        memSize += newcap * sizeof( *data->position );
+        memSize += newcap * sizeof( *data->normal );
+        memSize += newcap * sizeof( *data->color );
+
+        void* mem = BX_MALLOC( alloc, memSize, 16 );
+        memset( mem, 0x00, memSize );
+
+        GfxLinesData::Data newdata;
+        newdata.memoryHandle = mem;
+        newdata.size = data->size;
+        newdata.capacity = newcap;
+
+        bxBufferChunker chunker( mem, memSize );
+        newdata.position = chunker.add< float3_t >( newcap );
+        newdata.normal = chunker.add< float3_t >( newcap );
+        newdata.color = chunker.add< u32 >( newcap );
+        chunker.check();
+
+        if( data->size )
+        {
+            BX_CONTAINER_COPY_DATA( &newdata, data, position );
+            BX_CONTAINER_COPY_DATA( &newdata, data, normal );
+            BX_CONTAINER_COPY_DATA( &newdata, data, color );
+        }
+
+        BX_FREE0( alloc, data->memoryHandle );
+        *data = newdata;
+    }
+
+
+    void gfxLinesDataCreate( GfxLinesData** lines, GfxContext* ctx, int initialCapacity )
+    {
+        GfxLinesData* ldata = BX_NEW( bxDefaultAllocator(), GfxLinesData );
+        GfxLinesData::Data* data = &ldata->_data;
+        gfxLinesDataAllocate( data, initialCapacity, bxDefaultAllocator() );
+
+        u32 vertexArrayId;
+        glGenVertexArrays( 1, &vertexArrayId );
+        glBindVertexArray( vertexArrayId );
+
+        u32 vertexBufferId;
+        {
+            glGenBuffers( 1, &vertexBufferId );
+            glBindBuffer( GL_ARRAY_BUFFER, vertexBufferId );
+            glBufferData( GL_ARRAY_BUFFER, initialCapacity * sizeof( *data->position ), data->position, GL_DYNAMIC_DRAW );
+            glEnableVertexAttribArray( ePOSITION );
+            glVertexAttribPointer( ePOSITION, 3, GL_FLOAT, GL_FALSE, 0, 0 );
+
+            gfxGLCheckError( "create vertex buffer" );
+
+            ldata->_vertexBufferPositionId = vertexBufferId;
+        }
+        {
+            glGenBuffers( 1, &vertexBufferId );
+            glBindBuffer( GL_ARRAY_BUFFER, vertexBufferId );
+            glBufferData( GL_ARRAY_BUFFER, initialCapacity * sizeof( *data->normal ), data->normal, GL_DYNAMIC_DRAW );
+            glEnableVertexAttribArray( eNORMAL );
+            glVertexAttribPointer( eNORMAL, 3, GL_FLOAT, GL_FALSE, 0, 0 );
+
+            gfxGLCheckError( "create vertex buffer" );
+
+            ldata->_vertexBufferNormalId = vertexBufferId;
+        }
+
+        {
+            glGenBuffers( 1, &vertexBufferId );
+            glBindBuffer( GL_ARRAY_BUFFER, vertexBufferId );
+            glBufferData( GL_ARRAY_BUFFER, initialCapacity * sizeof( *data->color ), data->color, GL_DYNAMIC_DRAW );
+            glEnableVertexAttribArray( eCOLOR );
+            glVertexAttribPointer( eCOLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, 0 );
+
+            gfxGLCheckError( "create vertex buffer" );
+
+            ldata->_vertexBufferColorId = vertexBufferId;
+        }
+
+        glBindVertexArray( 0 );
+
+        ldata->_vertexArrayId = vertexArrayId;
+
+        lines[0] = ldata;
+    }
+
+    void gfxLinesDataDestroy( GfxLinesData** lines, GfxContext* ctx )
+    {
+        GfxLinesData* ldata = lines[0];
+        if( !ldata )
+            return;
+
+        GfxLinesData::Data* data = &ldata->_data;
+
+        glDeleteBuffers( 1, &ldata->_vertexBufferColorId );
+        glDeleteBuffers( 1, &ldata->_vertexBufferNormalId );
+        glDeleteBuffers( 1, &ldata->_vertexBufferPositionId );
+        glDeleteVertexArrays( 1, &ldata->_vertexArrayId );
+
+        BX_FREE0( bxDefaultAllocator(), data->memoryHandle );
+        memset( data, 0x00, sizeof( GfxLinesData::Data ) );
+
+        BX_DELETE0( bxDefaultAllocator(), lines[0] );
+    }
+    void gfxLinesDataAdd( GfxLinesData* lines, int count, const Vector3* points, const Vector3* normals, const u32* colors )
+    {
+        GfxLinesData::Data* data = &lines->_data;
+        if( data->size + count > data->capacity )
+        {
+            int newcap = maxOfPair( data->size + count, data->capacity ) * 2;
+            gfxLinesDataAllocate( data, newcap, bxDefaultAllocator() );
+        }
+
+        const int size = data->size;
+        for( int i = 0; i < count; ++i )
+            storeXYZ( points[i], data->position[ size + i].xyz );
+
+        for( int i = 0; i < count; ++i )
+            storeXYZ( normals[i], data->normal[size + i].xyz );
+
+        for( int i = 0; i < count; ++i )
+            data->color[size + i] = colors[i];
+
+        data->size += count;
+    }
+    void gfxLinesDataClear( GfxLinesData* lines )
+    {
+        lines->_data.size = 0;
+    }
+    void gfxLinesDataUpload( GfxCommandQueue* cmdQueue, const GfxLinesData* lines )
+    {
+        const GfxLinesData::Data* data = &lines->_data;
+        const int size = data->size;
+        glBindBuffer( GL_ARRAY_BUFFER, lines->_vertexBufferPositionId );
+        glBufferSubData( GL_ARRAY_BUFFER, 0, size * sizeof( *data->position ), data->position );
+        
+        gfxGLCheckError( "update vertex buffer" );
+
+        glBindBuffer( GL_ARRAY_BUFFER, lines->_vertexBufferNormalId );
+        glBufferSubData( GL_ARRAY_BUFFER, 0, size * sizeof( *data->normal ), data->normal );
+
+        gfxGLCheckError( "update vertex buffer" );
+
+        glBindBuffer( GL_ARRAY_BUFFER, lines->_vertexBufferColorId );
+        glBufferSubData( GL_ARRAY_BUFFER, 0, size * sizeof( *data->color ), data->color );
+
+        gfxGLCheckError( "update vertex buffer" );
+
+        glBindBuffer( GL_ARRAY_BUFFER, 0 );
+    }
+
+    void gfxLinesDataFlush( GfxCommandQueue* cmdQueue, GfxLinesContext* linesCtx, GfxLinesData* lines )
+    {
+        glUseProgram( linesCtx->_programId );
+        gfxGLCheckError( "use program" );
+
+        glBindVertexArray( lines->_vertexArrayId );
+        gfxGLCheckError( "bind vertex array" );
+
+        glDrawArrays( GL_LINES, 0, lines->_data.size );
+        gfxGLCheckError( "draw" );
+
+        glBindVertexArray( 0 );
+        glUseProgram( 0 );
+    }
+
+
+
+
 
 }////

@@ -11,6 +11,7 @@ public:
     App()
         : _gfx( nullptr )
         , _renderCtx( nullptr )
+        , _renderData( nullptr )
         , _resourceManager( nullptr )
         , _timeMS(0)
     {}
@@ -24,10 +25,13 @@ public:
 
         bx::gfxStartup( &_gfx, win->hwnd, true, false );
         bx::gfxLinesContextCreate( &_renderCtx, _gfx, _resourceManager );
+        bx::gfxLinesDataCreate( &_renderData, _gfx, 1024 * 8 );
+
         return true;
     }
     virtual void shutdown()
     {
+        bx::gfxLinesDataDestroy( &_renderData, _gfx );
         bx::gfxLinesContextDestroy( &_renderCtx, _gfx );
         bx::gfxShutdown( &_gfx );
         bxResourceManager::shutdown( &_resourceManager );
@@ -46,13 +50,42 @@ public:
         const double deltaTimeS = bxTime::toSeconds( deltaTimeUS );
         const float deltaTime = (float)deltaTimeS;
 
+        bx::GfxCommandQueue* cmdQueue = bx::gfxAcquireCommandQueue( _gfx );
+
+        const Vector3 positions[] =
+        {
+            Vector3( -0.5f, -0.5f, 0.f ), Vector3( 0.5f, 0.5f, 0.f ),
+        };
+        const Vector3 normals[] =
+        {
+            Vector3::zAxis(), Vector3::yAxis(),
+        };
+        const u32 colors[] = 
+        {
+            0xFFFFFFFF, 0xFF00FF00,
+        };
+
+        bx::gfxLinesDataAdd( _renderData, 2, positions, normals, colors );
+        bx::gfxLinesDataUpload( cmdQueue, _renderData );
+                
+        bx::gfxFrameBegin( cmdQueue );
+
+        bx::gfxLinesDataFlush( cmdQueue, _renderCtx, _renderData );
+        bx::gfxLinesDataClear( _renderData );
+
+        bx::gfxReleaseCommandQueue( &cmdQueue );
+        bx::gfxFrameEnd( _gfx );
+
         _timeMS += deltaTimeUS / 1000;
+
+        
 
         return true;
     }
 
     bx::GfxContext* _gfx;
     bx::GfxLinesContext* _renderCtx;
+    bx::GfxLinesData* _renderData;
     bxResourceManager* _resourceManager;
 
     u64 _timeMS;
