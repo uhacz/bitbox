@@ -12,17 +12,18 @@ namespace bx
     void gfxStartup( GfxContext** ctx, void* hwnd, bool debugContext, bool coreContext );
     void gfxShutdown( GfxContext** ctx );
     
-
     GfxCommandQueue* gfxAcquireCommandQueue( GfxContext* ctx );
     void gfxReleaseCommandQueue( GfxCommandQueue** cmdQueue );
 
-    void gfxFrameBegin( GfxCommandQueue* cmdQueue );
+    void gfxFrameBegin( GfxContext* ctx, GfxCommandQueue* cmdQueue );
     void gfxFrameEnd( GfxContext* ctx );
 
 }///
 
 namespace bx
 {
+    
+
     struct GfxCamera
     {
         Matrix4 world;
@@ -55,12 +56,10 @@ namespace bx
     void gfxCameraViewport( GfxViewport* vp, const GfxCamera& cam, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
     void gfxCameraComputeMatrices( GfxCamera* cam );
     
-    void gfxCameraSet( GfxCommandQueue* cmdQueue, const GfxCamera& camera, int rtWidth, int rtHeight );
+    void gfxCameraSet( GfxCommandQueue* cmdQueue, const GfxCamera& camera );
     void gfxInstanceSet( GfxCommandQueue* cmdQueue, int nMatrices, const Matrix4* matrices );
     void gfxViewportSet( GfxCommandQueue* cmdQueue, const GfxViewport& vp );
-
-
-
+    void gfxViewportSet( GfxCommandQueue* cmdQueue, const GfxCamera& camera );
 }////
 
 namespace bx

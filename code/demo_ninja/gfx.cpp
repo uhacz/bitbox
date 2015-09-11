@@ -14,21 +14,33 @@ namespace bx
 {
     static const u32 cMAX_INSTANCES = 256;
 
-    struct GfxView
+    //////////////////////////////////////////////////////////////////////////
+    ////
+    struct GfxFramebuffer
     {
-        u32 _viewParamsBufferId;
-        u32 _instanceWorldBufferId;
-        u32 _instanceWorldITBufferId;
+        u32 _colorTextureId;
+        u32 _depthTextureId;
 
-        i32 _maxInstances;
+        u16 _width;
+        u16 _height;
 
-        GfxView()
-            : _viewParamsBufferId( 0 )
-            , _instanceWorldBufferId( 0 )
-            , _instanceWorldITBufferId( 0 )
-            , _maxInstances( 0 )
+        GfxFramebuffer()
+            : _colorTextureId(0)
+            , _depthTextureId(0)
+            , _width(0)
+            , _height(0)
         {}
     };
+    void gfxFramebufferCreate( GfxFramebuffer* fb, int w, int h )
+    {
+        fb->_width = w;
+        fb->_height = h;
+    }
+    void gfxFramebufferDestroy( GfxFramebuffer* fb )
+    {
+    
+    }
+    
 
     //////////////////////////////////////////////////////////////////////////
     ////
@@ -110,6 +122,23 @@ namespace bx
         //m128_to_xyzw( frameData->_renderTarget_rcp_size.xyzw, Vector4( 1.f / float( rtWidth ), 1.f / float( rtHeight ), float( rtWidth ), float( rtHeight ) ).get128() );    
     }
 
+    //////////////////////////////////////////////////////////////////////////
+    ////
+    struct GfxView
+    {
+        u32 _viewParamsBufferId;
+        u32 _instanceWorldBufferId;
+        u32 _instanceWorldITBufferId;
+
+        i32 _maxInstances;
+
+        GfxView()
+            : _viewParamsBufferId( 0 )
+            , _instanceWorldBufferId( 0 )
+            , _instanceWorldITBufferId( 0 )
+            , _maxInstances( 0 )
+        {}
+    };
     void gfxViewCreate( GfxView* view, int maxInstances )
     {
         glGenBuffers( 1, &view->_viewParamsBufferId );
@@ -152,10 +181,12 @@ namespace bx
         "COLOR",
     };
 
+
     struct GfxCommandQueue
     {
         GfxView _view;
         u32 _acquireCounter;
+        GfxContext* _ctx;
 
         GfxCommandQueue()
             : _acquireCounter(0)
@@ -169,6 +200,10 @@ namespace bx
         HDC _hDC;
         HGLRC _hGLrc;
 
+        u16 _windowWidth;
+        u16 _windowHeight;
+
+        GfxFramebuffer _framebuffer;
         GfxCommandQueue _commandQueue;
 
         u32 _flag_coreContext : 1;
@@ -400,8 +435,16 @@ namespace bx
         context->_hGLrc = hglrc;
         context->_flag_coreContext = coreContext;
         context->_flag_debugContext = debugContext;
+        context->_commandQueue._ctx = context;
+
+        RECT rect;
+        GetClientRect( hWnd, &rect );
+        context->_windowWidth  = (u16)( rect.right - rect.left );
+        context->_windowHeight = (u16)( rect.bottom - rect.top );
 
         gfxViewCreate( &context->_commandQueue._view, cMAX_INSTANCES );
+        gfxFramebufferCreate( &context->_framebuffer, 1920, 1080 );
+
         ctx[0] = context;
         
     }
@@ -409,6 +452,8 @@ namespace bx
     void gfxShutdown( GfxContext** ctx )
     {
         GfxContext* context = ctx[0];
+        
+        gfxFramebufferDestroy( &context->_framebuffer );
         gfxViewDestroy( &context->_commandQueue._view );
 
         if ( context->_hGLrc )
@@ -444,11 +489,11 @@ namespace bx
         cmdQueue[0] = nullptr;
     }
 
-    void gfxFrameBegin( GfxCommandQueue* cmdQueue )
+    void gfxFrameBegin( GfxContext* ctx, GfxCommandQueue* cmdQueue )
     {
         glClearColor( 0.f, 0.f, 0.f, 1.f );
         glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-        glViewport( 0, 0, 800, 600 );
+        glViewport( 0, 0, ctx->_windowWidth, ctx->_windowHeight );
     }
 
     void gfxFrameEnd( GfxContext* ctx )
@@ -529,20 +574,35 @@ namespace bx
         cam->viewProj = cam->proj * cam->view;
     }
     
-    void gfxViewCameraSet( GfxCommandQueue* cmdQueue, const GfxCamera& camera, int rtWidth, int rtHeight )
+    void gfxViewCameraSet( GfxCommandQueue* cmdQueue, const GfxCamera& camera )
     {
         GfxViewShaderData shaderData;
         memset( &shaderData, 0x00, sizeof( GfxViewShaderData ) );
-        gfxViewShaderDataFill( &shaderData, camera, rtWidth, rtHeight );
+        gfxViewShaderDataFill( &shaderData, camera, cmdQueue->_ctx->_framebuffer._width, cmdQueue->_ctx->_framebuffer._height );
 
         glBindBuffer( GL_UNIFORM_BUFFER, cmdQueue->_view._viewParamsBufferId );
         glBufferSubData( GL_UNIFORM_BUFFER, 0, sizeof( GfxViewShaderData ), &shaderData );
         glBindBuffer( GL_UNIFORM_BUFFER, 0 );
+
+
+
     }
 
     void gfxViewInstanceSet( GfxCommandQueue* cmdQueue, int nMatrices, const Matrix4* matrices )
     {
 
+    }
+    
+    void gfxViewportSet( GfxCommandQueue* cmdQueue, const GfxCamera& camera )
+    {
+        GfxViewport vp;
+
+        int srcw = cmdQueue->_ctx->_framebuffer._width;
+        int srch = cmdQueue->_ctx->_framebuffer._height;
+        int dstw = cmdQueue->_ctx->_windowWidth;
+        int dsth = cmdQueue->_ctx->_windowHeight;
+        gfxCameraViewport( &vp, camera, dstw, dsth, srcw, srch );
+        glViewport( vp.x, vp.y, vp.w, vp.h );
     }
 
     void gfxViewportSet( GfxCommandQueue* cmdQueue, const GfxViewport& vp )
@@ -880,9 +940,5 @@ namespace bx
         glBindVertexArray( 0 );
         glUseProgram( 0 );
     }
-
-
-
-
 
 }////

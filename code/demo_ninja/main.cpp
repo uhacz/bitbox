@@ -24,8 +24,11 @@ public:
         _resourceManager = bxResourceManager::startup( assetDir );
 
         bx::gfxStartup( &_gfx, win->hwnd, true, false );
+
         bx::gfxLinesContextCreate( &_renderCtx, _gfx, _resourceManager );
         bx::gfxLinesDataCreate( &_renderData, _gfx, 1024 * 8 );
+
+        _camera.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
 
         return true;
     }
@@ -68,7 +71,12 @@ public:
         bx::gfxLinesDataAdd( _renderData, 2, positions, normals, colors );
         bx::gfxLinesDataUpload( cmdQueue, _renderData );
                 
-        bx::gfxFrameBegin( cmdQueue );
+        bx::gfxFrameBegin( _gfx, cmdQueue );
+
+        bx::gfxCameraComputeMatrices( &_camera );
+        
+        bx::gfxViewportSet( cmdQueue, _camera );
+
 
         bx::gfxLinesDataFlush( cmdQueue, _renderCtx, _renderData );
         bx::gfxLinesDataClear( _renderData );
@@ -83,6 +91,7 @@ public:
         return true;
     }
 
+    bx::GfxCamera _camera;
     bx::GfxContext* _gfx;
     bx::GfxLinesContext* _renderCtx;
     bx::GfxLinesData* _renderData;
