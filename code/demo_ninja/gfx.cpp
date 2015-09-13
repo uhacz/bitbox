@@ -40,24 +40,32 @@ namespace bx
     {
     
     }
-    
+
 
     //////////////////////////////////////////////////////////////////////////
     ////
+#define GFX_VIEW_SHADER_DATA_VARS \
+    mat4 _cameraView; \
+    mat4 _cameraProj; \
+    mat4 _cameraViewProj; \
+    mat4 _cameraWorld; \
+    vec4 _cameraEyePos; \
+    vec4 _cameraViewDir; \
+    vec2 _renderTargetRcp; \
+    vec2 _renderTargetSize; \
+    float _cameraFov; \
+    float _cameraAspect; \
+    float _cameraZNear; \
+    float _cameraZFar;
+
+    typedef Matrix4 mat4;
+    typedef float4_t vec4;
+    typedef float3_t vec3;
+    typedef float2_t vec2;
+
     struct GfxViewShaderData
     {
-        Matrix4 _cameraView;
-        Matrix4 _cameraProj;
-        Matrix4 _cameraViewProj;
-        Matrix4 _cameraWorld;
-        float4_t _cameraEyePos;
-        float4_t _cameraViewDir;
-        float2_t _renderTargetRcp;
-        float2_t _renderTargetSize;
-        float _cameraFov;
-        float _cameraAspect;
-        float _cameraZNear;
-        float _cameraZFar;
+        GFX_VIEW_SHADER_DATA_VARS
     };
     void gfxViewShaderDataFill( GfxViewShaderData* sdata, const GfxCamera& camera, int rtWidth, int rtHeight )
     {
@@ -494,6 +502,7 @@ namespace bx
         glClearColor( 0.f, 0.f, 0.f, 1.f );
         glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
         glViewport( 0, 0, ctx->_windowWidth, ctx->_windowHeight );
+        glBindBufferBase( GL_UNIFORM_BUFFER, 0, cmdQueue->_view._viewParamsBufferId );
     }
 
     void gfxFrameEnd( GfxContext* ctx )
@@ -501,10 +510,26 @@ namespace bx
         SwapBuffers( ctx->_hDC );
     }
 
+
 }////
 
 namespace bx
 {
+    GfxCamera::GfxCamera()
+        : world( Matrix4::identity() )
+        , view( Matrix4::identity() )
+        , proj( Matrix4::identity() )
+        , viewProj( Matrix4::identity() )
+
+        , hAperture( 1.8f )
+        , vAperture( 1.0f )
+        , focalLength( 25.f )
+        , zNear( 0.1f )
+        , zFar( 1000.f )
+        , orthoWidth( 10.f )
+        , orthoHeight( 10.f )
+    {}
+
     float gfxCameraAspect( const GfxCamera& cam )
     {
         return ( abs( cam.vAperture ) < 0.0001f ) ? cam.hAperture : cam.hAperture / cam.vAperture;
@@ -573,8 +598,8 @@ namespace bx
         cam->proj = Matrix4::perspective( fov, aspect, cam->zNear, cam->zFar );
         cam->viewProj = cam->proj * cam->view;
     }
-    
-    void gfxViewCameraSet( GfxCommandQueue* cmdQueue, const GfxCamera& camera )
+
+    void gfxCameraSet( GfxCommandQueue* cmdQueue, const GfxCamera& camera )
     {
         GfxViewShaderData shaderData;
         memset( &shaderData, 0x00, sizeof( GfxViewShaderData ) );
@@ -583,9 +608,6 @@ namespace bx
         glBindBuffer( GL_UNIFORM_BUFFER, cmdQueue->_view._viewParamsBufferId );
         glBufferSubData( GL_UNIFORM_BUFFER, 0, sizeof( GfxViewShaderData ), &shaderData );
         glBindBuffer( GL_UNIFORM_BUFFER, 0 );
-
-
-
     }
 
     void gfxViewInstanceSet( GfxCommandQueue* cmdQueue, int nMatrices, const Matrix4* matrices )
@@ -617,12 +639,23 @@ namespace bx
     struct GfxLinesContext
     {
         u32 _programId;
-        u32 _paramsBufferId;
+        u32 _viewDataBlockIndex;
+        
+        //u32 _paramsBufferId;
         
         GfxLinesContext()
             : _programId( 0 )
-            , _paramsBufferId( 0 )
+            //, _paramsBufferId( 0 )
+            , _viewDataBlockIndex(UINT32_MAX)
         {}
+    };
+
+    static const char viewDataUniformBlock[] =
+    {
+        "layout (std140) uniform ViewData\n"
+        "{\n"
+        MAKE_STR( GFX_VIEW_SHADER_DATA_VARS )
+        "};\n"
     };
 
     static const char shaderSource[] =
@@ -631,7 +664,7 @@ namespace bx
         "in vec3 POSITION;\n"
         "void main()\n"
         "{\n"
-        "   gl_Position = vec4( POSITION, 1.0 );\n"
+        "   gl_Position = _cameraViewProj * vec4( POSITION, 1.0 );\n"
         "}\n"
         "#endif\n"
 
@@ -679,15 +712,18 @@ namespace bx
 
         const char* vertexSources[] =
         {
-            version, vertexMacro, shaderSource,
+            version, viewDataUniformBlock, vertexMacro, shaderSource,
         };
         const char* fragmentSources[] =
         {
-            version, fragmentMacro, shaderSource,
+            version, viewDataUniformBlock, fragmentMacro, shaderSource,
         };
 
-        glShaderSource( vertexShaderId, 3, vertexSources, NULL );
-        glShaderSource( fragmentShaderId, 3, fragmentSources, NULL );
+        int nSources = sizeof( vertexSources ) / sizeof( *vertexSources );
+        glShaderSource( vertexShaderId, nSources, vertexSources, NULL );
+
+        nSources = sizeof( fragmentSources ) / sizeof( *fragmentSources );
+        glShaderSource( fragmentShaderId, nSources, fragmentSources, NULL );
 
         int params = -1;
         glCompileShader( vertexShaderId );
@@ -729,8 +765,18 @@ namespace bx
     {
         GfxLinesContext* lctx = BX_NEW( bxDefaultAllocator(), GfxLinesContext );
 
-        lctx->_programId = gfxShaderCreate( ctx, shaderSource );;
+        bxFS::File file = resourceManager->readTextFileSync( "shader/glsl/ninja.glsl" );
+        const u32 progId = gfxShaderCreate( ctx, file.txt );
+        file.release();
+
+        u32 viewDataBlockIndex = glGetUniformBlockIndex( progId, "ViewData" );
+        int blockSize = 0;
+        glGetActiveUniformBlockiv( progId, viewDataBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &blockSize );
+        SYS_ASSERT( blockSize == sizeof( GfxViewShaderData ) );
+        glUniformBlockBinding( progId, viewDataBlockIndex, 0 );
         
+        lctx->_programId = progId;
+        lctx->_viewDataBlockIndex = viewDataBlockIndex;
         linesCtx[0] = lctx;
     }
 
@@ -931,6 +977,8 @@ namespace bx
         glUseProgram( linesCtx->_programId );
         gfxGLCheckError( "use program" );
 
+        
+
         glBindVertexArray( lines->_vertexArrayId );
         gfxGLCheckError( "bind vertex array" );
 
@@ -940,5 +988,17 @@ namespace bx
         glBindVertexArray( 0 );
         glUseProgram( 0 );
     }
+
+    namespace util
+    {
+        void gfxLinesAddBox( GfxLinesData* lines, const Matrix4& pose, const Vector3& ext, u32 color )
+        {
+            Vector3 positions[24] = 
+        }
+        void gfxLinesAddAxes( GfxLinesData* lines, const Matrix4& pose, int colorScheme )
+        {
+        
+        }
+    }///
 
 }////

@@ -22,8 +22,6 @@ namespace bx
 
 namespace bx
 {
-    
-
     struct GfxCamera
     {
         Matrix4 world;
@@ -38,6 +36,8 @@ namespace bx
         f32 zFar;
         f32 orthoWidth;
         f32 orthoHeight;
+
+        GfxCamera();
     };
     
     struct GfxViewport
@@ -76,4 +76,11 @@ namespace bx
     void gfxLinesDataClear( GfxLinesData* lines );
     void gfxLinesDataUpload( GfxCommandQueue* cmdQueue, const GfxLinesData* lines );
     void gfxLinesDataFlush( GfxCommandQueue* cmdQueue, GfxLinesContext* linesCtx, GfxLinesData* lines );
+
+    namespace util
+    {
+        void gfxLinesAddBox( GfxLinesData* lines, const Matrix4& pose, const Vector3& ext, u32 color );
+        void gfxLinesAddAxes( GfxLinesData* lines, const Matrix4& pose, int colorScheme );
+    }///
+
 }///
