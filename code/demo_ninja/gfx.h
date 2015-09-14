@@ -69,6 +69,13 @@ namespace bx
     void gfxShaderDestroy( GfxShaderId* id, GfxContext* ctx, bxResourceManager* resourceManager );
     void gfxShaderUse( GfxCommandQueue* ctx, GfxShaderId id );
     
+    struct GfxMeshId { u32 id; }
+    GfxMeshId gfxMeshCreate( GfxContext* ctx );
+    void gfxMeshDestroy( GfxMeshId* id, GfxContext* ctx );
+    void gfxMeshLoadBox( GfxMeshId id, GfxContext* ctx );
+    void gfxMeshLoadSphere( GfxMeshId id, GfxContext* ctx );
+    
+
     //struct GfxLinesContext;
     //void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager );
     //void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx );
