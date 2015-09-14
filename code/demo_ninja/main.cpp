@@ -102,7 +102,6 @@ class App : public bxApplication
 public:
     App()
         : _gfx( nullptr )
-        , _renderCtx( nullptr )
         , _renderData( nullptr )
         , _resourceManager( nullptr )
         , _timeMS(0)
@@ -117,7 +116,7 @@ public:
 
         bx::gfxStartup( &_gfx, win->hwnd, true, false );
 
-        bx::gfxLinesContextCreate( &_renderCtx, _gfx, _resourceManager );
+        _testShader = bx::gfxShaderCreate( _gfx, _resourceManager );
         bx::gfxLinesDataCreate( &_renderData, _gfx, 1024 * 8 );
 
         _camera.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
@@ -127,7 +126,7 @@ public:
     virtual void shutdown()
     {
         bx::gfxLinesDataDestroy( &_renderData, _gfx );
-        bx::gfxLinesContextDestroy( &_renderCtx, _gfx );
+        bx::gfxShaderDestroy( &_testShader, _gfx, _resourceManager );
         bx::gfxShutdown( &_gfx );
         bxResourceManager::shutdown( &_resourceManager );
 
@@ -172,8 +171,8 @@ public:
         bx::gfxCameraSet( cmdQueue, _camera );
         bx::gfxViewportSet( cmdQueue, _camera );
 
-
-        bx::gfxLinesDataFlush( cmdQueue, _renderCtx, _renderData );
+        bx::gfxShaderUse( cmdQueue, _testShader );
+        bx::gfxLinesDataFlush( cmdQueue, _renderData );
         bx::gfxLinesDataClear( _renderData );
 
         bx::gfxReleaseCommandQueue( &cmdQueue );
@@ -189,8 +188,10 @@ public:
     bx::CameraInputContext _cameraInputCtx;
     bx::GfxCamera _camera;
     bx::GfxContext* _gfx;
-    bx::GfxLinesContext* _renderCtx;
     bx::GfxLinesData* _renderData;
+    bx::GfxShaderId _testShader;
+
+
     bxResourceManager* _resourceManager;
 
     u64 _timeMS;

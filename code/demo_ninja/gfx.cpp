@@ -4,6 +4,7 @@
 #include <util/memory.h>
 #include <util/buffer_utils.h>
 #include <util/common.h>
+#include <util/id_table.h>
 
 #include <GL/glew.h>
 #include <GL/wglew.h>
@@ -12,7 +13,15 @@
 
 namespace bx
 {
-    static const u32 cMAX_INSTANCES = 256;
+    enum
+    {
+        eMAX_INSTANCES = 256,
+        eMAX_SHADERS = 64,
+
+        eBINDING_VIEW_DATA = 0,
+        eBINDING_MATERIAL_DATA = 1,
+    };
+
 
     //////////////////////////////////////////////////////////////////////////
     ////
@@ -189,6 +198,61 @@ namespace bx
         "COLOR",
     };
 
+    inline GfxShaderId gfxShaderMakeId( u32 hash )
+    {
+        GfxShaderId id = { hash };
+        return id;
+    }
+
+    struct GfxShader
+    {
+        u32 programId;
+    };
+    struct GfxShaderContainer
+    {
+        id_table_t< eMAX_SHADERS > _idTable;
+        GfxShader _dataArray[ eMAX_SHADERS ];
+        
+        GfxShaderId add()
+        {
+            id_t id = id_table::create( _idTable );
+            GfxShader& data = _dataArray[id.index];
+            data.programId = 0;
+
+            return gfxShaderMakeId( id.hash );
+        }
+        void remove( GfxShaderId* id )
+        {
+            id_t i = make_id( id->id );
+
+            if( !id_table::has( _idTable, i ) )
+                return;
+
+            SYS_ASSERT( _dataArray[i.index].programId == 0 );
+
+            id_table::destroy( _idTable, i );
+            id[0] = makeInvalidHandle<GfxShaderId>();
+        }
+
+        bool isValid( GfxShaderId id )
+        {
+            id_t i = make_id( id.id );
+            return id_table::has( _idTable, i );
+        }
+
+        GfxShader& lookup( GfxShaderId id )
+        {
+            id_t i = make_id( id.id );
+            SYS_ASSERT( id_table::has( _idTable, i ) );
+            return _dataArray[make_id( id.id ).index];
+        }
+        const GfxShader& lookup( GfxShaderId id ) const
+        {
+            SYS_ASSERT( id_table::has( _idTable, make_id( id.id ) ) );
+            return _dataArray[make_id( id.id ).index];
+        }
+    };
+
 
     struct GfxCommandQueue
     {
@@ -213,6 +277,7 @@ namespace bx
 
         GfxFramebuffer _framebuffer;
         GfxCommandQueue _commandQueue;
+        GfxShaderContainer _shaderContainer;
 
         u32 _flag_coreContext : 1;
         u32 _flag_debugContext : 1;
@@ -450,7 +515,7 @@ namespace bx
         context->_windowWidth  = (u16)( rect.right - rect.left );
         context->_windowHeight = (u16)( rect.bottom - rect.top );
 
-        gfxViewCreate( &context->_commandQueue._view, cMAX_INSTANCES );
+        gfxViewCreate( &context->_commandQueue._view, eMAX_INSTANCES );
         gfxFramebufferCreate( &context->_framebuffer, 1920, 1080 );
 
         ctx[0] = context;
@@ -636,20 +701,8 @@ namespace bx
 
 namespace bx
 {
-    struct GfxLinesContext
-    {
-        u32 _programId;
-        u32 _viewDataBlockIndex;
-        
-        //u32 _paramsBufferId;
-        
-        GfxLinesContext()
-            : _programId( 0 )
-            //, _paramsBufferId( 0 )
-            , _viewDataBlockIndex(UINT32_MAX)
-        {}
-    };
-
+    //////////////////////////////////////////////////////////////////////////
+    ////
     static const char viewDataUniformBlock[] =
     {
         "layout (std140) uniform ViewData\n"
@@ -658,27 +711,27 @@ namespace bx
         "};\n"
     };
 
-    static const char shaderSource[] =
-    {
-        "#if defined( bx__vertex__ )\n"
-        "in vec3 POSITION;\n"
-        "void main()\n"
-        "{\n"
-        "   gl_Position = _cameraViewProj * vec4( POSITION, 1.0 );\n"
-        "}\n"
-        "#endif\n"
+    //static const char shaderSource[] =
+    //{
+    //    "#if defined( bx__vertex__ )\n"
+    //    "in vec3 POSITION;\n"
+    //    "void main()\n"
+    //    "{\n"
+    //    "   gl_Position = _cameraViewProj * vec4( POSITION, 1.0 );\n"
+    //    "}\n"
+    //    "#endif\n"
 
-        "#if defined( bx__fragment__ )\n"
-        "out vec4 _color;\n"
-        "void main()\n"
-        "{\n"
-        "   _color = vec4( 1.0, 0.0, 0.0, 1.0 );\n"
-        "}\n"
-        "#endif\n"
-    };
+    //    "#if defined( bx__fragment__ )\n"
+    //    "out vec4 _color;\n"
+    //    "void main()\n"
+    //    "{\n"
+    //    "   _color = vec4( 1.0, 0.0, 0.0, 1.0 );\n"
+    //    "}\n"
+    //    "#endif\n"
+    //};
 
 
-    void gfxPrintShaderInfoLog( GLuint shaderId ) 
+    void gfxPrintShaderInfoLog( GLuint shaderId )
     {
         int maxLength = 2048;
         int actualLength = 0;
@@ -695,7 +748,7 @@ namespace bx
         printf_s( "program info log for GL index %u:\n%s\n", programId, log );
     }
 
-    u32 gfxShaderCreate( GfxContext* ctx, const char* shaderSource )
+    u32 gfxShaderCompile( GfxContext* ctx, const char* shaderSource )
     {
         u32 vertexShaderId = glCreateShader( GL_VERTEX_SHADER );
         u32 fragmentShaderId = glCreateShader( GL_FRAGMENT_SHADER );
@@ -760,13 +813,15 @@ namespace bx
 
         return programId;
     }
-
-    void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager )
+    //////////////////////////////////////////////////////////////////////////
+    ////
+    GfxShaderId gfxShaderCreate( GfxContext* ctx, bxResourceManager* resourceManager )
     {
-        GfxLinesContext* lctx = BX_NEW( bxDefaultAllocator(), GfxLinesContext );
+        GfxShaderId id = ctx->_shaderContainer.add();
+        GfxShader& shader = ctx->_shaderContainer.lookup( id );
 
         bxFS::File file = resourceManager->readTextFileSync( "shader/glsl/ninja.glsl" );
-        const u32 progId = gfxShaderCreate( ctx, file.txt );
+        const u32 progId = gfxShaderCompile( ctx, file.txt );
         file.release();
 
         u32 viewDataBlockIndex = glGetUniformBlockIndex( progId, "ViewData" );
@@ -774,22 +829,74 @@ namespace bx
         glGetActiveUniformBlockiv( progId, viewDataBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &blockSize );
         SYS_ASSERT( blockSize == sizeof( GfxViewShaderData ) );
         glUniformBlockBinding( progId, viewDataBlockIndex, 0 );
-        
-        lctx->_programId = progId;
-        lctx->_viewDataBlockIndex = viewDataBlockIndex;
-        linesCtx[0] = lctx;
-    }
 
-    void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx )
+        shader.programId = progId;
+
+        return id;
+    }
+    void gfxShaderDestroy( GfxShaderId* id, GfxContext* ctx, bxResourceManager* resourceManager )
     {
-        if ( !linesCtx[0] )
+        if( !ctx->_shaderContainer.isValid( id[0] ) )
             return;
 
-        GfxLinesContext* lctx = linesCtx[0];
-        glDeleteProgram( lctx->_programId );
-
-        BX_DELETE0( bxDefaultAllocator(), linesCtx[0] );
+        GfxShader& shader = ctx->_shaderContainer.lookup( id[0] );
+        glDeleteProgram( shader.programId );
+        shader.programId = 0;
+        ctx->_shaderContainer.remove( id );
     }
+    void gfxShaderUse( GfxCommandQueue* cmdQueue, GfxShaderId id )
+    {
+        SYS_ASSERT( cmdQueue->_ctx->_shaderContainer.isValid( id ) );
+
+        const GfxShader& shader = cmdQueue->_ctx->_shaderContainer.lookup( id );
+        glUseProgram( shader.programId );
+    }
+
+    //struct GfxLinesContext
+    //{
+    //    u32 _programId;
+    //    u32 _viewDataBlockIndex;
+    //    
+    //    //u32 _paramsBufferId;
+    //    
+    //    GfxLinesContext()
+    //        : _programId( 0 )
+    //        //, _paramsBufferId( 0 )
+    //        , _viewDataBlockIndex(UINT32_MAX)
+    //    {}
+    //};
+
+    
+
+    //void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager )
+    //{
+    //    GfxLinesContext* lctx = BX_NEW( bxDefaultAllocator(), GfxLinesContext );
+
+    //    bxFS::File file = resourceManager->readTextFileSync( "shader/glsl/ninja.glsl" );
+    //    const u32 progId = gfxShaderCompile( ctx, file.txt );
+    //    file.release();
+
+    //    u32 viewDataBlockIndex = glGetUniformBlockIndex( progId, "ViewData" );
+    //    int blockSize = 0;
+    //    glGetActiveUniformBlockiv( progId, viewDataBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &blockSize );
+    //    SYS_ASSERT( blockSize == sizeof( GfxViewShaderData ) );
+    //    glUniformBlockBinding( progId, viewDataBlockIndex, 0 );
+    //    
+    //    lctx->_programId = progId;
+    //    lctx->_viewDataBlockIndex = viewDataBlockIndex;
+    //    linesCtx[0] = lctx;
+    //}
+
+    //void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx )
+    //{
+    //    if ( !linesCtx[0] )
+    //        return;
+
+    //    GfxLinesContext* lctx = linesCtx[0];
+    //    glDeleteProgram( lctx->_programId );
+
+    //    BX_DELETE0( bxDefaultAllocator(), linesCtx[0] );
+    //}
 
     //////////////////////////////////////////////////////////////////////////
     ////
@@ -972,13 +1079,8 @@ namespace bx
         glBindBuffer( GL_ARRAY_BUFFER, 0 );
     }
 
-    void gfxLinesDataFlush( GfxCommandQueue* cmdQueue, GfxLinesContext* linesCtx, GfxLinesData* lines )
+    void gfxLinesDataFlush( GfxCommandQueue* cmdQueue, GfxLinesData* lines )
     {
-        glUseProgram( linesCtx->_programId );
-        gfxGLCheckError( "use program" );
-
-        
-
         glBindVertexArray( lines->_vertexArrayId );
         gfxGLCheckError( "bind vertex array" );
 
@@ -993,7 +1095,7 @@ namespace bx
     {
         void gfxLinesAddBox( GfxLinesData* lines, const Matrix4& pose, const Vector3& ext, u32 color )
         {
-            Vector3 positions[24] = 
+            //Vector3 positions[24] = 
         }
         void gfxLinesAddAxes( GfxLinesData* lines, const Matrix4& pose, int colorScheme )
         {

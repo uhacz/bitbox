@@ -64,9 +64,14 @@ namespace bx
 
 namespace bx
 {
-    struct GfxLinesContext;
-    void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager );
-    void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx );
+    struct GfxShaderId { u32 id; };
+    GfxShaderId gfxShaderCreate( GfxContext* ctx, bxResourceManager* resourceManager );
+    void gfxShaderDestroy( GfxShaderId* id, GfxContext* ctx, bxResourceManager* resourceManager );
+    void gfxShaderUse( GfxCommandQueue* ctx, GfxShaderId id );
+    
+    //struct GfxLinesContext;
+    //void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager );
+    //void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx );
 
     struct GfxLinesData;
     void gfxLinesDataCreate( GfxLinesData** lines, GfxContext* ctx, int initialCapacity );
@@ -75,7 +80,7 @@ namespace bx
     void gfxLinesDataAdd( GfxLinesData* lines, int count, const Vector3* points, const Vector3* normals, const u32* colors );
     void gfxLinesDataClear( GfxLinesData* lines );
     void gfxLinesDataUpload( GfxCommandQueue* cmdQueue, const GfxLinesData* lines );
-    void gfxLinesDataFlush( GfxCommandQueue* cmdQueue, GfxLinesContext* linesCtx, GfxLinesData* lines );
+    void gfxLinesDataFlush( GfxCommandQueue* cmdQueue, GfxLinesData* lines );
 
     namespace util
     {
