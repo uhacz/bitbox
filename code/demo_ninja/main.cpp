@@ -171,7 +171,7 @@ public:
         bx::gfxCameraSet( cmdQueue, _camera );
         bx::gfxViewportSet( cmdQueue, _camera );
 
-        bx::gfxShaderUse( cmdQueue, _testShader );
+        bx::gfxShaderEnable( cmdQueue, _testShader );
         bx::gfxLinesDataFlush( cmdQueue, _renderData );
         bx::gfxLinesDataClear( _renderData );
 

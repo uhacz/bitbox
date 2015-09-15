@@ -5,6 +5,7 @@
 #include <util/buffer_utils.h>
 #include <util/common.h>
 #include <util/id_table.h>
+#include <util/poly/poly_shape.h>
 
 #include <GL/glew.h>
 #include <GL/wglew.h>
@@ -17,6 +18,7 @@ namespace bx
     {
         eMAX_INSTANCES = 256,
         eMAX_SHADERS = 64,
+        eMAX_MESHES = 256,
 
         eBINDING_VIEW_DATA = 0,
         eBINDING_MATERIAL_DATA = 1,
@@ -183,10 +185,10 @@ namespace bx
 
     enum EVertexAttribLocation
     {
-        ePOSITION = 0,
-        eNORMAL = 1,
-        eTEXCOORD0 = 2,
-        eCOLOR = 3,
+        eATTRIB_POSITION = 0,
+        eATTRIB_NORMAL = 1,
+        eATTRIB_TEXCOORD0 = 2,
+        eATTRIB_COLOR = 3,
 
         eATTRIB_COUNT,
     };
@@ -198,61 +200,94 @@ namespace bx
         "COLOR",
     };
 
-    inline GfxShaderId gfxShaderMakeId( u32 hash )
-    {
-        GfxShaderId id = { hash };
-        return id;
-    }
+    
 
     struct GfxShader
     {
-        u32 programId;
+        u32 _programId;
+
+        GfxShader()
+            : _programId(0)
+        {}
+
+        static GfxShaderId makeId( u32 hash )
+        {
+            GfxShaderId id = { hash };
+            return id;
+        }
     };
-    struct GfxShaderContainer
+    struct GfxMesh
     {
-        id_table_t< eMAX_SHADERS > _idTable;
-        GfxShader _dataArray[ eMAX_SHADERS ];
-        
-        GfxShaderId add()
+        u32 _vertexArrayDesc; /// VAO
+        u32 _positionStreamId;
+        u32 _normalStreamId;
+        u32 _texcoordStreamId;
+        u32 _indexStreamId;
+
+        u32 _vertexCount;
+        u32 _indexCount;
+
+        GfxMesh()
+            : _vertexArrayDesc( 0 )
+            , _positionStreamId( 0 )
+            , _normalStreamId( 0 )
+            , _texcoordStreamId( 0 )
+            , _indexStreamId( 0 )
+            , _vertexCount( 0 )
+            , _indexCount( 0 )
+        {}
+
+        static GfxMeshId makeId( u32 hash )
+        {
+            GfxMeshId id = { hash };
+            return id;
+        }
+    };
+
+    template< class Tobj, class Tid, u32 MAX_COUNT >
+    struct GfxObjectTable
+    {
+        id_table_t< MAX_COUNT > _idTable;
+        Tobj _dataArray[MAX_COUNT];
+
+        Tid add()
         {
             id_t id = id_table::create( _idTable );
-            GfxShader& data = _dataArray[id.index];
-            data.programId = 0;
-
-            return gfxShaderMakeId( id.hash );
+            _dataArray[id.index] = Tobj();
+            return Tobj::makeId( id.hash );
         }
-        void remove( GfxShaderId* id )
+        void remove( Tid* id )
         {
-            id_t i = make_id( id->id );
+            id_t i = make_id( id->hash );
 
             if( !id_table::has( _idTable, i ) )
                 return;
 
-            SYS_ASSERT( _dataArray[i.index].programId == 0 );
-
             id_table::destroy( _idTable, i );
-            id[0] = makeInvalidHandle<GfxShaderId>();
+            id[0] = Tobj::makeId( 0 );
         }
 
-        bool isValid( GfxShaderId id )
+        bool isValid( Tid id )
         {
-            id_t i = make_id( id.id );
+            id_t i = make_id( id.hash);
             return id_table::has( _idTable, i );
         }
 
-        GfxShader& lookup( GfxShaderId id )
+        Tobj& lookup( Tid id )
         {
-            id_t i = make_id( id.id );
+            id_t i = make_id( id.hash );
             SYS_ASSERT( id_table::has( _idTable, i ) );
-            return _dataArray[make_id( id.id ).index];
+            return _dataArray[make_id( id.hash ).index];
         }
-        const GfxShader& lookup( GfxShaderId id ) const
+        const Tobj& lookup( Tid id ) const
         {
             SYS_ASSERT( id_table::has( _idTable, make_id( id.id ) ) );
-            return _dataArray[make_id( id.id ).index];
+            return _dataArray[make_id( id.hash ).index];
         }
     };
 
+    typedef GfxObjectTable< GfxShader, GfxShaderId, eMAX_SHADERS >  GfxShaderContainer;
+    typedef GfxObjectTable< GfxMesh, GfxMeshId, eMAX_MESHES >  GfxMeshContainer;
 
     struct GfxCommandQueue
     {
@@ -278,6 +313,7 @@ namespace bx
         GfxFramebuffer _framebuffer;
         GfxCommandQueue _commandQueue;
         GfxShaderContainer _shaderContainer;
+        GfxMeshContainer _meshContainer;
 
         u32 _flag_coreContext : 1;
         u32 _flag_debugContext : 1;
@@ -830,7 +866,7 @@ namespace bx
         SYS_ASSERT( blockSize == sizeof( GfxViewShaderData ) );
         glUniformBlockBinding( progId, viewDataBlockIndex, 0 );
 
-        shader.programId = progId;
+        shader._programId = progId;
 
         return id;
     }
@@ -840,16 +876,130 @@ namespace bx
             return;
 
         GfxShader& shader = ctx->_shaderContainer.lookup( id[0] );
-        glDeleteProgram( shader.programId );
-        shader.programId = 0;
+        glDeleteProgram( shader._programId );
+        shader._programId = 0;
         ctx->_shaderContainer.remove( id );
+        id[0] = GfxShader::makeId( 0 );
     }
-    void gfxShaderUse( GfxCommandQueue* cmdQueue, GfxShaderId id )
+    void gfxShaderEnable( GfxCommandQueue* cmdQueue, GfxShaderId id )
     {
         SYS_ASSERT( cmdQueue->_ctx->_shaderContainer.isValid( id ) );
 
         const GfxShader& shader = cmdQueue->_ctx->_shaderContainer.lookup( id );
-        glUseProgram( shader.programId );
+        glUseProgram( shader._programId );
+    }
+
+    GfxMeshId gfxMeshCreate( GfxContext* ctx )
+    {
+        GfxMeshId id = ctx->_meshContainer.add();
+        return id;
+    }
+    void gfxMeshDestroy( GfxMeshId* id, GfxContext* ctx )
+    {
+        if( !ctx->_meshContainer.isValid( id[0] ) )
+            return;
+
+        GfxMesh& mesh = ctx->_meshContainer.lookup( id );
+        glDeleteBuffers( 1, &mesh._indexStreamId );
+        glDeleteBuffers( 1, &mesh._texcoordStreamId );
+        glDeleteBuffers( 1, &mesh._normalStreamId );
+        glDeleteBuffers( 1, &mesh._positionStreamId );
+        glDeleteVertexArrays( 1, &mesh._vertexArrayDesc );
+
+        mesh = GfxMesh();
+
+        ctx->_meshContainer.remove( id[0] );
+        id[0] = GfxMesh::makeId( 0 );
+    }
+
+    void gfxMeshLoadShape( GfxMesh* mesh, const bxPolyShape& shape )
+    {
+        u32 streamDescId = 0;
+        u32 indexStreamId = 0;
+        u32 vertexStreamId[eATTRIB_COUNT];
+        memset( vertexStreamId, 0x00, sizeof( vertexStreamId ) );
+
+        const int vertexCount = shape.num_vertices;
+        const int indexCount = shape.num_indices;
+
+        glCreateVertexArrays( 1, &streamDescId );
+
+        glGenBuffers( 1, &indexStreamId );
+        glGenBuffers( 1, &vertexStreamId[eATTRIB_POSITION] );
+        glGenBuffers( 1, &vertexStreamId[eATTRIB_NORMAL] );
+        glGenBuffers( 1, &vertexStreamId[eATTRIB_TEXCOORD0] );
+
+        glBindVertexArray( streamDescId );
+
+        {
+            glBindBuffer( GL_ARRAY_BUFFER, vertexStreamId[eATTRIB_POSITION] );
+            glBufferData( GL_ARRAY_BUFFER, vertexCount * 3 * sizeof( float ), shape.positions, GL_STATIC_DRAW );
+            glEnableVertexAttribArray( eATTRIB_POSITION );
+            glVertexAttribPointer( eATTRIB_POSITION, shape.n_elem_pos, GL_FLOAT, GL_FALSE, 0, 0 );
+            gfxGLCheckError( "create vertex buffer" );
+        }
+
+        {
+            glBindBuffer( GL_ARRAY_BUFFER, vertexStreamId[eATTRIB_NORMAL] );
+            glBufferData( GL_ARRAY_BUFFER, vertexCount * 3 * sizeof( float ), shape.normals, GL_STATIC_DRAW );
+            glEnableVertexAttribArray( eATTRIB_NORMAL );
+            glVertexAttribPointer( eATTRIB_NORMAL, shape.n_elem_nrm, GL_FLOAT, GL_FALSE, 0, 0 );
+            gfxGLCheckError( "create vertex buffer" );
+        }
+
+        {
+            glBindBuffer( GL_ARRAY_BUFFER, vertexStreamId[eATTRIB_TEXCOORD0] );
+            glBufferData( GL_ARRAY_BUFFER, vertexCount * 3 * sizeof( float ), shape.normals, GL_STATIC_DRAW );
+            glEnableVertexAttribArray( eATTRIB_TEXCOORD0 );
+            glVertexAttribPointer( eATTRIB_TEXCOORD0, shape.n_elem_tex, GL_FLOAT, GL_FALSE, 0, 0 );
+            gfxGLCheckError( "create vertex buffer" );
+        }
+
+        {
+            glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, indexStreamId );
+            glBufferData( GL_ELEMENT_ARRAY_BUFFER, indexCount * sizeof( u32 ), shape.indices, GL_STATIC_DRAW );
+            gfxGLCheckError( "create vertex buffer" );
+        }
+
+        glBindVertexArray( 0 );
+        glBindBuffer( GL_ARRAY_BUFFER, 0 );
+        glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+
+        mesh->_vertexArrayDesc = streamDescId;
+        mesh->_positionStreamId = vertexStreamId[eATTRIB_POSITION];
+        mesh->_normalStreamId = vertexStreamId[eATTRIB_NORMAL];
+        mesh->_texcoordStreamId = vertexStreamId[eATTRIB_TEXCOORD0];
+        mesh->_indexStreamId = indexStreamId;
+        mesh->_vertexCount = vertexCount;
+        mesh->_indexCount = indexCount;
+    }
+
+    void gfxMeshLoadBox( GfxMeshId id, GfxContext* ctx )
+    {
+        if( !ctx->_meshContainer.isValid( id ) )
+            return;
+
+        bxPolyShape shape;
+        bxPolyShape_createBox( &shape, 1 );
+
+        GfxMesh& mesh = ctx->_meshContainer.lookup( id );
+        gfxMeshLoadShape( &mesh, shape );
+
+        bxPolyShape_deallocateShape( &shape );
+    }
+
+    void gfxMeshLoadSphere( GfxMeshId id, GfxContext* ctx )
+    {
+        if( !ctx->_meshContainer.isValid( id ) )
+            return;
+
+        bxPolyShape shape;
+        bxPolyShape_createShpere( &shape, 4 );
+
+        GfxMesh& mesh = ctx->_meshContainer.lookup( id );
+        gfxMeshLoadShape( &mesh, shape );
+
+        bxPolyShape_deallocateShape( &shape );
     }
 
     //struct GfxLinesContext
@@ -976,8 +1126,8 @@ namespace bx
             glGenBuffers( 1, &vertexBufferId );
             glBindBuffer( GL_ARRAY_BUFFER, vertexBufferId );
             glBufferData( GL_ARRAY_BUFFER, initialCapacity * sizeof( *data->position ), data->position, GL_DYNAMIC_DRAW );
-            glEnableVertexAttribArray( ePOSITION );
-            glVertexAttribPointer( ePOSITION, 3, GL_FLOAT, GL_FALSE, 0, 0 );
+            glEnableVertexAttribArray( eATTRIB_POSITION );
+            glVertexAttribPointer( eATTRIB_POSITION, 3, GL_FLOAT, GL_FALSE, 0, 0 );
 
             gfxGLCheckError( "create vertex buffer" );
 
@@ -987,8 +1137,8 @@ namespace bx
             glGenBuffers( 1, &vertexBufferId );
             glBindBuffer( GL_ARRAY_BUFFER, vertexBufferId );
             glBufferData( GL_ARRAY_BUFFER, initialCapacity * sizeof( *data->normal ), data->normal, GL_DYNAMIC_DRAW );
-            glEnableVertexAttribArray( eNORMAL );
-            glVertexAttribPointer( eNORMAL, 3, GL_FLOAT, GL_FALSE, 0, 0 );
+            glEnableVertexAttribArray( eATTRIB_NORMAL );
+            glVertexAttribPointer( eATTRIB_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, 0 );
 
             gfxGLCheckError( "create vertex buffer" );
 
@@ -999,8 +1149,8 @@ namespace bx
             glGenBuffers( 1, &vertexBufferId );
             glBindBuffer( GL_ARRAY_BUFFER, vertexBufferId );
             glBufferData( GL_ARRAY_BUFFER, initialCapacity * sizeof( *data->color ), data->color, GL_DYNAMIC_DRAW );
-            glEnableVertexAttribArray( eCOLOR );
-            glVertexAttribPointer( eCOLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, 0 );
+            glEnableVertexAttribArray( eATTRIB_COLOR );
+            glVertexAttribPointer( eATTRIB_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, 0 );
 
             gfxGLCheckError( "create vertex buffer" );
 

@@ -64,12 +64,12 @@ namespace bx
 
 namespace bx
 {
-    struct GfxShaderId { u32 id; };
+    struct GfxShaderId { u32 hash; };
     GfxShaderId gfxShaderCreate( GfxContext* ctx, bxResourceManager* resourceManager );
     void gfxShaderDestroy( GfxShaderId* id, GfxContext* ctx, bxResourceManager* resourceManager );
-    void gfxShaderUse( GfxCommandQueue* ctx, GfxShaderId id );
+    void gfxShaderEnable( GfxCommandQueue* ctx, GfxShaderId id );
     
-    struct GfxMeshId { u32 id; }
+    struct GfxMeshId { u32 hash; };
     GfxMeshId gfxMeshCreate( GfxContext* ctx );
     void gfxMeshDestroy( GfxMeshId* id, GfxContext* ctx );
     void gfxMeshLoadBox( GfxMeshId id, GfxContext* ctx );
