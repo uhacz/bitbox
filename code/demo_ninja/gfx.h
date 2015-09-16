@@ -75,6 +75,33 @@ namespace bx
     void gfxMeshLoadBox( GfxMeshId id, GfxContext* ctx );
     void gfxMeshLoadSphere( GfxMeshId id, GfxContext* ctx );
     
+    struct GfxDrawList;
+    void gfxDrawListCreate( GfxDrawList** dlist, GfxContext* ctx, int initialCapacity );
+    void gfxDrawListDestroy( GfxDrawList** dlist, GfxContext* ctx );
+
+
+
+    struct GfxDrawItemDesc
+    {
+        GfxMeshId meshId;
+        GfxShaderId shaderId;
+        
+        f32 aabb[6];
+
+        i32 nInstances;
+        const Matrix4* instanceInitialData;
+
+        u8 layer;
+        u8 _padding[3];
+
+        GfxDrawItemDesc( GfxMeshId mid, GfxShaderId sid, int ninstances, u8 layer = 100 );
+        GfxDrawItemDesc& initialInstanceDataSet( const Matrix4* data );
+        GfxDrawItemDesc& aabbSet( const Vector3& pmin, const Vector3& pmax );
+    };
+    int gfxDrawListAddItem( GfxDrawList* dlist, const GfxDrawItemDesc& desc );
+    void gfxDrawListProcess( GfxDrawList* dlist, GfxCommandQueue* cmdQueue,  );
+    
+
 
     //struct GfxLinesContext;
     //void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager );

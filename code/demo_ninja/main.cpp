@@ -119,6 +119,12 @@ public:
         _testShader = bx::gfxShaderCreate( _gfx, _resourceManager );
         bx::gfxLinesDataCreate( &_renderData, _gfx, 1024 * 8 );
 
+        _box = bx::gfxMeshCreate();
+        _sphere = bx::gfxMeshCreate();
+
+        bx::gfxMeshLoadBox( _box, _gfx );
+        bx::gfxMeshLoadSphere( _sphere, _gfx );
+
         _camera.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
 
         return true;
@@ -190,7 +196,9 @@ public:
     bx::GfxContext* _gfx;
     bx::GfxLinesData* _renderData;
     bx::GfxShaderId _testShader;
-
+    bx::GfxMeshId _groundBox;
+    bx::GfxMeshId _box;
+    bx::GfxMeshId _sphere;
 
     bxResourceManager* _resourceManager;
 
