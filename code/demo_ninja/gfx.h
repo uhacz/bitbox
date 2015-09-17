@@ -64,49 +64,35 @@ namespace bx
 
 namespace bx
 {
+    ////
+    //
     struct GfxShaderId { u32 hash; };
     GfxShaderId gfxShaderCreate( GfxContext* ctx, bxResourceManager* resourceManager );
     void gfxShaderDestroy( GfxShaderId* id, GfxContext* ctx, bxResourceManager* resourceManager );
     void gfxShaderEnable( GfxCommandQueue* ctx, GfxShaderId id );
     
+    ////
+    //
     struct GfxMeshId { u32 hash; };
     GfxMeshId gfxMeshCreate( GfxContext* ctx );
     void gfxMeshDestroy( GfxMeshId* id, GfxContext* ctx );
     void gfxMeshLoadBox( GfxMeshId id, GfxContext* ctx );
     void gfxMeshLoadSphere( GfxMeshId id, GfxContext* ctx );
     
-    struct GfxDrawList;
-    void gfxDrawListCreate( GfxDrawList** dlist, GfxContext* ctx, int initialCapacity );
-    void gfxDrawListDestroy( GfxDrawList** dlist, GfxContext* ctx );
+    ////
+    //
+    struct GfxMeshInstanceId { u32 hash; };
+    struct GfxScene;
+    void gfxSceneCreate( GfxScene** scene, GfxContext* ctx );
+    void gfxSceneDestroy( GfxScene** scene, GfxContext* ctx );
 
-
-
-    struct GfxDrawItemDesc
-    {
-        GfxMeshId meshId;
-        GfxShaderId shaderId;
+    GfxMeshInstanceId gfxMeshInstanceCreate( GfxScene* scene, GfxMeshId meshId, GfxShaderId shaderId, int nInstances );
+    void gfxMeshInstanceDestroy( GfxMeshInstanceId* id, GfxScene* scene );
+    void gfxSceneDraw( GfxScene* scene, GfxCommandQueue* cmdQueue, const GfxCamera& camera );
         
-        f32 aabb[6];
 
-        i32 nInstances;
-        const Matrix4* instanceInitialData;
-
-        u8 layer;
-        u8 _padding[3];
-
-        GfxDrawItemDesc( GfxMeshId mid, GfxShaderId sid, int ninstances, u8 layer = 100 );
-        GfxDrawItemDesc& initialInstanceDataSet( const Matrix4* data );
-        GfxDrawItemDesc& aabbSet( const Vector3& pmin, const Vector3& pmax );
-    };
-    int gfxDrawListAddItem( GfxDrawList* dlist, const GfxDrawItemDesc& desc );
-    void gfxDrawListProcess( GfxDrawList* dlist, GfxCommandQueue* cmdQueue,  );
-    
-
-
-    //struct GfxLinesContext;
-    //void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager );
-    //void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx );
-
+    ////
+    //
     struct GfxLinesData;
     void gfxLinesDataCreate( GfxLinesData** lines, GfxContext* ctx, int initialCapacity );
     void gfxLinesDataDestroy( GfxLinesData** lines, GfxContext* ctx );

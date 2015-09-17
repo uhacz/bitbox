@@ -11,6 +11,7 @@
 #include <GL/wglew.h>
 
 #include <stdio.h>
+#include <gdi/gdi_sort_list.h>
 
 namespace bx
 {
@@ -227,6 +228,8 @@ namespace bx
         u32 _vertexCount;
         u32 _indexCount;
 
+        f32 _aabb[6];
+
         GfxMesh()
             : _vertexArrayDesc( 0 )
             , _positionStreamId( 0 )
@@ -235,7 +238,9 @@ namespace bx
             , _indexStreamId( 0 )
             , _vertexCount( 0 )
             , _indexCount( 0 )
-        {}
+        {
+            memset( _aabb, 0x00, sizeof( _aabb ) );
+        }
 
         static GfxMeshId makeId( u32 hash )
         {
@@ -899,7 +904,7 @@ namespace bx
         if( !ctx->_meshContainer.isValid( id[0] ) )
             return;
 
-        GfxMesh& mesh = ctx->_meshContainer.lookup( id );
+        GfxMesh& mesh = ctx->_meshContainer.lookup( id[0] );
         glDeleteBuffers( 1, &mesh._indexStreamId );
         glDeleteBuffers( 1, &mesh._texcoordStreamId );
         glDeleteBuffers( 1, &mesh._normalStreamId );
@@ -908,7 +913,7 @@ namespace bx
 
         mesh = GfxMesh();
 
-        ctx->_meshContainer.remove( id[0] );
+        ctx->_meshContainer.remove( id );
         id[0] = GfxMesh::makeId( 0 );
     }
 
@@ -972,6 +977,13 @@ namespace bx
         mesh->_indexStreamId = indexStreamId;
         mesh->_vertexCount = vertexCount;
         mesh->_indexCount = indexCount;
+
+        mesh->_aabb[0] = -0.5f;
+        mesh->_aabb[1] = -0.5f;
+        mesh->_aabb[2] = -0.5f;
+        mesh->_aabb[3] = 0.5f;
+        mesh->_aabb[4] = 0.5f;
+        mesh->_aabb[5] = 0.5f;
     }
 
     void gfxMeshLoadBox( GfxMeshId id, GfxContext* ctx )
@@ -999,54 +1011,96 @@ namespace bx
         GfxMesh& mesh = ctx->_meshContainer.lookup( id );
         gfxMeshLoadShape( &mesh, shape );
 
+        
+
         bxPolyShape_deallocateShape( &shape );
     }
 
-    //struct GfxLinesContext
-    //{
-    //    u32 _programId;
-    //    u32 _viewDataBlockIndex;
-    //    
-    //    //u32 _paramsBufferId;
-    //    
-    //    GfxLinesContext()
-    //        : _programId( 0 )
-    //        //, _paramsBufferId( 0 )
-    //        , _viewDataBlockIndex(UINT32_MAX)
-    //    {}
-    //};
+    //////////////////////////////////////////////////////////////////////////
+    ////
+    union GfxSortKeyColor
+    {
+        u64 hash;
+        struct  
+        {
+            u64 mesh   : 16;
+            u64 shader : 16;
+            u16 depth  : 16;
+            u64 layer  : 16;
+        };
+    };
+    union GfxSortKeyDepth
+    {
+        u16 hash;
+        u16 depth;
+    };
+    typedef bxGdiSortList< GfxSortKeyColor > GfxSortListColor;
+    typedef bxGdiSortList< GfxSortKeyDepth > GfxSortListDepth;
 
-    
 
-    //void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager )
-    //{
-    //    GfxLinesContext* lctx = BX_NEW( bxDefaultAllocator(), GfxLinesContext );
+    struct GfxScene
+    {
+        enum
+        {
+            eMAX_MESH_INSTANCES = 1024 * 16,
+        };
 
-    //    bxFS::File file = resourceManager->readTextFileSync( "shader/glsl/ninja.glsl" );
-    //    const u32 progId = gfxShaderCompile( ctx, file.txt );
-    //    file.release();
+        union MeshInstanceFlag
+        {
+            u8 all;
+            struct  
+            {
+                u8 worldMatricesAllocated : 1;
+            };
+        };
+        struct MatrixArray
+        {
+            Matrix4* data;
+            i32 count;
+        };
+        struct MeshData
+        {
+            void* memoryHandle;
+            i32 size;
+            i32 capacity;            
+            
+            GfxMeshId*          meshId;
+            GfxShaderId*        shaderId;
+            bxAABB*             localAABB;
+            Matrix4*            worldMatrix;
+            MatrixArray*        worldMatrixArray;
+            MeshInstanceFlag*   flag;
+        };
+        id_array_t<eMAX_MESH_INSTANCES> _meshIdArray;
+        MeshData   _meshData;
+        bxAllocator* _multiMatrixAllocator;
+        bxAllocator* _mainAllocator;
 
-    //    u32 viewDataBlockIndex = glGetUniformBlockIndex( progId, "ViewData" );
-    //    int blockSize = 0;
-    //    glGetActiveUniformBlockiv( progId, viewDataBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &blockSize );
-    //    SYS_ASSERT( blockSize == sizeof( GfxViewShaderData ) );
-    //    glUniformBlockBinding( progId, viewDataBlockIndex, 0 );
-    //    
-    //    lctx->_programId = progId;
-    //    lctx->_viewDataBlockIndex = viewDataBlockIndex;
-    //    linesCtx[0] = lctx;
-    //}
+        GfxSortKeyColor _colorSortList;
+        GfxSortKeyDepth _depthSortList;
 
-    //void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx )
-    //{
-    //    if ( !linesCtx[0] )
-    //        return;
+        u32 _worldMatrixBufferId;
+        u32 _worldMatrixITBufferId;
+        
+    };
+    void gfxSceneAllocateMeshData( GfxScene::MeshData* data, int newcap, bxAllocator* alloc )
+    {}
+    void gfxSceneFreeMeshData( GfxScene::MeshData* data, bxAllocator* alloc )
+    {}
+    void gfxSceneCreate( GfxScene** scene, GfxContext* ctx )
+    {}
+    void gfxSceneDestroy( GfxScene** scene, GfxContext* ctx )
+    {}
 
-    //    GfxLinesContext* lctx = linesCtx[0];
-    //    glDeleteProgram( lctx->_programId );
-
-    //    BX_DELETE0( bxDefaultAllocator(), linesCtx[0] );
-    //}
+    GfxMeshInstanceId gfxMeshInstanceCreate( GfxScene* scene, GfxMeshId meshId, GfxShaderId shaderId, int nInstances )
+    {
+        GfxMeshInstanceId id = { 0 };
+        return id;
+    }
+    void gfxMeshInstanceDestroy( GfxMeshInstanceId* id, GfxScene* scene )
+    {}
+    void gfxSceneDraw( GfxScene* scene, GfxCommandQueue* cmdQueue, const GfxCamera& camera )
+    {}
 
     //////////////////////////////////////////////////////////////////////////
     ////
