@@ -177,6 +177,7 @@ void bxWindow_release()
 {
 	if ( __window->hwnd != NULL )
 	{
+        ReleaseDC( __window->hwnd, __window->hdc );
 		DestroyWindow( __window->hwnd );
 		__window->hwnd = NULL;
 	}
