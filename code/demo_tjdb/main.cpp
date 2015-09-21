@@ -1,15 +1,24 @@
 #include <system/application.h>
+
 #include "tjdb.h"
+
 #include "system/window.h"
+
 #include "util/config.h"
-#include "resource_manager/resource_manager.h"
 #include "util/time.h"
+
+#include <gdi/gdi_backend.h>
+#include "gdi/gdi_context.h"
+
+#include "resource_manager/resource_manager.h"
 
 class App : public bxApplication
 {
 public:
     App()
         : _resourceManager( nullptr )
+        , _gdiDev( nullptr )
+        , _gdiCtx( nullptr )
         , _timeMS( 0 )
     {}
 
@@ -20,14 +29,20 @@ public:
         const char* assetDir = bxConfig::global_string( "assetDir" );
         _resourceManager = bxResourceManager::startup( assetDir );
 
-        tjdb::startup( win, _resourceManager );
+        bxGdi::backendStartup( &_gdiDev, (uptr)win->hwnd, win->width, win->height, win->full_screen );
+        _gdiCtx = BX_NEW( bxDefaultAllocator(), bxGdiContext );
+        _gdiCtx->_Startup( _gdiDev );
+
+        tjdb::startup( _gdiDev, _resourceManager );
 
         return true;
     }
     virtual void shutdown()
     {
-        tjdb::shutdown();
-
+        tjdb::shutdown( _gdiDev, _resourceManager );
+        _gdiCtx->_Shutdown();
+        BX_DELETE0( bxDefaultAllocator(), _gdiCtx );
+        bxGdi::backendShutdown( &_gdiDev );
         bxResourceManager::shutdown( &_resourceManager );
         bxConfig::global_deinit();
     }
@@ -43,7 +58,7 @@ public:
         const double deltaTimeS = bxTime::toSeconds( deltaTimeUS );
         const float deltaTime = (float)deltaTimeS;
 
-        tjdb::draw( win );
+        tjdb::draw( _gdiCtx );
 
         _timeMS += deltaTimeUS / 1000;
 
@@ -51,6 +66,10 @@ public:
     }
 
     bxResourceManager* _resourceManager;
+    bxGdiDeviceBackend* _gdiDev;
+    bxGdiContext* _gdiCtx;
+
+    bxGdiVertexBuffer _screenQuad;
 
     u64 _timeMS;
 };

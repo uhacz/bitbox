@@ -1,80 +1,92 @@
 #include "tjdb.h"
-#include <GL/glew.h>
-#include <GL/wglew.h>
 
 #include <util/debug.h>
 #include <system/window.h>
 #include "resource_manager/resource_manager.h"
 
+#include <gdi/gdi_backend.h>
+#include <gdi/gdi_shader.h>
+#include <gfx/gfx_camera.h>
+#include "gdi/gdi_context.h"
+
 namespace tjdb
 {
-    struct WININFO
+    struct Data
     {
-        HGLRC       hRC;
-    }__gfxInfo;
+        bxGdiTexture colorRt;
+        bxGdiTexture depthRt;
 
-    void initGfx( bxWindow* win )
+        bxGdiVertexBuffer screenQuad;
+
+        bxGdiShaderFx_Instance* fxI;
+        bxGdiShaderFx_Instance* texutilFxI;
+
+        bxGfxCamera camera;
+
+        static const unsigned fbWidth = 1920;
+        static const unsigned fbHeight = 1080;
+
+    };
+    static Data __data;
+    void startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
-        static const PIXELFORMATDESCRIPTOR pfd =
+        const float vertices[] =
         {
-            sizeof( PIXELFORMATDESCRIPTOR ),
-            1,
-            PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
-            PFD_TYPE_RGBA,
-            32,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0,
-            32,             // zbuffer
-            0,              // stencil!
-            0,
-            PFD_MAIN_PLANE,
-            0, 0, 0, 0
-        };  
+            -1.f, -1.f, 0.f, 0.f, 0.f,
+            1.f, -1.f, 0.f, 1.f, 0.f,
+            1.f, 1.f, 0.f, 1.f, 1.f,
 
-        HDC hDC = win->hdc;
+            -1.f, -1.f, 0.f, 0.f, 0.f,
+            1.f, 1.f, 0.f, 1.f, 1.f,
+            -1.f, 1.f, 0.f, 0.f, 1.f,
+        };
+        bxGdiVertexStreamDesc vsDesc;
+        vsDesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
+        vsDesc.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 );
+        __data.screenQuad = dev->createVertexBuffer( vsDesc, 6, vertices );
 
-        unsigned int pixelFormat = ChoosePixelFormat( hDC, &pfd );
-        SYS_ASSERT( pixelFormat );
 
-        BOOL bres = SetPixelFormat( hDC, pixelFormat, &pfd );
-        SYS_ASSERT( bres == TRUE );
+        const int fbWidth = Data::fbWidth;
+        const int fbHeight = Data::fbHeight;
 
-        __gfxInfo.hRC = wglCreateContext( hDC );
-        SYS_ASSERT( __gfxInfo.hRC != 0 );
+        __data.colorRt = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+        __data.depthRt = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
 
-        bres = wglMakeCurrent( hDC, __gfxInfo.hRC );
-        SYS_ASSERT( __gfxInfo.hRC != 0 );
+        __data.texutilFxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "texutils" );
 
-        int ierr = glewInit();
-        SYS_ASSERT( ierr == GLEW_OK );
+        __data.camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
     }
 
-    void deinitGfx()
+    void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
-        wglMakeCurrent( 0, 0 );
-        wglDeleteContext( __gfxInfo.hRC );
+        bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__data.texutilFxI );
+        dev->releaseTexture( &__data.depthRt );
+        dev->releaseTexture( &__data.colorRt );
+        dev->releaseVertexBuffer( &__data.screenQuad );
     }
 
-
-    void startup( bxWindow* win, bxResourceManager* resourceManager )
+    void draw( bxGdiContext* ctx )
     {
-        initGfx( win );
-    }
+        ctx->changeRenderTargets( &__data.colorRt, 1, __data.depthRt );
+        ctx->setViewport( bxGdiViewport( 0, 0, __data.colorRt.width, __data.colorRt.height ) );
 
-    void shutdown()
-    {
-        deinitGfx();
-    }
+        float clearColorRGBAD[] = { 1.f, 0.f, 0.f, 1.f, 1.f };
+        ctx->clearBuffers( clearColorRGBAD, 1, 1 );
 
-    void draw( bxWindow* win )
-    {
-        glClearColor( 0.f, 0.f, 0.f, 1.f );
-        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-        glViewport( 0, 0, 1280, 720 );
+        ctx->changeToMainFramebuffer();
+        bxGdiTexture backBuffer = ctx->backend()->backBufferTexture();
 
+        bxGdiViewport vp = bxGfx::cameraParams_viewport( __data.camera.params, backBuffer.width, backBuffer.height, Data::fbWidth, Data::fbHeight );
+        ctx->setViewport( vp );
 
-        
-        SwapBuffers( win->hdc );
+        __data.texutilFxI->setTexture( "gtexture", __data.colorRt );
+        __data.texutilFxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+        ctx->setVertexBuffers( &__data.screenQuad, 1 );
+        bxGdi::shaderFx_enable( ctx, __data.texutilFxI, "copy_rgba" );
+        ctx->setTopology( bxGdi::eTRIANGLES );
+        ctx->draw( __data.screenQuad.numElements, 0 );
+
+        ctx->backend()->swap();
     }
 
 }///
