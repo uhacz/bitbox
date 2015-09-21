@@ -64,22 +64,35 @@ namespace bx
 
 namespace bx
 {
-    struct GfxShaderId { u32 id; };
+    ////
+    //
+    struct GfxShaderId { u32 hash; };
     GfxShaderId gfxShaderCreate( GfxContext* ctx, bxResourceManager* resourceManager );
     void gfxShaderDestroy( GfxShaderId* id, GfxContext* ctx, bxResourceManager* resourceManager );
-    void gfxShaderUse( GfxCommandQueue* ctx, GfxShaderId id );
+    void gfxShaderEnable( GfxCommandQueue* ctx, GfxShaderId id );
     
-    struct GfxMeshId { u32 id; }
+    ////
+    //
+    struct GfxMeshId { u32 hash; };
     GfxMeshId gfxMeshCreate( GfxContext* ctx );
     void gfxMeshDestroy( GfxMeshId* id, GfxContext* ctx );
     void gfxMeshLoadBox( GfxMeshId id, GfxContext* ctx );
     void gfxMeshLoadSphere( GfxMeshId id, GfxContext* ctx );
     
+    ////
+    //
+    struct GfxMeshInstanceId { u32 hash; };
+    struct GfxScene;
+    void gfxSceneCreate( GfxScene** scene, GfxContext* ctx );
+    void gfxSceneDestroy( GfxScene** scene, GfxContext* ctx );
 
-    //struct GfxLinesContext;
-    //void gfxLinesContextCreate( GfxLinesContext** linesCtx, GfxContext* ctx, bxResourceManager* resourceManager );
-    //void gfxLinesContextDestroy( GfxLinesContext** linesCtx, GfxContext* ctx );
+    GfxMeshInstanceId gfxMeshInstanceCreate( GfxScene* scene, GfxMeshId meshId, GfxShaderId shaderId, int nInstances );
+    void gfxMeshInstanceDestroy( GfxMeshInstanceId* id, GfxScene* scene );
+    void gfxSceneDraw( GfxScene* scene, GfxCommandQueue* cmdQueue, const GfxCamera& camera );
+        
 
+    ////
+    //
     struct GfxLinesData;
     void gfxLinesDataCreate( GfxLinesData** lines, GfxContext* ctx, int initialCapacity );
     void gfxLinesDataDestroy( GfxLinesData** lines, GfxContext* ctx );
