@@ -21,6 +21,8 @@ namespace tjdb
         bxGdiShaderFx_Instance* fxI;
         bxGdiShaderFx_Instance* texutilFxI;
 
+        bxGdiTexture noiseTexture;
+
         bxGfxCamera camera;
 
         static const unsigned fbWidth = 1920;
@@ -59,17 +61,33 @@ namespace tjdb
 
         __data.colorRt = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
         __data.depthRt = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+        
+        {
+            bxFS::File file = resourceManager->readFileSync( "texture/noise256.dds" );
+            if ( file.ok() )
+            {
+                __data.noiseTexture = dev->createTexture( file.bin, file.size );
+            }
+            file.release();
+        }
 
         __data.texutilFxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "texutils" );
         __data.fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "tjdb" );
+
+        __data.fxI->setTexture( "texNoise", __data.noiseTexture );
+        __data.fxI->setSampler( "samplerNearest", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+        __data.fxI->setSampler( "samplerLinear", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR ) );
+        __data.fxI->setSampler( "samplerBilinear", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR ) );
 
         __data.camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
     }
 
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
+
         bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__data.fxI );
         bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__data.texutilFxI );
+        dev->releaseTexture( &__data.noiseTexture );
         dev->releaseTexture( &__data.depthRt );
         dev->releaseTexture( &__data.colorRt );
         dev->releaseVertexBuffer( &__data.screenQuad );
@@ -98,7 +116,8 @@ namespace tjdb
         __data.fxI->setUniform( "inResolution", resolution );
         __data.fxI->setUniform( "inResolutionRcp", resolutionRcp );
         __data.fxI->setUniform( "inTime", (float)( (double)__data.timeMS * 0.001 ) );
-        bxLogInfo( "inTime: %f", (float)( (double)__data.timeMS * 0.001 ) );
+
+        
         bxGdi::shaderFx_enable( ctx, __data.fxI, "background" );
         ctx->setVertexBuffers( &__data.screenQuad, 1 );
         ctx->setTopology( bxGdi::eTRIANGLES );
