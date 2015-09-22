@@ -986,8 +986,8 @@ namespace bxGdi
 	    sd.BufferDesc.Width = winWidth;
 	    sd.BufferDesc.Height = winHeight;
 	    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	    sd.BufferDesc.RefreshRate.Numerator = 0;
-	    sd.BufferDesc.RefreshRate.Denominator = 0;
+	    sd.BufferDesc.RefreshRate.Numerator = 60;
+	    sd.BufferDesc.RefreshRate.Denominator = 1;
 	    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	    sd.OutputWindow = (HWND)hWnd;
 	    sd.SampleDesc.Count = 1;

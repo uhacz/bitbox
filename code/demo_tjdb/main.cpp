@@ -19,7 +19,6 @@ public:
         : _resourceManager( nullptr )
         , _gdiDev( nullptr )
         , _gdiCtx( nullptr )
-        , _timeMS( 0 )
     {}
 
     virtual bool startup( int argc, const char** argv )
@@ -55,12 +54,10 @@ public:
             return false;
         }
 
-        const double deltaTimeS = bxTime::toSeconds( deltaTimeUS );
-        const float deltaTime = (float)deltaTimeS;
-
+        const u64 deltaTimeMS = deltaTimeUS / 1000;
+        
+        tjdb::tick( deltaTimeMS );
         tjdb::draw( _gdiCtx );
-
-        _timeMS += deltaTimeUS / 1000;
 
         return true;
     }
@@ -68,10 +65,6 @@ public:
     bxResourceManager* _resourceManager;
     bxGdiDeviceBackend* _gdiDev;
     bxGdiContext* _gdiCtx;
-
-    bxGdiVertexBuffer _screenQuad;
-
-    u64 _timeMS;
 };
 
 int main( int argc, const char** argv )

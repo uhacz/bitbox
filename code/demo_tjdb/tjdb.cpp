@@ -26,8 +26,16 @@ namespace tjdb
         static const unsigned fbWidth = 1920;
         static const unsigned fbHeight = 1080;
 
+        u64 timeMS;
+
+        Data()
+            : fxI( nullptr )
+            , texutilFxI( nullptr )
+            , timeMS( 0 )
+        {}
     };
     static Data __data;
+    
     void startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         const float vertices[] =
@@ -53,27 +61,51 @@ namespace tjdb
         __data.depthRt = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
 
         __data.texutilFxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "texutils" );
+        __data.fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "tjdb" );
 
         __data.camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
     }
 
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
+        bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__data.fxI );
         bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__data.texutilFxI );
         dev->releaseTexture( &__data.depthRt );
         dev->releaseTexture( &__data.colorRt );
         dev->releaseVertexBuffer( &__data.screenQuad );
     }
 
+
+    void tick( u64 deltaTimeMS )
+    {
+        __data.timeMS += deltaTimeMS;
+    }
+
+
     void draw( bxGdiContext* ctx )
     {
+        ctx->clear();
+
         ctx->changeRenderTargets( &__data.colorRt, 1, __data.depthRt );
         ctx->setViewport( bxGdiViewport( 0, 0, __data.colorRt.width, __data.colorRt.height ) );
 
-        float clearColorRGBAD[] = { 1.f, 0.f, 0.f, 1.f, 1.f };
+        float clearColorRGBAD[] = { 0.f, 0.f, 0.f, 1.f, 1.f };
         ctx->clearBuffers( clearColorRGBAD, 1, 1 );
+        
+        const float2_t resolution( (float)__data.colorRt.width, (float)__data.colorRt.height );
+        const float2_t resolutionRcp( 1.f / __data.colorRt.width, 1.f / __data.colorRt.height );
 
+        __data.fxI->setUniform( "inResolution", resolution );
+        __data.fxI->setUniform( "inResolutionRcp", resolutionRcp );
+        __data.fxI->setUniform( "inTime", (float)( (double)__data.timeMS * 0.001 ) );
+        bxLogInfo( "inTime: %f", (float)( (double)__data.timeMS * 0.001 ) );
+        bxGdi::shaderFx_enable( ctx, __data.fxI, "background" );
+        ctx->setVertexBuffers( &__data.screenQuad, 1 );
+        ctx->setTopology( bxGdi::eTRIANGLES );
+        ctx->draw( __data.screenQuad.numElements, 0 );
+        
         ctx->changeToMainFramebuffer();
+        ctx->clearBuffers( clearColorRGBAD, 1, 0 );
         bxGdiTexture backBuffer = ctx->backend()->backBufferTexture();
 
         bxGdiViewport vp = bxGfx::cameraParams_viewport( __data.camera.params, backBuffer.width, backBuffer.height, Data::fbWidth, Data::fbHeight );

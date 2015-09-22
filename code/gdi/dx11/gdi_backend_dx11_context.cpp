@@ -422,7 +422,7 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
     }
     virtual void swap() 
     {
-        _swapChain->Present( 0, 0 );
+        _swapChain->Present( 1, 0 );
     }
     virtual void generateMipmaps( bxGdiTexture texture ) 
     {
