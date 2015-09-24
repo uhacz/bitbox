@@ -137,8 +137,8 @@ namespace tjdb
         ctx->setTopology( bxGdi::eTRIANGLES );
         ctx->draw( __data.screenQuad.numElements, 0 );
         
-        bxGdi::shaderFx_enable( ctx, __data.fxI, "foreground" );
-        ctx->draw( __data.screenQuad.numElements, 0 );
+        //bxGdi::shaderFx_enable( ctx, __data.fxI, "foreground" );
+        //ctx->draw( __data.screenQuad.numElements, 0 );
 
         ctx->changeToMainFramebuffer();
         ctx->clearBuffers( clearColorRGBAD, 1, 0 );
