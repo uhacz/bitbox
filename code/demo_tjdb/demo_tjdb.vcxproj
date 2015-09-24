@@ -99,6 +99,9 @@
     <ProjectReference Include="..\resource_manager\resource_manager.vcxproj">
       <Project>{117290a3-4a22-4c58-9ac0-ed1c8efa49e3}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\shaders\hlsl\hlsl.vcxproj">
+      <Project>{752ee42b-6767-4d1c-8ce2-227e00965d51}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\system\system.vcxproj">
       <Project>{02eab815-4288-477b-a47d-982eb8a15c1f}</Project>
     </ProjectReference>

@@ -88,9 +88,9 @@ namespace tjdb
 
         __data.fxI->setTexture( "texNoise", __data.noiseTexture );
         __data.fxI->setTexture( "texImage", __data.imageTexture );
-        __data.fxI->setSampler( "samplerNearest", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
-        __data.fxI->setSampler( "samplerLinear", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR ) );
-        __data.fxI->setSampler( "samplerBilinear", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR ) );
+        __data.fxI->setSampler( "samplerNearest", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_WRAP ) );
+        __data.fxI->setSampler( "samplerLinear", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_WRAP ) );
+        __data.fxI->setSampler( "samplerBilinear", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_WRAP ) );
 
         __data.camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
     }
