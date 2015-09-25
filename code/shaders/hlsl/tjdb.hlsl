@@ -29,12 +29,13 @@ Texture2D texImage;
 SamplerState samplerNearest;
 SamplerState samplerLinear;
 SamplerState samplerBilinear;
+SamplerState samplerBilinearBorder;
 
 // rendering params
 //static const float sphsize = 0.5; // planet size
 static const float3 boxsize = float3( 1.4f, 1.4f / 1.9433, 0.1 ); // planet size
 static const float dist = .27; // distance for glow and distortion
-static const float perturb = .9; // distortion amount of the flow around the planet
+static const float perturb = 0.9; // distortion amount of the flow around the planet
 static const float displacement = .015; // hot air effect
 static const float windspeed = .1; // speed of wind flow
 static const float steps = 128; // number of steps for the volumetric rendering
@@ -63,7 +64,7 @@ float wind( float3 p )
     p.y *= 1. + max( 0., -p.y - boxsize.y*0.5 )*1.5; // left side distortion (cheesy)
     p -= d*box*perturb; // spheric distortion of flow
     p += float3( 0., inTime*windspeed, 0. ); // flow movement
-    p = abs( frac( ( p + offset )*.1 ) - .5 ); // tile folding 
+    p = abs( frac( ( p + offset )*.1 ) - .15 ); // tile folding 
     for( int i = 0; i<iterations; i++ )
     {
         p = abs( p ) / dot( p, p ) - fractparam; // the magic formula for the hot flow
@@ -108,7 +109,7 @@ float4 ps_background( in_PS IN ) : SV_Target0
             float2 imgUV;
             imgUV.x = linearstep( 0.07, 0.93, IN.uv.x );
             imgUV.y = linearstep( 0.1, 0.9, IN.uv.y );
-            float4 img = texImage.SampleLevel( samplerBilinear, imgUV, 0.0 );
+            float4 img = texImage.SampleLevel( samplerBilinearBorder, imgUV, 0.0 );
             l = img; // pow( max( .53, dot( normalize( p ), normalize( float3(0.1, -1.0, -0.3) ) ) ), 4. ) * (img * 2.5f);
             //v -= length( img ) * 50.;
             v *= 0.4f;
@@ -116,7 +117,7 @@ float4 ps_background( in_PS IN ) : SV_Target0
     }
     v /= steps; v *= brightness; // average values and apply bright factor
     float3 col = float3(v*1.25, v*v, v*v*v) + l;// *planetcolor; // set color
-    //col *= 1. - length( pow( abs( uv ), float2( 5., 5. ) ) )*26.; // vignette (kind of)
+    col *= 1. - length( pow( abs( uv ), float2( 6., 6. ) ) )*16.; // vignette (kind of)
     float4 color = float4( pow( col, 2.2 ), 1.0 );
 
     //float4 color = texImage.SampleLevel( samplerBilinear, IN.uv, 0.0 );
