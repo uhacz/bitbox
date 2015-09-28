@@ -34,8 +34,8 @@ SamplerState samplerBilinearBorder;
 // rendering params
 //static const float sphsize = 0.5; // planet size
 static const float3 boxsize = float3( 1.4f, 1.4f / 1.9433, 0.1 ); // planet size
-static const float dist = .27; // distance for glow and distortion
-static const float perturb = 0.9; // distortion amount of the flow around the planet
+static const float dist = .15; // distance for glow and distortion
+static const float perturb = 10.9; // distortion amount of the flow around the planet
 static const float displacement = .015; // hot air effect
 static const float windspeed = .1; // speed of wind flow
 static const float steps = 128; // number of steps for the volumetric rendering
@@ -59,9 +59,9 @@ float sdBox( float3 p, float3 b )
 float wind( float3 p )
 {
     float box = sdBox( p, boxsize ); // length( max( abs( p ) - boxsize, 0.0 ) );
-    float d = max( 0., dist - max( 0., box ) / length( boxsize ) ) / dist; // for distortion and glow area
-    float x = max( 0.2,p.y*8 ) * 2.f; // to increase glow on left side
-    p.y *= 1. + max( 0., -p.y - boxsize.y*0.5 )*1.5; // left side distortion (cheesy)
+    float d = max( 0., dist - max( 0., box ) / boxsize.y ) / dist; // for distortion and glow area
+    float x = max( 0.2, box*8 ) * 2.f; // to increase glow on left side
+    p.y *= 1. + max( 0., -p.y - boxsize.y*0.5 )*1.5; // down side distortion (cheesy)
     p -= d*box*perturb; // spheric distortion of flow
     p += float3( 0., inTime*windspeed, 0. ); // flow movement
     p = abs( frac( ( p + offset )*.1 ) - .15 ); // tile folding 
