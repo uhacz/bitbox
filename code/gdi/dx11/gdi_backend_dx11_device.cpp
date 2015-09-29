@@ -101,7 +101,7 @@ namespace bxGdi
                 {
                 case D3D10_SRV_DIMENSION_TEXTURE1D:
                     tdesc.dimm = 1;
-                    SYS_ASSERT( false && "not implemented" );
+                    //SYS_ASSERT( false && "not implemented" );
                     break;
                 case D3D10_SRV_DIMENSION_TEXTURE2D:
                     tdesc.dimm = 2;

@@ -26,6 +26,10 @@ shared cbuffer MaterialData: register( b3 )
 
 Texture2D texNoise;
 Texture2D texImage;
+Texture2D texLogo;
+Texture2D texMaskHi;
+Texture2D texMaskLo;
+Texture1D texFFT;
 SamplerState samplerNearest;
 SamplerState samplerLinear;
 SamplerState samplerBilinear;
@@ -81,7 +85,28 @@ float4 ps_background( in_PS IN ) : SV_Target0
 {
     float2 uv = IN.uv - 0.5f;
 
-    float3 dir = float3( uv, 1. );
+    float fft = texFFT.Sample( samplerLinear, IN.uv ).r;
+    float fft0 = texFFT.Sample( samplerBilinear, 0.0f ).r;
+    float fft1 = texFFT.Sample( samplerBilinear, 0.1f ).r;
+    float fft2 = texFFT.Sample( samplerBilinear, 0.2f ).r;
+    float fft3 = texFFT.Sample( samplerBilinear, 0.3f ).r;
+    float fft4 = texFFT.Sample( samplerBilinear, 0.4f ).r;
+    float fft5 = texFFT.Sample( samplerBilinear, 0.5f ).r;
+    float fft6 = texFFT.Sample( samplerBilinear, 0.6f ).r;
+    float fft7 = texFFT.Sample( samplerBilinear, 0.7f ).r;
+    float fft8 = texFFT.Sample( samplerBilinear, 0.8f ).r;
+    float fft9 = texFFT.Sample( samplerBilinear, 0.9f ).r;
+
+    float2 imgUV;
+    imgUV.x = linearstep( 0.07, 0.93, IN.uv.x ) + fft3*0.05f;
+    imgUV.y = linearstep( 0.1, 0.9, IN.uv.y ) + fft2*0.05f;
+
+    float4 maskHi = texMaskHi.Sample( samplerLinear, imgUV );
+    float4 maskLo = texMaskLo.Sample( samplerLinear, imgUV );
+
+    float3 dir = float3(uv, 1.);
+    //dir.xy += ((fft2.rr * 0.5f - 0.5f) * fft2);
+
     dir.x *= inResolution.x / inResolution.y;
     float3 from = float3(0., 0., -2. + texNoise.Sample( samplerLinear, uv*.5 + inTime ).x*stepsize); //from+dither
 
@@ -94,7 +119,7 @@ float4 ps_background( in_PS IN ) : SV_Target0
     {
         float3 p = from + r*dir*stepsize;
 
-        float tx = texNoise.Sample( samplerLinear, uv*.2 + float2( t, t ) ).x*displacement; // hot air effect
+        float tx = texNoise.Sample( samplerLinear, uv*.2 + float2( t, t ) ).x*displacement * fft0; // hot air effect
         //float box = length( max( abs( p ) - boxsize, 0.0 ) ) - tx;
         float box = sdBox( p, boxsize ) - tx;
         if( box > 0.01 )
@@ -106,22 +131,37 @@ float4 ps_background( in_PS IN ) : SV_Target0
         {
             //inside planet, get planet shading if not already 
             //loop continues because of previous problems with breaks and not always optimizes much
-            float2 imgUV;
-            imgUV.x = linearstep( 0.07, 0.93, IN.uv.x );
-            imgUV.y = linearstep( 0.1, 0.9, IN.uv.y );
-            float4 img = texImage.SampleLevel( samplerBilinearBorder, imgUV, 0.0 );
-            l = img; // pow( max( .53, dot( normalize( p ), normalize( float3(0.1, -1.0, -0.3) ) ) ), 4. ) * (img * 2.5f);
+            
+            float2 offR = float2(fft7, fft9);
+            offR = (offR * 0.5f - 0.5f) * offR;
+
+            float2 offB = float2(fft8, fft6);
+            offB = (offB * 0.5f - 0.5f) * offB;
+
+            float imgG = texImage.SampleLevel( samplerBilinearBorder, imgUV, 0.0 ).g;
+            float imgR = texImage.SampleLevel( samplerBilinearBorder, imgUV + offR * 0.2f * sqrt( maskHi.r ), 0.0 ).r;
+            float imgB = texImage.SampleLevel( samplerBilinearBorder, imgUV + offB * 0.2f * sqrt( maskHi.b ), 0.0 ).b;
+            
+            float4 logo = texLogo.SampleLevel( samplerLinear, imgUV, 0.0 );
+            float4 img = lerp( float4(imgR, imgG, imgB, 1.0), logo, logo.a * saturate( fft9 + fft0 ) );
+            //img += texImage.SampleLevel( samplerBilinearBorder, imgUV + wind( p ) * 0.01f, 0.0 ) * ( 1 - maskLo );
+
+            //img += maskLo * (fft0)* 50.f;
+            l = pow( img, 1/2.2 ); // pow( max( .53, dot( normalize( p ), normalize( float3(0.1, -1.0, -0.3) ) ) ), 4. ) * (img * 2.5f);
             //v -= length( img ) * 50.;
-            v *= 0.4f;
+            v *= sqrt( maskLo ) * fft0 * 50.f;
         }
     }
     v /= steps; v *= brightness; // average values and apply bright factor
-    float3 col = float3(v*1.25, v*v, v*v*v) + l;// *planetcolor; // set color
-    col *= 1. - length( pow( abs( uv ), float2( 6., 6. ) ) )*16.; // vignette (kind of)
-    float4 color = float4( pow( col, 2.2 ), 1.0 );
+    float3 col = float3(v*1.5, v*v, v*v*v) + l;// *planetcolor; // set color
 
+    
+
+    col *= saturate( 1.0 - length( pow( abs( uv ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
+    float4 color = float4(pow( col, 2.2 ), 1.0);
     //float4 color = texImage.SampleLevel( samplerBilinear, IN.uv, 0.0 );
-    return color;
+
+    return color;//  fft;
 }
 
 

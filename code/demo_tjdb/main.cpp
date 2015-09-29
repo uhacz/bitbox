@@ -32,7 +32,7 @@ public:
         _gdiCtx = BX_NEW( bxDefaultAllocator(), bxGdiContext );
         _gdiCtx->_Startup( _gdiDev );
 
-        tjdb::startup( _gdiDev, _resourceManager );
+        tjdb::startup( win, _gdiDev, _resourceManager );
 
         return true;
     }
@@ -56,7 +56,7 @@ public:
 
         const u64 deltaTimeMS = deltaTimeUS / 1000;
         
-        tjdb::tick( deltaTimeMS );
+        tjdb::tick( &win->input, _gdiCtx, deltaTimeMS );
         tjdb::draw( _gdiCtx );
 
         return true;
@@ -69,7 +69,7 @@ public:
 
 int main( int argc, const char** argv )
 {
-    bxWindow* window = bxWindow_create( "tjdb", 1280, 720, false, 0 );
+    bxWindow* window = bxWindow_create( "tjdb", 1280, 720, true, 0 );
     if ( window )
     {
         App app;

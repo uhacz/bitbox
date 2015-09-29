@@ -338,6 +338,7 @@ struct bxGdiContextBackend
     virtual void unmapVertices          ( bxGdiVertexBuffer vbuffer ) = 0;
     virtual void unmapIndices           ( bxGdiIndexBuffer ibuffer ) = 0;
     virtual void updateCBuffer          ( bxGdiBuffer cbuffer, const void* data ) = 0;
+    virtual void updateTexture          ( bxGdiTexture texture, const void* data ) = 0;
     virtual void swap                   () = 0;
     virtual void generateMipmaps        ( bxGdiTexture texture ) = 0;
 

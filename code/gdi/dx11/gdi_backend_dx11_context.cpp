@@ -420,6 +420,13 @@ struct bxGdiContextBackend_dx11 : public bxGdiContextBackend
     {
         _context->UpdateSubresource( cbuffer.dx11Buffer, 0, NULL, data, 0, 0 );
     }
+    virtual void updateTexture( bxGdiTexture texture, const void* data )
+    {
+        const u32 formatWidth = bxGdi::formatByteWidth( texture.format );
+        const u32 srcRowPitch = formatWidth * texture.width;
+        const u32 srcDepthPitch = srcRowPitch * texture.height;
+        _context->UpdateSubresource( texture.rs.dx11Resource, 0, NULL, data, srcRowPitch, srcDepthPitch );
+    }
     virtual void swap() 
     {
         _swapChain->Present( 1, 0 );
