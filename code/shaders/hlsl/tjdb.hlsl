@@ -62,18 +62,18 @@ float sdBox( float3 p, float3 b )
 
 float wind( float3 p )
 {
-    float box = sdBox( p, boxsize ); // length( max( abs( p ) - boxsize, 0.0 ) );
-    float d = max( 0., dist - max( 0., box ) / boxsize.y ) / dist; // for distortion and glow area
-    float x = max( 0.2, box*8 ) * 2.f; // to increase glow on left side
-    p.y *= 1. + max( 0., -p.y - boxsize.y*0.5 )*1.5; // down side distortion (cheesy)
-    p -= d*box*perturb; // spheric distortion of flow
+    //float box = sdBox( p, boxsize ); // length( max( abs( p ) - boxsize, 0.0 ) );
+    //float d = max( 0., dist - max( 0., box ) / boxsize.y ) / dist; // for distortion and glow area
+    //float x = max( 0.2, box*8 ) * 2.f; // to increase glow on left side
+    //p.y *= 1. + max( 0., -p.y - boxsize.y*0.5 )*1.5; // down side distortion (cheesy)
+    //p -= d*box*perturb; // spheric distortion of flow
     p += float3( 0., inTime*windspeed, 0. ); // flow movement
     p = abs( frac( ( p + offset )*.1 ) - .15 ); // tile folding 
     for( int i = 0; i<iterations; i++ )
     {
         p = abs( p ) / dot( p, p ) - fractparam; // the magic formula for the hot flow
     }
-    return length( p )*( 1. + d*glow*x ) + d*glow*x; // return the result with glow applied
+    return length( p ); // *(1. + d*glow*x) + d*glow*x; // return the result with glow applied
 }
 
 float linearstep( in float tmin, in float tmax, in float t )
@@ -86,16 +86,17 @@ float4 ps_background( in_PS IN ) : SV_Target0
     float2 uv = IN.uv - 0.5f;
 
     float fft = texFFT.Sample( samplerLinear, IN.uv ).r;
-    float fft0 = texFFT.Sample( samplerBilinear, 0.0f ).r;
-    float fft1 = texFFT.Sample( samplerBilinear, 0.1f ).r;
-    float fft2 = texFFT.Sample( samplerBilinear, 0.2f ).r;
-    float fft3 = texFFT.Sample( samplerBilinear, 0.3f ).r;
-    float fft4 = texFFT.Sample( samplerBilinear, 0.4f ).r;
-    float fft5 = texFFT.Sample( samplerBilinear, 0.5f ).r;
-    float fft6 = texFFT.Sample( samplerBilinear, 0.6f ).r;
-    float fft7 = texFFT.Sample( samplerBilinear, 0.7f ).r;
-    float fft8 = texFFT.Sample( samplerBilinear, 0.8f ).r;
-    float fft9 = texFFT.Sample( samplerBilinear, 0.9f ).r;
+    float fft0 = texFFT.Sample( samplerLinear, 0.0f ).r;
+    float fft1 = texFFT.Sample( samplerLinear, 0.1f ).r;
+    float fft2 = texFFT.Sample( samplerLinear, 0.2f ).r;
+    float fft3 = texFFT.Sample( samplerLinear, 0.3f ).r;
+    float fft4 = texFFT.Sample( samplerLinear, 0.4f ).r;
+    float fft5 = texFFT.Sample( samplerLinear, 0.5f ).r;
+    float fft6 = texFFT.Sample( samplerLinear, 0.6f ).r;
+    float fft7 = texFFT.Sample( samplerLinear, 0.7f ).r;
+    float fft8 = texFFT.Sample( samplerLinear, 0.8f ).r;
+    float fft9 = texFFT.Sample( samplerLinear, 0.9f ).r;
+    float fft10 = texFFT.Sample( samplerLinear, 1.0f ).r;
 
     float2 imgUV;
     imgUV.x = linearstep( 0.07, 0.93, IN.uv.x ) + fft3*0.05f;
@@ -135,21 +136,21 @@ float4 ps_background( in_PS IN ) : SV_Target0
             float2 offR = float2(fft7, fft9);
             offR = (offR * 0.5f - 0.5f) * offR;
 
-            float2 offB = float2(fft8, fft6);
+            float2 offB = float2(fft8, fft10);
             offB = (offB * 0.5f - 0.5f) * offB;
 
             float imgG = texImage.SampleLevel( samplerBilinearBorder, imgUV, 0.0 ).g;
-            float imgR = texImage.SampleLevel( samplerBilinearBorder, imgUV + offR * 0.2f * sqrt( maskHi.r ), 0.0 ).r;
-            float imgB = texImage.SampleLevel( samplerBilinearBorder, imgUV + offB * 0.2f * sqrt( maskHi.b ), 0.0 ).b;
+            float imgR = texImage.SampleLevel( samplerBilinearBorder, imgUV + offR * 0.4f * sqrt( maskHi.r ), 0.0 ).r;
+            float imgB = texImage.SampleLevel( samplerBilinearBorder, imgUV + offB * 0.4f * sqrt( maskHi.b ), 0.0 ).b;
             
             float4 logo = texLogo.SampleLevel( samplerLinear, imgUV, 0.0 );
-            float4 img = lerp( float4(imgR, imgG, imgB, 1.0), logo, logo.a * saturate( fft9 + fft0 ) );
+            float4 img = lerp( float4(imgR, imgG, imgB, 1.0), logo, logo.a * saturate( fft10 + fft0 ) );
             //img += texImage.SampleLevel( samplerBilinearBorder, imgUV + wind( p ) * 0.01f, 0.0 ) * ( 1 - maskLo );
 
             //img += maskLo * (fft0)* 50.f;
             l = pow( img, 1/2.2 ); // pow( max( .53, dot( normalize( p ), normalize( float3(0.1, -1.0, -0.3) ) ) ), 4. ) * (img * 2.5f);
             //v -= length( img ) * 50.;
-            v *= sqrt( maskLo ) * fft0 * 50.f;
+            v *= sqrt( maskLo ) * ( fft0 + fft1 ) * 25.f;
         }
     }
     v /= steps; v *= brightness; // average values and apply bright factor

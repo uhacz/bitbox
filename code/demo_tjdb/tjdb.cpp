@@ -16,8 +16,8 @@ namespace tjdb
 {
     static const unsigned FB_WIDTH = 1920;
     static const unsigned FB_HEIGHT = 1080;
-    static const unsigned FFT_BINS = 512;
-    static const float FFT_LOWPASS_RC = 0.05f;
+    static const unsigned FFT_BINS = 1024;
+    static const float FFT_LOWPASS_RC = 0.025f;
 
     struct Data
     {
@@ -183,7 +183,7 @@ namespace tjdb
         if( BASS_ChannelIsActive( __data.soundStream ) )
         {
             memcpy( __data.fftDataPrev, __data.fftDataCurr, FFT_BINS * sizeof( f32 ) );
-            int ierr = BASS_ChannelGetData( __data.soundStream, __data.fftDataCurr, BASS_DATA_FFT1024 );
+            int ierr = BASS_ChannelGetData( __data.soundStream, __data.fftDataCurr, BASS_DATA_FFT2048 );
             if( ierr != -1 )
             {
                 for( int i = 0; i < FFT_BINS; ++i )
