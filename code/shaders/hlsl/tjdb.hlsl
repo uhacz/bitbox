@@ -37,9 +37,9 @@ SamplerState samplerBilinearBorder;
 
 // rendering params
 //static const float sphsize = 0.5; // planet size
-static const float3 boxsize = float3( 1.4f, 1.4f / 1.9433, 0.1 ); // planet size
-static const float dist = .15; // distance for glow and distortion
-static const float perturb = 10.9; // distortion amount of the flow around the planet
+static const float3 boxsize = float3( 1.4f, 1.4f / 1.9433, .1 ); // planet size
+static const float dist = .015; // distance for glow and distortion
+static const float perturb = 0.9; // distortion amount of the flow around the planet
 static const float displacement = .015; // hot air effect
 static const float windspeed = .1; // speed of wind flow
 static const float steps = 128; // number of steps for the volumetric rendering
@@ -54,22 +54,52 @@ static const int iterations = 13;
 static const float fractparam = .7;
 static const float3 offset = float3( 1.5, 2., -1.5 );
 
+/*
+#define WIN_WIDTH 0.5
+#define WIN_HEIGHT 0.5
+
+
+float linearstep( float a, float b, float t )
+{
+return ( clamp( t, a, b ) - a ) / (b-a);
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+vec2 q = fragCoord.xy / iResolution.xy;
+vec2 uv = q * 0.5;
+
+vec2 wbegin = vec2( 0.25, 0.25 );
+vec2 wend = wbegin + vec2( WIN_WIDTH, WIN_HEIGHT );
+
+vec2 zbegin = vec2( 0.0, 0.0 );
+vec2 zend = vec2( 1.0, 1.0 );
+
+vec3 col = vec3(0.0,0.0,0.0);
+if( q.x > wbegin.x && q.y > wbegin.y && q.x < wend.x && q.y < wend.y )
+{
+vec2 tx;
+tx.x = linearstep( wbegin.x, wend.x * 2.0, q.x + 0.20 );
+tx.y = linearstep( wbegin.y, wend.y * 2.0, q.y + 0.0 );
+
+col = texture2D( iChannel0, vec2(tx.x,1.0-tx.y) ).xyz;
+}
+
+fragColor = vec4(col,1.0);
+}
+*/
+
 float sdBox( float3 p, float3 b )
 {
     float3 d = abs( p ) - b;
     return min( max( d.x, max( d.y, d.z ) ), 0.0 ) + length( max( d, 0.0 ) );
 }
 
-float wind( float3 p )
+float wind( float3 p, int iter )
 {
-    //float box = sdBox( p, boxsize ); // length( max( abs( p ) - boxsize, 0.0 ) );
-    //float d = max( 0., dist - max( 0., box ) / boxsize.y ) / dist; // for distortion and glow area
-    //float x = max( 0.2, box*8 ) * 2.f; // to increase glow on left side
-    //p.y *= 1. + max( 0., -p.y - boxsize.y*0.5 )*1.5; // down side distortion (cheesy)
-    //p -= d*box*perturb; // spheric distortion of flow
     p += float3( 0., inTime*windspeed, 0. ); // flow movement
     p = abs( frac( ( p + offset )*.1 ) - .15 ); // tile folding 
-    for( int i = 0; i<iterations; i++ )
+    for( int i = 0; i<iter; i++ )
     {
         p = abs( p ) / dot( p, p ) - fractparam; // the magic formula for the hot flow
     }
@@ -120,13 +150,13 @@ float4 ps_background( in_PS IN ) : SV_Target0
     {
         float3 p = from + r*dir*stepsize;
 
-        float tx = texNoise.Sample( samplerLinear, uv*.2 + float2( t, t ) ).x*displacement * fft0; // hot air effect
+        float tx = texNoise.Sample( samplerLinear, uv*.2 + float2( t, t ) ).x*displacement * fft5; // hot air effect
         //float box = length( max( abs( p ) - boxsize, 0.0 ) ) - tx;
         float box = sdBox( p, boxsize ) - tx;
         if( box > 0.01 )
         {
             // outside planet, accumulate values as ray goes, applying distance fading
-            v += min( 10., wind( p ) ) * max( 0.0, 1.0 - r*fade );
+            v += min( 10., wind( p, iterations ) ) * max( 0.0, 1.0 - r*fade );
         }
         else if( l.x < 0.0 )
         {
@@ -150,13 +180,12 @@ float4 ps_background( in_PS IN ) : SV_Target0
             //img += maskLo * (fft0)* 50.f;
             l = pow( img, 1/2.2 ); // pow( max( .53, dot( normalize( p ), normalize( float3(0.1, -1.0, -0.3) ) ) ), 4. ) * (img * 2.5f);
             //v -= length( img ) * 50.;
-            v *= sqrt( maskLo ) * ( fft0 + fft1 ) * 25.f;
+            v += min( 40., wind( p, 13 ) ) * max( 0.0, 1.0 - r*fade ) * 250.0;
+            v *= sqrt( maskLo ) * (fft0)* 25.f;
         }
     }
     v /= steps; v *= brightness; // average values and apply bright factor
     float3 col = float3(v*1.5, v*v, v*v*v) + l;// *planetcolor; // set color
-
-    
 
     col *= saturate( 1.0 - length( pow( abs( uv ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
     float4 color = float4(pow( col, 2.2 ), 1.0);
