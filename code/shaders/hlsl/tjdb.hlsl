@@ -37,7 +37,7 @@ SamplerState samplerBilinearBorder;
 
 // rendering params
 //static const float sphsize = 0.5; // planet size
-static const float3 boxsize = float3( 1.4f, 1.4f / 1.9433, .1 ); // planet size
+static const float3 boxsize = float3( 1.8f, 1.8f / 1.9433, .1 );
 static const float dist = .015; // distance for glow and distortion
 static const float perturb = 0.9; // distortion amount of the flow around the planet
 static const float displacement = .015; // hot air effect
@@ -115,25 +115,26 @@ float4 ps_background( in_PS IN ) : SV_Target0
 {
     float2 uv = IN.uv - 0.5f;
 
-    float fft = texFFT.Sample( samplerLinear, IN.uv ).r;
-    float fft0 = texFFT.Sample( samplerLinear, 0.0f ).r;
-    float fft1 = texFFT.Sample( samplerLinear, 0.1f ).r;
-    float fft2 = texFFT.Sample( samplerLinear, 0.2f ).r;
-    float fft3 = texFFT.Sample( samplerLinear, 0.3f ).r;
-    float fft4 = texFFT.Sample( samplerLinear, 0.4f ).r;
-    float fft5 = texFFT.Sample( samplerLinear, 0.5f ).r;
-    float fft6 = texFFT.Sample( samplerLinear, 0.6f ).r;
-    float fft7 = texFFT.Sample( samplerLinear, 0.7f ).r;
-    float fft8 = texFFT.Sample( samplerLinear, 0.8f ).r;
-    float fft9 = texFFT.Sample( samplerLinear, 0.9f ).r;
-    float fft10 = texFFT.Sample( samplerLinear, 1.0f ).r;
+    float fft = texFFT.Sample( samplerNearest, IN.uv ).r;
+    float fft0  = texFFT.Sample( samplerNearest, 0.0f ).r;
+    float fft05 = texFFT.Sample( samplerNearest, 0.05f ).r;
+    float fft1  = texFFT.Sample( samplerNearest, 0.1f ).r;
+    float fft2  = texFFT.Sample( samplerNearest, 0.2f ).r;
+    float fft3  = texFFT.Sample( samplerNearest, 0.3f ).r;
+    float fft4  = texFFT.Sample( samplerNearest, 0.4f ).r;
+    float fft5  = texFFT.Sample( samplerNearest, 0.5f ).r;
+    float fft6  = texFFT.Sample( samplerNearest, 0.6f ).r;
+    float fft7  = texFFT.Sample( samplerNearest, 0.7f ).r;
+    float fft8  = texFFT.Sample( samplerNearest, 0.8f ).r;
+    float fft9  = texFFT.Sample( samplerNearest, 0.9f ).r;
+    float fft10 = texFFT.Sample( samplerNearest, 1.0f ).r;
 
-    float2 imgUV;
-    imgUV.x = linearstep( 0.07, 0.93, IN.uv.x ) + fft3*0.05f;
-    imgUV.y = linearstep( 0.1, 0.9, IN.uv.y ) + fft2*0.05f;
+    float2 imgUV = IN.uv + ( (float2( fft3, fft2) - 0.5f) * 2.0f ) * 0.025f;
+    //imgUV.x = linearstep( 0.07, 0.93, IN.uv.x ) + fft3*0.05f;
+    //imgUV.y = linearstep( 0.1, 0.9, IN.uv.y ) + fft2*0.05f;
 
     float4 maskHi = texMaskHi.Sample( samplerLinear, imgUV );
-    float4 maskLo = texMaskLo.Sample( samplerLinear, imgUV );
+    float4 maskLo = texMaskLo.Sample( samplerLinear, float2( imgUV.x + sqrt( fft0 ) * sin( inTime * 10.f + imgUV.y * 55.f ) * 0.001f, imgUV.y ) );
 
     float3 dir = float3(uv, 1.);
     //dir.xy += ((fft2.rr * 0.5f - 0.5f) * fft2);
@@ -153,45 +154,46 @@ float4 ps_background( in_PS IN ) : SV_Target0
         float tx = texNoise.Sample( samplerLinear, uv*.2 + float2( t, t ) ).x*displacement * fft5; // hot air effect
         //float box = length( max( abs( p ) - boxsize, 0.0 ) ) - tx;
         float box = sdBox( p, boxsize ) - tx;
-        if( box > 0.01 )
+        if( maskLo.x > 0.0 )
+        //if( box > 0.01 )
         {
             // outside planet, accumulate values as ray goes, applying distance fading
             v += min( 10., wind( p, iterations ) ) * max( 0.0, 1.0 - r*fade );
         }
-        else if( l.x < 0.0 )
+        //else// if( l.x < 0.0 )
         {
             //inside planet, get planet shading if not already 
             //loop continues because of previous problems with breaks and not always optimizes much
             
             float2 offR = float2(fft7, fft9);
-            offR = (offR * 0.5f - 0.5f) * offR;
+            offR = ((offR - 0.5f) * 2.0f) * offR;
 
             float2 offB = float2(fft8, fft10);
-            offB = (offB * 0.5f - 0.5f) * offB;
+            offB = ((offB - 0.5f) * 2.0f) * offB;
 
             float imgG = texImage.SampleLevel( samplerBilinearBorder, imgUV, 0.0 ).g;
-            float imgR = texImage.SampleLevel( samplerBilinearBorder, imgUV + offR * 0.4f * sqrt( maskHi.r ), 0.0 ).r;
-            float imgB = texImage.SampleLevel( samplerBilinearBorder, imgUV + offB * 0.4f * sqrt( maskHi.b ), 0.0 ).b;
+            float imgR = texImage.SampleLevel( samplerBilinearBorder, imgUV + offR * 0.1f * sqrt( maskHi.r ), 0.0 ).r;
+            float imgB = texImage.SampleLevel( samplerBilinearBorder, imgUV + offB * 0.1f * sqrt( maskHi.b ), 0.0 ).b;
             
             float4 logo = texLogo.SampleLevel( samplerLinear, imgUV, 0.0 );
-            float4 img = lerp( float4(imgR, imgG, imgB, 1.0), logo, logo.a * saturate( fft10 + fft0 ) );
+            float4 img = lerp( float4(imgR, imgG, imgB, 1.0), logo, logo.a * saturate( fft05 ) );
             //img += texImage.SampleLevel( samplerBilinearBorder, imgUV + wind( p ) * 0.01f, 0.0 ) * ( 1 - maskLo );
 
             //img += maskLo * (fft0)* 50.f;
-            l = pow( img, 1/2.2 ); // pow( max( .53, dot( normalize( p ), normalize( float3(0.1, -1.0, -0.3) ) ) ), 4. ) * (img * 2.5f);
+            l = img; // pow( max( .53, dot( normalize( p ), normalize( float3(0.1, -1.0, -0.3) ) ) ), 4. ) * (img * 2.5f);
             //v -= length( img ) * 50.;
-            v += min( 40., wind( p, 13 ) ) * max( 0.0, 1.0 - r*fade ) * 250.0;
-            v *= sqrt( maskLo ) * (fft0)* 25.f;
+            v += min( 40., wind( p, 13 ) ) * max( 0.0, 1.0 - r*fade ) * 500.0;
+            v *= sqrt( maskLo ) * sqrt(fft0) * 2;
         }
     }
     v /= steps; v *= brightness; // average values and apply bright factor
     float3 col = float3(v*1.5, v*v, v*v*v) + l;// *planetcolor; // set color
 
     col *= saturate( 1.0 - length( pow( abs( uv ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
-    float4 color = float4(pow( col, 2.2 ), 1.0);
+    float4 color = float4( col, 1.0 );
     //float4 color = texImage.SampleLevel( samplerBilinear, IN.uv, 0.0 );
 
-    return color;//  fft;
+    return color; // +fft;
 }
 
 
