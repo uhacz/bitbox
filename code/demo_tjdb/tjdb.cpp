@@ -2,6 +2,7 @@
 
 #include <util/debug.h>
 #include <util/signal_filter.h>
+#include <util/array.h>
 #include <system/window.h>
 #include <resource_manager/resource_manager.h>
 
@@ -21,10 +22,9 @@ namespace tjdb
 
     struct Data
     {
-        
-
-        bxGdiTexture colorRt;
-        bxGdiTexture depthRt;
+        bxGdiTexture colorBg;
+        bxGdiTexture colorFg;
+        //bxGdiTexture depthRt;
 
         bxGdiVertexBuffer screenQuad;
 
@@ -46,12 +46,28 @@ namespace tjdb
         f32 fftDataPrev[FFT_BINS];
         f32 fftDataCurr[FFT_BINS];
 
+        array_t< float2_t > targetPoint;
+        i32 currentTargetPointIndex;
+        f32 currentTargetZoom;
+
+        float2_t currentPoint;
+        f32 currentZoom;
+        f32 zoomSpeed;
+        f32 targetSpeed;
+
+
         u64 timeMS;
 
         Data()
             : fxI( nullptr )
             , texutilFxI( nullptr )
             , soundStream( 0 )
+            , currentTargetPointIndex(-1)
+            , currentTargetZoom(1.f)
+            , currentPoint( 0.5f, 0.5f )
+            , currentZoom( 1.f )
+            , zoomSpeed( 1.f )
+            , targetSpeed( 1.f )
             , timeMS( 0 )
         {
             memset( fftDataPrev, 0x00, sizeof( fftDataPrev ) );
@@ -97,8 +113,9 @@ namespace tjdb
 
         const int fbWidth = FB_WIDTH;
         const int fbHeight = FB_HEIGHT;
-        __data.colorRt = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
-        __data.depthRt = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+        __data.colorBg = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+        __data.colorFg = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
+        //__data.depthRt = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
         
         _LoadTextureFromFile( &__data.noiseTexture, dev, resourceManager, "texture/noise256.dds" );
         _LoadTextureFromFile( &__data.imageTexture, dev, resourceManager, "texture/kozak.dds" );
@@ -116,6 +133,7 @@ namespace tjdb
         __data.fxI->setTexture( "texMaskHi", __data.maskHiTexture );
         __data.fxI->setTexture( "texMaskLo", __data.maskLoTexture );
         __data.fxI->setTexture( "texFFT", __data.fftTexture );
+        __data.fxI->setTexture( "texBackground", __data.colorBg );
         __data.fxI->setSampler( "samplerNearest", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_WRAP ) );
         __data.fxI->setSampler( "samplerLinear", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_WRAP ) );
         __data.fxI->setSampler( "samplerBilinear", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_WRAP ) );
@@ -138,6 +156,23 @@ namespace tjdb
             }
         }
 
+        {
+            array::push_back( __data.targetPoint, float2_t( 0.5f, 0.5f ) );
+            array::push_back( __data.targetPoint, float2_t( 0.1f, 0.1f ) );
+            array::push_back( __data.targetPoint, float2_t( 0.9f, 0.9f ) );
+            array::push_back( __data.targetPoint, float2_t( 0.1f, 0.9f ) );
+            array::push_back( __data.targetPoint, float2_t( 0.9f, 0.1f ) );
+
+            __data.currentTargetPointIndex = 1;
+            __data.currentPoint = __data.targetPoint[1];
+            __data.currentZoom = 1.0f;
+            __data.currentTargetZoom = 1.5f;
+            __data.zoomSpeed = 1.f / 2.f;
+            __data.targetSpeed = 1.f;
+
+        }
+
+
     }
 
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
@@ -154,8 +189,9 @@ namespace tjdb
         dev->releaseTexture( &__data.logoTexture );
         dev->releaseTexture( &__data.imageTexture );
         dev->releaseTexture( &__data.noiseTexture );
-        dev->releaseTexture( &__data.depthRt );
-        dev->releaseTexture( &__data.colorRt );
+        //dev->releaseTexture( &__data.depthRt );
+        dev->releaseTexture( &__data.colorFg );
+        dev->releaseTexture( &__data.colorBg );
         dev->releaseVertexBuffer( &__data.screenQuad );
     }
 
@@ -196,6 +232,9 @@ namespace tjdb
             }
         }
 
+
+
+
         __data.timeMS += deltaTimeMS;
     }
 
@@ -204,25 +243,30 @@ namespace tjdb
     {
         ctx->clear();
 
-        ctx->changeRenderTargets( &__data.colorRt, 1, __data.depthRt );
-        ctx->setViewport( bxGdiViewport( 0, 0, __data.colorRt.width, __data.colorRt.height ) );
+        ctx->changeRenderTargets( &__data.colorBg, 1 );
+        ctx->setViewport( bxGdiViewport( 0, 0, __data.colorBg.width, __data.colorBg.height ) );
 
         float clearColorRGBAD[] = { 0.f, 0.f, 0.f, 1.f, 1.f };
         ctx->clearBuffers( clearColorRGBAD, 1, 1 );
         
-        const float2_t resolution( (float)__data.colorRt.width, (float)__data.colorRt.height );
-        const float2_t resolutionRcp( 1.f / __data.colorRt.width, 1.f / __data.colorRt.height );
+        const float2_t resolution( (float)__data.colorFg.width, (float)__data.colorFg.height );
+        const float2_t resolutionRcp( 1.f / __data.colorFg.width, 1.f / __data.colorFg.height );
 
         __data.fxI->setUniform( "inResolution", resolution );
         __data.fxI->setUniform( "inResolutionRcp", resolutionRcp );
         __data.fxI->setUniform( "inTime", (float)( (double)__data.timeMS * 0.001 ) );
 
-        
         bxGdi::shaderFx_enable( ctx, __data.fxI, "background" );
         ctx->setVertexBuffers( &__data.screenQuad, 1 );
         ctx->setTopology( bxGdi::eTRIANGLES );
         ctx->draw( __data.screenQuad.numElements, 0 );
         
+        ctx->changeRenderTargets( &__data.colorFg, 1 );
+        ctx->setViewport( bxGdiViewport( 0, 0, __data.colorFg.width, __data.colorFg.height ) );
+        bxGdi::shaderFx_enable( ctx, __data.fxI, "foreground" );
+        ctx->setTopology( bxGdi::eTRIANGLES );
+        ctx->draw( __data.screenQuad.numElements, 0 );
+
         //bxGdi::shaderFx_enable( ctx, __data.fxI, "foreground" );
         //ctx->draw( __data.screenQuad.numElements, 0 );
 
@@ -233,7 +277,7 @@ namespace tjdb
         bxGdiViewport vp = bxGfx::cameraParams_viewport( __data.camera.params, backBuffer.width, backBuffer.height, FB_WIDTH, FB_HEIGHT );
         ctx->setViewport( vp );
 
-        __data.texutilFxI->setTexture( "gtexture", __data.colorRt );
+        __data.texutilFxI->setTexture( "gtexture", __data.colorFg );
         __data.texutilFxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
         ctx->setVertexBuffers( &__data.screenQuad, 1 );
         bxGdi::shaderFx_enable( ctx, __data.texutilFxI, "copy_rgba" );

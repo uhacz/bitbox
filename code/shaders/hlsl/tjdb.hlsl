@@ -26,6 +26,7 @@ shared cbuffer MaterialData: register( b3 )
 
 Texture2D texNoise;
 Texture2D texImage;
+Texture2D texBackground;
 Texture2D texLogo;
 Texture2D texMaskHi;
 Texture2D texMaskLo;
@@ -129,7 +130,7 @@ float4 ps_background( in_PS IN ) : SV_Target0
     float fft9  = texFFT.Sample( samplerNearest, 0.9f ).r;
     float fft10 = texFFT.Sample( samplerNearest, 1.0f ).r;
 
-    float2 imgUV = IN.uv + ( (float2( fft3, fft2) - 0.5f) * 2.0f ) * 0.025f;
+    float2 imgUV = IN.uv; // +( ( float2( fft3, fft2 ) - 0.5f ) * 2.0f ) * 0.025f;
     //imgUV.x = linearstep( 0.07, 0.93, IN.uv.x ) + fft3*0.05f;
     //imgUV.y = linearstep( 0.1, 0.9, IN.uv.y ) + fft2*0.05f;
 
@@ -175,7 +176,7 @@ float4 ps_background( in_PS IN ) : SV_Target0
             float imgR = texImage.SampleLevel( samplerBilinearBorder, imgUV + offR * 0.1f * sqrt( maskHi.r ), 0.0 ).r;
             float imgB = texImage.SampleLevel( samplerBilinearBorder, imgUV + offB * 0.1f * sqrt( maskHi.b ), 0.0 ).b;
             
-            float4 logo = texLogo.SampleLevel( samplerLinear, imgUV, 0.0 );
+            float4 logo = texLogo.SampleLevel( samplerLinear, imgUV - ( offR + offB ) * 0.01f, 0.0 );
             float4 img = lerp( float4(imgR, imgG, imgB, 1.0), logo, logo.a * saturate( fft05 ) );
             //img += texImage.SampleLevel( samplerBilinearBorder, imgUV + wind( p ) * 0.01f, 0.0 ) * ( 1 - maskLo );
 
@@ -189,7 +190,7 @@ float4 ps_background( in_PS IN ) : SV_Target0
     v /= steps; v *= brightness; // average values and apply bright factor
     float3 col = float3(v*1.5, v*v, v*v*v) + l;// *planetcolor; // set color
 
-    col *= saturate( 1.0 - length( pow( abs( uv ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
+    //col *= saturate( 1.0 - length( pow( abs( uv ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
     float4 color = float4( col, 1.0 );
     //float4 color = texImage.SampleLevel( samplerBilinear, IN.uv, 0.0 );
 
@@ -208,9 +209,9 @@ out_VS_foreground vs_foreground(
     in float2 IN_uv : TEXCOORD0,
     out float4 OUT_hpos : SV_Position )
 {
-    float scale = 0.6f;
+    //float scale = 0.6f;
         
-    float3 hpos = IN_pos.xyz * float3( scale, scale, 1.0 );
+    float3 hpos = IN_pos.xyz;
     OUT_hpos = float4( hpos, 1.0 );
 
     out_VS_screenquad output;
@@ -220,10 +221,35 @@ out_VS_foreground vs_foreground(
     return output;
 }
 
-
-
 float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
 {
-    float4 color = texImage.SampleLevel( samplerBilinear, IN.uv, 0.0 );
+    float fft = texFFT.Sample( samplerNearest, IN.uv ).r;
+    float fft0 = texFFT.Sample( samplerNearest, 0.0f ).r;
+    float fft05 = texFFT.Sample( samplerNearest, 0.05f ).r;
+    float fft1 = texFFT.Sample( samplerNearest, 0.1f ).r;
+    float fft2 = texFFT.Sample( samplerNearest, 0.2f ).r;
+    float fft3 = texFFT.Sample( samplerNearest, 0.3f ).r;
+    float fft4 = texFFT.Sample( samplerNearest, 0.4f ).r;
+    float fft5 = texFFT.Sample( samplerNearest, 0.5f ).r;
+    float fft6 = texFFT.Sample( samplerNearest, 0.6f ).r;
+    float fft7 = texFFT.Sample( samplerNearest, 0.7f ).r;
+    float fft8 = texFFT.Sample( samplerNearest, 0.8f ).r;
+    float fft9 = texFFT.Sample( samplerNearest, 0.9f ).r;
+    float fft10 = texFFT.Sample( samplerNearest, 1.0f ).r;
+    
+    float zoom = 1.0f + ( sin( inTime ) * 0.5f + 0.5f ) * 0.5f;
+    float2 target = float2( 0.1, 0.1 );
+
+    float targetStrength = linearstep( 1.f, 1.5f, zoom );
+    target = lerp( float2( 0, 0 ), target, targetStrength );
+
+    float fft0s  = fft0 - 0.5 * 2.0;
+    float fft5s  = fft5 - 0.5 * 2.0;
+    float2 uv = ( IN.uv / zoom + target ) + ( float2( fft0s, fft5s ) * fft10 ) * 0.015;
+
+    float4 color = texBackground.SampleLevel( samplerBilinear, uv, 0.0 );
+
+    float2 q = uv - 0.5f;
+    color *= saturate( 1.0 - length( pow( abs( q ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
     return color;
 }
