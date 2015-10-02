@@ -15,6 +15,41 @@
 
 namespace tjdb
 {
+    Metronome::Metronome()
+        : clickUS_( 0 )
+        , timerUS_( 0 )
+        , clickTimerUS_( 0 )
+        , flag_click_( 0 )
+    {}
+
+    void Metronome::init( int bpm, float meter )
+    {
+        clickUS_ = (u64)( ( ( 60.0 ) / double( bpm ) ) * 1000000.0 * ( 1.0 / (double)meter ) );
+        timerUS_ = 0;
+        clickTimerUS_ = 0;
+        flag_click_ = 0;
+    }
+
+    void Metronome::update( u64 deltaTimeUS )
+    {
+        timerUS_ = deltaTimeUS;
+        clickTimerUS_ += deltaTimeUS;
+
+        if( clickTimerUS_ >= clickUS_ )
+        {
+            while( clickTimerUS_ >= clickUS_ )
+            {
+                clickTimerUS_ -= clickUS_;
+            }
+
+            flag_click_ = 1;
+        }
+        else
+        {
+            flag_click_ = 0;
+        }
+    }
+
     static const unsigned FB_WIDTH = 1920;
     static const unsigned FB_HEIGHT = 1080;
     static const unsigned FFT_BINS = 256;
