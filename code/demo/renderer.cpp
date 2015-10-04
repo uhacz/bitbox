@@ -16,6 +16,7 @@
 #include "util/buffer_utils.h"
 #include "util/random.h"
 #include "util/time.h"
+#include "gdi/gdi_sort_list.h"
 
 inline bool operator == ( bxGfx_HMesh a, bxGfx_HMesh b ){
     return a.h == b.h;

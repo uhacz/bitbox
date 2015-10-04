@@ -119,8 +119,8 @@ public:
         _testShader = bx::gfxShaderCreate( _gfx, _resourceManager );
         bx::gfxLinesDataCreate( &_renderData, _gfx, 1024 * 8 );
 
-        _box = bx::gfxMeshCreate();
-        _sphere = bx::gfxMeshCreate();
+        _box = bx::gfxMeshCreate( _gfx );
+        _sphere = bx::gfxMeshCreate( _gfx );
 
         bx::gfxMeshLoadBox( _box, _gfx );
         bx::gfxMeshLoadSphere( _sphere, _gfx );

@@ -22,6 +22,7 @@ shared cbuffer MaterialData: register( b3 )
     float2 inResolution;
     float2 inResolutionRcp;
     float  inTime;
+    float  fadeValueInv;
 };
 
 Texture2D texNoise;
@@ -116,7 +117,7 @@ float4 ps_background( in_PS IN ) : SV_Target0
 {
     float2 uv = IN.uv - 0.5f;
 
-    float fft = texFFT.Sample( samplerNearest, IN.uv ).r;
+    float fft = texFFT.Sample( samplerNearest, IN.uv.x ).r;
     float fft0  = texFFT.Sample( samplerNearest, 0.0f ).r;
     float fft05 = texFFT.Sample( samplerNearest, 0.05f ).r;
     float fft1  = texFFT.Sample( samplerNearest, 0.1f ).r;
@@ -143,52 +144,40 @@ float4 ps_background( in_PS IN ) : SV_Target0
     dir.x *= inResolution.x / inResolution.y;
     float3 from = float3(0., 0., -2. + texNoise.Sample( samplerLinear, uv*.5 + inTime ).x*stepsize); //from+dither
 
-        // volumetric rendering
+    
     float t = inTime*windspeed*.2;
     float v = 0.0;
-    float4 l = (float4)-0.0001f;
-    //float v = 0., l = -0.0001, t = ;
-    for( float r = 10.; r<steps; r++ )
+    float4 l = (float4) - 0.0001f;
+    // volumetric rendering
+    if ( maskLo.x > 0.0 )
     {
-        float3 p = from + r*dir*stepsize;
-
-        float tx = texNoise.Sample( samplerLinear, uv*.2 + float2( t, t ) ).x*displacement * fft5; // hot air effect
-        //float box = length( max( abs( p ) - boxsize, 0.0 ) ) - tx;
-        float box = sdBox( p, boxsize ) - tx;
-        if( maskLo.x > 0.0 )
-        //if( box > 0.01 )
+        [loop]
+        for( float r = 10.; r<steps; r++ )
         {
-            // outside planet, accumulate values as ray goes, applying distance fading
+            float3 p = from + r*dir*stepsize;
+            float tx = texNoise.Sample( samplerLinear, uv*.2 + float2( t, t ) ).x*displacement * fft5; // hot air effect
             v += min( 10., wind( p, iterations ) ) * max( 0.0, 1.0 - r*fade );
-        }
-        //else// if( l.x < 0.0 )
-        {
-            //inside planet, get planet shading if not already 
-            //loop continues because of previous problems with breaks and not always optimizes much
-            
-            float2 offR = float2(fft7, fft9);
-            offR = ((offR - 0.5f) * 2.0f) * offR;
-
-            float2 offB = float2(fft8, fft10);
-            offB = ((offB - 0.5f) * 2.0f) * offB;
-
-            float imgG = texImage.SampleLevel( samplerBilinearBorder, imgUV, 0.0 ).g;
-            float imgR = texImage.SampleLevel( samplerBilinearBorder, imgUV + offR * 0.1f * sqrt( maskHi.r ), 0.0 ).r;
-            float imgB = texImage.SampleLevel( samplerBilinearBorder, imgUV + offB * 0.1f * sqrt( maskHi.b ), 0.0 ).b;
-            
-            float4 logo = texLogo.SampleLevel( samplerLinear, imgUV - ( offR + offB ) * 0.01f, 0.0 );
-            float4 img = lerp( float4(imgR, imgG, imgB, 1.0), logo, logo.a * saturate( fft05 ) );
-            //img += texImage.SampleLevel( samplerBilinearBorder, imgUV + wind( p ) * 0.01f, 0.0 ) * ( 1 - maskLo );
-
-            //img += maskLo * (fft0)* 50.f;
-            l = img; // pow( max( .53, dot( normalize( p ), normalize( float3(0.1, -1.0, -0.3) ) ) ), 4. ) * (img * 2.5f);
-            //v -= length( img ) * 50.;
             v += min( 40., wind( p, 13 ) ) * max( 0.0, 1.0 - r*fade ) * 500.0;
-            v *= sqrt( maskLo ) * sqrt(fft0) * 2;
+            v *= sqrt( maskLo.x ) * sqrt(fft0) * 2;
         }
     }
+    {    
+        float2 offR = float2(fft7, fft9);
+        offR = ((offR - 0.5f) * 2.0f) * offR;
+
+        float2 offB = float2(fft8, fft10);
+        offB = ((offB - 0.5f) * 2.0f) * offB;
+
+        float imgG = texImage.SampleLevel( samplerBilinearBorder, imgUV, 0.0 ).g;
+        float imgR = texImage.SampleLevel( samplerBilinearBorder, imgUV + offR * 0.1f * sqrt( maskHi.r ), 0.0 ).r;
+        float imgB = texImage.SampleLevel( samplerBilinearBorder, imgUV + offB * 0.1f * sqrt( maskHi.b ), 0.0 ).b;
+
+        float4 logo = texLogo.SampleLevel( samplerLinear, imgUV - (offR + offB) * 0.01f, 0.0 );
+        float4 img = lerp( float4(imgR, imgG, imgB, 1.0), logo, logo.a * saturate( fft05 ) );
+        l = img;
+    }   
     v /= steps; v *= brightness; // average values and apply bright factor
-    float3 col = float3(v*1.5, v*v, v*v*v) + l;// *planetcolor; // set color
+    float3 col = float3(v*1.5, v*v, v*v*v) + l.xyz;// *planetcolor; // set color
 
     //col *= saturate( 1.0 - length( pow( abs( uv ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
     float4 color = float4( col, 1.0 );
@@ -221,9 +210,58 @@ out_VS_foreground vs_foreground(
     return output;
 }
 
+////////////////
+float rand( float2 co )
+{
+    return frac( sin( dot( co.xy, float2( 12.9898, 78.233 ) ) ) * 43758.5453 );
+}
+
+float rand( float c )
+{
+    return rand( float2( c, 1.0 ) );
+}
+
+float randomLine( float seed, float2 uv )
+{
+    float b = 0.01 * rand( seed );
+    float a = rand( seed + 1.0 );
+    float c = rand( seed + 2.0 ) - 0.5;
+    float mu = rand( seed + 3.0 );
+
+    float l = 1.0;
+
+    if ( mu > 0.2 )
+        l = pow( abs( a * uv.x + b * uv.y + c ), 1.0 / 8.0 );
+    else
+        l = 2.0 - pow( abs( a * uv.x + b * uv.y + c ), 1.0 / 8.0 );
+
+    return lerp( 0.5, 1.0, l );
+}
+// Generate some blotches.
+float randomBlotch( float seed, float2 uv )
+{
+    float x = rand( seed );
+    float y = rand( seed + 1.0 );
+    float s = 0.01 * rand( seed + 2.0 );
+
+    float2 p = float2( x, y ) - uv;
+    p.x *= inResolution.x / inResolution.y;
+    float a = atan2( p.y, p.x );
+    float v = 1.0;
+    float ss = s*s * (sin( 6.2831*a*x )*0.1 + 1.0);
+
+    if ( dot( p, p ) < ss )
+        v = 0.2;
+    else
+        v = pow( dot( p, p ) - ss, 1.0 / 16.0 );
+
+    return lerp( 0.3 + 0.2 * (1.0 - (s / 0.02)), 1.0, v );
+}
+////////////////
+
 float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
 {
-    float fft = texFFT.Sample( samplerNearest, IN.uv ).r;
+    float fft = texFFT.Sample( samplerNearest, IN.uv.x ).r;
     float fft0 = texFFT.Sample( samplerNearest, 0.0f ).r;
     float fft05 = texFFT.Sample( samplerNearest, 0.05f ).r;
     float fft1 = texFFT.Sample( samplerNearest, 0.1f ).r;
@@ -237,19 +275,70 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
     float fft9 = texFFT.Sample( samplerNearest, 0.9f ).r;
     float fft10 = texFFT.Sample( samplerNearest, 1.0f ).r;
     
-    float zoom = 1.0f + ( sin( inTime ) * 0.5f + 0.5f ) * 0.5f;
-    float2 target = float2( 0.1, 0.1 );
+    float zoom = 1.0f + ( sin( cos( inTime * 0.12f) * sin( inTime * 0.051 ) ) * 0.5 + 0.5 ) * 0.75f; // +(sin( inTime ) * 0.5f + 0.5f) * 0.5f;
+    float2 target;
+    target.x = smoothstep( -1.f, 1.f, sin( -inTime * 0.125f ) ) * 0.3;
+    target.y = smoothstep( -1.f, 1.f, sin( sin( inTime * 0.125 ) - cos( inTime * 0.125 ) ) ) * 0.3;
 
+    //float zoom = 2.f - smoothstep( 0.f, 30.f, inTime ) * 0.3f;
+    //float2 target = float2(0.05f, 0.025f);
+
+    
     float targetStrength = linearstep( 1.f, 1.5f, zoom );
     target = lerp( float2( 0, 0 ), target, targetStrength );
 
-    float fft0s  = fft0 - 0.5 * 2.0;
-    float fft5s  = fft5 - 0.5 * 2.0;
-    float2 uv = ( IN.uv / zoom + target ) + ( float2( fft0s, fft5s ) * fft10 ) * 0.015;
+    float fft0s  = ( fft0 - 0.5 ) * 2.0;
+    float fft5s  = ( fft5 - 0.5 ) * 2.0;
+    float2 uv = (IN.uv / zoom + target) + (float2(fft0s, fft5s) * fft10) * 0.015;
 
     float4 color = texBackground.SampleLevel( samplerBilinear, uv, 0.0 );
 
-    float2 q = uv - 0.5f;
-    color *= saturate( 1.0 - length( pow( abs( q ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
+    // varying vignette
+    float vI = saturate( 1.0 - length( pow( abs( IN.uv - 0.5 ), 5 * (1.f - fft1) ) )*16.0 );
+    
+    // fixed vignette
+    vI *= pow( 16.0 * IN.uv.x * (1.0 - IN.uv.x) * IN.uv.y * (1.0 - IN.uv.y), 0.4 );
+    
+    // Add additive flicker
+    vI += sqrt( fft8 + fft9 );
+
+    // Set frequency of global effect to 20 variations per second
+    float t = float( int( inTime * 15.f ) );
+
+    
+    {
+        // Add some random lines 
+        float fftv = (fft0 + fft1 + fft2 + fft3) / 4.0;
+        int l = int( 8.0 * sqrt(fftv) );
+
+        if ( 0 < l ) vI *= randomLine( t + 6.0 + 17.* float( 0 ), IN.uv );
+        if ( 1 < l ) vI *= randomLine( t + 6.0 + 17.* float( 1 ), IN.uv );
+        if ( 2 < l ) vI *= randomLine( t + 6.0 + 17.* float( 2 ), IN.uv );
+        if ( 3 < l ) vI *= randomLine( t + 6.0 + 17.* float( 3 ), IN.uv );
+        if ( 4 < l ) vI *= randomLine( t + 6.0 + 17.* float( 4 ), IN.uv );
+        if ( 5 < l ) vI *= randomLine( t + 6.0 + 17.* float( 5 ), IN.uv );
+        if ( 6 < l ) vI *= randomLine( t + 6.0 + 17.* float( 6 ), IN.uv );
+        if ( 7 < l ) vI *= randomLine( t + 6.0 + 17.* float( 7 ), IN.uv );
+    }
+
+    {
+        // Add some random blotches.
+        float fftv = (fft7 + fft8 + fft9 + fft10) / 4.0;
+        int s = int( max( 8.0 * sqrt( fftv ) - 2.0, 0.0 ) );
+
+        if ( 0 < s ) vI *= randomBlotch( t + 6.0 + 19.* float( 0 ), IN.uv );
+        if ( 1 < s ) vI *= randomBlotch( t + 6.0 + 19.* float( 1 ), IN.uv );
+        if ( 2 < s ) vI *= randomBlotch( t + 6.0 + 19.* float( 2 ), IN.uv );
+        if ( 3 < s ) vI *= randomBlotch( t + 6.0 + 19.* float( 3 ), IN.uv );
+        if ( 4 < s ) vI *= randomBlotch( t + 6.0 + 19.* float( 4 ), IN.uv );
+        if ( 5 < s ) vI *= randomBlotch( t + 6.0 + 19.* float( 5 ), IN.uv );
+    }
+
+    //color *= saturate( 1.0 - length( pow( abs( q ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
+    color *= vI;
+    color.xyz *= (1.0 + (rand( IN.uv + t*.1 ) - .2)*.75);
+
+    color *= smoothstep( 0.f, 1.f, fadeValueInv ); // smoothstep( 0.f, 2.f, inTime );
+
     return color;
 }

@@ -96,7 +96,7 @@ namespace bxGfxExt
 {
     inline bxGdiRenderSource* meshInstanceRenderSource( bxGfx_HMeshInstance hmeshI )
     {
-        bxGfx_HMesh hmesh = meshInstanceHMesh( hmeshI );
+        bxGfx_HMesh hmesh = bxGfx::meshInstanceHMesh( hmeshI );
         return bxGfx::meshRenderSource( hmesh );
     }
 }///

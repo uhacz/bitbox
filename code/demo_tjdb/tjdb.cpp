@@ -3,6 +3,7 @@
 #include <util/debug.h>
 #include <util/signal_filter.h>
 #include <util/array.h>
+#include <util/common.h>
 #include <system/window.h>
 #include <resource_manager/resource_manager.h>
 
@@ -90,8 +91,10 @@ namespace tjdb
         f32 zoomSpeed;
         f32 targetSpeed;
 
-
+        f32 fadeValueInv;
         u64 timeMS;
+
+        u32 flag_stopRequest : 1;
 
         Data()
             : fxI( nullptr )
@@ -103,7 +106,9 @@ namespace tjdb
             , currentZoom( 1.f )
             , zoomSpeed( 1.f )
             , targetSpeed( 1.f )
+            , fadeValueInv( 0.f )
             , timeMS( 0 )
+            , flag_stopRequest( 0 )
         {
             memset( fftDataPrev, 0x00, sizeof( fftDataPrev ) );
             memset( fftDataCurr, 0x00, sizeof( fftDataCurr ) );
@@ -246,8 +251,8 @@ namespace tjdb
         }
         else if( bxInput_isKeyPressedOnce( &input->kbd, '2' ) )
         {
-            BASS_ChannelStop( __data.soundStream );
-            BASS_ChannelSetPosition( __data.soundStream, 0, BASS_POS_BYTE );
+            __data.flag_stopRequest = 1;
+            BASS_ChannelSlideAttribute( __data.soundStream, BASS_ATTRIB_VOL, 0.f, 2000 );
         }
 
         const float deltaTime = (float)((double)deltaTimeMS * 0.001);
@@ -269,8 +274,30 @@ namespace tjdb
 
 
 
+        if ( BASS_ChannelIsActive( __data.soundStream ) )
+        {
+            __data.timeMS += deltaTimeMS;
 
-        __data.timeMS += deltaTimeMS;
+            if( __data.flag_stopRequest )
+            {
+                if( __data.fadeValueInv <= 0.f )
+                {
+                    BASS_ChannelStop( __data.soundStream );
+                    BASS_ChannelSetPosition( __data.soundStream, 0, BASS_POS_BYTE );
+                    BASS_ChannelSetAttribute( __data.soundStream, BASS_ATTRIB_VOL, 1.f );
+                    __data.timeMS = 0;
+                    __data.flag_stopRequest = 0;
+                }
+
+                __data.fadeValueInv -= deltaTime * 0.5f;
+            }
+            else
+            {
+                __data.fadeValueInv += deltaTime * 0.5f;
+            }
+
+            __data.fadeValueInv = clamp( __data.fadeValueInv, 0.f, 1.f );
+        }
     }
 
 
@@ -290,6 +317,7 @@ namespace tjdb
         __data.fxI->setUniform( "inResolution", resolution );
         __data.fxI->setUniform( "inResolutionRcp", resolutionRcp );
         __data.fxI->setUniform( "inTime", (float)( (double)__data.timeMS * 0.001 ) );
+        __data.fxI->setUniform( "fadeValueInv", __data.fadeValueInv );
 
         bxGdi::shaderFx_enable( ctx, __data.fxI, "background" );
         ctx->setVertexBuffers( &__data.screenQuad, 1 );
