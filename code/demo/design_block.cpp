@@ -352,9 +352,8 @@ struct bxDesignBlock_Impl : public bxDesignBlock
                 if ( dataIndex == -1 )
                     continue;
 
-                bxGfx_HMesh hmesh;
-                bxGfx_HInstanceBuffer hibuffer;
-                bxGfx::meshInstance( &hmesh, &hibuffer, _data.gfxMeshI[dataIndex] );
+                bxGfx_HMesh hmesh = bxGfx::meshInstanceHMesh( _data.gfxMeshI[dataIndex] );
+                bxGfx_HInstanceBuffer hibuffer = bxGfx::meshInstanceHInstanceBuffer( _data.gfxMeshI[dataIndex] );
 
                 const Matrix4 pose = bxPhx::shape_pose( cs, _data.phxShape[dataIndex] );
                 bxGfx::instanceBufferDataSet( hibuffer, &pose, 1, 0 );
