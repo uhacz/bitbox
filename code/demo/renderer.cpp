@@ -483,28 +483,28 @@ struct bxGfx_World
     //    return ( cell ) ? (int)cell->value : -1;
     //}
 
-    bxGfx_HMeshInstance add( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
-    {
-        int index = meshFind( hmesh );
-        if( index != -1 )
-            return index;
+    //bxGfx_HMeshInstance add( bxGfx_HMesh hmesh, bxGfx_HInstanceBuffer hinstance )
+    //{
+    //    int index = meshFind( hmesh );
+    //    if( index != -1 )
+    //        return index;
 
-        if( _data.size + 1 > _data.capacity )
-        {
-            const int newcap = _data.capacity * 2 + 8;
-            allocateData( &_data, newcap, _alloc_data );
-        }
+    //    if( _data.size + 1 > _data.capacity )
+    //    {
+    //        const int newcap = _data.capacity * 2 + 8;
+    //        allocateData( &_data, newcap, _alloc_data );
+    //    }
 
-        aaa tutej
+    //    
 
-        bxGfx_World::Data& data = _data;
-        index = data.size++;
+    //    bxGfx_World::Data& data = _data;
+    //    index = data.size++;
 
-        data.mesh[index] = hmesh;
-        data.instance[index] = hinstance;
+    //    data.mesh[index] = hmesh;
+    //    data.instance[index] = hinstance;
 
-        return index;
-    }
+    //    return index;
+    //}
 
     void removeByIndex( int index )
     {
@@ -911,10 +911,11 @@ namespace bxGfx
         //if( !world )
         //    return makeInvalidHandle<bxGfx_HMeshInstance>();
         
-        bxGfx_HInstanceBuffer hinstance = instanceBuffeCreate( nInstances );
-        bxGfx_HMeshInstance meshi = world->add( hmesh, hinstance );
-        hashmap_t::cell_t* cell = hashmap::insert( __ctx->_map_meshInstanceToWorld, meshi.h );
-        cell->value = size_t( world );
+        bxGfx_HMeshInstance meshi;
+        //bxGfx_HInstanceBuffer hinstance = instanceBuffeCreate( nInstances );
+        //bxGfx_HMeshInstance meshi = world->add( hmesh, hinstance );
+        //hashmap_t::cell_t* cell = hashmap::insert( __ctx->_map_meshInstanceToWorld, meshi.h );
+        //cell->value = size_t( world );
 
         //bxGfx_HMeshInstance meshi = makeMeshInstance( hmesh, hinstance );
         //bxGfx_World* foundHWorld = __ctx->lookupWorld( meshi );
@@ -981,7 +982,7 @@ namespace bxGfx
         }
 
         bxGfx_SortListColor* colorList = world->_sList_color;
-        bxGfx_SortListColor* depthList = world->_sList_depth;
+        bxGfx_SortListDepth* depthList = world->_sList_depth;
 
         bxChunk colorChunk, depthChunk;
         bxChunk_create( &colorChunk, 1, colorList->capacity );
@@ -1094,30 +1095,30 @@ namespace bx
         virtual ~GfxActor() {}
         virtual void release() = 0;
 
-        virtual GfxShader*       isShader      () { return nullptr; }
-        virtual GfxMesh*         isMesh        () { return nullptr; }
+        //virtual GfxShader*       isShader      () { return nullptr; }
+        //virtual GfxMesh*         isMesh        () { return nullptr; }
         virtual GfxCamera*       isCamera      () { return nullptr; }
         virtual GfxScene*        isScene       () { return nullptr; }
         virtual GfxMeshInstance* isMeshInstance() { return nullptr; }
     };
 
-    struct GfxShader : public GfxActor
-    {
-        GfxContext* _ctx;
-        u32 _internalHandle;
+    //struct GfxShader : public GfxActor
+    //{
+    //    GfxContext* _ctx;
+    //    u32 _internalHandle;
 
-        virtual void release();
-        virtual GfxShader* isShader() { return this; }
-    };
+    //    virtual void release();
+    //    virtual GfxShader* isShader() { return this; }
+    //};
 
-    struct GfxMesh : public GfxActor
-    {
-        GfxContext* _ctx;
-        u32 _internalHandle;
+    //struct GfxMesh : public GfxActor
+    //{
+    //    GfxContext* _ctx;
+    //    u32 _internalHandle;
 
-        virtual void release();
-        virtual GfxMesh* isMesh() { return this; }
-    };
+    //    virtual void release();
+    //    virtual GfxMesh* isMesh() { return this; }
+    //};
 
     struct GfxCamera : public GfxActor
     {
@@ -1139,6 +1140,7 @@ namespace bx
 
     struct GfxMeshInstance : public GfxActor
     {
+        GfxContext* _ctx;
         GfxScene* _scene;
         u32 _internalHandle;
 
@@ -1146,13 +1148,35 @@ namespace bx
         virtual GfxMeshInstance* isMeshInstance() { return this; }
     };
 
+    struct GfxInstanceData
+    {
+        Matrix4 single;
+        Matrix4* pose;
+        i32 count;
+
+        GfxInstanceData()
+            : single( Matrix4::identity() )
+            , pose( &single )
+            , count( 1 )
+        {}
+    };
 
     struct GfxContext
     {
-        bxGdiTexture colorFb[ eFB_COUNT ];
+        enum
+        {
+            eMAX_ACTOR_COUNT,
+        };
+
+        bxGdiTexture _colorFb[ eFB_COUNT ];
         
+        id_table_t< eMAX_ACTOR_COUNT > _idTable;
+        bxGdiRenderSource* _rsource[eMAX_ACTOR_COUNT];
+        bxGdiShaderFx_Instance* _fxInstance[eMAX_ACTOR_COUNT];
+        bxAABB _bbox[eMAX_ACTOR_COUNT];
+        GfxInstanceData _idata[eMAX_ACTOR_COUNT];
 
-
+        bxAllocator* _allocIData;
     };
     
 

@@ -116,17 +116,9 @@ namespace bx
     GfxCommandQueue* gfxCommandQueueAcquire( GfxContext* ctx );
     void gfxCommandQueueRelease( GfxCommandQueue** cmdq );
 
-    struct GfxShader;
-    struct GfxMesh;
+    struct GfxMeshInstance;
     struct GfxCamera;
     struct GfxScene;
-    struct GfxMeshInstance;
-
-    GfxShader* gfxShaderCreate( GfxContext* ctx );
-    void gfxShaderDestroy( GfxShader** shader );
-
-    GfxMesh* gfxMeshCreate( GfxContext* ctx );
-    void gfxMeshDestroy( GfxMesh** mesh );
 
     GfxCamera* gfxCameraCreate( GfxContext* ctx );
     void gfxCameraDestroy( GfxCamera** camera );
@@ -134,8 +126,8 @@ namespace bx
     GfxScene* gfxSceneCreate( GfxContext* ctx );
     void gfxSceneDestroy( GfxScene** scene );
 
-    GfxMeshInstance* gfxSceneMeshInstanceCreate( GfxScene* scene, GfxMesh* mesh, GfxShader* shader );
-    void gfxSceneMeshInstanceDestroy( GfxMeshInstance* meshI );
+    GfxMeshInstance* gfxMeshInstanceCreate( GfxContext* ctx );
+    void gfxMeshInstanceDestroy( GfxMeshInstance* meshI );
 }///
 
 namespace bx
