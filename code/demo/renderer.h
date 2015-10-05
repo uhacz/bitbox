@@ -116,29 +116,32 @@ namespace bx
     GfxCommandQueue* gfxCommandQueueAcquire( GfxContext* ctx );
     void gfxCommandQueueRelease( GfxCommandQueue** cmdq );
 
-    struct GfxShaderId { u32 h; };
-    struct GfxMeshId { u32 h; };
-    struct GfxCameraId { u32 id; };
+    struct GfxShader;
+    struct GfxMesh;
+    struct GfxCamera;
+    struct GfxScene;
+    struct GfxMeshInstance;
 
-    struct GfxSceneId { u32 h; };
-    struct GfxMeshInstanceId { u32 h; };
+    GfxShader* gfxShaderCreate( GfxContext* ctx );
+    void gfxShaderDestroy( GfxShader** shader );
 
-    GfxShaderId gfxShaderCreate( GfxContext* ctx );
-    void gfxShaderDestroy( GfxShaderId* id, GfxContext* ctx );
+    GfxMesh* gfxMeshCreate( GfxContext* ctx );
+    void gfxMeshDestroy( GfxMesh** mesh );
 
-    GfxMeshId gfxMeshCreate( GfxContext* ctx );
-    void gfxMeshDestroy( GfxMeshId* id, GfxContext* ctx );
+    GfxCamera* gfxCameraCreate( GfxContext* ctx );
+    void gfxCameraDestroy( GfxCamera** camera );
 
-    GfxCameraId gfxCameraCreate( GfxContext* ctx );
-    void gfxCameraDestroy( GfxCameraId* id, GfxContext* ctx );
+    GfxScene* gfxSceneCreate( GfxContext* ctx );
+    void gfxSceneDestroy( GfxScene** scene );
 
-    GfxSceneId gfxSceneCreate( GfxContext* ctx );
-    void gfxSceneDestroy( GfxSceneId* id, GfxContext* ctx );
+    GfxMeshInstance* gfxSceneMeshInstanceCreate( GfxScene* scene, GfxMesh* mesh, GfxShader* shader );
+    void gfxSceneMeshInstanceDestroy( GfxMeshInstance* meshI );
+}///
 
-    GfxMeshInstanceId gfxSceneMeshInstanceCreate( GfxSceneId sceneId, GfxMeshId meshId, GfxShaderId shaderId );
-    void gfxSceneMeshInstanceDestroy( GfxMeshInstanceId* id, GfxSceneId sceneId );
+namespace bx
+{
 
-    void gfxMeshInstanceAABBSet( GfxMeshInstanceId id, const Vector3& minp, const Vector3& maxp );
 
 }///
+
 

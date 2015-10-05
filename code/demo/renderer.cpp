@@ -1074,3 +1074,108 @@ namespace bxGfx
         }
     }
 }///
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+namespace bx
+{
+    enum EFramebuffer
+    {
+        eFB_COLOR0,
+        eFB_DEPTH,
+        eFB_COUNT,
+    };
+
+    struct GfxActor
+    {
+        virtual ~GfxActor() {}
+        virtual void release() = 0;
+
+        virtual GfxShader*       isShader      () { return nullptr; }
+        virtual GfxMesh*         isMesh        () { return nullptr; }
+        virtual GfxCamera*       isCamera      () { return nullptr; }
+        virtual GfxScene*        isScene       () { return nullptr; }
+        virtual GfxMeshInstance* isMeshInstance() { return nullptr; }
+    };
+
+    struct GfxShader : public GfxActor
+    {
+        GfxContext* _ctx;
+        u32 _internalHandle;
+
+        virtual void release();
+        virtual GfxShader* isShader() { return this; }
+    };
+
+    struct GfxMesh : public GfxActor
+    {
+        GfxContext* _ctx;
+        u32 _internalHandle;
+
+        virtual void release();
+        virtual GfxMesh* isMesh() { return this; }
+    };
+
+    struct GfxCamera : public GfxActor
+    {
+        GfxContext* _ctx;
+        u32 _internalHandle;
+
+        virtual void release();
+        virtual GfxCamera* isCamera() { return this;}
+    };
+
+    struct GfxScene : public GfxActor
+    {
+        GfxContext* _ctx;
+        u32 _internalHandle;
+
+        virtual void release();
+        virtual GfxScene* isScene() { return this; }
+    };
+
+    struct GfxMeshInstance : public GfxActor
+    {
+        GfxScene* _scene;
+        u32 _internalHandle;
+
+        virtual void release();
+        virtual GfxMeshInstance* isMeshInstance() { return this; }
+    };
+
+
+    struct GfxContext
+    {
+        bxGdiTexture colorFb[ eFB_COUNT ];
+        
+
+
+    };
+    
+
+    void gfxContextStartup( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    {
+
+    }
+
+    void gfxContextShutdown( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    {
+
+    }
+
+}///
+
+
+
+
+
+
+
+
+
+
+
+
