@@ -70,6 +70,7 @@ namespace tjdb
         bxGdiTexture noiseTexture;
         bxGdiTexture imageTexture;
         bxGdiTexture logoTexture;
+        bxGdiTexture txtTexture;
         bxGdiTexture maskHiTexture;
         bxGdiTexture maskLoTexture;
         bxGdiTexture fftTexture;
@@ -160,6 +161,7 @@ namespace tjdb
         _LoadTextureFromFile( &__data.noiseTexture, dev, resourceManager, "texture/noise256.dds" );
         _LoadTextureFromFile( &__data.imageTexture, dev, resourceManager, "texture/kozak.dds" );
         _LoadTextureFromFile( &__data.logoTexture, dev, resourceManager, "texture/logo.dds" );
+        _LoadTextureFromFile( &__data.txtTexture, dev, resourceManager, "texture/txt.dds" );
         _LoadTextureFromFile( &__data.maskHiTexture, dev, resourceManager, "texture/kozak_maskHi.dds" );
         _LoadTextureFromFile( &__data.maskLoTexture, dev, resourceManager, "texture/kozak_maskLo.dds" );
         __data.fftTexture = dev->createTexture1D( FFT_BINS, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_SHADER_RESOURCE, 0, NULL );
@@ -170,6 +172,7 @@ namespace tjdb
         __data.fxI->setTexture( "texNoise", __data.noiseTexture );
         __data.fxI->setTexture( "texImage", __data.imageTexture );
         __data.fxI->setTexture( "texLogo", __data.logoTexture );
+        __data.fxI->setTexture( "texText", __data.txtTexture );
         __data.fxI->setTexture( "texMaskHi", __data.maskHiTexture );
         __data.fxI->setTexture( "texMaskLo", __data.maskLoTexture );
         __data.fxI->setTexture( "texFFT", __data.fftTexture );
@@ -227,6 +230,7 @@ namespace tjdb
         dev->releaseTexture( &__data.maskLoTexture );
         dev->releaseTexture( &__data.maskHiTexture );
         dev->releaseTexture( &__data.logoTexture );
+        dev->releaseTexture( &__data.txtTexture );
         dev->releaseTexture( &__data.imageTexture );
         dev->releaseTexture( &__data.noiseTexture );
         //dev->releaseTexture( &__data.depthRt );
@@ -323,6 +327,11 @@ namespace tjdb
         ctx->setVertexBuffers( &__data.screenQuad, 1 );
         ctx->setTopology( bxGdi::eTRIANGLES );
         ctx->draw( __data.screenQuad.numElements, 0 );
+
+//         bxGdi::shaderFx_enable( ctx, __data.fxI, "text" );
+//         ctx->setVertexBuffers( &__data.screenQuad, 1 );
+//         ctx->setTopology( bxGdi::eTRIANGLES );
+//         ctx->draw( __data.screenQuad.numElements, 0 );
         
         ctx->changeRenderTargets( &__data.colorFg, 1 );
         ctx->setViewport( bxGdiViewport( 0, 0, __data.colorFg.width, __data.colorFg.height ) );

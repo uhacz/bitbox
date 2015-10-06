@@ -11,6 +11,20 @@ passes:
         vertex = "vs_foreground";
         pixel = "ps_foreground";
     };
+
+    text =
+    {
+        vertex = "vs_screenquad";
+        pixel = "ps_text";
+
+        hwstate =
+        {
+            blend_enable = 1;
+            blend_src_factor = "ONE";
+            blend_dst_factor = "ONE_MINUS_SRC_ALPHA";
+            blend_equation = "ADD";
+        };
+    };
 }; #~header
 
 #include <sys/vs_screenquad.hlsl>
@@ -29,6 +43,7 @@ Texture2D texNoise;
 Texture2D texImage;
 Texture2D texBackground;
 Texture2D texLogo;
+Texture2D texText;
 Texture2D texMaskHi;
 Texture2D texMaskLo;
 Texture1D texFFT;
@@ -55,41 +70,6 @@ static const float glow = 3.5; // glow amount, mainly on hit side
 static const int iterations = 13;
 static const float fractparam = .7;
 static const float3 offset = float3( 1.5, 2., -1.5 );
-
-/*
-#define WIN_WIDTH 0.5
-#define WIN_HEIGHT 0.5
-
-
-float linearstep( float a, float b, float t )
-{
-return ( clamp( t, a, b ) - a ) / (b-a);
-}
-
-void mainImage( out vec4 fragColor, in vec2 fragCoord )
-{
-vec2 q = fragCoord.xy / iResolution.xy;
-vec2 uv = q * 0.5;
-
-vec2 wbegin = vec2( 0.25, 0.25 );
-vec2 wend = wbegin + vec2( WIN_WIDTH, WIN_HEIGHT );
-
-vec2 zbegin = vec2( 0.0, 0.0 );
-vec2 zend = vec2( 1.0, 1.0 );
-
-vec3 col = vec3(0.0,0.0,0.0);
-if( q.x > wbegin.x && q.y > wbegin.y && q.x < wend.x && q.y < wend.y )
-{
-vec2 tx;
-tx.x = linearstep( wbegin.x, wend.x * 2.0, q.x + 0.20 );
-tx.y = linearstep( wbegin.y, wend.y * 2.0, q.y + 0.0 );
-
-col = texture2D( iChannel0, vec2(tx.x,1.0-tx.y) ).xyz;
-}
-
-fragColor = vec4(col,1.0);
-}
-*/
 
 float sdBox( float3 p, float3 b )
 {
@@ -186,6 +166,11 @@ float4 ps_background( in_PS IN ) : SV_Target0
     return color; // +fft;
 }
 
+float4 ps_text( in_PS IN ) : SV_Target0
+{
+    float4 txt = texText.SampleLevel( samplerBilinear, IN.uv, 0.0 );
+    return txt;
+}
 
 struct out_VS_foreground
 {
@@ -275,13 +260,13 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
     float fft9 = texFFT.Sample( samplerNearest, 0.9f ).r;
     float fft10 = texFFT.Sample( samplerNearest, 1.0f ).r;
     
-    float zoom = 1.0f + ( sin( cos( inTime * 0.12f) * sin( inTime * 0.051 ) ) * 0.5 + 0.5 ) * 0.75f; // +(sin( inTime ) * 0.5f + 0.5f) * 0.5f;
-    float2 target;
-    target.x = smoothstep( -1.f, 1.f, sin( -inTime * 0.125f ) ) * 0.3;
-    target.y = smoothstep( -1.f, 1.f, sin( sin( inTime * 0.125 ) - cos( inTime * 0.125 ) ) ) * 0.3;
+    //float zoom = 1.0f + ( sin( cos( inTime * 0.12f) * sin( inTime * 0.051 ) ) * 0.5 + 0.5 ) * 0.75f; // +(sin( inTime ) * 0.5f + 0.5f) * 0.5f;
+    //float2 target;
+    //target.x = smoothstep( -1.f, 1.f, sin( -inTime * 0.125f ) ) * 0.3;
+    //target.y = smoothstep( -1.f, 1.f, sin( sin( inTime * 0.125 ) - cos( inTime * 0.125 ) ) ) * 0.3;
 
-    //float zoom = 2.f - smoothstep( 0.f, 30.f, inTime ) * 0.3f;
-    //float2 target = float2(0.05f, 0.025f);
+    float zoom = 2.f - smoothstep( 0.f, 30.f, inTime ) * 0.3f;
+    float2 target = float2(0.05f, 0.025f);
 
     
     float targetStrength = linearstep( 1.f, 1.5f, zoom );
@@ -292,6 +277,25 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
     float2 uv = (IN.uv / zoom + target) + (float2(fft0s, fft5s) * fft10) * 0.015;
 
     float4 color = texBackground.SampleLevel( samplerBilinear, uv, 0.0 );
+    
+    if( IN.uv.y > 0.4f && IN.uv.y < 0.6f && inTime >= 5.0 && inTime < 25.f )
+    {
+        float yoff = -0.3;
+        if ( inTime >= 10.f && inTime < 15.f )
+            yoff = -0.1f;
+        else if ( inTime >= 15.f && inTime < 20.f )
+            yoff = 0.1f;
+        else if ( inTime >= 20.f )
+            yoff = 0.3f;
+
+        float2 txtuv = float2(IN.uv.x, IN.uv.y + yoff );
+        float4 txt = texText.Sample( samplerBilinear, txtuv );
+        txt.rgb = lerp( txt.rgb, color.rgb, 0.25f );
+        color.rgb = lerp( color.rgb, txt.rgb, smoothstep( 0.0, 1.0, txt.a ) );
+    }
+    
+
+
 
     // varying vignette
     float vI = saturate( 1.0 - length( pow( abs( IN.uv - 0.5 ), 5 * (1.f - fft1) ) )*16.0 );
