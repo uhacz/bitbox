@@ -132,7 +132,7 @@ public:
         _entries[newIndex]._active = 1;
         _entries[newIndex]._entry = p;
 
-        ++ _activeEntryCount;
+        ++_activeEntryCount;
 
         return Handle( newIndex, _entries[newIndex]._counter );
     }

@@ -17,6 +17,7 @@
 #include "util/random.h"
 #include "util/time.h"
 #include "gdi/gdi_sort_list.h"
+#include "util/handle_manager.h"
 
 inline bool operator == ( bxGfx_HMesh a, bxGfx_HMesh b ){
     return a.h == b.h;
@@ -1093,59 +1094,122 @@ namespace bx
     struct GfxActor
     {
         virtual ~GfxActor() {}
-        virtual void release() = 0;
 
-        //virtual GfxShader*       isShader      () { return nullptr; }
-        //virtual GfxMesh*         isMesh        () { return nullptr; }
+        virtual void load( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager ) {}
+        virtual void unload( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager ) {}
+
+
         virtual GfxCamera*       isCamera      () { return nullptr; }
         virtual GfxScene*        isScene       () { return nullptr; }
         virtual GfxMeshInstance* isMeshInstance() { return nullptr; }
     };
 
-    //struct GfxShader : public GfxActor
-    //{
-    //    GfxContext* _ctx;
-    //    u32 _internalHandle;
-
-    //    virtual void release();
-    //    virtual GfxShader* isShader() { return this; }
-    //};
-
-    //struct GfxMesh : public GfxActor
-    //{
-    //    GfxContext* _ctx;
-    //    u32 _internalHandle;
-
-    //    virtual void release();
-    //    virtual GfxMesh* isMesh() { return this; }
-    //};
-
     struct GfxCamera : public GfxActor
     {
+        Matrix4 world;
+        Matrix4 view;
+        Matrix4 proj;
+        Matrix4 viewProj;
+
+        f32 hAperture;
+        f32 vAperture;
+        f32 focalLength;
+        f32 zNear;
+        f32 zFar;
+        f32 orthoWidth;
+        f32 orthoHeight;
+        
         GfxContext* _ctx;
         u32 _internalHandle;
 
-        virtual void release();
         virtual GfxCamera* isCamera() { return this;}
     };
 
+    float gfxCameraFov( const GfxCamera* cam )
+    {
+        return 2.f * atan( ( 0.5f * cam->hAperture ) / ( cam->focalLength * 0.03937f ) );
+    }
+    Vector3 gfxCameraEye( const GfxCamera* cam )
+    {
+        return cam->world.getTranslation();
+    }
+    Vector3 gfxCameraDir( const GfxCamera* cam )
+    {
+        return -cam->world.getCol2().getXYZ();
+    }
+
+    void gfxCameraViewport( GfxViewport* vp, const GfxCamera* cam, int dstWidth, int dstHeight, int srcWidth, int srcHeight )
+    {
+        const int windowWidth = dstWidth;
+        const int windowHeight = dstHeight;
+
+        const float aspectRT = (float)srcWidth / (float)srcHeight;
+        const float aspectCamera = gfxCameraAspect( cam );
+
+        int imageWidth;
+        int imageHeight;
+        int offsetX = 0, offsetY = 0;
+
+
+        if( aspectCamera > aspectRT )
+        {
+            imageWidth = windowWidth;
+            imageHeight = (int)( windowWidth / aspectCamera + 0.0001f );
+            offsetY = windowHeight - imageHeight;
+            offsetY = offsetY / 2;
+        }
+        else
+        {
+            float aspect_window = (float)windowWidth / (float)windowHeight;
+            if( aspect_window <= aspectRT )
+            {
+                imageWidth = windowWidth;
+                imageHeight = (int)( windowWidth / aspectRT + 0.0001f );
+                offsetY = windowHeight - imageHeight;
+                offsetY = offsetY / 2;
+            }
+            else
+            {
+                imageWidth = (int)( windowHeight * aspectRT + 0.0001f );
+                imageHeight = windowHeight;
+                offsetX = windowWidth - imageWidth;
+                offsetX = offsetX / 2;
+            }
+        }
+        vp[0] = GfxViewport( offsetX, offsetY, imageWidth, imageHeight );
+    }
+
+    void gfxCameraComputeMatrices( GfxCamera* cam )
+    {
+        const float fov = gfxCameraFov( *cam );
+        const float aspect = gfxCameraAspect( *cam );
+
+        cam->view = inverse( cam->world );
+        cam->proj = Matrix4::perspective( fov, aspect, cam->zNear, cam->zFar );
+        cam->viewProj = cam->proj * cam->view;
+    }
+
     struct GfxScene : public GfxActor
     {
+        struct Data
+        {
+            void* memoryHandle;
+            i32 size;
+            i32 capacity;
+            
+            u32* meshHandle;
+            bxGdiRenderSource** _rsource;
+            bxGdiShaderFx_Instance** _fxInstance;
+            bxAABB* _bbox;
+            GfxInstanceData* _idata;
+        };
+        
+        Data _data;
+        
         GfxContext* _ctx;
         u32 _internalHandle;
 
-        virtual void release();
         virtual GfxScene* isScene() { return this; }
-    };
-
-    struct GfxMeshInstance : public GfxActor
-    {
-        GfxContext* _ctx;
-        GfxScene* _scene;
-        u32 _internalHandle;
-
-        virtual void release();
-        virtual GfxMeshInstance* isMeshInstance() { return this; }
     };
 
     struct GfxInstanceData
@@ -1161,21 +1225,143 @@ namespace bx
         {}
     };
 
+    struct GfxMeshInstance : public GfxActor
+    {
+        GfxContext* _ctx;
+        GfxScene* _scene;
+        u32 _internalHandle;
+
+        bxGdiRenderSource* _rsource;
+        bxGdiShaderFx_Instance* _fxI;
+        GfxInstanceData _idata;
+        Vector3 _localAABB[2];
+        
+        virtual GfxMeshInstance* isMeshInstance() { return this; }
+    };
+
+    struct GfxViewFrameParams
+    {
+        Matrix4 _camera_view;
+        Matrix4 _camera_proj;
+        Matrix4 _camera_viewProj;
+        Matrix4 _camera_world;
+        float4_t _camera_eyePos;
+        float4_t _camera_viewDir;
+        //float4_t _camera_projParams;
+        float4_t _reprojectInfo;
+        float4_t _reprojectInfoFromInt;
+        float2_t _renderTarget_rcp;
+        float2_t _renderTarget_size;
+        float _camera_fov;
+        float _camera_aspect;
+        float _camera_zNear;
+        float _camera_zFar;
+        float _reprojectDepthScale; // (g_zFar - g_zNear) / (-g_zFar * g_zNear)
+        float _reprojectDepthBias; // g_zFar / (g_zFar * g_zNear)
+    };
+    void gfxViewFrameParamsFill( GfxViewFrameParams* fparams, const GfxCamera* camera, int rtWidth, int rtHeight )
+    {
+        //SYS_STATIC_ASSERT( sizeof( FrameData ) == 376 );
+
+        const Matrix4 sc = Matrix4::scale( Vector3( 1, 1, 0.5f ) );
+        const Matrix4 tr = Matrix4::translation( Vector3( 0, 0, 1 ) );
+        const Matrix4 proj = sc * tr * camera->proj;
+
+        fparams->_camera_view = camera->view;
+        fparams->_camera_proj = proj;
+        fparams->_camera_viewProj = proj * camera->view;
+        fparams->_camera_world = camera->world;
+
+        const float fov = gfxCameraFov( camera );
+        const float aspect = gfxCameraAspect( camera );
+
+        fparams->_camera_fov = fov;
+        fparams->_camera_aspect = aspect;
+
+        const float zNear = camera.zNear;
+        const float zFar = camera.zFar;
+        fparams->_camera_zNear = zNear;
+        fparams->_camera_zFar = zFar;
+        fparams->_reprojectDepthScale = ( zFar - zNear ) / ( -zFar * zNear );
+        fparams->_reprojectDepthBias = zFar / ( zFar * zNear );
+
+        fparams->_renderTarget_rcp = float2_t( 1.f / (float)rtWidth, 1.f / (float)rtHeight );
+        fparams->_renderTarget_size = float2_t( (float)rtWidth, (float)rtHeight );
+
+        //frameData->cameraParams = Vector4( fov, aspect, camera.params.zNear, camera.params.zFar );
+        {
+            const float m11 = proj.getElem( 0, 0 ).getAsFloat();//getCol0().getX().getAsFloat();
+            const float m22 = proj.getElem( 1, 1 ).getAsFloat();//getCol1().getY().getAsFloat();
+            const float m33 = proj.getElem( 2, 2 ).getAsFloat();//getCol2().getZ().getAsFloat();
+            const float m44 = proj.getElem( 3, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+
+            const float m13 = proj.getElem( 0, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+            const float m23 = proj.getElem( 1, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+
+            fparams->_reprojectInfo = float4_t( 1.f / m11, 1.f / m22, m33, -m44 );
+            //frameData->_reprojectInfo = float4_t( 
+            //    -2.f / ( (float)rtWidth*m11 ), 
+            //    -2.f / ( (float)rtHeight*m22 ), 
+            //    (1.f - m13) / m11, 
+            //    (1.f + m23) / m22 );
+            fparams->_reprojectInfoFromInt = float4_t(
+                ( -fparams->_reprojectInfo.x * 2.f ) * fparams->_renderTarget_rcp.x,
+                ( -fparams->_reprojectInfo.y * 2.f ) * fparams->_renderTarget_rcp.y,
+                fparams->_reprojectInfo.x,
+                fparams->_reprojectInfo.y
+                );
+            //frameData->_reprojectInfoFromInt = float4_t(
+            //    frameData->_reprojectInfo.x,
+            //    frameData->_reprojectInfo.y,
+            //    frameData->_reprojectInfo.z + frameData->_reprojectInfo.x * 0.5f,
+            //    frameData->_reprojectInfo.w + frameData->_reprojectInfo.y * 0.5f
+            //    );
+        }
+
+        m128_to_xyzw( fparams->_camera_eyePos.xyzw, Vector4( gfxCameraEye( camera ), oneVec ).get128() );
+        m128_to_xyzw( fparams->_camera_viewDir.xyzw, Vector4( gfxCameraDir( camera ), zeroVec ).get128() );
+
+        //m128_to_xyzw( frameData->_renderTarget_rcp_size.xyzw, Vector4( 1.f / float( rtWidth ), 1.f / float( rtHeight ), float( rtWidth ), float( rtHeight ) ).get128() );
+    }
+
+    struct GfxView
+    {
+        bxGdiBuffer _viewParamsBufferId;
+        bxGdiBuffer _instanceWorldBufferId;
+        bxGdiBuffer _instanceWorldITBufferId;
+
+        i32 _maxInstances;
+
+        GfxView()
+            : _viewParamsBufferId( 0 )
+            , _instanceWorldBufferId( 0 )
+            , _instanceWorldITBufferId( 0 )
+            , _maxInstances( 0 )
+        {}
+    };
+    void gfxViewCreate( GfxView* view, bxGdiDeviceBackend* dev, int maxInstances )
+    {
+
+    }
+
+    void gfxViewDestroy( GfxView* view )
+    {
+    }
+
     struct GfxContext
     {
-        enum
-        {
-            eMAX_ACTOR_COUNT,
-        };
-
         bxGdiTexture _colorFb[ eFB_COUNT ];
-        
-        id_table_t< eMAX_ACTOR_COUNT > _idTable;
-        bxGdiRenderSource* _rsource[eMAX_ACTOR_COUNT];
-        bxGdiShaderFx_Instance* _fxInstance[eMAX_ACTOR_COUNT];
-        bxAABB _bbox[eMAX_ACTOR_COUNT];
-        GfxInstanceData _idata[eMAX_ACTOR_COUNT];
+        bxGdiBuffer 
 
+        typedef array_t< GfxCamera > CameraData;
+        typedef array_t< GfxScene* > SceneData;
+        typedef array_t< GfxMeshInstance* > MeshData;
+        
+        MeshData _mesh;
+        CameraData _camera;
+        SceneData _scene;
+
+        bxHandleManager< GfxActor* > _handles;
         bxAllocator* _allocIData;
     };
     

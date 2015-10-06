@@ -49,7 +49,10 @@ namespace bx
             : x( xx ), y( yy ), w( ww ), h( hh ) {}
     };
 
-    float gfxCameraAspect( const GfxCamera& cam );
+    float gfxCameraAspect( const GfxCamera& cam )
+    {
+        return ( abs( cam.vAperture ) < 0.0001f ) ? cam.hAperture : cam.hAperture / cam.vAperture;
+    }
     float gfxCameraFov( const GfxCamera& cam );
     Vector3 gfxCameraEye( const GfxCamera& cam );
     Vector3 gfxCameraDir( const GfxCamera& cam );
