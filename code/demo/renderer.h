@@ -120,9 +120,18 @@ namespace bx
     struct GfxMeshInstance;
     struct GfxCamera;
     struct GfxScene;
+    struct GfxViewport
+    {
+        i16 x, y;
+        u16 w, h;
+        GfxViewport() {}
+        GfxViewport( int xx, int yy, unsigned ww, unsigned hh )
+            : x( xx ), y( yy ), w( ww ), h( hh ) {}
+    };
 
     GfxCamera* gfxCameraCreate( GfxContext* ctx );
     void gfxCameraDestroy( GfxCamera** camera );
+    float gfxCameraAspect( const GfxCamera* cam );
     float gfxCameraFov( const GfxCamera* cam );
     Vector3 gfxCameraEye( const GfxCamera* cam );
     Vector3 gfxCameraDir( const GfxCamera* cam );

@@ -278,21 +278,48 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
 
     float4 color = texBackground.SampleLevel( samplerBilinear, uv, 0.0 );
     
-    if( IN.uv.y > 0.4f && IN.uv.y < 0.6f && inTime >= 5.0 && inTime < 25.f )
-    {
-        float yoff = -0.3;
-        if ( inTime >= 10.f && inTime < 15.f )
-            yoff = -0.1f;
-        else if ( inTime >= 15.f && inTime < 20.f )
-            yoff = 0.1f;
-        else if ( inTime >= 20.f )
-            yoff = 0.3f;
 
-        float2 txtuv = float2(IN.uv.x, IN.uv.y + yoff );
-        float4 txt = texText.Sample( samplerBilinear, txtuv );
-        txt.rgb = lerp( txt.rgb, color.rgb, 0.25f );
-        color.rgb = lerp( color.rgb, txt.rgb, smoothstep( 0.0, 1.0, txt.a ) );
+    /// text
+    if ( inTime >= 5.0 && inTime < 25.f )
+    {
+        float3 tr[] =
+        {
+            float3(5.0 , 10.0,-0.3),
+            float3(10.0, 15.0,-0.1),
+            float3(15.0, 20.0, 0.1),
+            float3(20.0, 25.0, 0.3),
+        };
+
+        uint tri = 0;
+        for ( uint i = 0; i < 4; i++ )
+        {
+            if ( inTime >= tr[i].x && inTime < tr[i].y )
+            {
+                tri = i;
+                break;
+            }
+        }
+
+        float alpha = linearstep( tr[tri].x, tr[tri].y, inTime );
+        float alphaPulseYRange = 1.f - alpha * alpha * alpha * alpha * alpha;
+        
+        float2 yRange = lerp( float2(0.f, 1.f), float2(0.4f, 0.6f), alphaPulseYRange );
+        if ( IN.uv.y >= yRange.x && IN.uv.y <= yRange.y )
+        {
+            float yoff = tr[tri].z;
+            
+            float zoomAlpha = 1.f - alpha * alpha * alpha;
+            float2 txtuv = IN.uv.xy * zoomAlpha + (1.f - zoomAlpha) * 0.5f;
+            txtuv.y += yoff;
+                        
+            float4 txt = texText.Sample( samplerBilinear, txtuv );
+            txt.rgb = lerp( txt.rgb, color.rgb, 0.25f );
+            
+            float alphaPulse = 1 - pow( 2.5 * alpha - 1, 2 );
+            color.rgb = lerp( color.rgb, txt.rgb, smoothstep( 0.0, 1.0, txt.a * alphaPulse ) );
+        }
     }
+    
     
 
 

@@ -1124,7 +1124,10 @@ namespace bx
 
         virtual GfxCamera* isCamera() { return this;}
     };
-
+    float gfxCameraAspect( const GfxCamera* cam )
+    {
+        return (abs( cam->vAperture ) < 0.0001f) ? cam->hAperture : cam->hAperture / cam->vAperture;
+    }
     float gfxCameraFov( const GfxCamera* cam )
     {
         return 2.f * atan( ( 0.5f * cam->hAperture ) / ( cam->focalLength * 0.03937f ) );
@@ -1181,14 +1184,15 @@ namespace bx
 
     void gfxCameraComputeMatrices( GfxCamera* cam )
     {
-        const float fov = gfxCameraFov( *cam );
-        const float aspect = gfxCameraAspect( *cam );
+        const float fov = gfxCameraFov( cam );
+        const float aspect = gfxCameraAspect( cam );
 
         cam->view = inverse( cam->world );
         cam->proj = Matrix4::perspective( fov, aspect, cam->zNear, cam->zFar );
         cam->viewProj = cam->proj * cam->view;
     }
 
+    struct GfxInstanceData;
     struct GfxScene : public GfxActor
     {
         struct Data
@@ -1278,8 +1282,8 @@ namespace bx
         fparams->_camera_fov = fov;
         fparams->_camera_aspect = aspect;
 
-        const float zNear = camera.zNear;
-        const float zFar = camera.zFar;
+        const float zNear = camera->zNear;
+        const float zFar = camera->zFar;
         fparams->_camera_zNear = zNear;
         fparams->_camera_zFar = zFar;
         fparams->_reprojectDepthScale = ( zFar - zNear ) / ( -zFar * zNear );
@@ -1326,54 +1330,100 @@ namespace bx
 
     struct GfxView
     {
-        bxGdiBuffer _viewParamsBufferId;
-        bxGdiBuffer _instanceWorldBufferId;
-        bxGdiBuffer _instanceWorldITBufferId;
+        bxGdiBuffer _viewParamsBuffer;
+        bxGdiBuffer _instanceWorldBuffer;
+        bxGdiBuffer _instanceWorldITBuffer;
 
         i32 _maxInstances;
 
         GfxView()
-            : _viewParamsBufferId( 0 )
-            , _instanceWorldBufferId( 0 )
-            , _instanceWorldITBufferId( 0 )
-            , _maxInstances( 0 )
+            : _maxInstances( 0 )
         {}
     };
     void gfxViewCreate( GfxView* view, bxGdiDeviceBackend* dev, int maxInstances )
     {
-
+        view->_viewParamsBuffer = dev->createConstantBuffer( sizeof( GfxViewFrameParams ) );
+        const int numElements = maxInstances * 3; /// 3 * row
+        view->_instanceWorldBuffer = dev->createBuffer( numElements, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+        view->_instanceWorldITBuffer = dev->createBuffer( numElements, bxGdiFormat( bxGdi::eTYPE_FLOAT, 3 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+        view->_maxInstances = maxInstances;
     }
 
-    void gfxViewDestroy( GfxView* view )
+    void gfxViewDestroy( GfxView* view, bxGdiDeviceBackend* dev )
     {
+        view->_maxInstances = 0;
+        dev->releaseBuffer( &view->_instanceWorldITBuffer );
+        dev->releaseBuffer( &view->_instanceWorldBuffer );
+        dev->releaseBuffer( &view->_viewParamsBuffer );
     }
 
     struct GfxContext
     {
-        bxGdiTexture _colorFb[ eFB_COUNT ];
-        bxGdiBuffer 
-
-        typedef array_t< GfxCamera > CameraData;
-        typedef array_t< GfxScene* > SceneData;
-        typedef array_t< GfxMeshInstance* > MeshData;
+        bxGdiTexture _framebuffer[eFB_COUNT];
         
-        MeshData _mesh;
-        CameraData _camera;
-        SceneData _scene;
+
+        bxAllocator* _allocMesh;
+        bxAllocator* _allocCamera;
+        bxAllocator* _allocScene;
+        bxAllocator* _allocIData;
 
         bxHandleManager< GfxActor* > _handles;
-        bxAllocator* _allocIData;
+
+        GfxContext()
+            : _allocMesh( nullptr )
+            , _allocCamera( nullptr )
+            , _allocScene( nullptr )
+            , _allocIData( nullptr )
+        {}
     };
     
-
     void gfxContextStartup( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
+        GfxContext* g = BX_NEW( bxDefaultAllocator(), GfxContext );
+
+        const int fbWidth = 1920;
+        const int fbHeight = 1080;
+        g->_framebuffer[eFB_COLOR0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_DEPTH]  = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+
+        {
+            bxDynamicPoolAllocator* dpoolAlloc = BX_NEW( bxDefaultAllocator(), bxDynamicPoolAllocator );
+            dpoolAlloc->startup( sizeof( GfxMeshInstance ), 64, bxDefaultAllocator(), 16 );
+            g->_allocMesh = dpoolAlloc;
+        }
+        {
+            bxDynamicPoolAllocator* dpoolAlloc = BX_NEW( bxDefaultAllocator(), bxDynamicPoolAllocator );
+            dpoolAlloc->startup( sizeof( GfxCamera ), 16, bxDefaultAllocator(), 16 );
+            g->_allocCamera = dpoolAlloc;
+        }
+        {
+            g->_allocScene = bxDefaultAllocator();
+            g->_allocIData = bxDefaultAllocator();
+        }
 
     }
 
     void gfxContextShutdown( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
+        GfxContext* g = gfx[0];
 
+        {
+            bxDynamicPoolAllocator* dpoolAlloc = (bxDynamicPoolAllocator*)g->_allocCamera;
+            dpoolAlloc->shutdown();
+            BX_DELETE0( bxDefaultAllocator(), g->_allocCamera );
+        }
+        {
+            bxDynamicPoolAllocator* dpoolAlloc = (bxDynamicPoolAllocator*)g->_allocMesh;
+            dpoolAlloc->shutdown();
+            BX_DELETE0( bxDefaultAllocator(), g->_allocMesh );
+        }
+        {
+            g->_allocIData = nullptr;
+            g->_allocScene = nullptr;
+        }
+
+        for ( int i = 0; i < eFB_COUNT; ++i )
+            dev->releaseTexture( &g->_framebuffer[i] );
     }
 
 }///
