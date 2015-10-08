@@ -114,7 +114,7 @@ namespace bx
     void gfxContextShutdown( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void gfxContextTick( GfxContext* gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     
-    GfxCommandQueue* gfxCommandQueueAcquire( GfxContext* ctx );
+    void gfxCommandQueueAcquire( GfxCommandQueue** cmdq, GfxContext* ctx, bxGdiDeviceBackend* dev );
     void gfxCommandQueueRelease( GfxCommandQueue** cmdq );
 
     struct GfxMeshInstance;
@@ -129,7 +129,7 @@ namespace bx
             : x( xx ), y( yy ), w( ww ), h( hh ) {}
     };
 
-    GfxCamera* gfxCameraCreate( GfxContext* ctx );
+    void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx );
     void gfxCameraDestroy( GfxCamera** camera );
     float gfxCameraAspect( const GfxCamera* cam );
     float gfxCameraFov( const GfxCamera* cam );
@@ -138,13 +138,11 @@ namespace bx
     void gfxCameraViewport( GfxViewport* vp, const GfxCamera* cam, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
     void gfxCameraComputeMatrices( GfxCamera* cam );
 
-    GfxScene* gfxSceneCreate( GfxContext* ctx );
-    void gfxSceneDestroy( GfxScene** scene );
-
-    GfxMeshInstance* gfxMeshInstanceCreate( GfxContext* ctx );
+    void gfxMeshInstanceCreate( GfxMeshInstance** meshI, GfxContext* ctx, int numInstances = 1 );
     void gfxMeshInstanceDestroy( GfxMeshInstance* meshI );
 
-
+    void gfxSceneCreate( GfxScene** scene, GfxContext* ctx );
+    void gfxSceneDestroy( GfxScene** scene );
 }///
 
 namespace bx
