@@ -83,15 +83,6 @@ namespace tjdb
         f32 fftDataPrev[FFT_BINS];
         f32 fftDataCurr[FFT_BINS];
 
-        array_t< float2_t > targetPoint;
-        i32 currentTargetPointIndex;
-        f32 currentTargetZoom;
-
-        float2_t currentPoint;
-        f32 currentZoom;
-        f32 zoomSpeed;
-        f32 targetSpeed;
-
         f32 fadeValueInv;
         u64 timeMS;
 
@@ -101,18 +92,12 @@ namespace tjdb
             : fxI( nullptr )
             , texutilFxI( nullptr )
             , soundStream( 0 )
-            , currentTargetPointIndex(-1)
-            , currentTargetZoom(1.f)
-            , currentPoint( 0.5f, 0.5f )
-            , currentZoom( 1.f )
-            , zoomSpeed( 1.f )
-            , targetSpeed( 1.f )
             , fadeValueInv( 0.f )
             , timeMS( 0 )
             , flag_stopRequest( 0 )
         {
-            memset( fftDataPrev, 0x00, sizeof( fftDataPrev ) );
-            memset( fftDataCurr, 0x00, sizeof( fftDataCurr ) );
+            memset( fftDataPrev, 0x00, FFT_BINS * sizeof( *fftDataPrev ) );
+            memset( fftDataCurr, 0x00, FFT_BINS * sizeof( *fftDataCurr ) );
         }
     };
     static Data __data;
@@ -198,31 +183,13 @@ namespace tjdb
                 __data.soundFile = file;
             }
         }
-
-        {
-            array::push_back( __data.targetPoint, float2_t( 0.5f, 0.5f ) );
-            array::push_back( __data.targetPoint, float2_t( 0.1f, 0.1f ) );
-            array::push_back( __data.targetPoint, float2_t( 0.9f, 0.9f ) );
-            array::push_back( __data.targetPoint, float2_t( 0.1f, 0.9f ) );
-            array::push_back( __data.targetPoint, float2_t( 0.9f, 0.1f ) );
-
-            __data.currentTargetPointIndex = 1;
-            __data.currentPoint = __data.targetPoint[1];
-            __data.currentZoom = 1.0f;
-            __data.currentTargetZoom = 1.5f;
-            __data.zoomSpeed = 1.f / 2.f;
-            __data.targetSpeed = 1.f;
-
-        }
-
-
     }
 
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         BASS_StreamFree( __data.soundStream );
-        __data.soundFile.release();
         BASS_Free();
+        __data.soundFile.release();
 
         bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__data.fxI );
         bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__data.texutilFxI );

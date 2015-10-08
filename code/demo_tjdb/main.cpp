@@ -69,7 +69,7 @@ public:
 
 int main( int argc, const char** argv )
 {
-    bxWindow* window = bxWindow_create( "tjdb", 1280, 720, false, 0 );
+    bxWindow* window = bxWindow_create( "tjdb", 1920, 1080, true, 0 );
     if ( window )
     {
         App app;

@@ -367,7 +367,13 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
 
     //color *= saturate( 1.0 - length( pow( abs( q ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
     color *= vI;
-    color.xyz *= (1.0 + (rand( IN.uv + t*.1 ) - .2)*.75);
+
+    float grainStrength = 116.0;
+
+    float x = (IN.uv.x + 4.0) * (IN.uv.y + 4.0) * (inTime * 10.0);
+    float grain = (fmod( (fmod( x, 13.0 ) + 1.0) * (fmod( x, 123.0 ) + 1.0), 0.01 ) - 0.005) * grainStrength;
+    color.xyz *= saturate(1.0 - grain);
+    //color.xyz *= (1.0 + (rand( IN.uv + t*.0001 ) - .2)*0.75);
 
     color *= smoothstep( 0.f, 1.f, fadeValueInv ); // smoothstep( 0.f, 2.f, inTime );
 
