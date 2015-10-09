@@ -14,7 +14,9 @@ struct bxDemoScene
     bxDesignBlock* dblock;
     bxPhx_CollisionSpace* collisionSpace;
     bxGfx_World* gfxWorld;
-
+    
+    bx::GfxContext* gfx;
+    bx::GfxScene* gfxScene;
 
     bxGame::Character* character;
     bxGame::Flock* flock;

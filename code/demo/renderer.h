@@ -106,28 +106,15 @@ namespace bxGfxExt
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+#include "gfx_public.h"
 namespace bx
 {
-    struct GfxContext;
-    struct GfxCommandQueue;
     void gfxContextStartup( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void gfxContextShutdown( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void gfxContextTick( GfxContext* gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     
     void gfxCommandQueueAcquire( GfxCommandQueue** cmdq, GfxContext* ctx, bxGdiDeviceBackend* dev );
     void gfxCommandQueueRelease( GfxCommandQueue** cmdq );
-
-    struct GfxMeshInstance;
-    struct GfxCamera;
-    struct GfxScene;
-    struct GfxViewport
-    {
-        i16 x, y;
-        u16 w, h;
-        GfxViewport() {}
-        GfxViewport( int xx, int yy, unsigned ww, unsigned hh )
-            : x( xx ), y( yy ), w( ww ), h( hh ) {}
-    };
 
     void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx );
     void gfxCameraDestroy( GfxCamera** camera );
@@ -138,17 +125,19 @@ namespace bx
     void gfxCameraViewport( GfxViewport* vp, const GfxCamera* cam, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
     void gfxCameraComputeMatrices( GfxCamera* cam );
 
+    void gfxCameraWorldMatrixSet( GfxCamera* cam, const Matrix4& world );
+
     void gfxMeshInstanceCreate( GfxMeshInstance** meshI, GfxContext* ctx, int numInstances = 1 );
-    void gfxMeshInstanceDestroy( GfxMeshInstance* meshI );
+    void gfxMeshInstanceDestroy( GfxMeshInstance** meshI );
 
     void gfxSceneCreate( GfxScene** scene, GfxContext* ctx );
     void gfxSceneDestroy( GfxScene** scene );
+    
+    void gfxSceneMeshInstanceAdd( GfxScene* scene, GfxMeshInstance* meshI );
+    void gfxSceneMeshInstanceRemove( GfxScene* scene, GfxMeshInstance* meshI );
+
+    void gfxSceneDraw( GfxScene* scene, GfxCommandQueue* cmdq, const GfxCamera* camera );
 }///
 
-namespace bx
-{
-
-
-}///
 
 

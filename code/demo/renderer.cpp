@@ -1082,65 +1082,10 @@ namespace bxGfx
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+#include "gfx_private.h"
 namespace bx
 {
-    enum EFramebuffer
-    {
-        eFB_COLOR0,
-        eFB_DEPTH,
-        eFB_COUNT,
-    };
     
-    struct GfxActor
-    {
-        virtual ~GfxActor() {}
-
-        virtual void load( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager ) {}
-        virtual void unload( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager ) {}
-
-
-        virtual GfxCamera*       isCamera      () { return nullptr; }
-        virtual GfxScene*        isScene       () { return nullptr; }
-        virtual GfxMeshInstance* isMeshInstance() { return nullptr; }
-    };
-
-    struct GfxCamera : public GfxActor
-    {
-        Matrix4 world;
-        Matrix4 view;
-        Matrix4 proj;
-        Matrix4 viewProj;
-
-        f32 hAperture;
-        f32 vAperture;
-        f32 focalLength;
-        f32 zNear;
-        f32 zFar;
-        f32 orthoWidth;
-        f32 orthoHeight;
-        
-        GfxContext* _ctx;
-        u32 _internalHandle;
-
-        GfxCamera()
-            : world( Matrix4::identity() )
-            , view( Matrix4::identity() )
-            , proj( Matrix4::identity() )
-            , viewProj( Matrix4::identity() )
-            , hAperture( 1.8f )
-            , vAperture( 1.f )
-            , focalLength( 50.f )
-            , zNear( 0.25f )
-            , zFar( 250.f )
-            , orthoWidth( 10.f )
-            , orthoHeight( 10.f )
-
-            , _ctx( nullptr )
-            , _internalHandle( 0 )
-        {}
-
-        virtual GfxCamera* isCamera() { return this;}
-    };
     float gfxCameraAspect( const GfxCamera* cam )
     {
         return (abs( cam->vAperture ) < 0.0001f) ? cam->hAperture : cam->hAperture / cam->vAperture;
@@ -1209,86 +1154,13 @@ namespace bx
         cam->viewProj = cam->proj * cam->view;
     }
 
-    struct GfxInstanceData;
-    struct GfxScene : public GfxActor
+
+    void gfxCameraWorldMatrixSet( GfxCamera* cam, const Matrix4& world )
     {
-        struct Data
-        {
-            void* memoryHandle;
-            i32 size;
-            i32 capacity;
-            
-            u32* meshHandle;
-            bxGdiRenderSource** _rsource;
-            bxGdiShaderFx_Instance** _fxInstance;
-            bxAABB* _bbox;
-            GfxInstanceData* _idata;
-        };
-        
-        Data _data;
-        
-        GfxContext* _ctx;
-        u32 _internalHandle;
+        cam->world = world;
+    }
 
-        virtual GfxScene* isScene() { return this; }
-    };
 
-    struct GfxInstanceData
-    {
-        Matrix4* pose;
-        i32 count;
-
-        GfxInstanceData()
-            : pose( nullptr )
-            , count( 1 )
-        {}
-    };
-
-    struct GfxMeshInstance : public GfxActor
-    {
-        GfxContext* _ctx;
-        GfxScene* _scene;
-        u32 _internalHandle;
-        
-        bxGdiRenderSource* _rsource;
-        bxGdiShaderFx_Instance* _fxI;
-        GfxInstanceData _idata;
-        float localAABB[6];
-
-        GfxMeshInstance()
-            : _ctx( nullptr )
-            , _scene( nullptr )
-            , _internalHandle( 0 )
-
-            , _rsource( nullptr )
-            , _fxI( nullptr )
-        {
-            memset( localAABB, 0x00, sizeof( localAABB ) );
-        }
-        
-        virtual GfxMeshInstance* isMeshInstance() { return this; }
-    };
-
-    struct GfxViewFrameParams
-    {
-        Matrix4 _camera_view;
-        Matrix4 _camera_proj;
-        Matrix4 _camera_viewProj;
-        Matrix4 _camera_world;
-        float4_t _camera_eyePos;
-        float4_t _camera_viewDir;
-        //float4_t _camera_projParams;
-        float4_t _reprojectInfo;
-        float4_t _reprojectInfoFromInt;
-        float2_t _renderTarget_rcp;
-        float2_t _renderTarget_size;
-        float _camera_fov;
-        float _camera_aspect;
-        float _camera_zNear;
-        float _camera_zFar;
-        float _reprojectDepthScale; // (g_zFar - g_zNear) / (-g_zFar * g_zNear)
-        float _reprojectDepthBias; // g_zFar / (g_zFar * g_zNear)
-    };
     void gfxViewFrameParamsFill( GfxViewFrameParams* fparams, const GfxCamera* camera, int rtWidth, int rtHeight )
     {
         //SYS_STATIC_ASSERT( sizeof( FrameData ) == 376 );
@@ -1354,100 +1226,6 @@ namespace bx
         //m128_to_xyzw( frameData->_renderTarget_rcp_size.xyzw, Vector4( 1.f / float( rtWidth ), 1.f / float( rtHeight ), float( rtWidth ), float( rtHeight ) ).get128() );
     }
 
-    struct GfxView
-    {
-        bxGdiBuffer _viewParamsBuffer;
-        bxGdiBuffer _instanceWorldBuffer;
-        bxGdiBuffer _instanceWorldITBuffer;
-
-        i32 _maxInstances;
-
-        GfxView()
-            : _maxInstances( 0 )
-        {}
-    };
-    void gfxViewCreate( GfxView* view, bxGdiDeviceBackend* dev, int maxInstances )
-    {
-        view->_viewParamsBuffer = dev->createConstantBuffer( sizeof( GfxViewFrameParams ) );
-        const int numElements = maxInstances * 3; /// 3 * row
-        view->_instanceWorldBuffer = dev->createBuffer( numElements, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
-        view->_instanceWorldITBuffer = dev->createBuffer( numElements, bxGdiFormat( bxGdi::eTYPE_FLOAT, 3 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
-        view->_maxInstances = maxInstances;
-    }
-
-    void gfxViewDestroy( GfxView* view, bxGdiDeviceBackend* dev )
-    {
-        view->_maxInstances = 0;
-        dev->releaseBuffer( &view->_instanceWorldITBuffer );
-        dev->releaseBuffer( &view->_instanceWorldBuffer );
-        dev->releaseBuffer( &view->_viewParamsBuffer );
-    }
-
-    struct GfxContext;
-    struct GfxCommandQueue
-    {
-        GfxView _view;
-        u32 _acquireCounter;
-        GfxContext* _ctx;
-        bxGdiDeviceBackend* _device;
-
-        GfxCommandQueue()
-            : _acquireCounter(0)
-            , _ctx(nullptr)
-            , _device( nullptr )
-        {}
-    };
-
-    typedef bxHandleManager< GfxActor* > ActorHandleManager;
-
-    template< class Talloc, class Tlock >
-    struct AllocatorThreadSafe : public Talloc
-    {
-        virtual ~AllocatorThreadSafe() {} 
-        virtual void* alloc( size_t size, size_t align )
-        {
-            _lock.lock();
-            void* ptr = Talloc::alloc( size, align );
-            _lock.unlock();
-            return ptr;
-        }
-        virtual void  free( void* ptr )
-        {
-            _lock.lock();
-            Talloc::free( ptr );
-            _lock.unlock();
-        }
-
-        Tlock _lock;
-    };
-    typedef AllocatorThreadSafe< bxDynamicPoolAllocator, bxBenaphore > DynamicPoolAllocatorThreadSafe;
-
-    struct GfxContext
-    {
-        GfxCommandQueue _cmdQueue;
-
-        bxGdiTexture _framebuffer[eFB_COUNT];
-        
-        bxAllocator* _allocMesh;
-        bxAllocator* _allocCamera;
-        bxAllocator* _allocScene;
-        bxAllocator* _allocIDataMulti;
-        bxAllocator* _allocIDataSingle;
-
-        ActorHandleManager _handles;
-        bxRecursiveBenaphore _lockHandles;
-
-        bxBenaphore _lockActorsToRelease;
-        array_t< GfxActor* > _actorsToRelease;
-
-        GfxContext()
-            : _allocMesh( nullptr )
-            , _allocCamera( nullptr )
-            , _allocScene( nullptr )
-            , _allocIDataMulti( nullptr )
-            , _allocIDataSingle( nullptr )
-        {}
-    };
     ////
     //
     inline u32 gfxContextHandleAdd( GfxContext* ctx, GfxActor* actor )
@@ -1458,9 +1236,9 @@ namespace bx
     inline void gfxContextHandleRemove( GfxContext* ctx, u32 handle )
     {
         bxScopeRecursiveBenaphore lock( ctx->_lockHandles );
-        ctx->_handles.remove( ActorHandleManager::Handle( handle ); );
+        ctx->_handles.remove( ActorHandleManager::Handle( handle ) );
     }
-    inline bool gfxContextHandleValid( GfxContext* ctx, u32 handle )
+    inline int gfxContextHandleValid( GfxContext* ctx, u32 handle )
     {
         bxScopeRecursiveBenaphore lock( ctx->_lockHandles );
         return ctx->_handles.isValid( ActorHandleManager::Handle( handle ) );
@@ -1505,6 +1283,7 @@ namespace bx
             g->_allocIDataMulti = bxDefaultAllocator();
         }
 
+        gfx[0] = g;
     }
 
     void gfxContextShutdown( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
@@ -1556,12 +1335,10 @@ namespace bx
     void gfxCommandQueueRelease( GfxCommandQueue** cmdq )
     {
         cmdq[0]->_device = nullptr;
-        SYS_ASSERT( cmdQueue[0]->_acquireCounter == 1 );
+        SYS_ASSERT( cmdq[0]->_acquireCounter == 1 );
         --cmdq[0]->_acquireCounter;
         cmdq[0] = nullptr;
     }
-
-    
 
     void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx )
     {
@@ -1601,18 +1378,42 @@ namespace bx
         meshI[0] = m;
     }
 
-    void gfxMeshInstanceDestroy( GfxMeshInstance* meshI )
+    void gfxMeshInstanceDestroy( GfxMeshInstance** meshI )
     {
+        GfxMeshInstance* m = meshI[0];
+        if( !m )
+            return;
 
+        if( !gfxContextHandleValid( m->_ctx, m->_internalHandle ) )
+            return;
+
+        bxAllocator* allocInstance = ( m->_idata.count == 1 ) ? m->_ctx->_allocIDataSingle : m->_ctx->_allocIDataMulti;
+        allocInstance->free( m->_idata.pose );
+        gfxContextHandleRemove( m->_ctx, m->_internalHandle );
+        gfxContextActorRelease( m->_ctx, m );
+
+        meshI[0] = nullptr;
     }
 
     void gfxSceneCreate( GfxScene** scene, GfxContext* ctx )
     {
+        GfxScene* s = BX_NEW( ctx->_allocScene, GfxScene );
+        s->_ctx = ctx;
+        s->_internalHandle = gfxContextHandleAdd( ctx, s );
 
+        scene[0] = s;
     }
     void gfxSceneDestroy( GfxScene** scene )
     {
+        GfxScene* s = scene[0];
+        if( !s )
+            return;
 
+        if( !gfxContextHandleValid( s->_ctx, s->_internalHandle ) )
+            return;
+
+        gfxContextHandleRemove( s->_ctx, s->_internalHandle );
+        gfxContextActorRelease( s->_ctx, s );
     }
 
 }///
