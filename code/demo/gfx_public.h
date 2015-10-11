@@ -22,13 +22,15 @@ namespace bx
             : x( xx ), y( yy ), w( ww ), h( hh ) {}
     };
 
+    //////////////////////////////////////////////////////////////////////////
+    ///
     struct GfxMeshInstanceData
     {
         enum
         {
-            eMASK_RENDER_SOURCE,
-            eMASK_SHADER_FX,
-            eMASK_LOCAL_AABB,
+            eMASK_RENDER_SOURCE = 0x1,
+            eMASK_SHADER_FX = 0x2,
+            eMASK_LOCAL_AABB = 0x4,
         };
         bxGdiRenderSource* rsource;
         bxGdiShaderFx_Instance* fxInstance;
@@ -40,5 +42,21 @@ namespace bx
         GfxMeshInstanceData& renderSourceSet( bxGdiRenderSource* rsrc );
         GfxMeshInstanceData& fxInstanceSet( bxGdiShaderFx_Instance* fxI );
         GfxMeshInstanceData& locaAABBSet( const Vector3& pmin, const Vector3& pmax );
+    };
+
+    //////////////////////////////////////////////////////////////////////////
+    ///
+    struct GfxGlobalResources
+    {
+        struct{
+            bxGdiShaderFx_Instance* utils;
+            bxGdiShaderFx_Instance* texUtils;
+        } fx;
+
+        struct{
+            bxGdiRenderSource* fullScreenQuad;
+            bxGdiRenderSource* sphere;
+            bxGdiRenderSource* box;
+        } mesh;
     };
 }///

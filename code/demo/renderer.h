@@ -117,6 +117,9 @@ namespace bx
     void gfxCommandQueueAcquire( GfxCommandQueue** cmdq, GfxContext* ctx, bxGdiContext* gdiContext );
     void gfxCommandQueueRelease( GfxCommandQueue** cmdq );
 
+    GfxGlobalResources* gfxGlobalResourcesGet();
+    bxGdiShaderFx_Instance* gfxMaterialFind( const char* name );
+
     void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx );
     void gfxCameraDestroy( GfxCamera** camera );
     float gfxCameraAspect( const GfxCamera* cam );

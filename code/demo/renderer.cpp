@@ -1085,7 +1085,6 @@ namespace bxGfx
 #include "gfx_private.h"
 namespace bx
 {
-    
     float gfxCameraAspect( const GfxCamera* cam )
     {
         return (abs( cam->vAperture ) < 0.0001f) ? cam->hAperture : cam->hAperture / cam->vAperture;
@@ -1260,12 +1259,18 @@ namespace bx
             g->_allocIDataMulti = bxDefaultAllocator();
         }
 
+        gfxGlobalResourcesStartup( &g->_globalResources, dev, resourceManager );
+        gfxMaterialManagerStartup( &g->_materialManager, dev, resourceManager );
+
         gfx[0] = g;
     }
 
     void gfxContextShutdown( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         GfxContext* g = gfx[0];
+
+        gfxMaterialManagerShutdown( &g->_materialManager, dev, resourceManager );
+        gfxGlobalResourcesShutdown( &g->_globalResources, dev, resourceManager );
 
         {
             g->_allocIDataMulti = nullptr;
@@ -1371,6 +1376,22 @@ namespace bx
         cmdq[0] = nullptr;
     }
 
+    //////////////////////////////////////////////////////////////////////////
+    ///
+    GfxGlobalResources* gfxGlobalResourcesGet()
+    {
+        return GfxContext::_globalResources;
+    }
+    bxGdiShaderFx_Instance* gfxMaterialFind( const char* name )
+    {
+        const u64 key = gfxMaterialManagerCreateNameHash( name );
+        hashmap_t::cell_t* cell = hashmap::lookup( GfxContext::_materialManager->_map, key );
+
+        return (cell) ? (bxGdiShaderFx_Instance*)cell->value : 0;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    ///
     void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx )
     {
         GfxCamera* c = BX_NEW( ctx->_allocCamera, GfxCamera );
@@ -1567,6 +1588,8 @@ namespace bx
                         {
                             int index = gfxSceneDataFind( scene->_data, cmd.handle );
                             gfxSceneDataRemove( &scene->_data, index );
+
+                            
                         }
                     }break;
                 case GfxScene::Cmd::eOP_REFRESH:
@@ -1586,13 +1609,30 @@ namespace bx
         bxGdiContext* gdi = cmdq->_gdiContext;
         const GfxView& view = cmdq->_view;
 
+        const GfxScene::Data& data = scene->_data;
+        int nMeshes = scene->_data.size;
 
+        if ( !scene->_sListColor || scene->_sListColor->capacity < data.size )
+        {
+            bxGdi::sortList_delete( &scene->_sListColor );
+            bxGdi::sortList_delete( &scene->_sListDepth );
+            bxGdi::sortList_new( &scene->_sListColor, data.size * 2, bxDefaultAllocator() );
+            bxGdi::sortList_new( &scene->_sListDepth, data.size * 2, bxDefaultAllocator() );
+        }
 
+        GfxSortListColor* colorList = scene->_sListColor;
+        GfxSortListDepth* depthList = scene->_sListDepth;
 
+        bxChunk colorChunk, depthChunk;
+        bxChunk_create( &colorChunk, 1, colorList->capacity );
+        bxChunk_create( &depthChunk, 1, depthList->capacity );
+
+        const int n = data.size;
+        for ( int iitem = 0; iitem < n; ++iitem )
+        {
+
+        }
     }
-
-
-
 }///
 
 

@@ -74,8 +74,6 @@ out_PS ps_main( in_PS input )
 {
     out_PS OUT;
     
-    
-
     float3 L = normalize( float3(-1.f, 1.f, 0.f) );
     
     ShadingData shd;

@@ -5,10 +5,12 @@
 #include <util/pool_allocator.h>
 #include <util/thread/mutex.h>
 #include <util/handle_manager.h>
+#include <util/hash.h>
 
 #include <gdi/gdi_backend.h>
 #include <gdi/gdi_render_source.h>
 #include <gdi/gdi_shader.h>
+#include <gdi/gdi_sort_list.h>
 #include <resource_manager/resource_manager.h>
 namespace bx
 {
@@ -54,6 +56,35 @@ namespace bx
         virtual GfxCamera* isCamera() { return this; }
     };
 
+    //////////////////////////////////////////////////////////////////////////
+    ////
+    union GfxSortKeyColor
+    {
+        u64 hash;
+        struct
+        {
+            u64 mesh : 24;
+            u64 shader : 32;
+            u64 layer : 8;
+        };
+    };
+    union GfxSortKeyDepth
+    {
+        u16 hash;
+        u16 depth;
+    };
+    union GfxSortKeyShadow
+    {
+        u32 hash;
+        struct
+        {
+            u16 depth;
+            u16 cascade;
+        };
+    };
+    typedef bxGdiSortList< GfxSortKeyColor > GfxSortListColor;
+    typedef bxGdiSortList< GfxSortKeyDepth > GfxSortListDepth;
+
     struct GfxInstanceData;
     struct GfxScene : public GfxActor
     {
@@ -88,6 +119,9 @@ namespace bx
         };
         array_t< Cmd > _cmd;
         bxRecursiveBenaphore _lockCmd;
+
+        GfxSortListColor* _sListColor;
+        GfxSortListDepth* _sListDepth;
 
         GfxScene();    
 
@@ -200,6 +234,31 @@ namespace bx
     };
     typedef AllocatorThreadSafe< bxDynamicPoolAllocator, bxBenaphore > DynamicPoolAllocatorThreadSafe;
 
+    //////////////////////////////////////////////////////////////////////////
+    ///
+    struct GfxMaterialManager
+    {
+        typedef float3_t float3;
+        #include <shaders/hlsl/sys/material.hlsl>
+
+        typedef hashmap_t MaterialMap;
+        MaterialMap _map;
+
+        bxGdiShaderFx* _nativeFx;
+    };
+    void gfxMaterialManagerStartup( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* nativeShaderName = "native1" );
+    void gfxMaterialManagerShutdown( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    bxGdiShaderFx_Instance* gfxMaterialManagerCreateMaterial( GfxMaterialManager* materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* name, const GfxMaterialManager::Material& params );
+    inline u64 gfxMaterialManagerCreateNameHash( const char* name )
+    {
+        const u32 hashedName0 = simple_hash( name );
+        const u32 hashedName1 = murmur3_hash32( name, (u32)strlen( name ), hashedName0 );
+        const u64 key = u64( hashedName1 ) << 32 | u64( hashedName0 );
+        return key;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    ///
     struct GfxContext
     {
         GfxCommandQueue _cmdQueue;
@@ -217,6 +276,9 @@ namespace bx
 
         bxBenaphore _lockActorsToRelease;
         array_t< GfxActor* > _actorsToRelease;
+
+        static GfxGlobalResources* _globalResources;
+        static GfxMaterialManager* _materialManager;
 
         GfxContext();
     };
@@ -251,4 +313,6 @@ namespace bx
         bxScopeBenaphore lock( ctx->_lockActorsToRelease );
         array::push_back( ctx->_actorsToRelease, actor );
     }
+    void gfxGlobalResourcesStartup ( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void gfxGlobalResourcesShutdown( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 }///

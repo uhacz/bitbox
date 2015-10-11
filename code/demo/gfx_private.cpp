@@ -1,5 +1,7 @@
 #include "gfx_private.h"
-#include "util/buffer_utils.h"
+#include <util/buffer_utils.h>
+#include <util/hashmap.h>
+#include <util/hash.h>
 
 namespace bx
 {
@@ -57,6 +59,8 @@ namespace bx
     GfxScene::GfxScene()
         : _ctx( nullptr )
         , _internalHandle( 0 )
+        , _sListColor( nullptr )
+        , _sListDepth( nullptr )
     {
         memset( &_data, 0x00, sizeof( GfxScene::Data ) );
     }
@@ -220,12 +224,113 @@ namespace bx
     //////////////////////////////////////////////////////////////////////////
     GfxCommandQueue::GfxCommandQueue() : _acquireCounter( 0 )
         , _ctx( nullptr )
-        , _device( nullptr )
+        , _gdiContext( nullptr )
     {
     }
 
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
+    void gfxMaterialManagerStartup( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* nativeShaderName /*= "native1" */ )
+    {
+        SYS_ASSERT( GfxContext::_materialManager == 0 );
+        
+        GfxMaterialManager* mm = BX_NEW( bxDefaultAllocator(), GfxMaterialManager );
+
+        bxGdiShaderFx* nativeFx = bxGdi::shaderFx_createFromFile( dev, resourceManager, nativeShaderName );
+        SYS_ASSERT( nativeFx != nullptr );
+        mm->_nativeFx = nativeFx;
+
+        {
+            GfxMaterialManager::Material params;
+            {
+                params.diffuseColor = float3_t( 1.f, 0.f, 0.f );
+                params.fresnelColor = float3_t( 0.045593921f );
+                params.diffuseCoeff = 0.6f;
+                params.roughnessCoeff = 0.2f;
+                params.specularCoeff = 0.9f;
+                params.ambientCoeff = 0.2f;
+
+                gfxMaterialManagerCreateMaterial( mm, dev, resourceManager, "red", params );
+            }
+            {
+                params.diffuseColor = float3_t( 0.f, 1.f, 0.f );
+                params.fresnelColor = float3_t( 0.171968833f );
+                params.diffuseCoeff = 0.25f;
+                params.roughnessCoeff = 0.5f;
+                params.specularCoeff = 0.5f;
+                gfxMaterialManagerCreateMaterial( mm, dev, resourceManager, "green", params );
+            }
+            {
+                params.diffuseColor = float3_t( 0.f, 0.f, 1.f );
+                params.fresnelColor = float3_t( 0.171968833f );
+                params.diffuseCoeff = 0.7f;
+                params.roughnessCoeff = 0.7f;
+
+                gfxMaterialManagerCreateMaterial( mm, dev, resourceManager, "blue", params );
+            }
+            {
+                params.diffuseColor = float3_t( 1.f, 1.f, 1.f );
+                params.diffuseCoeff = 1.0f;
+                params.roughnessCoeff = 1.0f;
+                params.specularCoeff = 0.1f;
+
+                gfxMaterialManagerCreateMaterial( mm, dev, resourceManager, "white", params );
+            }
+        }
+
+        materialManager[0] = mm;
+    }
+
+    void gfxMaterialManagerShutdown( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    {
+        GfxMaterialManager* mm = materialManager[0];
+        SYS_ASSERT( mm != nullptr );
+        
+        hashmap::iterator it( mm->_map );
+        while ( it.next() )
+        {
+            bxGdiShaderFx_Instance* fxI = (bxGdiShaderFx_Instance*)it->value;
+            bxGdi::shaderFx_releaseInstance( dev, resourceManager, &fxI );
+        }
+        hashmap::clear( mm->_map );
+
+        bxGdi::shaderFx_release( dev, resourceManager, &mm->_nativeFx );
+
+        BX_DELETE0( bxDefaultAllocator(), materialManager[0] );
+    }
+    namespace
+    {
+        void setMaterialParams( bxGdiShaderFx_Instance* fxI, const GfxMaterialManager::Material& params )
+        {
+            fxI->setUniform( "diffuseColor", params.diffuseColor );
+            fxI->setUniform( "fresnelColor", params.fresnelColor );
+            fxI->setUniform( "diffuseCoeff", params.diffuseCoeff );
+            fxI->setUniform( "roughnessCoeff", params.roughnessCoeff );
+            fxI->setUniform( "specularCoeff", params.specularCoeff );
+            fxI->setUniform( "ambientCoeff", params.ambientCoeff );
+        }
+    }
+    bxGdiShaderFx_Instance* gfxMaterialManagerCreateMaterial( GfxMaterialManager* materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* name, const GfxMaterialManager::Material& params )
+    {
+        const u64 key = gfxMaterialManagerCreateNameHash( name );
+        SYS_ASSERT( hashmap::lookup( materialManager->_map, key ) == 0 );
+
+        bxGdiShaderFx_Instance* fxI = bxGdi::shaderFx_createInstance( dev, resourceManager, materialManager->_nativeFx );
+        SYS_ASSERT( fxI != 0 );
+
+        setMaterialParams( fxI, params );
+
+        hashmap_t::cell_t* cell = hashmap::insert( materialManager->_map, key );
+        cell->value = (size_t)fxI;
+
+        return fxI;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    GfxGlobalResources* GfxContext::_globalResources = nullptr;
+    GfxMaterialManager* GfxContext::_materialManager = nullptr;
+
     GfxContext::GfxContext() : _allocMesh( nullptr )
         , _allocCamera( nullptr )
         , _allocScene( nullptr )
@@ -233,13 +338,63 @@ namespace bx
         , _allocIDataSingle( nullptr )
     {
     }
+    void gfxGlobalResourcesStartup( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    {
+        GfxGlobalResources* gr = BX_NEW( bxDefaultAllocator(), GfxGlobalResources );
+        memset( gr, 0x00, sizeof( GfxGlobalResources ) );
+        {
+            gr->fx.utils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "utils" );
+            gr->fx.texUtils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "texutils" );
+        }
 
+        {//// fullScreenQuad
+            const float vertices[] =
+            {
+                -1.f, -1.f, 0.f, 0.f, 0.f,
+                1.f, -1.f, 0.f, 1.f, 0.f,
+                1.f, 1.f, 0.f, 1.f, 1.f,
 
+                -1.f, -1.f, 0.f, 0.f, 0.f,
+                1.f, 1.f, 0.f, 1.f, 1.f,
+                -1.f, 1.f, 0.f, 0.f, 1.f,
+            };
+            bxGdiVertexStreamDesc vsDesc;
+            vsDesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
+            vsDesc.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 );
+            bxGdiVertexBuffer vBuffer = dev->createVertexBuffer( vsDesc, 6, vertices );
 
+            gr->mesh.fullScreenQuad = bxGdi::renderSource_new( 1 );
+            bxGdi::renderSource_setVertexBuffer( gr->mesh.fullScreenQuad, vBuffer, 0 );
+        }
+        {//// poly shapes
+            bxPolyShape polyShape;
+            bxPolyShape_createBox( &polyShape, 1 );
+            gr->mesh.box = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
+            bxPolyShape_deallocateShape( &polyShape );
 
+            bxPolyShape_createShpere( &polyShape, 8 );
+            gr->mesh.sphere = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
+            bxPolyShape_deallocateShape( &polyShape );
+        }
 
+        globalResources[0] = gr;
 
+    }
+    void gfxGlobalResourcesShutdown( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    {
+        GfxGlobalResources* gr = globalResources[0];
+        {
+            bxGdi::renderSource_releaseAndFree( dev, &gr->mesh.sphere );
+            bxGdi::renderSource_releaseAndFree( dev, &gr->mesh.box );
+            bxGdi::renderSource_releaseAndFree( dev, &gr->mesh.fullScreenQuad );
+        }
+        {
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.texUtils );
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.utils );
+        }
 
+        BX_DELETE0( bxDefaultAllocator(), globalResources[0] );
+    }
 
 
 
