@@ -112,8 +112,9 @@ namespace bx
     void gfxContextStartup( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void gfxContextShutdown( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void gfxContextTick( GfxContext* gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    
-    void gfxCommandQueueAcquire( GfxCommandQueue** cmdq, GfxContext* ctx, bxGdiDeviceBackend* dev );
+    void gfxContextFrameBegin( GfxContext* gfx, bxGdiContext* gdi );
+    void gfxContextFrameEnd( GfxContext* gfx, bxGdiContext* gdi );
+    void gfxCommandQueueAcquire( GfxCommandQueue** cmdq, GfxContext* ctx, bxGdiContext* gdiContext );
     void gfxCommandQueueRelease( GfxCommandQueue** cmdq );
 
     void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx );

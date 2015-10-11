@@ -97,7 +97,9 @@ namespace bx
     void gfxSceneDataFree( GfxScene::Data* data );
     int  gfxSceneDataAdd( GfxScene::Data* data, GfxMeshInstance* meshInstance );
     void gfxSceneDataRemove( GfxScene::Data* data, int index );
+    int  gfxSceneDataRefresh( GfxScene::Data* data, GfxContext* ctx, int index );
     void gfxSceneDataRefresh( GfxScene* scene, u32 meshHandle );
+    int  gfxSceneDataFind( const GfxScene::Data& data, u32 meshHandle );
 
 
 
@@ -169,7 +171,7 @@ namespace bx
         GfxView _view;
         u32 _acquireCounter;
         GfxContext* _ctx;
-        bxGdiDeviceBackend* _device;
+        bxGdiContext* _gdiContext;
 
         GfxCommandQueue();
     };

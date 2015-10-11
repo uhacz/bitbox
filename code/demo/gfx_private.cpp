@@ -172,6 +172,15 @@ namespace bx
         data->idata[index]      = data->idata[lastIndex];
         data->bbox[index]       = data->bbox[lastIndex];
     }
+    int gfxSceneDataFind( const GfxScene::Data& data, u32 meshHandle )
+    {
+        for( int i = 0; i < data.size; ++i )
+        {
+            if ( meshHandle == data.meshHandle[i] )
+                return i;
+        }
+        return -1;
+    }
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
     GfxMeshInstance::GfxMeshInstance() 
@@ -224,6 +233,8 @@ namespace bx
         , _allocIDataSingle( nullptr )
     {
     }
+
+
 
 
 
