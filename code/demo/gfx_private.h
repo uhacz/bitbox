@@ -59,24 +59,47 @@ namespace bx
     {
         struct Data
         {
+            bxAllocator* alloc;
             void* memoryHandle;
             i32 size;
             i32 capacity;
 
             u32* meshHandle;
-            bxGdiRenderSource** _rsource;
-            bxGdiShaderFx_Instance** _fxInstance;
-            bxAABB* _bbox;
-            GfxInstanceData* _idata;
+            bxGdiRenderSource** rsource;
+            bxGdiShaderFx_Instance** fxInstance;
+            bxAABB* bbox;
+            GfxInstanceData* idata;
         };
-
         Data _data;
 
         GfxContext* _ctx;
         u32 _internalHandle;
 
+        struct Cmd
+        {
+            enum
+            {
+                eOP_ADD,
+                eOP_REMOVE,
+                eOP_REFRESH,
+            };
+            u32 handle;
+            u32 op;
+        };
+        array_t< Cmd > _cmd;
+        bxRecursiveBenaphore _lockCmd;
+
+        GfxScene();    
+
         virtual GfxScene* isScene() { return this; }
     };
+    void gfxSceneDataAllocate( GfxScene::Data* data, int newsize, bxAllocator* alloc );
+    void gfxSceneDataFree( GfxScene::Data* data );
+    int  gfxSceneDataAdd( GfxScene::Data* data, GfxMeshInstance* meshInstance );
+    void gfxSceneDataRemove( GfxScene::Data* data, int index );
+    void gfxSceneDataRefresh( GfxScene* scene, u32 meshHandle );
+
+
 
     struct GfxInstanceData
     {
@@ -98,7 +121,7 @@ namespace bx
         bxGdiRenderSource* _rsource;
         bxGdiShaderFx_Instance* _fxI;
         GfxInstanceData _idata;
-        float localAABB[6];
+        float _localAABB[6];
 
         GfxMeshInstance();
 
@@ -195,4 +218,35 @@ namespace bx
 
         GfxContext();
     };
+    ////
+    //
+    inline u32 gfxContextHandleAdd( GfxContext* ctx, GfxActor* actor )
+    {
+        bxScopeRecursiveBenaphore lock( ctx->_lockHandles );
+        return ctx->_handles.add( actor ).asU32();
+    }
+    inline void gfxContextHandleRemove( GfxContext* ctx, u32 handle )
+    {
+        bxScopeRecursiveBenaphore lock( ctx->_lockHandles );
+        ctx->_handles.remove( ActorHandleManager::Handle( handle ) );
+    }
+    inline int gfxContextHandleValid( GfxContext* ctx, u32 handle )
+    {
+        bxScopeRecursiveBenaphore lock( ctx->_lockHandles );
+        return ctx->_handles.isValid( ActorHandleManager::Handle( handle ) );
+    }
+    inline int gfxContextHandleActorGet_lock( GfxActor** actor, GfxContext* ctx, u32 handle )
+    {
+        bxScopeRecursiveBenaphore lock( ctx->_lockHandles );
+        return ctx->_handles.get( ActorHandleManager::Handle( handle ), actor );
+    }
+    inline int gfxContextHandleActorGet_noLock( GfxActor** actor, GfxContext* ctx, u32 handle )
+    {
+        return ctx->_handles.get( ActorHandleManager::Handle( handle ), actor );
+    }
+    inline void gfxContextActorRelease( GfxContext* ctx, GfxActor* actor )
+    {
+        bxScopeBenaphore lock( ctx->_lockActorsToRelease );
+        array::push_back( ctx->_actorsToRelease, actor );
+    }
 }///

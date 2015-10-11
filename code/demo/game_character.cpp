@@ -586,11 +586,11 @@ void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* r
     bxGfx::meshShaderSet( hmesh, dev, resourceManager, bxGfxMaterialManager::findMaterial( "red" ) );
 
     //bxGfx_HInstanceBuffer hinst = bxGfx::instanceBuffeCreate( 1 );
-    ch->shapeMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, 1 );
+    //ch->shapeMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, 1 );
 
     bxGfx_HInstanceBuffer hinst = bxGfx::meshInstanceHInstanceBuffer( ch->shapeMeshI );
     Matrix4 pose = Matrix4::identity();
-    bxGfx::instanceBufferDataSet( hinst, &pose, 1 );
+    //bxGfx::instanceBufferDataSet( hinst, &pose, 1 );
     
     BX_FREE0( bxDefaultAllocator(), vertices );
 }

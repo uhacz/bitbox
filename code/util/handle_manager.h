@@ -189,14 +189,14 @@ public:
         const uint32_t index = handle._index;
 
         if ( index >= _capacity )
-            return 0;
+            return -1;
 
         const Entry& e = _entries[index];
         if ( e._counter != handle._counter || e._active == 0 )
-            return 0;
+            return -1;
 
-        out = e._entry;
-        return 1;
+        out[0] = e._entry;
+        return 0;
     }
 
     Handle findHandleByValue( const TpType& v )

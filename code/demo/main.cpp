@@ -31,6 +31,11 @@ struct bxDemoFramebuffer
 static bxDemoFramebuffer __framebuffer;
 static bxDemoScene __scene;
 
+static bx::GfxCamera* camera = nullptr;
+static bx::GfxMeshInstance* meshInstance = nullptr;
+static bx::GfxScene* scene = nullptr;
+
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 class bxDemoApp : public bxApplication
@@ -50,40 +55,43 @@ public:
 
         bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager, __scene.gfxWorld );
 
-        bxGfxCamera_SceneScriptCallback cameraScriptCallback;
-        cameraScriptCallback._menago = __scene._cameraManager;
+        //bxGfxCamera_SceneScriptCallback cameraScriptCallback;
+        //cameraScriptCallback._menago = __scene._cameraManager;
 
-        bxDesignBlock_SceneScriptCallback dblockScriptCallback;
-        dblockScriptCallback.dblock = __scene.dblock;
+        //bxDesignBlock_SceneScriptCallback dblockScriptCallback;
+        //dblockScriptCallback.dblock = __scene.dblock;
 
-        bxAsciiScript sceneScript;
-        bxScene::script_addCallback( &sceneScript, "camera", &cameraScriptCallback );
-        bxScene::script_addCallback( &sceneScript, "camera_push", &cameraScriptCallback );
+        //bxAsciiScript sceneScript;
+        //bxScene::script_addCallback( &sceneScript, "camera", &cameraScriptCallback );
+        //bxScene::script_addCallback( &sceneScript, "camera_push", &cameraScriptCallback );
 
-        bxScene::script_addCallback( &sceneScript, "dblock", &dblockScriptCallback );
-        bxScene::script_addCallback( &sceneScript, "dblock_commit", &dblockScriptCallback );
+        //bxScene::script_addCallback( &sceneScript, "dblock", &dblockScriptCallback );
+        //bxScene::script_addCallback( &sceneScript, "dblock_commit", &dblockScriptCallback );
 
-        const char* sceneName = bxConfig::global_string( "scene" );
-        bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( sceneName );
+        //const char* sceneName = bxConfig::global_string( "scene" );
+        //bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( sceneName );
 
-        if( scriptFile.ok() )
-        {
-            bxScene::script_run( &sceneScript, scriptFile.txt );
-        }
-        scriptFile.release();
+        //if( scriptFile.ok() )
+        //{
+        //    bxScene::script_run( &sceneScript, scriptFile.txt );
+        //}
+        //scriptFile.release();
 
-        {
-            char const* cameraName = bxConfig::global_string( "camera" );
-            if( cameraName )
-            {
-                bxGfxCamera_Id id = bxGfx::camera_find( __scene._cameraManager, cameraName );
-                if ( id.hash != bxGfx::camera_top( __scene._cameraManager ).hash )
-                {
-                    bxGfx::camera_push( __scene._cameraManager, id );
-                }
-            }
-        }
+        //{
+        //    char const* cameraName = bxConfig::global_string( "camera" );
+        //    if( cameraName )
+        //    {
+        //        bxGfxCamera_Id id = bxGfx::camera_find( __scene._cameraManager, cameraName );
+        //        if ( id.hash != bxGfx::camera_top( __scene._cameraManager ).hash )
+        //        {
+        //            bxGfx::camera_push( __scene._cameraManager, id );
+        //        }
+        //    }
+        //}
 
+        bx::gfxCameraCreate( &camera, __scene.gfx );
+        bx::gfxMeshInstanceCreate( &meshInstance, __scene.gfx );
+        bx::gfxSceneCreate( &scene, __scene.gfx );
 
         return true;
     }

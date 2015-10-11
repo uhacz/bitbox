@@ -130,6 +130,12 @@ namespace bx
     void gfxMeshInstanceCreate( GfxMeshInstance** meshI, GfxContext* ctx, int numInstances = 1 );
     void gfxMeshInstanceDestroy( GfxMeshInstance** meshI );
 
+    bxGdiRenderSource* gfxMeshInstanceRenderSourceGet( GfxMeshInstance* meshI );
+    bxGdiShaderFx_Instance* gfxMeshInstanceFxGet( GfxMeshInstance* meshI );
+
+    void gfxMeshInstanceDataSet( GfxMeshInstance* meshI, const GfxMeshInstanceData& data );
+    void gfxMeshInstanceWorldMatrixSet( GfxMeshInstance* meshI, const Matrix4* matrices, int nMatrices );
+
     void gfxSceneCreate( GfxScene** scene, GfxContext* ctx );
     void gfxSceneDestroy( GfxScene** scene );
     

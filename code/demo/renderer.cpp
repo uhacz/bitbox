@@ -912,7 +912,7 @@ namespace bxGfx
         //if( !world )
         //    return makeInvalidHandle<bxGfx_HMeshInstance>();
         
-        bxGfx_HMeshInstance meshi;
+        bxGfx_HMeshInstance meshi = { 0 };
         //bxGfx_HInstanceBuffer hinstance = instanceBuffeCreate( nInstances );
         //bxGfx_HMeshInstance meshi = world->add( hmesh, hinstance );
         //hashmap_t::cell_t* cell = hashmap::insert( __ctx->_map_meshInstanceToWorld, meshi.h );
@@ -1228,29 +1228,6 @@ namespace bx
 
     ////
     //
-    inline u32 gfxContextHandleAdd( GfxContext* ctx, GfxActor* actor )
-    {
-        bxScopeRecursiveBenaphore lock( ctx->_lockHandles );
-        return ctx->_handles.add( actor ).asU32();
-    }
-    inline void gfxContextHandleRemove( GfxContext* ctx, u32 handle )
-    {
-        bxScopeRecursiveBenaphore lock( ctx->_lockHandles );
-        ctx->_handles.remove( ActorHandleManager::Handle( handle ) );
-    }
-    inline int gfxContextHandleValid( GfxContext* ctx, u32 handle )
-    {
-        bxScopeRecursiveBenaphore lock( ctx->_lockHandles );
-        return ctx->_handles.isValid( ActorHandleManager::Handle( handle ) );
-    }
-    inline void gfxContextActorRelease( GfxContext* ctx, GfxActor* actor )
-    {
-        bxScopeBenaphore lock( ctx->_lockActorsToRelease );
-        array::push_back( ctx->_actorsToRelease, actor );
-    }
-
-    ////
-    //
     void gfxContextStartup( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         GfxContext* g = BX_NEW( bxDefaultAllocator(), GfxContext );
@@ -1321,7 +1298,49 @@ namespace bx
 
     void gfxContextTick( GfxContext* gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
+        gfx->_lockActorsToRelease.lock();
 
+        for( int i = 0; i < array::size( gfx->_actorsToRelease ); ++i )
+        {
+            GfxActor* actor = gfx->_actorsToRelease[i];
+
+            if( actor->isScene() )
+            {
+                GfxScene* scene = actor->isScene();
+                for( int j = 0; j < scene->_data.size; ++j )
+                {
+                    u32 meshIhandle = scene->_data.meshHandle[j];
+                    GfxActor* meshActor = nullptr;
+                    if( gfx->_handles.get( ActorHandleManager::Handle( meshIhandle ), &meshActor ) )
+                    {
+                        array::push_back( gfx->_actorsToRelease, meshActor );
+                    }
+                }
+
+                BX_DELETE0( gfx->_allocScene, scene );
+            }
+            else if( actor->isMeshInstance() )
+            {
+                GfxMeshInstance* meshI = actor->isMeshInstance();
+                
+                bxAllocator* allocIdata = (meshI->_idata.count == 1) ? gfx->_allocIDataSingle : gfx->_allocIDataMulti;
+                allocIdata->free( meshI->_idata.pose );
+
+                BX_DELETE0( gfx->_allocMesh, meshI );
+            }
+            else if( actor->isCamera() )
+            {
+                GfxCamera* camera = actor->isCamera();
+                BX_DELETE0( gfx->_allocCamera, camera );
+            }
+            else
+            {
+                SYS_ASSERT( false );
+            }
+
+        }
+        array::clear( gfx->_actorsToRelease );
+        gfx->_lockActorsToRelease.unlock();
     }
 
     void gfxCommandQueueAcquire( GfxCommandQueue** cmdq, GfxContext* ctx, bxGdiDeviceBackend* dev )
@@ -1387,13 +1406,57 @@ namespace bx
         if( !gfxContextHandleValid( m->_ctx, m->_internalHandle ) )
             return;
 
-        bxAllocator* allocInstance = ( m->_idata.count == 1 ) ? m->_ctx->_allocIDataSingle : m->_ctx->_allocIDataMulti;
-        allocInstance->free( m->_idata.pose );
+        if( m->_scene )
+        {
+            gfxSceneMeshInstanceRemove( m->_scene, m );
+        }
         gfxContextHandleRemove( m->_ctx, m->_internalHandle );
         gfxContextActorRelease( m->_ctx, m );
 
         meshI[0] = nullptr;
     }
+    bxGdiRenderSource* gfxMeshInstanceRenderSourceGet( GfxMeshInstance* meshI )
+    {
+        SYS_ASSERT( gfxContextHandleValid( meshI->_ctx, meshI->_internalHandle ) );
+        return meshI->_rsource;
+    }
+    bxGdiShaderFx_Instance* gfxMeshInstanceFxGet( GfxMeshInstance* meshI )
+    {
+        SYS_ASSERT( gfxContextHandleValid( meshI->_ctx, meshI->_internalHandle ) );
+        return meshI->_fxI;
+    }
+    void gfxMeshInstanceDataSet( GfxMeshInstance* meshI, const GfxMeshInstanceData& data )
+    {
+        SYS_ASSERT( gfxContextHandleValid( meshI->_ctx, meshI->_internalHandle ) );
+
+        if( data.mask & GfxMeshInstanceData::eMASK_RENDER_SOURCE )
+        {
+            meshI->_rsource = data.rsource;
+        }
+        if( data.mask & GfxMeshInstanceData::eMASK_SHADER_FX )
+        {
+            meshI->_fxI = data.fxInstance;
+        }
+        if( data.mask & GfxMeshInstanceData::eMASK_LOCAL_AABB )
+        {
+            memcpy( &meshI->_localAABB[0], &data.localAABB[0], 6 * sizeof( f32 ) );
+        }
+
+        if( data.mask && meshI->_scene )
+        {
+            gfxSceneDataRefresh( meshI->_scene, meshI->_internalHandle );
+        }
+    }
+
+    void gfxMeshInstanceWorldMatrixSet( GfxMeshInstance* meshI, const Matrix4* matrices, int nMatrices )
+    {
+        SYS_ASSERT( gfxContextHandleValid( meshI->_ctx, meshI->_internalHandle ) );
+        SYS_ASSERT( nMatrices > 0 );
+
+        int numToSet = minOfPair( nMatrices, meshI->_idata.count );
+        memcpy( meshI->_idata.pose, matrices, numToSet * sizeof( Matrix4 ) );
+    }
+
 
     void gfxSceneCreate( GfxScene** scene, GfxContext* ctx )
     {
@@ -1414,6 +1477,46 @@ namespace bx
 
         gfxContextHandleRemove( s->_ctx, s->_internalHandle );
         gfxContextActorRelease( s->_ctx, s );
+    }
+
+    void gfxSceneMeshInstanceAdd( GfxScene* scene, GfxMeshInstance* meshI )
+    {
+        if ( !gfxContextHandleValid( scene->_ctx, scene->_internalHandle ) )
+            return;
+        
+        if ( !gfxContextHandleValid( meshI->_ctx, meshI->_internalHandle ) )
+            return;
+
+        GfxScene::Cmd cmd;
+        cmd.handle = meshI->_internalHandle;
+        cmd.op = GfxScene::Cmd::eOP_ADD;
+
+        scene->_lockCmd.lock();
+        array::push_back( scene->_cmd, cmd );
+        scene->_lockCmd.unlock();
+    }
+    void gfxSceneMeshInstanceRemove( GfxScene* scene, GfxMeshInstance* meshI )
+    {
+        if ( !gfxContextHandleValid( scene->_ctx, scene->_internalHandle ) )
+            return;
+
+        if ( !gfxContextHandleValid( meshI->_ctx, meshI->_internalHandle ) )
+            return;
+
+        GfxScene::Cmd cmd;
+        cmd.handle = meshI->_internalHandle;
+        cmd.op = GfxScene::Cmd::eOP_REMOVE;
+
+        scene->_lockCmd.lock();
+        array::push_back( scene->_cmd, cmd );
+        scene->_lockCmd.unlock();
+
+        meshI->_scene = nullptr;
+    }
+
+    void gfxSceneDraw( GfxScene* scene, GfxCommandQueue* cmdq, const GfxCamera* camera )
+    {
+
     }
 
 }///
