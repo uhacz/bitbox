@@ -1,7 +1,8 @@
 #pragma once
 
-#include <util/type.h>
-#include <util/vectormath/vectormath.h>
+#include <util/camera.h>
+#include <util/view_frustum.h>
+
 struct bxGdiRenderSource;
 struct bxGdiShaderFx_Instance;
 
@@ -13,14 +14,8 @@ namespace bx
     struct GfxMeshInstance;
     struct GfxCamera;
     struct GfxScene;
-    struct GfxViewport
-    {
-        i16 x, y;
-        u16 w, h;
-        GfxViewport() {}
-        GfxViewport( int xx, int yy, unsigned ww, unsigned hh )
-            : x( xx ), y( yy ), w( ww ), h( hh ) {}
-    };
+    typedef bx::gfx::Viewport GfxViewport;
+    typedef bx::gfx::ViewFrustum GfxViewFrustum;
 
     //////////////////////////////////////////////////////////////////////////
     ///

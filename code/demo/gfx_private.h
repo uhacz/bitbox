@@ -63,9 +63,10 @@ namespace bx
         u64 hash;
         struct
         {
-            u64 mesh : 24;
+            u64 instance : 12;
+            u64 mesh : 16;
             u64 shader : 32;
-            u64 layer : 8;
+            u64 layer : 4;
         };
     };
     union GfxSortKeyDepth
@@ -82,6 +83,10 @@ namespace bx
             u16 cascade;
         };
     };
+    inline bool operator < ( const GfxSortKeyColor a, const GfxSortKeyColor b ) { return a.hash < b.hash; }
+    inline bool operator < ( const GfxSortKeyDepth a, const GfxSortKeyDepth b ) { return a.hash < b.hash; }
+    inline bool operator < ( const GfxSortKeyShadow a, const GfxSortKeyShadow b ) { return a.hash < b.hash; }
+
     typedef bxGdiSortList< GfxSortKeyColor > GfxSortListColor;
     typedef bxGdiSortList< GfxSortKeyDepth > GfxSortListDepth;
 

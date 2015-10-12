@@ -273,32 +273,32 @@ static FP16 approx_float_to_half( FP32 f )
 
 static __m128i float_to_half_SSE2( __m128 f )
 {
-#define SSE_CONST4(name, val) static const __declspec(align(16)) uint name[4] = { (val), (val), (val), (val) }
-#define CONST(name) *(const __m128i *)&name
-#define CONSTF(name) *(const __m128 *)&name
+#define FTH_SSE_CONST4(name, val) static const __declspec(align(16)) uint name[4] = { (val), (val), (val), (val) }
+#define FTH_CONST(name) *(const __m128i *)&name
+#define FTH_CONSTF(name) *(const __m128 *)&name
 
-    SSE_CONST4( mask_sign, 0x80000000u );
-    SSE_CONST4( mask_round, ~0xfffu );
-    SSE_CONST4( c_f32infty, 255 << 23 );
-    SSE_CONST4( c_magic, 15 << 23 );
-    SSE_CONST4( c_nanbit, 0x200 );
-    SSE_CONST4( c_infty_as_fp16, 0x7c00 );
-    SSE_CONST4( c_clamp, (31 << 23) - 0x1000 );
+    FTH_SSE_CONST4( mask_sign, 0x80000000u );
+    FTH_SSE_CONST4( mask_round, ~0xfffu );
+    FTH_SSE_CONST4( c_f32infty, 255 << 23 );
+    FTH_SSE_CONST4( c_magic, 15 << 23 );
+    FTH_SSE_CONST4( c_nanbit, 0x200 );
+    FTH_SSE_CONST4( c_infty_as_fp16, 0x7c00 );
+    FTH_SSE_CONST4( c_clamp, (31 << 23) - 0x1000 );
 
-    __m128  msign = CONSTF( mask_sign );
+    __m128  msign = FTH_CONSTF( mask_sign );
     __m128  justsign = _mm_and_ps( msign, f );
-    __m128i f32infty = CONST( c_f32infty );
+    __m128i f32infty = FTH_CONST( c_f32infty );
     __m128  absf = _mm_xor_ps( f, justsign );
-    __m128  mround = CONSTF( mask_round );
+    __m128  mround = FTH_CONSTF( mask_round );
     __m128i absf_int = _mm_castps_si128( absf ); // pseudo-op, but val needs to be copied once so count as mov
     __m128i b_isnan = _mm_cmpgt_epi32( absf_int, f32infty );
     __m128i b_isnormal = _mm_cmpgt_epi32( f32infty, _mm_castps_si128( absf ) );
-    __m128i nanbit = _mm_and_si128( b_isnan, CONST( c_nanbit ) );
-    __m128i inf_or_nan = _mm_or_si128( nanbit, CONST( c_infty_as_fp16 ) );
+    __m128i nanbit = _mm_and_si128( b_isnan, FTH_CONST( c_nanbit ) );
+    __m128i inf_or_nan = _mm_or_si128( nanbit, FTH_CONST( c_infty_as_fp16 ) );
 
     __m128  fnosticky = _mm_and_ps( absf, mround );
-    __m128  scaled = _mm_mul_ps( fnosticky, CONSTF( c_magic ) );
-    __m128  clamped = _mm_min_ps( scaled, CONSTF( c_clamp ) ); // logically, we want PMINSD on "biased", but this should gen better code
+    __m128  scaled = _mm_mul_ps( fnosticky, FTH_CONSTF( c_magic ) );
+    __m128  clamped = _mm_min_ps( scaled, FTH_CONSTF( c_clamp ) ); // logically, we want PMINSD on "biased", but this should gen better code
     __m128i biased = _mm_sub_epi32( _mm_castps_si128( clamped ), _mm_castps_si128( mround ) );
     __m128i shifted = _mm_srli_epi32( biased, 13 );
     __m128i normal = _mm_and_si128( shifted, b_isnormal );
@@ -311,32 +311,32 @@ static __m128i float_to_half_SSE2( __m128 f )
     // ~20 SSE2 ops
     return final;
 
-#undef SSE_CONST4
-#undef CONST
-#undef CONSTF
+#undef FTH_SSE_CONST4
+#undef FTH_CONST
+#undef FTH_CONSTF
 }
 
 static __m128i approx_float_to_half_SSE2( __m128 f )
 {
-#define SSE_CONST4(name, val) static const __declspec(align(16)) uint name[4] = { (val), (val), (val), (val) }
-#define CONSTF(name) *(const __m128 *)&name
+#define FTH_SSE_CONST4(name, val) static const __declspec(align(16)) uint name[4] = { (val), (val), (val), (val) }
+#define FTH_CONSTF(name) *(const __m128 *)&name
 
-    SSE_CONST4( mask_fabs, 0x7fffffffu );
-    SSE_CONST4( c_f32infty, (255 << 23) );
-    SSE_CONST4( c_expinf, (255 ^ 31) << 23 );
-    SSE_CONST4( c_f16max, (127 + 16) << 23 );
-    SSE_CONST4( c_magic, 15 << 23 );
+    FTH_SSE_CONST4( mask_fabs, 0x7fffffffu );
+    FTH_SSE_CONST4( c_f32infty, (255 << 23) );
+    FTH_SSE_CONST4( c_expinf, (255 ^ 31) << 23 );
+    FTH_SSE_CONST4( c_f16max, (127 + 16) << 23 );
+    FTH_SSE_CONST4( c_magic, 15 << 23 );
 
-    __m128  mabs = CONSTF( mask_fabs );
+    __m128  mabs = FTH_CONSTF( mask_fabs );
     __m128  fabs = _mm_and_ps( mabs, f );
     __m128  justsign = _mm_xor_ps( f, fabs );
 
-    __m128  f16max = CONSTF( c_f16max );
-    __m128  expinf = CONSTF( c_expinf );
+    __m128  f16max = FTH_CONSTF( c_f16max );
+    __m128  expinf = FTH_CONSTF( c_expinf );
     __m128  infnancase = _mm_xor_ps( expinf, fabs );
     __m128  clamped = _mm_min_ps( f16max, fabs );
-    __m128  b_notnormal = _mm_cmpnlt_ps( fabs, CONSTF( c_f32infty ) );
-    __m128  scaled = _mm_mul_ps( clamped, CONSTF( c_magic ) );
+    __m128  b_notnormal = _mm_cmpnlt_ps( fabs, FTH_CONSTF( c_f32infty ) );
+    __m128  scaled = _mm_mul_ps( clamped, FTH_CONSTF( c_magic ) );
 
     __m128  merge1 = _mm_and_ps( infnancase, b_notnormal );
     __m128  merge2 = _mm_andnot_ps( b_notnormal, scaled );
@@ -349,8 +349,8 @@ static __m128i approx_float_to_half_SSE2( __m128 f )
     // ~15 SSE2 ops
     return final;
 
-#undef SSE_CONST4
-#undef CONSTF
+#undef FTH_SSE_CONST4
+#undef FTH_CONSTF
 }
 
 // from fox toolkit float->half code (which "approx" variants match)

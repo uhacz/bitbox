@@ -86,6 +86,7 @@
     <ClInclude Include="bbox.h" />
     <ClInclude Include="buffer.h" />
     <ClInclude Include="buffer_utils.h" />
+    <ClInclude Include="camera.h" />
     <ClInclude Include="chunk.h" />
     <ClInclude Include="collision.h" />
     <ClInclude Include="color.h" />
@@ -130,10 +131,12 @@
     <ClInclude Include="vectormath\SSE\vectormath_aos.h" />
     <ClInclude Include="vectormath\SSE\vec_aos.h" />
     <ClInclude Include="vectormath\vectormath.h" />
+    <ClInclude Include="view_frustum.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ascii_script.cpp" />
     <ClCompile Include="buffer.cpp" />
+    <ClCompile Include="camera.cpp" />
     <ClCompile Include="collision_triangle_aabb.cpp" />
     <ClCompile Include="config.cpp" />
     <ClCompile Include="debug.c" />
@@ -154,6 +157,10 @@
     <ClCompile Include="thread\thread.cpp" />
     <ClCompile Include="thread\thread_event.cpp" />
     <ClCompile Include="time.cpp" />
+    <ClCompile Include="view_frustum.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="view_frustum.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

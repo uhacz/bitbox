@@ -7,17 +7,20 @@
 #include <util/array_util.h>
 #include <util/id_array.h>
 #include <util/pool_allocator.h>
+#include <util/buffer_utils.h>
+#include <util/random.h>
+#include <util/time.h>
+#include <util/handle_manager.h>
+#include <util/float16.h>
 
 #include <gdi/gdi_render_source.h>
 #include <gdi/gdi_shader.h>
 #include <gdi/gdi_context.h>
+#include <gdi/gdi_sort_list.h>
 
 #include <gfx/gfx_type.h>
-#include "util/buffer_utils.h"
-#include "util/random.h"
-#include "util/time.h"
-#include "gdi/gdi_sort_list.h"
-#include "util/handle_manager.h"
+
+#include <algorithm>
 
 inline bool operator == ( bxGfx_HMesh a, bxGfx_HMesh b ){
     return a.h == b.h;
@@ -1627,11 +1630,49 @@ namespace bx
         bxChunk_create( &colorChunk, 1, colorList->capacity );
         bxChunk_create( &depthChunk, 1, depthList->capacity );
 
-        const int n = data.size;
-        for ( int iitem = 0; iitem < n; ++iitem )
-        {
+        GfxViewFrustum frustum = bx::gfx::viewFrustumExtract( camera->viewProj );
 
+        const int n = data.size;
+        for ( int iitem = colorChunk.begin; iitem < colorChunk.end; ++iitem )
+        {
+            const GfxInstanceData& idata = data.idata[iitem];
+            const bxAABB& localAABB = data.bbox[iitem];
+
+            for( int ii = 0; ii < idata.count; ++ii )
+            {
+                const Matrix4& world = idata.pose[ii];
+                bxAABB worldAABB = bxAABB::transform( world, localAABB );
+
+                bool inFrustum = bx::gfx::viewFrustumAABBIntersect( frustum, worldAABB.min, worldAABB.max ).getAsBool();
+                if( !inFrustum )
+                    continue;
+
+                u32 hashMesh = data.rsource[iitem]->sortHash;
+                u16 hashMesh16 = u16( hashMesh >> 16 ) ^ u16( hashMesh & 0xFFFF );
+                u32 hashShader = data.fxInstance[iitem]->sortHash( 0 );
+                
+                float depth = bx::gfx::cameraDepth( camera->world, world.getTranslation() ).getAsFloat();
+                u16 depth16 = float_to_half_fast3( fromF32( depth ) ).u;
+
+                GfxSortKeyColor colorSortKey = { 0 };
+                colorSortKey.instance = ii;
+                colorSortKey.mesh = hashMesh16;
+                colorSortKey.shader = hashShader;
+                colorSortKey.layer = 8;
+
+                GfxSortKeyDepth depthSortKey = { 0 };
+                depthSortKey.depth = depth16;
+
+                bxGdi::sortList_chunkAdd( colorList, &colorChunk, colorSortKey );
+                bxGdi::sortList_chunkAdd( depthList, &depthChunk, depthSortKey );
+            }
         }
+
+        bxGdi::sortList_sortLess( colorList, colorChunk );
+        bxGdi::sortList_sortLess( depthList, depthChunk );
+
+
+
     }
 }///
 
