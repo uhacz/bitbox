@@ -83,12 +83,22 @@ namespace bx
             u16 cascade;
         };
     };
-    inline bool operator < ( const GfxSortKeyColor a, const GfxSortKeyColor b ) { return a.hash < b.hash; }
-    inline bool operator < ( const GfxSortKeyDepth a, const GfxSortKeyDepth b ) { return a.hash < b.hash; }
-    inline bool operator < ( const GfxSortKeyShadow a, const GfxSortKeyShadow b ) { return a.hash < b.hash; }
+    template <class Tkey>
+    struct GfxSortItem
+    {
+        Tkey key;
+        i32 index;
+    };
+    typedef  GfxSortItem< GfxSortKeyColor > GfxSortItemColor;
+    typedef  GfxSortItem< GfxSortKeyDepth > GfxSortItemDepth;
+    typedef  GfxSortItem< GfxSortKeyShadow > GfxSortItemShadow;
 
-    typedef bxGdiSortList< GfxSortKeyColor > GfxSortListColor;
-    typedef bxGdiSortList< GfxSortKeyDepth > GfxSortListDepth;
+    inline bool operator < (const GfxSortItemColor a, const GfxSortItemColor b) { return a.key.hash < b.key.hash; }
+    inline bool operator < (const GfxSortItemDepth a, const GfxSortItemDepth b)   { return a.key.hash < b.key.hash; }
+    inline bool operator < (const GfxSortItemShadow a, const GfxSortItemShadow b) { return a.key.hash < b.key.hash; }
+
+    typedef bxGdiSortList< GfxSortItemColor > GfxSortListColor;
+    typedef bxGdiSortList< GfxSortItemDepth > GfxSortListDepth;
 
     struct GfxInstanceData;
     struct GfxScene : public GfxActor
@@ -196,7 +206,9 @@ namespace bx
         bxGdiBuffer _viewParamsBuffer;
         bxGdiBuffer _instanceWorldBuffer;
         bxGdiBuffer _instanceWorldITBuffer;
+        bxGdiBuffer _instanceOffsetBuffer;
 
+        array_t<u32> _instanceOffsetArray;
         i32 _maxInstances;
 
         GfxView();

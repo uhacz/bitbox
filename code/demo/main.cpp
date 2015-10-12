@@ -93,12 +93,16 @@ public:
         bx::gfxMeshInstanceCreate( &meshInstance, __scene.gfx );
         bx::gfxSceneCreate( &scene, __scene.gfx );
 
+        bx::gfxCameraWorldMatrixSet( camera, Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 5.f ) ) );
+
         bx::GfxGlobalResources* gr = bx::gfxGlobalResourcesGet();
         bxGdiShaderFx_Instance* matFx = bx::gfxMaterialFind( "red" );
         bx::GfxMeshInstanceData meshData;
         meshData.renderSourceSet( gr->mesh.box );
         meshData.fxInstanceSet( matFx );
         bx::gfxMeshInstanceDataSet( meshInstance, meshData );
+
+        bx::gfxSceneMeshInstanceAdd( scene, meshInstance );
 
         return true;
     }
@@ -131,63 +135,78 @@ public:
             return false;
         }
 
-        bxGfx::frameBegin( _engine.gdiDevice, _engine.resourceManager );
-        __scene.dblock->manageResources( _engine.gdiDevice, _engine.resourceManager, __scene.collisionSpace, __scene.gfxWorld );
-        bxGfxGUI::newFrame( (float)deltaTimeS );
 
-        {
-            ImGui::Begin( "System" );
-            ImGui::Text( "deltaTime: %.5f", deltaTime );
-            ImGui::Text( "FPS: %.5f", 1.f / deltaTime );
-            ImGui::End();
-        }
+        bx::gfxCameraComputeMatrices( camera );
 
-        bxGfxCamera_InputContext* cameraInputCtx = &__scene.cameraInputCtx;
+        bx::gfxContextTick( __scene.gfx, _engine.gdiDevice, _engine.resourceManager );
+        bx::gfxContextFrameBegin( __scene.gfx, _engine.gdiContext );
 
-        bxGfx::cameraUtil_updateInput( cameraInputCtx, &win->input, 0.1f, deltaTime );
-        bxGfxCamera* topCamera = bxGfx::camera_get( __scene._cameraManager, bxGfx::camera_top( __scene._cameraManager ) );
-        topCamera->matrix.world = bxGfx::cameraUtil_movement( topCamera->matrix.world
-                                                              , cameraInputCtx->leftInputX * 0.25f
-                                                              , cameraInputCtx->leftInputY * 0.25f
-                                                              , cameraInputCtx->rightInputX * deltaTime * 20.f
-                                                              , cameraInputCtx->rightInputY * deltaTime * 20.f
-                                                              , cameraInputCtx->upDown * 0.25f );
-
-        const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
-        {
-            __scene.dblock->tick( __scene.collisionSpace );
-            bxGame::flock_tick( __scene.flock, deltaTime );
-            bxGame::character_tick( __scene.character, __scene.collisionSpace, _engine.gdiContext->backend(), currentCamera, win->input, deltaTime * 2.f );
-            bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime, bxGfx::cameraUtil_anyMovement( cameraInputCtx ) );
-        }
+        bx::GfxCommandQueue* cmdq = nullptr;
+        bx::gfxCommandQueueAcquire( &cmdq, __scene.gfx, _engine.gdiContext );
         
-        bxGfx::cameraManager_update( __scene._cameraManager, deltaTime );
+        bx::gfxSceneDraw( scene, cmdq, camera );
+
+        bx::gfxCommandQueueRelease( &cmdq );
+        bx::gfxContextFrameEnd( __scene.gfx, _engine.gdiContext );
+
+
+        //bxGfx::frameBegin( _engine.gdiDevice, _engine.resourceManager );
+        //__scene.dblock->manageResources( _engine.gdiDevice, _engine.resourceManager, __scene.collisionSpace, __scene.gfxWorld );
+        //bxGfxGUI::newFrame( (float)deltaTimeS );
+
+        //{
+        //    ImGui::Begin( "System" );
+        //    ImGui::Text( "deltaTime: %.5f", deltaTime );
+        //    ImGui::Text( "FPS: %.5f", 1.f / deltaTime );
+        //    ImGui::End();
+        //}
+
+        //bxGfxCamera_InputContext* cameraInputCtx = &__scene.cameraInputCtx;
+
+        //bxGfx::cameraUtil_updateInput( cameraInputCtx, &win->input, 0.1f, deltaTime );
+        //bxGfxCamera* topCamera = bxGfx::camera_get( __scene._cameraManager, bxGfx::camera_top( __scene._cameraManager ) );
+        //topCamera->matrix.world = bxGfx::cameraUtil_movement( topCamera->matrix.world
+        //                                                      , cameraInputCtx->leftInputX * 0.25f
+        //                                                      , cameraInputCtx->leftInputY * 0.25f
+        //                                                      , cameraInputCtx->rightInputX * deltaTime * 20.f
+        //                                                      , cameraInputCtx->rightInputY * deltaTime * 20.f
+        //                                                      , cameraInputCtx->upDown * 0.25f );
+
+        //const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
+        //{
+        //    __scene.dblock->tick( __scene.collisionSpace );
+        //    bxGame::flock_tick( __scene.flock, deltaTime );
+        //    bxGame::character_tick( __scene.character, __scene.collisionSpace, _engine.gdiContext->backend(), currentCamera, win->input, deltaTime * 2.f );
+        //    bxGame::characterCamera_follow( topCamera, __scene.character, deltaTime, bxGfx::cameraUtil_anyMovement( cameraInputCtx ) );
+        //}
+        //
+        //bxGfx::cameraManager_update( __scene._cameraManager, deltaTime );
 
 
 
-        
-        bxGdiContext* gdiContext = _engine.gdiContext;
+        //
+        //bxGdiContext* gdiContext = _engine.gdiContext;
 
-        gdiContext->clear();
-        gdiContext->changeRenderTargets( &__framebuffer.textures[0], 1, __framebuffer.textures[bxDemoFramebuffer::eDEPTH] );
-        gdiContext->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
-        bxGdi::context_setViewport( gdiContext, __framebuffer.textures[0] );
+        //gdiContext->clear();
+        //gdiContext->changeRenderTargets( &__framebuffer.textures[0], 1, __framebuffer.textures[bxDemoFramebuffer::eDEPTH] );
+        //gdiContext->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
+        //bxGdi::context_setViewport( gdiContext, __framebuffer.textures[0] );
 
-        {
-            bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::xAxis(), 0xFF0000FF, true );
-            bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
-            bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::zAxis(), 0x0000FFFF, true );
+        //{
+        //    bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::xAxis(), 0xFF0000FF, true );
+        //    bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
+        //    bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::zAxis(), 0x0000FFFF, true );
 
-            //bxPhx::collisionSpace_debugDraw( bxPhx::__cspace );
-        }
+        //    //bxPhx::collisionSpace_debugDraw( bxPhx::__cspace );
+        //}
 
-        bxGfx::worldDraw( gdiContext, __scene.gfxWorld, currentCamera );
+        //bxGfx::worldDraw( gdiContext, __scene.gfxWorld, currentCamera );
 
-        bxGfxDebugDraw::flush( gdiContext, currentCamera.matrix.viewProj );
-        bxGfx::rasterizeFramebuffer( gdiContext, __framebuffer.textures[bxDemoFramebuffer::eCOLOR], currentCamera );
+        //bxGfxDebugDraw::flush( gdiContext, currentCamera.matrix.viewProj );
+        //bxGfx::rasterizeFramebuffer( gdiContext, __framebuffer.textures[bxDemoFramebuffer::eCOLOR], currentCamera );
 
-        bxGfxGUI::draw( gdiContext );
-        gdiContext->backend()->swap();
+        //bxGfxGUI::draw( gdiContext );
+        //gdiContext->backend()->swap();
 
         _time += deltaTime;
 

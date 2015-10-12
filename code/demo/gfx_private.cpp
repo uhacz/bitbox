@@ -209,12 +209,15 @@ namespace bx
         const int numElements = maxInstances * 3; /// 3 * row
         view->_instanceWorldBuffer = dev->createBuffer( numElements, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
         view->_instanceWorldITBuffer = dev->createBuffer( numElements, bxGdiFormat( bxGdi::eTYPE_FLOAT, 3 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+        view->_instanceOffsetBuffer = dev->createConstantBuffer( sizeof( u32 ) );
         view->_maxInstances = maxInstances;
     }
 
     void gfxViewDestroy( GfxView* view, bxGdiDeviceBackend* dev )
     {
         view->_maxInstances = 0;
+        array::clear( view->_instanceOffsetArray );
+        dev->releaseBuffer( &view->_instanceOffsetBuffer );
         dev->releaseBuffer( &view->_instanceWorldITBuffer );
         dev->releaseBuffer( &view->_instanceWorldBuffer );
         dev->releaseBuffer( &view->_viewParamsBuffer );
