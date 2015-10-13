@@ -24,4 +24,6 @@ namespace bx{ namespace gfx{
 
     inline int viewFrustumAABBIntersectLRTB( const ViewFrustum& frustum, const Vector3& minc, const Vector3& maxc, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );
     inline boolInVec viewFrustumAABBIntersect( const ViewFrustum& frustum, const Vector3& minc, const Vector3& maxc, const floatInVec& tolerance = floatInVec( FLT_EPSILON ) );
+
+#include "view_frustum.inl"
 }}///

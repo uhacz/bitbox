@@ -5,7 +5,7 @@ inline __m128 dotSoa( const __m128& xxxx, const __m128& yyyy, const __m128& zzzz
     return vec_madd( zzzz,zzzz1, vec_madd(xxxx,xxxx1, vec_mul(yyyy,yyyy1)) );
 }
 
-inline int viewFrustumSphereIntersectLRBT( const bxGfxViewFrustum_LRBT& f, const Vector4& sphere, const floatInVec& tolerance )
+inline int viewFrustumSphereIntersectLRBT( const ViewFrustumLRBT& f, const Vector4& sphere, const floatInVec& tolerance )
 {
     const __m128 zero4 = _mm_set_ps1( 0.0f );
     const __m128 tolerance4 = ( tolerance.get128() );
@@ -38,7 +38,7 @@ inline int viewFrustumSphereIntersectLRBT( const bxGfxViewFrustum_LRBT& f, const
     return res;
 }
 
-inline int viewFrustumAABBIntersectLRTB( const bxGfxViewFrustum& f, const Vector3& minCorner, const Vector3& maxCorner, const floatInVec& tolerance )
+inline int viewFrustumAABBIntersectLRTB( const ViewFrustum& f, const Vector3& minCorner, const Vector3& maxCorner, const floatInVec& tolerance )
 {
     const __m128 zero4 = _mm_set_ps1( 0.0f );
     const __m128 minc = ( minCorner.get128() );
@@ -88,7 +88,7 @@ inline int viewFrustumAABBIntersectLRTB( const bxGfxViewFrustum& f, const Vector
 
     return res;
 }
-inline boolInVec viewFrustumAABBIntersect( const bxGfxViewFrustum& f, const Vector3& minCorner, const Vector3& maxCorner, const floatInVec& tolerance )
+inline boolInVec viewFrustumAABBIntersect( const ViewFrustum& f, const Vector3& minCorner, const Vector3& maxCorner, const floatInVec& tolerance )
 {
     const __m128 zero4 = _mm_set_ps1( 0.0f );
 

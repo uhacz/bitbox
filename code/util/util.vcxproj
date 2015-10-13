@@ -131,6 +131,7 @@
     <ClInclude Include="vectormath\SSE\vectormath_aos.h" />
     <ClInclude Include="vectormath\SSE\vec_aos.h" />
     <ClInclude Include="vectormath\vectormath.h" />
+    <ClInclude Include="viewport.h" />
     <ClInclude Include="view_frustum.h" />
   </ItemGroup>
   <ItemGroup>

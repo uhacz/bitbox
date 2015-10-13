@@ -1,16 +1,9 @@
 #pragma once
 
 #include "gdi_backend_type.h"
+#include <util/viewport.h>
 
-struct bxGdiViewport
-{
-    i16 x, y;
-    u16 w, h;
-
-    bxGdiViewport() {}
-    bxGdiViewport( int xx, int yy, unsigned ww, unsigned hh )
-        : x(xx), y(yy), w(ww), h(hh) {}
-};
+typedef bx::gfx::Viewport bxGdiViewport;
 
 namespace bxGdi
 {

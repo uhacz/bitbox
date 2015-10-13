@@ -154,7 +154,8 @@ namespace bx
     {
         if( data->size >= data->capacity )
         {
-            gfxSceneDataAllocate( data, data->size * 2 + 8, data->alloc );
+            bxAllocator* allocator = ( data->alloc ) ? data->alloc : bxDefaultAllocator();
+            gfxSceneDataAllocate( data, data->size * 2 + 8, allocator );
         }
 
         int index = data->size++;

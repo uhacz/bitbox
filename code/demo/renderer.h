@@ -3,6 +3,8 @@
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
 #include <gdi/gdi_backend_struct.h>
+#include <gdi/gdi_backend.h>
+
 #include "entity.h"
 
 struct bxGdiRenderSource;
@@ -116,6 +118,10 @@ namespace bx
     void gfxContextFrameEnd( GfxContext* gfx, bxGdiContext* gdi );
     void gfxCommandQueueAcquire( GfxCommandQueue** cmdq, GfxContext* ctx, bxGdiContext* gdiContext );
     void gfxCommandQueueRelease( GfxCommandQueue** cmdq );
+
+    void gfxSubmitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName );
+    void gfxCopyTextureRGBA( bxGdiContext* ctx, bxGdiTexture outputTexture, bxGdiTexture inputTexture );
+    void gfxRasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, float cameraAspect );
 
     GfxGlobalResources* gfxGlobalResourcesGet();
     bxGdiShaderFx_Instance* gfxMaterialFind( const char* name );

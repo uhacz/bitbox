@@ -27,7 +27,7 @@ namespace bx{ namespace gfx{
         return -dot( cameraWorld.getCol2().getXYZ(), inCameraSpace );
     }
 
-    Viewport cameraViewport( float aspectCamera, int dstWidth, int dstHeight, int srcWidth, int srcHeight )
+    Viewport computeViewport( float aspectCamera, int dstWidth, int dstHeight, int srcWidth, int srcHeight )
     {
         const int windowWidth = dstWidth;
         const int windowHeight = dstHeight;

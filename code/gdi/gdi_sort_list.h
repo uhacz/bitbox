@@ -36,7 +36,10 @@ namespace bxGdi
 	template< typename Titem >
     void sortList_delete( bxGdiSortList<Titem>** slist )
 	{
-		bxAllocator* allocator = slist[0]->allocator;
+        if( !slist[0] )
+            return;
+
+        bxAllocator* allocator = slist[0]->allocator;
 		BX_FREE0( allocator, slist[0] );
 	}
 

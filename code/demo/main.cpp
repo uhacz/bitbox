@@ -100,7 +100,9 @@ public:
         bx::GfxMeshInstanceData meshData;
         meshData.renderSourceSet( gr->mesh.box );
         meshData.fxInstanceSet( matFx );
+        meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
         bx::gfxMeshInstanceDataSet( meshInstance, meshData );
+        bx::gfxMeshInstanceWorldMatrixSet( meshInstance, &Matrix4::identity(), 1 );
 
         bx::gfxSceneMeshInstanceAdd( scene, meshInstance );
 

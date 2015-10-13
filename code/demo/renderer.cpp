@@ -1319,8 +1319,9 @@ namespace bx
                 {
                     u32 meshIhandle = scene->_data.meshHandle[j];
                     GfxActor* meshActor = nullptr;
-                    if( gfx->_handles.get( ActorHandleManager::Handle( meshIhandle ), &meshActor ) )
+                    if( gfx->_handles.get( ActorHandleManager::Handle( meshIhandle ), &meshActor ) != -1 )
                     {
+                        gfxContextHandleRemove( gfx, meshIhandle );
                         array::push_back( gfx->_actorsToRelease, meshActor );
                     }
                 }
@@ -1368,12 +1369,14 @@ namespace bx
         GfxCommandQueue* cmdQueue = &ctx->_cmdQueue;
         SYS_ASSERT( cmdQueue->_acquireCounter == 0 );
         ++cmdQueue->_acquireCounter;
+        cmdQueue->_ctx = ctx;
         cmdQueue->_gdiContext = gdiContext;
         cmdq[0] = cmdQueue;
     }
     void gfxCommandQueueRelease( GfxCommandQueue** cmdq )
     {
         cmdq[0]->_gdiContext = nullptr;
+        cmdq[0]->_ctx = nullptr;
         SYS_ASSERT( cmdq[0]->_acquireCounter == 1 );
         --cmdq[0]->_acquireCounter;
         cmdq[0] = nullptr;
@@ -1381,6 +1384,42 @@ namespace bx
 
     //////////////////////////////////////////////////////////////////////////
     ///
+    void gfxSubmitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName )
+    {
+        GfxGlobalResources* gr = gfxGlobalResourcesGet();
+        bxGdi::renderSource_enable( ctx, gr->mesh.fullScreenQuad );
+        bxGdi::shaderFx_enable( ctx, fxI, passName );
+        ctx->setTopology( bxGdi::eTRIANGLES );
+        ctx->draw( gr->mesh.fullScreenQuad->vertexBuffers->numElements, 0 );
+    }
+
+    void gfxCopyTextureRGBA( bxGdiContext* ctx, bxGdiTexture outputTexture, bxGdiTexture inputTexture )
+    {
+        GfxGlobalResources* gr = gfxGlobalResourcesGet();
+        ctx->changeRenderTargets( &outputTexture, 1 );
+        bxGdi::context_setViewport( ctx, outputTexture );
+        gfxSubmitFullScreenQuad( ctx, gr->fx.texUtils, "copy_rgba" );
+    }
+
+    void gfxRasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, float cameraAspect )
+    {
+        ctx->changeToMainFramebuffer();
+
+        bxGdiTexture colorTexture = colorFB; // _framebuffer[bxGfx::eFRAMEBUFFER_COLOR];
+        bxGdiTexture backBuffer = ctx->backend()->backBufferTexture();
+        GfxViewport viewport = bx::gfx::computeViewport( cameraAspect, backBuffer.width, backBuffer.height, colorTexture.width, colorTexture.height );
+
+        ctx->setViewport( viewport );
+        ctx->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 0 );
+
+        GfxGlobalResources* gr = gfxGlobalResourcesGet();
+        bxGdiShaderFx_Instance* fxI = gr->fx.texUtils;
+        fxI->setTexture( "gtexture", colorTexture );
+        fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+
+        gfxSubmitFullScreenQuad( ctx, fxI, "copy_rgba" );
+    }
+
     GfxGlobalResources* gfxGlobalResourcesGet()
     {
         return GfxContext::_globalResources;
@@ -1555,7 +1594,7 @@ namespace bx
         inline GfxMeshInstance* _MeshInstanceFromHandle( GfxContext* ctx, u32 handle )
         {
             GfxActor* actor = nullptr;
-            if ( gfxContextHandleActorGet_noLock( &actor, ctx, handle ) )
+            if ( gfxContextHandleActorGet_noLock( &actor, ctx, handle ) != -1 )
             {
                 return actor->isMeshInstance();
             }
@@ -1627,8 +1666,8 @@ namespace bx
         GfxSortListDepth* depthList = scene->_sListDepth;
 
         bxChunk colorChunk, depthChunk;
-        bxChunk_create( &colorChunk, 1, colorList->capacity );
-        bxChunk_create( &depthChunk, 1, depthList->capacity );
+        bxChunk_create( &colorChunk, 1, data.size );
+        bxChunk_create( &depthChunk, 1, data.size );
 
         GfxViewFrustum frustum = bx::gfx::viewFrustumExtract( camera->viewProj );
 
@@ -1707,7 +1746,7 @@ namespace bx
                     memcpy( dataWorldIT + dataOffset + 2, worldITRowsPtr + 2, sizeof( float3_t ) );
                 }
 
-                array::push_back( __ctx->_instanceOffset, currentOffset );
+                array::push_back( view._instanceOffsetArray, currentOffset );
                 currentOffset += idata.count;
             }
             array::push_back( view._instanceOffsetArray, currentOffset );
@@ -1725,6 +1764,9 @@ namespace bx
         gdi->setBufferRO( view._instanceWorldITBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
         gdi->setCbuffer ( view._viewParamsBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
         gdi->setCbuffer ( view._instanceOffsetBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
+
+        gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[eFB_DEPTH] );
+        
 
         for ( int i = colorChunk.begin; i < colorChunk.current; ++i )
         {
@@ -1744,7 +1786,12 @@ namespace bx
             bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
             bxGdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
         }
+
+        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
     }
+
+
+
 }///
 
 
