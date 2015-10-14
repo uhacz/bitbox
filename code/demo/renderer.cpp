@@ -1603,7 +1603,142 @@ namespace bx
             }
             return nullptr;
         }
+
+        void sceneBuildSortListColorDepth( bxChunk* colorChunk, bxChunk* depthChunk, GfxScene* scene, const GfxCamera* camera )
+        {
+            const GfxScene::Data& data = scene->_data;
+
+            if ( !scene->_sListColor || scene->_sListColor->capacity < data.size )
+            {
+                bxGdi::sortList_delete( &scene->_sListColor );
+                bxGdi::sortList_delete( &scene->_sListDepth );
+                bxGdi::sortList_new( &scene->_sListColor, data.size * 2, bxDefaultAllocator() );
+                bxGdi::sortList_new( &scene->_sListDepth, data.size * 2, bxDefaultAllocator() );
+            }
+
+            GfxSortListColor* colorList = scene->_sListColor;
+            GfxSortListDepth* depthList = scene->_sListDepth;
+
+            //bxChunk colorChunk, depthChunk;
+            bxChunk_create( colorChunk, 1, data.size );
+            bxChunk_create( depthChunk, 1, data.size );
+
+            GfxViewFrustum frustum = bx::gfx::viewFrustumExtract( camera->viewProj );
+
+            const int n = data.size;
+            for ( int iitem = colorChunk->begin; iitem < colorChunk->end; ++iitem )
+            {
+                const GfxInstanceData& idata = data.idata[iitem];
+                const bxAABB& localAABB = data.bbox[iitem];
+
+                for ( int ii = 0; ii < idata.count; ++ii )
+                {
+                    const Matrix4& world = idata.pose[ii];
+                    bxAABB worldAABB = bxAABB::transform( world, localAABB );
+
+                    bool inFrustum = bx::gfx::viewFrustumAABBIntersect( frustum, worldAABB.min, worldAABB.max ).getAsBool();
+                    if ( !inFrustum )
+                        continue;
+
+                    u32 hashMesh = data.rsource[iitem]->sortHash;
+                    u16 hashMesh16 = u16( hashMesh >> 16 ) ^ u16( hashMesh & 0xFFFF );
+                    u32 hashShader = data.fxInstance[iitem]->sortHash( 0 );
+
+                    float depth = bx::gfx::cameraDepth( camera->world, world.getTranslation() ).getAsFloat();
+                    u16 depth16 = float_to_half_fast3( fromF32( depth ) ).u;
+
+                    GfxSortItemColor colorSortItem;
+                    GfxSortKeyColor& colorSortKey = colorSortItem.key;
+                    colorSortKey.instance = ii;
+                    colorSortKey.mesh = hashMesh16;
+                    colorSortKey.shader = hashShader;
+                    colorSortKey.layer = 8;
+
+                    GfxSortItemDepth depthSortItem;
+                    GfxSortKeyDepth& depthSortKey = depthSortItem.key;
+                    depthSortKey.depth = depth16;
+
+                    colorSortItem.index = iitem;
+                    depthSortItem.index = iitem;
+
+                    bxGdi::sortList_chunkAdd( colorList, colorChunk, colorSortItem );
+                    bxGdi::sortList_chunkAdd( depthList, depthChunk, depthSortItem );
+                }
+            }
+
+            bxGdi::sortList_sortLess( colorList, *colorChunk );
+            bxGdi::sortList_sortLess( depthList, *depthChunk );
+        }
+
+        void viewUploadInstanceData( bxGdiContext* gdi, GfxView& view, const GfxScene* scene, const GfxSortListColor* sList, int begin, int end )
+        {
+            float4_t* dataWorld = (float4_t*)bxGdi::buffer_map( gdi->backend(), view._instanceWorldBuffer, 0, view._maxInstances );
+            float3_t* dataWorldIT = (float3_t*)bxGdi::buffer_map( gdi->backend(), view._instanceWorldITBuffer, 0, view._maxInstances );
+
+            const GfxScene::Data& data = scene->_data;
+
+            array::clear( view._instanceOffsetArray );
+            u32 currentOffset = 0;
+            u32 instanceCounter = 0;
+            for ( int i = begin; i < end; ++i )
+            {
+                const GfxSortItemColor& item = sList->items[i];
+                const GfxInstanceData idata = data.idata[item.index];
+
+                for ( int imatrix = 0; imatrix < idata.count; ++imatrix, ++instanceCounter )
+                {
+                    SYS_ASSERT( instanceCounter < (u32)view._maxInstances );
+
+                    const u32 dataOffset = (currentOffset + imatrix) * 3;
+                    const Matrix4 worldRows = transpose( idata.pose[imatrix] );
+                    const Matrix3 worldITRows = inverse( idata.pose[imatrix].getUpper3x3() );
+
+                    const float4_t* worldRowsPtr = (float4_t*)&worldRows;
+                    memcpy( dataWorld + dataOffset, worldRowsPtr, sizeof( float4_t ) * 3 );
+
+                    const float4_t* worldITRowsPtr = (float4_t*)&worldITRows;
+                    memcpy( dataWorldIT + dataOffset, worldITRowsPtr, sizeof( float3_t ) );
+                    memcpy( dataWorldIT + dataOffset + 1, worldITRowsPtr + 1, sizeof( float3_t ) );
+                    memcpy( dataWorldIT + dataOffset + 2, worldITRowsPtr + 2, sizeof( float3_t ) );
+                }
+
+                array::push_back( view._instanceOffsetArray, currentOffset );
+                currentOffset += idata.count;
+            }
+            array::push_back( view._instanceOffsetArray, currentOffset );
+
+            gdi->backend()->unmap( view._instanceWorldITBuffer.rs );
+            gdi->backend()->unmap( view._instanceWorldBuffer.rs );
+
+            SYS_ASSERT( array::size( view._instanceOffsetArray ) == end + 1 );
+
+        }
+
+        void sortListSubmit( bxGdiContext* gdi, const GfxView& view, const GfxScene* scene, const GfxSortListColor* sList, int begin, int end )
+        {
+            const GfxScene::Data& data = scene->_data;
+            for ( int i = begin; i < end; ++i )
+            {
+                const GfxSortItemColor& item = sList->items[i];
+                int meshDataIndex = item.index;
+
+                bxGdiRenderSource* rsource = data.rsource[meshDataIndex];
+                bxGdiShaderFx_Instance* fxI = data.fxInstance[meshDataIndex];
+
+                u32 instanceOffset = view._instanceOffsetArray[i];
+                u32 instanceCount = view._instanceOffsetArray[i + 1] - instanceOffset;
+                gdi->backend()->updateCBuffer( view._instanceOffsetBuffer, &instanceOffset );
+
+                bxGdi::renderSource_enable( gdi, rsource );
+                bxGdi::shaderFx_enable( gdi, fxI, 0 );
+
+                bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
+                bxGdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
+            }
+        }
     }///
+
+
 
     void gfxSceneDraw( GfxScene* scene, GfxCommandQueue* cmdq, const GfxCamera* camera )
     {
@@ -1659,140 +1794,29 @@ namespace bx
         if( !nMeshes )
             return;
 
-
-        if ( !scene->_sListColor || scene->_sListColor->capacity < data.size )
-        {
-            bxGdi::sortList_delete( &scene->_sListColor );
-            bxGdi::sortList_delete( &scene->_sListDepth );
-            bxGdi::sortList_new( &scene->_sListColor, data.size * 2, bxDefaultAllocator() );
-            bxGdi::sortList_new( &scene->_sListDepth, data.size * 2, bxDefaultAllocator() );
-        }
+        bxChunk colorChunk, depthChunk;
+        sceneBuildSortListColorDepth( &colorChunk, &depthChunk, scene, camera );
 
         GfxSortListColor* colorList = scene->_sListColor;
         GfxSortListDepth* depthList = scene->_sListDepth;
 
-        bxChunk colorChunk, depthChunk;
-        bxChunk_create( &colorChunk, 1, data.size );
-        bxChunk_create( &depthChunk, 1, data.size );
-
-        GfxViewFrustum frustum = bx::gfx::viewFrustumExtract( camera->viewProj );
-
-        const int n = data.size;
-        for ( int iitem = colorChunk.begin; iitem < colorChunk.end; ++iitem )
-        {
-            const GfxInstanceData& idata = data.idata[iitem];
-            const bxAABB& localAABB = data.bbox[iitem];
-
-            for( int ii = 0; ii < idata.count; ++ii )
-            {
-                const Matrix4& world = idata.pose[ii];
-                bxAABB worldAABB = bxAABB::transform( world, localAABB );
-
-                bool inFrustum = bx::gfx::viewFrustumAABBIntersect( frustum, worldAABB.min, worldAABB.max ).getAsBool();
-                if( !inFrustum )
-                    continue;
-
-                u32 hashMesh = data.rsource[iitem]->sortHash;
-                u16 hashMesh16 = u16( hashMesh >> 16 ) ^ u16( hashMesh & 0xFFFF );
-                u32 hashShader = data.fxInstance[iitem]->sortHash( 0 );
-                
-                float depth = bx::gfx::cameraDepth( camera->world, world.getTranslation() ).getAsFloat();
-                u16 depth16 = float_to_half_fast3( fromF32( depth ) ).u;
-
-                GfxSortItemColor colorSortItem;
-                GfxSortKeyColor& colorSortKey = colorSortItem.key;
-                colorSortKey.instance = ii;
-                colorSortKey.mesh = hashMesh16;
-                colorSortKey.shader = hashShader;
-                colorSortKey.layer = 8;
-
-                GfxSortItemDepth depthSortItem;
-                GfxSortKeyDepth& depthSortKey = depthSortItem.key;
-                depthSortKey.depth = depth16;
-
-                colorSortItem.index = iitem;
-                depthSortItem.index = iitem;
-
-                bxGdi::sortList_chunkAdd( colorList, &colorChunk, colorSortItem );
-                bxGdi::sortList_chunkAdd( depthList, &depthChunk, depthSortItem );
-            }
-        }
-
-        bxGdi::sortList_sortLess( colorList, colorChunk );
-        bxGdi::sortList_sortLess( depthList, depthChunk );
-
-
         GfxView& view = cmdq->_view;
         
-        {
-            float4_t* dataWorld = (float4_t*)bxGdi::buffer_map( gdi->backend(), view._instanceWorldBuffer, 0, view._maxInstances );
-            float3_t* dataWorldIT = (float3_t*)bxGdi::buffer_map( gdi->backend(), view._instanceWorldITBuffer, 0, view._maxInstances );
+        viewUploadInstanceData( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
+        
+        gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[eFB_DEPTH] );
+        gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 1 );
 
-            array::clear( view._instanceOffsetArray );
-            u32 currentOffset = 0;
-            u32 instanceCounter = 0;
-            for ( int i = colorChunk.begin; i < colorChunk.current; ++i )
-            {
-                const GfxSortItemColor& item = colorList->items[i];
-                const GfxInstanceData idata = data.idata[item.index];
-
-                for ( int imatrix = 0; imatrix < idata.count; ++imatrix, ++instanceCounter )
-                {
-                    SYS_ASSERT( instanceCounter < (u32)view._maxInstances );
-
-                    const u32 dataOffset = (currentOffset + imatrix) * 3;
-                    const Matrix4 worldRows = transpose( idata.pose[imatrix] );
-                    const Matrix3 worldITRows = inverse( idata.pose[imatrix].getUpper3x3() );
-
-                    const float4_t* worldRowsPtr = (float4_t*)&worldRows;
-                    memcpy( dataWorld + dataOffset, worldRowsPtr, sizeof( float4_t ) * 3 );
-
-                    const float4_t* worldITRowsPtr = (float4_t*)&worldITRows;
-                    memcpy( dataWorldIT + dataOffset, worldITRowsPtr, sizeof( float3_t ) );
-                    memcpy( dataWorldIT + dataOffset + 1, worldITRowsPtr + 1, sizeof( float3_t ) );
-                    memcpy( dataWorldIT + dataOffset + 2, worldITRowsPtr + 2, sizeof( float3_t ) );
-                }
-
-                array::push_back( view._instanceOffsetArray, currentOffset );
-                currentOffset += idata.count;
-            }
-            array::push_back( view._instanceOffsetArray, currentOffset );
-
-            gdi->backend()->unmap( view._instanceWorldITBuffer.rs );
-            gdi->backend()->unmap( view._instanceWorldBuffer.rs );
-        }
-
-        SYS_ASSERT( array::size( view._instanceOffsetArray ) == colorChunk.current + 1 );
         GfxViewFrameParams viewParams;
-        gfxViewFrameParamsFill( &viewParams, camera, 1920, 1080 );
+        gfxViewFrameParamsFill( &viewParams, camera, ctx->_framebuffer->width, ctx->_framebuffer->height );
         gdi->backend()->updateCBuffer( view._viewParamsBuffer, &viewParams );
 
         gdi->setBufferRO( view._instanceWorldBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX );
         gdi->setBufferRO( view._instanceWorldITBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
-        gdi->setCbuffer ( view._viewParamsBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
-        gdi->setCbuffer ( view._instanceOffsetBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
+        gdi->setCbuffer( view._viewParamsBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setCbuffer( view._instanceOffsetBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
 
-        gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[eFB_DEPTH] );
-        gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 1 );
-
-        for ( int i = colorChunk.begin; i < colorChunk.current; ++i )
-        {
-            const GfxSortItemColor& item = colorList->items[i];
-            int meshDataIndex = item.index;
-            
-            bxGdiRenderSource* rsource = data.rsource[meshDataIndex];
-            bxGdiShaderFx_Instance* fxI = data.fxInstance[meshDataIndex];
-
-            u32 instanceOffset = view._instanceOffsetArray[i];
-            u32 instanceCount = view._instanceOffsetArray[i + 1] - instanceOffset;
-            gdi->backend()->updateCBuffer( view._instanceOffsetBuffer, &instanceOffset );
-
-            bxGdi::renderSource_enable( gdi, rsource );
-            bxGdi::shaderFx_enable( gdi, fxI, 0 );
-
-            bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
-            bxGdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
-        }
+        sortListSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
 
         gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
     }

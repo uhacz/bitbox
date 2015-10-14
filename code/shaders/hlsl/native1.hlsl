@@ -31,34 +31,22 @@ struct out_PS
 #include <sys/frame_data.hlsl>
 #include <sys/material.hlsl>
 #include <sys/brdf.hlsl>
-
-shared cbuffer InstanceOffset : register( b1 )
-{
-    uint _begin;
-};
-
-Buffer<float4> _instance_world : register(t0);
-Buffer<float3> _instance_worldIT : register(t1);
-
-
+#include <sys/vertex_transform.hlsl>
 
 in_PS vs_main( in_VS IN )
 {
     in_PS OUT = (in_PS)0;
 
-    uint row0Index = ( _begin + IN.instanceID ) * 3;
-    float4 row0 = _instance_world[row0Index];
-    float4 row1 = _instance_world[row0Index + 1];
-    float4 row2 = _instance_world[row0Index + 2];
+    float4 row0, row1, row2;
+    float3 row0IT, row1IT, row2IT;
 
-    float3 row0IT = _instance_worldIT[row0Index];
-    float3 row1IT = _instance_worldIT[row0Index + 1];
-    float3 row2IT = _instance_worldIT[row0Index + 2];
+    fetchWorld( row0, row1, row2, IN.instanceID );
+    fetchWorldIT( row0IT, row1IT, row2IT, IN.instanceID );
 
     float4 localPos = float4(IN.pos, 1.0);
 
-    OUT.w_pos = float3(dot( row0, localPos ), dot( row1, localPos ), dot( row2, localPos ));
-    OUT.w_normal = float3(dot( row0IT, IN.normal ), dot( row1IT, IN.normal ), dot( row2IT, IN.normal ));
+    OUT.w_pos = transformPosition( row0, row1, row2, localPos );
+    OUT.w_normal = transformNormal( row0IT, row1IT, row2IT, IN.normal );
     OUT.h_pos = mul( _camera_viewProj, float4(OUT.w_pos, 1.f) );
     OUT.s_pos = OUT.h_pos;
 
