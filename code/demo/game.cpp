@@ -252,7 +252,7 @@ namespace bxGame
         if ( !flock[0] )
             return;
 
-        bxGfx::worldMeshRemoveAndRelease( &flock[0]->hMeshI );
+        //bxGfx::worldMeshRemoveAndRelease( &flock[0]->hMeshI );
 
         BX_FREE0( bxDefaultAllocator(), flock[0]->particles.memoryHandle );
         BX_DELETE0( bxDefaultAllocator(), flock[0] );
@@ -278,16 +278,16 @@ namespace bxGame
 
     void flock_loadResources( Flock* flock, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_World* gfxWorld )
     {
-        bxGfx_HMesh hmesh = bxGfx::meshCreate();
+        //bxGfx_HMesh hmesh = bxGfx::meshCreate();
         //flock->hInstanceBuffer = bxGfx::instanceBuffeCreate( flock->particles.size );
 
-        bxGdiRenderSource* rsource = bxGfx::globalResources()->mesh.sphere;
-        bxGfx::meshStreamsSet( hmesh, dev, rsource );
+        //bxGdiRenderSource* rsource = bxGfx::globalResources()->mesh.sphere;
+        //bxGfx::meshStreamsSet( hmesh, dev, rsource );
 
-        bxGdiShaderFx_Instance* materialFx = bxGfxMaterialManager::findMaterial( "blue" );
-        bxGfx::meshShaderSet( hmesh, dev, resourceManager, materialFx );
+        //bxGdiShaderFx_Instance* materialFx = bxGfxMaterialManager::findMaterial( "blue" );
+        //bxGfx::meshShaderSet( hmesh, dev, resourceManager, materialFx );
         
-        flock->hMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, flock->particles.size );
+        //flock->hMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, flock->particles.size );
     }
 
 

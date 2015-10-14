@@ -211,12 +211,12 @@ namespace bxGfx
 {
     void cameraUtil_updateInput(bxGfxCamera_InputContext* cameraCtx, const bxInput* input, float mouseSensitivityInPix, float dt )
     {
-        const int fwd   = bxInput_isKeyPressed( &input->kbd, 'W' );
-        const int back  = bxInput_isKeyPressed( &input->kbd, 'S' );
-        const int left  = bxInput_isKeyPressed( &input->kbd, 'A' );
-        const int right = bxInput_isKeyPressed( &input->kbd, 'D' );
-        const int up    = bxInput_isKeyPressed( &input->kbd, 'Q' );
-        const int down  = bxInput_isKeyPressed( &input->kbd, 'Z' );
+        //const int fwd   = bxInput_isKeyPressed( &input->kbd, 'W' );
+        //const int back  = bxInput_isKeyPressed( &input->kbd, 'S' );
+        //const int left  = bxInput_isKeyPressed( &input->kbd, 'A' );
+        //const int right = bxInput_isKeyPressed( &input->kbd, 'D' );
+        //const int up    = bxInput_isKeyPressed( &input->kbd, 'Q' );
+        //const int down  = bxInput_isKeyPressed( &input->kbd, 'Z' );
 
         //bxLogInfo( "%d", fwd );
 

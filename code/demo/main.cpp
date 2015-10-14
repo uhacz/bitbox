@@ -32,9 +32,10 @@ static bxDemoFramebuffer __framebuffer;
 static bxDemoScene __scene;
 
 static bx::GfxCamera* camera = nullptr;
-static bx::GfxMeshInstance* meshInstance = nullptr;
+static bx::GfxMeshInstance* meshInstance0 = nullptr;
+static bx::GfxMeshInstance* meshInstance1 = nullptr;
 static bx::GfxScene* scene = nullptr;
-
+static bx::gfx::CameraInputContext cameraInputCtx;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -44,12 +45,12 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxEngine_startup( &_engine );
-        bxGfx::startup( _engine.gdiDevice );
-
-        const int fbWidth = 1920;
-        const int fbHeight = 1080;
-        __framebuffer.textures[bxDemoFramebuffer::eCOLOR] = _engine.gdiDevice->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        __framebuffer.textures[bxDemoFramebuffer::eDEPTH] = _engine.gdiDevice->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+//         bxGfx::startup( _engine.gdiDevice );
+// 
+//         const int fbWidth = 1920;
+//         const int fbHeight = 1080;
+//         __framebuffer.textures[bxDemoFramebuffer::eCOLOR] = _engine.gdiDevice->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+//         __framebuffer.textures[bxDemoFramebuffer::eDEPTH] = _engine.gdiDevice->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
 
         bxDemoScene_startup( &__scene, &_engine );
 
@@ -90,21 +91,32 @@ public:
         //}
 
         bx::gfxCameraCreate( &camera, __scene.gfx );
-        bx::gfxMeshInstanceCreate( &meshInstance, __scene.gfx );
+        bx::gfxMeshInstanceCreate( &meshInstance0, __scene.gfx );
+        bx::gfxMeshInstanceCreate( &meshInstance1, __scene.gfx );
         bx::gfxSceneCreate( &scene, __scene.gfx );
 
         bx::gfxCameraWorldMatrixSet( camera, Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 5.f ) ) );
 
         bx::GfxGlobalResources* gr = bx::gfxGlobalResourcesGet();
-        bxGdiShaderFx_Instance* matFx = bx::gfxMaterialFind( "red" );
+        bxGdiShaderFx_Instance* matFx0 = bx::gfxMaterialFind( "white" );
+        bxGdiShaderFx_Instance* matFx1 = bx::gfxMaterialFind( "red" );
         bx::GfxMeshInstanceData meshData;
-        meshData.renderSourceSet( gr->mesh.box );
-        meshData.fxInstanceSet( matFx );
+        meshData.renderSourceSet( gr->mesh.sphere );
+        meshData.fxInstanceSet( matFx0 );
         meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
-        bx::gfxMeshInstanceDataSet( meshInstance, meshData );
-        bx::gfxMeshInstanceWorldMatrixSet( meshInstance, &Matrix4::identity(), 1 );
+        
+        bx::gfxMeshInstanceDataSet( meshInstance0, meshData );
+        bx::gfxMeshInstanceWorldMatrixSet( meshInstance0, &Matrix4::translation( Vector3( 1.f, 0.f, 0.f ) ), 1 );
+        
+        meshData.renderSourceSet( gr->mesh.box );
+        meshData.fxInstanceSet( matFx1 );
+        bx::gfxMeshInstanceDataSet( meshInstance1, meshData );
+        bx::gfxMeshInstanceWorldMatrixSet( meshInstance1, &Matrix4::translation( Vector3(-1.f, 0.f, 0.f ) ), 1 );
+        
+        bx::gfxSceneMeshInstanceAdd( scene, meshInstance0 );
+        bx::gfxSceneMeshInstanceAdd( scene, meshInstance1 );
 
-        bx::gfxSceneMeshInstanceAdd( scene, meshInstance );
+
 
         return true;
     }
@@ -117,12 +129,12 @@ public:
         
         bxDemoScene_shutdown( &__scene, &_engine );
 
-        for ( int ifb = 0; ifb < bxDemoFramebuffer::eCOUNT; ++ifb )
-        {
-            _engine.gdiDevice->releaseTexture( &__framebuffer.textures[ifb] );
-        }
+//         for ( int ifb = 0; ifb < bxDemoFramebuffer::eCOUNT; ++ifb )
+//         {
+//             _engine.gdiDevice->releaseTexture( &__framebuffer.textures[ifb] );
+//         }
         
-        bxGfx::shutdown( _engine.gdiDevice, _engine.resourceManager );
+        //bxGfx::shutdown( _engine.gdiDevice, _engine.resourceManager );
         bxEngine_shutdown( &_engine );
     }
 
@@ -137,7 +149,21 @@ public:
             return false;
         }
 
+        {
+            bxInput* input = &win->input;
+            bxInput_Mouse* inputMouse = &input->mouse;
+            cameraInputCtx.updateInput( inputMouse->currentState()->lbutton
+                                        , inputMouse->currentState()->mbutton
+                                        , inputMouse->currentState()->rbutton
+                                        , inputMouse->currentState()->dx
+                                        , inputMouse->currentState()->dy
+                                        , 0.01f
+                                        , deltaTime );
 
+            const Matrix4 newCameraMatrix = cameraInputCtx.computeMovement( bx::gfxCameraWorldMatrixGet( camera ), 0.15f );
+            bx::gfxCameraWorldMatrixSet( camera, newCameraMatrix );
+
+        }
         bx::gfxCameraComputeMatrices( camera );
 
         bx::gfxContextTick( __scene.gfx, _engine.gdiDevice, _engine.resourceManager );

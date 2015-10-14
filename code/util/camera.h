@@ -20,4 +20,20 @@ namespace bx{ namespace gfx{
         return worldPos.getXYZ();
     }
 
+
+    struct CameraInputContext
+    {
+        f32 _leftInputX;
+        f32 _leftInputY;
+        f32 _rightInputX;
+        f32 _rightInputY;
+        f32 _upDown;
+
+        CameraInputContext();
+
+        void updateInput( int mouseL, int mouseM, int mouseR, int mouseDx, int mouseDy, float mouseSensitivityInPix, float dt );
+        bool anyMovement() const;
+        Matrix4 computeMovement( const Matrix4& world, float sensitivity ) const;
+    };
+
 }}///

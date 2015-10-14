@@ -136,6 +136,7 @@ namespace bx
     void gfxCameraComputeMatrices( GfxCamera* cam );
 
     void gfxCameraWorldMatrixSet( GfxCamera* cam, const Matrix4& world );
+    Matrix4 gfxCameraWorldMatrixGet( const GfxCamera* camera );
 
     void gfxMeshInstanceCreate( GfxMeshInstance** meshI, GfxContext* ctx, int numInstances = 1 );
     void gfxMeshInstanceDestroy( GfxMeshInstance** meshI );

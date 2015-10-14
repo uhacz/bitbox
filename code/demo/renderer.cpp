@@ -1161,7 +1161,10 @@ namespace bx
     {
         cam->world = world;
     }
-
+    Matrix4 gfxCameraWorldMatrixGet( const GfxCamera* camera )
+    {
+        return camera->world;
+    }
 
     void gfxViewFrameParamsFill( GfxViewFrameParams* fparams, const GfxCamera* camera, int rtWidth, int rtHeight )
     {
@@ -1415,7 +1418,7 @@ namespace bx
         GfxGlobalResources* gr = gfxGlobalResourcesGet();
         bxGdiShaderFx_Instance* fxI = gr->fx.texUtils;
         fxI->setTexture( "gtexture", colorTexture );
-        fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+        fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR ) );
 
         gfxSubmitFullScreenQuad( ctx, fxI, "copy_rgba" );
     }
@@ -1653,6 +1656,9 @@ namespace bx
 
         const GfxScene::Data& data = scene->_data;
         int nMeshes = scene->_data.size;
+        if( !nMeshes )
+            return;
+
 
         if ( !scene->_sListColor || scene->_sListColor->capacity < data.size )
         {
@@ -1717,6 +1723,7 @@ namespace bx
 
 
         GfxView& view = cmdq->_view;
+        
         {
             float4_t* dataWorld = (float4_t*)bxGdi::buffer_map( gdi->backend(), view._instanceWorldBuffer, 0, view._maxInstances );
             float3_t* dataWorldIT = (float3_t*)bxGdi::buffer_map( gdi->backend(), view._instanceWorldITBuffer, 0, view._maxInstances );
@@ -1731,7 +1738,7 @@ namespace bx
 
                 for ( int imatrix = 0; imatrix < idata.count; ++imatrix, ++instanceCounter )
                 {
-                    SYS_ASSERT( instanceCounter < __ctx->_maxInstances );
+                    SYS_ASSERT( instanceCounter < (u32)view._maxInstances );
 
                     const u32 dataOffset = (currentOffset + imatrix) * 3;
                     const Matrix4 worldRows = transpose( idata.pose[imatrix] );
@@ -1755,7 +1762,7 @@ namespace bx
             gdi->backend()->unmap( view._instanceWorldBuffer.rs );
         }
 
-        SYS_ASSERT( array::size( view._instanceOffsetArray ) == nMeshes + 1 );
+        SYS_ASSERT( array::size( view._instanceOffsetArray ) == colorChunk.current + 1 );
         GfxViewFrameParams viewParams;
         gfxViewFrameParamsFill( &viewParams, camera, 1920, 1080 );
         gdi->backend()->updateCBuffer( view._viewParamsBuffer, &viewParams );
@@ -1766,7 +1773,7 @@ namespace bx
         gdi->setCbuffer ( view._instanceOffsetBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
 
         gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[eFB_DEPTH] );
-        
+        gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 1 );
 
         for ( int i = colorChunk.begin; i < colorChunk.current; ++i )
         {
@@ -1789,6 +1796,8 @@ namespace bx
 
         gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
     }
+
+    
 
 
 

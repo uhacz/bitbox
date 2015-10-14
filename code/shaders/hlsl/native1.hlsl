@@ -19,7 +19,7 @@ struct in_PS
     float4 h_pos	: SV_Position;
     float4 s_pos    : TEXCOORD0;
     float3 w_pos	: TEXCOORD1;
-    nointerpolation float3 w_normal:TEXCOORD2;
+    float3 w_normal:TEXCOORD2;
 };
 
 struct out_PS
@@ -74,7 +74,7 @@ out_PS ps_main( in_PS input )
 {
     out_PS OUT;
     
-    float3 L = normalize( float3(-1.f, 1.f, 0.f) );
+    float3 L = normalize( float3(-1.f, 1.f, 1.f) );
     
     ShadingData shd;
     shd.N = normalize( input.w_normal );
@@ -87,7 +87,8 @@ out_PS ps_main( in_PS input )
     float3 c = BRDF( L, shd, mat );
     //float3 C = diffuseColor;
     //float NdotL = saturate( dot( N, L ) );
-        
+
     OUT.rgba = float4( c, 1.0 );
+    //OUT.rgba = float4( 1.0, 0.0, 0.0, 1.0 );
     return OUT;
 }
