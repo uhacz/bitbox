@@ -281,6 +281,7 @@ namespace bx
         GfxCommandQueue _cmdQueue;
 
         bxGdiTexture _framebuffer[eFB_COUNT];
+        bxGdiShaderFx_Instance* _fxISky;
 
         bxAllocator* _allocMesh;
         bxAllocator* _allocCamera;

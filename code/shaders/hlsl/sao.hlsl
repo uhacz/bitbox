@@ -38,6 +38,18 @@ passes:
         };
     };
 
+    curvature =
+    {
+        vertex = "vs_screenquad";
+        pixel = "ps_curvature";
+        hwstate =
+        {
+            depth_test = 0;
+            depth_write = 0;
+            color_mask = "R";
+        };
+    };
+
 }; #~header
 
 #include <sys/frame_data.hlsl>
@@ -450,3 +462,10 @@ float4 ps_blurY( out_VS_screenquad In ) : SV_Target
     float2 vPos = In.uv * _ssaoTexSize;
     return doBlur( (int2)vPos, float2(0, 1) );
 }
+
+#ifdef curvature
+float4 ps_curvature( out_VS_screenquad IN ) : SV_Target
+{
+    return float4(1.0, 0.0, 0.0, 1.0);
+}
+#endif

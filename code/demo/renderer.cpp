@@ -1245,6 +1245,10 @@ namespace bx
         g->_framebuffer[eFB_DEPTH]  = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
 
         {
+            g->_fxISky = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "sky" );
+        }
+
+        {
 
             DynamicPoolAllocatorThreadSafe* dpoolAlloc = BX_NEW( bxDefaultAllocator(), DynamicPoolAllocatorThreadSafe );
             dpoolAlloc->startup( sizeof( GfxMeshInstance ), 64, bxDefaultAllocator(), 16 );
@@ -1298,6 +1302,9 @@ namespace bx
             BX_DELETE0( bxDefaultAllocator(), g->_allocMesh );
         }
         
+        {
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &g->_fxISky );
+        }
 
         for ( int i = 0; i < eFB_COUNT; ++i )
             dev->releaseTexture( &g->_framebuffer[i] );
@@ -1843,11 +1850,22 @@ namespace bx
             sortListDepthSubmit( gdi, view, scene, depthList, depthChunk.begin, depthChunk.current );
         }
 
+        /// sky
+        {
+            gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1 );
+            gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
+
+            bxGdiShaderFx_Instance* fxI = ctx->_fxISky;
+            gfxSubmitFullScreenQuad( gdi, fxI, "skyPreetham" );
+            
+        }
+
+        /// color pass
         {
             viewUploadInstanceData( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
 
             gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[ eFB_DEPTH ] );
-            gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
+            //gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
 
             sortListColorSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
         }

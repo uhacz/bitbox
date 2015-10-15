@@ -335,7 +335,9 @@ namespace bx
     GfxGlobalResources* GfxContext::_globalResources = nullptr;
     GfxMaterialManager* GfxContext::_materialManager = nullptr;
 
-    GfxContext::GfxContext() : _allocMesh( nullptr )
+    GfxContext::GfxContext() 
+        : _fxISky( nullptr )
+        , _allocMesh( nullptr )
         , _allocCamera( nullptr )
         , _allocScene( nullptr )
         , _allocIDataMulti( nullptr )

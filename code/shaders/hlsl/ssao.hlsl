@@ -5,6 +5,8 @@ passes:
 	    vertex = "vs_screenquad";
         pixel = "ps_ssao";
     };
+
+    
 };#~header
 
 #include <sys/frame_data.hlsl>
