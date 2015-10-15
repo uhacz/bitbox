@@ -1670,7 +1670,8 @@ namespace bx
             bxGdi::sortList_sortLess( depthList, *depthChunk );
         }
 
-        void viewUploadInstanceData( bxGdiContext* gdi, GfxView& view, const GfxScene* scene, const GfxSortListColor* sList, int begin, int end )
+        template< class Tlist >
+        void viewUploadInstanceData( bxGdiContext* gdi, GfxView& view, const GfxScene* scene, const Tlist* sList, int begin, int end )
         {
             float4_t* dataWorld = (float4_t*)bxGdi::buffer_map( gdi->backend(), view._instanceWorldBuffer, 0, view._maxInstances );
             float3_t* dataWorldIT = (float3_t*)bxGdi::buffer_map( gdi->backend(), view._instanceWorldITBuffer, 0, view._maxInstances );
@@ -1682,7 +1683,7 @@ namespace bx
             u32 instanceCounter = 0;
             for ( int i = begin; i < end; ++i )
             {
-                const GfxSortItemColor& item = sList->items[i];
+                const Tlist::ItemType& item = sList->items[i];
                 const GfxInstanceData idata = data.idata[item.index];
 
                 for ( int imatrix = 0; imatrix < idata.count; ++imatrix, ++instanceCounter )
@@ -1714,7 +1715,7 @@ namespace bx
 
         }
 
-        void sortListSubmit( bxGdiContext* gdi, const GfxView& view, const GfxScene* scene, const GfxSortListColor* sList, int begin, int end )
+        void sortListColorSubmit( bxGdiContext* gdi, const GfxView& view, const GfxScene* scene, const GfxSortListColor* sList, int begin, int end )
         {
             const GfxScene::Data& data = scene->_data;
             for ( int i = begin; i < end; ++i )
@@ -1731,6 +1732,26 @@ namespace bx
 
                 bxGdi::renderSource_enable( gdi, rsource );
                 bxGdi::shaderFx_enable( gdi, fxI, 0 );
+
+                bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
+                bxGdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
+            }
+        }
+        void sortListDepthSubmit( bxGdiContext* gdi, const GfxView& view, const GfxScene* scene, const GfxSortListDepth* sList, int begin, int end )
+        {
+            const GfxScene::Data& data = scene->_data;
+            for( int i = begin; i < end; ++i )
+            {
+                const GfxSortListDepth::ItemType& item = sList->items[i];
+                int meshDataIndex = item.index;
+
+                bxGdiRenderSource* rsource = data.rsource[meshDataIndex];
+
+                u32 instanceOffset = view._instanceOffsetArray[i];
+                u32 instanceCount = view._instanceOffsetArray[i + 1] - instanceOffset;
+                gdi->backend()->updateCBuffer( view._instanceOffsetBuffer, &instanceOffset );
+
+                bxGdi::renderSource_enable( gdi, rsource );
 
                 bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
                 bxGdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
@@ -1802,11 +1823,6 @@ namespace bx
 
         GfxView& view = cmdq->_view;
         
-        viewUploadInstanceData( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
-        
-        gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[eFB_DEPTH] );
-        gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 1 );
-
         GfxViewFrameParams viewParams;
         gfxViewFrameParamsFill( &viewParams, camera, ctx->_framebuffer->width, ctx->_framebuffer->height );
         gdi->backend()->updateCBuffer( view._viewParamsBuffer, &viewParams );
@@ -1816,7 +1832,27 @@ namespace bx
         gdi->setCbuffer( view._viewParamsBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
         gdi->setCbuffer( view._instanceOffsetBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
 
-        sortListSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
+        /// depth prepass
+        {
+            viewUploadInstanceData( gdi, view, scene, depthList, depthChunk.begin, depthChunk.current );
+            gdi->changeRenderTargets( nullptr, 0, ctx->_framebuffer[eFB_DEPTH] );
+            gdi->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
+
+            bxGdiShaderFx_Instance* fxI = gfxGlobalResourcesGet()->fx.utils;
+            bxGdi::shaderFx_enable( gdi, fxI, "zPrepassDepthOnly" );
+            sortListDepthSubmit( gdi, view, scene, depthList, depthChunk.begin, depthChunk.current );
+        }
+
+        {
+            viewUploadInstanceData( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
+
+            gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[ eFB_DEPTH ] );
+            gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
+
+            sortListColorSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
+        }
+
+
 
         gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
     }

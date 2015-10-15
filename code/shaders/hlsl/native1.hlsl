@@ -4,6 +4,12 @@ passes:
     {
         vertex = "vs_main";
         pixel = "ps_main";
+        hwstate =
+        {
+            depth_test = 1;
+            depth_write = 0;
+            //color_mask = "";
+        };
     };
 }; #~header
 

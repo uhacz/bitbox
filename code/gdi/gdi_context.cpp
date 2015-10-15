@@ -575,7 +575,8 @@ void bxGdiContext::changeRenderTargets(bxGdiTexture* color_rts, unsigned n_rt, b
     pending._count.colorRT = n_rt;
     pending._mainFramebuffer = 0;
 
-    setViewport( bxGdiViewport( 0, 0, color_rts->width, color_rts->height ) );
+    bxGdiTexture* tex = ( color_rts ) ? color_rts : &depth_rt;
+    setViewport( bxGdiViewport( 0, 0, tex->width, tex->height ) );
 }
 
 void bxGdiContext::clearBuffers(float rgbad[5], int flag_color, int flag_depth)

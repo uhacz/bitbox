@@ -32,8 +32,6 @@ static bxDemoFramebuffer __framebuffer;
 static bxDemoScene __scene;
 
 static bx::GfxCamera* camera = nullptr;
-static bx::GfxMeshInstance* meshInstance0 = nullptr;
-static bx::GfxMeshInstance* meshInstance1 = nullptr;
 static bx::GfxScene* scene = nullptr;
 static bx::gfx::CameraInputContext cameraInputCtx;
 
@@ -91,33 +89,55 @@ public:
         //}
 
         bx::gfxCameraCreate( &camera, __scene.gfx );
-        bx::gfxMeshInstanceCreate( &meshInstance0, __scene.gfx );
-        bx::gfxMeshInstanceCreate( &meshInstance1, __scene.gfx );
         bx::gfxSceneCreate( &scene, __scene.gfx );
 
         bx::gfxCameraWorldMatrixSet( camera, Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 5.f ) ) );
 
         bx::GfxGlobalResources* gr = bx::gfxGlobalResourcesGet();
-        bxGdiShaderFx_Instance* matFx0 = bx::gfxMaterialFind( "white" );
-        bxGdiShaderFx_Instance* matFx1 = bx::gfxMaterialFind( "red" );
-        bx::GfxMeshInstanceData meshData;
-        meshData.renderSourceSet( gr->mesh.sphere );
-        meshData.fxInstanceSet( matFx0 );
-        meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
+        bxGdiShaderFx_Instance* matFx[] =
+        {
+            bx::gfxMaterialFind( "white" ),
+            bx::gfxMaterialFind( "red" ),
+            bx::gfxMaterialFind( "green" ),
+            bx::gfxMaterialFind( "blue" ),
+        };
+        const int N_MAT = sizeof( matFx ) / sizeof( *matFx );
+        bxGdiRenderSource* rsource[] = 
+        {
+            gr->mesh.sphere,
+            gr->mesh.box,
+        };
+        const int N_MESH = sizeof( rsource ) / sizeof( *rsource );
         
-        bx::gfxMeshInstanceDataSet( meshInstance0, meshData );
-        bx::gfxMeshInstanceWorldMatrixSet( meshInstance0, &Matrix4::translation( Vector3( 1.f, 0.f, 0.f ) ), 1 );
-        
-        meshData.renderSourceSet( gr->mesh.box );
-        meshData.fxInstanceSet( matFx1 );
-        bx::gfxMeshInstanceDataSet( meshInstance1, meshData );
-        bx::gfxMeshInstanceWorldMatrixSet( meshInstance1, &Matrix4::translation( Vector3(-1.f, 0.f, 0.f ) ), 1 );
-        
-        bx::gfxSceneMeshInstanceAdd( scene, meshInstance0 );
-        bx::gfxSceneMeshInstanceAdd( scene, meshInstance1 );
+        const int N = 5;
+        const float N_HALF = (float)N * 0.5f;
+        int counter = 0;
+        for( int iz = 0; iz < N; ++iz )
+        {
+            const float z = -N_HALF + (float)iz;
+            for( int iy = 0; iy < N; ++iy )
+            {
+                const float y = -N_HALF + (float)iy;
+                for( int ix = 0; ix < N; ++ix, ++counter )
+                {
+                    const float x = -N_HALF + (float)ix;
+                    const Vector3 pos( x, y, z );
 
+                    bx::GfxMeshInstanceData meshData;
+                    meshData.renderSourceSet( rsource[ counter % N_MESH ] );
+                    meshData.fxInstanceSet( matFx[ counter % N_MAT ] );
+                    meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
 
+                    bx::GfxMeshInstance* meshI = nullptr;
+                    bx::gfxMeshInstanceCreate( &meshI, __scene.gfx );
 
+                    bx::gfxMeshInstanceDataSet( meshI, meshData );
+                    bx::gfxMeshInstanceWorldMatrixSet( meshI, &Matrix4::translation( pos ), 1 );
+
+                    bx::gfxSceneMeshInstanceAdd( scene, meshI );
+                }
+            }
+        }
         return true;
     }
     virtual void shutdown()
