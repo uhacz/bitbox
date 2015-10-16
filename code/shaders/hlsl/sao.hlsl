@@ -293,20 +293,20 @@ float4 ps_ssao( out_VS_screenquad In ) : SV_Target
     // Reconstruct normals from positions. These will lead to 1-pixel black lines
     // at depth discontinuities, however the blur will wipe those out so they are not visible
     // in the final image.
-    //float3 n_C1 = reconstructCSFaceNormal(C);
+    float3 n_C = reconstructCSFaceNormal(C);
 
     // BW: per Guillaume request, we actually do "regular" normals from normal maps - more detail
     //float3 n_C = normalize(mul(float4(2.0f*(tex_normalsVS.Load(int3(ssC, 0)).rgb-0.5f),0),_camera_view).xyz);
-    float3 n_C = normalize( mul( (float3x3)_camera_proj, tex_normalsVS.Load( int3(ssC, 0) ).rgb ) ) * float3(-1.f, 1.f, 1.f );
+    //float3 n_C = normalize( mul( (float3x3)_camera_proj, tex_normalsVS.Load( int3(ssC, 0) ).rgb ) ) * float3(-1.f, 1.f, 1.f );
 
 
     // Choose the screen-space sample radius
     // proportional to the projected area of the sphere, default params were tweaked for 900p so scale projScale accordingly - 1 ALU mul operation as projScale/900.0f gets optimized by compiler
-    float ssDiskRadius = (_projScale / 900.0f * _renderTarget_size.y) * _radius * fastRcpNR0(max(C.z, 0.1f));
+    float ssDiskRadius = (_projScale / 1080.0 * _renderTarget_size.y) * _radius * fastRcpNR0(max(C.z, 0.1f));
 
     float sum = 0.0;
 
-    [unroll]
+    //[unroll]
     for (int i = 0; i < NUM_SAMPLES; ++i) 
     {
          sum += sampleAO(ssC, C, n_C, ssDiskRadius, i, randomPatternRotationAngle);
@@ -464,8 +464,30 @@ float4 ps_blurY( out_VS_screenquad In ) : SV_Target
 }
 
 #ifdef curvature
-float4 ps_curvature( out_VS_screenquad IN ) : SV_Target
+SamplerState samplerDepth;
+float ps_curvature( out_VS_screenquad IN ) : SV_Target
 {
-    return float4(1.0, 0.0, 0.0, 1.0);
+    float2 pixel = IN.uv * _renderTarget_size;
+    int2 ssPixel = pixel;
+
+    float depth = loadLinearDepth( ssPixel );
+    //return depth;
+
+    float3 C = getPosition( ssPixel );
+    
+    float3 dxC = ddx_fine( C );
+    float3 dyC = ddy_fine( C );
+    float3 N = normalize( cross( dyC, dxC ) );
+
+    float3 dxN = ddx_fine( N );
+    float3 dyN = ddy_fine( N );
+    float3 xneg = N - dxN;
+    float3 xpos = N + dxN;
+    float3 yneg = N - dyN;
+    float3 ypos = N + dyN;
+
+    //float depth = length( C );
+    float curv = ( cross( xneg, xpos ).y - cross( yneg, ypos ).x ) * 4.0 / depth;
+    return curv;
 }
 #endif

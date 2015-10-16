@@ -91,7 +91,7 @@ public:
         bx::gfxCameraCreate( &camera, __scene.gfx );
         bx::gfxSceneCreate( &scene, __scene.gfx );
 
-        bx::gfxCameraWorldMatrixSet( camera, Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 5.f ) ) );
+        bx::gfxCameraWorldMatrixSet( camera, Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 15.f ) ) );
 
         bx::GfxGlobalResources* gr = bx::gfxGlobalResourcesGet();
         bxGdiShaderFx_Instance* matFx[] =

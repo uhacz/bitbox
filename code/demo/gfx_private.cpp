@@ -337,6 +337,7 @@ namespace bx
 
     GfxContext::GfxContext() 
         : _fxISky( nullptr )
+        , _fxISao( nullptr )
         , _allocMesh( nullptr )
         , _allocCamera( nullptr )
         , _allocScene( nullptr )

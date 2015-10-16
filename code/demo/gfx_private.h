@@ -17,6 +17,7 @@ namespace bx
     enum EFramebuffer
     {
         eFB_COLOR0,
+        eFB_SAO,
         eFB_DEPTH,
         eFB_COUNT,
     };
@@ -282,6 +283,7 @@ namespace bx
 
         bxGdiTexture _framebuffer[eFB_COUNT];
         bxGdiShaderFx_Instance* _fxISky;
+        bxGdiShaderFx_Instance* _fxISao;
 
         bxAllocator* _allocMesh;
         bxAllocator* _allocCamera;

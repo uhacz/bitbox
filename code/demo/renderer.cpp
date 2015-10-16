@@ -1242,10 +1242,12 @@ namespace bx
         const int fbWidth = 1920;
         const int fbHeight = 1080;
         g->_framebuffer[eFB_COLOR0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_SAO] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
         g->_framebuffer[eFB_DEPTH]  = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
 
         {
             g->_fxISky = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "sky" );
+            g->_fxISao = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "sao" );
         }
 
         {
@@ -1303,6 +1305,7 @@ namespace bx
         }
         
         {
+            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &g->_fxISao );
             bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &g->_fxISky );
         }
 
@@ -1427,7 +1430,7 @@ namespace bx
         fxI->setTexture( "gtexture", colorTexture );
         fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR ) );
 
-        gfxSubmitFullScreenQuad( ctx, fxI, "copy_rgba" );
+        gfxSubmitFullScreenQuad( ctx, fxI, "copy_r_as_rgb" );
     }
 
     GfxGlobalResources* gfxGlobalResourcesGet()
@@ -1850,6 +1853,25 @@ namespace bx
             sortListDepthSubmit( gdi, view, scene, depthList, depthChunk.begin, depthChunk.current );
         }
 
+        /// sao
+        {
+            bxGdiTexture saoTexture = ctx->_framebuffer[eFB_SAO];
+            
+            gdi->changeRenderTargets( &saoTexture, 1 );
+            gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
+
+
+            bxGdiShaderFx_Instance* fxI = ctx->_fxISao;
+            fxI->setUniform( "_radius", 1.2f );
+            fxI->setUniform( "_radius2", 1.2f * 1.2f );
+            fxI->setUniform( "_bias", 0.025f );
+            fxI->setUniform( "_intensity", 0.5f );
+            fxI->setUniform( "_projScale", 700.f );
+            fxI->setUniform( "_ssaoTexSize", float2_t( (float)saoTexture.width, (float)saoTexture.height ) );
+            fxI->setTexture( "tex_hwDepth", ctx->_framebuffer[eFB_DEPTH] );
+            gfxSubmitFullScreenQuad( gdi, fxI, "ssao" );
+        }
+
         /// sky
         {
             gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1 );
@@ -1857,9 +1879,9 @@ namespace bx
 
             bxGdiShaderFx_Instance* fxI = ctx->_fxISky;
             gfxSubmitFullScreenQuad( gdi, fxI, "skyPreetham" );
-            
         }
 
+        gdi->clear();
         /// color pass
         {
             viewUploadInstanceData( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
@@ -1872,7 +1894,7 @@ namespace bx
 
 
 
-        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
+        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_SAO], gfxCameraAspect( camera ) );
     }
 
     
