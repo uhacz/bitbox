@@ -1242,8 +1242,11 @@ namespace bx
         const int fbWidth = 1920;
         const int fbHeight = 1080;
         g->_framebuffer[eFB_COLOR0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        g->_framebuffer[eFB_SAO] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_SAO] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
         g->_framebuffer[eFB_DEPTH]  = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+
+        g->_framebuffer[eFB_TEMP0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_TEMP1] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
 
         {
             g->_fxISky = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "sky" );
@@ -1430,7 +1433,7 @@ namespace bx
         fxI->setTexture( "gtexture", colorTexture );
         fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR ) );
 
-        gfxSubmitFullScreenQuad( ctx, fxI, "copy_r_as_rgb" );
+        gfxSubmitFullScreenQuad( ctx, fxI, "copy_rgba" );
     }
 
     GfxGlobalResources* gfxGlobalResourcesGet()
@@ -1769,8 +1772,6 @@ namespace bx
         }
     }///
 
-
-
     void gfxSceneDraw( GfxScene* scene, GfxCommandQueue* cmdq, const GfxCamera* camera )
     {
         GfxContext* ctx = scene->_ctx;
@@ -1833,14 +1834,8 @@ namespace bx
 
         GfxView& view = cmdq->_view;
         
-        GfxViewFrameParams viewParams;
-        gfxViewFrameParamsFill( &viewParams, camera, ctx->_framebuffer->width, ctx->_framebuffer->height );
-        gdi->backend()->updateCBuffer( view._viewParamsBuffer, &viewParams );
-
-        gdi->setBufferRO( view._instanceWorldBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX );
-        gdi->setBufferRO( view._instanceWorldITBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
-        gdi->setCbuffer( view._viewParamsBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
-        gdi->setCbuffer( view._instanceOffsetBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
+        gfxViewCameraSet( gdi, &view, camera, ctx->_framebuffer->width, ctx->_framebuffer->height );
+        gfxViewEnable( gdi, &view );
 
         /// depth prepass
         {
@@ -1856,8 +1851,10 @@ namespace bx
         /// sao
         {
             bxGdiTexture saoTexture = ctx->_framebuffer[eFB_SAO];
-            
-            gdi->changeRenderTargets( &saoTexture, 1 );
+            bxGdiTexture tmp0Texture = ctx->_framebuffer[eFB_TEMP0];
+            bxGdiTexture tmp1Texture = ctx->_framebuffer[eFB_TEMP1];
+
+            gdi->changeRenderTargets( &tmp0Texture, 1 );
             gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
 
 
@@ -1870,6 +1867,17 @@ namespace bx
             fxI->setUniform( "_ssaoTexSize", float2_t( (float)saoTexture.width, (float)saoTexture.height ) );
             fxI->setTexture( "tex_hwDepth", ctx->_framebuffer[eFB_DEPTH] );
             gfxSubmitFullScreenQuad( gdi, fxI, "ssao" );
+
+            gdi->changeRenderTargets( &tmp1Texture, 1 );
+            gdi->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+            fxI->setTexture( "tex_source", tmp0Texture );
+            gfxSubmitFullScreenQuad( gdi, fxI, "blurX" );
+
+            gdi->changeRenderTargets( &saoTexture, 1 );
+            gdi->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+            fxI->setTexture( "tex_source", tmp1Texture );
+            gfxSubmitFullScreenQuad( gdi, fxI, "blurY" );
+
         }
 
         /// sky
@@ -1882,19 +1890,18 @@ namespace bx
         }
 
         gdi->clear();
+        
+        gfxViewCameraSet( gdi, &view, camera, ctx->_framebuffer->width, ctx->_framebuffer->height );
+        gfxViewEnable( gdi, &view );
         /// color pass
         {
             viewUploadInstanceData( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
 
             gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[ eFB_DEPTH ] );
-            //gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
-
             sortListColorSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
         }
 
-
-
-        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_SAO], gfxCameraAspect( camera ) );
+        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
     }
 
     

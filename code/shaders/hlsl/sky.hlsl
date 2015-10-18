@@ -212,7 +212,7 @@ float4 ps_main( in_PS IN ) : SV_Target0
     uv_m11.x *= _camera_aspect; // apect
     
     float turbidity = 2.0;
-    float3 sunDir = normalize( float3( 1.f, 1.0f, 0.f ) );
+    float3 sunDir = normalize( float3( -1.f, 1.0f, 0.f ) );
     float3 viewDir = normalize( mul( (float3x3)_camera_world, float3(uv_m11, -2.0) ) );
     float3 skyLuminance = calculateSkyLuminanceRGB( sunDir, viewDir, turbidity );
 

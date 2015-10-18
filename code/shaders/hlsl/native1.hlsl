@@ -64,17 +64,22 @@ shared cbuffer MaterialData: register(b3)
     MATERIAL_VARIABLES;
 };
 
-out_PS ps_main( in_PS input )
+Texture2D _texSAO : register(t4);
+SamplerState _samplSAO : register(s4);
+
+out_PS ps_main( in_PS IN )
 {
     out_PS OUT;
+    float2 screenPos01 = (IN.s_pos.xy / IN.s_pos.w) * 0.5 + 0.5;
+    float2 shadowUV = float2(screenPos01.x, 1.0 - screenPos01.y);
     
     float3 L = normalize( float3(-1.f, 1.f, 1.f) );
     
     ShadingData shd;
-    shd.N = normalize( input.w_normal );
+    shd.N = normalize( IN.w_normal );
     shd.V = _camera_viewDir.xyz;
     shd.shadow = 1;
-    shd.ssao = 1;
+    shd.ssao = _texSAO.SampleLevel( _samplSAO, shadowUV, 0.0 ).r;
     
     Material mat;
     ASSIGN_MATERIAL_FROM_CBUFFER( mat );

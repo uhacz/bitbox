@@ -19,6 +19,8 @@ namespace bx
         eFB_COLOR0,
         eFB_SAO,
         eFB_DEPTH,
+        eFB_TEMP0,
+        eFB_TEMP1,
         eFB_COUNT,
     };
 
@@ -216,6 +218,8 @@ namespace bx
     };
     void gfxViewCreate( GfxView* view, bxGdiDeviceBackend* dev, int maxInstances );
     void gfxViewDestroy( GfxView* view, bxGdiDeviceBackend* dev );
+    void gfxViewCameraSet( bxGdiContext* gdi, GfxView* view, const GfxCamera* camera, int rtw, int rth );
+    void gfxViewEnable( bxGdiContext* gdi, GfxView* view );
 
     struct GfxContext;
     struct GfxCommandQueue

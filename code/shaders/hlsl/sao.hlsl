@@ -349,7 +349,7 @@ float4 ps_ssao( out_VS_screenquad In ) : SV_Target
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Increase to make edges crisper. Decrease to reduce temporal flicker. */
-#define EDGE_SHARPNESS     (0.1)
+#define EDGE_SHARPNESS     (0.3)
 
 /** Step in 2-pixel intervals since we already blurred against neighbors in the
     first AO pass.  This constant can be increased while R decreases to improve

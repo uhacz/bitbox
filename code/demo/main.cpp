@@ -138,6 +138,24 @@ public:
                 }
             }
         }
+
+        {
+            bx::GfxMeshInstanceData meshData;
+            meshData.renderSourceSet( rsource[counter % N_MESH] );
+            meshData.fxInstanceSet( matFx[counter % N_MAT] );
+            meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
+
+            bx::GfxMeshInstance* meshI = nullptr;
+            bx::gfxMeshInstanceCreate( &meshI, __scene.gfx );
+
+            bx::gfxMeshInstanceDataSet( meshI, meshData );
+
+            Matrix4 pose = Matrix4::translation( Vector3( 0.f, -3.f, 0.f ) );
+            pose = appendScale( pose, Vector3( 10.f, 1.f, 10.f ) );
+            bx::gfxMeshInstanceWorldMatrixSet( meshI, &pose, 1 );
+            bx::gfxSceneMeshInstanceAdd( scene, meshI );
+        }
+
         return true;
     }
     virtual void shutdown()

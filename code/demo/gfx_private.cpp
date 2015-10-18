@@ -3,6 +3,8 @@
 #include <util/hashmap.h>
 #include <util/hash.h>
 
+#include <gdi/gdi_context.h>
+
 namespace bx
 {
     GfxMeshInstanceData::GfxMeshInstanceData()
@@ -223,7 +225,19 @@ namespace bx
         dev->releaseBuffer( &view->_instanceWorldBuffer );
         dev->releaseBuffer( &view->_viewParamsBuffer );
     }
-
+    void gfxViewCameraSet( bxGdiContext* gdi, GfxView* view, const GfxCamera* camera, int rtw, int rth )
+    {
+        GfxViewFrameParams viewParams;
+        gfxViewFrameParamsFill( &viewParams, camera, rtw, rth );
+        gdi->backend()->updateCBuffer( view->_viewParamsBuffer, &viewParams );
+    }
+    void gfxViewEnable( bxGdiContext* gdi, GfxView* view )
+    {
+        gdi->setBufferRO( view->_instanceWorldBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX );
+        gdi->setBufferRO( view->_instanceWorldITBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
+        gdi->setCbuffer( view->_viewParamsBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setCbuffer( view->_instanceOffsetBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
+    }
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
     GfxCommandQueue::GfxCommandQueue() : _acquireCounter( 0 )
