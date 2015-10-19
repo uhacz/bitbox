@@ -10,6 +10,7 @@
 
 #include <gfx/gfx_material.h>
 #include <gfx/gfx.h>
+#include "util/tag.h"
 
 namespace bxDesignBlock_Util
 {
@@ -57,7 +58,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         u32* name;
         u64* tag;
 
-        bxGfx_HMeshInstance* gfxMeshI;
+        //bxGfx_HMeshInstance* gfxMeshI;
         bxPhx_HShape* phxShape;
 
         void* memoryHandle;
@@ -103,7 +104,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         memSize += newcap * sizeof( *_data.shape );
         memSize += newcap * sizeof( *_data.name );
         memSize += newcap * sizeof( *_data.tag );
-        memSize += newcap * sizeof( *_data.gfxMeshI );
+        //memSize += newcap * sizeof( *_data.gfxMeshI );
         memSize += newcap * sizeof( *_data.phxShape );
 
 
@@ -119,7 +120,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         newdata.shape = chunker.add< bxDesignBlock::Shape >( newcap );
         newdata.name = chunker.add< u32 >( newcap );
         newdata.tag = chunker.add< u64 >( newcap );
-        newdata.gfxMeshI = chunker.add< bxGfx_HMeshInstance >( newcap );
+        //newdata.gfxMeshI = chunker.add< bxGfx_HMeshInstance >( newcap );
         newdata.phxShape = chunker.add< bxPhx_HShape >( newcap );
 
         chunker.check();
@@ -130,7 +131,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
             BX_CONTAINER_COPY_DATA( &newdata, &_data, shape );
             BX_CONTAINER_COPY_DATA( &newdata, &_data, name );
             BX_CONTAINER_COPY_DATA( &newdata, &_data, tag );
-            BX_CONTAINER_COPY_DATA( &newdata, &_data, gfxMeshI );
+            //BX_CONTAINER_COPY_DATA( &newdata, &_data, gfxMeshI );
             BX_CONTAINER_COPY_DATA( &newdata, &_data, phxShape );
 
         }
@@ -172,7 +173,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         _data.shape[index] = shape;
         _data.name[index] = nameHash;
         _data.tag[index] = DEFAULT_TAG;
-        _data.gfxMeshI[index] = makeInvalidHandle< bxGfx_HMeshInstance >();
+        //_data.gfxMeshI[index] = makeInvalidHandle< bxGfx_HMeshInstance >();
         _data.phxShape[index] = makeInvalidHandle< bxPhx_HShape >();
 
         Handle handle = makeHandle( id );
@@ -216,7 +217,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
         _flag_releaseAll = 1;
     }
 
-    void bxDesignBlock::manageResources( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxPhx_CollisionSpace* cs, bxGfx_World* gfxWorld )
+    void bxDesignBlock::manageResources( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxPhx_CollisionSpace* cs )
     {
         if ( _flag_releaseAll )
         {
@@ -225,7 +226,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
             for ( int i = 0; i < _data.size; ++i )
             {
                 bxPhx::shape_release( cs, &_data.phxShape[i] );
-                bxGfx::worldMeshRemoveAndRelease( &_data.gfxMeshI[i] );
+                //bxGfx::worldMeshRemoveAndRelease( &_data.gfxMeshI[i] );
             }
             id_array::destroyAll( _idContainer );
             array::clear( _list_updatePose );
@@ -243,7 +244,7 @@ struct bxDesignBlock_Impl : public bxDesignBlock
                 continue;
 
             SYS_ASSERT( _data.phxShape[index].h == 0 );
-            SYS_ASSERT( _data.gfxMeshI[index].h == 0 );
+            //SYS_ASSERT( _data.gfxMeshI[index].h == 0 );
 
             const bxDesignBlock::Shape& shape = _data.shape[index];
             const Matrix4& pose = _data.pose[index];
@@ -271,18 +272,18 @@ struct bxDesignBlock_Impl : public bxDesignBlock
                 }break;
             }
 
-            bxGfx_HMesh hmesh = bxGfx::meshCreate();
-            bxGfx::meshStreamsSet( hmesh, dev, rsource );
-            bxGfx::meshShaderSet( hmesh, dev, resourceManager, fxI );
+            //bxGfx_HMesh hmesh = bxGfx::meshCreate();
+            //bxGfx::meshStreamsSet( hmesh, dev, rsource );
+            //bxGfx::meshShaderSet( hmesh, dev, resourceManager, fxI );
 
-            bxGfx_HMeshInstance gfxMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, 1 );
+            //bxGfx_HMeshInstance gfxMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, 1 );
             
-            bxGfx_HInstanceBuffer hibuff = bxGfx::meshInstanceHInstanceBuffer( gfxMeshI );
+            //bxGfx_HInstanceBuffer hibuff = bxGfx::meshInstanceHInstanceBuffer( gfxMeshI );
             const Matrix4 poseWithScale = appendScale( pose, scale );
-            bxGfx::instanceBufferDataSet( hibuff, &poseWithScale, 1, 0 );
+            //bxGfx::instanceBufferDataSet( hibuff, &poseWithScale, 1, 0 );
 
             _data.phxShape[index] = phxShape;
-            _data.gfxMeshI[index] = gfxMeshI;
+            //_data.gfxMeshI[index] = gfxMeshI;
         }
         array::clear( _list_create );
 
@@ -299,14 +300,14 @@ struct bxDesignBlock_Impl : public bxDesignBlock
 
             id_array::destroy( _idContainer, id );
 
-            bxGfx::worldMeshRemoveAndRelease( &_data.gfxMeshI[thisIndex] );
+            //bxGfx::worldMeshRemoveAndRelease( &_data.gfxMeshI[thisIndex] );
             bxPhx::shape_release( cs, &_data.phxShape[thisIndex] );
 
             _data.pose[thisIndex] = _data.pose[lastIndex];
             _data.shape[thisIndex] = _data.shape[lastIndex];
             _data.name[thisIndex] = _data.name[lastIndex];
             _data.tag[thisIndex] = _data.tag[lastIndex];
-            _data.gfxMeshI[thisIndex] = _data.gfxMeshI[lastIndex];
+            //_data.gfxMeshI[thisIndex] = _data.gfxMeshI[lastIndex];
             _data.phxShape[thisIndex] = _data.phxShape[lastIndex];
         }
         array::clear( _list_release );
@@ -352,11 +353,11 @@ struct bxDesignBlock_Impl : public bxDesignBlock
                 if ( dataIndex == -1 )
                     continue;
 
-                bxGfx_HMesh hmesh = bxGfx::meshInstanceHMesh( _data.gfxMeshI[dataIndex] );
-                bxGfx_HInstanceBuffer hibuffer = bxGfx::meshInstanceHInstanceBuffer( _data.gfxMeshI[dataIndex] );
+                //bxGfx_HMesh hmesh = bxGfx::meshInstanceHMesh( _data.gfxMeshI[dataIndex] );
+                //bxGfx_HInstanceBuffer hibuffer = bxGfx::meshInstanceHInstanceBuffer( _data.gfxMeshI[dataIndex] );
 
-                const Matrix4 pose = bxPhx::shape_pose( cs, _data.phxShape[dataIndex] );
-                bxGfx::instanceBufferDataSet( hibuffer, &pose, 1, 0 );
+                //const Matrix4 pose = bxPhx::shape_pose( cs, _data.phxShape[dataIndex] );
+                //bxGfx::instanceBufferDataSet( hibuffer, &pose, 1, 0 );
             }
             array::clear( _list_updatePose );
         }

@@ -14,21 +14,6 @@
 #include "scene.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-struct bxDemoFramebuffer
-{
-    enum
-    {
-        eCOLOR = 0,
-        eDEPTH,
-        eCOUNT,
-    };
-
-    bxGdiTexture textures[eCOUNT];
-
-    int width()  const { return textures[0].width; }
-    int height() const { return textures[0].height; }
-};
-static bxDemoFramebuffer __framebuffer;
 static bxDemoScene __scene;
 
 static bx::GfxCamera* camera = nullptr;
@@ -43,16 +28,9 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxEngine_startup( &_engine );
-//         bxGfx::startup( _engine.gdiDevice );
-// 
-//         const int fbWidth = 1920;
-//         const int fbHeight = 1080;
-//         __framebuffer.textures[bxDemoFramebuffer::eCOLOR] = _engine.gdiDevice->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-//         __framebuffer.textures[bxDemoFramebuffer::eDEPTH] = _engine.gdiDevice->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
-
         bxDemoScene_startup( &__scene, &_engine );
 
-        bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager, __scene.gfxWorld );
+        bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager );
 
         //bxGfxCamera_SceneScriptCallback cameraScriptCallback;
         //cameraScriptCallback._menago = __scene._cameraManager;
@@ -114,13 +92,13 @@ public:
         int counter = 0;
         for( int iz = 0; iz < N; ++iz )
         {
-            const float z = -N_HALF + (float)iz;
+            const float z = -N_HALF + (float)iz * 1.2f;
             for( int iy = 0; iy < N; ++iy )
             {
-                const float y = -N_HALF + (float)iy;
+                const float y = -N_HALF + (float)iy * 1.2f;
                 for( int ix = 0; ix < N; ++ix, ++counter )
                 {
-                    const float x = -N_HALF + (float)ix;
+                    const float x = -N_HALF + (float)ix * 1.2f;
                     const Vector3 pos( x, y, z );
 
                     bx::GfxMeshInstanceData meshData;
@@ -151,7 +129,7 @@ public:
             bx::gfxMeshInstanceDataSet( meshI, meshData );
 
             Matrix4 pose = Matrix4::translation( Vector3( 0.f, -3.f, 0.f ) );
-            pose = appendScale( pose, Vector3( 10.f, 1.f, 10.f ) );
+            pose = appendScale( pose, Vector3( 100.f, 1.f, 100.f ) );
             bx::gfxMeshInstanceWorldMatrixSet( meshI, &pose, 1 );
             bx::gfxSceneMeshInstanceAdd( scene, meshI );
         }
@@ -164,13 +142,6 @@ public:
         bx::gfxCameraDestroy( &camera );
                 
         bxDemoScene_shutdown( &__scene, &_engine );
-
-//         for ( int ifb = 0; ifb < bxDemoFramebuffer::eCOUNT; ++ifb )
-//         {
-//             _engine.gdiDevice->releaseTexture( &__framebuffer.textures[ifb] );
-//         }
-        
-        //bxGfx::shutdown( _engine.gdiDevice, _engine.resourceManager );
         bxEngine_shutdown( &_engine );
     }
 
@@ -214,27 +185,15 @@ public:
         bx::gfxContextFrameEnd( __scene.gfx, _engine.gdiContext );
 
 
-        //bxGfx::frameBegin( _engine.gdiDevice, _engine.resourceManager );
         //__scene.dblock->manageResources( _engine.gdiDevice, _engine.resourceManager, __scene.collisionSpace, __scene.gfxWorld );
-        //bxGfxGUI::newFrame( (float)deltaTimeS );
+        bxGfxGUI::newFrame( (float)deltaTimeS );
 
-        //{
-        //    ImGui::Begin( "System" );
-        //    ImGui::Text( "deltaTime: %.5f", deltaTime );
-        //    ImGui::Text( "FPS: %.5f", 1.f / deltaTime );
-        //    ImGui::End();
-        //}
-
-        //bxGfxCamera_InputContext* cameraInputCtx = &__scene.cameraInputCtx;
-
-        //bxGfx::cameraUtil_updateInput( cameraInputCtx, &win->input, 0.1f, deltaTime );
-        //bxGfxCamera* topCamera = bxGfx::camera_get( __scene._cameraManager, bxGfx::camera_top( __scene._cameraManager ) );
-        //topCamera->matrix.world = bxGfx::cameraUtil_movement( topCamera->matrix.world
-        //                                                      , cameraInputCtx->leftInputX * 0.25f
-        //                                                      , cameraInputCtx->leftInputY * 0.25f
-        //                                                      , cameraInputCtx->rightInputX * deltaTime * 20.f
-        //                                                      , cameraInputCtx->rightInputY * deltaTime * 20.f
-        //                                                      , cameraInputCtx->upDown * 0.25f );
+        {
+            ImGui::Begin( "System" );
+            ImGui::Text( "deltaTime: %.5f", deltaTime );
+            ImGui::Text( "FPS: %.5f", 1.f / deltaTime );
+            ImGui::End();
+        }
 
         //const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
         //{
@@ -247,15 +206,6 @@ public:
         //bxGfx::cameraManager_update( __scene._cameraManager, deltaTime );
 
 
-
-        //
-        //bxGdiContext* gdiContext = _engine.gdiContext;
-
-        //gdiContext->clear();
-        //gdiContext->changeRenderTargets( &__framebuffer.textures[0], 1, __framebuffer.textures[bxDemoFramebuffer::eDEPTH] );
-        //gdiContext->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
-        //bxGdi::context_setViewport( gdiContext, __framebuffer.textures[0] );
-
         //{
         //    bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::xAxis(), 0xFF0000FF, true );
         //    bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
@@ -264,13 +214,7 @@ public:
         //    //bxPhx::collisionSpace_debugDraw( bxPhx::__cspace );
         //}
 
-        //bxGfx::worldDraw( gdiContext, __scene.gfxWorld, currentCamera );
-
-        //bxGfxDebugDraw::flush( gdiContext, currentCamera.matrix.viewProj );
-        //bxGfx::rasterizeFramebuffer( gdiContext, __framebuffer.textures[bxDemoFramebuffer::eCOLOR], currentCamera );
-
-        //bxGfxGUI::draw( gdiContext );
-        //gdiContext->backend()->swap();
+        
 
         _time += deltaTime;
 

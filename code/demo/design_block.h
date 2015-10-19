@@ -46,7 +46,7 @@ struct bxDesignBlock
     virtual void release( Handle* h ) = 0;
 
     virtual void cleanUp() = 0;
-    virtual void manageResources( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxPhx_CollisionSpace* cs, bxGfx_World* gfxWorld ) = 0;
+    virtual void manageResources( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxPhx_CollisionSpace* cs ) = 0;
     virtual void tick( bxPhx_CollisionSpace* cs ) = 0;
 
     virtual void assignTag( Handle h, u64 tag ) = 0;

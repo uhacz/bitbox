@@ -233,9 +233,7 @@ namespace bxGame
         FlockParticles particles;
         FlockParams params;
         FlockHashmap hmap;
-        
-        bxGfx_HMeshInstance hMeshI;
-        
+
         f32 _dtAcc;
     };
 
@@ -276,7 +274,7 @@ namespace bxGame
         }
     }
 
-    void flock_loadResources( Flock* flock, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_World* gfxWorld )
+    void flock_loadResources( Flock* flock, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         //bxGfx_HMesh hmesh = bxGfx::meshCreate();
         //flock->hInstanceBuffer = bxGfx::instanceBuffeCreate( flock->particles.size );
@@ -467,8 +465,6 @@ namespace bxGame
             //bxGfxDebugDraw::addSphere( Vector4( pos, 0.1f ), 0xFFFF00FF, true );
             const Matrix3 rotation = Matrix3::identity(); // createBasis( normalizeSafe( vel ) );
             const Matrix4 pose = appendScale( Matrix4( rotation, pos ), Vector3( 0.1f ) );
-            bxGfx_HInstanceBuffer hinstance = bxGfx::meshInstanceHInstanceBuffer( flock->hMeshI );
-            bxGfx::instanceBufferDataSet( hinstance, &pose, 1, iboid );
             //bxGfxDebugDraw::addLine( pos, pos + vel, 0x0000FFFF, true );
             
             //bxGfxDebugDraw::addLine( pos, pos + rot.getCol0(), 0x0F00FFFF, true );

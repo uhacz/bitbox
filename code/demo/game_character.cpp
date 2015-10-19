@@ -63,7 +63,7 @@ static inline int computeShapeTriangleCount( int nIterations )
     return bxPolyShape_computeNumTriangles( iter );
 }
 
-void character_init( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_World* gfxWorld, const Matrix4& worldPose )
+void character_init( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const Matrix4& worldPose )
 {
     const int BODY_SHAPE_ITERATIONS = 3;
     
@@ -101,7 +101,7 @@ void character_init( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* 
 
     //CharacterInternal::initMainBody( ch, worldPose );
     CharacterInternal::initShapeBody( ch, BODY_SHAPE_ITERATIONS, worldPose );
-    CharacterInternal::initShapeMesh( ch, dev, resourceManager, gfxWorld );
+    CharacterInternal::initShapeMesh( ch, dev, resourceManager );
     ch->contacts = bxPhx::contacts_new( nPoints );
 }
 void character_deinit( Character* character, bxResourceManager* resourceManager )
@@ -193,11 +193,11 @@ void character_tick( Character* character, bxPhx_CollisionSpace* cspace, bxGdiCo
 
     if( doIteration )
     {
-        bxGdiRenderSource* rsource = bxGfxExt::meshInstanceRenderSource( character->shapeMeshI );
-        const bxGdiVertexBuffer& vbuffer = bxGdi::renderSourceVertexBuffer( rsource, 0 );
-        MeshVertex* vertices = (MeshVertex*)ctx->mapVertices( vbuffer, 0, vbuffer.numElements, bxGdi::eMAP_WRITE );
-        CharacterInternal::updateMesh( vertices, character->particles.pos0, character->particles.size, character->shapeMeshData.indices, character->shapeMeshData.nIndices );
-        ctx->unmapVertices( vbuffer );
+        //bxGdiRenderSource* rsource = bxGfxExt::meshInstanceRenderSource( character->shapeMeshI );
+        //const bxGdiVertexBuffer& vbuffer = bxGdi::renderSourceVertexBuffer( rsource, 0 );
+        //MeshVertex* vertices = (MeshVertex*)ctx->mapVertices( vbuffer, 0, vbuffer.numElements, bxGdi::eMAP_WRITE );
+        //CharacterInternal::updateMesh( vertices, character->particles.pos0, character->particles.size, character->shapeMeshData.indices, character->shapeMeshData.nIndices );
+        //ctx->unmapVertices( vbuffer );
     }
 
     //CharacterInternal::debugDraw( character );
@@ -567,7 +567,7 @@ void updateMesh( MeshVertex* vertices, const Vector3* points, int nPoints, const
     }
 }
 
-void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_World* gfxWorld )
+void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
 {
     const ParticleData& p = ch->particles;
     const Character::Body& body = ch->shapeBody;
@@ -576,10 +576,10 @@ void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* r
     MeshVertex* vertices = (MeshVertex*)BX_MALLOC( bxDefaultAllocator(), nPoints * sizeof( MeshVertex ), 4 );
     updateMesh( vertices, p.pos0, nPoints, ch->shapeMeshData.indices, ch->shapeMeshData.nIndices );
 
-    bxGfx_StreamsDesc sdesc( nPoints, ch->shapeMeshData.nIndices );
-    sdesc.vstreamBegin().addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 ).addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
-    sdesc.vstreamEnd();
-    sdesc.istreamSet( bxGdi::eTYPE_USHORT, ch->shapeMeshData.indices );
+    //bxGfx_StreamsDesc sdesc( nPoints, ch->shapeMeshData.nIndices );
+    //sdesc.vstreamBegin().addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 ).addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
+    //sdesc.vstreamEnd();
+    //sdesc.istreamSet( bxGdi::eTYPE_USHORT, ch->shapeMeshData.indices );
 
 //    bxGfx_HMesh hmesh = bxGfx::meshCreate();
    // bxGfx::meshStreamsSet( hmesh, dev, sdesc );

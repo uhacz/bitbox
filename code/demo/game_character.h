@@ -121,7 +121,7 @@ namespace bxGame
         //Body mainBody;
         Body shapeBody;
         
-        bxGfx_HMeshInstance shapeMeshI;
+        //bxGfx_HMeshInstance shapeMeshI;
 
         //Vector3 wheelRestPos[eWHEEL_BODY_PARTICLE_COUNT];
         //Constraint mainBodyConstraints[eMAIN_BODY_CONSTRAINT_COUNT];
@@ -142,7 +142,7 @@ namespace bxGame
 
         //void initMainBody( Character1* ch, const Matrix4& worldPose );
         void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose );
-        void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGfx_World* gfxWorld );
+        void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
         void deinitShapeMesh( Character* ch );
         //void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
         void simulateShapeBodyBegin( Character* ch, const Vector3& extForce, float deltaTime );
