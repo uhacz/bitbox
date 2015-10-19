@@ -24,6 +24,22 @@ namespace bx
         eFB_COUNT,
     };
 
+    enum EResourceSlot
+    {
+        eRS_CBUFFER_VIEW_PARAMS = 0,
+        eRS_CBUFFER_INSTANCE_OFFSET = 1,
+        eRS_CBUFFER_LIGHTS = 2,
+        eRS_CBUFFER_MATERIAL = 3,
+
+        eRS_BUFFER_INSTANCE_WORLD = 0,
+        eRS_BUFFER_INSTANCE_WORLD_IT = 1,
+        eRS_BUFFER_LIGHT = 2,
+        eRS_BUFFER_LIGHT_INDICES = 3,    
+
+        eRS_TEXTURE_SAO = 4,
+    };
+
+    struct GfxSunLight;
     struct GfxActor
     {
         virtual ~GfxActor() {}
@@ -34,6 +50,7 @@ namespace bx
         virtual GfxCamera*       isCamera() { return nullptr; }
         virtual GfxScene*        isScene() { return nullptr; }
         virtual GfxMeshInstance* isMeshInstance() { return nullptr; }
+        virtual GfxSunLight*     isSunLight() { return nullptr; }
     };
 
     struct GfxCamera : public GfxActor
@@ -57,6 +74,22 @@ namespace bx
         GfxCamera();
 
         virtual GfxCamera* isCamera() { return this; }
+    };
+
+    //////////////////////////////////////////////////////////////////////////
+    ////
+    struct GfxSunLight : public GfxActor
+    {
+        float3_t _direction;
+        float _angularRadius;
+        float _sunIlluminanceInLux;
+        float _skyIlluminanceInLux;
+
+        GfxContext* _ctx;
+        u32 _internalHandle;
+
+        GfxSunLight();
+        virtual GfxSunLight* isSunLight() { return this; }
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -152,9 +185,7 @@ namespace bx
     int  gfxSceneDataRefresh( GfxScene::Data* data, GfxContext* ctx, int index );
     void gfxSceneDataRefresh( GfxScene* scene, u32 meshHandle );
     int  gfxSceneDataFind( const GfxScene::Data& data, u32 meshHandle );
-
-
-
+    
     struct GfxInstanceData
     {
         Matrix4* pose;
@@ -182,6 +213,8 @@ namespace bx
         virtual GfxMeshInstance* isMeshInstance() { return this; }
     };
 
+    //////////////////////////////////////////////////////////////////////////
+    ///
     struct GfxViewFrameParams
     {
         Matrix4 _camera_view;
@@ -218,9 +251,47 @@ namespace bx
     };
     void gfxViewCreate( GfxView* view, bxGdiDeviceBackend* dev, int maxInstances );
     void gfxViewDestroy( GfxView* view, bxGdiDeviceBackend* dev );
-    void gfxViewCameraSet( bxGdiContext* gdi, GfxView* view, const GfxCamera* camera, int rtw, int rth );
-    void gfxViewEnable( bxGdiContext* gdi, GfxView* view );
+    void gfxViewCameraSet( bxGdiContext* gdi, const GfxView* view, const GfxCamera* camera, int rtw, int rth );
+    void gfxViewEnable( bxGdiContext* gdi, const GfxView* view );
 
+    //////////////////////////////////////////////////////////////////////////
+    ///
+    struct GfxLights;
+    struct GfxLighningData
+    {
+        u32 _numTilesXY[2];
+        u32 _numTiles;
+        u32 _tileSize;
+        u32 _maxLights;
+        f32 _tileSizeRcp;
+
+        f32 _sunAngularRadius;
+        f32 _sunIlluminanceInLux;
+        f32 _skyIlluminanceInLux;
+
+        float3_t _sunDirection;
+        //float3 _sunColor;
+        //float3 _skyColor;
+    };
+    void gfxLightningDataFill( GfxLighningData* ldata, const GfxLights* lights, const GfxSunLight* sunLight );
+
+    struct GfxLights
+    {
+        bxGdiBuffer _lightnigParamsBuffer;
+        //bxGdiBuffer _lightsDataBuffer;
+        //bxGdiBuffer _lightsIndicesBuffer;
+
+        GfxLights();
+    };
+    void gfxLightsCreate( GfxLights* lights, bxGdiDeviceBackend* dev );
+    void gfxLightsDestroy( GfxLights* lights, bxGdiDeviceBackend* dev );
+    void gfxLightsUploadData( bxGdiContext* ctx, const GfxLights* lights, const GfxSunLight* sunLight );
+    void gfxLightsEnable( bxGdiContext* ctx, const GfxLights* lights );
+    void gfxSunLightCreate( GfxSunLight** sunLight, GfxContext* ctx );
+    void gfxSunLightDestroy( GfxSunLight** sunLight );
+    void gfxSunLightDirectionSet( GfxSunLight* sunLight, const Vector3& direction );
+    //////////////////////////////////////////////////////////////////////////
+    ///
     struct GfxContext;
     struct GfxCommandQueue
     {
@@ -284,6 +355,10 @@ namespace bx
     struct GfxContext
     {
         GfxCommandQueue _cmdQueue;
+        
+        GfxLights _lights;
+        GfxSunLight* _sunLight;
+
 
         bxGdiTexture _framebuffer[eFB_COUNT];
         bxGdiShaderFx_Instance* _fxISky;

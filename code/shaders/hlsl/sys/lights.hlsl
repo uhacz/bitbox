@@ -16,14 +16,15 @@ shared cbuffer LighningData : register(b2)
     float _skyIlluminanceInLux;
     
     float3 _sunDirection;
-    float3 _sunColor;
-    float3 _skyColor;
+    //float3 _sunColor;
+    //float3 _skyColor;
 };
 
 
 
-Buffer<float4> _lightsData    : register(t0);
-Buffer<uint>   _lightsIndices : register(t1);
+Buffer<float4> _lightsData    : register(t2);
+Buffer<uint>   _lightsIndices : register(t3);
+
 uint2 computeTileXY( in float2 screenPos, in uint2 numTilesXY, in float2 rtSize, in float tileSizeRcp )
 {
     const uint2 unclamped = (uint2)(screenPos * rtSize * tileSizeRcp);
@@ -40,10 +41,10 @@ float3 evaluateSunLight( in ShadingData shd, float3 surfPos, in Material mat )
     const float DdotR = dot( D, R );
     const float3 S = R - DdotR * D;    const float3 L = DdotR < d ? normalize( d * D + normalize( S ) * r ) : R;
 
-    float w = 1.0f; // mat.ambientCoeff;
-    float n = 1.f;
-    const float illuminance = _sunIlluminanceInLux * wrappedLambert( saturate( dot( N, D ) ), w, n );
-
+    //float w = 1.0f; // mat.ambientCoeff;
+    //float n = 1.f;
+    //const float illuminance = _sunIlluminanceInLux * wrappedLambert( saturate( dot( N, D ) ), w, n );
+    const float illuminance = _sunIlluminanceInLux * saturate( dot( N, D ) );
     const float3 Fd = BRDF_diffuseOnly( D, shd, mat );
     const float3 Fr = BRDF_specularOnly( L, shd, mat ) * shd.shadow;
 

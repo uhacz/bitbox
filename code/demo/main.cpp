@@ -162,9 +162,7 @@ public:
     {
         bx::gfxSceneDestroy( &scene );
         bx::gfxCameraDestroy( &camera );
-
-        bx::gfxContextTick( __scene.gfx, _engine.gdiDevice, _engine.resourceManager );
-        
+                
         bxDemoScene_shutdown( &__scene, &_engine );
 
 //         for ( int ifb = 0; ifb < bxDemoFramebuffer::eCOUNT; ++ifb )

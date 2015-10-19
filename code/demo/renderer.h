@@ -126,6 +126,7 @@ namespace bx
     GfxGlobalResources* gfxGlobalResourcesGet();
     bxGdiShaderFx_Instance* gfxMaterialFind( const char* name );
 
+    ////
     void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx );
     void gfxCameraDestroy( GfxCamera** camera );
     float gfxCameraAspect( const GfxCamera* cam );
@@ -138,6 +139,10 @@ namespace bx
     void gfxCameraWorldMatrixSet( GfxCamera* cam, const Matrix4& world );
     Matrix4 gfxCameraWorldMatrixGet( const GfxCamera* camera );
 
+    ////
+    void gfxSunLightDirectionSet( GfxContext* ctx, const Vector3& direction );
+
+    ////
     void gfxMeshInstanceCreate( GfxMeshInstance** meshI, GfxContext* ctx, int numInstances = 1 );
     void gfxMeshInstanceDestroy( GfxMeshInstance** meshI );
 
@@ -147,6 +152,7 @@ namespace bx
     void gfxMeshInstanceDataSet( GfxMeshInstance* meshI, const GfxMeshInstanceData& data );
     void gfxMeshInstanceWorldMatrixSet( GfxMeshInstance* meshI, const Matrix4* matrices, int nMatrices );
 
+    ////
     void gfxSceneCreate( GfxScene** scene, GfxContext* ctx );
     void gfxSceneDestroy( GfxScene** scene );
     

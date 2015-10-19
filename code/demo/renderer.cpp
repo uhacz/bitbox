@@ -1238,7 +1238,9 @@ namespace bx
         GfxContext* g = BX_NEW( bxDefaultAllocator(), GfxContext );
 
         gfxViewCreate( &g->_cmdQueue._view, dev, 1024 );
-        
+                
+        gfxLightsCreate( &g->_lights, dev );
+
         const int fbWidth = 1920;
         const int fbHeight = 1080;
         g->_framebuffer[eFB_COLOR0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
@@ -1277,12 +1279,19 @@ namespace bx
         gfxGlobalResourcesStartup( &g->_globalResources, dev, resourceManager );
         gfxMaterialManagerStartup( &g->_materialManager, dev, resourceManager );
 
+        gfxSunLightCreate( &g->_sunLight, g );
+        gfxSunLightDirectionSet( g->_sunLight, Vector3( 1.f, -1.f, 0.f ) );
+
         gfx[0] = g;
     }
 
     void gfxContextShutdown( GfxContext** gfx, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         GfxContext* g = gfx[0];
+        gfxSunLightDestroy( &g->_sunLight );
+
+        /// implicit tick. 
+        gfxContextTick( g, dev, resourceManager );
 
         gfxMaterialManagerShutdown( &g->_materialManager, dev, resourceManager );
         gfxGlobalResourcesShutdown( &g->_globalResources, dev, resourceManager );
@@ -1315,6 +1324,7 @@ namespace bx
         for ( int i = 0; i < eFB_COUNT; ++i )
             dev->releaseTexture( &g->_framebuffer[i] );
 
+        gfxLightsDestroy( &g->_lights, dev );
         gfxViewDestroy( &g->_cmdQueue._view, dev );
 
         BX_DELETE0( bxDefaultAllocator(), gfx[0] );
@@ -1357,6 +1367,11 @@ namespace bx
             {
                 GfxCamera* camera = actor->isCamera();
                 BX_DELETE0( gfx->_allocCamera, camera );
+            }
+            else if( actor->isSunLight() )
+            {
+                GfxSunLight* sunLight = actor->isSunLight();
+                BX_DELETE0( bxDefaultAllocator(), sunLight );
             }
             else
             {
@@ -1475,6 +1490,17 @@ namespace bx
         camera[0] = nullptr;
     }
 
+    //////////////////////////////////////////////////////////////////////////
+    void gfxSunLightDirectionSet( GfxContext* ctx, const Vector3& direction )
+    {
+        if( ctx->_sunLight )
+        {
+            gfxSunLightDirectionSet( ctx->_sunLight, direction );
+        }
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
     void gfxMeshInstanceCreate( GfxMeshInstance** meshI, GfxContext* ctx, int numInstances )
     {
         GfxMeshInstance* m = BX_NEW( ctx->_allocMesh, GfxMeshInstance );
@@ -1548,7 +1574,7 @@ namespace bx
         memcpy( meshI->_idata.pose, matrices, numToSet * sizeof( Matrix4 ) );
     }
 
-
+    //////////////////////////////////////////////////////////////////////////
     void gfxSceneCreate( GfxScene** scene, GfxContext* ctx )
     {
         GfxScene* s = BX_NEW( ctx->_allocScene, GfxScene );
@@ -1893,6 +1919,12 @@ namespace bx
         
         gfxViewCameraSet( gdi, &view, camera, ctx->_framebuffer->width, ctx->_framebuffer->height );
         gfxViewEnable( gdi, &view );
+
+        gfxLightsUploadData( gdi, &ctx->_lights, ctx->_sunLight );
+        gfxLightsEnable( gdi, &ctx->_lights );
+
+        gdi->setTexture( ctx->_framebuffer[eFB_SAO], eRS_TEXTURE_SAO, bxGdi::eSTAGE_MASK_PIXEL );
+
         /// color pass
         {
             viewUploadInstanceData( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );

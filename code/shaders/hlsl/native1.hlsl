@@ -37,6 +37,7 @@ struct out_PS
 #include <sys/frame_data.hlsl>
 #include <sys/material.hlsl>
 #include <sys/brdf.hlsl>
+#include <sys/lights.hlsl>
 #include <sys/vertex_transform.hlsl>
 
 in_PS vs_main( in_VS IN )
@@ -83,7 +84,8 @@ out_PS ps_main( in_PS IN )
     
     Material mat;
     ASSIGN_MATERIAL_FROM_CBUFFER( mat );
-    float3 c = BRDF( L, shd, mat );
+    //float3 c = BRDF( L, shd, mat );
+    float3 c = evaluateSunLight( shd, IN.w_pos, mat );
     //float3 C = diffuseColor;
     //float NdotL = saturate( dot( N, L ) );
 

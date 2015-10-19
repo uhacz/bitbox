@@ -57,6 +57,16 @@ namespace bx
     }
 
     //////////////////////////////////////////////////////////////////////////
+    GfxSunLight::GfxSunLight()
+        : _direction( 0.f, -1.f, 0.f )
+        , _angularRadius()
+        , _sunIlluminanceInLux( 1.f/*110000.f */)
+        , _skyIlluminanceInLux( 0.3f/*30000.f*/ )
+        
+        , _ctx( nullptr )
+        , _internalHandle( 0 )
+    {}
+    
     //////////////////////////////////////////////////////////////////////////
     GfxScene::GfxScene()
         : _ctx( nullptr )
@@ -225,19 +235,92 @@ namespace bx
         dev->releaseBuffer( &view->_instanceWorldBuffer );
         dev->releaseBuffer( &view->_viewParamsBuffer );
     }
-    void gfxViewCameraSet( bxGdiContext* gdi, GfxView* view, const GfxCamera* camera, int rtw, int rth )
+    void gfxViewCameraSet( bxGdiContext* gdi, const GfxView* view, const GfxCamera* camera, int rtw, int rth )
     {
         GfxViewFrameParams viewParams;
         gfxViewFrameParamsFill( &viewParams, camera, rtw, rth );
         gdi->backend()->updateCBuffer( view->_viewParamsBuffer, &viewParams );
     }
-    void gfxViewEnable( bxGdiContext* gdi, GfxView* view )
+    void gfxViewEnable( bxGdiContext* gdi, const GfxView* view )
     {
-        gdi->setBufferRO( view->_instanceWorldBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX );
-        gdi->setBufferRO( view->_instanceWorldITBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
-        gdi->setCbuffer( view->_viewParamsBuffer, 0, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
-        gdi->setCbuffer( view->_instanceOffsetBuffer, 1, bxGdi::eSTAGE_MASK_VERTEX );
+        gdi->setBufferRO( view->_instanceWorldBuffer, eRS_BUFFER_INSTANCE_WORLD, bxGdi::eSTAGE_MASK_VERTEX );
+        gdi->setBufferRO( view->_instanceWorldITBuffer, eRS_BUFFER_INSTANCE_WORLD_IT, bxGdi::eSTAGE_MASK_VERTEX );
+        gdi->setCbuffer( view->_viewParamsBuffer, eRS_CBUFFER_VIEW_PARAMS, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setCbuffer( view->_instanceOffsetBuffer, eRS_CBUFFER_INSTANCE_OFFSET, bxGdi::eSTAGE_MASK_VERTEX );
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    void gfxLightningDataFill( GfxLighningData* ldata, const GfxLights* lights, const GfxSunLight* sunLight )
+    {
+        if( sunLight )
+        {
+            ldata->_sunAngularRadius = sunLight->_angularRadius;
+            ldata->_sunIlluminanceInLux = sunLight->_sunIlluminanceInLux;
+            ldata->_skyIlluminanceInLux = sunLight->_skyIlluminanceInLux;
+            ldata->_sunDirection = sunLight->_direction;
+        }
+    }
+
+
+    GfxLights::GfxLights()
+    {
+
+    }
+    void gfxLightsCreate( GfxLights* lights, bxGdiDeviceBackend* dev )
+    {
+        lights->_lightnigParamsBuffer = dev->createConstantBuffer( sizeof( GfxLighningData ) );
+    }
+
+    void gfxLightsDestroy( GfxLights* lights, bxGdiDeviceBackend* dev )
+    {
+        dev->releaseBuffer( &lights->_lightnigParamsBuffer );
+    }
+
+    void gfxLightsUploadData( bxGdiContext* gdi, const GfxLights* lights, const GfxSunLight* sunLight )
+    {
+        GfxLighningData ldata;
+        memset( &ldata, 0x00, sizeof( GfxLighningData ) );
+        gfxLightningDataFill( &ldata, lights, sunLight );
+
+        gdi->backend()->updateCBuffer( lights->_lightnigParamsBuffer, &ldata );
+    }
+
+    void gfxLightsEnable( bxGdiContext* gdi, const GfxLights* lights )
+    {
+        gdi->setCbuffer( lights->_lightnigParamsBuffer, eRS_CBUFFER_LIGHTS, bxGdi::eSTAGE_MASK_PIXEL );
+    }
+    void gfxSunLightCreate( GfxSunLight** sunLight, GfxContext* ctx )
+    {
+        GfxSunLight* s = BX_NEW( bxDefaultAllocator(), GfxSunLight );
+        s->_internalHandle = gfxContextHandleAdd( ctx, s );
+        s->_ctx = ctx;
+
+        sunLight[0] = s;
+    }
+
+    void gfxSunLightDestroy( GfxSunLight** sunLight )
+    {
+        GfxSunLight* s = sunLight[0];
+
+        if( !s )
+            return;
+
+        if( !gfxContextHandleValid( s->_ctx, s->_internalHandle ) )
+            return;
+
+        gfxContextHandleRemove( s->_ctx, s->_internalHandle );
+        gfxContextActorRelease( s->_ctx, s );
+
+        sunLight[0] = nullptr;
+    }
+
+    void gfxSunLightDirectionSet( GfxSunLight* sunLight, const Vector3& direction )
+    {
+        const Vector3 L = normalizeSafe( direction );
+        m128_to_xyz( sunLight->_direction.xyz, L.get128() );
+    }
+
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
     GfxCommandQueue::GfxCommandQueue() : _acquireCounter( 0 )
@@ -327,7 +410,10 @@ namespace bx
             fxI->setUniform( "specularCoeff", params.specularCoeff );
             fxI->setUniform( "ambientCoeff", params.ambientCoeff );
         }
-    }
+
+
+
+}
     bxGdiShaderFx_Instance* gfxMaterialManagerCreateMaterial( GfxMaterialManager* materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* name, const GfxMaterialManager::Material& params )
     {
         const u64 key = gfxMaterialManagerCreateNameHash( name );
@@ -350,7 +436,8 @@ namespace bx
     GfxMaterialManager* GfxContext::_materialManager = nullptr;
 
     GfxContext::GfxContext() 
-        : _fxISky( nullptr )
+        : _sunLight( nullptr )
+        , _fxISky( nullptr )
         , _fxISao( nullptr )
         , _allocMesh( nullptr )
         , _allocCamera( nullptr )
@@ -416,6 +503,9 @@ namespace bx
 
         BX_DELETE0( bxDefaultAllocator(), globalResources[0] );
     }
+
+
+
 
 
 
