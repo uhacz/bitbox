@@ -23,6 +23,7 @@
 #include <algorithm>
 
 #include "gfx_private.h"
+#include "gfx/gfx_debug_draw.h"
 namespace bx
 {
     float gfxCameraAspect( const GfxCamera* cam )
@@ -177,6 +178,7 @@ namespace bx
         gfxViewCreate( &g->_cmdQueue._view, dev, 1024 );
                 
         gfxLightsCreate( &g->_lights, dev );
+        gfxShadowCreate( &g->_shadow, dev, 2048 );
 
         const int fbWidth = 1920;
         const int fbHeight = 1080;
@@ -261,6 +263,7 @@ namespace bx
         for ( int i = 0; i < eFB_COUNT; ++i )
             dev->releaseTexture( &g->_framebuffer[i] );
 
+        gfxShadowDestroy( &g->_shadow, dev );
         gfxLightsDestroy( &g->_lights, dev );
         gfxViewDestroy( &g->_cmdQueue._view, dev );
 
@@ -645,7 +648,7 @@ namespace bx
                     bxGdi::sortList_chunkAdd( depthList, depthChunk, depthSortItem );
                 }
             }
-
+            scene->_aabb = sceneAABB;
 
 
             bxGdi::sortList_sortLess( colorList, *colorChunk );
@@ -798,6 +801,8 @@ namespace bx
         bxChunk colorChunk, depthChunk;
         sceneBuildSortListColorDepth( &colorChunk, &depthChunk, scene, camera );
 
+        gfxShadowDraw( cmdq, &ctx->_shadow, scene, camera, gfxSunLightDirectionGet( ctx->_sunLight ) );
+
         GfxSortListColor* colorList = scene->_sListColor;
         GfxSortListDepth* depthList = scene->_sListDepth;
 
@@ -875,6 +880,8 @@ namespace bx
             gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[ eFB_DEPTH ] );
             sortListColorSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
         }
+
+        bxGfxDebugDraw::flush( gdi, camera->viewProj );
 
         gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
     }

@@ -156,6 +156,15 @@ public:
             return false;
         }
 
+        bxGfxGUI::newFrame( (float)deltaTimeS );
+
+        {
+            ImGui::Begin( "System" );
+            ImGui::Text( "deltaTime: %.5f", deltaTime );
+            ImGui::Text( "FPS: %.5f", 1.f / deltaTime );
+            ImGui::End();
+        }
+
         {
             bxInput* input = &win->input;
             bxInput_Mouse* inputMouse = &input->mouse;
@@ -181,19 +190,14 @@ public:
         
         bx::gfxSceneDraw( scene, cmdq, camera );
 
+
+
         bx::gfxCommandQueueRelease( &cmdq );
         bx::gfxContextFrameEnd( __scene.gfx, _engine.gdiContext );
 
 
         //__scene.dblock->manageResources( _engine.gdiDevice, _engine.resourceManager, __scene.collisionSpace, __scene.gfxWorld );
-        bxGfxGUI::newFrame( (float)deltaTimeS );
-
-        {
-            ImGui::Begin( "System" );
-            ImGui::Text( "deltaTime: %.5f", deltaTime );
-            ImGui::Text( "FPS: %.5f", 1.f / deltaTime );
-            ImGui::End();
-        }
+        
 
         //const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );
         //{

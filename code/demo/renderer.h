@@ -39,7 +39,7 @@ namespace bx
 
     ////
     void gfxSunLightDirectionSet( GfxContext* ctx, const Vector3& direction );
-
+    
     ////
     void gfxMeshInstanceCreate( GfxMeshInstance** meshI, GfxContext* ctx, int numInstances = 1 );
     void gfxMeshInstanceDestroy( GfxMeshInstance** meshI );

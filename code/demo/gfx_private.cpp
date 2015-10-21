@@ -4,6 +4,7 @@
 #include <util/hash.h>
 
 #include <gdi/gdi_context.h>
+#include "gfx/gfx_debug_draw.h"
 
 namespace bx
 {
@@ -321,6 +322,11 @@ namespace bx
         const Vector3 L = normalizeSafe( direction );
         m128_to_xyz( sunLight->_direction.xyz, L.get128() );
     }
+    Vector3 gfxSunLightDirectionGet( GfxSunLight* sunLight )
+    {
+        return Vector3( xyz_to_m128( sunLight->_direction.xyz ) );
+    }
+
 
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
@@ -450,12 +456,70 @@ namespace bx
         bxGdi::sortList_delete( &shd->_sortList );
     }
 
-    void gfxShadowDraw( GfxShadow* shd, GfxScene* scene, const Vector3& lightDirection )
+    Matrix3 computeBasis1( const Vector3& dir )
     {
+        // Derive two remaining vectors
+        Vector3 right, up;
+        if ( ::abs( dir.getY().getAsFloat() ) > 0.9999f )
+        {
+            right = Vector3( 1.0f, 0.0f, 0.0f );
+        }
+        else
+        {
+            right = normalize( cross( Vector3( 0.0f, 1.0f, 0.0f ), dir ) );
+        }
+
+        up = cross( dir, right );
+        return Matrix3( right, up, dir );
+    }
+
+    void gfxShadowDraw( GfxCommandQueue* cmdq, GfxShadow* shd, const GfxScene* scene, const GfxCamera* mainCamera, const Vector3& lightDirection )
+    {
+        const bxAABB& swAABB = scene->_aabb;
+        const Vector3 swCenter = bxAABB::center( swAABB );
+        const Vector3 swSize = bxAABB::size( swAABB );
+        const floatInVec swSizeLen = length( swSize );
+
+        //Vector3 lPos = swCenter - lightDirection * swSizeLen * halfVec;
+        Matrix3 lRot = computeBasis1( -lightDirection );
+        
+        Matrix4 lWorld( lRot, swCenter );
+        Matrix4 lView = orthoInverse( lWorld );
+        bxGfxDebugDraw::addAxes( lWorld );
+
+        const Vector3 swCorners[8] =
+        {
+            swAABB.min,
+            Vector3( swAABB.max.getX(), swAABB.min.getY(), swAABB.min.getZ() ),
+            Vector3( swAABB.max.getX(), swAABB.max.getY(), swAABB.min.getZ() ),
+            Vector3( swAABB.min.getX(), swAABB.max.getY(), swAABB.min.getZ() ),
+
+            Vector3( swAABB.min.getX(), swAABB.min.getY(), swAABB.max.getZ() ),
+            Vector3( swAABB.max.getX(), swAABB.min.getY(), swAABB.max.getZ() ),
+            Vector3( swAABB.max.getX(), swAABB.max.getY(), swAABB.max.getZ() ),
+            Vector3( swAABB.min.getX(), swAABB.max.getY(), swAABB.max.getZ() ),
+        };
+
+        bxAABB aabbLS = bxAABB::prepare();
+        for( int i = 0; i < 8; ++i )
+        {
+            Vector3 lsCorner = mulAsVec4( lView, swCorners[i] );
+            aabbLS = bxAABB::extend( aabbLS, lsCorner );
+        }
+
+        Vector3 aabbLSSize = bxAABB::size( aabbLS ) * halfVec;
+        float3_t minLS, maxLS, extLS;
+        m128_to_xyz( minLS.xyz, aabbLS.min.get128() );
+        m128_to_xyz( maxLS.xyz, aabbLS.max.get128() );
+        m128_to_xyz( extLS.xyz, aabbLSSize.get128() );
+
+        Matrix4 lProj = bx::gfx::cameraMatrixOrtho( minLS.x, maxLS.x, minLS.y, maxLS.y, -extLS.z, extLS.z );
+
+
 
     }
 
-    void gfxShadowResolve( bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera )
+    void gfxShadowResolve( GfxCommandQueue* cmdq, bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera )
     {
 
     }

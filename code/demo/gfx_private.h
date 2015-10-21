@@ -293,6 +293,7 @@ namespace bx
     void gfxSunLightCreate( GfxSunLight** sunLight, GfxContext* ctx );
     void gfxSunLightDestroy( GfxSunLight** sunLight );
     void gfxSunLightDirectionSet( GfxSunLight* sunLight, const Vector3& direction );
+    Vector3 gfxSunLightDirectionGet( GfxSunLight* sunLight );
     //////////////////////////////////////////////////////////////////////////
     ///
     struct GfxContext;
@@ -364,8 +365,8 @@ namespace bx
     };
     void gfxShadowCreate( GfxShadow* shd, bxGdiDeviceBackend* dev, int shadowMapSize );
     void gfxShadowDestroy( GfxShadow* shd, bxGdiDeviceBackend* dev );
-    void gfxShadowDraw( GfxShadow* shd, GfxScene* scene, const Vector3& lightDirection );
-    void gfxShadowResolve( bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera );
+    void gfxShadowDraw( GfxCommandQueue* cmdq, GfxShadow* shd, const GfxScene* scene, const GfxCamera* mainCamera, const Vector3& lightDirection );
+    void gfxShadowResolve( GfxCommandQueue* cmdq, bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera );
 
 
     //////////////////////////////////////////////////////////////////////////

@@ -161,6 +161,15 @@ namespace bxGfxDebugDraw
         array::push_back( __dd->lines, line );
     }
 
+    void addAxes( const Matrix4& pose )
+    {
+        const Vector3 p = pose.getTranslation();
+        addLine( p, p + pose.getCol0().getXYZ(), 0xFF0000FF, 1 );
+        addLine( p, p + pose.getCol1().getXYZ(), 0x00FF00FF, 1 );
+        addLine( p, p + pose.getCol2().getXYZ(), 0x0000FFFF, 1 );
+    }
+
+
     void flush( bxGdiContext* ctx, const Matrix4& viewProj )
     {
         if( !__dd )

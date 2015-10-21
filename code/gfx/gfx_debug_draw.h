@@ -12,6 +12,7 @@ namespace bxGfxDebugDraw
     void addSphere( const Vector4& pos_radius, u32 colorRGBA, int depth );
     void addBox( const Matrix4& pose, const Vector3& ext, u32 colorRGBA, int depth );
     void addLine( const Vector3& pointA, const Vector3& pointB, u32 colorRGBA, int depth );
+    void addAxes( const Matrix4& pose );
     
     void flush( bxGdiContext* ctx, const Matrix4& viewProj );
 
