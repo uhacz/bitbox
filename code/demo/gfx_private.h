@@ -135,6 +135,7 @@ namespace bx
 
     typedef bxGdiSortList< GfxSortItemColor > GfxSortListColor;
     typedef bxGdiSortList< GfxSortItemDepth > GfxSortListDepth;
+    typedef bxGdiSortList< GfxSortItemShadow > GfxSortListShadow;
 
     struct GfxInstanceData;
     struct GfxScene : public GfxActor
@@ -152,7 +153,9 @@ namespace bx
             bxAABB* bbox;
             GfxInstanceData* idata;
         };
+        bxAABB _aabb;
         Data _data;
+
 
         GfxContext* _ctx;
         u32 _internalHandle;
@@ -355,8 +358,15 @@ namespace bx
     struct GfxShadow
     {
         bxGdiTexture _texDepth;
+        GfxSortListShadow* _sortList;
 
+        GfxShadow();
     };
+    void gfxShadowCreate( GfxShadow* shd, bxGdiDeviceBackend* dev, int shadowMapSize );
+    void gfxShadowDestroy( GfxShadow* shd, bxGdiDeviceBackend* dev );
+    void gfxShadowDraw( GfxShadow* shd, GfxScene* scene, const Vector3& lightDirection );
+    void gfxShadowResolve( bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera );
+
 
     //////////////////////////////////////////////////////////////////////////
     ///
@@ -367,10 +377,13 @@ namespace bx
         GfxLights _lights;
         GfxSunLight* _sunLight;
 
+        GfxShadow _shadow;
+
 
         bxGdiTexture _framebuffer[eFB_COUNT];
         bxGdiShaderFx_Instance* _fxISky;
         bxGdiShaderFx_Instance* _fxISao;
+        bxGdiShaderFx_Instance* _fxShadow;
 
         bxAllocator* _allocMesh;
         bxAllocator* _allocCamera;

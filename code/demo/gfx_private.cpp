@@ -74,6 +74,7 @@ namespace bx
         , _sListColor( nullptr )
         , _sListDepth( nullptr )
     {
+        _aabb = bxAABB( Vector3( 0.f ), Vector3( 0.f ) );
         memset( &_data, 0x00, sizeof( GfxScene::Data ) );
     }
     void gfxSceneDataAllocate( GfxScene::Data* data, int newsize, bxAllocator* alloc )
@@ -432,6 +433,36 @@ namespace bx
 
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
+    GfxShadow::GfxShadow()
+        : _sortList( nullptr )
+    {
+
+    }
+
+    void gfxShadowCreate( GfxShadow* shd, bxGdiDeviceBackend* dev, int shadowMapSize )
+    {
+        shd->_texDepth = dev->createTexture2Ddepth( shadowMapSize, shadowMapSize, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+    }
+
+    void gfxShadowDestroy( GfxShadow* shd, bxGdiDeviceBackend* dev )
+    {
+        dev->releaseTexture( &shd->_texDepth );
+        bxGdi::sortList_delete( &shd->_sortList );
+    }
+
+    void gfxShadowDraw( GfxShadow* shd, GfxScene* scene, const Vector3& lightDirection )
+    {
+
+    }
+
+    void gfxShadowResolve( bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera )
+    {
+
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     GfxGlobalResources* GfxContext::_globalResources = nullptr;
     GfxMaterialManager* GfxContext::_materialManager = nullptr;
 
@@ -439,6 +470,7 @@ namespace bx
         : _sunLight( nullptr )
         , _fxISky( nullptr )
         , _fxISao( nullptr )
+        , _fxShadow( nullptr )
         , _allocMesh( nullptr )
         , _allocCamera( nullptr )
         , _allocScene( nullptr )
@@ -504,6 +536,7 @@ namespace bx
         BX_DELETE0( bxDefaultAllocator(), globalResources[0] );
     }
 
+    
 
 
 

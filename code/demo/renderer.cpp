@@ -601,6 +601,8 @@ namespace bx
 
             GfxViewFrustum frustum = bx::gfx::viewFrustumExtract( camera->viewProj );
 
+            bxAABB sceneAABB = bxAABB::prepare();
+
             const int n = data.size;
             for ( int iitem = colorChunk->begin; iitem < colorChunk->end; ++iitem )
             {
@@ -611,6 +613,8 @@ namespace bx
                 {
                     const Matrix4& world = idata.pose[ii];
                     bxAABB worldAABB = bxAABB::transform( world, localAABB );
+
+                    sceneAABB = bxAABB::merge( sceneAABB, worldAABB );
 
                     bool inFrustum = bx::gfx::viewFrustumAABBIntersect( frustum, worldAABB.min, worldAABB.max ).getAsBool();
                     if ( !inFrustum )
@@ -641,6 +645,8 @@ namespace bx
                     bxGdi::sortList_chunkAdd( depthList, depthChunk, depthSortItem );
                 }
             }
+
+
 
             bxGdi::sortList_sortLess( colorList, *colorChunk );
             bxGdi::sortList_sortLess( depthList, *depthChunk );
