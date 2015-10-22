@@ -2,9 +2,12 @@
 #include <util/buffer_utils.h>
 #include <util/hashmap.h>
 #include <util/hash.h>
+#include "util/float16.h"
 
 #include <gdi/gdi_context.h>
 #include "gfx/gfx_debug_draw.h"
+
+#include <algorithm>
 
 namespace bx
 {
@@ -504,6 +507,8 @@ namespace bx
         m128_to_xyz( lsMax.xyz, lsAABB.max.get128() );
         m128_to_xyz( lsExt.xyz, lsAABBsize.get128() );
 
+
+
         const Matrix4 lProj = bx::gfx::cameraMatrixOrtho( lsMin.x, lsMax.x, lsMin.y, lsMax.y, -lsExt.z, lsExt.z );
 
         shd->_lightWorld = lWorld;
@@ -511,6 +516,73 @@ namespace bx
         shd->_lightProj = lProj;
 
         bxGfxDebugDraw::addFrustum( lProj * lView, 0xFFFF00FF, true );
+    }
+
+    void gfxShadowSortListBuild( GfxShadow* shd, bxChunk* chunk, const GfxScene* scene )
+    {
+        const GfxScene::Data& data = scene->_data;
+
+        if ( !shd->_sortList || shd->_sortList->capacity < scene->_instancesCount )
+        {
+            bxGdi::sortList_delete( &shd->_sortList );
+            bxGdi::sortList_new( &shd->_sortList, scene->_instancesCount, bxDefaultAllocator() );
+        }
+
+        GfxSortListShadow* sortList = shd->_sortList;
+
+        //bxChunk colorChunk, depthChunk;
+        bxChunk_create( chunk, 1, data.size );
+
+        const Matrix4 viewProj = shd->_lightProj * shd->_lightView;
+        GfxViewFrustum frustum = bx::gfx::viewFrustumExtract( viewProj );
+
+        const int n = data.size;
+        for ( int iitem = chunk->begin; iitem < chunk->end; ++iitem )
+        {
+            const GfxInstanceData& idata = data.idata[iitem];
+            const bxAABB& localAABB = data.bbox[iitem];
+
+            for ( int ii = 0; ii < idata.count; ++ii )
+            {
+                const Matrix4& world = idata.pose[ii];
+                bxAABB worldAABB = bxAABB::transform( world, localAABB );
+
+                bool inFrustum = bx::gfx::viewFrustumAABBIntersect( frustum, worldAABB.min, worldAABB.max ).getAsBool();
+                if ( !inFrustum )
+                    continue;
+
+                float depth = bx::gfx::cameraDepth( shd->_lightWorld, world.getTranslation() ).getAsFloat();
+                u16 depth16 = float_to_half_fast3( fromF32( depth ) ).u;
+
+                GfxSortItemShadow sortItem;
+                sortItem.key.cascade = 0;
+                sortItem.key.depth = depth16;
+                sortItem.index = iitem;
+                
+                bxGdi::sortList_chunkAdd( sortList, chunk, sortItem );
+            }
+        }
+        bxGdi::sortList_sortLess( sortList, *chunk );
+    }
+
+    void gfxShadowSortListSubmit( bxGdiContext* gdi, const GfxView& view, const GfxScene::Data& data, const GfxSortListShadow* sList, int begin, int end )
+    {
+        for ( int i = begin; i < end; ++i )
+        {
+            const GfxSortListShadow::ItemType& item = sList->items[i];
+            int meshDataIndex = item.index;
+
+            bxGdiRenderSource* rsource = data.rsource[meshDataIndex];
+
+            u32 instanceOffset = view._instanceOffsetArray[i];
+            u32 instanceCount = view._instanceOffsetArray[i + 1] - instanceOffset;
+            gdi->backend()->updateCBuffer( view._instanceOffsetBuffer, &instanceOffset );
+
+            bxGdi::renderSource_enable( gdi, rsource );
+
+            bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
+            bxGdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
+        }
     }
 
     void gfxShadowDraw( GfxCommandQueue* cmdq, GfxShadow* shd, const GfxScene* scene, const GfxCamera* mainCamera, const Vector3& lightDirection )
@@ -532,8 +604,27 @@ namespace bx
 
         gfxShadowComputeMatrices( shd, swCorners, lightDirection );
 
+        bxChunk chunk;
+        memset( &chunk, 0x00, sizeof( bxChunk ) );
+        gfxShadowSortListBuild( shd, &chunk, scene );
+        
+        bxGdiContext* gdi = cmdq->_gdiContext;
+        GfxContext* ctx = cmdq->_ctx;
+        GfxView* view = &cmdq->_view;
 
+        gfxViewUploadInstanceData( gdi, view, scene->_data, shd->_sortList, chunk.begin, chunk.current );
+        gdi->changeRenderTargets( nullptr, 0, shd->_texDepth );
+        gdi->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
 
+        const Matrix4 sc = Matrix4::scale( Vector3( 1, 1, 0.5f ) );
+        const Matrix4 tr = Matrix4::translation( Vector3( 0, 0, 1 ) );
+        const Matrix4 proj = sc * tr * shd->_lightProj;
+
+        bxGdiShaderFx_Instance* fxI = ctx->_fxIShadow;
+        fxI->setUniform( "lightViewProj", proj * shd->_lightView );
+        bxGdi::shaderFx_enable( gdi, fxI, "shadowDepthPass" );
+        
+        gfxShadowSortListSubmit( gdi, *view, scene->_data, shd->_sortList, chunk.begin, chunk.current );
     }
 
     void gfxShadowResolve( GfxCommandQueue* cmdq, bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera )
@@ -551,7 +642,7 @@ namespace bx
         : _sunLight( nullptr )
         , _fxISky( nullptr )
         , _fxISao( nullptr )
-        , _fxShadow( nullptr )
+        , _fxIShadow( nullptr )
         , _allocMesh( nullptr )
         , _allocCamera( nullptr )
         , _allocScene( nullptr )

@@ -56,6 +56,25 @@ passes:
         };
     };
 
+    shadowDepthPass =
+    {
+        vertex = "vs_shadowDepth";
+        pixel = "ps_shadowDepth";
+    };
+
+    shadowResolvePass =
+    {
+        vertex = "vs_screenquad";
+        pixel = "ps_shadowResolve";
+
+        hwstate =
+        {
+            depth_test = 0;
+            depth_write = 0;
+            color_mask = "R";
+        };
+    };
+
 };#~header
 
 #include <sys/frame_data.hlsl>
@@ -76,6 +95,9 @@ shared cbuffer MaterialData : register(b3)
     float2 occlusionTextureSize;
     float2 shadowMapSize;
     int useNormalOffset;
+
+    float4x4 lightViewProj;
+
 };
 
 float biasGet( in uint cascadeIdx )
@@ -397,4 +419,47 @@ float2 ps_add_ssao( in out_VS_screenquad input ) : SV_Target0
 }
 
 
+#ifdef shadowDepthPass
+#include <sys/vertex_transform.hlsl>
+struct in_VS
+{
+    uint   instanceID : SV_InstanceID;
+    float4 pos	  	  : POSITION;
+};
 
+struct in_PS
+{
+    float4 hpos	: SV_Position;
+};
+
+struct out_PS
+{};
+in_PS vs_shadowDepth( in_VS IN )
+{
+    in_PS OUT = (in_PS)0;
+
+    float4 row0, row1, row2;
+    float3 row0IT, row1IT, row2IT;
+
+    fetchWorld( row0, row1, row2, IN.instanceID );
+    fetchWorldIT( row0IT, row1IT, row2IT, IN.instanceID );
+
+    float3 wpos = transformPosition( row0, row1, row2, IN.pos );
+    OUT.hpos = mul( lightViewProj, float4(wpos, 1.f) );
+    return OUT;
+}
+
+[earlydepthstencil]
+out_PS ps_shadowDepth( in_PS input )
+{
+    out_PS OUT;
+    return OUT;
+}
+#endif
+
+#ifdef shadowResolvePass
+float ps_shadowResolve( in in_PS_shadow input ) : SV_Target0
+{
+
+}
+#endif

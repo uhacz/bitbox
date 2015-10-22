@@ -371,6 +371,8 @@ namespace bx
     void gfxShadowCreate( GfxShadow* shd, bxGdiDeviceBackend* dev, int shadowMapSize );
     void gfxShadowDestroy( GfxShadow* shd, bxGdiDeviceBackend* dev );
     void gfxShadowComputeMatrices( GfxShadow* shd, const Vector3 wsCorners[8], const Vector3& lightDirection );
+    void gfxShadowSortListBuild( GfxShadow* shd, bxChunk* chunk, const GfxScene* scene );
+    void gfxShadowSortListSubmit( bxGdiContext* gdi, const GfxView& view, const GfxScene::Data& data, const GfxSortListShadow* sList, int begin, int end );
     void gfxShadowDraw( GfxCommandQueue* cmdq, GfxShadow* shd, const GfxScene* scene, const GfxCamera* mainCamera, const Vector3& lightDirection );
     void gfxShadowResolve( GfxCommandQueue* cmdq, bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera );
 
@@ -390,7 +392,7 @@ namespace bx
         bxGdiTexture _framebuffer[eFB_COUNT];
         bxGdiShaderFx_Instance* _fxISky;
         bxGdiShaderFx_Instance* _fxISao;
-        bxGdiShaderFx_Instance* _fxShadow;
+        bxGdiShaderFx_Instance* _fxIShadow;
 
         bxAllocator* _allocMesh;
         bxAllocator* _allocCamera;
@@ -442,4 +444,51 @@ namespace bx
     }
     void gfxGlobalResourcesStartup ( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void gfxGlobalResourcesShutdown( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+}///
+
+
+namespace bx
+{
+    template< class Tlist >
+    void gfxViewUploadInstanceData( bxGdiContext* gdi, GfxView* view, const GfxScene::Data& data, const Tlist* sList, int begin, int end )
+    {
+        float4_t* dataWorld = (float4_t*)bxGdi::buffer_map( gdi->backend(), view->_instanceWorldBuffer, 0, view->_maxInstances );
+        float3_t* dataWorldIT = (float3_t*)bxGdi::buffer_map( gdi->backend(), view->_instanceWorldITBuffer, 0, view->_maxInstances );
+
+        array::clear( view->_instanceOffsetArray );
+        u32 currentOffset = 0;
+        u32 instanceCounter = 0;
+        for ( int i = begin; i < end; ++i )
+        {
+            const Tlist::ItemType& item = sList->items[i];
+            const GfxInstanceData idata = data.idata[item.index];
+
+            for ( int imatrix = 0; imatrix < idata.count; ++imatrix, ++instanceCounter )
+            {
+                SYS_ASSERT( instanceCounter < (u32)view->_maxInstances );
+
+                const u32 dataOffset = (currentOffset + imatrix) * 3;
+                const Matrix4 worldRows = transpose( idata.pose[imatrix] );
+                const Matrix3 worldITRows = inverse( idata.pose[imatrix].getUpper3x3() );
+
+                const float4_t* worldRowsPtr = (float4_t*)&worldRows;
+                memcpy( dataWorld + dataOffset, worldRowsPtr, sizeof( float4_t ) * 3 );
+
+                const float4_t* worldITRowsPtr = (float4_t*)&worldITRows;
+                memcpy( dataWorldIT + dataOffset, worldITRowsPtr, sizeof( float3_t ) );
+                memcpy( dataWorldIT + dataOffset + 1, worldITRowsPtr + 1, sizeof( float3_t ) );
+                memcpy( dataWorldIT + dataOffset + 2, worldITRowsPtr + 2, sizeof( float3_t ) );
+            }
+
+            array::push_back( view->_instanceOffsetArray, currentOffset );
+            currentOffset += idata.count;
+        }
+        array::push_back( view->_instanceOffsetArray, currentOffset );
+
+        gdi->backend()->unmap( view->_instanceWorldITBuffer.rs );
+        gdi->backend()->unmap( view->_instanceWorldBuffer.rs );
+
+        SYS_ASSERT( array::size( view->_instanceOffsetArray ) == end + 1 );
+
+    }
 }///
