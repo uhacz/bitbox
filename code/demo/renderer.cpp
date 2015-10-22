@@ -219,7 +219,7 @@ namespace bx
         gfxMaterialManagerStartup( &g->_materialManager, dev, resourceManager );
 
         gfxSunLightCreate( &g->_sunLight, g );
-        gfxSunLightDirectionSet( g->_sunLight, Vector3( 1.f, -1.f, 0.f ) );
+        gfxSunLightDirectionSet( g->_sunLight, Vector3( 0.5f, -1.f, 1.f ) );
 
         gfx[0] = g;
     }
@@ -292,6 +292,7 @@ namespace bx
                     }
                 }
 
+                gfxSceneDataFree( &scene->_data );
                 BX_DELETE0( gfx->_allocScene, scene );
             }
             else if( actor->isMeshInstance() )
@@ -591,8 +592,8 @@ namespace bx
             {
                 bxGdi::sortList_delete( &scene->_sListColor );
                 bxGdi::sortList_delete( &scene->_sListDepth );
-                bxGdi::sortList_new( &scene->_sListColor, data.size * 2, bxDefaultAllocator() );
-                bxGdi::sortList_new( &scene->_sListDepth, data.size * 2, bxDefaultAllocator() );
+                bxGdi::sortList_new( &scene->_sListColor, scene->_instancesCount, bxDefaultAllocator() );
+                bxGdi::sortList_new( &scene->_sListDepth, scene->_instancesCount, bxDefaultAllocator() );
             }
 
             GfxSortListColor* colorList = scene->_sListColor;
@@ -787,7 +788,18 @@ namespace bx
                     }break;
                 }//
             }
+            
             array::clear( scene->_cmd );
+
+            if( nCmd )
+            {
+                scene->_instancesCount = 0;
+                for( int i = 0; i < scene->_data.size; ++i )
+                {
+                    const GfxInstanceData& idata = scene->_data.idata[i];
+                    scene->_instancesCount += idata.count;
+                }
+            }
         }
 
         bxGdiContext* gdi = cmdq->_gdiContext;
@@ -881,9 +893,9 @@ namespace bx
             sortListColorSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
         }
 
-        bxGfxDebugDraw::flush( gdi, camera->viewProj );
 
         gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
+        bxGfxDebugDraw::flush( gdi, camera->viewProj );
     }
 
     

@@ -58,6 +58,8 @@ namespace bx
     void gfxSceneMeshInstanceRemove( GfxScene* scene, GfxMeshInstance* meshI );
 
     void gfxSceneDraw( GfxScene* scene, GfxCommandQueue* cmdq, const GfxCamera* camera );
+    
+
 }///
 
 

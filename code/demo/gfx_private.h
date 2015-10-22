@@ -155,6 +155,7 @@ namespace bx
         };
         bxAABB _aabb;
         Data _data;
+        i32 _instancesCount;
 
 
         GfxContext* _ctx;
@@ -358,6 +359,10 @@ namespace bx
     ///
     struct GfxShadow
     {
+        Matrix4 _lightWorld;
+        Matrix4 _lightView;
+        Matrix4 _lightProj;
+        
         bxGdiTexture _texDepth;
         GfxSortListShadow* _sortList;
 
@@ -365,6 +370,7 @@ namespace bx
     };
     void gfxShadowCreate( GfxShadow* shd, bxGdiDeviceBackend* dev, int shadowMapSize );
     void gfxShadowDestroy( GfxShadow* shd, bxGdiDeviceBackend* dev );
+    void gfxShadowComputeMatrices( GfxShadow* shd, const Vector3 wsCorners[8], const Vector3& lightDirection );
     void gfxShadowDraw( GfxCommandQueue* cmdq, GfxShadow* shd, const GfxScene* scene, const GfxCamera* mainCamera, const Vector3& lightDirection );
     void gfxShadowResolve( GfxCommandQueue* cmdq, bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera );
 

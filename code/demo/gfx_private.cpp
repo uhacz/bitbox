@@ -70,7 +70,8 @@ namespace bx
     
     //////////////////////////////////////////////////////////////////////////
     GfxScene::GfxScene()
-        : _ctx( nullptr )
+        : _instancesCount( 0 )
+        , _ctx( nullptr )
         , _internalHandle( 0 )
         , _sListColor( nullptr )
         , _sListDepth( nullptr )
@@ -440,7 +441,10 @@ namespace bx
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
     GfxShadow::GfxShadow()
-        : _sortList( nullptr )
+        : _lightWorld( Matrix4::identity() )
+        , _lightView( Matrix4::identity() )
+        , _lightProj( Matrix4::identity() )
+        , _sortList( nullptr )
     {
 
     }
@@ -473,19 +477,45 @@ namespace bx
         return Matrix3( right, up, dir );
     }
 
+    void gfxShadowComputeMatrices( GfxShadow* shd, const Vector3 wsCorners[8], const Vector3& lightDirection )
+    {
+        Vector3 wsCenter( 0.f );
+        for( int i = 0; i < 8; ++i )
+        {
+            wsCenter += wsCorners[i];
+        }
+        wsCenter *= 1.f / 8.f;
+
+        Matrix3 lRot = computeBasis1( -lightDirection );
+        Matrix4 lWorld( lRot, wsCenter );
+        Matrix4 lView = orthoInverse( lWorld );
+        bxGfxDebugDraw::addAxes( lWorld );
+
+        bxAABB lsAABB = bxAABB::prepare();
+        for( int i = 0; i < 8; ++i )
+        {
+            Vector3 lsCorner = mulAsVec4( lView, wsCorners[i] );
+            lsAABB = bxAABB::extend( lsAABB, lsCorner );
+        }
+
+        Vector3 lsAABBsize = bxAABB::size( lsAABB ) * halfVec;
+        float3_t lsMin, lsMax, lsExt;
+        m128_to_xyz( lsMin.xyz, lsAABB.min.get128() );
+        m128_to_xyz( lsMax.xyz, lsAABB.max.get128() );
+        m128_to_xyz( lsExt.xyz, lsAABBsize.get128() );
+
+        const Matrix4 lProj = bx::gfx::cameraMatrixOrtho( lsMin.x, lsMax.x, lsMin.y, lsMax.y, -lsExt.z, lsExt.z );
+
+        shd->_lightWorld = lWorld;
+        shd->_lightView = lView;
+        shd->_lightProj = lProj;
+
+        bxGfxDebugDraw::addFrustum( lProj * lView, 0xFFFF00FF, true );
+    }
+
     void gfxShadowDraw( GfxCommandQueue* cmdq, GfxShadow* shd, const GfxScene* scene, const GfxCamera* mainCamera, const Vector3& lightDirection )
     {
         const bxAABB& swAABB = scene->_aabb;
-        const Vector3 swCenter = bxAABB::center( swAABB );
-        const Vector3 swSize = bxAABB::size( swAABB );
-        const floatInVec swSizeLen = length( swSize );
-
-        //Vector3 lPos = swCenter - lightDirection * swSizeLen * halfVec;
-        Matrix3 lRot = computeBasis1( -lightDirection );
-        
-        Matrix4 lWorld( lRot, swCenter );
-        Matrix4 lView = orthoInverse( lWorld );
-        bxGfxDebugDraw::addAxes( lWorld );
 
         const Vector3 swCorners[8] =
         {
@@ -500,20 +530,7 @@ namespace bx
             Vector3( swAABB.min.getX(), swAABB.max.getY(), swAABB.max.getZ() ),
         };
 
-        bxAABB aabbLS = bxAABB::prepare();
-        for( int i = 0; i < 8; ++i )
-        {
-            Vector3 lsCorner = mulAsVec4( lView, swCorners[i] );
-            aabbLS = bxAABB::extend( aabbLS, lsCorner );
-        }
-
-        Vector3 aabbLSSize = bxAABB::size( aabbLS ) * halfVec;
-        float3_t minLS, maxLS, extLS;
-        m128_to_xyz( minLS.xyz, aabbLS.min.get128() );
-        m128_to_xyz( maxLS.xyz, aabbLS.max.get128() );
-        m128_to_xyz( extLS.xyz, aabbLSSize.get128() );
-
-        Matrix4 lProj = bx::gfx::cameraMatrixOrtho( minLS.x, maxLS.x, minLS.y, maxLS.y, -extLS.z, extLS.z );
+        gfxShadowComputeMatrices( shd, swCorners, lightDirection );
 
 
 

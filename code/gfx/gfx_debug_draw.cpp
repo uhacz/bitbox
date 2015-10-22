@@ -8,6 +8,7 @@
 #include <util/color.h>
 #include <util/thread/mutex.h>
 #include <util/range_splitter.h>
+#include <util/view_frustum.h>
 
 struct BIT_ALIGNMENT_16 bxGfxDebugDraw_Shpere
 {
@@ -275,6 +276,41 @@ namespace bxGfxDebugDraw
         array::clear( __dd->spheres );
         array::clear( __dd->boxes );
         array::clear( __dd->lines );
+    }
+
+    void addFrustum( const Vector3 corners[8], u32 colorRGBA, int depth )
+    {
+        addLine( corners[0], corners[1], colorRGBA, true );
+        addLine( corners[2], corners[3], colorRGBA, true );
+        addLine( corners[4], corners[5], colorRGBA, true );
+        addLine( corners[6], corners[7], colorRGBA, true );
+
+        addLine( corners[0], corners[2], colorRGBA, true );
+        addLine( corners[2], corners[4], colorRGBA, true );
+        addLine( corners[4], corners[6], colorRGBA, true );
+        addLine( corners[6], corners[0], colorRGBA, true );
+
+        addLine( corners[1], corners[3], colorRGBA, true );
+        addLine( corners[3], corners[5], colorRGBA, true );
+        addLine( corners[5], corners[7], colorRGBA, true );
+        addLine( corners[7], corners[1], colorRGBA, true );
+
+        addLine( corners[0], corners[4], colorRGBA, true );
+        addLine( corners[2], corners[6], colorRGBA, true );
+        addLine( corners[1], corners[5], colorRGBA, true );
+        addLine( corners[3], corners[7], colorRGBA, true );
+
+        addLine( corners[0], corners[3], colorRGBA, true );
+        addLine( corners[1], corners[2], colorRGBA, true );
+        addLine( corners[4], corners[7], colorRGBA, true );
+        addLine( corners[5], corners[6], colorRGBA, true );
+    }
+
+    void addFrustum( const Matrix4& viewProj, u32 colorRGBA, int depth )
+    {
+        Vector3 corners[8];
+        bx::gfx::viewFrustumExtractCorners( corners, viewProj );
+        addFrustum( corners, colorRGBA, depth );
     }
 
 }///

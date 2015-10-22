@@ -129,7 +129,7 @@ public:
             bx::gfxMeshInstanceDataSet( meshI, meshData );
 
             Matrix4 pose = Matrix4::translation( Vector3( 0.f, -3.f, 0.f ) );
-            pose = appendScale( pose, Vector3( 100.f, 1.f, 100.f ) );
+            pose = appendScale( pose, Vector3( 50.f, 1.f, 50.f ) );
             bx::gfxMeshInstanceWorldMatrixSet( meshI, &pose, 1 );
             bx::gfxSceneMeshInstanceAdd( scene, meshI );
         }
@@ -189,8 +189,7 @@ public:
         bx::gfxCommandQueueAcquire( &cmdq, __scene.gfx, _engine.gdiContext );
         
         bx::gfxSceneDraw( scene, cmdq, camera );
-
-
+        bxGfxGUI::draw( _engine.gdiContext );
 
         bx::gfxCommandQueueRelease( &cmdq );
         bx::gfxContextFrameEnd( __scene.gfx, _engine.gdiContext );
