@@ -175,15 +175,16 @@ namespace bx
     {
         GfxContext* g = BX_NEW( bxDefaultAllocator(), GfxContext );
 
-        gfxViewCreate( &g->_cmdQueue._view, dev, 1024 );
+        gfxViewCreate( &g->_cmdQueue._view, dev, 1024*4 );
                 
         gfxLightsCreate( &g->_lights, dev );
-        gfxShadowCreate( &g->_shadow, dev, 2048 );
+        gfxShadowCreate( &g->_shadow, dev, 1024 * 4 );
 
         const int fbWidth = 1920;
         const int fbHeight = 1080;
         g->_framebuffer[eFB_COLOR0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        g->_framebuffer[eFB_SAO] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_SAO]    = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_SHADOW] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
         g->_framebuffer[eFB_DEPTH]  = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
 
         g->_framebuffer[eFB_TEMP0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
@@ -794,6 +795,7 @@ namespace bx
         /// shadow
         {
             gfxShadowDraw( cmdq, &ctx->_shadow, scene, camera, gfxSunLightDirectionGet( ctx->_sunLight ) );
+            gfxShadowResolve( cmdq, ctx->_framebuffer[eFB_SHADOW], ctx->_framebuffer[eFB_DEPTH], &ctx->_shadow, camera );
         }
 
         /// sao
@@ -856,8 +858,8 @@ namespace bx
         }
 
 
-        //gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
-        gfxRasterizeFramebuffer( gdi, ctx->_shadow._texDepth, gfxCameraAspect( camera ) );
+        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_SHADOW], gfxCameraAspect( camera ) );
+        //gfxRasterizeFramebuffer( gdi, ctx->_shadow._texDepth, gfxCameraAspect( camera ) );
         bxGfxDebugDraw::flush( gdi, camera->viewProj );
     }
 

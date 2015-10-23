@@ -515,7 +515,7 @@ namespace bx
         shd->_lightView = lView;
         shd->_lightProj = lProj;
 
-        bxGfxDebugDraw::addFrustum( lProj * lView, 0xFFFF00FF, true );
+        //bxGfxDebugDraw::addFrustum( lProj * lView, 0xFFFF00FF, true );
     }
 
     void gfxShadowSortListBuild( GfxShadow* shd, bxChunk* chunk, const GfxScene* scene )
@@ -627,9 +627,27 @@ namespace bx
         gfxShadowSortListSubmit( gdi, *view, scene->_data, shd->_sortList, chunk.begin, chunk.current );
     }
 
-    void gfxShadowResolve( GfxCommandQueue* cmdq, bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera )
+    void gfxShadowResolve( GfxCommandQueue* cmdq, bxGdiTexture output, const bxGdiTexture sceneHwDepth, const GfxShadow* shd, const GfxCamera* mainCamera )
     {
+        bxGdiContext* gdi = cmdq->_gdiContext;
+        GfxContext* ctx = cmdq->_ctx;
 
+        const Matrix4 sc = Matrix4::scale( Vector3( 0.5f, 0.5f, 0.5f ) );
+        const Matrix4 tr = Matrix4::translation( Vector3( 1.f, 1.f, 1.f ) );
+        const Matrix4 proj = sc * tr * shd->_lightProj;
+
+        bxGdiShaderFx_Instance* fxI = ctx->_fxIShadow;
+        fxI->setUniform( "lightViewProj", proj * shd->_lightView );
+        fxI->setUniform( "shadowMapSize", float2_t( (float)shd->_texDepth.width, (float)shd->_texDepth.height ) );
+        fxI->setTexture( "shadowMap", shd->_texDepth );
+        fxI->setTexture( "sceneDepthTex", sceneHwDepth );
+        fxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP ) );
+        fxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
+
+        gdi->changeRenderTargets( &output, 1 );
+        gdi->clearBuffers( 1.f, 1.f, 1.f, 1.f, 0.f, 1, 0 );
+
+        gfxSubmitFullScreenQuad( gdi, fxI, "shadowResolvePass" );
     }
 
 

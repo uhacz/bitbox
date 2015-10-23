@@ -16,11 +16,7 @@ namespace bx
     void gfxContextFrameEnd( GfxContext* gfx, bxGdiContext* gdi );
     void gfxCommandQueueAcquire( GfxCommandQueue** cmdq, GfxContext* ctx, bxGdiContext* gdiContext );
     void gfxCommandQueueRelease( GfxCommandQueue** cmdq );
-
-    void gfxSubmitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName );
-    void gfxCopyTextureRGBA( bxGdiContext* ctx, const bxGdiTexture& outputTexture, const bxGdiTexture& inputTexture );
-    void gfxRasterizeFramebuffer( bxGdiContext* ctx, const bxGdiTexture& colorFB, float cameraAspect );
-
+    
     GfxGlobalResources* gfxGlobalResourcesGet();
     bxGdiShaderFx_Instance* gfxMaterialFind( const char* name );
 

@@ -18,6 +18,7 @@ namespace bx
     {
         eFB_COLOR0,
         eFB_SAO,
+        eFB_SHADOW,
         eFB_DEPTH,
         eFB_TEMP0,
         eFB_TEMP1,
@@ -374,7 +375,7 @@ namespace bx
     void gfxShadowSortListBuild( GfxShadow* shd, bxChunk* chunk, const GfxScene* scene );
     void gfxShadowSortListSubmit( bxGdiContext* gdi, const GfxView& view, const GfxScene::Data& data, const GfxSortListShadow* sList, int begin, int end );
     void gfxShadowDraw( GfxCommandQueue* cmdq, GfxShadow* shd, const GfxScene* scene, const GfxCamera* mainCamera, const Vector3& lightDirection );
-    void gfxShadowResolve( GfxCommandQueue* cmdq, bxGdiTexture shadowMap, const GfxShadow* shd, const GfxCamera* mainCamera );
+    void gfxShadowResolve( GfxCommandQueue* cmdq, bxGdiTexture output, const bxGdiTexture sceneHwDepth, const GfxShadow* shd, const GfxCamera* mainCamera );
 
 
     //////////////////////////////////////////////////////////////////////////
