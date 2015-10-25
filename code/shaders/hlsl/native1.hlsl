@@ -66,6 +66,7 @@ shared cbuffer MaterialData: register(b3)
 };
 
 Texture2D _texSAO : register(t4);
+Texture2D _texShadow : register(t5);
 SamplerState _samplSAO : register(s4);
 
 out_PS ps_main( in_PS IN )
@@ -74,18 +75,18 @@ out_PS ps_main( in_PS IN )
     float2 screenPos01 = (IN.s_pos.xy / IN.s_pos.w) * 0.5 + 0.5;
     float2 shadowUV = float2(screenPos01.x, 1.0 - screenPos01.y);
     
-    float3 L = normalize( float3(-1.f, 1.f, 1.f) );
-    
     ShadingData shd;
     shd.N = normalize( IN.w_normal );
     shd.V = _camera_viewDir.xyz;
-    shd.shadow = 1;
+    shd.shadow = _texShadow.SampleLevel( _samplSAO, shadowUV, 0.0 ).r;
     shd.ssao = _texSAO.SampleLevel( _samplSAO, shadowUV, 0.0 ).r;
     
     Material mat;
     ASSIGN_MATERIAL_FROM_CBUFFER( mat );
     //float3 c = BRDF( L, shd, mat );
     float3 c = evaluateSunLight( shd, IN.w_pos, mat );
+    c = lerp( c * 0.7f * shd.ssao, c, shd.shadow );
+        
     //float3 C = diffuseColor;
     //float NdotL = saturate( dot( N, L ) );
 

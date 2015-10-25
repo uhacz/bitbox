@@ -464,13 +464,29 @@ out_PS ps_shadowDepth( in_PS input )
 float ps_shadowResolve( in in_PS_shadow IN) : SV_Target0
 {
     float pixelDepth = sceneDepthTex.SampleLevel( sampl, IN.uv, 0.0f ).r;
+    [branch]
+    if ( pixelDepth > 0.99999f )
+        discard;
+
+
     float linearDepth = resolveLinearDepth( pixelDepth );
     float2 screenPos_m11 = IN.screenPos;
     float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth );
-    float4 posWS = mul( _camera_world, float4( posVS, 1.0 ) );
+    float4 posWS = mul( _camera_world, float4(posVS, 1.0) );
+
+    const float normalOffset = 0.015f;
+    {
+        const float3 nrmVS = cross( normalize( ddy_fine( posVS ) ), normalize( ddx_fine( posVS ) ) );
+        //const float3 nrmVS = normalsVS.SampleLevel( samplNormalsVS, input.uv, 0.0 );
+        const float3 N = normalize( mul( (float3x3)_camera_world, nrmVS ) );
+        const float scale = 1.f - saturate( dot( lightDirectionWS, N ) );
+        const float offsetScale = scale * normalOffset;
+        const float3 posOffset = N * offsetScale;
+        posWS.xyz += posOffset;
+    }
 
     float4 shadowPos = mul( lightViewProj, posWS );
-    const float bias = 0.002f;
+    const float bias = 0.001f;
     const float offsetU = 0.f;
     float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, bias, 1.f, offsetU );
     return shadowValue;

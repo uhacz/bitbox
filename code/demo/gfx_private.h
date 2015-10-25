@@ -38,6 +38,7 @@ namespace bx
         eRS_BUFFER_LIGHT_INDICES = 3,    
 
         eRS_TEXTURE_SAO = 4,
+        eRS_TEXTURE_SHADOW = 5,
     };
 
     struct GfxSunLight;

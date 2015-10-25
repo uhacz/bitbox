@@ -847,18 +847,20 @@ namespace bx
         gfxLightsUploadData( gdi, &ctx->_lights, ctx->_sunLight );
         gfxLightsEnable( gdi, &ctx->_lights );
 
-        gdi->setTexture( ctx->_framebuffer[eFB_SAO], eRS_TEXTURE_SAO, bxGdi::eSTAGE_MASK_PIXEL );
-
         /// color pass
         {
             gfxViewUploadInstanceData( gdi, &view, scene->_data, colorList, colorChunk.begin, colorChunk.current );
+
+            gdi->setTexture( ctx->_framebuffer[eFB_SAO], eRS_TEXTURE_SAO, bxGdi::eSTAGE_MASK_PIXEL );
+            gdi->setTexture( ctx->_framebuffer[eFB_SHADOW], eRS_TEXTURE_SHADOW, bxGdi::eSTAGE_MASK_PIXEL );
+            gdi->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ), eRS_TEXTURE_SAO, bxGdi::eSTAGE_MASK_PIXEL );
 
             gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[ eFB_DEPTH ] );
             sortListColorSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
         }
 
 
-        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_SHADOW], gfxCameraAspect( camera ) );
+        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
         //gfxRasterizeFramebuffer( gdi, ctx->_shadow._texDepth, gfxCameraAspect( camera ) );
         bxGfxDebugDraw::flush( gdi, camera->viewProj );
     }

@@ -622,6 +622,7 @@ namespace bx
 
         bxGdiShaderFx_Instance* fxI = ctx->_fxIShadow;
         fxI->setUniform( "lightViewProj", proj * shd->_lightView );
+        fxI->setUniform( "lightDirectionWS", lightDirection );
         bxGdi::shaderFx_enable( gdi, fxI, "shadowDepthPass" );
         
         gfxShadowSortListSubmit( gdi, *view, scene->_data, shd->_sortList, chunk.begin, chunk.current );
