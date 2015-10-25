@@ -412,6 +412,7 @@ namespace bx
         static GfxMaterialManager* _materialManager;
 
         GfxContext();
+        ~GfxContext();
     };
     ////
     //

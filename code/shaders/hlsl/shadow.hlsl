@@ -276,46 +276,79 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float bias, in float
     return sum * 1.0f / 144;                                                                      
                                                                                                   
 #else // FilterSize_ == 7                                                                         
-                                                                                                  
-    float uw0 = (5 * s - 6);                                                                      
-    float uw1 = (11 * s - 28);                                                                    
-    float uw2 = -(11 * s + 17);                                                                   
-    float uw3 = -(5 * s + 1);                                                                     
-                                                                                                  
-    float u0 = (4 * s - 5) / uw0 - 3;                                                             
-    float u1 = (4 * s - 16) / uw1 - 1;                                                            
-    float u2 = -(7 * s + 5) / uw2 + 1;                                                            
-    float u3 = -s / uw3 + 3;                                                                      
-                                                                                                  
-    float vw0 = (5 * t - 6);                                                                      
-    float vw1 = (11 * t - 28);                                                                    
-    float vw2 = -(11 * t + 17);                                                                   
-    float vw3 = -(5 * t + 1);                                                                     
-                                                                                                  
-    float v0 = (4 * t - 5) / vw0 - 3;                                                             
-    float v1 = (4 * t - 16) / vw1 - 1;                                                            
-    float v2 = -(7 * t + 5) / vw2 + 1;                                                            
-    float v3 = -t / vw3 + 3;                                                                      
-                                                                                                  
-    sum += uw0 * vw0 * shadowMap_sample1( base_uv, u0, v0, shadowMapSizeInv, lightDepth );
-    sum += uw1 * vw0 * shadowMap_sample1( base_uv, u1, v0, shadowMapSizeInv, lightDepth );
-    sum += uw2 * vw0 * shadowMap_sample1( base_uv, u2, v0, shadowMapSizeInv, lightDepth );
-    sum += uw3 * vw0 * shadowMap_sample1( base_uv, u3, v0, shadowMapSizeInv, lightDepth );
-                                                                                       
-    sum += uw0 * vw1 * shadowMap_sample1( base_uv, u0, v1, shadowMapSizeInv, lightDepth );
-    sum += uw1 * vw1 * shadowMap_sample1( base_uv, u1, v1, shadowMapSizeInv, lightDepth );
-    sum += uw2 * vw1 * shadowMap_sample1( base_uv, u2, v1, shadowMapSizeInv, lightDepth );
-    sum += uw3 * vw1 * shadowMap_sample1( base_uv, u3, v1, shadowMapSizeInv, lightDepth );
-                                                                                       
-    sum += uw0 * vw2 * shadowMap_sample1( base_uv, u0, v2, shadowMapSizeInv, lightDepth );
-    sum += uw1 * vw2 * shadowMap_sample1( base_uv, u1, v2, shadowMapSizeInv, lightDepth );
-    sum += uw2 * vw2 * shadowMap_sample1( base_uv, u2, v2, shadowMapSizeInv, lightDepth );
-    sum += uw3 * vw2 * shadowMap_sample1( base_uv, u3, v2, shadowMapSizeInv, lightDepth );
-                                                                                       
-    sum += uw0 * vw3 * shadowMap_sample1( base_uv, u0, v3, shadowMapSizeInv, lightDepth );
-    sum += uw1 * vw3 * shadowMap_sample1( base_uv, u1, v3, shadowMapSizeInv, lightDepth );
-    sum += uw2 * vw3 * shadowMap_sample1( base_uv, u2, v3, shadowMapSizeInv, lightDepth );
-    sum += uw3 * vw3 * shadowMap_sample1( base_uv, u3, v3, shadowMapSizeInv, lightDepth );
+    //float uw0 = (5 * s - 6);                                                                      
+    //float uw1 = (11 * s - 28);                                                                    
+    //float uw2 = -(11 * s + 17);                                                                   
+    //float uw3 = -(5 * s + 1);                                                                     
+    
+
+    //float u0 = (4 * s - 5) / uw0 - 3;                                                             
+    //float u1 = (4 * s - 16) / uw1 - 1;                                                            
+    //float u2 = -(7 * s + 5) / uw2 + 1;                                                            
+    //float u3 = -s / uw3 + 3;                                                                      
+    
+
+    //float vw0 = (5 * t - 6);                                                                      
+    //float vw1 = (11 * t - 28);                                                                    
+    //float vw2 = -(11 * t + 17);                                                                   
+    //float vw3 = -(5 * t + 1);                                                                     
+    
+    //float v0 = (4 * t - 5) / vw0 - 3;                                                             
+    //float v1 = (4 * t - 16) / vw1 - 1;                                                            
+    //float v2 = -(7 * t + 5) / vw2 + 1;                                                            
+    //float v3 = -t / vw3 + 3;                                                                      
+    
+
+    //sum += uw0 * vw0 * shadowMap_sample1( base_uv, u0, v0, shadowMapSizeInv, lightDepth );
+    //sum += uw1 * vw0 * shadowMap_sample1( base_uv, u1, v0, shadowMapSizeInv, lightDepth );
+    //sum += uw2 * vw0 * shadowMap_sample1( base_uv, u2, v0, shadowMapSizeInv, lightDepth );
+    //sum += uw3 * vw0 * shadowMap_sample1( base_uv, u3, v0, shadowMapSizeInv, lightDepth );
+    //                                                                                   
+    //sum += uw0 * vw1 * shadowMap_sample1( base_uv, u0, v1, shadowMapSizeInv, lightDepth );
+    //sum += uw1 * vw1 * shadowMap_sample1( base_uv, u1, v1, shadowMapSizeInv, lightDepth );
+    //sum += uw2 * vw1 * shadowMap_sample1( base_uv, u2, v1, shadowMapSizeInv, lightDepth );
+    //sum += uw3 * vw1 * shadowMap_sample1( base_uv, u3, v1, shadowMapSizeInv, lightDepth );
+    //                                                                                   
+    //sum += uw0 * vw2 * shadowMap_sample1( base_uv, u0, v2, shadowMapSizeInv, lightDepth );
+    //sum += uw1 * vw2 * shadowMap_sample1( base_uv, u1, v2, shadowMapSizeInv, lightDepth );
+    //sum += uw2 * vw2 * shadowMap_sample1( base_uv, u2, v2, shadowMapSizeInv, lightDepth );
+    //sum += uw3 * vw2 * shadowMap_sample1( base_uv, u3, v2, shadowMapSizeInv, lightDepth );
+    //                                                                                   
+    //sum += uw0 * vw3 * shadowMap_sample1( base_uv, u0, v3, shadowMapSizeInv, lightDepth );
+    //sum += uw1 * vw3 * shadowMap_sample1( base_uv, u1, v3, shadowMapSizeInv, lightDepth );
+    //sum += uw2 * vw3 * shadowMap_sample1( base_uv, u2, v3, shadowMapSizeInv, lightDepth );
+    //sum += uw3 * vw3 * shadowMap_sample1( base_uv, u3, v3, shadowMapSizeInv, lightDepth );
+    float4 uw = float4(
+        (5 * s - 6),
+        (11 * s - 28),
+        -(11 * s + 17),
+        -(5 * s + 1)
+        );
+    float4 u = float4(
+        (4 * s - 5) / uw[0] - 3,
+        (4 * s - 16) / uw[1] - 1,
+        -(7 * s + 5) / uw[2] + 1,
+        -s / uw[3] + 3
+        );
+    float4 vw = float4(
+        (5 * t - 6),
+        (11 * t - 28),
+        -(11 * t + 17),
+        -(5 * t + 1)
+        );
+    float4 v = float4(
+        (4 * t - 5) / vw[0] - 3,
+        (4 * t - 16) / vw[1] - 1,
+        -(7 * t + 5) / vw[2] + 1,
+        -t / vw[3] + 3
+        );
+    for ( int i = 0; i < 4; i++ )
+    {
+        for ( int j = 0; j < 4; j++ )
+        {
+            sum += uw[j] * vw[i] * shadowMap_sample1( base_uv, u[j], v[i], shadowMapSizeInv, lightDepth );
+        }
+    }
 
     return sum * 1.0f / 2704;
 

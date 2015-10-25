@@ -39,10 +39,10 @@ struct out_PS
 	float4 rgba : SV_Target0;
 };
 
-Texture2D _shadowMap : register(t3);
+Texture2D _shadowMap : register(t5);
 Texture2D _ssaoMap : register(t4);
 
-SamplerState _samplShadowMap : register(s3);
+SamplerState _samplShadowMap : register(s5);
 SamplerState _samplSsaoMap : register(s4);
 
 in_PS vs_main( in_VS input )
@@ -109,7 +109,7 @@ out_PS ps_main( in_PS input )
     }
 
     float3 sunIlluminance = evaluateSunLight( shData, input.w_pos, mat );
-    colorFromLights += _sunColor * sunIlluminance;
+    colorFromLights += /*_sunColor */ sunIlluminance;
 
     float colorInShadow = lerp( 0.1f, 0.75f, ssaoValue );
     float colorCoeff = lerp( colorInShadow, 1.f, shadowValue );

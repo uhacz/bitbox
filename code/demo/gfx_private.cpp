@@ -669,6 +669,12 @@ namespace bx
         , _allocIDataSingle( nullptr )
     {
     }
+
+    GfxContext::~GfxContext()
+    {
+        int a = 0;
+    }
+
     void gfxGlobalResourcesStartup( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         GfxGlobalResources* gr = BX_NEW( bxDefaultAllocator(), GfxGlobalResources );
