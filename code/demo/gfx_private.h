@@ -378,6 +378,44 @@ namespace bx
     void gfxShadowDraw( GfxCommandQueue* cmdq, GfxShadow* shd, const GfxScene* scene, const GfxCamera* mainCamera, const Vector3& lightDirection );
     void gfxShadowResolve( GfxCommandQueue* cmdq, bxGdiTexture output, const bxGdiTexture sceneHwDepth, const GfxShadow* shd, const GfxCamera* mainCamera );
 
+    //////////////////////////////////////////////////////////////////////////
+    ///
+    struct GfxSAO
+    {
+        f32 _radius;
+        f32 _bias;
+        f32 _intensity;
+        f32 _projScale;
+        u32 _frameCounter;
+
+        bxGdiTexture _texSAO;
+        bxGdiShaderFx_Instance* _fxI;
+
+        GfxSAO();
+    };
+
+    //////////////////////////////////////////////////////////////////////////
+    ///
+    struct GfxToneMap
+    {
+        u32 currentLuminanceTexture;
+        f32 tau;
+        f32 autoExposureKeyValue;
+        f32 camera_aperture;
+        f32 camera_shutterSpeed;
+        f32 camera_iso;
+        i32 useAutoExposure;
+
+        bxGdiTexture adaptedLuminance[2];
+        bxGdiTexture initialLuminance;
+        bxGdiShaderFx_Instance* fxI;
+        
+        GfxToneMap();
+    };
+    void gfxToneMapCreate( GfxToneMap* tm, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void gfxToneMapDestroy( GfxToneMap* tm, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void gfxToneMapDraw( GfxCommandQueue* cmdq, GfxToneMap* tm, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime );
+
 
     //////////////////////////////////////////////////////////////////////////
     ///
@@ -389,7 +427,7 @@ namespace bx
         GfxSunLight* _sunLight;
 
         GfxShadow _shadow;
-
+        GfxToneMap _toneMap;
 
         bxGdiTexture _framebuffer[eFB_COUNT];
         bxGdiShaderFx_Instance* _fxISky;

@@ -64,8 +64,8 @@ namespace bx
     GfxSunLight::GfxSunLight()
         : _direction( 0.f, -1.f, 0.f )
         , _angularRadius()
-        , _sunIlluminanceInLux( 1.f/*110000.f */)
-        , _skyIlluminanceInLux( 0.3f/*30000.f*/ )
+        , _sunIlluminanceInLux( 110000.f )
+        , _skyIlluminanceInLux( 30000.f )
         
         , _ctx( nullptr )
         , _internalHandle( 0 )
@@ -424,7 +424,10 @@ namespace bx
 
 
 
-}
+
+
+
+    }
     bxGdiShaderFx_Instance* gfxMaterialManagerCreateMaterial( GfxMaterialManager* materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* name, const GfxMaterialManager::Material& params )
     {
         const u64 key = gfxMaterialManagerCreateNameHash( name );
@@ -651,6 +654,82 @@ namespace bx
         gfxSubmitFullScreenQuad( gdi, fxI, "shadowResolvePass" );
     }
 
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    GfxToneMap::GfxToneMap() 
+        : currentLuminanceTexture( 0 ), tau( 5.f ), autoExposureKeyValue( 0.18f )
+        , camera_aperture( 16.f ), camera_shutterSpeed( 1.f / 100.f ), camera_iso( 100.f )
+        , useAutoExposure( 1 )
+        , fxI( nullptr )
+    {}
+
+    void gfxToneMapCreate( GfxToneMap* tm, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    {
+        tm->fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "tone_mapping" );
+        const int lumiTexSize = 1024;
+        tm->adaptedLuminance[0] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        tm->adaptedLuminance[1] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        tm->initialLuminance = dev->createTexture2D( lumiTexSize, lumiTexSize, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+    }
+
+    void gfxToneMapDestroy( GfxToneMap* tm, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    {
+        dev->releaseTexture( &tm->initialLuminance );
+        dev->releaseTexture( &tm->adaptedLuminance[1] );
+        dev->releaseTexture( &tm->adaptedLuminance[0] );
+
+        bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &tm->fxI );
+    }
+
+    void gfxToneMapDraw( GfxCommandQueue* cmdq, GfxToneMap* tm, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime )
+    {
+        bxGdiContext* gdi = cmdq->_gdiContext;
+
+        bxGdiShaderFx_Instance* fxI = tm->fxI;
+
+        fxI->setUniform( "input_size0", float2_t( (f32)inTexture.width, (f32)inTexture.height ) );
+        fxI->setUniform( "delta_time", deltaTime );
+        fxI->setUniform( "lum_tau", tm->tau );
+        fxI->setUniform( "auto_exposure_key_value", tm->autoExposureKeyValue );
+        fxI->setUniform( "camera_aperture", tm->camera_aperture );
+        fxI->setUniform( "camera_shutterSpeed", tm->camera_shutterSpeed );
+        fxI->setUniform( "camera_iso", tm->camera_iso );
+        fxI->setUniform( "useAutoExposure", tm->useAutoExposure );
+
+        gdi->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 1, bxGdi::eSTAGE_MASK_PIXEL );
+
+        //
+        //
+        gdi->changeRenderTargets( &tm->initialLuminance, 1, bxGdiTexture() );
+        gdi->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+        gdi->setTexture( inTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
+        gfxSubmitFullScreenQuad( gdi, fxI, "luminance_map" );
+
+        //
+        //
+        gdi->changeRenderTargets( &tm->adaptedLuminance[tm->currentLuminanceTexture], 1, bxGdiTexture() );
+        gdi->setTexture( tm->adaptedLuminance[!tm->currentLuminanceTexture], 0, bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setTexture( tm->initialLuminance, 1, bxGdi::eSTAGE_MASK_PIXEL );
+        gfxSubmitFullScreenQuad( gdi, fxI, "adapt_luminance" );
+        gdi->backend()->generateMipmaps( tm->adaptedLuminance[tm->currentLuminanceTexture] );
+
+        //
+        //
+        gdi->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
+        gdi->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
+
+        gdi->setTexture( inTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setTexture( tm->adaptedLuminance[tm->currentLuminanceTexture], 1, bxGdi::eSTAGE_MASK_PIXEL );
+
+        gfxSubmitFullScreenQuad( gdi, fxI, "composite" );
+
+        tm->currentLuminanceTexture = !tm->currentLuminanceTexture;
+
+        gdi->setTexture( bxGdiTexture(), 0, bxGdi::eSTAGE_PIXEL );
+        gdi->setTexture( bxGdiTexture(), 1, bxGdi::eSTAGE_PIXEL );
+    }
+
 
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
@@ -732,6 +811,8 @@ namespace bx
 
         BX_DELETE0( bxDefaultAllocator(), globalResources[0] );
     }
+
+
 
     
 

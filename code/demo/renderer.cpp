@@ -179,6 +179,7 @@ namespace bx
                 
         gfxLightsCreate( &g->_lights, dev );
         gfxShadowCreate( &g->_shadow, dev, 1024 * 4 );
+        gfxToneMapCreate( &g->_toneMap, dev, resourceManager );
 
         const int fbWidth = 1920;
         const int fbHeight = 1080;
@@ -266,6 +267,7 @@ namespace bx
         for ( int i = 0; i < eFB_COUNT; ++i )
             dev->releaseTexture( &g->_framebuffer[i] );
 
+        gfxToneMapDestroy( &g->_toneMap, dev, resourceManager );
         gfxShadowDestroy( &g->_shadow, dev );
         gfxLightsDestroy( &g->_lights, dev );
         gfxViewDestroy( &g->_cmdQueue._view, dev );
@@ -855,12 +857,16 @@ namespace bx
             gdi->setTexture( ctx->_framebuffer[eFB_SHADOW], eRS_TEXTURE_SHADOW, bxGdi::eSTAGE_MASK_PIXEL );
             gdi->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ), eRS_TEXTURE_SAO, bxGdi::eSTAGE_MASK_PIXEL );
 
-            gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[ eFB_DEPTH ] );
+            gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[eFB_DEPTH] );
             sortListColorSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
         }
 
 
-        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_COLOR0], gfxCameraAspect( camera ) );
+        {
+            gfxToneMapDraw( cmdq, &ctx->_toneMap, ctx->_framebuffer[eFB_TEMP0], ctx->_framebuffer[eFB_COLOR0], 0.016f );
+        }
+
+        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_TEMP0], gfxCameraAspect( camera ) );
         //gfxRasterizeFramebuffer( gdi, ctx->_shadow._texDepth, gfxCameraAspect( camera ) );
         bxGfxDebugDraw::flush( gdi, camera->viewProj );
     }
