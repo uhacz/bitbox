@@ -261,64 +261,262 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
     float fft10 = texFFT.Sample( samplerNearest, 1.0f ).r;
     
     //float zoom = 1.0f + ( sin( cos( inTime * 0.12f) * sin( inTime * 0.051 ) ) * 0.5 + 0.5 ) * 0.75f; // +(sin( inTime ) * 0.5f + 0.5f) * 0.5f;
-    //float2 target;
-    //target.x = smoothstep( -1.f, 1.f, sin( -inTime * 0.125f ) ) * 0.3;
-    //target.y = smoothstep( -1.f, 1.f, sin( sin( inTime * 0.125 ) - cos( inTime * 0.125 ) ) ) * 0.3;
+    
+    //// timeline
+    float x = inTime;
+    float brightness = 1.f;
+    float brightnessLogo = 0.f;
+    float shakeStrength = 1.f;
+    float zoom = 1.f;
+    float2 target = float2( 0, 0 );
+    if( x < 2.f )
+    {
+        zoom += smoothstep( 1.2f, 1.4f, x );
+        target -= smoothstep( 1.2f, 1.4f, x ) * 0.45f;
+    }
+    else if( x >= 2.f && x < 18.f )
+    {
+        float a = smoothstep( 2.f, 15.f, x );
+        zoom += 1.f - a;
+        target = -(1.0 - a) * 0.45f;
+    }
+    else if( x > 18.f && x < 36.f )
+    {
+        zoom += smoothstep( 18.f, 32.f, x ) * 0.8f;
+        target.x = linearstep( 18.f, 30.f, x ) * 0.2f;
+        target.y =-linearstep( 18.f, 30.f, x ) * 0.4f;
+        
+        brightness = max( 0.15f, 1.f - smoothstep( 25.f, 35.f, x ) );
+    }
+    else if( x >= 36.f && x < 36.2f )
+    {
+        float a = smoothstep( 36.1f, 36.2f, x );
+        zoom += 1.f - a;
+        target = (1.f - a);
+        brightness = smoothstep( 36.1f, 36.3f, x );
+    }
+    else if( x >= 36.2 && x < 53.8f )
+    {
+        zoom += ((fft0 + fft05) * 0.5f) * 0.05f;
+        target += float2(fft8, fft10) * 0.01f;
+    }
+    else if( x >= 53.8f && x < 71.f )
+    {
+        float a = smoothstep( 53.8, 54, x );
+        zoom += a;
+        target.y += a * 0.4;
+        target.x -= a * 0.4;
 
-    float zoom = 2.f - smoothstep( 0.f, 30.f, inTime ) * 0.3f;
-    float2 target = float2(0.05f, 0.025f);
+        zoom += ((fft0 + fft05) * 0.5f) * 0.05f * a;
+        target += float2(fft8, fft10) * 0.01f * a;
+
+        if( x > 55.2 && x < 58.1)
+        {
+            target.x += smoothstep( 55.2, 58.1, x ) * 0.6;
+        }
+        else if( x >= 58.1 && x < 59 )
+        {
+            target.x += 0.6f;
+            target.y -= smoothstep( 58.1, 58.2, x ) * 0.8;
+        }
+        else if( x >= 59 && x < 71 )
+        {
+            float b = smoothstep( 59, 71, x );
+            target.x = lerp( target.x + 0.6f, 0, b );
+            target.y -= 0.8;
+            zoom = lerp( zoom, 1.f, b );
+        }
+    }
+    else if( x >= 71 && x < 88.7 )
+    {
+        float a = smoothstep( 71, 72, x ) * (1.f - smoothstep( 88.6, 88.7, x ) );
+        
+        float2 t = float2(inTime.xx * 0.001f);// +(fft0 * fft10);
+        float f = fft0 + fft1 + fft2 + fft3 + fft4 + fft5 + fft6 + fft7 + fft8 + fft9;
+        f *= 0.0001f;
+        
+        float zoomA = texNoise.Sample( samplerBilinear, f + t ).r; // ((1 - pow( cos( x*0.25 ), 8 )) * exp( -0.2*(x % 12.55) )) * 2;
+        zoom = lerp( 1.f, 1.5f, saturate( zoomA ) * a );
+
+        
+        target.y = texNoise.Sample( samplerBilinear, 0.2 + t + sin( t * 0.2 )).r * a * 0.8;
+        target.x = texNoise.Sample( samplerBilinear, 0.1 - t - cos( t * 0.1 )).r * a * 0.8;
+        target = target * 2.0 - 1.0;
+
+
+        shakeStrength = a * 2.f * fft05;
+        //target.x = smoothstep( -1.f, 1.f, sin( -inTime * 0.5f ) ) * 0.3;
+        //target.y = smoothstep( -1.f, 1.f, sin( sin( inTime * 0.25 ) - cos( cos( inTime ) * 0.25 ) ) ) * 0.3;
+    }
+    else if( x >= 88.7 && x < 106.15 )
+    {
+        float a = smoothstep( 88.7, 89, x );
+        
+        brightness += (fft0 + fft05 + fft8) * 5;
+    }
+    else if( x >= 106.15 && x < 123.35 )
+    {
+        float a = smoothstep( 106.15, 106.25, x );
+        zoom += a;
+        target.y -= a * 0.45f;
+        target.x -= a * 0.45f;
+
+        zoom += ((fft0 + fft05) * 0.5f) * 0.05f * a;
+        target += float2(fft8, fft10) * 0.01f * a;
+
+        if ( x > 107.55 && x < 110.45 )
+        {
+            //target.x += smoothstep( 107.55, 110.45, x ) * 0.3;
+            target.y += smoothstep( 107.55, 110.45, x ) * 0.9;
+        }
+        else if ( x >= 110.45 && x < 110.55 )
+        {
+            target.x += smoothstep( 110.45, 110.55, x ) * 0.8;
+            target.y -= smoothstep( 110.45, 110.55, x ) * 0.9;
+        }
+        else if ( x >= 110.55 && x < 123.35 )
+        {
+            float b = smoothstep( 110.55, 123.35, x );
+            target.x = lerp( target.x + 0.8f, 0, b );
+            target.y = lerp( target.y, 0, b );
+            zoom = lerp( zoom, 1.f, b );
+
+            if ( x >= 114.8 )
+            {
+                float b = smoothstep( 114.8, 115, x ) * ( 1.f - smoothstep( 123.25, 123.35, x ) );
+                brightness += ( fft0 + fft1 )* 5.f * b;
+            }
+        }
+    }
+    else if( x >= 123.35 && x < 142 )
+    {
+        brightnessLogo += ( fft1 + fft2 + fft3 ) * 15.f;
+
+        float a = smoothstep( 123.35, 124.35, x ) * ( (1.f - smoothstep( 141, 142, x ) * fft0 ));
+
+        float2 t = float2(inTime.xx * 0.001f);// +(fft0 * fft10);
+        float f = fft0 + fft1 + fft2 + fft3 + fft4 + fft5 + fft6 + fft7 + fft8 + fft9;
+        f *= 0.0001f;
+
+        float zoomA = texNoise.Sample( samplerBilinear, f + t ).r; // ((1 - pow( cos( x*0.25 ), 8 )) * exp( -0.2*(x % 12.55) )) * 2;
+        zoom = lerp( 1.f, 2.0f, saturate( zoomA ) * a );
+
+
+        target.y = texNoise.Sample( samplerBilinear, 0.2 + t + sin( t * 0.2 ) ).r; // * 0.25 * a;
+        target.x = texNoise.Sample( samplerBilinear, 0.1 - t - cos( t * 0.1 ) ).r; // * 0.25 * a;
+        target = target * 2.0 - 1.0;
+        target *= a * 0.25f;
+
+        float b = saturate( (fft1 + fft2 + fft3) ) * a;
+        target = lerp( target, target * 0.9f, b );
+        zoom = lerp( zoom, min( 2.0, zoom + 0.2 ), b );
+
+        shakeStrength = 2.f;
+
+    }
+    else if( x >= 147.3 && x < 183 )
+    {
+        float a = smoothstep( 147.3, 147.4, x );
+        float aa = linearstep( 147.3, 154.7, x ) * ( 1.f - linearstep( 162, 180, x ) );
+
+        target = float2(0., -0.5 * aa );
+        zoom += ( aa * 0.5f ) + saturate( (fft0 + fft1) * 0.25 ) * a * 0.5;
+
+        if( x >= 147.3 && x < 149 )
+        {
+            a *= (1.f - smoothstep( 148.9, 149, x ) );
+        }
+        else if( x >= 153.9 && x < 154.7 )
+        {
+            a = smoothstep( 153.9, 154, x ) * (1.f - smoothstep( 154.6, 154.7, x ));
+        }
+        else if( x >= 154.7 )
+        {
+            brightness += fft0*3;
+            if( x >= 162 && x < 180.8 )
+            {
+                brightness += ( fft3 + fft1 ) * 17;
+                a *= 0.5f;
+            }
+            else if ( x >= 180.8 )
+            {
+                float b = smoothstep( 180.8, 181, x );
+                target = lerp( target, float2(-0.45, -0.5), b );
+                zoom = lerp( zoom, 1.8f, b );
+                brightnessLogo += ( sqrt( fft0 ) ) * 20.f;
+            }
+        }
+        else
+        {
+            a = 0.1f;
+        }
+        shakeStrength = a * 0.25f;
+    }
+
+    //float zoomA = ((1 - pow( cos( x*0.25 ), 8 )) * exp( -0.2*(x % 12.55) )) * 2;
+    //float zoom = lerp( 1.f, 1.5f, saturate( zoomA ) );
+    //target.x = smoothstep( -1.f, 1.f, sin( -inTime * 0.5f ) ) * 0.3;
+    //target.y = smoothstep( -1.f, 1.f, sin( sin( inTime * 0.25 ) - cos( cos( inTime ) * 0.25 ) ) ) * 0.3;
+
+    //float zoom = 2.f - smoothstep( 0.f, 30.f, inTime ) * 0.3f;
+    //float2 target = float2(0.05f, 0.025f);
 
     
-    float targetStrength = linearstep( 1.f, 1.5f, zoom );
-    target = lerp( float2( 0, 0 ), target, targetStrength );
+    float targetStrength = linearstep( 1.f, 2.f, zoom );
+    target = lerp( float2( 0, 0 ), target, ( targetStrength ) );
 
     float fft0s  = ( fft0 - 0.5 ) * 2.0;
     float fft5s  = ( fft5 - 0.5 ) * 2.0;
-    float2 uv = (IN.uv / zoom + target) + (float2(fft0s, fft5s) * fft10) * 0.015;
+    float2 uv = IN.uv * 2.0 - 1.0f;
+    uv = ( uv / zoom + target) + (float2(fft0s, fft5s) * (fft10 + fft0)) * 0.025 * shakeStrength;
+    uv = uv * 0.5 + 0.5;
+
+    float logo = texLogo.SampleLevel( samplerLinear, uv, 0.0 ).r;
 
     float4 color = texBackground.SampleLevel( samplerBilinear, uv, 0.0 );
+    color *= brightness + ( logo * brightnessLogo );
     
 
     /// text
-    if ( inTime >= 5.0 && inTime < 25.f )
-    {
-        float3 tr[] =
-        {
-            float3(5.0 , 10.0,-0.3),
-            float3(10.0, 15.0,-0.1),
-            float3(15.0, 20.0, 0.1),
-            float3(20.0, 25.0, 0.3),
-        };
+    //if ( inTime >= 5.0 && inTime < 25.f )
+    //{
+    //    float3 tr[] =
+    //    {
+    //        float3(5.0 , 10.0,-0.3),
+    //        float3(10.0, 15.0,-0.1),
+    //        float3(15.0, 20.0, 0.1),
+    //        float3(20.0, 25.0, 0.3),
+    //    };
 
-        uint tri = 0;
-        for ( uint i = 0; i < 4; i++ )
-        {
-            if ( inTime >= tr[i].x && inTime < tr[i].y )
-            {
-                tri = i;
-                break;
-            }
-        }
+    //    uint tri = 0;
+    //    for ( uint i = 0; i < 4; i++ )
+    //    {
+    //        if ( inTime >= tr[i].x && inTime < tr[i].y )
+    //        {
+    //            tri = i;
+    //            break;
+    //        }
+    //    }
 
-        float alpha = linearstep( tr[tri].x, tr[tri].y, inTime );
-        float alphaPulseYRange = 1.f - alpha * alpha * alpha * alpha * alpha;
-        
-        float2 yRange = lerp( float2(0.f, 1.f), float2(0.4f, 0.6f), alphaPulseYRange );
-        if ( IN.uv.y >= yRange.x && IN.uv.y <= yRange.y )
-        {
-            float yoff = tr[tri].z;
-            
-            float zoomAlpha = 1.f - alpha * alpha * alpha;
-            float2 txtuv = IN.uv.xy * zoomAlpha + (1.f - zoomAlpha) * 0.5f;
-            txtuv.y += yoff;
-                        
-            float4 txt = texText.Sample( samplerBilinear, txtuv );
-            txt.rgb = lerp( txt.rgb, color.rgb, 0.25f );
-            
-            float alphaPulse = 1 - pow( 2.5 * alpha - 1, 2 );
-            color.rgb = lerp( color.rgb, txt.rgb, smoothstep( 0.0, 1.0, txt.a * alphaPulse ) );
-        }
-    }
+    //    float alpha = linearstep( tr[tri].x, tr[tri].y, inTime );
+    //    float alphaPulseYRange = 1.f - alpha * alpha * alpha * alpha * alpha;
+    //    
+    //    float2 yRange = lerp( float2(0.f, 1.f), float2(0.4f, 0.6f), alphaPulseYRange );
+    //    if ( IN.uv.y >= yRange.x && IN.uv.y <= yRange.y )
+    //    {
+    //        float yoff = tr[tri].z;
+    //        
+    //        float zoomAlpha = 1.f - alpha * alpha * alpha;
+    //        float2 txtuv = IN.uv.xy * zoomAlpha + (1.f - zoomAlpha) * 0.5f;
+    //        txtuv.y += yoff;
+    //                    
+    //        float4 txt = texText.Sample( samplerBilinear, txtuv );
+    //        txt.rgb = lerp( txt.rgb, color.rgb, 0.25f );
+    //        
+    //        float alphaPulse = 1 - pow( 2.5 * alpha - 1, 2 );
+    //        color.rgb = lerp( color.rgb, txt.rgb, smoothstep( 0.0, 1.0, txt.a * alphaPulse ) );
+    //    }
+    //}
     
     
 
@@ -368,12 +566,14 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
     //color *= saturate( 1.0 - length( pow( abs( q ), 5 * ( 1.f - fft1 ) ) )*16.0 ); // vignette (kind of)
     color *= vI;
 
-    float grainStrength = 116.0;
+    float grainStrength = 96.0;
 
-    float x = (IN.uv.x + 4.0) * (IN.uv.y + 4.0) * (inTime * 10.0);
-    float grain = (fmod( (fmod( x, 13.0 ) + 1.0) * (fmod( x, 123.0 ) + 1.0), 0.01 ) - 0.005) * grainStrength;
-    color.xyz *= saturate(1.0 - grain);
-    //color.xyz *= (1.0 + (rand( IN.uv + t*.0001 ) - .2)*0.75);
+    {
+        float x = (IN.uv.x + 4.0) * (IN.uv.y + 4.0) * (inTime * 10.0);
+        float grain = (fmod( (fmod( x, 13.0 ) + 1.0) * (fmod( x, 123.0 ) + 1.0), 0.01 ) - 0.005) * grainStrength;
+        color.xyz *= saturate(1.0 - grain);
+        //color.xyz *= (1.0 + (rand( IN.uv + t*.0001 ) - .2)*0.75);
+    }
 
     color *= smoothstep( 0.f, 1.f, fadeValueInv ); // smoothstep( 0.f, 2.f, inTime );
 

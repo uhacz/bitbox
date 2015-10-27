@@ -11,6 +11,7 @@
 #include "gdi/gdi_context.h"
 
 #include "resource_manager/resource_manager.h"
+#include "gfx/gfx_gui.h"
 
 class App : public bxApplication
 {
@@ -34,10 +35,15 @@ public:
 
         tjdb::startup( win, _gdiDev, _resourceManager );
 
+        bxGfxGUI::_Startup( _gdiDev, _resourceManager, win );
+
         return true;
     }
     virtual void shutdown()
     {
+        bxWindow* win = bxWindow_get();
+        bxGfxGUI::shutdown( _gdiDev, _resourceManager, win );
+        
         tjdb::shutdown( _gdiDev, _resourceManager );
         _gdiCtx->_Shutdown();
         BX_DELETE0( bxDefaultAllocator(), _gdiCtx );
@@ -56,8 +62,15 @@ public:
 
         const u64 deltaTimeMS = deltaTimeUS / 1000;
         
+        bxGfxGUI::newFrame( deltaTimeMS * 0.001f );
+
         tjdb::tick( &win->input, _gdiCtx, deltaTimeMS );
+        
         tjdb::draw( _gdiCtx );
+
+        bxGfxGUI::draw( _gdiCtx );
+
+        _gdiCtx->backend()->swap();
 
         return true;
     }
@@ -69,7 +82,7 @@ public:
 
 int main( int argc, const char** argv )
 {
-    bxWindow* window = bxWindow_create( "tjdb", 1920, 1080, true, 0 );
+    bxWindow* window = bxWindow_create( "tjdb", 1920, 1080, false, 0 );
     if ( window )
     {
         App app;

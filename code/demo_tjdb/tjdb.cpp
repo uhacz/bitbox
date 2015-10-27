@@ -13,6 +13,7 @@
 #include <gfx/gfx_camera.h>
 
 #include <bass/bass.h>
+#include "gfx/gui/imgui/imgui.h"
 
 namespace tjdb
 {
@@ -85,8 +86,11 @@ namespace tjdb
 
         f32 fadeValueInv;
         u64 timeMS;
+        f32 jumpToTimeValueS;
+
 
         u32 flag_stopRequest : 1;
+        u32 flag_jumpToTime : 1;
 
         Data()
             : fxI( nullptr )
@@ -94,7 +98,9 @@ namespace tjdb
             , soundStream( 0 )
             , fadeValueInv( 0.f )
             , timeMS( 0 )
+            , jumpToTimeValueS( 0.f )
             , flag_stopRequest( 0 )
+            , flag_jumpToTime( 0 )
         {
             memset( fftDataPrev, 0x00, FFT_BINS * sizeof( *fftDataPrev ) );
             memset( fftDataCurr, 0x00, FFT_BINS * sizeof( *fftDataCurr ) );
@@ -262,6 +268,12 @@ namespace tjdb
 
                 __data.fadeValueInv -= deltaTime * 0.5f;
             }
+            else if ( __data.flag_jumpToTime )
+            {
+                __data.flag_jumpToTime = 0;
+                QWORD jumpToTimeInBytes = BASS_ChannelSeconds2Bytes( __data.soundStream, __data.jumpToTimeValueS );
+                BASS_ChannelSetPosition( __data.soundStream, jumpToTimeInBytes, BASS_POS_BYTE );
+            }
             else
             {
                 __data.fadeValueInv += deltaTime * 0.5f;
@@ -285,9 +297,16 @@ namespace tjdb
         const float2_t resolution( (float)__data.colorFg.width, (float)__data.colorFg.height );
         const float2_t resolutionRcp( 1.f / __data.colorFg.width, 1.f / __data.colorFg.height );
 
+        QWORD musicLengthInBytes = BASS_ChannelGetLength( __data.soundStream, BASS_POS_BYTE );
+        QWORD musicPosInBytes = BASS_ChannelGetPosition( __data.soundStream, BASS_POS_BYTE );
+
+        float musicLengthInSec = (float)BASS_ChannelBytes2Seconds( __data.soundStream, musicLengthInBytes );
+        float musicPosInSec = (float)BASS_ChannelBytes2Seconds( __data.soundStream, musicPosInBytes );
+
         __data.fxI->setUniform( "inResolution", resolution );
         __data.fxI->setUniform( "inResolutionRcp", resolutionRcp );
-        __data.fxI->setUniform( "inTime", (float)( (double)__data.timeMS * 0.001 ) );
+        //__data.fxI->setUniform( "inTime", (float)( (double)__data.timeMS * 0.001 ) );
+        __data.fxI->setUniform( "inTime", musicPosInSec );
         __data.fxI->setUniform( "fadeValueInv", __data.fadeValueInv );
 
         bxGdi::shaderFx_enable( ctx, __data.fxI, "background" );
@@ -323,7 +342,16 @@ namespace tjdb
         ctx->setTopology( bxGdi::eTRIANGLES );
         ctx->draw( __data.screenQuad.numElements, 0 );
 
-        ctx->backend()->swap();
+        if( ImGui::Begin( "system" ) )
+        {
+            if( ImGui::SliderFloat( "timeline", &musicPosInSec, 0.f, musicLengthInSec ) )
+            {
+                __data.flag_jumpToTime = 1;
+                __data.jumpToTimeValueS = musicPosInSec;
+            }
+        }
+        ImGui::End();
+
     }
 
 }///
