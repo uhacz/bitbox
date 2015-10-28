@@ -85,7 +85,7 @@ out_PS ps_main( in_PS IN )
     ASSIGN_MATERIAL_FROM_CBUFFER( mat );
     //float3 c = BRDF( L, shd, mat );
     float3 c = evaluateSunLight( shd, IN.w_pos, mat );
-    c = lerp( c * 0.7f * shd.ssao, c, shd.shadow );
+    c = lerp( c * 0.2f * shd.ssao, c, shd.shadow );
         
     //float3 C = diffuseColor;
     //float NdotL = saturate( dot( N, L ) );

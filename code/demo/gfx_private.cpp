@@ -357,7 +357,7 @@ namespace bx
             {
                 params.diffuseColor = float3_t( 1.f, 0.f, 0.f );
                 params.fresnelColor = float3_t( 0.045593921f );
-                params.diffuseCoeff = 0.6f;
+                params.diffuseCoeff = 0.99f;
                 params.roughnessCoeff = 0.2f;
                 params.specularCoeff = 0.9f;
                 params.ambientCoeff = 0.2f;
@@ -657,7 +657,7 @@ namespace bx
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
     GfxToneMap::GfxToneMap() 
-        : currentLuminanceTexture( 0 ), tau( 5.f ), autoExposureKeyValue( 0.18f )
+        : currentLuminanceTexture( 0 ), tau( 15.f ), autoExposureKeyValue( 0.30f )
         , camera_aperture( 16.f ), camera_shutterSpeed( 1.f / 100.f ), camera_iso( 100.f )
         , useAutoExposure( 1 )
         , fxI( nullptr )
