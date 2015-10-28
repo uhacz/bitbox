@@ -51,6 +51,7 @@ SamplerState samplerNearest;
 SamplerState samplerLinear;
 SamplerState samplerBilinear;
 SamplerState samplerBilinearBorder;
+SamplerState samplerTrilinear;
 
 // rendering params
 //static const float sphsize = 0.5; // planet size
@@ -97,7 +98,7 @@ float4 ps_background( in_PS IN ) : SV_Target0
 {
     float2 uv = IN.uv - 0.5f;
 
-    float fft = texFFT.Sample( samplerNearest, IN.uv.x ).r;
+    float fft   = texFFT.Sample( samplerNearest, IN.uv.x ).r;
     float fft0  = texFFT.Sample( samplerNearest, 0.0f ).r;
     float fft05 = texFFT.Sample( samplerNearest, 0.05f ).r;
     float fft1  = texFFT.Sample( samplerNearest, 0.1f ).r;
@@ -115,8 +116,8 @@ float4 ps_background( in_PS IN ) : SV_Target0
     //imgUV.x = linearstep( 0.07, 0.93, IN.uv.x ) + fft3*0.05f;
     //imgUV.y = linearstep( 0.1, 0.9, IN.uv.y ) + fft2*0.05f;
 
-    float4 maskHi = texMaskHi.Sample( samplerLinear, imgUV );
-    float4 maskLo = texMaskLo.Sample( samplerLinear, float2( imgUV.x + sqrt( fft0 ) * sin( inTime * 10.f + imgUV.y * 55.f ) * 0.001f, imgUV.y ) );
+    float4 maskHi = texMaskHi.Sample( samplerTrilinear, imgUV );
+    float4 maskLo = texMaskLo.Sample( samplerTrilinear, float2( imgUV.x + sqrt( fft0 ) * sin( inTime * 10.f + imgUV.y * 55.f ) * 0.001f, imgUV.y ) );
 
     float3 dir = float3(uv, 1.);
     //dir.xy += ((fft2.rr * 0.5f - 0.5f) * fft2);
@@ -148,11 +149,11 @@ float4 ps_background( in_PS IN ) : SV_Target0
         float2 offB = float2(fft8, fft10);
         offB = ((offB - 0.5f) * 2.0f) * offB;
 
-        float imgG = texImage.SampleLevel( samplerBilinearBorder, imgUV, 0.0 ).g;
-        float imgR = texImage.SampleLevel( samplerBilinearBorder, imgUV + offR * 0.1f * sqrt( maskHi.r ), 0.0 ).r;
-        float imgB = texImage.SampleLevel( samplerBilinearBorder, imgUV + offB * 0.1f * sqrt( maskHi.b ), 0.0 ).b;
+        float imgG = texImage.SampleLevel( samplerTrilinear, imgUV, 0.0 ).g;
+        float imgR = texImage.SampleLevel( samplerTrilinear, imgUV + offR * 0.1f * sqrt( maskHi.r ), 0.0 ).r;
+        float imgB = texImage.SampleLevel( samplerTrilinear, imgUV + offB * 0.1f * sqrt( maskHi.b ), 0.0 ).b;
 
-        float4 logo = texLogo.SampleLevel( samplerLinear, imgUV - (offR + offB) * 0.01f, 0.0 );
+        float4 logo = texLogo.SampleLevel( samplerTrilinear, imgUV - (offR + offB) * 0.01f, 0.0 );
         float4 img = lerp( float4(imgR, imgG, imgB, 1.0), logo, logo.a * saturate( fft05 ) );
         l = img;
     }   
@@ -334,17 +335,37 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
         float2 t = float2(inTime.xx * 0.001f);// +(fft0 * fft10);
         float f = fft0 + fft1 + fft2 + fft3 + fft4 + fft5 + fft6 + fft7 + fft8 + fft9;
         f *= 0.0001f;
-        
+
         float zoomA = texNoise.Sample( samplerBilinear, f + t ).r; // ((1 - pow( cos( x*0.25 ), 8 )) * exp( -0.2*(x % 12.55) )) * 2;
-        zoom = lerp( 1.f, 1.5f, saturate( zoomA ) * a );
+        zoom = lerp( 1.f, 2.0f, saturate( zoomA ) * a );
 
-        
-        target.y = texNoise.Sample( samplerBilinear, 0.2 + t + sin( t * 0.2 )).r * a * 0.8;
-        target.x = texNoise.Sample( samplerBilinear, 0.1 - t - cos( t * 0.1 )).r * a * 0.8;
+
+        target.y = texNoise.Sample( samplerTrilinear, 0.2 + t + sin( t * 0.2 ) ).r; // * 0.25 * a;
+        target.x = texNoise.Sample( samplerTrilinear, 0.1 - t - cos( t * 0.1 ) ).r; // * 0.25 * a;
         target = target * 2.0 - 1.0;
+        target *= a * 0.25f;
+
+        float b = saturate( (fft1 + fft2 + fft3) ) * a;
+        target = lerp( target, target * 0.9f, b );
+        zoom = lerp( zoom, min( 2.0, zoom + 0.2 ), b );
+
+        shakeStrength = 2.f;
 
 
-        shakeStrength = a * 2.f * fft05;
+        //float2 t = float2(inTime.xx * 0.001f);// +(fft0 * fft10);
+        //float f = fft0 + fft1 + fft2 + fft3 + fft4 + fft5 + fft6 + fft7 + fft8 + fft9;
+        //f *= 0.0001f;
+
+        //float zoomA = texNoise.Sample( samplerBilinear, f + t ).r; // ((1 - pow( cos( x*0.25 ), 8 )) * exp( -0.2*(x % 12.55) )) * 2;
+        //zoom = lerp( 1.f, 1.5f, saturate( zoomA ) * a );
+        //
+        //
+        //target.y = texNoise.Sample( samplerBilinear, 0.2 + t + sin( t * 0.2 )).r * a * 0.8;
+        //target.x = texNoise.Sample( samplerBilinear, 0.1 - t - cos( t * 0.1 )).r * a * 0.8;
+        //target = target * 2.0 - 1.0;
+        //
+        //
+        //shakeStrength = a * 2.f * fft05;
         //target.x = smoothstep( -1.f, 1.f, sin( -inTime * 0.5f ) ) * 0.3;
         //target.y = smoothstep( -1.f, 1.f, sin( sin( inTime * 0.25 ) - cos( cos( inTime ) * 0.25 ) ) ) * 0.3;
     }
@@ -353,6 +374,7 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
         float a = smoothstep( 88.7, 89, x );
         
         brightness += (fft0 + fft05 + fft8) * 5;
+        shakeStrength = 2.f;
     }
     else if( x >= 106.15 && x < 123.35 )
     {
@@ -390,7 +412,7 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
     }
     else if( x >= 123.35 && x < 142 )
     {
-        brightnessLogo += ( fft1 + fft2 + fft3 ) * 15.f;
+        brightnessLogo += ( fft1 + fft2 + fft3 ) * 2.f;
 
         float a = smoothstep( 123.35, 124.35, x ) * ( (1.f - smoothstep( 141, 142, x ) * fft0 ));
 
@@ -398,12 +420,12 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
         float f = fft0 + fft1 + fft2 + fft3 + fft4 + fft5 + fft6 + fft7 + fft8 + fft9;
         f *= 0.0001f;
 
-        float zoomA = texNoise.Sample( samplerBilinear, f + t ).r; // ((1 - pow( cos( x*0.25 ), 8 )) * exp( -0.2*(x % 12.55) )) * 2;
+        float zoomA = texNoise.Sample( samplerTrilinear, f + t ).r; // ((1 - pow( cos( x*0.25 ), 8 )) * exp( -0.2*(x % 12.55) )) * 2;
         zoom = lerp( 1.f, 2.0f, saturate( zoomA ) * a );
 
 
-        target.y = texNoise.Sample( samplerBilinear, 0.2 + t + sin( t * 0.2 ) ).r; // * 0.25 * a;
-        target.x = texNoise.Sample( samplerBilinear, 0.1 - t - cos( t * 0.1 ) ).r; // * 0.25 * a;
+        target.y = texNoise.Sample( samplerTrilinear, 0.2 + t + sin( t * 0.2 ) ).r; // * 0.25 * a;
+        target.x = texNoise.Sample( samplerTrilinear, 0.1 - t - cos( t * 0.1 ) ).r; // * 0.25 * a;
         target = target * 2.0 - 1.0;
         target *= a * 0.25f;
 
@@ -414,7 +436,7 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
         shakeStrength = 2.f;
 
     }
-    else if( x >= 147.3 && x < 183 )
+    else if( x >= 147.3 && x < 200 )
     {
         float a = smoothstep( 147.3, 147.4, x );
         float aa = linearstep( 147.3, 154.7, x ) * ( 1.f - linearstep( 162, 180, x ) );
@@ -443,7 +465,7 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
                 float b = smoothstep( 180.8, 181, x );
                 target = lerp( target, float2(-0.45, -0.5), b );
                 zoom = lerp( zoom, 1.8f, b );
-                brightnessLogo += ( sqrt( fft0 ) ) * 20.f;
+                brightnessLogo += ( fft0 ) * 10.f;
             }
         }
         else
@@ -471,10 +493,11 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
     uv = ( uv / zoom + target) + (float2(fft0s, fft5s) * (fft10 + fft0)) * 0.025 * shakeStrength;
     uv = uv * 0.5 + 0.5;
 
-    float logo = texLogo.SampleLevel( samplerLinear, uv, 0.0 ).r;
+    float4 logo = texLogo.SampleLevel( samplerTrilinear, uv, 0.0 );
 
-    float4 color = texBackground.SampleLevel( samplerBilinear, uv, 0.0 );
-    color *= brightness + ( logo * brightnessLogo );
+    float4 color = texBackground.SampleLevel( samplerTrilinear, uv, 0.0 );
+    color *= brightness;
+    color.rgb += logo.rgb * brightnessLogo * logo.a;
     
 
     /// text

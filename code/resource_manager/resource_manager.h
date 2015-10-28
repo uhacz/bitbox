@@ -27,3 +27,8 @@ public:
 
     static bxResourceID createResourceID( const char* path );
 };
+
+namespace bx
+{
+    extern bxResourceManager* resourceManagerGet();
+}///

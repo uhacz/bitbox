@@ -217,8 +217,8 @@ float4 ps_main( in_PS IN ) : SV_Target0
     float3 sunDir = normalize( float3( -1.f, 1.0f, 0.f ) );
     float3 viewDir = normalize( mul( ( float3x3 )_camera_world, float3( uv_m11, -1.0 ) ) );
     float3 skyLuminance = calculateSkyLuminanceRGB( sunDir, viewDir, turbidity );
-    //skyLuminance = ( float3 )110000.f;
-    return float4( skyLuminance *1500, 1.0 );
+    return float4( skyLuminance * 250.f , 1.0 );
+    //return float4(skyLuminance * 0.05f, 1.0);
 }
 
 #endif

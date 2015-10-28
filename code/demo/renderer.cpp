@@ -184,6 +184,7 @@ namespace bx
         const int fbWidth = 1920;
         const int fbHeight = 1080;
         g->_framebuffer[eFB_COLOR0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_ALBEDO] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
         g->_framebuffer[eFB_SAO]    = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
         g->_framebuffer[eFB_SHADOW] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
         g->_framebuffer[eFB_DEPTH]  = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
@@ -395,6 +396,23 @@ namespace bx
         fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR ) );
 
         gfxSubmitFullScreenQuad( ctx, fxI, "copy_rgba" );
+    }
+
+    int gfxLoadTextureFromFile( bxGdiTexture* tex, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* filename )
+    {
+        int ierr = 0;
+        bxFS::File file = resourceManager->readFileSync( filename );
+        if ( file.ok() )
+        {
+            tex[0] = dev->createTexture( file.bin, file.size );
+        }
+        else
+        {
+            ierr = -1;
+        }
+        file.release();
+
+        return ierr;
     }
 
     GfxGlobalResources* gfxGlobalResourcesGet()
@@ -857,7 +875,8 @@ namespace bx
             gdi->setTexture( ctx->_framebuffer[eFB_SHADOW], eRS_TEXTURE_SHADOW, bxGdi::eSTAGE_MASK_PIXEL );
             gdi->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ), eRS_TEXTURE_SAO, bxGdi::eSTAGE_MASK_PIXEL );
 
-            gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[eFB_DEPTH] );
+            gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 2, ctx->_framebuffer[eFB_DEPTH] );
+            gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
             sortListColorSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
         }
 
@@ -866,7 +885,25 @@ namespace bx
             gfxToneMapDraw( cmdq, &ctx->_toneMap, ctx->_framebuffer[eFB_TEMP0], ctx->_framebuffer[eFB_COLOR0], 0.016f );
         }
 
-        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_TEMP0], gfxCameraAspect( camera ) );
+        {
+            bxGdiTexture outputTex = ctx->_framebuffer[eFB_TEMP1];
+            bxGdiTexture albedoTex = ctx->_framebuffer[eFB_ALBEDO];
+            bxGdiTexture noiseTex = gfxGlobalResourcesGet()->texture.noise;
+
+
+            gdi->changeRenderTargets( &outputTex, 1 );
+            gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
+            
+            bxGdiShaderFx_Instance* fxI = ctx->_fxISao;
+            fxI->setTexture( "texAlbedo", albedoTex );
+            fxI->setTexture( "texNoise", noiseTex );
+            fxI->setSampler( "samplerAlbedo", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+            fxI->setSampler( "samplerNoise", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+            gfxSubmitFullScreenQuad( gdi, fxI, "ambientTransfer" );
+
+        }
+
+        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_TEMP1], gfxCameraAspect( camera ) );
         //gfxRasterizeFramebuffer( gdi, ctx->_shadow._texDepth, gfxCameraAspect( camera ) );
         bxGfxDebugDraw::flush( gdi, camera->viewProj );
     }

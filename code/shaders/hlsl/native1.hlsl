@@ -31,6 +31,7 @@ struct in_PS
 struct out_PS
 {
     float4 rgba : SV_Target0;
+    float4 albedo : SV_Target1;
 };
 
 #include <sys/types.hlsl>
@@ -91,6 +92,7 @@ out_PS ps_main( in_PS IN )
     //float NdotL = saturate( dot( N, L ) );
 
     OUT.rgba = float4( c, 1.0 );
+    OUT.albedo = float4(mat.diffuseColor, 1.0);
     //OUT.rgba = float4( 1.0, 0.0, 0.0, 1.0 );
     return OUT;
 }

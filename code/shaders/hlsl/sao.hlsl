@@ -38,15 +38,15 @@ passes:
         };
     };
 
-    curvature =
+    ambientTransfer =
     {
         vertex = "vs_screenquad";
-        pixel = "ps_curvature";
+        pixel = "ps_ambientTransfer";
         hwstate =
         {
             depth_test = 0;
             depth_write = 0;
-            color_mask = "R";
+            //color_mask = "R";
         };
     };
 
@@ -463,31 +463,107 @@ float4 ps_blurY( out_VS_screenquad In ) : SV_Target
     return doBlur( (int2)vPos, float2(0, 1) );
 }
 
-#ifdef curvature
-SamplerState samplerDepth;
-float ps_curvature( out_VS_screenquad IN ) : SV_Target
+#ifdef ambientTransfer
+
+Texture2D texAlbedo;
+Texture2D texNoise;
+SamplerState samplerNoise;
+SamplerState samplerAlbedo;
+
+float4 ps_ambientTransfer( out_VS_screenquad IN ) : SV_Target
 {
-    float2 pixel = IN.uv * _renderTarget_size;
-    int2 ssPixel = pixel;
+    float2 vPos = IN.uv * _renderTarget_size;
 
-    float depth = loadLinearDepth( ssPixel );
+    // Pixel being shaded 
+    int2 ssC = vPos;
+
+    //float depth = loadLinearDepth( ssPixel );
     //return depth;
+    float3 cPos = getPosition( ssC );
 
-    float3 C = getPosition( ssPixel );
+    bool earlyOut = cPos.z > FAR_PLANE_Z || cPos.z < 0.4f || any( ssC < 8 ) || any( ssC >= (_renderTarget_size - 8) );// || shadows >= 1.f ;
+    [branch]
+    if ( earlyOut )
+    {
+        return (float4)1;
+    }
+
+    float randomPatternRotationAngle = (3 * ssC.x ^ ssC.y + ssC.x * ssC.y) * 10; // + _randomRot;
+    float ssDiskRadius = (900 / 1080.0 * _renderTarget_size.y) * 0.5 * fastRcpNR0( max( cPos.z, 0.1f ) );
     
-    float3 dxC = ddx_fine( C );
-    float3 dyC = ddy_fine( C );
-    float3 N = normalize( cross( dyC, dxC ) );
+    float3 N = reconstructCSFaceNormal( cPos );
+    float3 T = normalize( cross( N, float3(0.1, 0, 0.1) ) );
+    float3 B = cross( N, T );
+    float3x3 TBN = float3x3(T, B, N);
 
-    float3 dxN = ddx_fine( N );
-    float3 dyN = ddy_fine( N );
-    float3 xneg = N - dxN;
-    float3 xpos = N + dxN;
-    float3 yneg = N - dyN;
-    float3 ypos = N + dyN;
+    // Interleaved sampling
+    float3 r1 = texNoise.Sample( samplerNoise, vPos ).xyz;
+    float3 r3 = float3(0, 0, 1);
+    float3 r2 = float3(r1.y, -r1.x, 0);
+    TBN = mul( float3x3(r1, r2, r3), TBN );
 
-    //float depth = length( C );
-    float curv = ( cross( xneg, xpos ).y - cross( yneg, ypos ).x ) * 4.0 / depth;
-    return curv;
+    const float rad = 0.1;
+    const float bias = 0.01f;
+    const int n = 8;
+    //const float3 XYZ[8] =
+    //{
+    //    float3(1, 0, 0),
+    //    float3(0, 1, 0),
+    //    float3(0, 0, 1),
+    //    float3(1, 1, 0),
+    //    float3(1, 0, 1),
+    //    float3(0, 1, 1),
+    //    float3(0, 1, 0),
+    //    float3(1, 1, 1)
+    //};
+
+    float4 W = float4( 0,0,0, 0); // n = count
+
+    //[loop]
+    for ( int k = 0; k < n; k++ ) 
+    {
+        // Offset on the unit disk, spun for this pixel
+        float ssR;
+        float2 unitOffset = tapLocation( k, randomPatternRotationAngle, ssR );
+        ssR *= ssDiskRadius;
+
+        // The occluding point in camera space
+        float3 Q = getOffsetPosition( ssC, unitOffset, ssR );
+        float3 v = Q - cPos;
+
+        //W.xyz = v;
+        //break;
+
+        // Transform samples to camera space
+        float3 sCPos = cPos + mul( TBN, v ) * rad;
+        float4 sSPos = mul( _camera_proj, float4(sCPos, 1) );
+
+        //
+        //int2 ssPix = (int2)( (sSPos.xy * 0.5f + 0.5f) * _renderTarget_size );
+        //float3 cPos1 = getPosition( ssPix );
+
+        sSPos.xy = ( sSPos.xy / sSPos.w ) * 0.5 + 0.5;
+        //W.xyz = cPos1;
+        //break;
+
+        //float sDepth = tex_depth( depthMap, sSPos.xy ).a;
+        //// Compare sample depth with depth buffer
+        
+        float vv = dot( v, v );
+        float vn = dot( v, N );
+
+        const float epsilon = 0.02f;
+        float f = max( _radius2 - vv, 0.0 );
+        f = f * f * max( (vn - _bias) * fastRcpNR0( epsilon + vv ), 0.0 );
+        //if ( sCPos.z >= cPos.z - bias ) W.a += 1;
+        if( f < 0.01 )
+            W.rgb -= texAlbedo.Sample( samplerAlbedo, sSPos.xy ).rgb;
+        else
+            W.rgb += texAlbedo.Sample( samplerAlbedo, sSPos.xy ).rgb;
+    }
+
+    //W.rgb /= n;
+    return W / n;
+
 }
 #endif

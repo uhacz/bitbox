@@ -172,6 +172,7 @@ namespace tjdb
         __data.fxI->setSampler( "samplerLinear", bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_WRAP ) );
         __data.fxI->setSampler( "samplerBilinear", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_WRAP ) );
         __data.fxI->setSampler( "samplerBilinearBorder", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR, bxGdi::eADDRESS_BORDER ) );
+        __data.fxI->setSampler( "samplerTrilinear", bxGdiSamplerDesc( bxGdi::eFILTER_TRILINEAR, bxGdi::eADDRESS_BORDER ) );
 
         __data.camera.matrix.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
         
@@ -342,15 +343,15 @@ namespace tjdb
         ctx->setTopology( bxGdi::eTRIANGLES );
         ctx->draw( __data.screenQuad.numElements, 0 );
 
-        if( ImGui::Begin( "system" ) )
-        {
-            if( ImGui::SliderFloat( "timeline", &musicPosInSec, 0.f, musicLengthInSec ) )
-            {
-                __data.flag_jumpToTime = 1;
-                __data.jumpToTimeValueS = musicPosInSec;
-            }
-        }
-        ImGui::End();
+        //if( ImGui::Begin( "system" ) )
+        //{
+        //    if( ImGui::SliderFloat( "timeline", &musicPosInSec, 0.f, musicLengthInSec ) )
+        //    {
+        //        __data.flag_jumpToTime = 1;
+        //        __data.jumpToTimeValueS = musicPosInSec;
+        //    }
+        //}
+        //ImGui::End();
 
     }
 

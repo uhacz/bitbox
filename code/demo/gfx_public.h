@@ -2,11 +2,13 @@
 
 #include <util/camera.h>
 #include <util/view_frustum.h>
+#include <gdi/gdi_backend.h>
 
 struct bxGdiRenderSource;
 struct bxGdiShaderFx_Instance;
 struct bxGdiContext;
 struct bxGdiTexture;
+class bxResourceManager;
 
 namespace bx
 {
@@ -55,9 +57,16 @@ namespace bx
             bxGdiRenderSource* sphere;
             bxGdiRenderSource* box;
         } mesh;
+
+        struct{
+            bxGdiTexture noise;
+        } texture;
     };
 
     void gfxSubmitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName );
     void gfxCopyTextureRGBA( bxGdiContext* ctx, const bxGdiTexture& outputTexture, const bxGdiTexture& inputTexture );
     void gfxRasterizeFramebuffer( bxGdiContext* ctx, const bxGdiTexture& colorFB, float cameraAspect );
+    
+    //// returns error code ( 0: OK, -1: error )
+    int gfxLoadTextureFromFile( bxGdiTexture* tex, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* filename );
 }///

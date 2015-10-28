@@ -658,8 +658,8 @@ namespace bx
     //////////////////////////////////////////////////////////////////////////
     GfxToneMap::GfxToneMap() 
         : currentLuminanceTexture( 0 ), tau( 15.f ), autoExposureKeyValue( 0.30f )
-        , camera_aperture( 16.f ), camera_shutterSpeed( 1.f / 100.f ), camera_iso( 100.f )
-        , useAutoExposure( 1 )
+        , camera_aperture( 16.f ), camera_shutterSpeed( 1.f / 100.f ), camera_iso( 200.f )
+        , useAutoExposure( 0 )
         , fxI( nullptr )
     {}
 
@@ -793,12 +793,21 @@ namespace bx
             bxPolyShape_deallocateShape( &polyShape );
         }
 
+        {//// textures
+            gfxLoadTextureFromFile( &gr->texture.noise, dev, resourceManager, "texture/noise256.dds" );
+        }
+
         globalResources[0] = gr;
 
     }
     void gfxGlobalResourcesShutdown( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
         GfxGlobalResources* gr = globalResources[0];
+
+        {
+            dev->releaseTexture( &gr->texture.noise );
+        }
+
         {
             bxGdi::renderSource_releaseAndFree( dev, &gr->mesh.sphere );
             bxGdi::renderSource_releaseAndFree( dev, &gr->mesh.box );

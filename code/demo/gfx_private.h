@@ -17,6 +17,7 @@ namespace bx
     enum EFramebuffer
     {
         eFB_COLOR0,
+        eFB_ALBEDO,
         eFB_SAO,
         eFB_SHADOW,
         eFB_DEPTH,

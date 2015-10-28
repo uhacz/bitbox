@@ -168,10 +168,14 @@ public:
 	}
 };
 
+static bxResourceManager* __resourceManager = nullptr;
+
 bxResourceManager* bxResourceManager::startup( const char* root )
 {
 	bxResourceManagerImpl* impl= BX_NEW( bxDefaultAllocator(), bxResourceManagerImpl );
 	impl->startup( root );
+
+    __resourceManager = impl;
 	return impl;
 }
 void bxResourceManager::shutdown( bxResourceManager** resourceManager )
@@ -180,6 +184,13 @@ void bxResourceManager::shutdown( bxResourceManager** resourceManager )
 	impl->shutdown();
 	BX_DELETE( bxDefaultAllocator(), impl );
 
-    resourceManager[0] = 0;
+    __resourceManager = nullptr;
+
+    resourceManager[0] = nullptr;
 }
 
+
+extern bxResourceManager* bx::resourceManagerGet()
+{
+    return __resourceManager;
+}
