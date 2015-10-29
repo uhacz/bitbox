@@ -357,10 +357,11 @@ namespace bx
             {
                 params.diffuseColor = float3_t( 1.f, 0.f, 0.f );
                 params.fresnelColor = float3_t( 0.045593921f );
+                params.ambientColor = float3_t( 0.4f );
                 params.diffuseCoeff = 0.99f;
                 params.roughnessCoeff = 0.2f;
                 params.specularCoeff = 0.9f;
-                params.ambientCoeff = 0.2f;
+                params.ambientCoeff = 0.3f;
 
                 gfxMaterialManagerCreateMaterial( mm, dev, resourceManager, "red", params );
             }
@@ -416,6 +417,7 @@ namespace bx
         {
             fxI->setUniform( "diffuseColor", params.diffuseColor );
             fxI->setUniform( "fresnelColor", params.fresnelColor );
+            fxI->setUniform( "ambientColor", params.ambientColor );
             fxI->setUniform( "diffuseCoeff", params.diffuseCoeff );
             fxI->setUniform( "roughnessCoeff", params.roughnessCoeff );
             fxI->setUniform( "specularCoeff", params.specularCoeff );
@@ -659,7 +661,7 @@ namespace bx
     GfxToneMap::GfxToneMap() 
         : currentLuminanceTexture( 0 ), tau( 15.f ), autoExposureKeyValue( 0.30f )
         , camera_aperture( 16.f ), camera_shutterSpeed( 1.f / 100.f ), camera_iso( 200.f )
-        , useAutoExposure( 0 )
+        , useAutoExposure( 1 )
         , fxI( nullptr )
     {}
 

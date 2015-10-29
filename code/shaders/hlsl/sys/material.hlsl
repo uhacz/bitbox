@@ -4,6 +4,7 @@
 #define MATERIAL_VARIABLES \
     float3 diffuseColor;   \
     float3 fresnelColor;   \
+    float3 ambientColor;   \
     float  diffuseCoeff;   \
     float  roughnessCoeff; \
     float  specularCoeff;  \
@@ -17,6 +18,7 @@ struct Material
 #define ASSIGN_MATERIAL_FROM_CBUFFER( dst ) \
     dst.diffuseColor = diffuseColor;   \
     dst.fresnelColor = fresnelColor;   \
+    dst.ambientColor = ambientColor;   \
     dst.diffuseCoeff = diffuseCoeff;   \
     dst.roughnessCoeff = roughnessCoeff; \
     dst.specularCoeff = specularCoeff;   \

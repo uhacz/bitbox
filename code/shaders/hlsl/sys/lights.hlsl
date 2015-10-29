@@ -31,7 +31,7 @@ uint2 computeTileXY( in float2 screenPos, in uint2 numTilesXY, in float2 rtSize,
     return clamp( unclamped, uint2(0, 0), numTilesXY - uint2(1,1) );
 }
 
-float3 evaluateSunLight( in ShadingData shd, float3 surfPos, in Material mat )
+void evaluateSunLight( out float3 lcol, out float illuminance, in ShadingData shd, float3 surfPos, in Material mat )
 {
     const float3 N = shd.N;
     const float r = sin( _sunAngularRadius );
@@ -43,13 +43,22 @@ float3 evaluateSunLight( in ShadingData shd, float3 surfPos, in Material mat )
 
     //float w = 1.0; // mat.ambientCoeff;
     //float n = 1.f;
-    //const float illuminance = _sunIlluminanceInLux * wrappedLambert( saturate( dot( N, D ) ), w, n );
-    const float illuminance = _sunIlluminanceInLux * saturate( dot( N, D ) );
+    //illuminance = _sunIlluminanceInLux * wrappedLambert( saturate( dot( N, D ) ), w, n );
+    illuminance = _sunIlluminanceInLux * saturate( dot( N, D ) );
     const float3 Fd = BRDF_diffuseOnly( D, shd, mat );
-    const float3 Fr = BRDF_specularOnly( L, shd, mat ) * shd.shadow;
+    const float3 Fr = BRDF_specularOnly( L, shd, mat );
 
-    return (Fd + Fr) * illuminance;
+    lcol = ( Fd + Fr )  * shd.shadow;
     //return Fd * illuminance;
+}
+
+void evaluateAmbientLight( out float3 ambient, out float illuminance, in ShadingData shd, in Material mat )
+{
+    float aNdotL = saturate( -( clamp( dot( shd.N, -_sunDirection ), -mat.ambientCoeff * 0.5f, -mat.ambientCoeff ) ) );
+    ambient = aNdotL * mat.diffuseColor * mat.ambientColor;
+    //ambient = ( ( 1.f - ambient ) * ambient );
+    ambient *= mat.ambientCoeff * shd.ssao;
+    illuminance = _skyIlluminanceInLux;
 }
 
 ////

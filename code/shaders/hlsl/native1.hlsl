@@ -31,7 +31,7 @@ struct in_PS
 struct out_PS
 {
     float4 rgba : SV_Target0;
-    float4 albedo : SV_Target1;
+    //float4 albedo : SV_Target1;
 };
 
 #include <sys/types.hlsl>
@@ -85,14 +85,29 @@ out_PS ps_main( in_PS IN )
     Material mat;
     ASSIGN_MATERIAL_FROM_CBUFFER( mat );
     //float3 c = BRDF( L, shd, mat );
-    float3 c = evaluateSunLight( shd, IN.w_pos, mat );
-    c = lerp( c * 0.2f * shd.ssao, c, shd.shadow );
+    float3 c = ( float3 )0;
+    float sunIlluminance = 0;
+    evaluateSunLight( c, sunIlluminance, shd, IN.w_pos, mat );
+
+    float3 a = ( float3 )0;
+    float ambientIlluminance = 0;
+    evaluateAmbientLight( a, ambientIlluminance, shd, mat );
+
+    c *= sunIlluminance;
+    c += a * ambientIlluminance;
+
+    //float aNdotL = -( clamp( dot( shd.N, -_sunDirection ), -mat.ambientCoeff, -1.f + mat.ambientCoeff ) );
+    //float3 ambient = aNdotL * mat.diffuseColor * mat.ambientColor;
+    //ambient = ( (1.f - ambient ) * ambient );
+    //ambient *= mat.ambientCoeff * shd.ssao;
+    
+    //c = lerp( ambient, c, shd.shadow );
         
     //float3 C = diffuseColor;
     //float NdotL = saturate( dot( N, L ) );
 
     OUT.rgba = float4( c, 1.0 );
-    OUT.albedo = float4(mat.diffuseColor, 1.0);
+    //OUT.albedo = float4(mat.diffuseColor, 1.0);
     //OUT.rgba = float4( 1.0, 0.0, 0.0, 1.0 );
     return OUT;
 }

@@ -42,7 +42,6 @@ float3 computeSpecularBRDF( in float NdotH, in float NdotL, in float NdotV, in f
     float vis = v1i * v1o;
 
     float3 fspec = Fresnel( mat.fresnelColor, LdotH );
-
     float3 specular = d * vis * fspec * mat.specularCoeff;
     
     return specular;
@@ -52,7 +51,6 @@ float3 computeDiffuseBRDF( in float LdotH, in Material mat )
 {
     float f = Fresnel( (float3)mat.specularCoeff, LdotH ).x;
     float3 diffuse = saturate( 1.f - (f) ) * mat.diffuseColor * mat.diffuseCoeff * PI_RCP;
-    
     return diffuse;
 }
 
@@ -69,8 +67,6 @@ float3 BRDF( in float3 L, in ShadingData shd, in Material mat )
 
     float3 specular = computeSpecularBRDF( NdotH, NdotL, NdotV, LdotH, mat );
     float3 diffuse = computeDiffuseBRDF( LdotH, mat );
-    float a = NdotL_raw * 0.5f + 0.5f;
-    diffuse = lerp( diffuse*mat.ambientCoeff, diffuse, a );
     return ( diffuse + specular ) * NdotL;
 }
 
@@ -84,8 +80,7 @@ float3 BRDF_diffuseOnly( in float3 L, in ShadingData shd, in Material mat )
     float LdotH = saturate( dot( L, H ) );
     
     float3 diffuse = computeDiffuseBRDF( LdotH, mat );
-    float a = NdotL_raw * 0.5f + 0.5f;
-    return lerp( diffuse*mat.ambientCoeff, diffuse, a );// wrappedLambert( NdotL, w, n );
+    return diffuse;
 }
 
 float3 BRDF_specularOnly( in float3 L, in ShadingData shd, in Material mat )

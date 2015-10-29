@@ -8,7 +8,7 @@ passes:
         {
             depth_test = 0;
             depth_write = 0;
-            color_mask = "RGB";
+            color_mask = "RG";
         };
     };
 
@@ -21,7 +21,7 @@ passes:
         {
             depth_test = 0;
             depth_write = 0;
-            color_mask = "RGB";
+            color_mask = "RG";
         };
     };
 
@@ -59,9 +59,8 @@ passes:
 //Texture2D<float>  InputTextureLinearDepth       : register(t0);
 //Texture2D<float2> InputTextureSSAO              : register(t1);
 //Texture2D<float2> InputTextureMotion            : register(t2);
-Texture2D<float4> tex_normalsVS;
-Texture2D<float> tex_hwDepth;
-Texture2D<float2> tex_ssao;
+//Texture2D<float4> tex_normalsVS;
+Texture2D<float> texHwDepth;
 
 shared cbuffer MaterialData: register(b3)
 {
@@ -78,7 +77,7 @@ shared cbuffer MaterialData: register(b3)
 
 float loadLinearDepth( int2 ssP )
 {
-    float hwDepth = tex_hwDepth.Load( int3(ssP, 0) ).r;
+    float hwDepth = texHwDepth.Load( int3(ssP, 0) ).r;
     float linDepth = resolveLinearDepth( hwDepth );
     return linDepth;
 }
@@ -173,16 +172,30 @@ float CSZToKey(float z)
 }
 
 /** Used for packing Z into the GB channels */
-void packKey(float key, out float2 p) 
+//void packKey(float key, out float2 p) 
+//{
+//    // Round to the nearest 1/256.0
+//    float temp = floor(key * 256.0);
+//    // Integer part
+//    p.x = temp * (1.0 / 256.0);
+//    // Fractional part
+//    p.y = key * 256.0 - temp;
+//}
+void packKey1( float key, out float p )
 {
-    // Round to the nearest 1/256.0
-    float temp = floor(key * 256.0);
-    // Integer part
-    p.x = temp * (1.0 / 256.0);
-    // Fractional part
-    p.y = key * 256.0 - temp;
+    p = key;
+    //// Round to the nearest 1/256.0
+    //float temp = floor( key * 256.0 );
+    //
+    //// Integer part
+    //float i = temp * ( 1.0 / 256.0 );
+    //// Fractional part
+    //float f = key * 256.0 - temp;
+    //
+    //uint ihalf = f32tof16( i );
+    //uint fhalf = f32tof16( f );
+    //p.x = asfloat( ihalf << 16 | fhalf );
 }
- 
 /** Read the camera-space position of the point at screen-space pixel ssP */
 float3 getPosition(int2 ssP) 
 {
@@ -251,13 +264,19 @@ float sampleAO(in int2 ssC, in float3 C, in float3 n_C, in float ssDiskRadius, i
     return f * f * max((vn - _bias) * fastRcpNR0(epsilon + vv), 0.0);
 }
 
-float unpackKey(float2 p)
+//float unpackKey(float2 p)
+//{
+//    return p.x * (256.0 / 257.0) + p.y * (1.0 / 257.0);
+//}
+float unpackKey1( float p )
 {
-    return p.x * (256.0 / 257.0) + p.y * (1.0 / 257.0);
+    return p;
 }
 
 #define visibility      output.r
-#define bilateralKey    output.gb
+#define bilateralKey    output.g
+//#define bilateralKey    output.gb
+
 
 float4 ps_ssao( out_VS_screenquad In ) : SV_Target
 {
@@ -333,7 +352,7 @@ float4 ps_ssao( out_VS_screenquad In ) : SV_Target
     //visibility = pow( A / _radius2, 2.0 );
     
     float zKey = CSZToKey(C.z);
-    packKey(zKey, bilateralKey);
+    packKey1(zKey, bilateralKey);
     visibility = A;
     //if ( In.uv.x < 0.5f )
     //    return float4(n_C1, 0.f);
@@ -379,8 +398,8 @@ float4 ps_ssao( out_VS_screenquad In ) : SV_Target
 #define VALUE_IS_KEY       0
 
 /** Channel encoding the bilateral key value (which must not be the same as VALUE_COMPONENTS) */
-#define KEY_COMPONENTS     gb
-
+//#define KEY_COMPONENTS     gb
+#define KEY_COMPONENTS     g
 // Gaussian coefficients
 static const float gaussian[] = 
 //	{ 0.356642, 0.239400, 0.072410, 0.009869 };
@@ -401,7 +420,7 @@ float4 doBlur( int2 ssC, float2 axis )
     float4 temp = tex_source.Load( int3(ssC, 0) );
 
     keyPassThrough = temp.KEY_COMPONENTS;
-    float key = unpackKey( keyPassThrough );
+    float key = unpackKey1( keyPassThrough );
 
     float sum = temp.VALUE_COMPONENTS;
 
@@ -426,7 +445,7 @@ float4 doBlur( int2 ssC, float2 axis )
         if ( r != 0 )
         {
             temp = tex_source.Load( int3(ssC + axis * (r * SCALE), 0) );
-            float tapKey = unpackKey( temp.KEY_COMPONENTS );
+            float tapKey = unpackKey1( temp.KEY_COMPONENTS );
             float value = temp.VALUE_COMPONENTS;
 
             // spatial domain: offset gaussian tap
@@ -489,7 +508,7 @@ float4 ps_ambientTransfer( out_VS_screenquad IN ) : SV_Target
     }
 
     float randomPatternRotationAngle = (3 * ssC.x ^ ssC.y + ssC.x * ssC.y) * 10; // + _randomRot;
-    float ssDiskRadius = (900 / 1080.0 * _renderTarget_size.y) * 0.5 * fastRcpNR0( max( cPos.z, 0.1f ) );
+    float ssDiskRadius = (1080 / 1080.0 * _renderTarget_size.y) * 0.5 * fastRcpNR0( max( cPos.z, 0.1f ) );
     
     float3 N = reconstructCSFaceNormal( cPos );
     float3 T = normalize( cross( N, float3(0.1, 0, 0.1) ) );
@@ -502,22 +521,11 @@ float4 ps_ambientTransfer( out_VS_screenquad IN ) : SV_Target
     float3 r2 = float3(r1.y, -r1.x, 0);
     TBN = mul( float3x3(r1, r2, r3), TBN );
 
-    const float rad = 0.1;
-    const float bias = 0.01f;
+    const float rad = 0.5;
+    const float bias = 0.1f;
     const int n = 8;
-    //const float3 XYZ[8] =
-    //{
-    //    float3(1, 0, 0),
-    //    float3(0, 1, 0),
-    //    float3(0, 0, 1),
-    //    float3(1, 1, 0),
-    //    float3(1, 0, 1),
-    //    float3(0, 1, 1),
-    //    float3(0, 1, 0),
-    //    float3(1, 1, 1)
-    //};
 
-    float4 W = float4( 0,0,0, 0); // n = count
+    float4 W = float4( n, n, n, 0); // n = count
 
     //[loop]
     for ( int k = 0; k < n; k++ ) 
@@ -538,28 +546,15 @@ float4 ps_ambientTransfer( out_VS_screenquad IN ) : SV_Target
         float3 sCPos = cPos + mul( TBN, v ) * rad;
         float4 sSPos = mul( _camera_proj, float4(sCPos, 1) );
 
-        //
-        //int2 ssPix = (int2)( (sSPos.xy * 0.5f + 0.5f) * _renderTarget_size );
-        //float3 cPos1 = getPosition( ssPix );
-
         sSPos.xy = ( sSPos.xy / sSPos.w ) * 0.5 + 0.5;
-        //W.xyz = cPos1;
-        //break;
-
-        //float sDepth = tex_depth( depthMap, sSPos.xy ).a;
-        //// Compare sample depth with depth buffer
         
         float vv = dot( v, v );
         float vn = dot( v, N );
 
         const float epsilon = 0.02f;
         float f = max( _radius2 - vv, 0.0 );
-        f = f * f * max( (vn - _bias) * fastRcpNR0( epsilon + vv ), 0.0 );
-        //if ( sCPos.z >= cPos.z - bias ) W.a += 1;
-        if( f < 0.01 )
-            W.rgb -= texAlbedo.Sample( samplerAlbedo, sSPos.xy ).rgb;
-        else
-            W.rgb += texAlbedo.Sample( samplerAlbedo, sSPos.xy ).rgb;
+        f = f * max( (vn - _bias) * fastRcpNR0( epsilon + vv ), 0.0 );
+        W.rgb -= ( 1.f - texAlbedo.Sample( samplerAlbedo, sSPos.xy ).rgb )* f;
     }
 
     //W.rgb /= n;

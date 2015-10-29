@@ -826,8 +826,7 @@ namespace bx
 
             gdi->changeRenderTargets( &tmp0Texture, 1 );
             gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
-
-
+            
             bxGdiShaderFx_Instance* fxI = ctx->_fxISao;
             fxI->setUniform( "_radius", 1.2f );
             fxI->setUniform( "_radius2", 1.2f * 1.2f );
@@ -835,7 +834,7 @@ namespace bx
             fxI->setUniform( "_intensity", 0.5f );
             fxI->setUniform( "_projScale", 700.f );
             fxI->setUniform( "_ssaoTexSize", float2_t( (float)saoTexture.width, (float)saoTexture.height ) );
-            fxI->setTexture( "tex_hwDepth", ctx->_framebuffer[eFB_DEPTH] );
+            fxI->setTexture( "texHwDepth", ctx->_framebuffer[eFB_DEPTH] );
             gfxSubmitFullScreenQuad( gdi, fxI, "ssao" );
 
             gdi->changeRenderTargets( &tmp1Texture, 1 );
@@ -875,35 +874,34 @@ namespace bx
             gdi->setTexture( ctx->_framebuffer[eFB_SHADOW], eRS_TEXTURE_SHADOW, bxGdi::eSTAGE_MASK_PIXEL );
             gdi->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ), eRS_TEXTURE_SAO, bxGdi::eSTAGE_MASK_PIXEL );
 
-            gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 2, ctx->_framebuffer[eFB_DEPTH] );
-            gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
+            gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[eFB_DEPTH] );
+            //gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
             sortListColorSubmit( gdi, view, scene, colorList, colorChunk.begin, colorChunk.current );
         }
-
 
         {
             gfxToneMapDraw( cmdq, &ctx->_toneMap, ctx->_framebuffer[eFB_TEMP0], ctx->_framebuffer[eFB_COLOR0], 0.016f );
         }
 
-        {
-            bxGdiTexture outputTex = ctx->_framebuffer[eFB_TEMP1];
-            bxGdiTexture albedoTex = ctx->_framebuffer[eFB_ALBEDO];
-            bxGdiTexture noiseTex = gfxGlobalResourcesGet()->texture.noise;
+        //{
+        //    bxGdiTexture outputTex = ctx->_framebuffer[eFB_TEMP1];
+        //    bxGdiTexture albedoTex = ctx->_framebuffer[eFB_ALBEDO];
+        //    bxGdiTexture noiseTex = gfxGlobalResourcesGet()->texture.noise;
 
 
-            gdi->changeRenderTargets( &outputTex, 1 );
-            gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
-            
-            bxGdiShaderFx_Instance* fxI = ctx->_fxISao;
-            fxI->setTexture( "texAlbedo", albedoTex );
-            fxI->setTexture( "texNoise", noiseTex );
-            fxI->setSampler( "samplerAlbedo", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
-            fxI->setSampler( "samplerNoise", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
-            gfxSubmitFullScreenQuad( gdi, fxI, "ambientTransfer" );
+        //    gdi->changeRenderTargets( &outputTex, 1 );
+        //    gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
+        //    
+        //    bxGdiShaderFx_Instance* fxI = ctx->_fxISao;
+        //    fxI->setTexture( "texAlbedo", albedoTex );
+        //    fxI->setTexture( "texNoise", noiseTex );
+        //    fxI->setSampler( "samplerAlbedo", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+        //    fxI->setSampler( "samplerNoise", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+        //    gfxSubmitFullScreenQuad( gdi, fxI, "ambientTransfer" );
 
-        }
+        //}
 
-        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_TEMP1], gfxCameraAspect( camera ) );
+        gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_TEMP0], gfxCameraAspect( camera ) );
         //gfxRasterizeFramebuffer( gdi, ctx->_shadow._texDepth, gfxCameraAspect( camera ) );
         bxGfxDebugDraw::flush( gdi, camera->viewProj );
     }
