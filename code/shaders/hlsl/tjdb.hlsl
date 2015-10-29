@@ -245,6 +245,55 @@ float randomBlotch( float seed, float2 uv )
 }
 ////////////////
 
+void showText( inout float4 color, in float beginTime, in float endTime, in float2 uv )
+{
+    const float interval = 5.0;
+    if ( inTime >= beginTime && inTime < endTime )
+    {
+        float3 tr[4];
+        tr[0] = float3(beginTime, beginTime + interval, -0.3);
+        tr[1] = float3(tr[0].y, tr[0].y + interval, -0.1);
+        tr[2] = float3(tr[1].y, tr[1].y + interval,  0.1);
+        tr[3] = float3(tr[2].y, tr[2].y + interval,  0.3);
+
+        //{
+        //    float3(5.0 , 10.0,-0.3),
+        //    float3(10.0, 15.0,-0.1),
+        //    float3(15.0, 20.0, 0.1),
+        //    float3(20.0, 25.0, 0.3),
+        //};
+
+        uint tri = 0;
+        for ( uint i = 0; i < 4; i++ )
+        {
+            if ( inTime >= tr[i].x && inTime < tr[i].y )
+            {
+                tri = i;
+                break;
+            }
+        }
+
+        float alpha = linearstep( tr[tri].x, tr[tri].y, inTime );
+        float alphaPulseYRange = 1.f - alpha * alpha * alpha * alpha * alpha;
+    
+        float2 yRange = lerp( float2(0.f, 1.f), float2(0.4f, 0.6f), alphaPulseYRange );
+        if ( uv.y >= yRange.x && uv.y <= yRange.y )
+        {
+            float yoff = tr[tri].z;
+        
+            float zoomAlpha = 1.f - alpha * alpha * alpha;
+            float2 txtuv = uv.xy * zoomAlpha + (1.f - zoomAlpha) * 0.5f;
+            txtuv.y += yoff;
+                    
+            float4 txt = texText.Sample( samplerBilinear, txtuv );
+            txt.rgb = lerp( txt.rgb, color.rgb, 0.25f );
+        
+            float alphaPulse = 1 - pow( 2.5 * alpha - 1, 2 );
+            color.rgb = lerp( color.rgb, txt.rgb, smoothstep( 0.0, 1.0, txt.a * alphaPulse ) );
+        }
+    }
+}
+
 float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
 {
     float fft = texFFT.Sample( samplerNearest, IN.uv.x ).r;
@@ -499,6 +548,8 @@ float4 ps_foreground( out_VS_foreground IN ) : SV_Target0
     color *= brightness;
     color.rgb += logo.rgb * brightnessLogo * logo.a;
     
+    showText( color, 5.0, 25.0, IN.uv );
+    showText( color, 71.0, 96.0, IN.uv );
 
     /// text
     //if ( inTime >= 5.0 && inTime < 25.f )
