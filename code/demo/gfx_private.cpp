@@ -358,8 +358,8 @@ namespace bx
                 params.diffuseColor = float3_t( 1.f, 0.f, 0.f );
                 params.fresnelColor = float3_t( 0.045593921f );
                 params.ambientColor = float3_t( 0.4f );
-                params.diffuseCoeff = 0.99f;
-                params.roughnessCoeff = 0.2f;
+                params.diffuseCoeff = 0.29f;
+                params.roughnessCoeff = 0.1f;
                 params.specularCoeff = 0.9f;
                 params.ambientCoeff = 0.3f;
 
@@ -369,15 +369,15 @@ namespace bx
                 params.diffuseColor = float3_t( 0.f, 1.f, 0.f );
                 params.fresnelColor = float3_t( 0.171968833f );
                 params.diffuseCoeff = 0.25f;
-                params.roughnessCoeff = 0.5f;
-                params.specularCoeff = 0.5f;
+                params.roughnessCoeff = 0.1f;
+                params.specularCoeff = 0.99f;
                 gfxMaterialManagerCreateMaterial( mm, dev, resourceManager, "green", params );
             }
             {
                 params.diffuseColor = float3_t( 0.f, 0.f, 1.f );
                 params.fresnelColor = float3_t( 0.171968833f );
                 params.diffuseCoeff = 0.7f;
-                params.roughnessCoeff = 0.7f;
+                params.roughnessCoeff = 0.01f;
 
                 gfxMaterialManagerCreateMaterial( mm, dev, resourceManager, "blue", params );
             }

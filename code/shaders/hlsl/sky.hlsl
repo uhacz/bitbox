@@ -25,10 +25,10 @@ passes:
     };
 };#~header
 
-#include <sys/frame_data.hlsl>
+#include <sys/base.hlsl>
+#include <sys/types.hlsl>
 #include <sys/shading_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
-#include <sys/types.hlsl>
 
 #define in_PS out_VS_screenquad
 
@@ -214,7 +214,7 @@ float4 ps_main( in_PS IN ) : SV_Target0
     uv_m11.x *= _camera_aspect; // apect
     
     float turbidity = 6;
-    float3 sunDir = normalize( float3( -1.f, 1.0f, 0.f ) );
+    float3 sunDir = -_sunDirection; // normalize( float3( -1.f, 1.0f, 0.f ) );
     float3 viewDir = normalize( mul( ( float3x3 )_camera_world, float3( uv_m11, -1.0 ) ) );
     float3 skyLuminance = calculateSkyLuminanceRGB( sunDir, viewDir, turbidity );
     return float4( skyLuminance * 250.f , 1.0 );

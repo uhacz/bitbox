@@ -33,4 +33,6 @@ float4 colorU32toFloat4_ABGR( uint abgr )
     return float4(r, g, b, a) * scaler;
 }
 
+
+
 #endif

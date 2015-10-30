@@ -1,30 +1,6 @@
 #ifndef LIGHTS_HLSL
 #define LIGHTS_HLSL
 
-////
-////
-shared cbuffer LighningData : register(b2)
-{
-    uint2 _numTilesXY;
-    uint  _numTiles;
-    uint  _tileSize;
-    uint  _maxLights;
-    float _tileSizeRcp;
-
-    float _sunAngularRadius;
-    float _sunIlluminanceInLux;
-    float _skyIlluminanceInLux;
-    
-    float3 _sunDirection;
-    //float3 _sunColor;
-    //float3 _skyColor;
-};
-
-
-
-Buffer<float4> _lightsData    : register(t2);
-Buffer<uint>   _lightsIndices : register(t3);
-
 uint2 computeTileXY( in float2 screenPos, in uint2 numTilesXY, in float2 rtSize, in float tileSizeRcp )
 {
     const uint2 unclamped = (uint2)(screenPos * rtSize * tileSizeRcp);
@@ -34,9 +10,9 @@ uint2 computeTileXY( in float2 screenPos, in uint2 numTilesXY, in float2 rtSize,
 void evaluateSunLight( out float3 lcol, out float illuminance, in ShadingData shd, float3 surfPos, in Material mat )
 {
     const float3 N = shd.N;
+    const float3 D = -_sunDirection;
     const float r = sin( _sunAngularRadius );
     const float d = cos( _sunAngularRadius );
-    const float3 D = -_sunDirection;
     const float3 R = normalize( D - normalize( surfPos ) );
     const float DdotR = dot( D, R );
     const float3 S = R - DdotR * D;    const float3 L = DdotR < d ? normalize( d * D + normalize( S ) * r ) : R;
@@ -48,7 +24,17 @@ void evaluateSunLight( out float3 lcol, out float illuminance, in ShadingData sh
     const float3 Fd = BRDF_diffuseOnly( D, shd, mat );
     const float3 Fr = BRDF_specularOnly( L, shd, mat );
 
-    lcol = ( Fd + Fr )  * shd.shadow;
+    //const float NoL_diff = saturate( dot( shd.N, D ) );
+    //const float NoL_spec = saturate( dot( shd.N, L ) );
+    //const float  NoV = saturate( dot( shd.N, shd.V ) );
+    //const float3 H = normalize( shd.V + L );
+    //const float  NoH = saturate( dot( shd.N, H ) );
+    //const float  VoH = saturate( dot( shd.V, H ) );
+    //
+    //const float3 Fd = diffuseLambertFresnel( mat.diffuseColor, mat.fresnelColor, NoL_diff );
+    //const float3 Fr = specularTorranceSparrow( mat.fresnelColor, mat.roughnessCoeff, NoV, NoL_spec, NoH, VoH );
+    
+    lcol = ( Fd + Fr ) * shd.shadow;
     //return Fd * illuminance;
 }
 

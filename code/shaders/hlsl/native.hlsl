@@ -8,9 +8,8 @@ passes:
 }; #~header
 
 #include <sys/types.hlsl>
-#include <sys/frame_data.hlsl>
+#include <sys/base.hlsl>
 #include <sys/instance_data.hlsl>
-#include <sys/material.hlsl>
 #include <sys/brdf.hlsl>
 #include <sys/lights.hlsl>
 
@@ -108,8 +107,8 @@ out_PS ps_main( in_PS input )
         pointLightDataIndex = _lightsIndices[pointLightIndex] & 0xFFFF;
     }
 
-    float3 sunIlluminance = evaluateSunLight( shData, input.w_pos, mat );
-    colorFromLights += /*_sunColor */ sunIlluminance;
+    //float3 sunIlluminance = evaluateSunLight( shData, input.w_pos, mat );
+    //colorFromLights += /*_sunColor */ sunIlluminance;
 
     float colorInShadow = lerp( 0.1f, 0.75f, ssaoValue );
     float colorCoeff = lerp( colorInShadow, 1.f, shadowValue );

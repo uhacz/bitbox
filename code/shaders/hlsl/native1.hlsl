@@ -35,11 +35,10 @@ struct out_PS
 };
 
 #include <sys/types.hlsl>
-#include <sys/frame_data.hlsl>
-#include <sys/material.hlsl>
+#include <sys/base.hlsl>
 #include <sys/brdf.hlsl>
 #include <sys/lights.hlsl>
-#include <sys/vertex_transform.hlsl>
+
 
 in_PS vs_main( in_VS IN )
 {

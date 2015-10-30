@@ -1,7 +1,7 @@
 #ifndef SHADING_DATA
 #define SHADING_DATA
 
-shared cbuffer ShadingData : register(b2)
+shared cbuffer ShadingData_ : register(b2)
 {
 	float4 sun_dir;
 	float4 sun_color;

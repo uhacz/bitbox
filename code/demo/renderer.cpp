@@ -831,7 +831,7 @@ namespace bx
             fxI->setUniform( "_radius", 1.2f );
             fxI->setUniform( "_radius2", 1.2f * 1.2f );
             fxI->setUniform( "_bias", 0.025f );
-            fxI->setUniform( "_intensity", 0.5f );
+            fxI->setUniform( "_intensity", 0.25f );
             fxI->setUniform( "_projScale", 700.f );
             fxI->setUniform( "_ssaoTexSize", float2_t( (float)saoTexture.width, (float)saoTexture.height ) );
             fxI->setTexture( "texHwDepth", ctx->_framebuffer[eFB_DEPTH] );
@@ -849,6 +849,13 @@ namespace bx
 
         }
 
+        gdi->clear();
+        gfxViewCameraSet( gdi, &view, camera, ctx->_framebuffer->width, ctx->_framebuffer->height );
+        gfxViewEnable( gdi, &view );
+
+        gfxLightsUploadData( gdi, &ctx->_lights, ctx->_sunLight );
+        gfxLightsEnable( gdi, &ctx->_lights );
+
         /// sky
         {
             gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1 );
@@ -857,14 +864,6 @@ namespace bx
             bxGdiShaderFx_Instance* fxI = ctx->_fxISky;
             gfxSubmitFullScreenQuad( gdi, fxI, "skyPreetham" );
         }
-
-        gdi->clear();
-        
-        gfxViewCameraSet( gdi, &view, camera, ctx->_framebuffer->width, ctx->_framebuffer->height );
-        gfxViewEnable( gdi, &view );
-
-        gfxLightsUploadData( gdi, &ctx->_lights, ctx->_sunLight );
-        gfxLightsEnable( gdi, &ctx->_lights );
 
         /// color pass
         {
