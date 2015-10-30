@@ -1,60 +1,17 @@
 passes:
 {
-    depth = 
-    {
-	    vertex = "vs_depth";
-        pixel = "ps_depth";
+  //  shadowVolume =
+  //  {
+  //      vertex = "vs_screenquad";
+  //      pixel = "ps_shadowVolume";
 
-        hwstate = 
-		{
-		    color_mask = "";
-            //cull_mode = "FRONT";
-            //depth_function = "LESS";
-		};
-    };
-
-    shadow =
-    {
-        vertex = "vs_screenquad";
-        pixel = "ps_shadow";
-
-        hwstate = 
-		{
-			depth_test = 0;
-			depth_write = 0;
-            color_mask = "R";
-		};
-    };
-
-    shadowVolume =
-    {
-        vertex = "vs_screenquad";
-        pixel = "ps_shadowVolume";
-
-        hwstate = 
-		{
-			depth_test = 0;
-			depth_write = 0;
-            color_mask = "R";
-		};
-    };
-
-    add_ssao = 
-    {
-        vertex = "vs_screenquad";
-        pixel = "ps_add_ssao";
-
-        hwstate = 
-        {
-            depth_test = 0;
-            depth_write = 0;
-            blend_enable = 1;
-            blend_equation = "MIN";
-            blend_src_factor = "ONE";
-            blend_dst_factor = "ONE";
-            color_mask = "G";
-        };
-    };
+  //      hwstate = 
+		//{
+		//	depth_test = 0;
+		//	depth_write = 0;
+  //          color_mask = "R";
+		//};
+  //  };
 
     shadowDepthPass =
     {
@@ -79,7 +36,6 @@ passes:
 
 #include <sys/frame_data.hlsl>
 #include <sys/util.hlsl>
-#include <sys/instance_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
 
 #define NUM_CASCADES 4
@@ -88,9 +44,6 @@ passes:
 
 shared cbuffer MaterialData : register(b3)
 {
-    float4x4 worldToShadowSpace[NUM_CASCADES];
-    float4x4 viewToShadowSpace[NUM_CASCADES];
-    float4 clipPlanes_bias_nOffset[NUM_CASCADES];
     float3 lightDirectionWS;
     float2 occlusionTextureSize;
     float2 shadowMapSize;
@@ -98,19 +51,6 @@ shared cbuffer MaterialData : register(b3)
 
     float4x4 lightViewProj;
 };
-
-float biasGet( in uint cascadeIdx )
-{
-    return clipPlanes_bias_nOffset[cascadeIdx].z;
-}
-float normalOffsetGet( in uint cascadeIdx )
-{
-    return clipPlanes_bias_nOffset[cascadeIdx].w;
-}
-float2 clipPlaneGet( in uint cascadeIdx )
-{
-    return clipPlanes_bias_nOffset[cascadeIdx].xy;
-}
 
 Texture2D<float> shadowMap;
 Texture2D<float> sceneDepthTex;
@@ -121,41 +61,10 @@ SamplerState sampl;
 SamplerComparisonState samplShadowMap;
 SamplerState samplNormalsVS;
 
-/////////////////////////////////////////////////////////////////
-struct in_VS_depth
-{
-	uint   instanceID : SV_InstanceID;
-	float4 pos	  	  : POSITION;
-};
-struct in_PS_depth
-{
-	float4 hpos	: SV_Position;
-};
-struct out_PS_depth 
-{
-//    float linearDepth : SV_Depth;
-};
-in_PS_depth vs_depth( in_VS_depth input )
-{
-	in_PS_depth output;
-	float4 wpos = mul( world_matrix[input.instanceID], input.pos );
-    float4 hpos = mul( _camera_viewProj, wpos );
-    output.hpos = hpos;
-    return output;
-}
-[earlydepthstencil]
-out_PS_depth ps_depth( in_PS_depth input )
-{
-	out_PS_depth output;
-	return output;
-}
-
 #define in_PS_shadow out_VS_screenquad
-
 
 float shadowMap_sample( float lightDepth, float2 shadowUV )
 {
-    //return shadowUV.x;
     return shadowMap.SampleCmpLevelZero( samplShadowMap, shadowUV.xy, lightDepth );
 }
 float shadowMap_sample1( float2 base_uv, float u, float v, float2 shadowMapSizeInv, float lightDepth )
@@ -355,105 +264,43 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float bias, in float
 #endif
 }
 
-uint selectSplit( float z )
-{
-    uint currentSplit = 0;
-    for( uint i = 0; i < NUM_CASCADES; ++i )
-    {
-        [flatten]
-        if( z < clipPlaneGet(i).x )
-        {
-            currentSplit = i;
-
-        }
-    }
-
-    return currentSplit;
-}
-
-float ps_shadow( in in_PS_shadow input ) : SV_Target0
-{
-    // Reconstruct view-space position from the depth buffer
-    float pixelDepth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
-    float linearDepth = resolveLinearDepth( pixelDepth );
-    float2 screenPos_m11 = input.screenPos;
-    float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth );
-
-    uint currentSplit = selectSplit( posVS.z );
-    float4 posWS = mul( _camera_world, float4(posVS, 1.0) );
-
-    if( useNormalOffset )
-    {
-        const float3 nrmVS = cross( normalize( ddy_fine(posVS) ), normalize( ddx_fine(posVS) ) );
-        //const float3 nrmVS = normalsVS.SampleLevel( samplNormalsVS, input.uv, 0.0 );
-        const float3 N = normalize( mul( (float3x3)_camera_world, nrmVS ) );
-        const float scale = 1.f - saturate(dot( lightDirectionWS, N ));
-        const float offsetScale  = scale * normalOffsetGet( currentSplit );
-        const float3 posOffset = N * offsetScale; 
-        posWS.xyz += posOffset;
-    }
-
-    float4 shadowPos = mul( worldToShadowSpace[currentSplit], posWS );
-    const float bias = biasGet( currentSplit );
-    const float offsetU = currentSplit * NUM_CASCADES_INV;
-    float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, bias, NUM_CASCADES_INV, offsetU );
-    return shadowValue;
-}
-
-#define NUM_STEPS 64
-float ps_shadowVolume( in in_PS_shadow input ) : SV_Target0
-{
-    // Reconstruct view-space position from the depth buffer
-    float pixelDepth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
-    float linearDepth = resolveLinearDepth( pixelDepth );
-    float2 screenPos_m11 = input.screenPos;
-    float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth );
-
-    uint currentSplit = selectSplit( posVS.z );
-    
-    float4 posWS = mul( _camera_world, float4(posVS, 1.0) );
-
-    float3 rayDirVS = posVS;
-    const float rayLengthVS = length( rayDirVS );
-    rayDirVS *= rcp( rayLengthVS );
-    float step = rayLengthVS / (float)(NUM_STEPS);
-    float currRayLen = _camera_zNear + ( step * ( sin( input.uv.x * input.uv.y ) * 0.5 + 0.5 ) );
-    float value = 0.f;
-    while( currRayLen < rayLengthVS )
-    {
-        const float3 currSamplePosVS = rayDirVS*currRayLen;
-        const float viewZ = currSamplePosVS.z;
-        const uint currSampleCascadeIdx = selectSplit( viewZ );
-
-        const float bias = biasGet( currentSplit );
-        const float offsetU = currentSplit * NUM_CASCADES_INV;
-
-        const float3 currShadowPos = mul( viewToShadowSpace[currSampleCascadeIdx], float4( currSamplePosVS, 1.0 ) ).xyz;
-        value += sampleShadowMap_simple( currShadowPos, bias, NUM_CASCADES_INV, offsetU );
-        currRayLen += step;
-    }
-
-    value /= NUM_STEPS;
-
-    return value;
-}
-
-/////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////
-Texture2D<float> gtex_ssao;
-SamplerState gsamp_ssao;
-
-float2 ps_add_ssao( in out_VS_screenquad input ) : SV_Target0
-{
-    float ssao_value = gtex_ssao.SampleLevel( gsamp_ssao, input.uv, 0.f ).r;
-    float2 result;
-    result.x = 1.f;
-    result.y = ssao_value;
-    return result;
-}
-
+//#define NUM_STEPS 64
+//float ps_shadowVolume( in in_PS_shadow input ) : SV_Target0
+//{
+//    // Reconstruct view-space position from the depth buffer
+//    float pixelDepth  = sceneDepthTex.SampleLevel( sampl, input.uv, 0.0f ).r;
+//    float linearDepth = resolveLinearDepth( pixelDepth );
+//    float2 screenPos_m11 = input.screenPos;
+//    float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth );
+//
+//    uint currentSplit = selectSplit( posVS.z );
+//    
+//    float4 posWS = mul( _camera_world, float4(posVS, 1.0) );
+//
+//    float3 rayDirVS = posVS;
+//    const float rayLengthVS = length( rayDirVS );
+//    rayDirVS *= rcp( rayLengthVS );
+//    float step = rayLengthVS / (float)(NUM_STEPS);
+//    float currRayLen = _camera_zNear + ( step * ( sin( input.uv.x * input.uv.y ) * 0.5 + 0.5 ) );
+//    float value = 0.f;
+//    while( currRayLen < rayLengthVS )
+//    {
+//        const float3 currSamplePosVS = rayDirVS*currRayLen;
+//        const float viewZ = currSamplePosVS.z;
+//        const uint currSampleCascadeIdx = selectSplit( viewZ );
+//
+//        const float bias = biasGet( currentSplit );
+//        const float offsetU = currentSplit * NUM_CASCADES_INV;
+//
+//        const float3 currShadowPos = mul( viewToShadowSpace[currSampleCascadeIdx], float4( currSamplePosVS, 1.0 ) ).xyz;
+//        value += sampleShadowMap_simple( currShadowPos, bias, NUM_CASCADES_INV, offsetU );
+//        currRayLen += step;
+//    }
+//
+//    value /= NUM_STEPS;
+//
+//    return value;
+//}
 
 #ifdef shadowDepthPass
 #include <sys/vertex_transform.hlsl>

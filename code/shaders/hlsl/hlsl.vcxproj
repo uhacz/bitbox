@@ -93,11 +93,6 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="native.hlsl">
-      <FileType>Document</FileType>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
     <CustomBuild Include="gui.hlsl">
       <FileType>Document</FileType>
     </CustomBuild>

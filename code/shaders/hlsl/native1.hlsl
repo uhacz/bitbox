@@ -69,44 +69,46 @@ Texture2D _texSAO : register(t4);
 Texture2D _texShadow : register(t5);
 SamplerState _samplSAO : register(s4);
 
+
+
 out_PS ps_main( in_PS IN )
 {
     out_PS OUT;
-    float2 screenPos01 = (IN.s_pos.xy / IN.s_pos.w) * 0.5 + 0.5;
-    float2 shadowUV = float2(screenPos01.x, 1.0 - screenPos01.y);
+    const float2 screenPos01 = (IN.s_pos.xy / IN.s_pos.w) * 0.5 + 0.5;
+    const float2 shadowUV = float2(screenPos01.x, 1.0 - screenPos01.y);
     
-    ShadingData shd;
-    shd.N = normalize( IN.w_normal );
-    shd.V = _camera_viewDir.xyz;
-    shd.shadow = _texShadow.SampleLevel( _samplSAO, shadowUV, 0.0 ).r;
-    shd.ssao = _texSAO.SampleLevel( _samplSAO, shadowUV, 0.0 ).r;
-    
-    Material mat;
-    ASSIGN_MATERIAL_FROM_CBUFFER( mat );
-    //float3 c = BRDF( L, shd, mat );
-    float3 c = ( float3 )0;
-    float sunIlluminance = 0;
-    evaluateSunLight( c, sunIlluminance, shd, IN.w_pos, mat );
+    //ShadingData shd;
+    const float3 N = normalize( IN.w_normal );
+    const float3 V = -_camera_viewDir.xyz;
+    const float shadow = _texShadow.SampleLevel( _samplSAO, shadowUV, 0.0 ).r;
+    const float ssao = _texSAO.SampleLevel( _samplSAO, shadowUV, 0.0 ).r;
 
-    float3 a = ( float3 )0;
-    float ambientIlluminance = 0;
-    evaluateAmbientLight( a, ambientIlluminance, shd, mat );
+    const float3 L = -_sunDirection;
+    const float3 H = normalize( L + V );
 
-    c *= sunIlluminance;
-    c += a * ambientIlluminance;
+    const float NdotL_raw = dot( N, L );
+    const float NdotL = saturate( NdotL_raw );
+    const float NdotV = saturate( dot( N, V ) );
+    const float NdotH = saturate( dot( N, H ) );
+    const float HdotL = saturate( dot( H, L ) );
 
-    //float aNdotL = -( clamp( dot( shd.N, -_sunDirection ), -mat.ambientCoeff, -1.f + mat.ambientCoeff ) );
-    //float3 ambient = aNdotL * mat.diffuseColor * mat.ambientColor;
-    //ambient = ( (1.f - ambient ) * ambient );
-    //ambient *= mat.ambientCoeff * shd.ssao;
-    
-    //c = lerp( ambient, c, shd.shadow );
-        
-    //float3 C = diffuseColor;
-    //float NdotL = saturate( dot( N, L ) );
+    float2 specular = computeSpecular( specularCoeff, roughnessCoeff, NdotH, NdotL, NdotV, HdotL );
+    float diffuse = diffuseCoeff * (1.0 - specular.y);
 
-    OUT.rgba = float4( c, 1.0 );
-    //OUT.albedo = float4(mat.diffuseColor, 1.0);
-    //OUT.rgba = float4( 1.0, 0.0, 0.0, 1.0 );
+    float3 direct;
+    direct = diffuse * diffuseColor * PI_RCP;
+    direct += specular.x * fresnelColor * computeSpecOcclusion( NdotV, ssao, roughnessCoeff );
+    direct *= _sunIlluminanceInLux;
+    direct *= NdotL;
+
+    float NdotL_ambient = saturate( -NdotL_raw ) * ambientCoeff*0.25 + ambientCoeff;
+    float3 ambient;
+    ambient = NdotL_ambient * diffuseColor * ambientColor;
+    ambient *= ambientCoeff * ssao;
+    ambient *= _skyIlluminanceInLux;
+
+    float3 c = lerp( ambient, direct, NdotL * shadow );
+
+    OUT.rgba = float4( c, 1.0);
     return OUT;
 }

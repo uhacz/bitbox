@@ -76,8 +76,10 @@ public:
         {
             bx::gfxMaterialFind( "white" ),
             bx::gfxMaterialFind( "red" ),
+            bx::gfxMaterialFind( "grey" ),
             bx::gfxMaterialFind( "green" ),
             bx::gfxMaterialFind( "blue" ),
+            bx::gfxMaterialFind( "red" ),
         };
         const int N_MAT = sizeof( matFx ) / sizeof( *matFx );
         bxGdiRenderSource* rsource[] = 
@@ -87,40 +89,40 @@ public:
         };
         const int N_MESH = sizeof( rsource ) / sizeof( *rsource );
         
-        //const int N = 5;
-        //const float N_HALF = (float)N * 0.5f;
+        const int N = 5;
+        const float N_HALF = (float)N * 0.5f;
         int counter = 0;
-        //for( int iz = 0; iz < N; ++iz )
-        //{
-        //    const float z = -N_HALF + (float)iz * 1.2f;
-        //    for( int iy = 0; iy < 1; ++iy )
-        //    {
-        //        const float y = -2.f; // -N_HALF + (float)iy * 1.2f;
-        //        for( int ix = 0; ix < N; ++ix, ++counter )
-        //        {
-        //            const float x = -N_HALF + (float)ix * 1.2f;
-        //            const Vector3 pos( x, y, z );
+        for( int iz = 0; iz < N; ++iz )
+        {
+            const float z = -N_HALF + (float)iz * 1.2f;
+            for( int iy = 0; iy < N; ++iy )
+            {
+                const float y = -N_HALF + (float)iy * 1.2f;
+                for( int ix = 0; ix < N; ++ix, ++counter )
+                {
+                    const float x = -N_HALF + (float)ix * 1.2f;
+                    const Vector3 pos( x, y, z );
 
-        //            bx::GfxMeshInstanceData meshData;
-        //            meshData.renderSourceSet( rsource[ counter % N_MESH ] );
-        //            meshData.fxInstanceSet( matFx[ counter % N_MAT ] );
-        //            meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
+                    bx::GfxMeshInstanceData meshData;
+                    meshData.renderSourceSet( rsource[ counter % N_MESH ] );
+                    meshData.fxInstanceSet( matFx[ counter % N_MAT ] );
+                    meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
 
-        //            bx::GfxMeshInstance* meshI = nullptr;
-        //            bx::gfxMeshInstanceCreate( &meshI, __scene.gfx );
+                    bx::GfxMeshInstance* meshI = nullptr;
+                    bx::gfxMeshInstanceCreate( &meshI, __scene.gfx );
 
-        //            bx::gfxMeshInstanceDataSet( meshI, meshData );
-        //            bx::gfxMeshInstanceWorldMatrixSet( meshI, &Matrix4::translation( pos ), 1 );
+                    bx::gfxMeshInstanceDataSet( meshI, meshData );
+                    bx::gfxMeshInstanceWorldMatrixSet( meshI, &Matrix4::translation( pos ), 1 );
 
-        //            bx::gfxSceneMeshInstanceAdd( scene, meshI );
-        //        }
-        //    }
-        //}
+                    bx::gfxSceneMeshInstanceAdd( scene, meshI );
+                }
+            }
+        }
 
         {
             bx::GfxMeshInstanceData meshData;
             meshData.renderSourceSet( rsource[0] );
-            meshData.fxInstanceSet( matFx[2] );
+            meshData.fxInstanceSet( matFx[4] );
             meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
 
             bx::GfxMeshInstance* meshI = nullptr;
@@ -129,7 +131,7 @@ public:
             bx::gfxMeshInstanceDataSet( meshI, meshData );
 
             Matrix4 pose = Matrix4::translation( Vector3( 0.f, -3.f, 0.f ) );
-            pose = appendScale( pose, Vector3( 5., 5.f, 5.f ) );
+            pose = appendScale( pose, Vector3( 50., 1.f, 50.f ) );
             bx::gfxMeshInstanceWorldMatrixSet( meshI, &pose, 1 );
             bx::gfxSceneMeshInstanceAdd( scene, meshI );
         }
