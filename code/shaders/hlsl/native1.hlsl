@@ -77,7 +77,6 @@ out_PS ps_main( in_PS IN )
     const float2 screenPos01 = (IN.s_pos.xy / IN.s_pos.w) * 0.5 + 0.5;
     const float2 shadowUV = float2(screenPos01.x, 1.0 - screenPos01.y);
     
-    //ShadingData shd;
     const float3 N = normalize( IN.w_normal );
     const float3 V = -_camera_viewDir.xyz;
     const float shadow = _texShadow.SampleLevel( _samplSAO, shadowUV, 0.0 ).r;
@@ -96,9 +95,9 @@ out_PS ps_main( in_PS IN )
     float diffuse = diffuseCoeff * (1.0 - specular.y);
 
     float3 direct;
-    direct = diffuse * diffuseColor * PI_RCP;
+    direct = diffuse * diffuseColor;
     direct += specular.x * fresnelColor * computeSpecOcclusion( NdotV, ssao, roughnessCoeff );
-    direct *= _sunIlluminanceInLux;
+    direct *= _sunIlluminanceInLux* PI_RCP;
     direct *= NdotL;
 
     float NdotL_ambient = saturate( -NdotL_raw ) * ambientCoeff*0.25 + ambientCoeff;

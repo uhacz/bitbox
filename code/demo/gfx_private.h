@@ -47,13 +47,10 @@ namespace bx
     {
         virtual ~GfxActor() {}
 
-        virtual void load( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager ) {}
-        virtual void unload( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager ) {}
-
-        virtual GfxCamera*       isCamera() { return nullptr; }
-        virtual GfxScene*        isScene() { return nullptr; }
+        virtual GfxCamera*       isCamera()       { return nullptr; }
+        virtual GfxScene*        isScene()        { return nullptr; }
         virtual GfxMeshInstance* isMeshInstance() { return nullptr; }
-        virtual GfxSunLight*     isSunLight() { return nullptr; }
+        virtual GfxSunLight*     isSunLight()     { return nullptr; }
     };
 
     struct GfxCamera : public GfxActor

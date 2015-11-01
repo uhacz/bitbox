@@ -122,7 +122,7 @@ public:
         {
             bx::GfxMeshInstanceData meshData;
             meshData.renderSourceSet( rsource[0] );
-            meshData.fxInstanceSet( matFx[4] );
+            meshData.fxInstanceSet( matFx[1] );
             meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
 
             bx::GfxMeshInstance* meshI = nullptr;
@@ -131,7 +131,7 @@ public:
             bx::gfxMeshInstanceDataSet( meshI, meshData );
 
             Matrix4 pose = Matrix4::translation( Vector3( 0.f, -3.f, 0.f ) );
-            pose = appendScale( pose, Vector3( 50., 1.f, 50.f ) );
+            pose = appendScale( pose, Vector3( 20.f, 1.f, 20.f ) );
             bx::gfxMeshInstanceWorldMatrixSet( meshI, &pose, 1 );
             bx::gfxSceneMeshInstanceAdd( scene, meshI );
         }

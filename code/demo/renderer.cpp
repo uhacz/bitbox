@@ -298,6 +298,9 @@ namespace bx
                     }
                 }
 
+                bxGdi::sortList_delete( &scene->_sListColor );
+                bxGdi::sortList_delete( &scene->_sListDepth );
+
                 gfxSceneDataFree( &scene->_data );
                 BX_DELETE0( gfx->_allocScene, scene );
             }
