@@ -297,7 +297,7 @@ namespace bxGame
         return ( dd <= radius * radius );
     }
     //Quat quatAim( const Vector3& v )
-    //{
+    //{ 
     //    const Vector3 vn = normalize( v );
 
     //    Quat qr;

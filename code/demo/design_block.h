@@ -2,11 +2,19 @@
 
 #include <util/vectormath/vectormath.h>
 #include <util/type.h>
+//
+////#include "renderer.h"
+////#include "physics.h"
+//
 
-#include "renderer.h"
-#include "physics.h"
+struct bxGdiDeviceBackend;
 
-struct bxDesignBlock
+namespace bx
+{
+    struct GfxScene;
+
+
+struct DesignBlock
 {
     struct Handle
     {
@@ -42,45 +50,50 @@ struct bxDesignBlock
 
     ////
     ////
-    virtual Handle create( const char* name, const Matrix4& pose, const Shape& shape, const char* material = "green" ) = 0;
-    virtual void release( Handle* h ) = 0;
+    Handle create( const char* name, const Matrix4& pose, const Shape& shape, const char* material = "white" );
+    void release( Handle* h );
 
-    virtual void cleanUp() = 0;
-    virtual void manageResources( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxPhx_CollisionSpace* cs ) = 0;
-    virtual void tick( bxPhx_CollisionSpace* cs ) = 0;
+    void cleanUp();
+    void manageResources( GfxScene* gfxScene );
+    void tick();
 
-    virtual void assignTag( Handle h, u64 tag ) = 0;
-    //virtual void assignMesh( Handle h, bxGfx_HMeshInstance meshi ) = 0;
-    //virtual void assignCollisionShape( Handle h, bxPhx_HShape hshape ) = 0;
+    ////
+    void assignTag( Handle h, u64 tag );
 
     ////
     ////
-    static Matrix4 poseGet( bxDesignBlock* dblock, Handle h );
-    static void poseSet( bxDesignBlock* dblock, Handle h, const Matrix4& pose );
-
-    static Shape shapeGet( bxDesignBlock* dblock, Handle h );
-    //static void shapeSet( bxDesignBlock* dblock, Handle h, const Shape& shape );
+    const Matrix4& poseGet( Handle h ) const ;
+    void poseSet( Handle h, const Matrix4& pose );
+    const Shape& shapeGet( Handle h ) const;
 };
+//
+DesignBlock* designBlockNew();
+void designBlockDelete( DesignBlock** dblock );
+//
 
-bxDesignBlock* bxDesignBlock_new();
-void bxDesignBlock_delete( bxDesignBlock** dblock );
-
+}///
 #include <util/ascii_script.h>
-struct bxDesignBlock_SceneScriptCallback : public bxAsciiScript_Callback
+namespace bx
 {
-    bxDesignBlock_SceneScriptCallback();
+struct DesignBlock_SceneScriptCallback : public bxAsciiScript_Callback
+{
+    DesignBlock_SceneScriptCallback();
 
     virtual void onCreate( const char* typeName, const char* objectName );
     virtual void onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData );
     virtual void onCommand( const char* cmdName, const bxAsciiScript_AttribData& args );
 
-    bxDesignBlock* dblock;
+    DesignBlock* dblock;
     struct Desc
     {
         char name[256];
         char material[256];
 
-        bxDesignBlock::Shape shape;
+        DesignBlock::Shape shape;
         Matrix4 pose;
     } desc;
 };
+
+
+}//
+

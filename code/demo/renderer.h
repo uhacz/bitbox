@@ -19,6 +19,7 @@ namespace bx
     
     GfxGlobalResources* gfxGlobalResourcesGet();
     bxGdiShaderFx_Instance* gfxMaterialFind( const char* name );
+    GfxContext* gfxContextGet( GfxScene* scene );
 
     ////
     void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx );

@@ -94,7 +94,7 @@ namespace id_array
     }
 
     template <BX_ID_ARRAY_T_DEF>
-    inline int index( id_array_t<BX_ID_ARRAY_T_ARG>& a, const Tid& id )
+    inline int index( const id_array_t<BX_ID_ARRAY_T_ARG>& a, const Tid& id )
     {
         SYS_ASSERT_TXT( has( a, id ), "IdArray does not have ID: %d,%d", id.id, id.index );
 

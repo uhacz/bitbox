@@ -430,6 +430,11 @@ namespace bx
         return (cell) ? (bxGdiShaderFx_Instance*)cell->value : 0;
     }
 
+    GfxContext* gfxContextGet( GfxScene* scene )
+    {
+        return scene->_ctx;
+    }
+
     //////////////////////////////////////////////////////////////////////////
     ///
     void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx )
