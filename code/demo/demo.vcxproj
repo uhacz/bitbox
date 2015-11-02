@@ -85,6 +85,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ai.cpp" />
+    <ClCompile Include="camera_manager.cpp" />
     <ClCompile Include="design_block.cpp" />
     <ClCompile Include="entity.cpp" />
     <ClCompile Include="game.cpp" />
@@ -136,6 +137,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ai.h" />
+    <ClInclude Include="camera_manager.h" />
     <ClInclude Include="design_block.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="game.h" />

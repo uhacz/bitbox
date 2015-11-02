@@ -11,9 +11,7 @@ struct bxEngine;
 struct bxDemoScene
 {
     bxGfxCamera_Manager* _cameraManager;
-    bxDesignBlock* dblock;
-    bxPhx_CollisionSpace* collisionSpace;
-    //bxGfx_World* gfxWorld;
+    DesignBlock* dblock;
     
     bx::GfxContext* gfx;
     bx::GfxScene* gfxScene;
