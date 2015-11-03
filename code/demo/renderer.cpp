@@ -28,11 +28,12 @@ namespace bx
 {
     float gfxCameraAspect( const GfxCamera* cam )
     {
-        return (abs( cam->vAperture ) < 0.0001f) ? cam->hAperture : cam->hAperture / cam->vAperture;
+        const GfxCameraParams& p = cam->params;
+        return (abs( p.vAperture ) < 0.0001f) ? p.hAperture : p.hAperture / p.vAperture;
     }
     float gfxCameraFov( const GfxCamera* cam )
     {
-        return 2.f * atan( ( 0.5f * cam->hAperture ) / ( cam->focalLength * 0.03937f ) );
+        return 2.f * atan( ( 0.5f * cam->params.hAperture ) / ( cam->params.focalLength * 0.03937f ) );
     }
     Vector3 gfxCameraEye( const GfxCamera* cam )
     {
@@ -90,7 +91,7 @@ namespace bx
         const float aspect = gfxCameraAspect( cam );
 
         cam->view = inverse( cam->world );
-        cam->proj = Matrix4::perspective( fov, aspect, cam->zNear, cam->zFar );
+        cam->proj = Matrix4::perspective( fov, aspect, cam->params.zNear, cam->params.zFar );
         cam->viewProj = cam->proj * cam->view;
     }
 
@@ -123,8 +124,8 @@ namespace bx
         fparams->_camera_fov = fov;
         fparams->_camera_aspect = aspect;
 
-        const float zNear = camera->zNear;
-        const float zFar = camera->zFar;
+        const float zNear = camera->params.zNear;
+        const float zFar  = camera->params.zFar;
         fparams->_camera_zNear = zNear;
         fparams->_camera_zFar = zFar;
         fparams->_reprojectDepthScale = ( zFar - zNear ) / ( -zFar * zNear );
@@ -133,40 +134,25 @@ namespace bx
         fparams->_renderTarget_rcp = float2_t( 1.f / (float)rtWidth, 1.f / (float)rtHeight );
         fparams->_renderTarget_size = float2_t( (float)rtWidth, (float)rtHeight );
 
-        //frameData->cameraParams = Vector4( fov, aspect, camera.params.zNear, camera.params.zFar );
         {
-            const float m11 = proj.getElem( 0, 0 ).getAsFloat();//getCol0().getX().getAsFloat();
-            const float m22 = proj.getElem( 1, 1 ).getAsFloat();//getCol1().getY().getAsFloat();
-            const float m33 = proj.getElem( 2, 2 ).getAsFloat();//getCol2().getZ().getAsFloat();
-            const float m44 = proj.getElem( 3, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+            const float m11 = proj.getElem( 0, 0 ).getAsFloat();
+            const float m22 = proj.getElem( 1, 1 ).getAsFloat();
+            const float m33 = proj.getElem( 2, 2 ).getAsFloat();
+            const float m44 = proj.getElem( 3, 2 ).getAsFloat();
 
-            const float m13 = proj.getElem( 0, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
-            const float m23 = proj.getElem( 1, 2 ).getAsFloat();//getCol3().getZ().getAsFloat();
+            const float m13 = proj.getElem( 0, 2 ).getAsFloat();
+            const float m23 = proj.getElem( 1, 2 ).getAsFloat();
 
             fparams->_reprojectInfo = float4_t( 1.f / m11, 1.f / m22, m33, -m44 );
-            //frameData->_reprojectInfo = float4_t( 
-            //    -2.f / ( (float)rtWidth*m11 ), 
-            //    -2.f / ( (float)rtHeight*m22 ), 
-            //    (1.f - m13) / m11, 
-            //    (1.f + m23) / m22 );
             fparams->_reprojectInfoFromInt = float4_t(
                 ( -fparams->_reprojectInfo.x * 2.f ) * fparams->_renderTarget_rcp.x,
                 ( -fparams->_reprojectInfo.y * 2.f ) * fparams->_renderTarget_rcp.y,
                 fparams->_reprojectInfo.x,
                 fparams->_reprojectInfo.y
                 );
-            //frameData->_reprojectInfoFromInt = float4_t(
-            //    frameData->_reprojectInfo.x,
-            //    frameData->_reprojectInfo.y,
-            //    frameData->_reprojectInfo.z + frameData->_reprojectInfo.x * 0.5f,
-            //    frameData->_reprojectInfo.w + frameData->_reprojectInfo.y * 0.5f
-            //    );
         }
-
         m128_to_xyzw( fparams->_camera_eyePos.xyzw, Vector4( gfxCameraEye( camera ), oneVec ).get128() );
         m128_to_xyzw( fparams->_camera_viewDir.xyzw, Vector4( gfxCameraDir( camera ), zeroVec ).get128() );
-
-        //m128_to_xyzw( frameData->_renderTarget_rcp_size.xyzw, Vector4( 1.f / float( rtWidth ), 1.f / float( rtHeight ), float( rtWidth ), float( rtHeight ) ).get128() );
     }
 
     ////
@@ -460,6 +446,15 @@ namespace bx
         gfxContextActorRelease( c->_ctx, c );
 
         camera[0] = nullptr;
+    }
+    GfxCameraParams gfxCameraParamsGet( const GfxCamera* camera )
+    {
+        return camera->params;
+    }
+
+    void gfxCameraParamsSet( GfxCamera* camera, const GfxCameraParams& params )
+    {
+        camera->params = params;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -912,6 +907,8 @@ namespace bx
         //gfxRasterizeFramebuffer( gdi, ctx->_shadow._texDepth, gfxCameraAspect( camera ) );
         bxGfxDebugDraw::flush( gdi, camera->viewProj );
     }
+
+    
 
     
 

@@ -426,14 +426,14 @@ const DesignBlock::Shape& DesignBlock::shapeGet( Handle h ) const
 }
 //////////////////////////////////////////////////////////////////////////
 
-DesignBlock* designBlockNew()
+void designBlockStartup( DesignBlock** dblock )
 {
     DesignBlockImpl* impl = BX_NEW( bxDefaultAllocator(), DesignBlockImpl );
     impl->_Startup();
-    return impl;
+    dblock[0] = impl;
 }
 
-void designBlockDelete( DesignBlock** dblock )
+void designBlockShutdown( DesignBlock** dblock )
 {
     DesignBlockImpl* impl = (DesignBlockImpl*)dblock[0];
     impl->_Shutdown();

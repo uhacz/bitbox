@@ -4,6 +4,7 @@
 #include <util/string_util.h>
 #include <util/debug.h>
 #include <string.h>
+#include "renderer.h"
 
 namespace bx
 {
@@ -169,26 +170,92 @@ namespace bx
 
 namespace bx
 {
+    bool gfxCameraSetAttribute( GfxCamera* camera, const char* attribName, const void* data, int dataSize )
+    {
+        if( string::equal( "pos", attribName ) )
+        {
+            if( dataSize != 12 )
+                goto label_cameraAttributeInvalidSize;
 
-    GfxCameraManager_SceneScriptCallback::GfxCameraManager_SceneScriptCallback()
+            const float* xyz = (float*)data;
+            Matrix4 world = gfxCameraWorldMatrixGet( camera );
+            world.setTranslation( Vector3( xyz[0], xyz[1], xyz[2] ) );
+            gfxCameraWorldMatrixSet( camera, world );
+        }
+        else if( string::equal( "rot", attribName ) )
+        {
+            if( dataSize != 12 )
+                goto label_cameraAttributeInvalidSize;
+            const float* xyz = (float*)data;
+            const Vector3 eulerXYZ( xyz[0], xyz[1], xyz[2] );
+
+            Matrix4 world = gfxCameraWorldMatrixGet( camera );
+            world.setUpper3x3( Matrix3::rotationZYX( eulerXYZ ) );
+            gfxCameraWorldMatrixSet( camera, world );
+        }
+        else if( string::equal( "zNear", attribName ) )
+        {
+            if( dataSize != 4 )
+                goto label_cameraAttributeInvalidSize;
+
+            const float value = *(float*)data;
+            GfxCameraParams params = gfxCameraParamsGet( camera );
+            params.zNear = value;
+            gfxCameraParamsSet( camera, params );
+        }
+        else if( string::equal( "zFar", attribName ) )
+        {
+            if( dataSize != 4 )
+                goto label_cameraAttributeInvalidSize;
+
+            const float value = *(float*)data;
+            GfxCameraParams params = gfxCameraParamsGet( camera );
+            params.zFar = value;
+            gfxCameraParamsSet( camera, params );
+        }
+        else
+        {
+            bxLogError( "camera attribute '%s' not found", attribName );
+        }
+
+        return true;
+
+    label_cameraAttributeInvalidSize:
+        bxLogError( "invalid data size" );
+        return false;
+    }
+
+
+    CameraManagerSceneScriptCallback::CameraManagerSceneScriptCallback()
         : _gfx(nullptr)
         , _menago( nullptr )
         , _current( nullptr )
     {}
 
-    void GfxCameraManager_SceneScriptCallback::onCreate( const char* typeName, const char* objectName )
+    void CameraManagerSceneScriptCallback::onCreate( const char* typeName, const char* objectName )
     {
-
+        gfxCameraCreate( &_current, _gfx );
+        _menago->add( _current, objectName );
     }
 
-    void GfxCameraManager_SceneScriptCallback::onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData )
+    void CameraManagerSceneScriptCallback::onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData )
     {
-
+        if( _current )
+        {
+            gfxCameraSetAttribute( _current, attrName, attribData.dataPointer(), attribData.dataSizeInBytes() );
+        }
     }
 
-    void GfxCameraManager_SceneScriptCallback::onCommand( const char* cmdName, const bxAsciiScript_AttribData& args )
+    void CameraManagerSceneScriptCallback::onCommand( const char* cmdName, const bxAsciiScript_AttribData& args )
     {
-
+        if( string::equal( "camera_push", cmdName ) )
+        {
+            GfxCamera* camera = _menago->find( args.string );
+            if( camera )
+            {
+                cameraStackPush( _menago->stack(), camera );
+            }
+        }
     }
 
 

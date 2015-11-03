@@ -30,16 +30,18 @@ namespace bx
 #include <util/ascii_script.h>
 namespace bx
 {
-    struct GfxCameraManager_SceneScriptCallback : public bxAsciiScript_Callback
+    struct CameraManagerSceneScriptCallback : public bxAsciiScript_Callback
     {
         virtual void onCreate( const char* typeName, const char* objectName );
         virtual void onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData );
         virtual void onCommand( const char* cmdName, const bxAsciiScript_AttribData& args );
 
-        GfxCameraManager_SceneScriptCallback();
+        CameraManagerSceneScriptCallback();
 
         GfxContext* _gfx;
         CameraManager* _menago;
         GfxCamera* _current;
+
+
     };
 }////

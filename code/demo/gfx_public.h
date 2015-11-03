@@ -45,6 +45,21 @@ namespace bx
 
     //////////////////////////////////////////////////////////////////////////
     ///
+    struct GfxCameraParams
+    {
+        f32 hAperture;
+        f32 vAperture;
+        f32 focalLength;
+        f32 zNear;
+        f32 zFar;
+        f32 orthoWidth;
+        f32 orthoHeight;
+
+        GfxCameraParams();
+    };
+
+    //////////////////////////////////////////////////////////////////////////
+    ///
     struct GfxGlobalResources
     {
         struct{

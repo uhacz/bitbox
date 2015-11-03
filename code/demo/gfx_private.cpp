@@ -8,6 +8,7 @@
 #include "gfx/gfx_debug_draw.h"
 
 #include <algorithm>
+#include <util/string_util.h>
 
 namespace bx
 {
@@ -41,19 +42,22 @@ namespace bx
     }
 
     //////////////////////////////////////////////////////////////////////////
+    GfxCameraParams::GfxCameraParams()
+        : hAperture( 1.8f )
+        , vAperture( 1.f )
+        , focalLength( 35.f )
+        , zNear( 0.25f )
+        , zFar( 250.f )
+        , orthoWidth( 10.f )
+        , orthoHeight( 10.f )
+    {
+    
+    }
     GfxCamera::GfxCamera() 
         : world( Matrix4::identity() )
         , view( Matrix4::identity() )
         , proj( Matrix4::identity() )
         , viewProj( Matrix4::identity() )
-        , hAperture( 1.8f )
-        , vAperture( 1.f )
-        , focalLength( 50.f )
-        , zNear( 0.25f )
-        , zFar( 250.f )
-        , orthoWidth( 10.f )
-        , orthoHeight( 10.f )
-
         , _ctx( nullptr )
         , _internalHandle( 0 )
     {
@@ -432,13 +436,8 @@ namespace bx
             fxI->setUniform( "specularCoeff", params.specularCoeff );
             fxI->setUniform( "ambientCoeff", params.ambientCoeff );
         }
-
-
-
-
-
-
     }
+
     bxGdiShaderFx_Instance* gfxMaterialManagerCreateMaterial( GfxMaterialManager* materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* name, const GfxMaterialManager::Material& params )
     {
         const u64 key = gfxMaterialManagerCreateNameHash( name );

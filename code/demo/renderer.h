@@ -24,6 +24,9 @@ namespace bx
     ////
     void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx );
     void gfxCameraDestroy( GfxCamera** camera );
+    
+    GfxCameraParams gfxCameraParamsGet( const GfxCamera* camera );
+    void gfxCameraParamsSet( GfxCamera* camera, const GfxCameraParams& params );
     float gfxCameraAspect( const GfxCamera* cam );
     float gfxCameraFov( const GfxCamera* cam );
     Vector3 gfxCameraEye( const GfxCamera* cam );

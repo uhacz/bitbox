@@ -67,8 +67,8 @@ struct DesignBlock
     const Shape& shapeGet( Handle h ) const;
 };
 //
-DesignBlock* designBlockNew();
-void designBlockDelete( DesignBlock** dblock );
+void designBlockStartup( DesignBlock** dblock );
+void designBlockShutdown( DesignBlock** dblock );
 //
 
 }///

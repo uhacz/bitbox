@@ -60,19 +60,12 @@ namespace bx
         Matrix4 proj;
         Matrix4 viewProj;
 
-        f32 hAperture;
-        f32 vAperture;
-        f32 focalLength;
-        f32 zNear;
-        f32 zFar;
-        f32 orthoWidth;
-        f32 orthoHeight;
+        GfxCameraParams params;
 
         GfxContext* _ctx;
         u32 _internalHandle;
 
         GfxCamera();
-
         virtual GfxCamera* isCamera() { return this; }
     };
 

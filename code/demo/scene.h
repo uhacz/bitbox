@@ -4,22 +4,20 @@
 #include "renderer.h"
 #include "game.h"
 #include "design_block.h"
-#include <gfx/gfx_camera.h>
+#include "camera_manager.h"
 
 struct bxEngine;
 
 struct bxDemoScene
 {
-    bxGfxCamera_Manager* _cameraManager;
-    DesignBlock* dblock;
+    bx::CameraManager* cameraManager;
+    bx::DesignBlock* dblock;
     
     bx::GfxContext* gfx;
     bx::GfxScene* gfxScene;
 
     bxGame::Character* character;
     bxGame::Flock* flock;
-
-    bxGfxCamera_InputContext cameraInputCtx;
 };
 
 void bxDemoScene_startup( bxDemoScene* scene, bxEngine* engine );
