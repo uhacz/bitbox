@@ -219,6 +219,8 @@ void bxDemoScene_startup( bxDemoScene* scene, bxEngine* engine )
 {
     bx::gfxContextStartup( &scene->gfx, engine->gdiDevice, engine->resourceManager );
     
+    bx::gfxSceneCreate( &scene->gfxScene, scene->gfx );
+
     bx::designBlockStartup( &scene->dblock );
     bx::cameraManagerStartup( &scene->cameraManager, scene->gfx );
 

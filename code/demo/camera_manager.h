@@ -5,11 +5,13 @@ namespace bx
     struct GfxCamera;
     struct GfxContext;
 
-    struct CameraStack;
-    int cameraStackPush( CameraStack* s, GfxCamera* camera );
-    void cameraStackPop( CameraStack* s, int count = 1 );
-    GfxCamera* cameraStackTop( CameraStack* s );
-
+    struct CameraStack
+    {
+        int push( GfxCamera* camera );
+        void pop( int count = 1 );
+        GfxCamera* top();
+    };
+    
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
     struct CameraManager

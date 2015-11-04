@@ -16,8 +16,8 @@
 //////////////////////////////////////////////////////////////////////////
 static bxDemoScene __scene;
 
-static bx::GfxCamera* camera = nullptr;
-static bx::GfxScene* scene = nullptr;
+//static bx::GfxCamera* camera = nullptr;
+//static bx::GfxScene* scene = nullptr;
 static bx::gfx::CameraInputContext cameraInputCtx;
 
 //////////////////////////////////////////////////////////////////////////
@@ -32,116 +32,122 @@ public:
 
         bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager );
 
-        //bxGfxCamera_SceneScriptCallback cameraScriptCallback;
-        //cameraScriptCallback._menago = __scene._cameraManager;
+        bx::CameraManagerSceneScriptCallback cameraScriptCallback;
+        cameraScriptCallback._menago = __scene.cameraManager;
+        cameraScriptCallback._gfx = __scene.gfx;
 
-        //bxDesignBlock_SceneScriptCallback dblockScriptCallback;
-        //dblockScriptCallback.dblock = __scene.dblock;
+        bx::DesignBlockSceneScriptCallback dblockScriptCallback;
+        dblockScriptCallback.dblock = __scene.dblock;
 
-        //bxAsciiScript sceneScript;
-        //bxScene::script_addCallback( &sceneScript, "camera", &cameraScriptCallback );
-        //bxScene::script_addCallback( &sceneScript, "camera_push", &cameraScriptCallback );
+        bxAsciiScript sceneScript;
+        bxScene::script_addCallback( &sceneScript, "camera", &cameraScriptCallback );
+        bxScene::script_addCallback( &sceneScript, "camera_push", &cameraScriptCallback );
 
-        //bxScene::script_addCallback( &sceneScript, "dblock", &dblockScriptCallback );
-        //bxScene::script_addCallback( &sceneScript, "dblock_commit", &dblockScriptCallback );
+        bxScene::script_addCallback( &sceneScript, "dblock", &dblockScriptCallback );
+        bxScene::script_addCallback( &sceneScript, "dblock_commit", &dblockScriptCallback );
 
-        //const char* sceneName = bxConfig::global_string( "scene" );
-        //bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( sceneName );
+        const char* sceneName = bxConfig::global_string( "scene" );
+        bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( sceneName );
 
-        //if( scriptFile.ok() )
+        if( scriptFile.ok() )
+        {
+            bxScene::script_run( &sceneScript, scriptFile.txt );
+        }
+        scriptFile.release();
+
+        {
+            char const* cameraName = bxConfig::global_string( "camera" );
+            if( cameraName )
+            {
+                bx::GfxCamera* camera = __scene.cameraManager->find( cameraName );
+                if( camera )
+                {
+                    __scene.cameraManager->stack()->push( camera );
+                }
+                //bxGfxCamera_Id id = bxGfx::camera_find( __scene._cameraManager, cameraName );
+                //if ( id.hash != bxGfx::camera_top( __scene._cameraManager ).hash )
+                //{
+                //    bxGfx::camera_push( __scene._cameraManager, id );
+                //}
+            }
+        }
+
+        //bx::gfxCameraCreate( &camera, __scene.gfx );
+        //bx::gfxSceneCreate( &scene, __scene.gfx );
+
+        //bx::gfxCameraWorldMatrixSet( camera, Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 15.f ) ) );
+
+        //bx::GfxGlobalResources* gr = bx::gfxGlobalResourcesGet();
+        //bxGdiShaderFx_Instance* matFx[] =
         //{
-        //    bxScene::script_run( &sceneScript, scriptFile.txt );
-        //}
-        //scriptFile.release();
-
+        //    bx::gfxMaterialFind( "white" ),
+        //    bx::gfxMaterialFind( "red" ),
+        //    bx::gfxMaterialFind( "grey" ),
+        //    bx::gfxMaterialFind( "green" ),
+        //    bx::gfxMaterialFind( "blue" ),
+        //    bx::gfxMaterialFind( "red" ),
+        //};
+        //const int N_MAT = sizeof( matFx ) / sizeof( *matFx );
+        //bxGdiRenderSource* rsource[] = 
         //{
-        //    char const* cameraName = bxConfig::global_string( "camera" );
-        //    if( cameraName )
+        //    gr->mesh.sphere,
+        //    gr->mesh.box,
+        //};
+        //const int N_MESH = sizeof( rsource ) / sizeof( *rsource );
+        //
+        //const int N = 5;
+        //const float N_HALF = (float)N * 0.5f;
+        //int counter = 0;
+        //for( int iz = 0; iz < N; ++iz )
+        //{
+        //    const float z = -N_HALF + (float)iz * 1.2f;
+        //    for( int iy = 0; iy < N; ++iy )
         //    {
-        //        bxGfxCamera_Id id = bxGfx::camera_find( __scene._cameraManager, cameraName );
-        //        if ( id.hash != bxGfx::camera_top( __scene._cameraManager ).hash )
+        //        const float y = -N_HALF + (float)iy * 1.2f;
+        //        for( int ix = 0; ix < N; ++ix, ++counter )
         //        {
-        //            bxGfx::camera_push( __scene._cameraManager, id );
+        //            const float x = -N_HALF + (float)ix * 1.2f;
+        //            const Vector3 pos( x, y, z );
+
+        //            bx::GfxMeshInstanceData meshData;
+        //            meshData.renderSourceSet( rsource[ counter % N_MESH ] );
+        //            meshData.fxInstanceSet( matFx[ counter % N_MAT ] );
+        //            meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
+
+        //            bx::GfxMeshInstance* meshI = nullptr;
+        //            bx::gfxMeshInstanceCreate( &meshI, __scene.gfx );
+
+        //            bx::gfxMeshInstanceDataSet( meshI, meshData );
+        //            bx::gfxMeshInstanceWorldMatrixSet( meshI, &Matrix4::translation( pos ), 1 );
+
+        //            bx::gfxSceneMeshInstanceAdd( scene, meshI );
         //        }
         //    }
         //}
 
-        bx::gfxCameraCreate( &camera, __scene.gfx );
-        bx::gfxSceneCreate( &scene, __scene.gfx );
+        //{
+        //    bx::GfxMeshInstanceData meshData;
+        //    meshData.renderSourceSet( rsource[0] );
+        //    meshData.fxInstanceSet( matFx[1] );
+        //    meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
 
-        bx::gfxCameraWorldMatrixSet( camera, Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 15.f ) ) );
+        //    bx::GfxMeshInstance* meshI = nullptr;
+        //    bx::gfxMeshInstanceCreate( &meshI, __scene.gfx );
 
-        bx::GfxGlobalResources* gr = bx::gfxGlobalResourcesGet();
-        bxGdiShaderFx_Instance* matFx[] =
-        {
-            bx::gfxMaterialFind( "white" ),
-            bx::gfxMaterialFind( "red" ),
-            bx::gfxMaterialFind( "grey" ),
-            bx::gfxMaterialFind( "green" ),
-            bx::gfxMaterialFind( "blue" ),
-            bx::gfxMaterialFind( "red" ),
-        };
-        const int N_MAT = sizeof( matFx ) / sizeof( *matFx );
-        bxGdiRenderSource* rsource[] = 
-        {
-            gr->mesh.sphere,
-            gr->mesh.box,
-        };
-        const int N_MESH = sizeof( rsource ) / sizeof( *rsource );
-        
-        const int N = 5;
-        const float N_HALF = (float)N * 0.5f;
-        int counter = 0;
-        for( int iz = 0; iz < N; ++iz )
-        {
-            const float z = -N_HALF + (float)iz * 1.2f;
-            for( int iy = 0; iy < N; ++iy )
-            {
-                const float y = -N_HALF + (float)iy * 1.2f;
-                for( int ix = 0; ix < N; ++ix, ++counter )
-                {
-                    const float x = -N_HALF + (float)ix * 1.2f;
-                    const Vector3 pos( x, y, z );
+        //    bx::gfxMeshInstanceDataSet( meshI, meshData );
 
-                    bx::GfxMeshInstanceData meshData;
-                    meshData.renderSourceSet( rsource[ counter % N_MESH ] );
-                    meshData.fxInstanceSet( matFx[ counter % N_MAT ] );
-                    meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
-
-                    bx::GfxMeshInstance* meshI = nullptr;
-                    bx::gfxMeshInstanceCreate( &meshI, __scene.gfx );
-
-                    bx::gfxMeshInstanceDataSet( meshI, meshData );
-                    bx::gfxMeshInstanceWorldMatrixSet( meshI, &Matrix4::translation( pos ), 1 );
-
-                    bx::gfxSceneMeshInstanceAdd( scene, meshI );
-                }
-            }
-        }
-
-        {
-            bx::GfxMeshInstanceData meshData;
-            meshData.renderSourceSet( rsource[0] );
-            meshData.fxInstanceSet( matFx[1] );
-            meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
-
-            bx::GfxMeshInstance* meshI = nullptr;
-            bx::gfxMeshInstanceCreate( &meshI, __scene.gfx );
-
-            bx::gfxMeshInstanceDataSet( meshI, meshData );
-
-            Matrix4 pose = Matrix4::translation( Vector3( 0.f, -3.f, 0.f ) );
-            pose = appendScale( pose, Vector3( 20.f, 1.f, 20.f ) );
-            bx::gfxMeshInstanceWorldMatrixSet( meshI, &pose, 1 );
-            bx::gfxSceneMeshInstanceAdd( scene, meshI );
-        }
+        //    Matrix4 pose = Matrix4::translation( Vector3( 0.f, -3.f, 0.f ) );
+        //    pose = appendScale( pose, Vector3( 20.f, 1.f, 20.f ) );
+        //    bx::gfxMeshInstanceWorldMatrixSet( meshI, &pose, 1 );
+        //    bx::gfxSceneMeshInstanceAdd( scene, meshI );
+        //}
 
         return true;
     }
     virtual void shutdown()
     {
-        bx::gfxSceneDestroy( &scene );
-        bx::gfxCameraDestroy( &camera );
+        //bx::gfxSceneDestroy( &scene );
+        //bx::gfxCameraDestroy( &camera );
                 
         bxDemoScene_shutdown( &__scene, &_engine );
         bxEngine_shutdown( &_engine );
@@ -167,6 +173,8 @@ public:
             ImGui::End();
         }
 
+        bx::GfxCamera* camera = __scene.cameraManager->stack()->top();
+
         {
             bxInput* input = &win->input;
             bxInput_Mouse* inputMouse = &input->mouse;
@@ -184,20 +192,21 @@ public:
         }
         bx::gfxCameraComputeMatrices( camera );
 
+        __scene.dblock->manageResources( __scene.gfxScene );
+        
         bx::gfxContextTick( __scene.gfx, _engine.gdiDevice, _engine.resourceManager );
         bx::gfxContextFrameBegin( __scene.gfx, _engine.gdiContext );
 
         bx::GfxCommandQueue* cmdq = nullptr;
         bx::gfxCommandQueueAcquire( &cmdq, __scene.gfx, _engine.gdiContext );
         
-        bx::gfxSceneDraw( scene, cmdq, camera );
+        bx::gfxSceneDraw( __scene.gfxScene, cmdq, camera );
         bxGfxGUI::draw( _engine.gdiContext );
 
         bx::gfxCommandQueueRelease( &cmdq );
         bx::gfxContextFrameEnd( __scene.gfx, _engine.gdiContext );
 
 
-        //__scene.dblock->manageResources( _engine.gdiDevice, _engine.resourceManager, __scene.collisionSpace, __scene.gfxWorld );
         
 
         //const bxGfxCamera& currentCamera = bxGfx::camera_current( __scene._cameraManager );

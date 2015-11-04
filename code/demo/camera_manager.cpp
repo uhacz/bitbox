@@ -7,27 +7,35 @@
 #include "renderer.h"
 
 namespace bx
-{
-    struct CameraStack
+{ 
+    struct CameraStackImpl : public CameraStack
     {
         array_t< GfxCamera* > _camera;
     };
 
-    int cameraStackPush( CameraStack* s, GfxCamera* camera )
+    CameraStackImpl* implGet( CameraStack* cs ) { return (CameraStackImpl*)cs; }
+
+    int CameraStack::push( GfxCamera* camera )
     {
-        return array::push_back( s->_camera, camera );
+        return array::push_back( implGet( this )->_camera, camera );
     }
 
-    void cameraStackPop( CameraStack* s, int count /*= 1 */ )
+    void CameraStack::pop( int count /*= 1 */ )
     {
-        while ( count && !array::empty( s->_camera ) )
+        CameraStackImpl* impl = implGet( this );
+        while ( count && !array::empty( impl->_camera ) )
         {
-            array::pop_back( s->_camera );
+            array::pop_back( impl->_camera );
             --count;
         }
     }
+    GfxCamera* CameraStack::top()
+    {
+        CameraStackImpl* impl = implGet( this );
+        return array::empty( impl->_camera ) ? nullptr : array::back( impl->_camera );
+    }
 
-    void cameraStackRemove( CameraStack* s, GfxCamera* camera )
+    void cameraStackRemove( CameraStackImpl* s, GfxCamera* camera )
     {
         for( int i = 0; i < array::size( s->_camera ); ++i )
         {
@@ -37,11 +45,6 @@ namespace bx
                 break;
             }
         }
-    }
-
-    GfxCamera* cameraStackTop( CameraStack* s )
-    {
-        return array::empty( s->_camera ) ? nullptr : array::back( s->_camera );
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -59,7 +62,7 @@ namespace bx
         };
         
         array_t< Entry > _data;
-        CameraStack _stack;
+        CameraStackImpl _stack;
 
         int _Add( GfxCamera* camera, const char* name )
         {
@@ -90,7 +93,18 @@ namespace bx
 
             array::erase_swap( _data, index );
         }
-        
+
+        void _Clear()
+        {
+            while( array::size( _data ) )
+            {
+                int lastIndex = array::size( _data ) - 1;
+                GfxCamera* camera = _data[lastIndex].camera;
+                _Remove( lastIndex );
+                gfxCameraDestroy( &camera );
+            }
+        }
+
         int _FindByName( const char* name )
         {
             for( int i = 0; i < array::size( _data ); ++i )
@@ -161,6 +175,7 @@ namespace bx
     void cameraManagerShutdown( CameraManager** cm )
     {
         CameraManagerImpl* impl = implGet( cm[0] );
+        impl->_Clear();
         BX_DELETE( bxDefaultAllocator(), impl );
 
         cm[0] = nullptr;
@@ -253,7 +268,7 @@ namespace bx
             GfxCamera* camera = _menago->find( args.string );
             if( camera )
             {
-                cameraStackPush( _menago->stack(), camera );
+                _menago->stack()->push( camera );
             }
         }
     }

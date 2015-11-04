@@ -122,6 +122,7 @@ struct DesignBlockImpl : public DesignBlock
 
 
         void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 16 );
+        memset( mem, 0x00, memSize );
 
         Data newdata;
         newdata.memoryHandle = mem;
@@ -286,6 +287,8 @@ struct DesignBlockImpl : public DesignBlock
                 gfxMeshInstanceWorldMatrixSet( meshInstance, &poseWithScale, 1 );
 
                 _data.meshInstance[index] = meshInstance;
+                
+                bx::gfxSceneMeshInstanceAdd( gfxScene, meshInstance );
             }
 
         }
@@ -317,7 +320,7 @@ struct DesignBlockImpl : public DesignBlock
         array::clear( _list_release );
     }
 
-    virtual void _Tick()
+    void _Tick()
     {
         {
             for ( int i = 0; i < array::size( _list_updatePose ); ++i )
@@ -446,7 +449,7 @@ void designBlockShutdown( DesignBlock** dblock )
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-DesignBlock_SceneScriptCallback::DesignBlock_SceneScriptCallback()
+DesignBlockSceneScriptCallback::DesignBlockSceneScriptCallback()
     : dblock( 0 )
 {
     memset( &desc.name, 0x00, sizeof( desc.name ) );
@@ -455,13 +458,13 @@ DesignBlock_SceneScriptCallback::DesignBlock_SceneScriptCallback()
     desc.pose = Matrix4::identity();
 }
 
-void DesignBlock_SceneScriptCallback::onCreate( const char* typeName, const char* objectName )
+void DesignBlockSceneScriptCallback::onCreate( const char* typeName, const char* objectName )
 {
     const size_t bufferSize = sizeof( desc.name ) - 1;
     sprintf_s( desc.name, bufferSize, "%s", objectName );
 }
 
-void DesignBlock_SceneScriptCallback::onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData )
+void DesignBlockSceneScriptCallback::onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData )
 {
     if ( string::equal( attrName, "pos" ) )
     {
@@ -515,7 +518,7 @@ label_besignBlockAttributeInvalidSize:
     bxLogError( "invalid data size" );
 }
 
-void DesignBlock_SceneScriptCallback::onCommand( const char* cmdName, const bxAsciiScript_AttribData& args )
+void DesignBlockSceneScriptCallback::onCommand( const char* cmdName, const bxAsciiScript_AttribData& args )
 {
     (void)args;
     if ( string::equal( cmdName, "dblock_commit" ) )

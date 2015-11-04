@@ -75,9 +75,9 @@ void designBlockShutdown( DesignBlock** dblock );
 #include <util/ascii_script.h>
 namespace bx
 {
-struct DesignBlock_SceneScriptCallback : public bxAsciiScript_Callback
+struct DesignBlockSceneScriptCallback : public bxAsciiScript_Callback
 {
-    DesignBlock_SceneScriptCallback();
+    DesignBlockSceneScriptCallback();
 
     virtual void onCreate( const char* typeName, const char* objectName );
     virtual void onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData );
