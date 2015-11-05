@@ -94,6 +94,7 @@
     <ClCompile Include="gfx_private.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="phx_physx.cpp" />
+    <ClCompile Include="phx_physx_stepper.cpp" />
     <ClCompile Include="physics.cpp" />
     <ClCompile Include="physics_pbd.cpp" />
     <ClCompile Include="renderer.cpp" />
@@ -146,6 +147,7 @@
     <ClInclude Include="gfx_private.h" />
     <ClInclude Include="gfx_public.h" />
     <ClInclude Include="phx.h" />
+    <ClInclude Include="phx_physx_stepper.h" />
     <ClInclude Include="physics.h" />
     <ClInclude Include="physics_pbd.h" />
     <ClInclude Include="renderer.h" />
