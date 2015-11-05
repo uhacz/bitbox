@@ -11,8 +11,6 @@ struct bxEngine
     bxGdiContext*         gdiContext;
     bxResourceManager*    resourceManager;
 
-    bxGfxMaterialManager* materialManager;
-
     //// tool for profiling
     Remotery* _remotery;
 };

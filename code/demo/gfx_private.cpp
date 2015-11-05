@@ -380,8 +380,9 @@ namespace bx
             {
                 params.diffuseColor = float3_t( 0.f, 0.f, 1.f );
                 params.fresnelColor = float3_t( 0.171968833f );
-                params.diffuseCoeff = 0.7f;
-                params.roughnessCoeff = 0.01f;
+                params.diffuseCoeff = 0.16f;
+                params.roughnessCoeff = 0.1f;
+                params.specularCoeff = 0.25f;
                 
                 gfxMaterialManagerCreateMaterial( mm, dev, resourceManager, "blue", params );
             }

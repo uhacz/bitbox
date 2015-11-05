@@ -1,7 +1,332 @@
 #include "phx.h"
+#include <util/type.h>
+#include <util/debug.h>
+#include <util/memory.h>
 
+#include "phx_physx_stepper.h"
+#include "phx_physx_util.h"
+
+#include <gfx/gfx_debug_draw.h>
+#include <gfx/gfx_gui.h>
 
 namespace bx
 {
+namespace
+{
+    struct PhysxAllocator : public PxAllocatorCallback
+    {
+        void* allocate( size_t size, const char* typeName, const char* file, int line )
+        {
+            (void)typeName;
+            (void)file;
+            (void)line;
+            return BX_MALLOC( bxDefaultAllocator(), size, 16 );
+        }
+
+        void deallocate( void* ptr )
+        {
+            BX_FREE( bxDefaultAllocator(), ptr );
+        }
+    };
+
+    struct PhysxErrorCallback : public PxErrorCallback
+    {
+        PhysxErrorCallback() {}
+        ~PhysxErrorCallback() {}
+
+        virtual void reportError( PxErrorCode::Enum code, const char* message, const char* file, int line )
+        {
+            switch ( code )
+            {
+            case PxErrorCode::eDEBUG_INFO:
+                bxLogInfo( message );
+                break;
+            case PxErrorCode::eDEBUG_WARNING:
+            case PxErrorCode::ePERF_WARNING:
+                bxLogWarning( message );
+                break;
+            case PxErrorCode::eINVALID_PARAMETER:
+            case PxErrorCode::eINVALID_OPERATION:
+            case PxErrorCode::eOUT_OF_MEMORY:
+            case PxErrorCode::eINTERNAL_ERROR:
+            case PxErrorCode::eABORT:
+                bxLogError( message );
+                break;
+            default:
+                break;
+            }
+        }
+    };
+
+    struct PhysxSimulationCallback : public PxSimulationEventCallback
+    {
+        virtual void onConstraintBreak( PxConstraintInfo* constraints, PxU32 count )
+        {
+
+        }
+        virtual void onWake( PxActor** actors, PxU32 count )
+        {
+
+        }
+        virtual void onSleep( PxActor** actors, PxU32 count )
+        {
+
+        }
+        virtual void onContact( const PxContactPairHeader& pairHeader, const PxContactPair* pairs, PxU32 nbPairs )
+        {
+
+        }
+        virtual void onTrigger( PxTriggerPair* pairs, PxU32 count )
+        {
+
+        }
+    };
+}///
+
+struct PhxContext
+{
+    PhysxAllocator				allocator;
+    PhysxErrorCallback			errorCallback;
+    PxFoundation*				foundation;
+    PxPhysics*					physics;
+    PxCooking*					cooking;
+    PxMaterial*					defaultMaterial;
+    PxDefaultCpuDispatcher*		cpuDispatcher;
+
+    i32 flag_enableDebugDraw;
+    i32 flag_enableDebugDrawDepth;
+
+    PhxContext()
+        : foundation( nullptr )
+        , physics( nullptr )
+        , cooking( nullptr )
+        , defaultMaterial( nullptr )
+        , cpuDispatcher( nullptr )
+        , flag_enableDebugDraw( 0 )
+        , flag_enableDebugDrawDepth( 1 )
+    {}
+};
+
+struct PhxScene
+{
+    enum
+    {
+        eSCRATCH_BUFFER_SIZE = 16 * 1024 * 4,
+    };
+
+    PhxContext*   ctx;
+    PxScene* scene;
+    PxControllerManager* controllerManager;
+    Stepper* stepper;
+    void* scratchBuffer;
+
+    PhysxSimulationCallback callback;
+
+    PhxScene()
+        : ctx( nullptr )
+        , scene( nullptr )
+        , controllerManager( nullptr )
+        , stepper( nullptr )
+        , scratchBuffer( nullptr )
+    {}
+};
+
+bool phxContextStartup( PhxContext** phx, int maxThreads )
+{
+    PhxContext* p = BX_NEW( bxDefaultAllocator(), PhxContext );
+    
+    p->foundation = PxCreateFoundation( PX_PHYSICS_VERSION, p->allocator, p->errorCallback );
+    if ( !p->foundation )
+        goto physx_start_up_error;
+
+    p->physics = PxCreatePhysics( PX_PHYSICS_VERSION, *p->foundation, PxTolerancesScale() );
+    if ( !p->physics )
+        goto physx_start_up_error;
+
+    if ( !PxInitExtensions( *p->physics ) )
+        goto physx_start_up_error;
+
+    p->cooking = PxCreateCooking( PX_PHYSICS_VERSION, *p->foundation, PxCookingParams( PxTolerancesScale() ) );
+    if ( !p->cooking )
+        goto physx_start_up_error;
+
+    p->defaultMaterial = p->physics->createMaterial( 0.5f, 0.5f, 0.1f );
+    if ( !p->defaultMaterial )
+        goto physx_start_up_error;
+
+    const int num_threads = 4;
+
+    p->cpuDispatcher = PxDefaultCpuDispatcherCreate( num_threads );
+    if ( !p->cpuDispatcher )
+        goto physx_start_up_error;
+
+
+    phx[0] = p;
+
+    return true;
+
+physx_start_up_error:
+    bxLogError( "PhysX start up failed!" );
+    return false;
+}
+void phxContextShutdown( PhxContext** phx )
+{
+    PhxContext* p = phx[0];
+
+    const int n_scenes = p->physics->getNbScenes();
+    if ( n_scenes )
+    {
+        bxLogError( "Please release all scenes before shutdown. Number of live scenes: %d", n_scenes );
+        SYS_ASSERT( false );
+    }
+
+    releasePhysxObject( p->cpuDispatcher );
+    releasePhysxObject( p->defaultMaterial );
+    releasePhysxObject( p->cooking );
+    PxCloseExtensions();
+    releasePhysxObject( p->physics );
+    releasePhysxObject( p->foundation );
+
+    BX_DELETE0( bxDefaultAllocator(), phx[0] );
+}
+
+namespace
+{
+    PxFilterFlags physxDefaultSimulationFilterShader(
+        PxFilterObjectAttributes attributes0,
+        PxFilterData filterData0,
+        PxFilterObjectAttributes attributes1,
+        PxFilterData filterData1,
+        PxPairFlags& pairFlags,
+        const void* constantBlock,
+        PxU32 constantBlockSize )
+    {
+        // let triggers through
+        if ( PxFilterObjectIsTrigger( attributes0 ) || PxFilterObjectIsTrigger( attributes1 ) )
+        {
+            pairFlags = PxPairFlag::eTRIGGER_DEFAULT | PxPairFlag::eNOTIFY_TOUCH_PERSISTS;
+            return PxFilterFlag::eDEFAULT;
+        }
+
+        // trigger the contact callback for pairs (A,B) where
+        // the filtermask of A contains the ID of B and vice versa.
+        if ( (filterData0.word0 & filterData1.word1) && (filterData1.word0 & filterData0.word1) )
+        {
+            // generate contacts for all that were not filtered above
+            //const bool a0Kinematic = PxFilterObjectIsKinematic( attributes0 );
+            //const bool a1Kinematic = PxFilterObjectIsKinematic( attributes1 );
+
+            //pairFlags = ( a0Kinematic && a1Kinematic ) ? PxPairFlags() : PxPairFlag::eCONTACT_DEFAULT;
+            pairFlags = PxPairFlag::eCONTACT_DEFAULT;
+            pairFlags |= PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_CONTACT_POINTS;
+        }
+
+        return PxFilterFlag::eDEFAULT;
+    }
+}///
+
+bool phxSceneCreate( PhxScene** scene, PhxContext* ctx )
+{
+    PxSceneDesc sdesc( ctx->physics->getTolerancesScale() );
+
+    sdesc.gravity = toPxVec3( Vector3( 0.f, -9.82f, 0.f ) );
+    sdesc.cpuDispatcher = ctx->cpuDispatcher;
+    sdesc.filterShader = physxDefaultSimulationFilterShader;
+    sdesc.nbContactDataBlocks = 16;
+    PxScene* pxScene = ctx->physics->createScene( sdesc );
+    if ( !pxScene )
+    {
+        return false;
+    }
+
+    
+    pxScene->setVisualizationParameter( PxVisualizationParameter::eACTOR_AXES, 2.0f );
+    pxScene->setVisualizationParameter( PxVisualizationParameter::eCOLLISION_SHAPES, 1.0f );
+    pxScene->setVisualizationParameter( PxVisualizationParameter::eJOINT_LOCAL_FRAMES, 1.0f );
+    //scene->setVisualizationParameter( PxVisualizationParameter::eCOLLISION_AXES, 1.0f );
+    //scene->setVisualizationParameter( PxVisualizationParameter::eBODY_MASS_AXES, 1.0f );
+
+    PhxScene* s = BX_NEW( bxDefaultAllocator(), PhxScene );
+    s->ctx = ctx;
+    s->scene = pxScene;
+    s->controllerManager = PxCreateControllerManager( *pxScene );
+    //scene->setSimulationEventCallback( &px_scene->callback );
+
+    const f32 stepSize = 1.f / 120.f;
+    const u32 maxSteps = 16;
+    s->stepper = BX_NEW( bxDefaultAllocator(), FixedStepper, stepSize, maxSteps );
+
+    s->scratchBuffer = BX_MALLOC( bxDefaultAllocator(), PhxScene::eSCRATCH_BUFFER_SIZE, 16 );
+
+    scene[0] = s;
+    return true;
+}
+void phxSceneDestroy( PhxScene** scene )
+{
+    PhxScene* s = scene[0];
+
+    const int nActors = s->scene->getNbActors(
+        PxActorTypeFlag::eRIGID_STATIC |
+        PxActorTypeFlag::eRIGID_DYNAMIC |
+        PxActorTypeFlag::ePARTICLE_SYSTEM |
+        PxActorTypeFlag::ePARTICLE_FLUID |
+        PxActorTypeFlag::eCLOTH );
+
+    if ( nActors )
+    {
+        bxLogError( "%d actors in scene!", nActors );
+        SYS_ASSERT( false );
+    }
+
+    //s->scene->setSimulationEventCallback( NULL );
+    BX_FREE0( bxDefaultAllocator(), s->scratchBuffer );
+    BX_DELETE0( bxDefaultAllocator(), s->stepper );
+    releasePhysxObject( s->controllerManager );
+    releasePhysxObject( s->scene );
+
+    BX_DELETE0( bxDefaultAllocator(), scene[0] );
+}
+
+
+namespace
+{
+    void debugDraw( PhxScene* s, int depth )
+    {
+        PxScene* scene = s->scene;
+        const PxRenderBuffer& render_buffer = scene->getRenderBuffer();
+
+        const u32 n_lines = render_buffer.getNbLines();
+        const PxDebugLine* lines = render_buffer.getLines();
+        for ( u32 i = 0; i < n_lines; ++i )
+        {
+            const PxDebugLine& dline = lines[i];
+            bxGfxDebugDraw::addLine( toVector3( dline.pos0 ), toVector3( dline.pos1 ), dline.color0, depth );
+        }
+    }
+}///
+
+void phxSceneSimulate( PhxScene* scene, float deltaTime )
+{
+    PxScene* pxScene = scene->scene;
+    scene->stepper->advance( pxScene, deltaTime, scene->scratchBuffer, PhxScene::eSCRATCH_BUFFER_SIZE );
+    scene->stepper->renderDone();
+}
+
+void phxSceneSync( PhxScene* scene )
+{
+    PxScene* pxScene = scene->scene;
+
+    scene->stepper->wait( pxScene );
+
+    if ( scene->ctx->flag_enableDebugDraw )
+    {
+        pxScene->setVisualizationParameter( PxVisualizationParameter::eSCALE, 1.0f );
+        debugDraw( scene, scene->ctx->flag_enableDebugDrawDepth );
+    }
+    else
+    {
+        pxScene->setVisualizationParameter( PxVisualizationParameter::eSCALE, 0.0f );
+    }
+}
 
 }///

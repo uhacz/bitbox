@@ -209,7 +209,7 @@ namespace bx
         gfxMaterialManagerStartup( &g->_materialManager, dev, resourceManager );
 
         gfxSunLightCreate( &g->_sunLight, g );
-        gfxSunLightDirectionSet( g->_sunLight, Vector3( 0.5f, -1.f, 1.f ) );
+        gfxSunLightDirectionSet( g->_sunLight, Vector3( 1.0f, -1.f,-1.f ) );
 
         gfx[0] = g;
     }
