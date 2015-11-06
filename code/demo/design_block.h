@@ -12,6 +12,7 @@ struct bxGdiDeviceBackend;
 namespace bx
 {
     struct GfxScene;
+    struct PhxScene;
 
 
 struct DesignBlock
@@ -54,7 +55,7 @@ struct DesignBlock
     void release( Handle* h );
 
     void cleanUp();
-    void manageResources( GfxScene* gfxScene );
+    void manageResources( GfxScene* gfxScene, PhxScene* phxScene );
     void tick();
 
     ////

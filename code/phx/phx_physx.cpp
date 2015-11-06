@@ -286,7 +286,10 @@ void phxSceneDestroy( PhxScene** scene )
 
     BX_DELETE0( bxDefaultAllocator(), scene[0] );
 }
-
+PhxContext* phxSceneContextGet( PhxScene* scene )
+{
+    return scene->ctx;
+}
 
 namespace
 {
@@ -326,6 +329,126 @@ void phxSceneSync( PhxScene* scene )
     else
     {
         pxScene->setVisualizationParameter( PxVisualizationParameter::eSCALE, 0.0f );
+    }
+}
+
+////
+//
+
+struct PhxGeometryConversion
+{
+    PxBoxGeometry box;
+    PxSphereGeometry sphere;
+    PxCapsuleGeometry capsule;
+    PxGeometry* geometry;
+
+    PhxGeometryConversion( const PhxGeometry& g )
+        : geometry( nullptr )
+    {
+        switch( g.type )
+        {
+        case PhxGeometry::eBOX:
+            {
+                box.halfExtents = PxVec3( g.box.extx, g.box.exty, g.box.extz );
+                geometry = &box;
+            }break;
+        case PhxGeometry::eSPHERE:
+            {
+                sphere.radius = g.sphere.radius;
+                geometry = &sphere;
+            }break;
+        case PhxGeometry::eCAPSULE:
+            {
+                capsule.radius = g.capsule.radius;
+                capsule.halfHeight = g.capsule.halfHeight;
+                geometry = &capsule;
+            }break;
+        default:
+            {
+                SYS_NOT_IMPLEMENTED;
+            }break;
+        }///
+        SYS_ASSERT( geometry != nullptr );
+    }
+};
+
+void physxActorShapesFlagSet( PxRigidActor* actor, PxShapeFlag::Enum flag, bool yesNo )
+{
+    PxShape* shape = nullptr;
+    u32 nShapes = actor->getNbShapes();
+    for ( u32 i = 0; i < nShapes; ++i )
+    {
+        actor->getShapes( &shape, 1, i );
+        shape->setFlag( flag, yesNo );
+    }
+}
+
+bool phxActorCreateDynamic( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxGeometry& geometry, float density, const PhxMaterial* material, const Matrix4& shapeOffset )
+{
+    PxPhysics* sdk = ctx->physics;
+
+    const PxTransform pxPose = toPxTransform( pose );
+    const PxTransform pxShapeOffset = toPxTransform( shapeOffset );
+    const PhxGeometryConversion geom( geometry );
+    const float d = (density == 0.f) ? 10.f : ::abs( density );
+    PxMaterial* pxMaterial = ctx->defaultMaterial;
+
+    PxRigidDynamic* pxActor = PxCreateDynamic( *sdk, pxPose, *geom.geometry, *pxMaterial, d, pxShapeOffset );
+
+    if ( !pxActor )
+        return false;
+
+    if( density <= 0.f )
+    {
+        pxActor->setRigidBodyFlag( PxRigidBodyFlag::eKINEMATIC, true );
+    }
+
+    pxActor->setActorFlag( PxActorFlag::eVISUALIZATION, true );
+    physxActorShapesFlagSet( pxActor, PxShapeFlag::eVISUALIZATION, true );
+
+    actor[0] = pxActor;
+    return true;
+}
+
+bool phxActorCreateStatic( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxGeometry& geometry, const PhxMaterial* material, const Matrix4& shapeOffset )
+{
+    PxPhysics* sdk = ctx->physics;
+
+    const PxTransform pxPose = toPxTransform( pose );
+    const PxTransform pxShapeOffset = toPxTransform( shapeOffset );
+    const PhxGeometryConversion geom( geometry );
+    PxMaterial* pxMaterial = ctx->defaultMaterial;
+
+    PxRigidStatic* pxActor = PxCreateStatic( *sdk, pxPose, *geom.geometry, *pxMaterial, pxShapeOffset );
+
+    if ( !pxActor )
+        return false;
+
+    pxActor->setActorFlag( PxActorFlag::eVISUALIZATION, true );
+    physxActorShapesFlagSet( pxActor, PxShapeFlag::eVISUALIZATION, true );
+
+    actor[0] = pxActor;
+    return true;
+}
+
+void phxActorDestroy( PhxActor** actor )
+{
+    if ( !actor[0] )
+        return;
+
+    PxRigidActor* rigid = (PxRigidActor*)actor[0];
+    rigid->release();
+
+    actor[0] = nullptr;
+
+}
+
+void phxSceneActorAdd( PhxScene* scene, PhxActor** actors, int nActors )
+{
+    for( int i = 0; i < nActors; ++i )
+    {
+        PxActor* a = (PxActor*)actors[i];
+        scene->scene->addActor( *a );
     }
 }
 

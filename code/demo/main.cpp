@@ -192,7 +192,7 @@ public:
         }
         bx::gfxCameraComputeMatrices( camera );
 
-        __scene.dblock->manageResources( __scene.gfxScene );
+        __scene.dblock->manageResources( __scene.gfxScene, __scene.phxScene );
         
         {
             bx::phxSceneSync( __scene.phxScene );

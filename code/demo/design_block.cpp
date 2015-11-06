@@ -1,5 +1,6 @@
 #include "design_block.h"
 #include "renderer.h"
+#include <phx/phx.h>
 
 #include <util/debug.h>
 #include <util/hash.h>
@@ -67,6 +68,7 @@ struct DesignBlockImpl : public DesignBlock
         u64* tag;
 
         bx::GfxMeshInstance** meshInstance;
+        bx::PhxActor** physics;
         //bxPhx_HShape* phxShape;
 
         void* memoryHandle;
@@ -118,6 +120,7 @@ struct DesignBlockImpl : public DesignBlock
         memSize += newcap * sizeof( *_data.name );
         memSize += newcap * sizeof( *_data.tag );
         memSize += newcap * sizeof( *_data.meshInstance );
+        memSize += newcap * sizeof( *_data.physics );
         //memSize += newcap * sizeof( *_data.phxShape );
 
 
@@ -135,7 +138,7 @@ struct DesignBlockImpl : public DesignBlock
         newdata.name = chunker.add< u32 >( newcap );
         newdata.tag = chunker.add< u64 >( newcap );
         newdata.meshInstance = chunker.add< GfxMeshInstance* >( newcap );
-        //newdata.phxShape = chunker.add< bxPhx_HShape >( newcap );
+        newdata.physics = chunker.add< PhxActor* >( newcap );
 
         chunker.check();
 
@@ -146,7 +149,7 @@ struct DesignBlockImpl : public DesignBlock
             BX_CONTAINER_COPY_DATA( &newdata, &_data, name );
             BX_CONTAINER_COPY_DATA( &newdata, &_data, tag );
             BX_CONTAINER_COPY_DATA( &newdata, &_data, meshInstance );
-            //BX_CONTAINER_COPY_DATA( &newdata, &_data, phxShape );
+            BX_CONTAINER_COPY_DATA( &newdata, &_data, physics );
 
         }
 
@@ -183,7 +186,7 @@ struct DesignBlockImpl : public DesignBlock
         _data.name[index] = nameHash;
         _data.tag[index] = DEFAULT_TAG;
         _data.meshInstance[index] = nullptr;
-        //_data.phxShape[index] = makeInvalidHandle< bxPhx_HShape >();
+        _data.physics[index] = nullptr;
 
         Handle handle = makeHandle( id );
 
@@ -215,7 +218,7 @@ struct DesignBlockImpl : public DesignBlock
         _flag_releaseAll = 1;
     }
 
-    void _ManageResources( GfxScene* gfxScene )
+    void _ManageResources( GfxScene* gfxScene, PhxScene* phxScene )
     {
         if ( _flag_releaseAll )
         {
@@ -224,6 +227,7 @@ struct DesignBlockImpl : public DesignBlock
             for ( int i = 0; i < _data.size; ++i )
             {
                 //bxPhx::shape_release( cs, &_data.phxShape[i] );
+                phxActorDestroy( &_data.physics[i] );
                 gfxMeshInstanceDestroy( &_data.meshInstance[i] );
                 //bxGfx::worldMeshRemoveAndRelease( &_data.gfxMeshI[i] );
 
@@ -253,6 +257,9 @@ struct DesignBlockImpl : public DesignBlock
             //bxPhx_HShape phxShape = makeInvalidHandle< bxPhx_HShape >();
             bxGdiRenderSource* rsource = 0;
             bxGdiShaderFx_Instance* fxI = createDesc.material;
+
+            PhxGeometry geometry;
+
             switch ( shape.type )
             {
             case Shape::eSPHERE:
@@ -260,6 +267,9 @@ struct DesignBlockImpl : public DesignBlock
                     //phxShape = bxPhx::shape_createSphere( cs, Vector4( pose.getTranslation(), shape.radius ) );
                     scale = Vector3( shape.radius * 2.f );
                     rsource = gfxGlobalResourcesGet()->mesh.sphere;
+
+                    geometry = PhxGeometry( shape.radius );
+
                 }break;
             case Shape::eCAPSULE:
                 {
@@ -270,6 +280,8 @@ struct DesignBlockImpl : public DesignBlock
                     //phxShape = bxPhx::shape_createBox( cs, pose.getTranslation(), Quat( pose.getUpper3x3() ), Vector3( shape.vec4 ) );
                     scale = Vector3( shape.vec4 ) * 2.f;
                     rsource = gfxGlobalResourcesGet()->mesh.box;
+
+                    geometry = PhxGeometry( shape.ex, shape.ey, shape.ez );
                 }break;
             }
 
@@ -291,6 +303,14 @@ struct DesignBlockImpl : public DesignBlock
                 bx::gfxSceneMeshInstanceAdd( gfxScene, meshInstance );
             }
 
+            {//// physics
+                PhxActor* actor = 0;
+                phxActorCreateDynamic( &actor, phxSceneContextGet( phxScene), pose, geometry, -10.f );
+                _data.physics[index] = actor;
+
+                phxSceneActorAdd( phxScene, &actor, 1 );
+            }
+
         }
         array::clear( _list_create );
 
@@ -308,7 +328,7 @@ struct DesignBlockImpl : public DesignBlock
             id_array::destroy( _idContainer, id );
 
             gfxMeshInstanceDestroy( &_data.meshInstance[thisIndex] );
-            //bxPhx::shape_release( cs, &_data.phxShape[thisIndex] );
+            phxActorDestroy( &_data.physics[thisIndex] );
 
             _data.pose[thisIndex] = _data.pose[lastIndex];
             _data.shape[thisIndex] = _data.shape[lastIndex];
@@ -378,10 +398,10 @@ void DesignBlock::cleanUp()
     m->_CleanUp();
 }
 
-void DesignBlock::manageResources( GfxScene* gfxScene )
+void DesignBlock::manageResources( GfxScene* gfxScene, PhxScene* phxScene )
 {
     DesignBlockImpl* m = implGet( this );
-    m->_ManageResources( gfxScene );
+    m->_ManageResources( gfxScene, phxScene );
 }
 
 void DesignBlock::tick()
