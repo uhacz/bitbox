@@ -224,6 +224,8 @@ void bxDemoScene_startup( bxDemoScene* scene, bxEngine* engine )
     bx::designBlockStartup( &scene->dblock );
     bx::cameraManagerStartup( &scene->cameraManager, scene->gfx );
 
+    bx::phxSceneCreate( &scene->phxScene, engine->phxContext );
+
     scene->character = bxGame::character_new();
     scene->flock = bxGame::flock_new();
 
@@ -238,6 +240,8 @@ void bxDemoScene_shutdown( bxDemoScene* scene, bxEngine* engine )
 
     bxGame::character_deinit( scene->character, engine->resourceManager );
     bxGame::character_delete( &scene->character );
+
+    bx::phxSceneDestroy( &scene->phxScene );
 
     bx::cameraManagerShutdown( &scene->cameraManager );
     

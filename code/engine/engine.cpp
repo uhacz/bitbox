@@ -21,12 +21,16 @@ void bxEngine_startup( bxEngine* e )
     bxGfxGUI::_Startup( e->gdiDevice, e->resourceManager, win );
     bxGfxDebugDraw::_Startup( e->gdiDevice, e->resourceManager );
 
+    bx::phxContextStartup( &e->phxContext, 4 );
+
     rmt_CreateGlobalInstance( &e->_remotery );
 }
 void bxEngine_shutdown( bxEngine* e )
 {
     rmt_DestroyGlobalInstance( e->_remotery );
     e->_remotery = 0;
+
+    bx::phxContextShutdown( &e->phxContext );
 
     bxGfxDebugDraw::_Shutdown( e->gdiDevice, e->resourceManager );
     bxGfxGUI::shutdown( e->gdiDevice, e->resourceManager, bxWindow_get() );

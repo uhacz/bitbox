@@ -194,6 +194,19 @@ public:
 
         __scene.dblock->manageResources( __scene.gfxScene );
         
+        {
+            bx::phxSceneSync( __scene.phxScene );
+        }
+        
+        {//// game update
+        
+        }
+
+        {
+            bx::phxSceneSimulate( __scene.phxScene, deltaTime );
+        }
+
+
         bx::gfxContextTick( __scene.gfx, _engine.gdiDevice, _engine.resourceManager );
         bx::gfxContextFrameBegin( __scene.gfx, _engine.gdiContext );
 

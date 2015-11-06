@@ -94,8 +94,6 @@
     <ClCompile Include="game_character_camera.cpp" />
     <ClCompile Include="gfx_private.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="phx_physx.cpp" />
-    <ClCompile Include="phx_physx_stepper.cpp" />
     <ClCompile Include="physics.cpp" />
     <ClCompile Include="physics_pbd.cpp" />
     <ClCompile Include="renderer.cpp" />
@@ -115,6 +113,9 @@
     </ProjectReference>
     <ProjectReference Include="..\gfx\gfx.vcxproj">
       <Project>{f3b3bc37-9aaa-4b41-af4e-144c1317f283}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\phx\phx.vcxproj">
+      <Project>{2f15f600-6dda-4beb-a95f-eab6abcd71bc}</Project>
     </ProjectReference>
     <ProjectReference Include="..\resource_manager\resource_manager.vcxproj">
       <Project>{117290a3-4a22-4c58-9ac0-ed1c8efa49e3}</Project>
@@ -147,9 +148,6 @@
     <ClInclude Include="game_character.h" />
     <ClInclude Include="gfx_private.h" />
     <ClInclude Include="gfx_public.h" />
-    <ClInclude Include="phx.h" />
-    <ClInclude Include="phx_physx_stepper.h" />
-    <ClInclude Include="phx_physx_util.h" />
     <ClInclude Include="physics.h" />
     <ClInclude Include="physics_pbd.h" />
     <ClInclude Include="renderer.h" />

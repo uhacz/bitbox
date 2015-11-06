@@ -8,6 +8,10 @@
 
 struct bxEngine;
 
+namespace bx{
+    struct PhxScene;
+}////
+
 struct bxDemoScene
 {
     bx::CameraManager* cameraManager;
@@ -15,6 +19,8 @@ struct bxDemoScene
     
     bx::GfxContext* gfx;
     bx::GfxScene* gfxScene;
+
+    bx::PhxScene* phxScene;
 
     bxGame::Character* character;
     bxGame::Flock* flock;
