@@ -208,16 +208,16 @@ public:
 
 
         bx::gfxContextTick( __scene.gfx, _engine.gdiDevice, _engine.resourceManager );
-        bx::gfxContextFrameBegin( __scene.gfx, _engine.gdiContext );
 
         bx::GfxCommandQueue* cmdq = nullptr;
         bx::gfxCommandQueueAcquire( &cmdq, __scene.gfx, _engine.gdiContext );
-        
+        bx::gfxContextFrameBegin( __scene.gfx, _engine.gdiContext );
+
         bx::gfxSceneDraw( __scene.gfxScene, cmdq, camera );
         bxGfxGUI::draw( _engine.gdiContext );
 
-        bx::gfxCommandQueueRelease( &cmdq );
         bx::gfxContextFrameEnd( __scene.gfx, _engine.gdiContext );
+        bx::gfxCommandQueueRelease( &cmdq );
 
 
         

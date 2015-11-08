@@ -102,7 +102,7 @@ struct PhxContext
         , cooking( nullptr )
         , defaultMaterial( nullptr )
         , cpuDispatcher( nullptr )
-        , flag_enableDebugDraw( 0 )
+        , flag_enableDebugDraw( 1 )
         , flag_enableDebugDrawDepth( 1 )
     {}
 };
@@ -383,6 +383,20 @@ void physxActorShapesFlagSet( PxRigidActor* actor, PxShapeFlag::Enum flag, bool 
     }
 }
 
+void physxActorShapesCollisionGroupSet( PxRigidActor* actor, u32 selfMask, u32 collideWithMask )
+{
+    PxShape* shape = nullptr;
+    u32 nShapes = actor->getNbShapes();
+    for ( u32 i = 0; i < nShapes; ++i )
+    {
+        actor->getShapes( &shape, 1, i );
+        PxFilterData fd = shape->getSimulationFilterData();
+        fd.word0 = selfMask;
+        fd.word1 = collideWithMask;
+        shape->setSimulationFilterData( fd );
+    }
+}
+
 bool phxActorCreateDynamic( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxGeometry& geometry, float density, const PhxMaterial* material, const Matrix4& shapeOffset )
 {
     PxPhysics* sdk = ctx->physics;
@@ -405,7 +419,7 @@ bool phxActorCreateDynamic( PhxActor** actor, PhxContext* ctx, const Matrix4& po
 
     pxActor->setActorFlag( PxActorFlag::eVISUALIZATION, true );
     physxActorShapesFlagSet( pxActor, PxShapeFlag::eVISUALIZATION, true );
-
+    physxActorShapesCollisionGroupSet( pxActor, 1, 0xFFFFFFFF );
     actor[0] = pxActor;
     return true;
 }
@@ -426,6 +440,7 @@ bool phxActorCreateStatic( PhxActor** actor, PhxContext* ctx, const Matrix4& pos
 
     pxActor->setActorFlag( PxActorFlag::eVISUALIZATION, true );
     physxActorShapesFlagSet( pxActor, PxShapeFlag::eVISUALIZATION, true );
+    physxActorShapesCollisionGroupSet( pxActor, 1, 0xFFFFFFFF );
 
     actor[0] = pxActor;
     return true;

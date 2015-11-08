@@ -8,6 +8,7 @@
 //
 
 struct bxGdiDeviceBackend;
+struct bxGdiShaderFx_Instance;
 
 namespace bx
 {
@@ -49,9 +50,22 @@ struct DesignBlock
         explicit Shape( f32 boxHX, f32 boxHY, f32 boxHZ ) : ex( boxHX ), ey( boxHY ), ez( boxHZ ), type( eBOX ) {}
     };
 
+    struct Desc
+    {
+        Shape shape;
+        f32 density;
+        bxGdiShaderFx_Instance* fxI;
+
+        Desc()
+            : shape( 0.5f )
+            , density( 1.f )
+            , fxI( nullptr )
+        {}
+    };
+
     ////
     ////
-    Handle create( const char* name, const Matrix4& pose, const Shape& shape, const char* material = "white" );
+    Handle create( const char* name, const Matrix4& pose, const Desc& desc );
     void release( Handle* h );
 
     void cleanUp();
@@ -90,6 +104,7 @@ struct DesignBlockSceneScriptCallback : public bxAsciiScript_Callback
         char name[256];
         char material[256];
 
+        f32 density;
         DesignBlock::Shape shape;
         Matrix4 pose;
     } desc;

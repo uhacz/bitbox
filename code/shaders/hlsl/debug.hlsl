@@ -4,11 +4,21 @@ passes:
     {
         vertex = "vs_object";
         pixel = "ps_main";
+        hwstate =
+        {
+            depth_test = 1;
+            depth_write = 0;
+        };
     };
     lines =
     {
         vertex = "vs_lines";
         pixel = "ps_main";
+        hwstate =
+        {
+            depth_test = 1;
+            depth_write = 0;
+        };
     };
 };#~header
 

@@ -41,7 +41,7 @@ namespace DesignBlockUtil
     struct CreateDesc
     {
         DesignBlock::Handle h;
-        bxGdiShaderFx_Instance* material;
+        DesignBlock::Desc desc;
     };
 
 }///
@@ -69,7 +69,6 @@ struct DesignBlockImpl : public DesignBlock
 
         bx::GfxMeshInstance** meshInstance;
         bx::PhxActor** physics;
-        //bxPhx_HShape* phxShape;
 
         void* memoryHandle;
         i32 size;
@@ -159,7 +158,7 @@ struct DesignBlockImpl : public DesignBlock
     
     ////
     //
-    Handle _Create( const char* name, const Matrix4& pose, const Shape& shape, const char* material )
+    Handle _Create( const char* name, const Matrix4& pose, const Desc& desc )
     {
         const u32 nameHash = makeNameHash( this, name );
         int index = _FindByHash( nameHash );
@@ -182,7 +181,7 @@ struct DesignBlockImpl : public DesignBlock
         ++_data.size;
 
         _data.pose[index] = pose;
-        _data.shape[index] = shape;
+        _data.shape[index] = desc.shape;
         _data.name[index] = nameHash;
         _data.tag[index] = DEFAULT_TAG;
         _data.meshInstance[index] = nullptr;
@@ -192,11 +191,7 @@ struct DesignBlockImpl : public DesignBlock
 
         CreateDesc createDesc;
         createDesc.h = handle;
-        createDesc.material = gfxMaterialFind( material );
-        if ( !createDesc.material )
-        {
-            createDesc.material = gfxMaterialFind( "red" );
-        }
+        createDesc.desc = desc;
         array::push_back( _list_create, createDesc );
 
         return handle;
@@ -256,7 +251,7 @@ struct DesignBlockImpl : public DesignBlock
             Vector3 scale( 1.f );
             //bxPhx_HShape phxShape = makeInvalidHandle< bxPhx_HShape >();
             bxGdiRenderSource* rsource = 0;
-            bxGdiShaderFx_Instance* fxI = createDesc.material;
+            bxGdiShaderFx_Instance* fxI = createDesc.desc.fxI;
 
             PhxGeometry geometry;
 
@@ -305,7 +300,15 @@ struct DesignBlockImpl : public DesignBlock
 
             {//// physics
                 PhxActor* actor = 0;
-                phxActorCreateDynamic( &actor, phxSceneContextGet( phxScene), pose, geometry, -10.f );
+                if( createDesc.desc.density == 0.f )
+                {
+                    phxActorCreateStatic( &actor, phxSceneContextGet( phxScene ), pose, geometry );
+                }
+                else
+                {
+                    phxActorCreateDynamic( &actor, phxSceneContextGet( phxScene ), pose, geometry, createDesc.desc.density );
+                }
+                
                 _data.physics[index] = actor;
 
                 phxSceneActorAdd( phxScene, &actor, 1 );
@@ -380,10 +383,10 @@ struct DesignBlockImpl : public DesignBlock
 };
 
 //////////////////////////////////////////////////////////////////////////
-DesignBlock::Handle DesignBlock::create( const char* name, const Matrix4& pose, const Shape& shape, const char* material /*= "white" */ )
+DesignBlock::Handle DesignBlock::create( const char* name, const Matrix4& pose, const Desc& desc )
 {
     DesignBlockImpl* m = implGet( this );
-    return m->_Create( name, pose, shape, material );
+    return m->_Create( name, pose, desc );
 }
 
 void DesignBlock::release( Handle* h )
@@ -475,6 +478,7 @@ DesignBlockSceneScriptCallback::DesignBlockSceneScriptCallback()
     memset( &desc.name, 0x00, sizeof( desc.name ) );
     memset( &desc.material, 0x00, sizeof( desc.material ) );
     memset( &desc.shape, 0x00, sizeof( DesignBlock::Shape ) );
+    desc.density = 1.f;
     desc.pose = Matrix4::identity();
 }
 
@@ -531,6 +535,13 @@ void DesignBlockSceneScriptCallback::onAttribute( const char* attrName, const bx
             goto label_besignBlockAttributeInvalidSize;
         }
     }
+    else if( string::equal( attrName, "density" ) )
+    {
+        if( attribData.dataSizeInBytes() != 4 )
+            goto label_besignBlockAttributeInvalidSize;
+        
+        desc.density = attribData.fnumber[0];
+    }
 
     return;
 
@@ -554,7 +565,15 @@ void DesignBlockSceneScriptCallback::onCommand( const char* cmdName, const bxAsc
         }
         else
         {
-            dblock->create( desc.name, desc.pose, desc.shape, desc.material );
+            DesignBlock::Desc dbDesc;
+            dbDesc.fxI = gfxMaterialFind( desc.material );
+            if( !dbDesc.fxI )
+            {
+                dbDesc.fxI = gfxMaterialFind( "red" );
+            }
+            dbDesc.shape = desc.shape;
+            dbDesc.density = desc.density;
+            dblock->create( desc.name, desc.pose, dbDesc );
         }
     }
 }

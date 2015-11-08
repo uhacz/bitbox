@@ -903,9 +903,15 @@ namespace bx
 
         //}
 
+        {
+            gdi->changeRenderTargets( &ctx->_framebuffer[eFB_TEMP0], 1, ctx->_framebuffer[eFB_DEPTH] );
+            bxGfxDebugDraw::flush( gdi, camera->viewProj );
+        }
+
+
         gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_TEMP0], gfxCameraAspect( camera ) );
         //gfxRasterizeFramebuffer( gdi, ctx->_shadow._texDepth, gfxCameraAspect( camera ) );
-        bxGfxDebugDraw::flush( gdi, camera->viewProj );
+        
     }
 
     
