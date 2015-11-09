@@ -75,58 +75,6 @@ namespace bx
         {}
     };
 
-    //struct PhxGeometryBox
-    //{
-    //    PhxGeometry head;
-    //    float3_t ext;
-
-    //    PhxGeometryBox()
-    //        : head( PhxGeometry::eBOX )
-    //        , ext( 0.5f )
-    //    {}
-    //    PhxGeometryBox( f32 e )
-    //        : head( PhxGeometry::eBOX )
-    //        , ext( e )
-    //    {}
-    //    PhxGeometryBox( f32 ex, f32 ey, f32 ez )
-    //        : head( PhxGeometry::eBOX )
-    //        , ext( ex, ey, ez )
-    //    {}
-    //};
-
-    //struct PhxGeometrySphere
-    //{
-    //    PhxGeometry head;
-    //    f32 radius;
-
-    //    PhxGeometrySphere()
-    //        : head( PhxGeometry::eSPHERE )
-    //        , radius( 0.5f )
-    //    {}
-    //    PhxGeometrySphere( f32 r )
-    //        : head( PhxGeometry::eSPHERE )
-    //        , radius( r )
-    //    {}
-    //};
-
-    //struct PhxGeometryCapsule
-    //{
-    //    PhxGeometry head;
-    //    f32 radius;
-    //    f32 halfHeight;
-
-    //    PhxGeometryCapsule()
-    //        : head( PhxGeometry::eCAPSULE )
-    //        , radius( 0.25f )
-    //        , halfHeight( 0.25f )
-    //    {}
-    //    PhxGeometryCapsule( f32 r, f32 hh )
-    //        : head( PhxGeometry::eCAPSULE )
-    //        , radius( r )
-    //        , halfHeight( hh )
-    //    {}
-    //};
-
     struct PhxMaterial
     {
         f32 sfriction;

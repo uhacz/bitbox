@@ -1,38 +1,65 @@
 #pragma once
 
-#include <gdi/gdi_backend.h>
+#include "gfx_public.h"
 
-////
-////
-class bxResourceManager;
 struct bxGdiDeviceBackend;
-struct bxGdiRenderSource;
-struct bxGdiShaderFx_Instance;
+struct bxGdiTexture;
 struct bxGdiContext;
-struct bxGfxCamera;
 
-struct bxGfx_GlobalResources
+namespace bx
 {
-    struct{
-        bxGdiShaderFx_Instance* utils;
-        bxGdiShaderFx_Instance* texUtils;
-    } fx;
+    void gfxContextStartup( GfxContext** gfx, bxGdiDeviceBackend* dev );
+    void gfxContextShutdown( GfxContext** gfx, bxGdiDeviceBackend* dev );
+    void gfxContextTick( GfxContext* gfx, bxGdiDeviceBackend* dev );
+    void gfxContextFrameBegin( GfxContext* gfx, bxGdiContext* gdi );
+    void gfxContextFrameEnd( GfxContext* gfx, bxGdiContext* gdi );
+    void gfxCommandQueueAcquire( GfxCommandQueue** cmdq, GfxContext* ctx, bxGdiContext* gdiContext );
+    void gfxCommandQueueRelease( GfxCommandQueue** cmdq );
 
-    struct{
-        bxGdiRenderSource* fullScreenQuad;
-        bxGdiRenderSource* sphere;
-        bxGdiRenderSource* box;
-    } mesh;
-};
-namespace bxGfx
-{
-    void globalResources_startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void globalResources_shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    GfxGlobalResources* gfxGlobalResourcesGet();
+    bxGdiShaderFx_Instance* gfxMaterialFind( const char* name );
+    GfxContext* gfxContextGet( GfxScene* scene );
 
-    bxGfx_GlobalResources* globalResources();
+    ////
+    void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx );
+    void gfxCameraDestroy( GfxCamera** camera );
 
-    void submitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName );
-    void copyTexture_RGBA( bxGdiContext* ctx, bxGdiTexture outputTexture, bxGdiTexture inputTexture );
-    void rasterizeFramebuffer( bxGdiContext* ctx, bxGdiTexture colorFB, const bxGfxCamera& camera );
+    GfxCameraParams gfxCameraParamsGet( const GfxCamera* camera );
+    void gfxCameraParamsSet( GfxCamera* camera, const GfxCameraParams& params );
+    float gfxCameraAspect( const GfxCamera* cam );
+    float gfxCameraFov( const GfxCamera* cam );
+    Vector3 gfxCameraEye( const GfxCamera* cam );
+    Vector3 gfxCameraDir( const GfxCamera* cam );
+    void gfxCameraViewport( GfxViewport* vp, const GfxCamera* cam, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
+    void gfxCameraComputeMatrices( GfxCamera* cam );
+
+    void gfxCameraWorldMatrixSet( GfxCamera* cam, const Matrix4& world );
+    Matrix4 gfxCameraWorldMatrixGet( const GfxCamera* camera );
+
+    ////
+    void gfxSunLightDirectionSet( GfxContext* ctx, const Vector3& direction );
+
+    ////
+    void gfxMeshInstanceCreate( GfxMeshInstance** meshI, GfxContext* ctx, int numInstances = 1 );
+    void gfxMeshInstanceDestroy( GfxMeshInstance** meshI );
+
+    bxGdiRenderSource* gfxMeshInstanceRenderSourceGet( GfxMeshInstance* meshI );
+    bxGdiShaderFx_Instance* gfxMeshInstanceFxGet( GfxMeshInstance* meshI );
+
+    void gfxMeshInstanceDataSet( GfxMeshInstance* meshI, const GfxMeshInstanceData& data );
+    void gfxMeshInstanceWorldMatrixSet( GfxMeshInstance* meshI, const Matrix4* matrices, int nMatrices );
+
+    ////
+    void gfxSceneCreate( GfxScene** scene, GfxContext* ctx );
+    void gfxSceneDestroy( GfxScene** scene );
+
+    void gfxSceneMeshInstanceAdd( GfxScene* scene, GfxMeshInstance* meshI );
+    void gfxSceneMeshInstanceRemove( GfxScene* scene, GfxMeshInstance* meshI );
+
+    void gfxSceneDraw( GfxScene* scene, GfxCommandQueue* cmdq, const GfxCamera* camera );
+
+
 }///
+
+
 

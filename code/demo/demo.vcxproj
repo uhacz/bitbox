@@ -92,11 +92,9 @@
     <ClCompile Include="game.cpp" />
     <ClCompile Include="game_character.cpp" />
     <ClCompile Include="game_character_camera.cpp" />
-    <ClCompile Include="gfx_private.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="physics.cpp" />
     <ClCompile Include="physics_pbd.cpp" />
-    <ClCompile Include="renderer.cpp" />
     <ClCompile Include="scene.cpp" />
     <ClCompile Include="test_console.cpp" />
     <ClCompile Include="tree.cpp" />
@@ -146,11 +144,8 @@
     <ClInclude Include="entity.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="game_character.h" />
-    <ClInclude Include="gfx_private.h" />
-    <ClInclude Include="gfx_public.h" />
     <ClInclude Include="physics.h" />
     <ClInclude Include="physics_pbd.h" />
-    <ClInclude Include="renderer.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="test_console.h" />
     <ClInclude Include="tree.h" />

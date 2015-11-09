@@ -12,8 +12,8 @@
 
 #include <resource_manager/resource_manager.h>
 #include <gfx/gfx_debug_draw.h>
-#include <gfx/gfx_camera.h>
-#include "gfx/gfx_material.h"
+//#include <gfx/gfx_camera.h>
+//#include "gfx/gfx_material.h"
 
 namespace bxGame{
 
@@ -114,7 +114,7 @@ void character_deinit( Character* character, bxResourceManager* resourceManager 
     MeshData::free( &character->shapeMeshData );
 }
 
-void character_tick( Character* character, bxPhx_CollisionSpace* cspace, bxGdiContextBackend* ctx, const bxGfxCamera& camera, const bxInput& input, float deltaTime )
+void character_tick( Character* character, bxGdiContextBackend* ctx, bxDemoScene* scene, const bxInput& input, float deltaTime )
 {
     CharacterInternal::collectInputData( &character->input, input, deltaTime );
     Vector3 externalForces( 0.f );

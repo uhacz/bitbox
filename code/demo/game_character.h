@@ -2,7 +2,7 @@
 
 #include <util/vectormath/vectormath.h>
 #include <system/input.h>
-#include "renderer.h"
+#include <gfx/gfx.h>
 
 struct bxPhx_Contacts;
 struct bxGfxCamera;

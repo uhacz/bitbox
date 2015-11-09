@@ -3,8 +3,8 @@
 #include "profiler.h"
 #include <gdi/gdi_context.h>
 #include <resource_manager/resource_manager.h>
-#include <gfx/gfx_material.h>
 #include <phx/phx.h>
+#include <gfx/gfx.h>
 
 struct bxEngine
 {
@@ -12,6 +12,7 @@ struct bxEngine
     bxGdiContext*         gdiContext;
     bxResourceManager*    resourceManager;
 
+    bx::GfxContext*       gfxContext;
     bx::PhxContext*       phxContext;
     //// tool for profiling
     Remotery* _remotery;

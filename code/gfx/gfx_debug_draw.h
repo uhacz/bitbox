@@ -6,8 +6,8 @@
 
 namespace bxGfxDebugDraw
 {
-    void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void _Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void _Startup( bxGdiDeviceBackend* dev );
+    void _Shutdown( bxGdiDeviceBackend* dev );
 
     void addSphere( const Vector4& pos_radius, u32 colorRGBA, int depth );
     void addBox( const Matrix4& pose, const Vector3& ext, u32 colorRGBA, int depth );

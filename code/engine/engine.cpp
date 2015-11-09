@@ -18,9 +18,10 @@ void bxEngine_startup( bxEngine* e )
     e->gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
     e->gdiContext->_Startup( e->gdiDevice );
 
-    bxGfxGUI::_Startup( e->gdiDevice, e->resourceManager, win );
-    bxGfxDebugDraw::_Startup( e->gdiDevice, e->resourceManager );
+    bxGfxGUI::_Startup( e->gdiDevice, win );
+    bxGfxDebugDraw::_Startup( e->gdiDevice );
 
+    bx::gfxContextStartup( &e->gfxContext, e->gdiDevice );
     bx::phxContextStartup( &e->phxContext, 4 );
 
     rmt_CreateGlobalInstance( &e->_remotery );
@@ -31,9 +32,10 @@ void bxEngine_shutdown( bxEngine* e )
     e->_remotery = 0;
 
     bx::phxContextShutdown( &e->phxContext );
+    bx::gfxContextShutdown( &e->gfxContext, e->gdiDevice );
 
-    bxGfxDebugDraw::_Shutdown( e->gdiDevice, e->resourceManager );
-    bxGfxGUI::shutdown( e->gdiDevice, e->resourceManager, bxWindow_get() );
+    bxGfxDebugDraw::_Shutdown( e->gdiDevice );
+    bxGfxGUI::_Shutdown( e->gdiDevice, bxWindow_get() );
 
     e->gdiContext->_Shutdown();
     BX_DELETE0( bxDefaultAllocator(), e->gdiContext );

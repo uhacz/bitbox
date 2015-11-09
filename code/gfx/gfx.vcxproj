@@ -80,39 +80,22 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="gfx_debug_draw.h" />
     <ClInclude Include="gfx.h" />
-    <ClInclude Include="gfx_camera.h" />
+    <ClInclude Include="gfx_debug_draw.h" />
     <ClInclude Include="gfx_gui.h" />
-    <ClInclude Include="gfx_lights.h" />
-    <ClInclude Include="gfx_material.h" />
-    <ClInclude Include="gfx_mesh_renderer.h" />
-    <ClInclude Include="gfx_postprocess.h" />
-    <ClInclude Include="gfx_render_list.h" />
-    <ClInclude Include="gfx_shadows.h" />
-    <ClInclude Include="gfx_sort_list.h" />
-    <ClInclude Include="gfx_type.h" />
+    <ClInclude Include="gfx_private.h" />
+    <ClInclude Include="gfx_public.h" />
     <ClInclude Include="gui\imgui\imconfig.h" />
     <ClInclude Include="gui\imgui\imgui.h" />
     <ClInclude Include="gui\imgui\stb_image.h" />
     <ClInclude Include="gui\imgui\stb_textedit.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="gfx_debug_draw.cpp" />
     <ClCompile Include="gfx.cpp" />
-    <ClCompile Include="gfx_camera.cpp" />
+    <ClCompile Include="gfx_debug_draw.cpp" />
     <ClCompile Include="gfx_gui.cpp" />
-    <ClCompile Include="gfx_lights.cpp" />
-    <ClCompile Include="gfx_material.cpp" />
-    <ClCompile Include="gfx_mesh_renderer.cpp" />
-    <ClCompile Include="gfx_postprocess.cpp" />
-    <ClCompile Include="gfx_render_list.cpp" />
-    <ClCompile Include="gfx_shadows.cpp" />
-    <ClCompile Include="gfx_sort_list.cpp" />
+    <ClCompile Include="gfx_private.cpp" />
     <ClCompile Include="gui\imgui\imgui.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="view_frustum.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -475,10 +475,15 @@ void designBlockShutdown( DesignBlock** dblock )
 DesignBlockSceneScriptCallback::DesignBlockSceneScriptCallback()
     : dblock( 0 )
 {
+    descClear();
+}
+
+void DesignBlockSceneScriptCallback::descClear()
+{
     memset( &desc.name, 0x00, sizeof( desc.name ) );
     memset( &desc.material, 0x00, sizeof( desc.material ) );
     memset( &desc.shape, 0x00, sizeof( DesignBlock::Shape ) );
-    desc.density = 1.f;
+    desc.density = 0.f;
     desc.pose = Matrix4::identity();
 }
 
@@ -574,6 +579,8 @@ void DesignBlockSceneScriptCallback::onCommand( const char* cmdName, const bxAsc
             dbDesc.shape = desc.shape;
             dbDesc.density = desc.density;
             dblock->create( desc.name, desc.pose, dbDesc );
+
+            descClear();
         }
     }
 }

@@ -306,6 +306,16 @@ namespace
             bxGfxDebugDraw::addLine( toVector3( dline.pos0 ), toVector3( dline.pos1 ), dline.color0, depth );
         }
     }
+
+    void guiDraw( PhxScene* s )
+    {
+        if( ImGui::Begin( "Physics" ) )
+        {
+            ImGui::Checkbox( "enable debug draw", (bool*)&s->ctx->flag_enableDebugDraw ); ImGui::SameLine();
+            ImGui::Checkbox( "debug draw depth", (bool*)&s->ctx->flag_enableDebugDrawDepth );
+        }
+        ImGui::End();
+    }
 }///
 
 void phxSceneSimulate( PhxScene* scene, float deltaTime )
@@ -330,6 +340,9 @@ void phxSceneSync( PhxScene* scene )
     {
         pxScene->setVisualizationParameter( PxVisualizationParameter::eSCALE, 0.0f );
     }
+
+    guiDraw( scene );
+
 }
 
 ////

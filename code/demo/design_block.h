@@ -108,6 +108,8 @@ struct DesignBlockSceneScriptCallback : public bxAsciiScript_Callback
         DesignBlock::Shape shape;
         Matrix4 pose;
     } desc;
+    void descClear();
+
 };
 
 

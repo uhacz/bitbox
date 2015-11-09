@@ -1,5 +1,5 @@
 #include "gfx_gui.h"
-#include "gfx_camera.h"
+//#include "gfx_camera.h"
 #include <system/window.h>
 #include <gdi/gdi_shader.h>
 #include <gdi/gdi_render_source.h>
@@ -10,6 +10,7 @@
 #include "gui/imgui/stb_image.h"
 #include <util/common.h>
 #include <util/hash.h>
+#include <resource_manager/resource_manager.h>
 
 struct bxGfxGUI_Impl
 {
@@ -23,8 +24,8 @@ struct bxGfxGUI_Impl
         , _fxI( 0 )
     {}
 
-    void _Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxWindow* win );
-    void _Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxWindow* win );
+    void _Startup( bxGdiDeviceBackend* dev , bxWindow* win );
+    void _Shutdown( bxGdiDeviceBackend* dev, bxWindow* win );
 };
 
 namespace
@@ -194,22 +195,24 @@ namespace
     
 }
 
-void bxGfxGUI::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxWindow* win )
+void bxGfxGUI::_Startup( bxGdiDeviceBackend* dev, bxWindow* win )
 {
     SYS_ASSERT( __gui == 0 );
 
     __gui = BX_NEW( bxDefaultAllocator(), bxGfxGUI_Impl );
-    __gui->_Startup( dev, resourceManager, win );
+    __gui->_Startup( dev, win );
 }
 
-void bxGfxGUI::shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxWindow* win )
+void bxGfxGUI::_Shutdown( bxGdiDeviceBackend* dev, bxWindow* win )
 {
-    __gui->_Shutdown( dev, resourceManager, win );
+    __gui->_Shutdown( dev, win );
     BX_DELETE0( bxDefaultAllocator(), __gui );
 }
 
-void bxGfxGUI_Impl::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxWindow* win )
+void bxGfxGUI_Impl::_Startup( bxGdiDeviceBackend* dev, bxWindow* win )
 {
+    bxResourceManager* resourceManager = bx::resourceManagerGet();
+
     _rsource = bxGdi::renderSource_new( 1 );
     bxGdiVertexStreamDesc vsDesc;
     vsDesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 2 );
@@ -230,10 +233,11 @@ void bxGfxGUI_Impl::_Startup( bxGdiDeviceBackend* dev, bxResourceManager* resour
     bxWindow_addWinMsgCallback( win, ImGui_WinMsgHandler );
 }
 
-void bxGfxGUI_Impl::_Shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxWindow* win )
+void bxGfxGUI_Impl::_Shutdown( bxGdiDeviceBackend* dev, bxWindow* win )
 {
     bxWindow_removeWinMsgCallback( win, ImGui_WinMsgHandler );
 
+    bxResourceManager* resourceManager = bx::resourceManagerGet();
     dev->releaseTexture( &_fontTexture );
     dev->releaseBuffer( &_cbuffer );
     bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &_fxI );
@@ -275,188 +279,4 @@ void bxGfxGUI::draw( bxGdiContext* ctx )
     //ctx->clear();
 
     __gdiCtx = 0;
-}
-
-////
-////
-////
-////
-bxGfxShaderFxGUI::bxGfxShaderFxGUI()
-    : flag_isVisible(0)
-{}
-
-u32 bxGfxShaderFxGUI::beginFx(const char* fxName)
-{
-    u32 id = 0;
-    if ( ImGui::Begin( "Shaders", (bool*)&flag_isVisible ) )
-    {
-        if( ImGui::TreeNode( fxName ) )
-        {
-            id |= 1 << 1;
-        }
-    }
-    return id;
-}
-
-void bxGfxShaderFxGUI::endFx( u32 id )
-{
-    if( id & ( 1<<1) )
-    {
-        ImGui::TreePop();
-    }
-
-    {
-        ImGui::End();
-    }
-}
-
-namespace
-{
-    inline const bxGdiShaderFx::UniformDesc* findUniform( bxGdiShaderFx_Instance* fxI, const char* varName )
-    {
-        const u32 hashedVarName = simple_hash( varName );
-        const bxGdiShaderFx::UniformDesc* desc = bxGdi::shaderFx_findUniform( fxI->_fx, hashedVarName );
-        return desc;
-    }
-}
-
-void bxGfxShaderFxGUI::addInt(bxGdiShaderFx_Instance* fxI, const char* varName, int min, int max)
-{
-    const bxGdiShaderFx::UniformDesc* desc = findUniform( fxI, varName );
-    if ( !desc )
-        return;
-    
-    bool changed = false;
-    //if ( ImGui::Begin( "Shaders", (bool*)&flag_isVisible ) )
-    {
-        {
-            u8* uniformData = fxI->_dataCBuffers + desc->offset;
- 
-            if( min == max )
-            {
-                changed = ImGui::InputInt( varName, (int*)uniformData );
-            }
-            else
-            {
-                changed = ImGui::SliderInt( varName, (int*)uniformData, min, max );
-            }
-        }
-        //ImGui::End();
-    }
-
-    if ( changed )
-    {
-        fxI->_SetBufferDirty( desc->bufferIndex );
-    }
-
-}
-
-void bxGfxShaderFxGUI::addFloat(bxGdiShaderFx_Instance* fxI, const char* varName, float min, float max)
-{
-    const bxGdiShaderFx::UniformDesc* desc = findUniform( fxI, varName );
-    if ( !desc )
-        return;
-
-    const int nElem = desc->size / sizeof( float );
-
-    bool changed = false;
-
-    //if ( ImGui::Begin( "Shaders", (bool*)&flag_isVisible ) )
-    {
-        {
-            float* uniformData = (float*)( fxI->_dataCBuffers + desc->offset );
-
-            if ( min == max )
-            {
-                switch (nElem )
-                {
-                case 1:
-                    changed = ImGui::InputFloat( varName, uniformData );
-                    break;
-                case 2:
-                    changed = ImGui::InputFloat2( varName, uniformData );
-                    break;
-                case 3:
-                    changed = ImGui::InputFloat3( varName, uniformData );
-                    break;
-                case 4:
-                    changed = ImGui::InputFloat4( varName, uniformData );
-                    break;
-                default:
-                    bxLogWarning( "GUI: Unsupported variable" );
-                    break;
-                }
-            }
-            else
-            {
-                switch ( nElem )
-                {
-                case 1:
-                    changed = ImGui::SliderFloat( varName, uniformData, min, max );
-                    break;
-                case 2:
-                    changed = ImGui::SliderFloat2( varName, uniformData, min, max );
-                    break;
-                case 3:
-                    changed = ImGui::SliderFloat3( varName, uniformData, min, max );
-                    break;
-                case 4:
-                    changed = ImGui::SliderFloat4( varName, uniformData, min, max );
-                    break;
-                default:
-                    bxLogWarning( "GUI: Unsupported variable" );
-                    break;
-                }
-            }
-
-        }
-        //ImGui::End();
-    }
-
-    if( changed )
-    {
-        fxI->_SetBufferDirty( desc->bufferIndex );
-    }
-}
-
-void bxGfxShaderFxGUI::addColor(bxGdiShaderFx_Instance* fxI, const char* varName)
-{
-    const bxGdiShaderFx::UniformDesc* desc = findUniform( fxI, varName );
-    if ( !desc )
-        return;
-
-    const int nElem = desc->size / sizeof( float );
-    if( nElem < 3 )
-    {
-        bxLogWarning( "GUI: color variable must have at least 3 components!" );
-        return;
-    }
-    bool changed = false;
-    //if ( ImGui::Begin( "Shaders", (bool*)&flag_isVisible ) )
-    {
-        //if ( ImGui::TreeNode( fxName ) )
-        {
-            float* uniformData = (float*)(fxI->_dataCBuffers + desc->offset);
-
-            switch ( nElem )
-            {
-            case 3:
-                changed = ImGui::ColorEdit3( varName, uniformData );
-                break;
-            case 4:
-                changed = ImGui::ColorEdit4( varName, uniformData );
-                break;
-            default:
-                bxLogWarning( "GUI: Unsupported color variable" );
-                break;
-            }
-
-            //ImGui::TreePop();
-        }
-        //ImGui::End();
-    }
-    if ( changed )
-    {
-        fxI->_SetBufferDirty( desc->bufferIndex );
-    }
 }

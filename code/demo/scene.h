@@ -1,10 +1,11 @@
 #pragma once
 
 #include "physics.h"
-#include "renderer.h"
 #include "game.h"
 #include "design_block.h"
 #include "camera_manager.h"
+
+#include <gfx/gfx.h>
 
 struct bxEngine;
 
@@ -17,13 +18,11 @@ struct bxDemoScene
     bx::CameraManager* cameraManager;
     bx::DesignBlock* dblock;
     
-    bx::GfxContext* gfx;
     bx::GfxScene* gfxScene;
-
     bx::PhxScene* phxScene;
 
     bxGame::Character* character;
-    bxGame::Flock* flock;
+    //bxGame::Flock* flock;
 };
 
 void bxDemoScene_startup( bxDemoScene* scene, bxEngine* engine );
