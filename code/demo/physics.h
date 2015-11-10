@@ -67,17 +67,3 @@ namespace bxPhx
 }///
 
 
-namespace bx
-{
-    struct PhxScene;
-    struct PhxContacts;
-    void phxContactsCreate( PhxContacts** c, int capacity );
-    void phxContactsDestroy( PhxContacts** c );
-
-    int  phxContactsPushBack( PhxContacts* con, const Vector3& normal, float depth, u16 index );
-    int  phxContactsSize( PhxContacts* con );
-    void phxContactsGet( PhxContacts* con, Vector3* normal, float* depth, u16* index0, u16* index1, int i );
-    void phxContactsClear( PhxContacts* con );
-
-    void phxContactsCollide( PhxContacts* con, PhxScene* scene, const Vector3* points, int nPoints );
-}///

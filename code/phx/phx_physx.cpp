@@ -481,3 +481,47 @@ void phxSceneActorAdd( PhxScene* scene, PhxActor** actors, int nActors )
 }
 
 }///
+
+
+namespace bx
+{
+    int phxContactsCollide( PhxContacts* con, const PhxScene* scene, const Vector3* points, int nPoints, float pointRadius, const Vector4& bsphere )
+    {
+        const PxScene* pxscene = scene->scene;
+
+        const PxSphereGeometry ovGeom( bsphere.getW().getAsFloat() );
+        const PxTransform ovPose = toPxTransform( Matrix4::translation( bsphere.getXYZ() ) );
+
+        const int N = 16;
+        PxOverlapBufferN<N> ovBuffer;
+        const bool hasHit = pxscene->overlap( ovGeom, ovPose, ovBuffer );
+        if ( !hasHit )
+            return 0;
+
+        const int nHits = (int)ovBuffer.getNbAnyHits();
+
+        int nCollisions = 0;
+        const PxSphereGeometry pointGeom( pointRadius );
+        for( int ip = 0; ip < nPoints; ++ip )
+        {
+            const PxTransform pointPose( toPxVec3( points[ip] ) );
+            for ( int ih = 0; ih < nHits; ++ih )
+            {
+                const PxOverlapHit& ovHit = ovBuffer.getAnyHit( ih );
+                const PxGeometryHolder hitGeom = ovHit.shape->getGeometry();
+                const PxTransform hitPose = PxShapeExt::getGlobalPose( *ovHit.shape, *ovHit.actor );
+
+                PxVec3 normal;
+                float depth;
+                bool penetration = PxGeometryQuery::computePenetration( normal, depth, pointGeom, pointPose, hitGeom.any(), hitPose );
+                if( penetration )
+                {
+                    phxContactsPushBack( con, toVector3( normal ), depth, (u16)ip );
+                    ++nCollisions;
+                }
+            }
+        }
+
+        return nCollisions;
+    }
+}///

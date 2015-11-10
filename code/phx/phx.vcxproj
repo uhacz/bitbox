@@ -87,6 +87,7 @@
     <ClInclude Include="phx_physx_util.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="phx.cpp" />
     <ClCompile Include="phx_physx.cpp" />
     <ClCompile Include="phx_physx_stepper.cpp" />
   </ItemGroup>
