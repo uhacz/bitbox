@@ -5,7 +5,7 @@
 #include <gdi/gdi_render_source.h>
 #include <gdi/gdi_shader.h>
 
-#include <gfx/gfx_camera.h>
+//#include <gfx/gfx_camera.h>
 #include "voxel_gfx.h"
 #include "voxel_container.h"
 

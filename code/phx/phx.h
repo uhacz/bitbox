@@ -30,7 +30,7 @@ namespace bx
 
             eCOUNT,
         };
-        u32 type;
+        u32 type = eCOUNT;
         union
         {
             struct
@@ -70,22 +70,14 @@ namespace bx
             capsule.halfHeight = hh;
         }
 
-        PhxGeometry()
-            : type( eCOUNT )
-        {}
+        PhxGeometry() = default;
     };
 
     struct PhxMaterial
     {
-        f32 sfriction;
-        f32 dfriction;
-        f32 restitution;
-
-        PhxMaterial()
-            : sfriction( 0.5f )
-            , dfriction( 0.5f )
-            , restitution( 0.1f )
-        {}
+        f32 sfriction = 0.5f;
+        f32 dfriction = 0.5f;
+        f32 restitution = 0.1f;
 
         PhxMaterial( f32 sf, f32 df, f32 r )
             : sfriction( sf )

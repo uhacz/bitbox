@@ -1,5 +1,5 @@
 #include "voxel_scene.h"
-#include <gfx/gfx_camera.h>
+//#include <gfx/gfx_camera.h>
 #include <util/string_util.h>
 #include "voxel.h"
 

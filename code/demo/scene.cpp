@@ -217,18 +217,18 @@
 
 void bxDemoScene_startup( bxDemoScene* scene, bxEngine* engine )
 {
-    bx::gfxSceneCreate( &scene->gfxScene, scene->gfx );
+    bx::gfxSceneCreate( &scene->gfxScene, engine->gfxContext );
     bx::phxSceneCreate( &scene->phxScene, engine->phxContext );
 
     bx::designBlockStartup( &scene->dblock );
-    bx::cameraManagerStartup( &scene->cameraManager, scene->gfx );
+    bx::cameraManagerStartup( &scene->cameraManager, engine->gfxContext );
 
 
     scene->character = bxGame::character_new();
     //scene->flock = bxGame::flock_new();
 
 
-    bxGame::character_init( scene->character, engine->gdiDevice, engine->resourceManager, Matrix4( Matrix3::identity(), Vector3( 0.f, 2.f, 0.f ) ) );
+    bxGame::character_init( scene->character, engine->gdiDevice, scene, Matrix4( Matrix3::identity(), Vector3( 0.f, 2.f, 0.f ) ) );
     //bxGame::flock_init( scene->flock, 128, Vector3( 0.f ), 5.f );
 }
 
@@ -236,7 +236,7 @@ void bxDemoScene_shutdown( bxDemoScene* scene, bxEngine* engine )
 {
     //bxGame::flock_delete( &scene->flock );
 
-    bxGame::character_deinit( scene->character, engine->resourceManager );
+    bxGame::character_deinit( scene->character, engine->gdiDevice );
     bxGame::character_delete( &scene->character );
 
     bx::cameraManagerShutdown( &scene->cameraManager );

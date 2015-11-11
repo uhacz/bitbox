@@ -6,7 +6,7 @@
 #include <util/time.h>
 #include <util/handle_manager.h>
 #include <util/config.h>
-#include <gfx/gfx_camera.h>
+//#include <gfx/gfx_camera.h>
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_gui.h>
 
@@ -30,11 +30,11 @@ public:
         bxEngine_startup( &_engine );
         bxDemoScene_startup( &__scene, &_engine );
 
-        bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager );
+        //bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager );
 
         bx::CameraManagerSceneScriptCallback cameraScriptCallback;
         cameraScriptCallback._menago = __scene.cameraManager;
-        cameraScriptCallback._gfx = __scene.gfx;
+        cameraScriptCallback._gfx = _engine.gfxContext;
 
         bx::DesignBlockSceneScriptCallback dblockScriptCallback;
         dblockScriptCallback.dblock = __scene.dblock;
@@ -199,24 +199,26 @@ public:
         }
         
         {//// game update
-        
+            bxGame::character_tick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
+            bxGame::characterCamera_follow( camera, __scene.character, deltaTime, cameraInputCtx.anyMovement() );
         }
+
+        bx::gfxCameraComputeMatrices( camera );
 
         {
             bx::phxSceneSimulate( __scene.phxScene, deltaTime );
         }
 
-
-        bx::gfxContextTick( __scene.gfx, _engine.gdiDevice, _engine.resourceManager );
+        bx::gfxContextTick( _engine.gfxContext, _engine.gdiDevice );
 
         bx::GfxCommandQueue* cmdq = nullptr;
-        bx::gfxCommandQueueAcquire( &cmdq, __scene.gfx, _engine.gdiContext );
-        bx::gfxContextFrameBegin( __scene.gfx, _engine.gdiContext );
+        bx::gfxCommandQueueAcquire( &cmdq, _engine.gfxContext, _engine.gdiContext );
+        bx::gfxContextFrameBegin( _engine.gfxContext, _engine.gdiContext );
 
         bx::gfxSceneDraw( __scene.gfxScene, cmdq, camera );
         bxGfxGUI::draw( _engine.gdiContext );
 
-        bx::gfxContextFrameEnd( __scene.gfx, _engine.gdiContext );
+        bx::gfxContextFrameEnd( _engine.gfxContext, _engine.gdiContext );
         bx::gfxCommandQueueRelease( &cmdq );
 
 

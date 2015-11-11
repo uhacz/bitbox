@@ -12,8 +12,189 @@
 
 #include <resource_manager/resource_manager.h>
 #include <gfx/gfx_debug_draw.h>
-//#include <gfx/gfx_camera.h>
-//#include "gfx/gfx_material.h"
+
+#include "scene.h"
+#include "phx/phx.h"
+
+namespace 
+{
+    using namespace bxGame;
+    struct PBD_Simulate
+    {
+        template< class TVelPlug >
+        static void predictPosition( ParticleData* cp, int pointBegin, int pointEnd, const Vector3& gravityVec, float damping, float deltaTime, TVelPlug& velPlug )
+        {
+            const floatInVec dtv( deltaTime );
+            const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( damping ), dtv );
+
+            for ( int ipoint = pointBegin; ipoint < pointEnd; ++ipoint )
+            {
+                Vector3 pos = cp->pos0[ipoint];
+                Vector3 vel = cp->vel[ipoint];
+
+                vel += gravityVec * dtv;
+                vel *= dampingCoeff;
+
+                velPlug( vel, ipoint, deltaTime );
+
+                pos += vel * dtv;
+
+                cp->pos1[ipoint] = pos;
+                cp->vel[ipoint] = vel;
+            }
+        }
+
+        static void resolveContacts( ParticleData* cp, bx::PhxContacts* contacts )
+        {
+            const int nContacts = bx::phxContactsSize( contacts );
+
+            Vector3 normal( 0.f );
+            float depth = 0.f;
+            u16 index0 = 0xFFFF;
+            u16 index1 = 0xFFFF;
+
+            for ( int icontact = 0; icontact < nContacts; ++icontact )
+            {
+                bx::phxContactsGet( contacts, &normal, &depth, &index0, &index1, icontact );
+                cp->pos1[index0] += normal * depth;
+            }
+        }
+
+        static void applyFriction( ParticleData* cp, bx::PhxContacts* contacts, float staticFriction, float dynamicFriction )
+        {
+            const int nContacts = bx::phxContactsSize( contacts );
+
+            Vector3 normal( 0.f );
+            float depth = 0.f;
+            u16 index0 = 0xFFFF;
+            u16 index1 = 0xFFFF;
+
+            for ( int icontact = 0; icontact < nContacts; ++icontact )
+            {
+                bx::phxContactsGet( contacts, &normal, &depth, &index0, &index1, icontact );
+
+                //float fd = ( index0 < Character1::eMAIN_BODY_PARTICLE_COUNT ) ? dynamicFriction : 0.6f;
+
+                Vector3 dpos( 0.f );
+                bxPhx::pbd_computeFriction( &dpos, cp->pos0[index0], cp->pos1[index0], normal, depth, staticFriction, dynamicFriction );
+                cp->pos1[index0] += dpos;
+            }
+        }
+
+        static void softBodyUpdatePose( Vector3* comPos, Quat* comRot, ParticleData* cp, int pointBegin, int pointEnd, const Vector3* restPositions, float shapeStiffness, float shapeScale )
+        {
+            const int pointCount = pointEnd - pointBegin;
+            SYS_ASSERT( pointCount > 0 );
+
+            Matrix3 R;
+            Vector3 com;
+            bxPhx::pbd_softBodyUpdatePose( &R, &com, cp->pos1 + pointBegin, restPositions, cp->mass + pointBegin, pointCount );
+            comPos[0] = com;
+            comRot[0] = normalize( Quat( R ) );
+
+            //const Matrix3 R1 = appendScale( R, Vector3( shapeScale ) );
+            if ( ::abs( shapeScale - 1.f ) > FLT_EPSILON )
+            {
+                R = appendScale( R, Vector3( shapeScale ) );
+            }
+            for ( int ipoint = pointBegin, irestpos = 0; ipoint < pointEnd; ++ipoint, ++irestpos )
+            {
+                SYS_ASSERT( irestpos < pointCount );
+                Vector3 dpos( 0.f );
+                bxPhx::pbd_solveShapeMatchingConstraint( &dpos, R, com, restPositions[irestpos], cp->pos1[ipoint], shapeStiffness );
+                cp->pos1[ipoint] += dpos;
+            }
+        }
+
+        static void updateVelocity( ParticleData* cp, int pointBegin, int pointEnd, float deltaTimeInv )
+        {
+            for ( int ipoint = pointBegin; ipoint < pointEnd; ++ipoint )
+            {
+                cp->vel[ipoint] = (cp->pos1[ipoint] - cp->pos0[ipoint]) * deltaTimeInv;
+                cp->pos0[ipoint] = cp->pos1[ipoint];
+            }
+        }
+
+        template< class TParamEval >
+        static void projectDistanceConstraint( ParticleData* cp, const Constraint* constraints, int nConstraints, float stiffness, TParamEval paramEval )
+        {
+            for ( int iconstraint = 0; iconstraint < nConstraints; ++iconstraint )
+            {
+                const Constraint& c = constraints[iconstraint];
+
+                const Vector3& p0 = cp->pos1[c.i0];
+                const Vector3& p1 = cp->pos1[c.i1];
+
+                float massInv0 = cp->massInv[c.i0];
+                float massInv1 = cp->massInv[c.i1];
+                float len = c.d;
+
+                paramEval( massInv0, massInv1, len, c, iconstraint );
+
+                Vector3 dpos0, dpos1;
+                bxPhx::pbd_solveDistanceConstraint( &dpos0, &dpos1, p0, p1, massInv0, massInv1, c.d, 1.f, 1.f );
+
+                cp->pos1[c.i0] += dpos0;
+                cp->pos1[c.i1] += dpos1;
+            }
+        }
+    };
+
+    struct PBD_VelPlug_Null
+    {
+        void operator() ( Vector3& vel, int ipoint, float deltaTime ) { (void)vel; (void)ipoint; }
+    };
+
+    struct PBD_VelPlug_MainBody
+    {
+        Vector3 inputVec;
+        Vector3 jumpVec;
+        Character::Body* body;
+
+        void operator() ( Vector3& vel, int ipoint, float deltaTime )
+        {
+            if ( ipoint == body->particleBegin )
+            {
+                vel += inputVec;
+            }
+
+            vel += jumpVec;
+        }
+    };
+
+    struct PBD_VelPlug_ShapeBody
+    {
+        Vector3 inputVec;
+        Vector3 jumpVec;
+
+        void operator() ( Vector3& vel, int ipoint, float deltaTime )
+        {
+            vel += inputVec;
+            vel += jumpVec;
+        }
+    };
+
+    struct PBD_ConstraintParamEval_Null
+    {
+        void operator() ( float& massInv0, float& massInv1, float& restLength, const Constraint& c, int iconstrait )
+        {
+            (void)massInv0;
+            (void)massInv1;
+            (void)restLength;
+            (void)c;
+            (void)iconstrait;
+        }
+    };
+
+    struct PBD_ConstraintParamEval_Wheel
+    {
+        void operator() ( float& massInv0, float& massInv1, float& restLength, const Constraint& c, int iconstrait )
+        {
+            //massInv0 = 0.f;
+        }
+    };
+}
+
 
 namespace bxGame{
 
@@ -63,7 +244,7 @@ static inline int computeShapeTriangleCount( int nIterations )
     return bxPolyShape_computeNumTriangles( iter );
 }
 
-void character_init( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const Matrix4& worldPose )
+void character_init( Character* ch, bxGdiDeviceBackend* dev, bxDemoScene* scene, const Matrix4& worldPose )
 {
     const int BODY_SHAPE_ITERATIONS = 3;
     
@@ -101,13 +282,13 @@ void character_init( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* 
 
     //CharacterInternal::initMainBody( ch, worldPose );
     CharacterInternal::initShapeBody( ch, BODY_SHAPE_ITERATIONS, worldPose );
-    CharacterInternal::initShapeMesh( ch, dev, resourceManager );
-    ch->contacts = bxPhx::contacts_new( nPoints );
+    CharacterInternal::initShapeMesh( ch, dev, scene->gfxScene );
+    bx::phxContactsCreate( &ch->contacts, nPoints );
 }
-void character_deinit( Character* character, bxResourceManager* resourceManager )
+void character_deinit( Character* character, bxGdiDeviceBackend* dev )
 {
-    bxPhx::contacts_delete( &character->contacts );
-    CharacterInternal::deinitShapeMesh( character );
+    bx::phxContactsDestroy( &character->contacts );
+    CharacterInternal::deinitShapeMesh( character, dev );
     BodyRestPosition::free( &character->restPos );
     ConstraintData::free( &character->constraints );
     ParticleData::free( &character->particles );
@@ -117,6 +298,9 @@ void character_deinit( Character* character, bxResourceManager* resourceManager 
 void character_tick( Character* character, bxGdiContextBackend* ctx, bxDemoScene* scene, const bxInput& input, float deltaTime )
 {
     CharacterInternal::collectInputData( &character->input, input, deltaTime );
+
+    bx::GfxCamera* camera = scene->cameraManager->stack()->top();
+    const Matrix4 cameraWorld = bx::gfxCameraWorldMatrixGet( camera );
     Vector3 externalForces( 0.f );
     {
         externalForces += Vector3::xAxis() * character->input.analogX;
@@ -124,7 +308,7 @@ void character_tick( Character* character, bxGdiContextBackend* ctx, bxDemoScene
 
         const float maxInputForce = 0.25f;
         const floatInVec externalForcesValue = minf4( length( externalForces ), floatInVec( maxInputForce ) );
-        externalForces = projectVectorOnPlane( camera.matrix.world.getUpper3x3() * externalForces, Vector4( character->upVector, oneVec ) );
+        externalForces = projectVectorOnPlane( cameraWorld.getUpper3x3() * externalForces, Vector4( character->upVector, oneVec ) );
         externalForces = normalizeSafe( externalForces ) * externalForcesValue;
         character->_jumpAcc += character->input.jump * 10;
 
@@ -179,9 +363,12 @@ void character_tick( Character* character, bxGdiContextBackend* ctx, bxDemoScene
         //CharacterInternal::simulateMainBodyBegin( character, externalForces, fixedDt );
         CharacterInternal::simulateShapeBodyBegin( character, externalForces, fixedDt );
 
-        bxPhx::contacts_clear( character->contacts );
-        bxPhx::collisionSpace_collide( cspace, character->contacts, character->particles.pos1, character->particles.size );
+        bx::phxContactsClear( character->contacts );
+        bx::phxContactsCollide( character->contacts, scene->phxScene, character->particles.pos1, character->particles.size, 0.05f, Vector4( character->shapeBody.com.pos, 1.5f ) );
+        
+        PBD_Simulate::resolveContacts( &character->particles, character->contacts );
 
+        //bxGfxDebugDraw::addSphere( Vector4( character->shapeBody.com.pos, 1.5f ), 0xFF0000FF, true );
         CharacterInternal::simulateShapeUpdatePose( character, 1.f, shapeStiffness );
 
         CharacterInternal::simulateFinalize( character, staticFriction, dynamicFriction, fixedDt );
@@ -193,11 +380,11 @@ void character_tick( Character* character, bxGdiContextBackend* ctx, bxDemoScene
 
     if( doIteration )
     {
-        //bxGdiRenderSource* rsource = bxGfxExt::meshInstanceRenderSource( character->shapeMeshI );
-        //const bxGdiVertexBuffer& vbuffer = bxGdi::renderSourceVertexBuffer( rsource, 0 );
-        //MeshVertex* vertices = (MeshVertex*)ctx->mapVertices( vbuffer, 0, vbuffer.numElements, bxGdi::eMAP_WRITE );
-        //CharacterInternal::updateMesh( vertices, character->particles.pos0, character->particles.size, character->shapeMeshData.indices, character->shapeMeshData.nIndices );
-        //ctx->unmapVertices( vbuffer );
+        bxGdiRenderSource* rsource = bx::gfxMeshInstanceRenderSourceGet( character->meshInstance );
+        const bxGdiVertexBuffer& vbuffer = bxGdi::renderSourceVertexBuffer( rsource, 0 );
+        MeshVertex* vertices = (MeshVertex*)ctx->mapVertices( vbuffer, 0, vbuffer.numElements, bxGdi::eMAP_WRITE );
+        CharacterInternal::updateMesh( vertices, character->particles.pos0, character->particles.size, character->shapeMeshData.indices, character->shapeMeshData.nIndices );
+        ctx->unmapVertices( vbuffer );
     }
 
     //CharacterInternal::debugDraw( character );
@@ -567,14 +754,40 @@ void updateMesh( MeshVertex* vertices, const Vector3* points, int nPoints, const
     }
 }
 
-void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bx::GfxScene* gfxScene )
 {
     const ParticleData& p = ch->particles;
     const Character::Body& body = ch->shapeBody;
     const int nPoints = body.particleCount();
 
-    MeshVertex* vertices = (MeshVertex*)BX_MALLOC( bxDefaultAllocator(), nPoints * sizeof( MeshVertex ), 4 );
-    updateMesh( vertices, p.pos0, nPoints, ch->shapeMeshData.indices, ch->shapeMeshData.nIndices );
+    //MeshVertex* vertices = (MeshVertex*)BX_MALLOC( bxDefaultAllocator(), nPoints * sizeof( MeshVertex ), 4 );
+    //updateMesh( vertices, p.pos0, nPoints, ch->shapeMeshData.indices, ch->shapeMeshData.nIndices );
+
+    bxGdiVertexStreamDesc sdesc;
+    sdesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
+    sdesc.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
+
+    bxGdiVertexBuffer vbuffer = dev->createVertexBuffer( sdesc, nPoints );
+    bxGdiIndexBuffer ibuffer = dev->createIndexBuffer( bxGdi::eTYPE_USHORT, ch->shapeMeshData.nIndices, ch->shapeMeshData.indices );
+
+    bxGdiRenderSource* rsource = bxGdi::renderSource_new( 1 );
+    bxGdi::renderSource_setVertexBuffer( rsource, vbuffer, 0 );
+    bxGdi::renderSource_setIndexBuffer( rsource, ibuffer );
+
+    bx::GfxMeshInstance* meshInstance = nullptr;
+    bx::gfxMeshInstanceCreate( &meshInstance, bx::gfxContextGet( gfxScene ) );
+
+    bx::GfxMeshInstanceData miData;
+    miData.renderSourceSet( rsource );
+    miData.fxInstanceSet( bx::gfxMaterialFind( "white" ) );
+    miData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
+
+    bx::gfxMeshInstanceDataSet( meshInstance, miData );
+    bx::gfxMeshInstanceWorldMatrixSet( meshInstance, &Matrix4::identity(), 1 );
+
+    bx::gfxSceneMeshInstanceAdd( gfxScene, meshInstance );
+
+    ch->meshInstance = meshInstance;
 
     //bxGfx_StreamsDesc sdesc( nPoints, ch->shapeMeshData.nIndices );
     //sdesc.vstreamBegin().addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 ).addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
@@ -592,11 +805,16 @@ void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* r
     //Matrix4 pose = Matrix4::identity();
     //bxGfx::instanceBufferDataSet( hinst, &pose, 1 );
     
-    BX_FREE0( bxDefaultAllocator(), vertices );
+    //BX_FREE0( bxDefaultAllocator(), vertices );
 }
 
-void deinitShapeMesh( Character* ch )
+void deinitShapeMesh( Character* ch, bxGdiDeviceBackend* dev )
 {
+    bxGdiRenderSource* rsource = bx::gfxMeshInstanceRenderSourceGet( ch->meshInstance );
+    bx::gfxMeshInstanceDestroy( &ch->meshInstance );
+
+    bxGdi::renderSource_releaseAndFree( dev, &rsource );
+
     //bxGfx::worldMeshRemoveAndRelease( &ch->shapeMeshI );
 }
 
@@ -769,164 +987,7 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
     bxPolyShape_deallocateShape( &shape );
 }
 
-struct PBD_Simulate
-{
-    template< class TVelPlug >
-    static void predictPosition( ParticleData* cp, int pointBegin, int pointEnd, const Vector3& gravityVec, float damping, float deltaTime, TVelPlug& velPlug )
-    {
-        const floatInVec dtv( deltaTime );
-        const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( damping ), dtv );
 
-        for( int ipoint = pointBegin; ipoint < pointEnd; ++ipoint )
-        {
-            Vector3 pos = cp->pos0[ipoint];
-            Vector3 vel = cp->vel[ipoint];
-
-            vel += gravityVec * dtv;
-            vel *= dampingCoeff;
-
-            velPlug( vel, ipoint, deltaTime );
-            
-            pos += vel * dtv;
-
-            cp->pos1[ipoint] = pos;
-            cp->vel[ipoint] = vel;
-        }
-    }
-
-    static void applyFriction( ParticleData* cp, bxPhx_Contacts* contacts, float staticFriction, float dynamicFriction )
-    {
-        const int nContacts = bxPhx::contacts_size( contacts );
-
-        Vector3 normal( 0.f );
-        float depth = 0.f;
-        u16 index0 = 0xFFFF;
-        u16 index1 = 0xFFFF;
-
-        for( int icontact = 0; icontact < nContacts; ++icontact )
-        {
-            bxPhx::contacts_get( contacts, &normal, &depth, &index0, &index1, icontact );
-
-            //float fd = ( index0 < Character1::eMAIN_BODY_PARTICLE_COUNT ) ? dynamicFriction : 0.6f;
-
-            Vector3 dpos( 0.f );
-            bxPhx::pbd_computeFriction( &dpos, cp->pos0[index0], cp->pos1[index0], normal, depth, staticFriction, dynamicFriction );
-            cp->pos1[index0] += dpos;
-        }
-    }
-
-    static void softBodyUpdatePose( Vector3* comPos, Quat* comRot, ParticleData* cp, int pointBegin, int pointEnd, const Vector3* restPositions, float shapeStiffness, float shapeScale )
-    {
-        const int pointCount = pointEnd - pointBegin;
-        SYS_ASSERT( pointCount > 0 );
-
-        Matrix3 R;
-        Vector3 com;
-        bxPhx::pbd_softBodyUpdatePose( &R, &com, cp->pos1 + pointBegin, restPositions, cp->mass + pointBegin, pointCount );
-        comPos[0] = com;
-        comRot[0] = normalize( Quat( R ) );
-
-        //const Matrix3 R1 = appendScale( R, Vector3( shapeScale ) );
-        if( ::abs( shapeScale - 1.f ) > FLT_EPSILON )
-        {
-            R = appendScale( R, Vector3( shapeScale ) );
-        }
-        for( int ipoint = pointBegin, irestpos = 0; ipoint < pointEnd; ++ipoint, ++irestpos )
-        {
-            SYS_ASSERT( irestpos < pointCount );
-            Vector3 dpos( 0.f );
-            bxPhx::pbd_solveShapeMatchingConstraint( &dpos, R, com, restPositions[irestpos], cp->pos1[ipoint], shapeStiffness );
-            cp->pos1[ipoint] += dpos;
-        }
-    }
-
-    static void updateVelocity( ParticleData* cp, int pointBegin, int pointEnd, float deltaTimeInv )
-    {
-        for( int ipoint = pointBegin; ipoint < pointEnd; ++ipoint )
-        {
-            cp->vel[ipoint] = ( cp->pos1[ipoint] - cp->pos0[ipoint] ) * deltaTimeInv;
-            cp->pos0[ipoint] = cp->pos1[ipoint];
-        }
-    }
-
-    template< class TParamEval >
-    static void projectDistanceConstraint( ParticleData* cp, const Constraint* constraints, int nConstraints, float stiffness, TParamEval paramEval )
-    {
-        for( int iconstraint = 0; iconstraint < nConstraints; ++iconstraint )
-        {
-            const Constraint& c = constraints[iconstraint];
-
-            const Vector3& p0 = cp->pos1[c.i0];
-            const Vector3& p1 = cp->pos1[c.i1];
-
-            float massInv0 = cp->massInv[c.i0];
-            float massInv1 = cp->massInv[c.i1];
-            float len = c.d;
-
-            paramEval( massInv0, massInv1, len, c, iconstraint );
-
-            Vector3 dpos0, dpos1;
-            bxPhx::pbd_solveDistanceConstraint( &dpos0, &dpos1, p0, p1, massInv0, massInv1, c.d, 1.f, 1.f );
-
-            cp->pos1[c.i0] += dpos0;
-            cp->pos1[c.i1] += dpos1;
-        }
-    }
-};
-
-struct PBD_VelPlug_Null
-{
-    void operator() ( Vector3& vel, int ipoint, float deltaTime ) { (void)vel; (void)ipoint; }
-};
-
-struct PBD_VelPlug_MainBody
-{
-    Vector3 inputVec;
-    Vector3 jumpVec;
-    Character::Body* body;
-    
-    void operator() ( Vector3& vel, int ipoint, float deltaTime )
-    {
-        if( ipoint == body->particleBegin )
-        {
-            vel += inputVec;
-        }
-
-        vel += jumpVec;
-    }
-};
-
-struct PBD_VelPlug_ShapeBody
-{
-    Vector3 inputVec;
-    Vector3 jumpVec;
-
-    void operator() ( Vector3& vel, int ipoint, float deltaTime )
-    {
-        vel += inputVec;
-        vel += jumpVec;
-    }
-};
-
-struct PBD_ConstraintParamEval_Null
-{
-    void operator() ( float& massInv0, float& massInv1, float& restLength, const Constraint& c, int iconstrait )
-    {
-        (void)massInv0;
-        (void)massInv1;
-        (void)restLength;
-        (void)c;
-        (void)iconstrait;
-    }
-};
-
-struct PBD_ConstraintParamEval_Wheel
-{
-    void operator() ( float& massInv0, float& massInv1, float& restLength, const Constraint& c, int iconstrait )
-    {
-        //massInv0 = 0.f;
-    }
-};
 //
 //void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime )
 //{

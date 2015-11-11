@@ -1,15 +1,15 @@
 #include "game.h"
-#include <gfx/gfx_camera.h>
-#include "util/debug.h"
-#include "util/signal_filter.h"
+#include <gfx/gfx.h>
+#include <util/debug.h>
+#include <util/signal_filter.h>
 
 namespace bxGame
 {
-    void characterCamera_follow( bxGfxCamera* camera, const Character* character, float deltaTime, int cameraMoved )
+    void characterCamera_follow( bx::GfxCamera* camera, const Character* character, float deltaTime, int cameraMoved )
     {
-        const Matrix4& cameraPose = camera->matrix.world;
+        const Matrix4& cameraPose = bx::gfxCameraWorldMatrixGet( camera );
         const Matrix3 cameraRot = cameraPose.getUpper3x3();
-        const Vector3 cameraPos = camera->matrix.worldEye();
+        const Vector3 cameraPos = bx::gfxCameraEye( camera );
         const Matrix4 characterPose = character_pose( character );
         const Vector3 characterPosition = characterPose.getTranslation();
         const Vector3 playerUpVector = character_upVector( character );
@@ -17,8 +17,8 @@ namespace bxGame
         const Vector3 toPlayerVec = ( characterPosition - cameraPos);
         const Vector3 toPlayerDir = normalize( toPlayerVec );
         
-        const float RC = (cameraMoved) ? 0.01f : 0.1f;
-        const Vector3 z = signalFilter_lowPass( -toPlayerDir, cameraRot.getCol2(), RC, deltaTime );
+        const float RC = (cameraMoved) ? 0.1f : 0.1f;
+        const Vector3 z = -toPlayerDir; // signalFilter_lowPass( -toPlayerDir, cameraRot.getCol2(), RC, deltaTime );
         const Vector3 x = normalize( cross( playerUpVector, z ) );
         const Vector3 y = normalize( cross( z, x ) );
 
@@ -32,11 +32,11 @@ namespace bxGame
         //const Quat rot = normalize( slerp( alpha, lookAtQ, cameraQ ) );
         //const Quat rot = normalize( slerp( deltaTime, cameraQ, lookAtQ ) );
         //camera->matrix.world.setUpper3x3( Matrix3( rot ) );
+        //camera->matrix.world.setUpper3x3( lookAtRot );
 
-        camera->matrix.world.setUpper3x3( lookAtRot );
 
         const floatInVec referenceDistance( 15.f );
-        const floatInVec cameraPosStiffness( 10.f * deltaTime );
+        const floatInVec cameraPosStiffness( 1.f * deltaTime );
 
         Vector3 dpos( 0.f );
         {
@@ -52,7 +52,9 @@ namespace bxGame
             dpos -= playerUpVector * diff * deltaTime;
         }
 
-        camera->matrix.world.setTranslation( cameraPos + dpos );
+        //camera->matrix.world.setTranslation( cameraPos + dpos );
+
+        bx::gfxCameraWorldMatrixSet( camera, Matrix4( lookAtRot, cameraPos + dpos ) );
 
     }
 }///

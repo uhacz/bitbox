@@ -11,7 +11,7 @@
 #include <gdi/gdi_render_source.h>
 #include <gdi/gdi_context.h>
 #include "voxel_container.h"
-#include <gfx/gfx_camera.h>
+//#include <gfx/gfx_camera.h>
 
 #include <algorithm>
 

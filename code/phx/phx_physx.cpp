@@ -516,7 +516,9 @@ namespace bx
                 bool penetration = PxGeometryQuery::computePenetration( normal, depth, pointGeom, pointPose, hitGeom.any(), hitPose );
                 if( penetration )
                 {
-                    phxContactsPushBack( con, toVector3( normal ), depth, (u16)ip );
+                    const Vector3 normalV3 = toVector3( normal );
+                    phxContactsPushBack( con, normalV3, depth, (u16)ip );
+                    //points[ip] += normalV3 * depth;
                     ++nCollisions;
                 }
             }

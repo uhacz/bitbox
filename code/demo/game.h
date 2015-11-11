@@ -8,6 +8,7 @@
 struct bxInput;
 struct bxGfxCamera;
 struct bxGdiContextBackend;
+struct bxDemoScene;
 
 namespace bxGame
 {
@@ -15,8 +16,8 @@ namespace bxGame
     Character* character_new();
     void character_delete( Character** character );
 
-    void character_init( Character* character, bxGdiDeviceBackend* dev, const Matrix4& worldPose );
-    void character_deinit( Character* character );
+    void character_init( Character* character, bxGdiDeviceBackend* dev, bxDemoScene* scene, const Matrix4& worldPose );
+    void character_deinit( Character* character, bxGdiDeviceBackend* dev );
     void character_tick( Character* character, bxGdiContextBackend* gdi, bxDemoScene* scene, const bxInput& input, float deltaTime );
 
     Matrix4 character_pose( const Character* character );
@@ -25,7 +26,7 @@ namespace bxGame
 
 namespace bxGame
 {
-    void characterCamera_follow( bxGfxCamera* camera, const Character* character, float deltaTime, int cameraMoved = 0 );
+    void characterCamera_follow( bx::GfxCamera* camera, const Character* character, float deltaTime, int cameraMoved = 0 );
 }///
 
 //namespace bxGame

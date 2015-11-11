@@ -4,7 +4,7 @@
 #include <util/string_util.h>
 #include <util/debug.h>
 #include <string.h>
-#include "renderer.h"
+#include <gfx/gfx.h>
 
 namespace bx
 { 

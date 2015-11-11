@@ -8,7 +8,7 @@
 #include <util/pool_allocator.h>
 #include <util/buffer_utils.h>
 #include <gdi/gdi_render_source.h>
-#include <gfx/gfx_type.h>
+//#include <gfx/gfx_type.h>
 #include <string.h>
 
 bxEntity_Id bxEntity_Manager::create()

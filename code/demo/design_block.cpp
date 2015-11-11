@@ -1,5 +1,5 @@
 #include "design_block.h"
-#include "renderer.h"
+#include <gfx/gfx.h>
 #include <phx/phx.h>
 
 #include <util/debug.h>

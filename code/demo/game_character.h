@@ -2,10 +2,15 @@
 
 #include <util/vectormath/vectormath.h>
 #include <system/input.h>
-#include <gfx/gfx.h>
 
-struct bxPhx_Contacts;
-struct bxGfxCamera;
+struct bxGdiDeviceBackend;
+
+namespace bx
+{
+    struct GfxScene;
+    struct PhxContacts;
+    struct GfxMeshInstance;
+}///
 
 namespace bxGame
 {
@@ -129,10 +134,11 @@ namespace bxGame
 
         Input input;
 
-        bxPhx_Contacts* contacts;
-        f32 _dtAcc;
-        f32 _jumpAcc;
-        f32 _shapeBlendAlpha;
+        bx::GfxMeshInstance* meshInstance = nullptr;
+        bx::PhxContacts* contacts = nullptr;
+        f32 _dtAcc = 0.f;
+        f32 _jumpAcc = 0.f;
+        f32 _shapeBlendAlpha = 0.f;
     };
 
     namespace CharacterInternal
@@ -142,8 +148,8 @@ namespace bxGame
 
         //void initMainBody( Character1* ch, const Matrix4& worldPose );
         void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose );
-        void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-        void deinitShapeMesh( Character* ch );
+        void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bx::GfxScene* gfxScene );
+        void deinitShapeMesh( Character* ch, bxGdiDeviceBackend* dev );
         //void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime );
         void simulateShapeBodyBegin( Character* ch, const Vector3& extForce, float deltaTime );
         void simulateShapeUpdatePose( Character* ch, float shapeScale, float shapeStiffness );
