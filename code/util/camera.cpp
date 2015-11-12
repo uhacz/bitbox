@@ -123,6 +123,23 @@ namespace bx{ namespace gfx{
         _upDown      = signalFilter_lowPass( new_upDown, _upDown, rc, dt );
     }
 
+    void CameraInputContext::updateInput( float analogX, float analogY, float dt )
+    {
+        const float new_leftInputY = 0.f;
+        const float new_leftInputX = analogX;
+        const float new_upDown = analogY;
+
+        const float new_rightInputX = 0.f;
+        const float new_rightInputY = 0.f;
+        
+        const float rc = 0.1f;
+        _leftInputX = signalFilter_lowPass( new_leftInputX, _leftInputX, rc, dt );
+        _leftInputY = signalFilter_lowPass( new_leftInputY, _leftInputY, rc, dt );
+        _rightInputX = signalFilter_lowPass( new_rightInputX, _rightInputX, rc, dt );
+        _rightInputY = signalFilter_lowPass( new_rightInputY, _rightInputY, rc, dt );
+        _upDown = signalFilter_lowPass( new_upDown, _upDown, rc, dt );
+    }
+
     bool CameraInputContext::anyMovement() const
     {
         const float sum =

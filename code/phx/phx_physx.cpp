@@ -87,24 +87,15 @@ struct PhxContext
 {
     PhysxAllocator				allocator;
     PhysxErrorCallback			errorCallback;
-    PxFoundation*				foundation;
-    PxPhysics*					physics;
-    PxCooking*					cooking;
-    PxMaterial*					defaultMaterial;
-    PxDefaultCpuDispatcher*		cpuDispatcher;
+    PxFoundation*				foundation = nullptr;
+    PxPhysics*					physics = nullptr;
+    PxCooking*					cooking = nullptr;
+    PxMaterial*					defaultMaterial = nullptr;
+    PxDefaultCpuDispatcher*		cpuDispatcher = nullptr;
 
-    i32 flag_enableDebugDraw;
-    i32 flag_enableDebugDrawDepth;
-
-    PhxContext()
-        : foundation( nullptr )
-        , physics( nullptr )
-        , cooking( nullptr )
-        , defaultMaterial( nullptr )
-        , cpuDispatcher( nullptr )
-        , flag_enableDebugDraw( 1 )
-        , flag_enableDebugDrawDepth( 1 )
-    {}
+    i32 flag_enableDebugDraw = 0;
+    i32 flag_enableDebugDrawDepth = 1;
+    
 };
 
 struct PhxScene
@@ -114,21 +105,13 @@ struct PhxScene
         eSCRATCH_BUFFER_SIZE = 16 * 1024 * 4,
     };
 
-    PhxContext*   ctx;
-    PxScene* scene;
-    PxControllerManager* controllerManager;
-    Stepper* stepper;
-    void* scratchBuffer;
+    PhxContext*   ctx = nullptr;
+    PxScene* scene = nullptr;
+    PxControllerManager* controllerManager = nullptr;
+    Stepper* stepper = nullptr;
+    void* scratchBuffer = nullptr;
 
     PhysxSimulationCallback callback;
-
-    PhxScene()
-        : ctx( nullptr )
-        , scene( nullptr )
-        , controllerManager( nullptr )
-        , stepper( nullptr )
-        , scratchBuffer( nullptr )
-    {}
 };
 
 bool phxContextStartup( PhxContext** phx, int maxThreads )
@@ -353,10 +336,9 @@ struct PhxGeometryConversion
     PxBoxGeometry box;
     PxSphereGeometry sphere;
     PxCapsuleGeometry capsule;
-    PxGeometry* geometry;
+    PxGeometry* geometry = nullptr;
 
     PhxGeometryConversion( const PhxGeometry& g )
-        : geometry( nullptr )
     {
         switch( g.type )
         {

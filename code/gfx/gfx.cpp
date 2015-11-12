@@ -581,6 +581,8 @@ namespace bx
         scene->_lockCmd.lock();
         array::push_back( scene->_cmd, cmd );
         scene->_lockCmd.unlock();
+
+        meshI->_scene = scene;
     }
     void gfxSceneMeshInstanceRemove( GfxScene* scene, GfxMeshInstance* meshI )
     {

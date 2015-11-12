@@ -178,14 +178,23 @@ public:
         {
             bxInput* input = &win->input;
             bxInput_Mouse* inputMouse = &input->mouse;
-            cameraInputCtx.updateInput( inputMouse->currentState()->lbutton
-                                        , inputMouse->currentState()->mbutton
-                                        , inputMouse->currentState()->rbutton
-                                        , inputMouse->currentState()->dx
-                                        , inputMouse->currentState()->dy
-                                        , 0.01f
-                                        , deltaTime );
+            bxInput_PadState* inputPad = input->pad.currentState();
 
+            if( inputPad->connected )
+            {
+                const float sensitivity = 3.f;
+                cameraInputCtx.updateInput( inputPad->analog.right_X * sensitivity, -inputPad->analog.right_Y * sensitivity, deltaTime );
+            }
+            else
+            {
+                cameraInputCtx.updateInput( inputMouse->currentState()->lbutton
+                                            , inputMouse->currentState()->mbutton
+                                            , inputMouse->currentState()->rbutton
+                                            , inputMouse->currentState()->dx
+                                            , inputMouse->currentState()->dy
+                                            , 0.01f
+                                            , deltaTime );
+            }
             const Matrix4 newCameraMatrix = cameraInputCtx.computeMovement( bx::gfxCameraWorldMatrixGet( camera ), 0.15f );
             bx::gfxCameraWorldMatrixSet( camera, newCameraMatrix );
 

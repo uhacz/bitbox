@@ -32,6 +32,7 @@ namespace bx{ namespace gfx{
         CameraInputContext();
 
         void updateInput( int mouseL, int mouseM, int mouseR, int mouseDx, int mouseDy, float mouseSensitivityInPix, float dt );
+        void updateInput( float analogX, float analogY, float dt );
         bool anyMovement() const;
         Matrix4 computeMovement( const Matrix4& world, float sensitivity ) const;
     };

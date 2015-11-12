@@ -70,6 +70,22 @@ Texture2D _texShadow : register(t5);
 SamplerState _samplSAO : register(s4);
 
 
+#define SUN_ANGULAR_DIAMETER  0.00471238898038468986
+#define SUN_ANGULAR_DIAMETER_SIN 0.00471237153937342249
+#define SUN_ANGULAR_DIAMETER_COS 0.9999888967155959894
+
+float3 calculateSunDirectionSpecular( float3 sunDirection, float3 worldPos )
+{
+    float3 D = sunDirection;
+    float3 R = normalize( normalize( worldPos ) - D );
+    float r = SUN_ANGULAR_DIAMETER_SIN; // Disk radius
+    float d = SUN_ANGULAR_DIAMETER_COS; // Distance to disk
+    // Closest point to a disk ( since the radius is small , this is
+    // a good approximation
+    float DdotR = dot( D, R );
+    float3 S = R - DdotR * D;
+    float3 L = DdotR < d ? normalize( d * D + normalize( S ) * r ) : R;    return L;
+}
 
 out_PS ps_main( in_PS IN )
 {
@@ -83,15 +99,17 @@ out_PS ps_main( in_PS IN )
     const float ssao = _texSAO.SampleLevel( _samplSAO, shadowUV, 0.0 ).r;
 
     const float3 L = -_sunDirection;
-    const float3 H = normalize( L + V );
+    const float3 Ls = -calculateSunDirectionSpecular( _sunDirection, IN.w_pos );
+    const float3 H = normalize( Ls + V );
 
     const float NdotL_raw = dot( N, L );
     const float NdotL = saturate( NdotL_raw );
+    const float NdotLs = saturate( dot( N, Ls ) );
     const float NdotV = saturate( dot( N, V ) );
     const float NdotH = saturate( dot( N, H ) );
-    const float HdotL = saturate( dot( H, L ) );
+    const float HdotLs = saturate( dot( H, Ls ) );
 
-    float2 specular = computeSpecular( specularCoeff, roughnessCoeff, NdotH, NdotL, NdotV, HdotL );
+    float2 specular = computeSpecular( specularCoeff, roughnessCoeff, NdotH, NdotLs, NdotV, HdotLs );
     float diffuse = diffuseCoeff * (1.0 - specular.y);
 
     float3 direct;
@@ -108,6 +126,6 @@ out_PS ps_main( in_PS IN )
 
     float3 c = lerp( ambient, direct, NdotL * shadow );
 
-    OUT.rgba = float4( c, 1.0);
+        OUT.rgba = float4(c, 1.0);
     return OUT;
 }

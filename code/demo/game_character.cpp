@@ -385,6 +385,13 @@ void character_tick( Character* character, bxGdiContextBackend* ctx, bxDemoScene
         MeshVertex* vertices = (MeshVertex*)ctx->mapVertices( vbuffer, 0, vbuffer.numElements, bxGdi::eMAP_WRITE );
         CharacterInternal::updateMesh( vertices, character->particles.pos0, character->particles.size, character->shapeMeshData.indices, character->shapeMeshData.nIndices );
         ctx->unmapVertices( vbuffer );
+
+        
+        const Vector3 minAABB = character->shapeBody.com.pos - Vector3( 0.5f );
+        const Vector3 maxAABB = character->shapeBody.com.pos + Vector3( 0.5f );
+        bx::GfxMeshInstanceData miData;
+        miData.locaAABBSet( minAABB, maxAABB );
+        bx::gfxMeshInstanceDataSet( character->meshInstance, miData );
     }
 
     //CharacterInternal::debugDraw( character );
@@ -585,10 +592,25 @@ void debugDraw( Character* character )
 }
 void collectInputData( Character::Input* charInput, const bxInput& input, float deltaTime )
 {
-    const bxInput_Pad& pad = bxInput_getPad( input );
-    if( pad.currentState()->connected )
-    {
+    float analogX = 0.f;
+    float analogY = 0.f;
+    float jump = 0.f;
+    float crouch = 0.f;
+    float L2 = 0.f;
+    float R2 = 0.f;
 
+    const bxInput_Pad& pad = bxInput_getPad( input );
+    const bxInput_PadState* padState = pad.currentState();
+    if( padState->connected )
+    {
+        analogX = padState->analog.left_X;
+        analogY = padState->analog.left_Y;
+
+        crouch = (f32)bxInput_isPadButtonPressedOnce( pad, bxInput_PadState::eCIRCLE );
+        jump = (f32)bxInput_isPadButtonPressedOnce( pad, bxInput_PadState::eCROSS );
+
+        L2 = padState->analog.L2;
+        R2 = padState->analog.R2;
     }
     else
     {
@@ -603,21 +625,25 @@ void collectInputData( Character::Input* charInput, const bxInput& input, float 
         const int inL2 = bxInput_isKeyPressed( kbd, 'Q' );
         const int inR2 = bxInput_isKeyPressed( kbd, 'E' );
 
-        const float analogX = -(float)inLeft + (float)inRight;
-        const float analogY = -(float)inBack + (float)inFwd;
+        analogX = -(float)inLeft + (float)inRight;
+        analogY = -(float)inBack + (float)inFwd;
 
-        const float crouch = (f32)inCrouch;
-        const float jump = (f32)inJump;
+        crouch = (f32)inCrouch;
+        jump = (f32)inJump;
 
-        const float RC = 0.01f;
-        charInput->analogX = signalFilter_lowPass( analogX, charInput->analogX, RC, deltaTime );
-        charInput->analogY = signalFilter_lowPass( analogY, charInput->analogY, RC, deltaTime );
-        charInput->jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
-        charInput->crouch = signalFilter_lowPass( crouch, charInput->crouch, RC, deltaTime );
-        charInput->L2 = (float)inL2;
-        charInput->R2 = (float)inR2;
+        L2 = (float)inL2;
+        R2 = (float)inR2;
+        
         //bxLogInfo( "x: %f, y: %f", charInput->analogX, charInput->jump );
     }
+
+    const float RC = 0.01f;
+    charInput->analogX = signalFilter_lowPass( analogX, charInput->analogX, RC, deltaTime );
+    charInput->analogY = signalFilter_lowPass( analogY, charInput->analogY, RC, deltaTime );
+    charInput->jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
+    charInput->crouch = signalFilter_lowPass( crouch, charInput->crouch, RC, deltaTime );
+    charInput->L2 = L2;
+    charInput->R2 = R2;
 }
 
 
