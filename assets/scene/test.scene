@@ -1,33 +1,114 @@
+@camera front
+$pos 0.0 0.0 100.1
+$rot 0.0 0.0 0.0
+
 @camera persp
-$pos 0.0 0.0 150.0
-:camera_push "persp"
+$pos 7.43768955234 11.366316445 -30.0190104242
+$rot -21.3383527297 185.0 0.0
 
-@voxel dragon
-$pos -80.0 0.0 0.0
-$rot 0.0 -0.1 0.0
-$file "model/dragon.vox"
+@camera side
+$pos 100.1 0.0 0.0
+$rot 0.0 90.0 0.0
 
-@voxel teapot
-$pos 80.0 40.0 0.0
-$rot -0.0 -0.0 -0.0
-$file "model/teapot.vox"
+@camera top
+$pos 0.0 100.1 0.0
+$rot -90.0 0.0 0.0
 
-@voxel plane0
-$pos -50.0 -50.0 0.0
-:addPlane 100 100 0xFF0000FF
+@dblock pSphere1
+$shape 1.0
+$pos -5.48555649645 0.0 4.55625378591
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
 
-@voxel plane1
-$pos 50.0 -50.0 0.0
-:addPlane 100 100 0x00FF00FF
+@dblock pSphere2
+$shape 5.53092022026
+$pos 14.7805807679 2.26371525258 -13.155275088
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
 
-@voxel plane2
-$pos 0.0 -50.0 -50.0
-:addPlane 100 100 0x0000FFFF
+@dblock pCube1
+$shape 0.5 0.5 2.5
+$pos -5.03214555148 0.0 -6.65725432685
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
 
-@voxel plane3
-$pos 0.0 -50.0 50.0
-:addPlane 100 100 0x666666FF
+@dblock pCube2
+$shape 25.0 0.5 25.0
+$pos 0.0 -0.676926973568 0.0
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
 
-@voxel sphere0
-$pos 0.0 25.0 0.0
-:addSphere 25 125
+@dblock pCube3
+$shape 0.5 0.5 2.5
+$pos -4.00406464845 0.821105981592 -6.65725432685
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
+
+@dblock pCube4
+$shape 0.5 0.5 2.5
+$pos -3.08531845382 1.64545722368 -6.65725432685
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
+
+@dblock pCube5
+$shape 0.5 0.5 2.5
+$pos -2.17150168357 2.50169217197 -6.54014982053
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
+
+@dblock pCube6
+$shape 0.5 0.5 2.5
+$pos -1.27779039421 3.17263115795 -6.21568037446
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
+
+@dblock pCube7
+$shape 0.5 0.5 2.5
+$pos -0.219849605561 3.88200822197 -6.65725432685
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
+
+@dblock pCube8
+$shape 0.5 0.5 2.5
+$pos 0.575568086888 4.74903530655 -6.65725432685
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
+
+@dblock pCube9
+$shape 0.5 0.5 2.5
+$pos 1.48442649973 5.57510598077 -6.65725432685
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
+
+@dblock pCube10
+$shape 0.5 0.5 2.5
+$pos 2.56034910804 6.36643186073 -6.65725432685
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
+
+@dblock pCube11
+$shape 0.5 0.5 2.5
+$pos 3.25686482717 7.08873012902 -6.65725432685
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
+
+@dblock pCube12
+$shape 3.59315788583 0.5 2.39710527274
+$pos 7.12624428688 8.03456698934 -6.65725432685
+$rot 0.0 0.0 0.0
+$material "grey"
+:dblock_commit
+
