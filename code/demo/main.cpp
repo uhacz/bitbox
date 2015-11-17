@@ -186,7 +186,7 @@ public:
             if( inputPad->connected && !useDebugCamera )
             {
                 const float sensitivity = 3.f;
-                cameraInputCtx.updateInput( inputPad->analog.right_X * sensitivity, -inputPad->analog.right_Y * sensitivity, deltaTime );
+                cameraInputCtx.updateInput( -inputPad->analog.right_X * sensitivity, inputPad->analog.right_Y * sensitivity, deltaTime );
             }
             else
             {

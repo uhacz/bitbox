@@ -35,7 +35,7 @@ namespace bxGame
         //camera->matrix.world.setUpper3x3( lookAtRot );
 
 
-        const floatInVec referenceDistance( 15.f );
+        const floatInVec referenceDistance( 10.f );
         const floatInVec cameraPosStiffness( 1.f * deltaTime );
 
         Vector3 dpos( 0.f );

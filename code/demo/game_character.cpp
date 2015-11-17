@@ -303,10 +303,12 @@ void character_tick( Character* character, bxGdiContextBackend* ctx, bxDemoScene
     const Matrix4 cameraWorld = bx::gfxCameraWorldMatrixGet( camera );
     Vector3 externalForces( 0.f );
     {
-        externalForces += Vector3::xAxis() * character->input.analogX;
-        externalForces -= Vector3::zAxis() * character->input.analogY;
-
+        Vector3 xInputForce = Vector3::xAxis() * character->input.analogX;
+        Vector3 yInputForce = -Vector3::zAxis() * character->input.analogY;
+        
         const float maxInputForce = 0.25f;
+        externalForces = (xInputForce + yInputForce) * maxInputForce;
+
         const floatInVec externalForcesValue = minf4( length( externalForces ), floatInVec( maxInputForce ) );
         externalForces = projectVectorOnPlane( cameraWorld.getUpper3x3() * externalForces, Vector4( character->upVector, oneVec ) );
         externalForces = normalizeSafe( externalForces ) * externalForcesValue;
