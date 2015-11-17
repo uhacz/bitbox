@@ -39,6 +39,8 @@ int bxApplication_run( bxApplication* app )
             kbdState->keys[i] = ( GetAsyncKeyState( i ) & 0x8000 ) != 0;
         }
 
+        kbdState->keys[bxInput::eKEY_CAPSLOCK] = ( GetKeyState( VK_CAPITAL ) & 0x0001 );
+
 		bxInput_updatePad( win->input.pad.currentState(), 1 );
 		bxInput_computeMouseDelta( win->input.mouse.currentState(), win->input.mouse.previousState() );
 

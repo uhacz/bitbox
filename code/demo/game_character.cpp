@@ -246,7 +246,7 @@ static inline int computeShapeTriangleCount( int nIterations )
 
 void character_init( Character* ch, bxGdiDeviceBackend* dev, bxDemoScene* scene, const Matrix4& worldPose )
 {
-    const int BODY_SHAPE_ITERATIONS = 3;
+    const int BODY_SHAPE_ITERATIONS = 6;
     
     //ch->mainBody.particleBegin = 0;
     //ch->mainBody.particleEnd = 3;

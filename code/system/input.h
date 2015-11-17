@@ -126,6 +126,7 @@ struct bxInput
         eKEY_RIGHT = 39,
         eKEY_DOWN = 40,
         eKEY_LSHIFT = 16,
+        eKEY_CAPSLOCK = 0x14,
 	};
 
     bxInput_Keyboard kbd;

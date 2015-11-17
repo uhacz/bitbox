@@ -164,6 +164,9 @@ public:
             return false;
         }
 
+
+        const bool useDebugCamera = bxInput_isKeyPressed( &win->input.kbd, bxInput::eKEY_CAPSLOCK );
+
         bxGfxGUI::newFrame( (float)deltaTimeS );
 
         {
@@ -180,7 +183,7 @@ public:
             bxInput_Mouse* inputMouse = &input->mouse;
             bxInput_PadState* inputPad = input->pad.currentState();
 
-            if( inputPad->connected )
+            if( inputPad->connected && !useDebugCamera )
             {
                 const float sensitivity = 3.f;
                 cameraInputCtx.updateInput( inputPad->analog.right_X * sensitivity, -inputPad->analog.right_Y * sensitivity, deltaTime );
@@ -209,7 +212,10 @@ public:
         
         {//// game update
             bxGame::character_tick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
-            bxGame::characterCamera_follow( camera, __scene.character, deltaTime, cameraInputCtx.anyMovement() );
+            if( !useDebugCamera )
+            {
+                bxGame::characterCamera_follow( camera, __scene.character, deltaTime, cameraInputCtx.anyMovement() );
+            }
         }
 
         bx::gfxCameraComputeMatrices( camera );
