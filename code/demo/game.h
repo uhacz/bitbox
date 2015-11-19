@@ -52,3 +52,20 @@ namespace bxGame
 
 
 
+namespace bx
+{
+    struct GraphActor
+    {
+        virtual ~GraphActor() {}
+
+        virtual void load() {}
+        virtual void unload() {}
+
+        virtual void parallelTick() {}
+        virtual void serialTick() {}
+
+        
+    };
+
+
+}////
