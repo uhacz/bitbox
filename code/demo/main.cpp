@@ -212,6 +212,7 @@ public:
         
         {//// game update
             bxGame::character_tick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
+            bx::terrainTick( __scene.terrain, bxGame::character_pose( __scene.character ).getTranslation(), deltaTime );
             if( !useDebugCamera )
             {
                 bxGame::characterCamera_follow( camera, __scene.character, deltaTime, cameraInputCtx.anyMovement() );

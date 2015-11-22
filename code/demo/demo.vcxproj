@@ -96,6 +96,7 @@
     <ClCompile Include="physics.cpp" />
     <ClCompile Include="physics_pbd.cpp" />
     <ClCompile Include="scene.cpp" />
+    <ClCompile Include="terrain.cpp" />
     <ClCompile Include="test_console.cpp" />
     <ClCompile Include="tree.cpp" />
   </ItemGroup>
@@ -144,6 +145,7 @@
     <ClInclude Include="physics.h" />
     <ClInclude Include="physics_pbd.h" />
     <ClInclude Include="scene.h" />
+    <ClInclude Include="terrain.h" />
     <ClInclude Include="test_console.h" />
     <ClInclude Include="tree.h" />
   </ItemGroup>

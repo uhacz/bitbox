@@ -4,6 +4,7 @@
 #include "game.h"
 #include "design_block.h"
 #include "camera_manager.h"
+#include "terrain.h"
 
 #include <gfx/gfx.h>
 
@@ -15,13 +16,14 @@ namespace bx{
 
 struct bxDemoScene
 {
-    bx::CameraManager* cameraManager;
-    bx::DesignBlock* dblock;
+    bx::CameraManager* cameraManager = nullptr;
+    bx::DesignBlock* dblock = nullptr;
     
-    bx::GfxScene* gfxScene;
-    bx::PhxScene* phxScene;
+    bx::GfxScene* gfxScene = nullptr;
+    bx::PhxScene* phxScene = nullptr;
 
-    bxGame::Character* character;
+    bxGame::Character* character = nullptr;
+    bx::Terrain* terrain = nullptr;
     //bxGame::Flock* flock;
 };
 
