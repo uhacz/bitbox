@@ -12,6 +12,8 @@
 #include <gfx/gfx_gui.h>
 #include <phx/phx.h>
 
+#include <cmath>
+
 namespace bx
 {
     union i32x3
@@ -31,16 +33,16 @@ namespace bx
     {
         Vector3 _prevPlayerPosition = Vector3( 0.f );
         f32 _tileSize = 2.f;
-        i32 _radius = 10;
+        i32 _radius = 1;
         
         i32 _centerX = 0;
         i32 _centerY = 0;
 
-        bxGrid _grid;
+        //bxGrid _grid;
 
-        u8*    _cellFlags = nullptr;
-        i32x3* _cellWorldCoords = nullptr;
         bx::PhxActor** _cellActors = nullptr;
+        i32x3* _cellWorldCoords = nullptr;
+        u8*    _cellFlags = nullptr;
         
     };
     
@@ -50,11 +52,10 @@ namespace bx
         Terrain* t = BX_NEW( bxDefaultAllocator(), Terrain );
 
         float radiusf = (float)t->_radius;
-        float numCells = ::ceil( 2.f * radiusf / t->_tileSize );
+        float numCells = ::ceil( ( 2 * radiusf ) + 1 );
         int numCellsi = (int)numCells;
-        t->_grid = bxGrid( numCellsi, numCellsi, numCellsi );
 
-        int gridCellCount = t->_grid.numCells();
+        int gridCellCount = numCellsi * numCellsi;
         int memSize = 0;
         memSize += gridCellCount * sizeof( *t->_cellFlags );
         memSize += gridCellCount * sizeof( *t->_cellWorldCoords );
@@ -64,9 +65,9 @@ namespace bx
         memset( mem, 0x00, memSize );
 
         bxBufferChunker chunker( mem, memSize );
-        t->_cellFlags = chunker.add< u8 >( gridCellCount );
-        t->_cellWorldCoords = chunker.add< i32x3 >( gridCellCount );
         t->_cellActors = chunker.add< bx::PhxActor* >( gridCellCount );
+        t->_cellWorldCoords = chunker.add< i32x3 >( gridCellCount );
+        t->_cellFlags = chunker.add< u8 >( gridCellCount );
         chunker.check();
 
         terr[0] = t;
@@ -77,7 +78,7 @@ namespace bx
         if ( !terr[0] )
             return;
 
-        BX_FREE0( bxDefaultAllocator(), terr[0]->_cellFlags );
+        BX_FREE0( bxDefaultAllocator(), terr[0]->_cellActors );
 
         BX_FREE0( bxDefaultAllocator(), terr[0] );
     }
@@ -99,32 +100,52 @@ namespace bx
         Vector3 currPosWorldRounded, prevPosWorldRounded;
         __m128i currPosWorldGrid, prevPosWorldGrid;
 
-        computeGridPositions( &currPosWorldRounded, &currPosWorldGrid, playerPosition, terr->_tileSize );
-        computeGridPositions( &prevPosWorldRounded, &prevPosWorldGrid, terr->_prevPlayerPosition, terr->_tileSize );
+        computeGridPositions( &currPosWorldRounded, &currPosWorldGrid, playerPosition, Vector3::yAxis(), terr->_tileSize );
+        computeGridPositions( &prevPosWorldRounded, &prevPosWorldGrid, terr->_prevPlayerPosition, Vector3::yAxis(), terr->_tileSize );
 
         const SSEScalar gridCoords0( prevPosWorldGrid );
         const SSEScalar gridCoords1( currPosWorldGrid );
 
-        const int gridCoordsDx = currPosWorldGrid.ix - prevPosWorldGrid.ix;
-        const int gridCoordsDz = currPosWorldGrid.iz - prevPosWorldGrid.iz;
+        const int gridCoordsDx = gridCoords0.ix - gridCoords1.ix;
+        const int gridCoordsDz = gridCoords0.iz - gridCoords1.iz;
+
+        int localGridX = terr->_centerX;
+        int localGridZ = terr->_centerY;
 
         if( gridCoordsDx > 0 )
         {
-            while( 
+            for ( int i = 0; i < gridCoordsDx; ++i )
+                localGridX = wrap_inc_i32( localGridX, -terr->_radius, terr->_radius );
+        }
+        else if( gridCoordsDx < 0 )
+        {
+            for ( int i = 0; i < ::abs( gridCoordsDx ); ++i )
+                localGridX = wrap_dec_i32( localGridX, -terr->_radius, terr->_radius );
         }
 
-        int localGridX = prevPosWorldGrid.ix;
-        int localGridZ = prevPosWorldGrid.iz;
+        if ( gridCoordsDz > 0 )
+        {
+            for ( int i = 0; i < gridCoordsDz; ++i )
+                localGridZ = wrap_inc_i32( localGridZ, -terr->_radius, terr->_radius );
+        }
+        else if ( gridCoordsDz < 0 )
+        {
+            for ( int i = 0; i < ::abs( gridCoordsDz ); ++i )
+                localGridZ = wrap_dec_i32( localGridZ, -terr->_radius, terr->_radius );
+        }
         
+        terr->_centerX = localGridX;
+        terr->_centerY = localGridZ;
 
         bxGfxDebugDraw::addBox( Matrix4::translation( currPosWorldRounded), Vector3( terr->_tileSize * 0.5f ), 0xFF00FF00, 1 );
 
         if( ImGui::Begin( "terrain" ) )
         {
-            ImGui::Text( "playerPosition: %.3f, %.3f, %.3f\nplayerPositionGrid: %.3f, %.3f, %.3f\n gridCoords: %d, %d, %d", 
+            ImGui::Text( "playerPosition: %.3f, %.3f, %.3f\nplayerPositionGrid: %.3f, %.3f, %.3f\ngridCoords: %d, %d, %d", 
                          playerPosition.getX().getAsFloat(), playerPosition.getY().getAsFloat(), playerPosition.getZ().getAsFloat(),
                          currPosWorldRounded.getX().getAsFloat(), currPosWorldRounded.getY().getAsFloat(), currPosWorldRounded.getZ().getAsFloat(),
                          gridCoords1.ix, gridCoords1.iy, gridCoords1.iz );
+            ImGui::Text( "localXY: %d, %d", terr->_centerX, terr->_centerY );
         }
         ImGui::End();
 
