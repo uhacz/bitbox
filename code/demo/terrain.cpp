@@ -33,11 +33,15 @@ namespace bx
         f32 _tileSize = 2.f;
         i32 _radius = 10;
         
+        i32 _centerX = 0;
+        i32 _centerY = 0;
+
+        bxGrid _grid;
+
         u8*    _cellFlags = nullptr;
         i32x3* _cellWorldCoords = nullptr;
         bx::PhxActor** _cellActors = nullptr;
         
-        bxGrid _grid;
     };
     
 
@@ -78,28 +82,54 @@ namespace bx
         BX_FREE0( bxDefaultAllocator(), terr[0] );
     }
 
+    void computeGridPositions( Vector3* posWorldRounded, __m128i* posGrid, const Vector3& inPos, const Vector3& upVector, float cellSize )
+    {
+        Vector3 positionOnPlane = projectPointOnPlane( inPos, Vector4( upVector, zeroVec ) );
+        Vector3 positionWorldRounded = positionOnPlane / cellSize;
+
+        const __m128i rounded = _mm_cvtps_epi32( _mm_round_ps( positionWorldRounded.get128(), _MM_FROUND_NINT ) );
+        positionWorldRounded = Vector3( _mm_cvtepi32_ps( rounded ) ) * cellSize;
+
+        posWorldRounded[0] = positionWorldRounded;
+        posGrid[0] = rounded;
+    }
+
     void terrainTick( Terrain* terr, const Vector3& playerPosition, float deltaTime )
     {
-        Vector3 playerPositionOnPlane = projectPointOnPlane( playerPosition, Vector4::yAxis() );
-        Vector3 playerPositionGrid = playerPositionOnPlane / terr->_tileSize;
+        Vector3 currPosWorldRounded, prevPosWorldRounded;
+        __m128i currPosWorldGrid, prevPosWorldGrid;
+
+        computeGridPositions( &currPosWorldRounded, &currPosWorldGrid, playerPosition, terr->_tileSize );
+        computeGridPositions( &prevPosWorldRounded, &prevPosWorldGrid, terr->_prevPlayerPosition, terr->_tileSize );
+
+        const SSEScalar gridCoords0( prevPosWorldGrid );
+        const SSEScalar gridCoords1( currPosWorldGrid );
+
+        const int gridCoordsDx = currPosWorldGrid.ix - prevPosWorldGrid.ix;
+        const int gridCoordsDz = currPosWorldGrid.iz - prevPosWorldGrid.iz;
+
+        if( gridCoordsDx > 0 )
+        {
+            while( 
+        }
+
+        int localGridX = prevPosWorldGrid.ix;
+        int localGridZ = prevPosWorldGrid.iz;
         
-        const __m128i rounded = _mm_cvtps_epi32( _mm_round_ps( playerPositionGrid.get128(), _MM_FROUND_NINT ) );
-        const SSEScalar gridCoords( rounded );
 
-        playerPositionGrid = Vector3( _mm_cvtepi32_ps( rounded ) ) * terr->_tileSize;
-        bxGfxDebugDraw::addBox( Matrix4::translation( playerPositionGrid ), Vector3( terr->_tileSize * 0.5f ), 0xFF00FF00, 1 );
-
+        bxGfxDebugDraw::addBox( Matrix4::translation( currPosWorldRounded), Vector3( terr->_tileSize * 0.5f ), 0xFF00FF00, 1 );
 
         if( ImGui::Begin( "terrain" ) )
         {
             ImGui::Text( "playerPosition: %.3f, %.3f, %.3f\nplayerPositionGrid: %.3f, %.3f, %.3f\n gridCoords: %d, %d, %d", 
                          playerPosition.getX().getAsFloat(), playerPosition.getY().getAsFloat(), playerPosition.getZ().getAsFloat(),
-                         playerPositionGrid.getX().getAsFloat(), playerPositionGrid.getY().getAsFloat(), playerPositionGrid.getZ().getAsFloat(),
-                         gridCoords.ix, gridCoords.iy, gridCoords.iz );
+                         currPosWorldRounded.getX().getAsFloat(), currPosWorldRounded.getY().getAsFloat(), currPosWorldRounded.getZ().getAsFloat(),
+                         gridCoords1.ix, gridCoords1.iy, gridCoords1.iz );
         }
         ImGui::End();
 
 
+        terr->_prevPlayerPosition = playerPosition;
     }
 
 }///
