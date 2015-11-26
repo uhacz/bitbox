@@ -217,6 +217,8 @@ public:
             {
                 bxGame::characterCamera_follow( camera, __scene.character, deltaTime, cameraInputCtx.anyMovement() );
             }
+
+            bxGfxDebugDraw::addAxes( appendScale( Matrix4::identity(), Vector3( 5.f ) ) );
         }
 
         bx::gfxCameraComputeMatrices( camera );

@@ -181,29 +181,42 @@ namespace bx
             terr->_centerGridSpaceX = localGridX;
             terr->_centerGridSpaceY = localGridZ;
         
-            if( gridCoordsDx > 0 )
+            if( ::abs( gridCoordsDx ) > 0 )
             {
-                u32 col = localGridX;
+                SYS_ASSERT( ::abs( gridCoordsDx ) < gridRadius );
                 
-                {/// compute column index in data array
-                    int n = gridRadius - gridCoordsDx;
-                    for( int i = 0; i < n; ++i )
-                        col = wrap_inc_u32( col, 0, gridWH - 1 );
-                }
-
-                SYS_ASSERT( gridCoordsDx < gridRadius );
-
+                const int cellSize = (int)terr->_tileSize;
+                const int colGap = gridRadius - ::abs( gridCoordsDx );
+                u32 col = localGridX;
                 u32 rowBegin = localGridZ;
-                for( int i = 0; i < gridRadius; ++i )
+                for ( int i = 0; i < gridRadius; ++i )
                     rowBegin = wrap_dec_u32( rowBegin, 0, gridWH - 1 );
 
-                const int cellSize = (int)terr->_tileSize;
-                const int endCol = gridRadius;
-                const int beginCol = endCol - gridCoordsDx;
-                for( int ix = beginCol; ix <= endCol; ++ix )
+                int endCol, beginCol;
+                if( gridCoordsDx > 0 )
                 {
+                    endCol = gridRadius + 1;
+                    beginCol = endCol - gridCoordsDx;
+
+                    /// compute column index in data array
+                    for ( int i = 0; i < colGap; ++i )
+                        col = wrap_inc_u32( col, 0, gridWH - 1 );
+                }
+                else
+                {
+                    beginCol = -gridRadius;
+                    endCol = beginCol - gridCoordsDx;
+
+                    /// compute column index in data array
+                    for ( int i = 0; i < colGap; ++i )
+                        col = wrap_dec_u32( col, 0, gridWH - 1 );
+                }
+
+                for ( int ix = beginCol; ix < endCol; ++ix )
+                {
+                    col = (gridCoordsDx > 0) ? wrap_inc_u32( col, 0, gridWH - 1 ) : wrap_dec_u32( col, 0, gridWH - 1 );
                     u32 row = rowBegin;
-                    for( int iz = -gridRadius; iz <= gridRadius; ++iz )
+                    for ( int iz = -gridRadius; iz <= gridRadius; ++iz )
                     {
                         int x = gridCoords1.ix + ix;
                         int z = gridCoords1.iz + iz;
@@ -216,8 +229,10 @@ namespace bx
 
                         row = wrap_inc_u32( row, 0, gridWH - 1 );
                     }
-                    col = wrap_inc_u32( col, 0, gridWH - 1 );
+
+                    
                 }
+
             }
         }
 
