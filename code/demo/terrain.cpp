@@ -46,7 +46,7 @@ namespace bx
     struct Terrain
     {
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
-        f32 _tileSize = 2.f;
+        f32 _tileSize = 3.f;
         i32 _radius = 2;
         
         u32 _centerGridSpaceX = _radius;
@@ -120,8 +120,8 @@ namespace bx
         const SSEScalar gridCoords0( prevPosWorldGrid );
         const SSEScalar gridCoords1( currPosWorldGrid );
 
-        const int gridCoordsDx = gridCoords0.ix - gridCoords1.ix;
-        const int gridCoordsDz = gridCoords0.iz - gridCoords1.iz;
+        const int gridCoordsDx = gridCoords1.ix - gridCoords0.ix;
+        const int gridCoordsDz = gridCoords1.iz - gridCoords0.iz;
 
         int gridRadius = terr->_radius;
         int gridWH = radiusToLength( gridRadius );
@@ -153,8 +153,8 @@ namespace bx
         }
         else
         {
-            int localGridX = terr->_centerGridSpaceX;
-            int localGridZ = terr->_centerGridSpaceY;
+            u32 localGridX = terr->_centerGridSpaceX;
+            u32 localGridZ = terr->_centerGridSpaceY;
 
             if( gridCoordsDx > 0 )
             {
@@ -181,13 +181,42 @@ namespace bx
             terr->_centerGridSpaceX = localGridX;
             terr->_centerGridSpaceY = localGridZ;
         
-            if( ::abs( gridCoordsDx ) > 0 )
+            if( gridCoordsDx > 0 )
             {
-                int endCol = gridCoords1.ix + gridRadius;
-                int beginCol = endCol - gridCoordsDx;
-                for( int ic = beginCol; ic <= endCol; ++ic )
+                u32 col = localGridX;
+                
+                {/// compute column index in data array
+                    int n = gridRadius - gridCoordsDx;
+                    for( int i = 0; i < n; ++i )
+                        col = wrap_inc_u32( col, 0, gridWH - 1 );
+                }
+
+                SYS_ASSERT( gridCoordsDx < gridRadius );
+
+                u32 rowBegin = localGridZ;
+                for( int i = 0; i < gridRadius; ++i )
+                    rowBegin = wrap_dec_u32( rowBegin, 0, gridWH - 1 );
+
+                const int cellSize = (int)terr->_tileSize;
+                const int endCol = gridRadius;
+                const int beginCol = endCol - gridCoordsDx;
+                for( int ix = beginCol; ix <= endCol; ++ix )
                 {
-                    aa
+                    u32 row = rowBegin;
+                    for( int iz = -gridRadius; iz <= gridRadius; ++iz )
+                    {
+                        int x = gridCoords1.ix + ix;
+                        int z = gridCoords1.iz + iz;
+
+                        i32x3 worldSpaceCoords( x * cellSize, 0, z * cellSize );
+
+                        int dataIndex = xyToIndex( col, row, gridWH );
+                        SYS_ASSERT( dataIndex < gridNumCells );
+                        terr->_cellWorldCoords[dataIndex] = worldSpaceCoords;
+
+                        row = wrap_inc_u32( row, 0, gridWH - 1 );
+                    }
+                    col = wrap_inc_u32( col, 0, gridWH - 1 );
                 }
             }
         }
