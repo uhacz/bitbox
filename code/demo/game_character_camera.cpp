@@ -3,16 +3,16 @@
 #include <util/debug.h>
 #include <util/signal_filter.h>
 
-namespace bxGame
+namespace bx
 {
-    void characterCamera_follow( bx::GfxCamera* camera, const Character* character, float deltaTime, int cameraMoved )
+    void characterCameraFollow( bx::GfxCamera* camera, const Character* character, float deltaTime, int cameraMoved )
     {
         const Matrix4& cameraPose = bx::gfxCameraWorldMatrixGet( camera );
         const Matrix3 cameraRot = cameraPose.getUpper3x3();
         const Vector3 cameraPos = bx::gfxCameraEye( camera );
-        const Matrix4 characterPose = character_pose( character );
+        const Matrix4 characterPose = characterPoseGet( character );
         const Vector3 characterPosition = characterPose.getTranslation();
-        const Vector3 playerUpVector = character_upVector( character );
+        const Vector3 playerUpVector = characterUpVectorGet( character );
         
         const Vector3 toPlayerVec = ( characterPosition - cameraPos);
         const Vector3 toPlayerDir = normalize( toPlayerVec );

@@ -214,40 +214,43 @@
 //    _data.worldPose[index] = parentPose * _data.localPose[index];
 //}
 
-
-void bxDemoScene_startup( bxDemoScene* scene, bxEngine* engine )
+namespace bx
 {
-    bx::gfxSceneCreate( &scene->gfxScene, engine->gfxContext );
-    bx::phxSceneCreate( &scene->phxScene, engine->phxContext );
+    void gameSceneStartup( GameScene* scene, bxEngine* engine )
+    {
+        bx::gfxSceneCreate( &scene->gfxScene, engine->gfxContext );
+        bx::phxSceneCreate( &scene->phxScene, engine->phxContext );
 
-    bx::designBlockStartup( &scene->dblock );
-    bx::cameraManagerStartup( &scene->cameraManager, engine->gfxContext );
+        bx::designBlockStartup( &scene->dblock );
+        bx::cameraManagerStartup( &scene->cameraManager, engine->gfxContext );
 
 
-    bx::terrainCreate( &scene->terrain );
-    scene->character = bxGame::character_new();
+        bx::terrainCreate( &scene->terrain, scene );
+        scene->character = bx::character_new();
 
-    //scene->flock = bxGame::flock_new();
+        //scene->flock = bxGame::flock_new();
 
-    bxGame::character_init( scene->character, engine->gdiDevice, scene, Matrix4( Matrix3::identity(), Vector3( 0.f, 2.f, 0.f ) ) );
-    //bxGame::flock_init( scene->flock, 128, Vector3( 0.f ), 5.f );
-}
+        bx::characterInit( scene->character, engine->gdiDevice, scene, Matrix4( Matrix3::identity(), Vector3( 0.f, 2.f, 0.f ) ) );
+        //bxGame::flock_init( scene->flock, 128, Vector3( 0.f ), 5.f );
+    }
 
-void bxDemoScene_shutdown( bxDemoScene* scene, bxEngine* engine )
-{
-    //bxGame::flock_delete( &scene->flock );
+    void gameSceneShutdown( GameScene* scene, bxEngine* engine )
+    {
+        //bxGame::flock_delete( &scene->flock );
 
-    bxGame::character_deinit( scene->character, engine->gdiDevice );
-    bxGame::character_delete( &scene->character );
+        bx::characterDeinit( scene->character, engine->gdiDevice );
+        bx::character_delete( &scene->character );
 
-    bx::terrainDestroy( &scene->terrain );
+        bx::terrainDestroy( &scene->terrain, scene );
 
-    bx::cameraManagerShutdown( &scene->cameraManager );
+        bx::cameraManagerShutdown( &scene->cameraManager );
     
-    scene->dblock->cleanUp();
-    scene->dblock->manageResources( scene->gfxScene, scene->phxScene );
-    bx::designBlockShutdown( &scene->dblock );
+        scene->dblock->cleanUp();
+        scene->dblock->manageResources( scene->gfxScene, scene->phxScene );
+        bx::designBlockShutdown( &scene->dblock );
     
-    bx::phxSceneDestroy( &scene->phxScene );
-    bx::gfxSceneDestroy( &scene->gfxScene );
-}
+        bx::phxSceneDestroy( &scene->phxScene );
+        bx::gfxSceneDestroy( &scene->gfxScene );
+    }
+
+}///

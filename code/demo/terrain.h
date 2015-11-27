@@ -4,10 +4,12 @@
 
 namespace bx
 {
-    struct Terrain;
-    void terrainCreate( Terrain** terr );
-    void terrainDestroy( Terrain** terr );
+    struct GameScene;
 
-    void terrainTick( Terrain* terr, const Vector3& playerPosition, float deltaTime );
+    struct Terrain;
+    void terrainCreate( Terrain** terr, GameScene* gameScene );
+    void terrainDestroy( Terrain** terr, GameScene* gameScene );
+
+    void terrainTick( Terrain* terr, GameScene* gameScene, float deltaTime );
 
 }///

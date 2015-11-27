@@ -18,7 +18,7 @@
 
 namespace 
 {
-    using namespace bxGame;
+    using namespace bx;
     struct PBD_Simulate
     {
         template< class TVelPlug >
@@ -196,7 +196,7 @@ namespace
 }
 
 
-namespace bxGame{
+namespace bx{
 
 Character* character_new()
 {
@@ -244,7 +244,7 @@ static inline int computeShapeTriangleCount( int nIterations )
     return bxPolyShape_computeNumTriangles( iter );
 }
 
-void character_init( Character* ch, bxGdiDeviceBackend* dev, bxDemoScene* scene, const Matrix4& worldPose )
+void characterInit( Character* ch, bxGdiDeviceBackend* dev, GameScene* scene, const Matrix4& worldPose )
 {
     const int BODY_SHAPE_ITERATIONS = 6;
     
@@ -285,7 +285,7 @@ void character_init( Character* ch, bxGdiDeviceBackend* dev, bxDemoScene* scene,
     CharacterInternal::initShapeMesh( ch, dev, scene->gfxScene );
     bx::phxContactsCreate( &ch->contacts, nPoints );
 }
-void character_deinit( Character* character, bxGdiDeviceBackend* dev )
+void characterDeinit( Character* character, bxGdiDeviceBackend* dev )
 {
     bx::phxContactsDestroy( &character->contacts );
     CharacterInternal::deinitShapeMesh( character, dev );
@@ -295,7 +295,7 @@ void character_deinit( Character* character, bxGdiDeviceBackend* dev )
     MeshData::free( &character->shapeMeshData );
 }
 
-void character_tick( Character* character, bxGdiContextBackend* ctx, bxDemoScene* scene, const bxInput& input, float deltaTime )
+void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* scene, const bxInput& input, float deltaTime )
 {
     CharacterInternal::collectInputData( &character->input, input, deltaTime );
 
@@ -399,12 +399,12 @@ void character_tick( Character* character, bxGdiContextBackend* ctx, bxDemoScene
     //CharacterInternal::debugDraw( character );
 }
 
-Matrix4 character_pose( const Character* ch )
+Matrix4 characterPoseGet( const Character* ch )
 {
     //return Matrix4( Matrix3(  ch->sideVector, ch->upVector, ch->frontVector ), ch->feetCenterPos );
     return Matrix4( ch->shapeBody.com.rot, ch->shapeBody.com.pos );
 }
-Vector3 character_upVector( const Character* ch )
+Vector3 characterUpVectorGet( const Character* ch )
 {
     return ch->upVector;
 }
@@ -551,7 +551,7 @@ void MeshData::free( MeshData* data )
 
 }///
 
-namespace bxGame{ namespace CharacterInternal {
+namespace bx{ namespace CharacterInternal {
 
 void debugDraw( Character* character )
 {
