@@ -43,10 +43,15 @@ namespace bx
     inline Vector3 toVector3( const i32x3& i ) { return Vector3( (float)i.x, (float)i.y, (float)i.z ); }
 
 
+    enum ECellFlag : u8
+    {
+        NEW = 0x1,
+    };
+
     struct Terrain
     {
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
-        f32 _tileSize = 3.f;
+        f32 _tileSize = 10.f;
         i32 _radius = 2;
         
         u32 _centerGridSpaceX = _radius;
@@ -107,6 +112,28 @@ namespace bx
 
         posWorldRounded[0] = positionWorldRounded;
         posGrid[0] = rounded;
+    }
+
+    void terrainComputeTileRange( int* begin, int* end, u32* coord, int delta, int gridRadius, int gap, u32 maxCoordIndex )
+    {
+        if( delta > 0 )
+        {
+            end[0] = gridRadius + 1;
+            begin[0] = end[0] - delta;
+
+            /// compute column index in data array
+            for( int i = 0; i < gap; ++i )
+                coord[0] = wrap_inc_u32( coord[0], 0, maxCoordIndex );
+        }
+        else
+        {
+            begin[0] = -gridRadius;
+            end[0] = begin[0] - delta;
+
+            /// compute column index in data array
+            for( int i = 0; i < gap; ++i )
+                coord[0] = wrap_dec_u32( coord[0], 0, maxCoordIndex );
+        }
     }
 
     void terrainTick( Terrain* terr, const Vector3& playerPosition, float deltaTime )
@@ -181,11 +208,12 @@ namespace bx
             terr->_centerGridSpaceX = localGridX;
             terr->_centerGridSpaceY = localGridZ;
         
+            const int cellSize = (int)terr->_tileSize;
+
             if( ::abs( gridCoordsDx ) > 0 )
             {
                 SYS_ASSERT( ::abs( gridCoordsDx ) < gridRadius );
-                
-                const int cellSize = (int)terr->_tileSize;
+                                
                 const int colGap = gridRadius - ::abs( gridCoordsDx );
                 u32 col = localGridX;
                 u32 rowBegin = localGridZ;
@@ -193,24 +221,7 @@ namespace bx
                     rowBegin = wrap_dec_u32( rowBegin, 0, gridWH - 1 );
 
                 int endCol, beginCol;
-                if( gridCoordsDx > 0 )
-                {
-                    endCol = gridRadius + 1;
-                    beginCol = endCol - gridCoordsDx;
-
-                    /// compute column index in data array
-                    for ( int i = 0; i < colGap; ++i )
-                        col = wrap_inc_u32( col, 0, gridWH - 1 );
-                }
-                else
-                {
-                    beginCol = -gridRadius;
-                    endCol = beginCol - gridCoordsDx;
-
-                    /// compute column index in data array
-                    for ( int i = 0; i < colGap; ++i )
-                        col = wrap_dec_u32( col, 0, gridWH - 1 );
-                }
+                terrainComputeTileRange( &beginCol, &endCol, &col, gridCoordsDx, gridRadius, colGap, gridWH - 1 );
 
                 for ( int ix = beginCol; ix < endCol; ++ix )
                 {
@@ -227,12 +238,46 @@ namespace bx
                         SYS_ASSERT( dataIndex < gridNumCells );
                         terr->_cellWorldCoords[dataIndex] = worldSpaceCoords;
 
+                        terr->_cellFlags[dataIndex] |= ECellFlag::NEW;
+
                         row = wrap_inc_u32( row, 0, gridWH - 1 );
                     }
 
                     
                 }
+            }
 
+            if( ::abs( gridCoordsDz ) > 0 )
+            {
+                SYS_ASSERT( ::abs( gridCoordsDz ) < gridRadius );
+                const int gap = gridRadius - ::abs( gridCoordsDz );
+                u32 row = localGridZ;
+                u32 colBegin = localGridX;
+                for( int i = 0; i < gridRadius; ++i )
+                    colBegin = wrap_dec_u32( colBegin, 0, gridWH - 1 );
+
+                int beginRow, endRow;
+                terrainComputeTileRange( &beginRow, &endRow, &row, gridCoordsDz, gridRadius, gap, gridWH - 1 );
+
+                for( int iz = beginRow; iz < endRow; ++iz )
+                {
+                    row = ( gridCoordsDz > 0 ) ? wrap_inc_u32( row, 0, gridWH - 1 ) : wrap_dec_u32( row, 0, gridWH - 1 );
+                    u32 col = colBegin;
+                    for( int ix = -gridRadius; ix <= gridRadius; ++ix )
+                    {
+                        int x = gridCoords1.ix + ix;
+                        int z = gridCoords1.iz + iz;
+
+                        i32x3 worldSpaceCoords( x * cellSize, 0, z * cellSize );
+
+                        int dataIndex = xyToIndex( col, row, gridWH );
+                        SYS_ASSERT( dataIndex < gridNumCells );
+                        terr->_cellWorldCoords[dataIndex] = worldSpaceCoords;
+
+                        terr->_cellFlags[dataIndex] |= ECellFlag::NEW;
+                        col = wrap_inc_u32( col, 0, gridWH - 1 );
+                    }
+                }
             }
         }
 
@@ -253,7 +298,13 @@ namespace bx
             i32x3 ipos = terr->_cellWorldCoords[i];
             Vector3 pos = toVector3( ipos );
 
-            bxGfxDebugDraw::addBox( Matrix4::translation( pos ), Vector3( terr->_tileSize * 0.5f ), 0xFF00FF00, 1 );
+            u32 color = 0xff00ff00;
+            if( terr->_cellFlags[i] & ECellFlag::NEW )
+                color = 0xffff0000;
+
+            bxGfxDebugDraw::addBox( Matrix4::translation( pos ), Vector3( terr->_tileSize * 0.5f ), color, 1 );
+
+            terr->_cellFlags[i] &= ~( ECellFlag::NEW );
         }
 
         terr->_prevPlayerPosition = playerPosition;
