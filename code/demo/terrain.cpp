@@ -59,7 +59,9 @@ namespace bx
 
         //bxGrid _grid;
 
-        bx::PhxActor** _cellActors = nullptr;
+        void* _memoryHandle = nullptr;
+        bx::GfxActor** _gfxActors = nullptr;
+        bx::PhxActor** _phxActors = nullptr;
         i32x3* _cellWorldCoords = nullptr;
         u8*    _cellFlags = nullptr;
     };
@@ -76,18 +78,22 @@ namespace bx
         int gridCellCount = numCells * numCells;
         
         int memSize = 0;
-        memSize += gridCellCount * sizeof( *t->_cellFlags );
+        memSize += gridCellCount * sizeof( *t->_gfxActors );
+        memSize += gridCellCount * sizeof( *t->_phxActors );
         memSize += gridCellCount * sizeof( *t->_cellWorldCoords );
-        memSize += gridCellCount * sizeof( *t->_cellActors );
+        memSize += gridCellCount * sizeof( *t->_cellFlags );
 
         void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 16 );
         memset( mem, 0x00, memSize );
 
         bxBufferChunker chunker( mem, memSize );
-        t->_cellActors = chunker.add< bx::PhxActor* >( gridCellCount );
+        t->_gfxActors = chunker.add< bx::PhxActor* >( gridCellCount );
+        t->_phxActors = chunker.add< bx::PhxActor* >( gridCellCount );
         t->_cellWorldCoords = chunker.add< i32x3 >( gridCellCount );
         t->_cellFlags = chunker.add< u8 >( gridCellCount );
         chunker.check();
+
+        t->_memoryHandle = mem;
 
         terr[0] = t;
     }
@@ -97,8 +103,7 @@ namespace bx
         if ( !terr[0] )
             return;
 
-        BX_FREE0( bxDefaultAllocator(), terr[0]->_cellActors );
-
+        BX_FREE0( bxDefaultAllocator(), terr[0]->_memoryHandle );
         BX_FREE0( bxDefaultAllocator(), terr[0] );
     }
 
