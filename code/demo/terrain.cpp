@@ -60,8 +60,9 @@ namespace bx
         u32 _centerGridSpaceY = _radius;
 
         //bxGrid _grid;
-
-        bx::PhxActor** _cellActors = nullptr;
+        void* _memoryHandle = nullptr;
+        GfxMeshInstance** _meshInstances = nullptr;
+        PhxActor** _phxActors = nullptr;
         i32x3* _cellWorldCoords = nullptr;
         u8*    _cellFlags = nullptr;
     };
@@ -71,11 +72,26 @@ namespace bx
     inline int xyToIndex( int x, int y, int w ) { return y * w + x; }
     inline i32x2 indexToXY( int index, int w ) { return i32x2( index % w, index / w ); }
 
+    void _TerrainCreateMesh( Terrain* terr, GfxScene* gfxScene, int subdiv )
+    {
+        int gridNumCells = radiusToDataLength( terr->_radius );
+        GfxContext* gfx = gfxContextGet( gfxScene );
+
+        bxGdiVertexStreamDesc vstream;
+        vstream.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3, 0 );
+        vstream.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
+        
+
+
+
+
+    }
+    
     void _TerrainCreatePhysics( Terrain* terr, PhxScene* phxScene )
     {
         int gridNumCells = radiusToDataLength( terr->_radius );
 
-        PhxContext* phx = phxSceneContextGet( phxScene );
+        PhxContext* phx = phxContextGet( phxScene );
 
         const PhxGeometry geom( terr->_tileSize * 0.5f, 0.1f, terr->_tileSize * 0.5f );
         const Matrix4 pose = Matrix4::identity();
@@ -86,12 +102,12 @@ namespace bx
             bool bres = phxActorCreateDynamic( &actor, phx, pose, geom, -1.f );
 
             SYS_ASSERT( bres );
-            SYS_ASSERT( terr->_cellActors[i] == nullptr );
+            SYS_ASSERT( terr->_phxActors[i] == nullptr );
 
-            terr->_cellActors[i] = actor;
+            terr->_phxActors[i] = actor;
         }
 
-        phxSceneActorAdd( phxScene, terr->_cellActors, gridNumCells );
+        phxSceneActorAdd( phxScene, terr->_phxActors, gridNumCells );
     }
     void _TerrainDestroyPhysics( Terrain* terr, PhxScene* phxScene )
     {
@@ -100,7 +116,7 @@ namespace bx
         int gridNumCells = radiusToDataLength( terr->_radius );
         for ( int i = 0; i < gridNumCells; ++i )
         {
-            phxActorDestroy( &terr->_cellActors[i] );
+            phxActorDestroy( &terr->_phxActors[i] );
         }
     }
 
@@ -112,15 +128,19 @@ namespace bx
         int gridCellCount = numCells * numCells;
         
         int memSize = 0;
-        memSize += gridCellCount * sizeof( *t->_cellFlags );
+        memSize += gridCellCount * sizeof( *t->_meshInstances );
+        memSize += gridCellCount * sizeof( *t->_phxActors );
         memSize += gridCellCount * sizeof( *t->_cellWorldCoords );
-        memSize += gridCellCount * sizeof( *t->_cellActors );
+        memSize += gridCellCount * sizeof( *t->_cellFlags );
 
         void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 16 );
         memset( mem, 0x00, memSize );
 
+        t->_memoryHandle = mem;
+
         bxBufferChunker chunker( mem, memSize );
-        t->_cellActors = chunker.add< bx::PhxActor* >( gridCellCount );
+        t->_meshInstances = chunker.add< bx::GfxMeshInstance* >( gridCellCount );
+        t->_phxActors = chunker.add< bx::PhxActor* >( gridCellCount );
         t->_cellWorldCoords = chunker.add< i32x3 >( gridCellCount );
         t->_cellFlags = chunker.add< u8 >( gridCellCount );
         chunker.check();
@@ -136,9 +156,7 @@ namespace bx
             return;
 
         _TerrainDestroyPhysics( terr[0], gameScene->phxScene );
-
-        BX_FREE0( bxDefaultAllocator(), terr[0]->_cellActors );
-
+        BX_FREE0( bxDefaultAllocator(), terr[0]->_memoryHandle );
         BX_FREE0( bxDefaultAllocator(), terr[0] );
     }
 
@@ -346,7 +364,7 @@ namespace bx
             u32 color = 0xff00ff00;
             if( terr->_cellFlags[i] & ECellFlag::NEW )
             {
-                phxActorPoseSet( terr->_cellActors[i], Matrix4::translation( pos ), gameScene->phxScene );
+                phxActorPoseSet( terr->_phxActors[i], Matrix4::translation( pos ), gameScene->phxScene );
                 color = 0xffff0000;
             }
             

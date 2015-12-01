@@ -269,7 +269,7 @@ void phxSceneDestroy( PhxScene** scene )
 
     BX_DELETE0( bxDefaultAllocator(), scene[0] );
 }
-PhxContext* phxSceneContextGet( PhxScene* scene )
+PhxContext* phxContextGet( PhxScene* scene )
 {
     return scene->ctx;
 }

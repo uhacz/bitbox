@@ -15,7 +15,7 @@ namespace bx
 
     bool phxSceneCreate( PhxScene** scene, PhxContext* ctx );
     void phxSceneDestroy( PhxScene** scene );
-    PhxContext* phxSceneContextGet( PhxScene* scene );
+    PhxContext* phxContextGet( PhxScene* scene );
 
     void phxSceneSimulate( PhxScene* scene, float deltaTime );
     void phxSceneSync( PhxScene* scene );

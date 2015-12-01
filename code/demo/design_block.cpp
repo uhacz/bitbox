@@ -302,11 +302,11 @@ struct DesignBlockImpl : public DesignBlock
                 PhxActor* actor = 0;
                 if( createDesc.desc.density == 0.f )
                 {
-                    phxActorCreateStatic( &actor, phxSceneContextGet( phxScene ), pose, geometry );
+                    phxActorCreateStatic( &actor, phxContextGet( phxScene ), pose, geometry );
                 }
                 else
                 {
-                    phxActorCreateDynamic( &actor, phxSceneContextGet( phxScene ), pose, geometry, createDesc.desc.density );
+                    phxActorCreateDynamic( &actor, phxContextGet( phxScene ), pose, geometry, createDesc.desc.density );
                 }
                 
                 _data.physics[index] = actor;
