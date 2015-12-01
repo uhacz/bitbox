@@ -12,7 +12,7 @@ namespace bx
     struct GfxMeshInstance;
 }///
 
-namespace bxGame
+namespace bx
 {
     struct Constraint
     {

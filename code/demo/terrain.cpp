@@ -13,6 +13,8 @@
 #include <phx/phx.h>
 
 #include <cmath>
+#include "game.h"
+#include "scene.h"
 
 namespace bx
 {
@@ -59,18 +61,50 @@ namespace bx
 
         //bxGrid _grid;
 
-        void* _memoryHandle = nullptr;
-        bx::GfxActor** _gfxActors = nullptr;
-        bx::PhxActor** _phxActors = nullptr;
+        bx::PhxActor** _cellActors = nullptr;
         i32x3* _cellWorldCoords = nullptr;
         u8*    _cellFlags = nullptr;
     };
     
     inline int radiusToLength( int rad ) { return rad * 2 + 1; }
+    inline int radiusToDataLength( int rad ) { int a = radiusToLength( rad ); return a*a; }
     inline int xyToIndex( int x, int y, int w ) { return y * w + x; }
     inline i32x2 indexToXY( int index, int w ) { return i32x2( index % w, index / w ); }
 
-    void terrainCreate( Terrain** terr )
+    void _TerrainCreatePhysics( Terrain* terr, PhxScene* phxScene )
+    {
+        int gridNumCells = radiusToDataLength( terr->_radius );
+
+        PhxContext* phx = phxSceneContextGet( phxScene );
+
+        const PhxGeometry geom( terr->_tileSize * 0.5f, 0.1f, terr->_tileSize * 0.5f );
+        const Matrix4 pose = Matrix4::identity();
+
+        for ( int i = 0; i < gridNumCells; ++i )
+        {
+            PhxActor* actor = nullptr;
+            bool bres = phxActorCreateDynamic( &actor, phx, pose, geom, -1.f );
+
+            SYS_ASSERT( bres );
+            SYS_ASSERT( terr->_cellActors[i] == nullptr );
+
+            terr->_cellActors[i] = actor;
+        }
+
+        phxSceneActorAdd( phxScene, terr->_cellActors, gridNumCells );
+    }
+    void _TerrainDestroyPhysics( Terrain* terr, PhxScene* phxScene )
+    {
+        (void)phxScene;
+
+        int gridNumCells = radiusToDataLength( terr->_radius );
+        for ( int i = 0; i < gridNumCells; ++i )
+        {
+            phxActorDestroy( &terr->_cellActors[i] );
+        }
+    }
+
+    void terrainCreate( Terrain** terr, GameScene* gameScene )
     {
         Terrain* t = BX_NEW( bxDefaultAllocator(), Terrain );
 
@@ -78,32 +112,33 @@ namespace bx
         int gridCellCount = numCells * numCells;
         
         int memSize = 0;
-        memSize += gridCellCount * sizeof( *t->_gfxActors );
-        memSize += gridCellCount * sizeof( *t->_phxActors );
-        memSize += gridCellCount * sizeof( *t->_cellWorldCoords );
         memSize += gridCellCount * sizeof( *t->_cellFlags );
+        memSize += gridCellCount * sizeof( *t->_cellWorldCoords );
+        memSize += gridCellCount * sizeof( *t->_cellActors );
 
         void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 16 );
         memset( mem, 0x00, memSize );
 
         bxBufferChunker chunker( mem, memSize );
-        t->_gfxActors = chunker.add< bx::PhxActor* >( gridCellCount );
-        t->_phxActors = chunker.add< bx::PhxActor* >( gridCellCount );
+        t->_cellActors = chunker.add< bx::PhxActor* >( gridCellCount );
         t->_cellWorldCoords = chunker.add< i32x3 >( gridCellCount );
         t->_cellFlags = chunker.add< u8 >( gridCellCount );
         chunker.check();
 
-        t->_memoryHandle = mem;
+        _TerrainCreatePhysics( t, gameScene->phxScene );
 
         terr[0] = t;
     }
 
-    void terrainDestroy( Terrain** terr )
+    void terrainDestroy( Terrain** terr, GameScene* gameScene )
     {
         if ( !terr[0] )
             return;
 
-        BX_FREE0( bxDefaultAllocator(), terr[0]->_memoryHandle );
+        _TerrainDestroyPhysics( terr[0], gameScene->phxScene );
+
+        BX_FREE0( bxDefaultAllocator(), terr[0]->_cellActors );
+
         BX_FREE0( bxDefaultAllocator(), terr[0] );
     }
 
@@ -141,8 +176,11 @@ namespace bx
         }
     }
 
-    void terrainTick( Terrain* terr, const Vector3& playerPosition, float deltaTime )
+    
+
+    void terrainTick( Terrain* terr, GameScene* gameScene, float deltaTime )
     {
+        const Vector3 playerPosition = bx::characterPoseGet( gameScene->character ).getTranslation();
         Vector3 currPosWorldRounded, prevPosWorldRounded;
         __m128i currPosWorldGrid, prevPosWorldGrid;
 
@@ -157,7 +195,7 @@ namespace bx
 
         int gridRadius = terr->_radius;
         int gridWH = radiusToLength( gridRadius );
-        int gridNumCells = gridWH * gridWH;
+        int gridNumCells = radiusToDataLength( gridRadius );
         if( ::abs( gridCoordsDx ) >= gridWH || ::abs( gridCoordsDz ) >= gridWH )
         {
             terr->_centerGridSpaceX = terr->_radius;
@@ -179,7 +217,9 @@ namespace bx
                     
                     int dataIndex = xyToIndex( coordGridSpaceX, coordGridSpaceZ, gridWH );
                     SYS_ASSERT( dataIndex < gridNumCells );
+                    
                     terr->_cellWorldCoords[dataIndex] = worldSpaceCoords;
+                    terr->_cellFlags[dataIndex] |= ECellFlag::NEW;
                 }
             }
         }
@@ -305,9 +345,16 @@ namespace bx
 
             u32 color = 0xff00ff00;
             if( terr->_cellFlags[i] & ECellFlag::NEW )
+            {
+                phxActorPoseSet( terr->_cellActors[i], Matrix4::translation( pos ), gameScene->phxScene );
                 color = 0xffff0000;
+            }
+            
+            const Vector3 ext( terr->_tileSize * 0.5f, 0.1f, terr->_tileSize * 0.5f );
 
-            bxGfxDebugDraw::addBox( Matrix4::translation( pos ), Vector3( terr->_tileSize * 0.5f ), color, 1 );
+            bxGfxDebugDraw::addBox( Matrix4::translation( pos ), ext, color, 1 );
+
+
 
             terr->_cellFlags[i] &= ~( ECellFlag::NEW );
         }

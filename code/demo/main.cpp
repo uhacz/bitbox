@@ -14,7 +14,7 @@
 #include "scene.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-static bxDemoScene __scene;
+static bx::GameScene __scene;
 
 //static bx::GfxCamera* camera = nullptr;
 //static bx::GfxScene* scene = nullptr;
@@ -28,7 +28,7 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxEngine_startup( &_engine );
-        bxDemoScene_startup( &__scene, &_engine );
+        gameSceneStartup( &__scene, &_engine );
 
         //bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager );
 
@@ -149,7 +149,7 @@ public:
         //bx::gfxSceneDestroy( &scene );
         //bx::gfxCameraDestroy( &camera );
                 
-        bxDemoScene_shutdown( &__scene, &_engine );
+        gameSceneShutdown( &__scene, &_engine );
         bxEngine_shutdown( &_engine );
     }
 
@@ -211,11 +211,11 @@ public:
         }
         
         {//// game update
-            bxGame::character_tick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
-            bx::terrainTick( __scene.terrain, bxGame::character_pose( __scene.character ).getTranslation(), deltaTime );
+            bx::characterTick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
+            bx::terrainTick( __scene.terrain, &__scene, deltaTime );
             if( !useDebugCamera )
             {
-                bxGame::characterCamera_follow( camera, __scene.character, deltaTime, cameraInputCtx.anyMovement() );
+                bx::characterCameraFollow( camera, __scene.character, deltaTime, cameraInputCtx.anyMovement() );
             }
 
             bxGfxDebugDraw::addAxes( appendScale( Matrix4::identity(), Vector3( 5.f ) ) );

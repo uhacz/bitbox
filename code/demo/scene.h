@@ -14,21 +14,24 @@ namespace bx{
     struct PhxScene;
 }////
 
-struct bxDemoScene
+namespace bx
 {
-    bx::CameraManager* cameraManager = nullptr;
-    bx::DesignBlock* dblock = nullptr;
+    struct GameScene
+    {
+        bx::CameraManager* cameraManager = nullptr;
+        bx::DesignBlock* dblock = nullptr;
     
-    bx::GfxScene* gfxScene = nullptr;
-    bx::PhxScene* phxScene = nullptr;
+        bx::GfxScene* gfxScene = nullptr;
+        bx::PhxScene* phxScene = nullptr;
 
-    bxGame::Character* character = nullptr;
-    bx::Terrain* terrain = nullptr;
-    //bxGame::Flock* flock;
-};
+        bx::Character* character = nullptr;
+        bx::Terrain* terrain = nullptr;
+        //bxGame::Flock* flock;
+    };
 
-void bxDemoScene_startup( bxDemoScene* scene, bxEngine* engine );
-void bxDemoScene_shutdown( bxDemoScene* scene, bxEngine* engine );
+    void gameSceneStartup( GameScene* scene, bxEngine* engine );
+    void gameSceneShutdown( GameScene* scene, bxEngine* engine );
+}
 
 
 //#include <util/vectormath/vectormath.h>

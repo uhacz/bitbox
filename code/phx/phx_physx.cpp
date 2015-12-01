@@ -453,6 +453,29 @@ void phxActorDestroy( PhxActor** actor )
 
 }
 
+void phxActorPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene )
+{
+    (void)scene;
+
+    PxRigidActor* rigid = (PxRigidActor*)actor;
+    SYS_ASSERT( rigid->getScene() == scene->scene );
+
+    const PxTransform pxPose = toPxTransform( pose );
+    rigid->setGlobalPose( pxPose );
+}
+
+void phxActorTargetPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene )
+{
+    (void)scene;
+    PxRigidActor* rigid = (PxRigidActor*)actor;
+    SYS_ASSERT( rigid->getScene() == scene->scene );
+    SYS_ASSERT( rigid->isRigidDynamic() != nullptr );
+
+    const PxTransform pxPose = toPxTransform( pose );
+    PxRigidDynamic* rigidDynamic = (PxRigidDynamic*)rigid;
+    rigidDynamic->setKinematicTarget( pxPose );    
+}
+
 void phxSceneActorAdd( PhxScene* scene, PhxActor** actors, int nActors )
 {
     for( int i = 0; i < nActors; ++i )
