@@ -72,6 +72,34 @@ namespace bx
     inline int xyToIndex( int x, int y, int w ) { return y * w + x; }
     inline i32x2 indexToXY( int index, int w ) { return i32x2( index % w, index / w ); }
 
+    inline int _ComputeNumQuadsInRow( int subdiv )
+    {
+        return 1 << ( subdiv - 1 );
+    }
+    inline int _ComputeNumQuads( int subdiv )
+    {
+        return 1 << ( 2 * ( subdiv - 1 ) );
+    }
+
+    void _TerrainCreateMeshIndices( bxGdiIndexBuffer* ibuffer, int subdiv )
+    {
+        const int numQuads = _ComputeNumQuads( subdiv );
+        const int numTriangles = numQuads * 2;
+        const int numIndices = numTriangles * 3;
+        const int numVertices = numQuads * 4;
+
+        SYS_ASSERT( numVertices < 0xFFFF );
+
+        const u16 odd[] = { 0, 1, 2, 0, 2, 3 };
+        const u16 even[] = { 3, 0, 1, 3, 1, 2 };
+
+        int vertexOffset = 0;
+        for( int iq = 0; iq < numQuads; ++iq )
+        {
+            
+        }
+    }
+
     void _TerrainCreateMesh( Terrain* terr, GfxScene* gfxScene, int subdiv )
     {
         int gridNumCells = radiusToDataLength( terr->_radius );
@@ -81,7 +109,9 @@ namespace bx
         vstream.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3, 0 );
         vstream.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
         
-
+        SYS_ASSERT( subdiv > 0 );
+        const int numQuads = _ComputeNumQuads( subdiv );
+        const int numVertices = numQuads * 4;
 
 
 
