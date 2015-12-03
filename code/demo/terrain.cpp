@@ -59,6 +59,8 @@ namespace bx
         u32 _centerGridSpaceX = _radius;
         u32 _centerGridSpaceY = _radius;
 
+        bxGdiIndexBuffer _tileIndices;
+
         //bxGrid _grid;
         void* _memoryHandle = nullptr;
         GfxMeshInstance** _meshInstances = nullptr;
@@ -81,8 +83,9 @@ namespace bx
         return 1 << ( 2 * ( subdiv - 1 ) );
     }
 
-    void _TerrainCreateMeshIndices( bxGdiIndexBuffer* ibuffer, int subdiv )
+    void _TerrainCreateMeshIndices( bxGdiDeviceBackend* dev, bxGdiIndexBuffer* ibuffer, int subdiv )
     {
+        const int numQuadsInRow = _ComputeNumQuadsInRow( subdiv );
         const int numQuads = _ComputeNumQuads( subdiv );
         const int numTriangles = numQuads * 2;
         const int numIndices = numTriangles * 3;
@@ -92,12 +95,34 @@ namespace bx
 
         const u16 odd[] = { 0, 1, 2, 0, 2, 3 };
         const u16 even[] = { 3, 0, 1, 3, 1, 2 };
+        const int N_SEQ = sizeof( odd ) / sizeof( *odd );
 
+        u16* indices = (u16*)BX_MALLOC( bxDefaultAllocator(), numIndices * sizeof( u16 ), 2 );
+                
+        u16* iPtr = indices;
         int vertexOffset = 0;
-        for( int iq = 0; iq < numQuads; ++iq )
+        for( int z = 0; z < numQuadsInRow; ++z )
         {
-            
+            int sequenceIndex = z % 2;
+            for( int x = 0; x < numQuadsInRow; ++x, ++sequenceIndex )
+            {
+                const u16* sequence = ( sequenceIndex == 0 ) ? odd : even;
+                for( int s = 0; s < N_SEQ; ++s )
+                {
+                    iPtr[s] = vertexOffset + sequence[s];
+                }
+
+                vertexOffset += 4;
+                iPtr += N_SEQ;
+            }
         }
+
+        SYS_ASSERT( (uptr)iPtr == (uptr)( indices + numIndices ) );
+        SYS_ASSERT( vertexOffset == numVertices );
+
+        ibuffer[0] = dev->createIndexBuffer( bxGdi::eTYPE_USHORT, numIndices, indices );
+
+        BX_FREE0( bxDefaultAllocator(), indices );
     }
 
     void _TerrainCreateMesh( Terrain* terr, GfxScene* gfxScene, int subdiv )
@@ -110,9 +135,10 @@ namespace bx
         vstream.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
         
         SYS_ASSERT( subdiv > 0 );
+        const int numQuadsInRow = _ComputeNumQuadsInRow( subdiv );
         const int numQuads = _ComputeNumQuads( subdiv );
         const int numVertices = numQuads * 4;
-
+        
 
 
     }
