@@ -65,6 +65,7 @@ namespace bx
         void* _memoryHandle = nullptr;
         GfxMeshInstance** _meshInstances = nullptr;
         PhxActor** _phxActors = nullptr;
+        bxGdiRenderSource* _renderSources = nullptr;
         i32x3* _cellWorldCoords = nullptr;
         u8*    _cellFlags = nullptr;
     };
@@ -91,6 +92,7 @@ namespace bx
         const int numIndices = numTriangles * 3;
         const int numVertices = numQuads * 4;
 
+        SYS_ASSERT( numQuadsInRow*numQuadsInRow == numQuads );
         SYS_ASSERT( numVertices < 0xFFFF );
 
         const u16 odd[] = { 0, 1, 2, 0, 2, 3 };
@@ -135,12 +137,14 @@ namespace bx
         vstream.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
         
         SYS_ASSERT( subdiv > 0 );
-        const int numQuadsInRow = _ComputeNumQuadsInRow( subdiv );
         const int numQuads = _ComputeNumQuads( subdiv );
         const int numVertices = numQuads * 4;
+
+        for( int i = 0; i < gridNumCells; ++i )
+        {
+            
+        }
         
-
-
     }
     
     void _TerrainCreatePhysics( Terrain* terr, PhxScene* phxScene )
@@ -186,6 +190,7 @@ namespace bx
         int memSize = 0;
         memSize += gridCellCount * sizeof( *t->_meshInstances );
         memSize += gridCellCount * sizeof( *t->_phxActors );
+        memSize += gridCellCount * sizeof( *t->_renderSources );
         memSize += gridCellCount * sizeof( *t->_cellWorldCoords );
         memSize += gridCellCount * sizeof( *t->_cellFlags );
 
@@ -197,6 +202,7 @@ namespace bx
         bxBufferChunker chunker( mem, memSize );
         t->_meshInstances = chunker.add< bx::GfxMeshInstance* >( gridCellCount );
         t->_phxActors = chunker.add< bx::PhxActor* >( gridCellCount );
+        t->_renderSources = chunker.add< bxGdiRenderSource >( gridCellCount );
         t->_cellWorldCoords = chunker.add< i32x3 >( gridCellCount );
         t->_cellFlags = chunker.add< u8 >( gridCellCount );
         chunker.check();
