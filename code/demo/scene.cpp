@@ -225,7 +225,7 @@ namespace bx
         bx::cameraManagerStartup( &scene->cameraManager, engine->gfxContext );
 
 
-        bx::terrainCreate( &scene->terrain, scene );
+        bx::terrainCreate( &scene->terrain, scene, engine );
         scene->character = bx::character_new();
 
         //scene->flock = bxGame::flock_new();
@@ -241,7 +241,7 @@ namespace bx
         bx::characterDeinit( scene->character, engine->gdiDevice );
         bx::character_delete( &scene->character );
 
-        bx::terrainDestroy( &scene->terrain, scene );
+        bx::terrainDestroy( &scene->terrain, scene, engine );
 
         bx::cameraManagerShutdown( &scene->cameraManager );
     

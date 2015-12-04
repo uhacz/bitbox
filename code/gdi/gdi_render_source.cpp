@@ -109,7 +109,7 @@ namespace bxGdi
     }
     void renderSource_setIndexBuffer( bxGdiRenderSource* rsource, bxGdiIndexBuffer iBuffer )
     {
-        SYS_ASSERT( rsource->indexBuffer.id == 0 );
+        //SYS_ASSERT( rsource->indexBuffer.id == 0 );
         rsource->indexBuffer = iBuffer;
         rsource->sortHash = murmur3_hash32( rsource, _ComputeMemorySize( rsource->numVertexBuffers ), rsource->numVertexBuffers );
     }

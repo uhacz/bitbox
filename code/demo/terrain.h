@@ -2,13 +2,15 @@
 
 #include <util/vectormath/vectormath.h>
 
+struct bxEngine;
+
 namespace bx
 {
     struct GameScene;
-
     struct Terrain;
-    void terrainCreate( Terrain** terr, GameScene* gameScene );
-    void terrainDestroy( Terrain** terr, GameScene* gameScene );
+
+    void terrainCreate( Terrain** terr, GameScene* gameScene, bxEngine* engine );
+    void terrainDestroy( Terrain** terr, GameScene* gameScene, bxEngine* engine );
 
     void terrainTick( Terrain* terr, GameScene* gameScene, float deltaTime );
 

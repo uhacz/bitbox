@@ -6,13 +6,16 @@
 #include <util/grid.h>
 #include <util/buffer_utils.h>
 
-#include <smmintrin.h>
-
+#include <gdi/gdi_render_source.h>
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_gui.h>
 #include <phx/phx.h>
 
+#include <smmintrin.h>
 #include <cmath>
+
+#include <engine/engine.h>
+
 #include "game.h"
 #include "scene.h"
 
@@ -84,7 +87,7 @@ namespace bx
         return 1 << ( 2 * ( subdiv - 1 ) );
     }
 
-    void _TerrainCreateMeshIndices( bxGdiDeviceBackend* dev, bxGdiIndexBuffer* ibuffer, int subdiv )
+    void _TerrainMeshCreateIndices( bxGdiIndexBuffer* ibuffer, bxGdiDeviceBackend* dev, int subdiv )
     {
         const int numQuadsInRow = _ComputeNumQuadsInRow( subdiv );
         const int numQuads = _ComputeNumQuads( subdiv );
@@ -127,10 +130,14 @@ namespace bx
         BX_FREE0( bxDefaultAllocator(), indices );
     }
 
-    void _TerrainCreateMesh( Terrain* terr, GfxScene* gfxScene, int subdiv )
+    void _TerrainMeshCreate( Terrain* terr, bxGdiDeviceBackend* dev, GfxScene* gfxScene, int subdiv )
     {
         int gridNumCells = radiusToDataLength( terr->_radius );
         GfxContext* gfx = gfxContextGet( gfxScene );
+        bxGdiShaderFx_Instance* material = bx::gfxMaterialFind( "white" );
+
+        const Vector3 localAABBMin( -terr->_tileSize * 0.5f );
+        const Vector3 localAABBMax(  terr->_tileSize * 0.5f );
 
         bxGdiVertexStreamDesc vstream;
         vstream.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3, 0 );
@@ -142,9 +149,40 @@ namespace bx
 
         for( int i = 0; i < gridNumCells; ++i )
         {
+            bxGdiRenderSource* rsource = &terr->_renderSources[i];
+            rsource->numVertexBuffers = 1;
+
+            bxGdiVertexBuffer vbuffer = dev->createVertexBuffer( vstream, numVertices, nullptr );
+            bxGdi::renderSource_setVertexBuffer( rsource, vbuffer, 0 );
+            bxGdi::renderSource_setIndexBuffer( rsource, terr->_tileIndices );
             
+            bx::GfxMeshInstance* meshInstance = nullptr;
+            bx::gfxMeshInstanceCreate( &meshInstance, gfx );
+
+            bx::GfxMeshInstanceData miData;
+            miData.renderSourceSet( rsource );
+            miData.fxInstanceSet( material );
+            miData.locaAABBSet( localAABBMin, localAABBMax );
+
+            bx::gfxMeshInstanceDataSet( meshInstance, miData );
+            bx::gfxSceneMeshInstanceAdd( gfxScene, meshInstance );
+
+            terr->_meshInstances[i] = meshInstance;
         }
-        
+    }
+    void _TerrainMeshDestroy( Terrain* terr, bxGdiDeviceBackend* dev )
+    {
+        int gridNumCells = radiusToDataLength( terr->_radius );
+        for( int i = 0; i < gridNumCells; ++i )
+        {
+            bx::gfxMeshInstanceDestroy( &terr->_meshInstances[i] );
+
+            bxGdiRenderSource* rsource = &terr->_renderSources[i];
+            bxGdi::renderSource_setIndexBuffer( rsource, bxGdiIndexBuffer() );
+            bxGdi::renderSource_release( dev, rsource );
+        }
+
+        dev->releaseIndexBuffer( &terr->_tileIndices );
     }
     
     void _TerrainCreatePhysics( Terrain* terr, PhxScene* phxScene )
@@ -180,7 +218,7 @@ namespace bx
         }
     }
 
-    void terrainCreate( Terrain** terr, GameScene* gameScene )
+    void terrainCreate( Terrain** terr, GameScene* gameScene, bxEngine* engine )
     {
         Terrain* t = BX_NEW( bxDefaultAllocator(), Terrain );
 
@@ -209,14 +247,19 @@ namespace bx
 
         _TerrainCreatePhysics( t, gameScene->phxScene );
 
+        const int SUBDIV = 2;
+        _TerrainMeshCreateIndices( &t->_tileIndices, engine->gdiDevice, SUBDIV );
+        _TerrainMeshCreate( t, engine->gdiDevice, gameScene->gfxScene, SUBDIV );
+
         terr[0] = t;
     }
 
-    void terrainDestroy( Terrain** terr, GameScene* gameScene )
+    void terrainDestroy( Terrain** terr, GameScene* gameScene, bxEngine* engine )
     {
         if ( !terr[0] )
             return;
 
+        _TerrainMeshDestroy( terr[0], engine->gdiDevice );
         _TerrainDestroyPhysics( terr[0], gameScene->phxScene );
         BX_FREE0( bxDefaultAllocator(), terr[0]->_memoryHandle );
         BX_FREE0( bxDefaultAllocator(), terr[0] );
