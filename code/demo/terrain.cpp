@@ -18,6 +18,7 @@
 
 #include "game.h"
 #include "scene.h"
+#include "util/common.h"
 
 namespace bx
 {
@@ -58,7 +59,8 @@ namespace bx
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
         f32 _tileSize = 10.f;
         i32 _radius = 2;
-        
+        i32 _tileSubdiv = 3;
+
         u32 _centerGridSpaceX = _radius;
         u32 _centerGridSpaceY = _radius;
 
@@ -134,7 +136,7 @@ namespace bx
     {
         int gridNumCells = radiusToDataLength( terr->_radius );
         GfxContext* gfx = gfxContextGet( gfxScene );
-        bxGdiShaderFx_Instance* material = bx::gfxMaterialFind( "white" );
+        bxGdiShaderFx_Instance* material = bx::gfxMaterialFind( "grey" );
 
         const Vector3 localAABBMin( -terr->_tileSize * 0.5f );
         const Vector3 localAABBMax(  terr->_tileSize * 0.5f );
@@ -185,6 +187,57 @@ namespace bx
         dev->releaseIndexBuffer( &terr->_tileIndices );
     }
     
+    struct _TerrainVertex
+    {
+        float3_t pos;
+        float3_t nrm;
+    };
+
+    void _TerrainMeshTileVerticesCompute( Terrain* terr, int tileIndex, bxGdiContextBackend* gdi )
+    {
+        const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
+        const Vector3 tileCenterPos = toVector3( terr->_cellWorldCoords[tileIndex] );
+        const float tileExt = terr->_tileSize * 0.5f;
+        const float quadSize = terr->_tileSize / (float)numQuadsInRow;
+        const float quadExt = quadSize * 0.5f;
+        
+        const Vector3 beginVertex = Vector3( tileExt, 0.f, -tileExt );
+        const Vector3 localXoffset = Vector3( quadSize, 0.f, 0.f );
+        const Vector3 localZoffset = Vector3( 0.f, 0.f, quadSize );
+
+        const bxGdiVertexBuffer& tileVbuffer = terr->_renderSources[tileIndex].vertexBuffers[0];
+
+        _TerrainVertex* vertices = (_TerrainVertex*)gdi->mapVertices( tileVbuffer, 0, tileVbuffer.numElements, bxGdi::eMAP_WRITE );
+        __m128* vtxPtr128 = (__m128*)vertices;
+
+        //const float phase = PI2 / (float)(numQuadsInRow - 1);
+
+        for( int iz = 0; iz < numQuadsInRow; ++iz )
+        {
+            const float z = iz * quadSize;
+            //const float c = cos( iz * phase );
+            for( int ix = 0; ix < numQuadsInRow; ++ix )
+            {
+                const float x = ix * quadSize;
+                //const float y = c * sin( phase * ix );
+                const Vector3 v0 = beginVertex + Vector3( -x, 0, z );
+                const Vector3 v1 = v0 - localXoffset;
+                const Vector3 v2 = v1 + localZoffset;
+                const Vector3 v3 = v0 + localZoffset;
+                const Vector3 n = Vector3::yAxis();
+
+                storeXYZArray( v0, n, v1, n, vtxPtr128 );
+                vtxPtr128 += 3;
+
+                storeXYZArray( v2, n, v3, n, vtxPtr128 );
+                vtxPtr128 += 3;
+            }
+        }
+        gdi->unmapVertices( tileVbuffer );
+
+        SYS_ASSERT( (uptr)(vtxPtr128) == (uptr)(vertices + tileVbuffer.numElements) );
+    }
+
     void _TerrainCreatePhysics( Terrain* terr, PhxScene* phxScene )
     {
         int gridNumCells = radiusToDataLength( terr->_radius );
@@ -247,7 +300,7 @@ namespace bx
 
         _TerrainCreatePhysics( t, gameScene->phxScene );
 
-        const int SUBDIV = 2;
+        const int SUBDIV = t->_tileSubdiv;
         _TerrainMeshCreateIndices( &t->_tileIndices, engine->gdiDevice, SUBDIV );
         _TerrainMeshCreate( t, engine->gdiDevice, gameScene->gfxScene, SUBDIV );
 
@@ -301,7 +354,7 @@ namespace bx
 
     
 
-    void terrainTick( Terrain* terr, GameScene* gameScene, float deltaTime )
+    void terrainTick( Terrain* terr, GameScene* gameScene, bxGdiContextBackend* gdi, float deltaTime )
     {
         const Vector3 playerPosition = bx::characterPoseGet( gameScene->character ).getTranslation();
         Vector3 currPosWorldRounded, prevPosWorldRounded;
@@ -461,6 +514,7 @@ namespace bx
         }
         ImGui::End();
 
+
         for( int i = 0; i < gridNumCells; ++i )
         {
             i32x3 ipos = terr->_cellWorldCoords[i];
@@ -469,18 +523,21 @@ namespace bx
             u32 color = 0xff00ff00;
             if( terr->_cellFlags[i] & ECellFlag::NEW )
             {
-                phxActorPoseSet( terr->_phxActors[i], Matrix4::translation( pos ), gameScene->phxScene );
+                const Matrix4 tilePose = Matrix4::translation( pos );
+                phxActorPoseSet( terr->_phxActors[i], tilePose, gameScene->phxScene );
+                gfxMeshInstanceWorldMatrixSet( terr->_meshInstances[i], &tilePose, 1 );
                 color = 0xffff0000;
+                _TerrainMeshTileVerticesCompute( terr, i, gdi );
             }
             
             const Vector3 ext( terr->_tileSize * 0.5f, 0.1f, terr->_tileSize * 0.5f );
 
             bxGfxDebugDraw::addBox( Matrix4::translation( pos ), ext, color, 1 );
 
-
-
             terr->_cellFlags[i] &= ~( ECellFlag::NEW );
         }
+
+
 
         terr->_prevPlayerPosition = playerPosition;
     }

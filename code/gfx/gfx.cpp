@@ -424,6 +424,12 @@ namespace bx
         return scene->_ctx;
     }
 
+    bxGdiContext* gfxCommandQueueGdiContextGet( GfxCommandQueue* cmdq )
+    {
+        return cmdq->_gdiContext;
+    }
+
+
     //////////////////////////////////////////////////////////////////////////
     ///
     void gfxCameraCreate( GfxCamera** camera, GfxContext* ctx )

@@ -3,6 +3,7 @@
 #include <util/vectormath/vectormath.h>
 
 struct bxEngine;
+struct bxGdiContextBackend;
 
 namespace bx
 {
@@ -12,6 +13,6 @@ namespace bx
     void terrainCreate( Terrain** terr, GameScene* gameScene, bxEngine* engine );
     void terrainDestroy( Terrain** terr, GameScene* gameScene, bxEngine* engine );
 
-    void terrainTick( Terrain* terr, GameScene* gameScene, float deltaTime );
+    void terrainTick( Terrain* terr, GameScene* gameScene, bxGdiContextBackend* gdi, float deltaTime );
 
 }///
