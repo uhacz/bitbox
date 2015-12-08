@@ -19,6 +19,7 @@
 #include "game.h"
 #include "scene.h"
 #include "util/common.h"
+#include "util/perlin_noise.h"
 
 namespace bx
 {
@@ -57,9 +58,9 @@ namespace bx
     struct Terrain
     {
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
-        f32 _tileSize = 10.f;
+        f32 _tileSize = 25.f;
         i32 _radius = 2;
-        i32 _tileSubdiv = 3;
+        i32 _tileSubdiv = 4;
 
         u32 _centerGridSpaceX = _radius;
         u32 _centerGridSpaceY = _radius;
@@ -193,6 +194,19 @@ namespace bx
         float3_t nrm;
     };
 
+    static const Vector3 noiseOffset( 43.32214f, 5.3214325467f, 1.0412312f );
+    static const float noiseFreq = 0.045f;
+
+    inline float _TerrainNoise( const Vector3& vertex, float height, const Vector3& offset, float freq )
+    {
+        SSEScalar s( ( vertex * freq + noiseOffset ).get128() );
+        float nx = s.x;
+        float ny = s.x + s.z + s.y;
+        float nz = s.z;
+        float y = bxNoise_perlin( nx, ny, nz, 16, 64, 8 );
+        return y * height;
+    }
+
     void _TerrainMeshTileVerticesCompute( Terrain* terr, int tileIndex, bxGdiContextBackend* gdi )
     {
         const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
@@ -211,7 +225,7 @@ namespace bx
         __m128* vtxPtr128 = (__m128*)vertices;
 
         //const float phase = PI2 / (float)(numQuadsInRow - 1);
-
+        const float height = 5.f;
         for( int iz = 0; iz < numQuadsInRow; ++iz )
         {
             const float z = iz * quadSize;
@@ -220,16 +234,31 @@ namespace bx
             {
                 const float x = ix * quadSize;
                 //const float y = c * sin( phase * ix );
-                const Vector3 v0 = beginVertex + Vector3( -x, 0, z );
-                const Vector3 v1 = v0 - localXoffset;
-                const Vector3 v2 = v1 + localZoffset;
-                const Vector3 v3 = v0 + localZoffset;
+                Vector3 v0 = beginVertex + Vector3( -x, 0, z );
+                Vector3 v1 = v0 - localXoffset;
+                Vector3 v2 = v1 + localZoffset;
+                Vector3 v3 = v0 + localZoffset;
                 const Vector3 n = Vector3::yAxis();
 
-                storeXYZArray( v0, n, v1, n, vtxPtr128 );
+                v0.setY( _TerrainNoise( tileCenterPos + v0, height, noiseOffset, noiseFreq ) );
+                v1.setY( _TerrainNoise( tileCenterPos + v1, height, noiseOffset, noiseFreq ) );
+                v2.setY( _TerrainNoise( tileCenterPos + v2, height, noiseOffset, noiseFreq ) );
+                v3.setY( _TerrainNoise( tileCenterPos + v3, height, noiseOffset, noiseFreq ) );
+
+                const Vector3 e01 = v1 - v0;
+                const Vector3 e03 = v3 - v0;
+                const Vector3 e12 = v2 - v1;
+                const Vector3 e32 = v2 - v3;
+
+                const Vector3 n0 = normalize( cross( e01, e03 ) );
+                const Vector3 n1 = normalize( cross( e01, e12 ) );
+                const Vector3 n2 = normalize( cross( e32, e12 ) );
+                const Vector3 n3 = normalize( cross( e32, e03 ) );
+
+                storeXYZArray( v0, n0, v1, n1, vtxPtr128 );
                 vtxPtr128 += 3;
 
-                storeXYZArray( v2, n, v3, n, vtxPtr128 );
+                storeXYZArray( v2, n2, v3, n3, vtxPtr128 );
                 vtxPtr128 += 3;
             }
         }
@@ -532,7 +561,7 @@ namespace bx
             
             const Vector3 ext( terr->_tileSize * 0.5f, 0.1f, terr->_tileSize * 0.5f );
 
-            bxGfxDebugDraw::addBox( Matrix4::translation( pos ), ext, color, 1 );
+            //bxGfxDebugDraw::addBox( Matrix4::translation( pos ), ext, color, 1 );
 
             terr->_cellFlags[i] &= ~( ECellFlag::NEW );
         }
