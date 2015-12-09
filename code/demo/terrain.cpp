@@ -73,6 +73,7 @@ namespace bx
         PhxActor** _phxActors = nullptr;
         bxGdiRenderSource* _renderSources = nullptr;
         i32x3* _cellWorldCoords = nullptr;
+        f32*   _cellHeightSamples = nullptr;
         u8*    _cellFlags = nullptr;
     };
     
@@ -88,6 +89,16 @@ namespace bx
     inline int _ComputeNumQuads( int subdiv )
     {
         return 1 << ( 2 * ( subdiv - 1 ) );
+    }
+
+    inline float* _GetCellHeightSamples( Terrain* terr, int cellIndex )
+    {
+        const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
+        const int numSamplesInRow = numQuadsInRow + 1;
+        const int numSamplesInCell = numSamplesInRow * numSamplesInRow;
+        float* result = terr->_cellHeightSamples + numSamplesInCell * cellIndex;
+        SYS_ASSERT( (uptr)(result + numSamplesInCell) <= (uptr)(terr->_cellHeightSamples + numSamplesInCell * radiusToDataLength( terr->_radius ) ) );
+        return result;
     }
 
     void _TerrainMeshCreateIndices( bxGdiIndexBuffer* ibuffer, bxGdiDeviceBackend* dev, int subdiv )
@@ -221,10 +232,14 @@ namespace bx
 
         const bxGdiVertexBuffer& tileVbuffer = terr->_renderSources[tileIndex].vertexBuffers[0];
 
+        float* heightSamples = _GetCellHeightSamples( terr, tileIndex );
+
         _TerrainVertex* vertices = (_TerrainVertex*)gdi->mapVertices( tileVbuffer, 0, tileVbuffer.numElements, bxGdi::eMAP_WRITE );
         __m128* vtxPtr128 = (__m128*)vertices;
 
         //const float phase = PI2 / (float)(numQuadsInRow - 1);
+        const int numSamplesInRow = numQuadsInRow + 1;
+        
         const float height = 5.f;
         for( int iz = 0; iz < numQuadsInRow; ++iz )
         {
@@ -234,16 +249,36 @@ namespace bx
             {
                 const float x = ix * quadSize;
                 //const float y = c * sin( phase * ix );
-                Vector3 v0 = beginVertex + Vector3( -x, 0, z );
+                Vector3 v0 = beginVertex + Vector3( -x, 0.f, z );
                 Vector3 v1 = v0 - localXoffset;
                 Vector3 v2 = v1 + localZoffset;
                 Vector3 v3 = v0 + localZoffset;
                 const Vector3 n = Vector3::yAxis();
+                
+                const float h0 = _TerrainNoise( tileCenterPos + v0, height, noiseOffset, noiseFreq );
+                const float h1 = _TerrainNoise( tileCenterPos + v1, height, noiseOffset, noiseFreq );
+                const float h2 = _TerrainNoise( tileCenterPos + v2, height, noiseOffset, noiseFreq );
+                const float h3 = _TerrainNoise( tileCenterPos + v3, height, noiseOffset, noiseFreq );
 
-                v0.setY( _TerrainNoise( tileCenterPos + v0, height, noiseOffset, noiseFreq ) );
-                v1.setY( _TerrainNoise( tileCenterPos + v1, height, noiseOffset, noiseFreq ) );
-                v2.setY( _TerrainNoise( tileCenterPos + v2, height, noiseOffset, noiseFreq ) );
-                v3.setY( _TerrainNoise( tileCenterPos + v3, height, noiseOffset, noiseFreq ) );
+                const int sampleIndex0 = iz * numSamplesInRow + ix;
+                const int sampleIndex1 = iz * numSamplesInRow + (ix + 1);
+                const int sampleIndex2 = (iz + 1) * numSamplesInRow + (ix + 1);
+                const int sampleIndex3 = (iz + 1) * numSamplesInRow + ix;
+
+                SYS_ASSERT( sampleIndex0 < numSamplesInRow*numSamplesInRow );
+                SYS_ASSERT( sampleIndex1 < numSamplesInRow*numSamplesInRow );
+                SYS_ASSERT( sampleIndex2 < numSamplesInRow*numSamplesInRow );
+                SYS_ASSERT( sampleIndex3 < numSamplesInRow*numSamplesInRow );
+
+                heightSamples[sampleIndex0] = h0;
+                heightSamples[sampleIndex1] = h1;
+                heightSamples[sampleIndex2] = h2;
+                heightSamples[sampleIndex3] = h3;
+
+                v0.setY( h0 );
+                v1.setY( h1 );
+                v2.setY( h2 );
+                v3.setY( h3 );
 
                 const Vector3 e01 = v1 - v0;
                 const Vector3 e03 = v3 - v0;
@@ -304,14 +339,19 @@ namespace bx
     {
         Terrain* t = BX_NEW( bxDefaultAllocator(), Terrain );
 
-        int numCells = radiusToLength( t->_radius );
-        int gridCellCount = numCells * numCells;
+        const int numCells = radiusToLength( t->_radius );
+        const int gridCellCount = numCells * numCells;
+        
+        const int numQuadsInRow = _ComputeNumQuadsInRow( t->_tileSubdiv );
+        const int numSamplesInRow = numQuadsInRow + 1;
+        const int numSamplesInCell = numSamplesInRow * numSamplesInRow;
         
         int memSize = 0;
         memSize += gridCellCount * sizeof( *t->_meshInstances );
         memSize += gridCellCount * sizeof( *t->_phxActors );
         memSize += gridCellCount * sizeof( *t->_renderSources );
         memSize += gridCellCount * sizeof( *t->_cellWorldCoords );
+        memSize += numSamplesInCell * gridCellCount * sizeof( *t->_cellHeightSamples );
         memSize += gridCellCount * sizeof( *t->_cellFlags );
 
         void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 16 );
@@ -324,6 +364,7 @@ namespace bx
         t->_phxActors = chunker.add< bx::PhxActor* >( gridCellCount );
         t->_renderSources = chunker.add< bxGdiRenderSource >( gridCellCount );
         t->_cellWorldCoords = chunker.add< i32x3 >( gridCellCount );
+        t->_cellHeightSamples = chunker.add< f32 >( numSamplesInCell * gridCellCount );
         t->_cellFlags = chunker.add< u8 >( gridCellCount );
         chunker.check();
 
