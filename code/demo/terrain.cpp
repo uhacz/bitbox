@@ -59,7 +59,7 @@ namespace bx
     {
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
         f32 _tileSize = 25.f;
-        i32 _radius = 2;
+        i32 _radius = 5;
         i32 _tileSubdiv = 4;
 
         u32 _centerGridSpaceX = _radius;

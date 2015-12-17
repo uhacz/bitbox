@@ -361,18 +361,13 @@ void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* s
 
     while( character->_dtAcc >= fixedDt )
     {
-    
-        //CharacterInternal::simulateMainBodyBegin( character, externalForces, fixedDt );
         CharacterInternal::simulateShapeBodyBegin( character, externalForces, fixedDt );
-
-        bx::phxContactsClear( character->contacts );
-        bx::phxContactsCollide( character->contacts, scene->phxScene, character->particles.pos1, character->particles.size, 0.05f, Vector4( character->shapeBody.com.pos, 1.5f ) );
-        
-        PBD_Simulate::resolveContacts( &character->particles, character->contacts );
-
-        //bxGfxDebugDraw::addSphere( Vector4( character->shapeBody.com.pos, 1.5f ), 0xFF0000FF, true );
-        CharacterInternal::simulateShapeUpdatePose( character, 1.f, shapeStiffness );
-
+        {
+            bx::phxContactsClear( character->contacts );
+            bx::phxContactsCollide( character->contacts, scene->phxScene, character->particles.pos1, character->particles.size, 0.05f, Vector4( character->shapeBody.com.pos, 1.5f ) );
+            PBD_Simulate::resolveContacts( &character->particles, character->contacts );
+            CharacterInternal::simulateShapeUpdatePose( character, 1.f, shapeStiffness );
+        }
         CharacterInternal::simulateFinalize( character, staticFriction, dynamicFriction, fixedDt );
         CharacterInternal::computeCharacterPose( character );
 

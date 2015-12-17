@@ -215,7 +215,7 @@ public:
             bx::terrainTick( __scene.terrain, &__scene, _engine.gdiContext->backend(), deltaTime );
             if( !useDebugCamera )
             {
-                bx::characterCameraFollow( camera, __scene.character, deltaTime, cameraInputCtx.anyMovement() );
+                __scene.cameraController.follow( camera, __scene.character, deltaTime, cameraInputCtx.anyMovement() );
             }
 
             bxGfxDebugDraw::addAxes( appendScale( Matrix4::identity(), Vector3( 5.f ) ) );

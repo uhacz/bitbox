@@ -27,7 +27,12 @@ namespace bx
 
 namespace bx
 {
-    void characterCameraFollow( bx::GfxCamera* camera, const Character* character, float deltaTime, int cameraMoved = 0 );
+    struct CameraController
+    {
+        f32 _dtAcc = 0.f;
+
+        void follow( bx::GfxCamera* camera, const Character* character, float deltaTime, int cameraMoved = 0 );
+    };
 }///
 
 //namespace bxGame

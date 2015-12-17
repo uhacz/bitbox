@@ -13,11 +13,11 @@ namespace bx
         const Matrix4 characterPose = characterPoseGet( character );
         const Vector3 characterPosition = characterPose.getTranslation();
         const Vector3 playerUpVector = characterUpVectorGet( character );
-        
-        const Vector3 toPlayerVec = ( characterPosition - cameraPos);
+
+        const Vector3 toPlayerVec = (characterPosition - cameraPos);
         const Vector3 toPlayerDir = normalize( toPlayerVec );
-        
-        const float RC = (cameraMoved) ? 0.1f : 0.1f;
+
+        const float RC = 0.1f; // (cameraMoved) ? 0.1f : 0.1f;
         const Vector3 z = -toPlayerDir; // signalFilter_lowPass( -toPlayerDir, cameraRot.getCol2(), RC, deltaTime );
         const Vector3 x = normalize( cross( playerUpVector, z ) );
         const Vector3 y = normalize( cross( z, x ) );
@@ -57,4 +57,19 @@ namespace bx
         bx::gfxCameraWorldMatrixSet( camera, Matrix4( lookAtRot, cameraPos + dpos ) );
 
     }
+
+    void CameraController::follow( bx::GfxCamera* camera, const Character* character, float deltaTime, int cameraMoved /*= 0 */ )
+    {
+        const float fixedDt = 1.f / 60.f;
+        _dtAcc += deltaTime;
+
+        while( _dtAcc >= fixedDt )
+        {
+            characterCameraFollow( camera, character, fixedDt, cameraMoved );
+            _dtAcc -= fixedDt;
+        }
+    }
+
+
+    
 }///
