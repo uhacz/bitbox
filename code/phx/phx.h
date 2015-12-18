@@ -73,6 +73,20 @@ namespace bx
         PhxGeometry() = default;
     };
 
+    struct PhxHeightField
+    {
+        f32* samples = nullptr;
+        f32 sampleValueConversion = 1.f;
+      
+        i32 numRows = 0;
+        i32 numCols = 0;
+        
+        f32 rowScale = 1.f;
+        f32 colScale = 1.f;
+        f32 heightScale = 1.f;
+        f32 thickness = 1.f;
+    };
+
     struct PhxMaterial
     {
         f32 sfriction = 0.5f;
@@ -88,7 +102,11 @@ namespace bx
 
     bool phxActorCreateDynamic( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxGeometry& geometry, float density, const PhxMaterial* material = nullptr, const Matrix4& shapeOffset = Matrix4::identity() );
     bool phxActorCreateStatic( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxGeometry& geometry, const PhxMaterial* material = nullptr, const Matrix4& shapeOffset = Matrix4::identity() );
+    bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxHeightField& geometry, const PhxMaterial* material = nullptr );
     void phxActorDestroy( PhxActor** actor );
+
+    
+    
     void phxActorPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene );
     void phxActorTargetPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene );
 

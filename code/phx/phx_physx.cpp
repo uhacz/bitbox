@@ -441,6 +441,63 @@ bool phxActorCreateStatic( PhxActor** actor, PhxContext* ctx, const Matrix4& pos
     return true;
 }
 
+bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxHeightField& geometry, const PhxMaterial* material /*= nullptr */ )
+{
+    PxPhysics* sdk = ctx->physics;
+
+    const PxTransform pxPose = toPxTransform( pose );
+
+    const int numSamples = geometry.numCols * geometry.numRows;
+    const int sampleStride = sizeof( PxHeightFieldSample );
+    PxHeightFieldSample* samples = ( PxHeightFieldSample*)BX_MALLOC( bxDefaultAllocator(), numSamples * sampleStride, ALIGNOF( PxHeightFieldSample ) );
+    for( int i = 0 ; i < numSamples; ++i )
+    {
+        PxHeightFieldSample& sample = samples[i];
+        sample.height = (i16)( geometry.samples[i] * geometry.sampleValueConversion );
+        sample.materialIndex0 = 1;
+        sample.materialIndex1 = 1;
+        if( i % 2 )
+            sample.setTessFlag();
+    }
+
+    PxHeightFieldDesc hfDesc;
+    hfDesc.format = PxHeightFieldFormat::eS16_TM;
+    hfDesc.samples.data = samples;
+    hfDesc.samples.stride = sampleStride;
+    hfDesc.nbRows = geometry.numRows;
+    hfDesc.nbColumns = geometry.numCols;
+    hfDesc.thickness = geometry.thickness;
+
+    PxHeightField* hf = sdk->createHeightField( hfDesc );
+    BX_FREE0( bxDefaultAllocator(), samples );
+
+    if( !hf )
+    {
+        return false;
+    }
+
+    PxHeightFieldGeometry hfGeom( hf, PxMeshGeometryFlags(), geometry.heightScale, geometry.rowScale, geometry.colScale );
+
+    PxRigidDynamic* pxActor = sdk->createRigidDynamic( pxPose );
+    pxActor->setRigidBodyFlag( PxRigidBodyFlag::eKINEMATIC, true );
+
+    PxMaterial* pxMaterial = ctx->defaultMaterial;
+    PxShape* shape = pxActor->createShape( hfGeom, *pxMaterial, PxTransform::createIdentity() );
+    if( !shape )
+    {
+        bxLogError( "Failed to create shape for heightfield actor!!" );
+    }
+
+    pxActor->setActorFlag( PxActorFlag::eVISUALIZATION, true );
+    physxActorShapesFlagSet( pxActor, PxShapeFlag::eVISUALIZATION, true );
+    physxActorShapesCollisionGroupSet( pxActor, 1, 0xFFFFFFFF );
+    
+
+
+    actor[0] = pxActor;
+    return true;
+}
+
 void phxActorDestroy( PhxActor** actor )
 {
     if ( !actor[0] )
