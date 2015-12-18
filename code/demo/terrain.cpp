@@ -60,7 +60,7 @@ namespace bx
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
         f32 _tileSize = 25.f;
         i32 _radius = 5;
-        i32 _tileSubdiv = 4;
+        i32 _tileSubdiv = 2;
 
         u32 _centerGridSpaceX = _radius;
         u32 _centerGridSpaceY = _radius;
@@ -91,7 +91,7 @@ namespace bx
         return 1 << ( 2 * ( subdiv - 1 ) );
     }
 
-    inline float* _GetCellHeightSamples( Terrain* terr, int cellIndex )
+    inline float* _GetCellHeightSamples( const Terrain* terr, int cellIndex )
     {
         const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
         const int numSamplesInRow = numQuadsInRow + 1;
@@ -100,7 +100,7 @@ namespace bx
         SYS_ASSERT( (uptr)(result + numSamplesInCell) <= (uptr)(terr->_cellHeightSamples + numSamplesInCell * radiusToDataLength( terr->_radius ) ) );
         return result;
     }
-
+    
     void _TerrainMeshCreateIndices( bxGdiIndexBuffer* ibuffer, bxGdiDeviceBackend* dev, int subdiv )
     {
         const int numQuadsInRow = _ComputeNumQuadsInRow( subdiv );
@@ -206,7 +206,7 @@ namespace bx
     };
 
     static const Vector3 noiseOffset( 43.32214f, 5.3214325467f, 1.0412312f );
-    static const float noiseFreq = 0.045f;
+    static const float noiseFreq = 0.05f;
 
     inline float _TerrainNoise( const Vector3& vertex, float height, const Vector3& offset, float freq )
     {
@@ -216,6 +216,34 @@ namespace bx
         float nz = s.z;
         float y = bxNoise_perlin( nx, ny, nz, 16, 64, 8 );
         return y * height;
+    }
+
+    void _FindQuad( const Terrain* terr, const Vector3& wpos, int tileIndex )
+    {
+        const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
+        const int numSamplesInRow = numQuadsInRow + 1;
+        const Vector3 tileCenterPos = toVector3( terr->_cellWorldCoords[tileIndex] );
+        const float tileExt = terr->_tileSize * 0.5f;
+        const float quadSize = terr->_tileSize / (float)numQuadsInRow;
+        const float quadExt = quadSize * 0.5f;
+
+        const Vector3 beginTileLocal = Vector3( tileExt, 0.f, -tileExt );
+        const Vector3 beginTileWorld = tileCenterPos + beginTileLocal;
+        const Vector3 posInTile = wpos - beginTileWorld;
+        Vector3 quadCoordV = posInTile / quadSize;
+        quadCoordV = (Vector3( _mm_round_ps( quadCoordV.get128(), _MM_FROUND_TRUNC ) ));
+        SSEScalar quadCoord( _mm_cvtps_epi32( ( quadCoordV ).get128() ) );
+        quadCoord.ix *= -1; // switch to left handed
+
+        const int heightSampleIndex = quadCoord.iz * numSamplesInRow + quadCoord.ix;
+        SYS_ASSERT( heightSampleIndex < numSamplesInRow*numSamplesInRow );
+        const float* heightSamples = _GetCellHeightSamples( terr, tileIndex );
+        Vector3 samplePosLocal = quadCoordV * quadSize;
+        samplePosLocal.setY( heightSamples[heightSampleIndex] );
+
+        bxGfxDebugDraw::addSphere( Vector4( beginTileWorld, 0.2f ), 0xFF0000FF, 1 );
+        bxGfxDebugDraw::addSphere( Vector4( samplePosLocal + beginTileWorld, 0.1f ), 0xFFFF00FF, 1 );
+
     }
 
     void _TerrainMeshTileVerticesCompute( Terrain* terr, int tileIndex, bxGdiContextBackend* gdi )
@@ -239,8 +267,27 @@ namespace bx
 
         //const float phase = PI2 / (float)(numQuadsInRow - 1);
         const int numSamplesInRow = numQuadsInRow + 1;
-        
         const float height = 5.f;
+
+        for ( int iz = 0; iz <= numQuadsInRow; ++iz )
+        {
+            const float z = iz * quadSize;
+            //const float c = cos( iz * phase );
+            for ( int ix = 0; ix <= numQuadsInRow; ++ix )
+            {
+                const float x = ix * quadSize;
+                //const float y = c * sin( phase * ix );
+                Vector3 v0 = beginVertex + Vector3( -x, 0.f, z );
+                const float h = height;
+                const float h0 = _TerrainNoise( tileCenterPos + v0, h, noiseOffset, noiseFreq );
+
+                const int sampleIndex0 = iz * numSamplesInRow + ix;
+                SYS_ASSERT( sampleIndex0 < numSamplesInRow*numSamplesInRow );
+
+                heightSamples[sampleIndex0] = h0;
+            }
+        }
+
         for( int iz = 0; iz < numQuadsInRow; ++iz )
         {
             const float z = iz * quadSize;
@@ -253,27 +300,32 @@ namespace bx
                 Vector3 v1 = v0 - localXoffset;
                 Vector3 v2 = v1 + localZoffset;
                 Vector3 v3 = v0 + localZoffset;
-                const Vector3 n = Vector3::yAxis();
                 
-                const float h0 = _TerrainNoise( tileCenterPos + v0, height, noiseOffset, noiseFreq );
-                const float h1 = _TerrainNoise( tileCenterPos + v1, height, noiseOffset, noiseFreq );
-                const float h2 = _TerrainNoise( tileCenterPos + v2, height, noiseOffset, noiseFreq );
-                const float h3 = _TerrainNoise( tileCenterPos + v3, height, noiseOffset, noiseFreq );
+                //const float h = height;
+                //const float h0 = _TerrainNoise( tileCenterPos + v0, h, noiseOffset, noiseFreq );
+                //const float h1 = _TerrainNoise( tileCenterPos + v1, h, noiseOffset, noiseFreq );
+                //const float h2 = _TerrainNoise( tileCenterPos + v2, h, noiseOffset, noiseFreq );
+                //const float h3 = _TerrainNoise( tileCenterPos + v3, h, noiseOffset, noiseFreq );
 
                 const int sampleIndex0 = iz * numSamplesInRow + ix;
                 const int sampleIndex1 = iz * numSamplesInRow + (ix + 1);
                 const int sampleIndex2 = (iz + 1) * numSamplesInRow + (ix + 1);
                 const int sampleIndex3 = (iz + 1) * numSamplesInRow + ix;
-
+                
                 SYS_ASSERT( sampleIndex0 < numSamplesInRow*numSamplesInRow );
                 SYS_ASSERT( sampleIndex1 < numSamplesInRow*numSamplesInRow );
                 SYS_ASSERT( sampleIndex2 < numSamplesInRow*numSamplesInRow );
                 SYS_ASSERT( sampleIndex3 < numSamplesInRow*numSamplesInRow );
 
-                heightSamples[sampleIndex0] = h0;
-                heightSamples[sampleIndex1] = h1;
-                heightSamples[sampleIndex2] = h2;
-                heightSamples[sampleIndex3] = h3;
+                const float h0 = heightSamples[sampleIndex0];
+                const float h1 = heightSamples[sampleIndex1];
+                const float h2 = heightSamples[sampleIndex2];
+                const float h3 = heightSamples[sampleIndex3];
+
+                //heightSamples[sampleIndex0] = h0;
+                //heightSamples[sampleIndex1] = h1;
+                //heightSamples[sampleIndex2] = h2;
+                //heightSamples[sampleIndex3] = h3;
 
                 v0.setY( h0 );
                 v1.setY( h1 );
@@ -574,15 +626,7 @@ namespace bx
 
         //bxGfxDebugDraw::addBox( Matrix4::translation( currPosWorldRounded), Vector3( terr->_tileSize * 0.5f ), 0xFF00FF00, 1 );
 
-        if( ImGui::Begin( "terrain" ) )
-        {
-            ImGui::Text( "playerPosition: %.3f, %.3f, %.3f\nplayerPositionGrid: %.3f, %.3f, %.3f\ngridCoords: %d, %d, %d", 
-                         playerPosition.getX().getAsFloat(), playerPosition.getY().getAsFloat(), playerPosition.getZ().getAsFloat(),
-                         currPosWorldRounded.getX().getAsFloat(), currPosWorldRounded.getY().getAsFloat(), currPosWorldRounded.getZ().getAsFloat(),
-                         gridCoords1.ix, gridCoords1.iy, gridCoords1.iz );
-            ImGui::Text( "localXY: %d, %d", terr->_centerGridSpaceX, terr->_centerGridSpaceY );
-        }
-        ImGui::End();
+
 
 
         for( int i = 0; i < gridNumCells; ++i )
@@ -606,10 +650,25 @@ namespace bx
 
             terr->_cellFlags[i] &= ~( ECellFlag::NEW );
         }
-
-
-
         terr->_prevPlayerPosition = playerPosition;
+
+        const int centerTileIndex = terr->_centerGridSpaceY * radiusToLength( terr->_radius ) + terr->_centerGridSpaceX;
+        _FindQuad( terr, playerPosition, centerTileIndex );
+
+        i32x3 ipos = terr->_cellWorldCoords[centerTileIndex];
+        Vector3 pos = toVector3( ipos );
+        const Vector3 ext( terr->_tileSize * 0.5f, 0.1f, terr->_tileSize * 0.5f );
+        bxGfxDebugDraw::addBox( Matrix4::translation( pos ), ext, 0xFFFF0000, 1 );
+
+        if ( ImGui::Begin( "terrain" ) )
+        {
+            ImGui::Text( "playerPosition: %.3f, %.3f, %.3f\nplayerPositionGrid: %.3f, %.3f, %.3f\ngridCoords: %d, %d, %d",
+                         playerPosition.getX().getAsFloat(), playerPosition.getY().getAsFloat(), playerPosition.getZ().getAsFloat(),
+                         currPosWorldRounded.getX().getAsFloat(), currPosWorldRounded.getY().getAsFloat(), currPosWorldRounded.getZ().getAsFloat(),
+                         gridCoords1.ix, gridCoords1.iy, gridCoords1.iz );
+            ImGui::Text( "localXY: %d, %d", terr->_centerGridSpaceX, terr->_centerGridSpaceY );
+        }
+        ImGui::End();
     }
 
 }///
