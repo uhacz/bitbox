@@ -60,7 +60,7 @@ namespace bx
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
         f32 _tileSize = 25.f;
         i32 _radius = 5;
-        i32 _tileSubdiv = 2;
+        i32 _tileSubdiv = 4;
 
         u32 _centerGridSpaceX = _radius;
         u32 _centerGridSpaceY = _radius;
@@ -125,7 +125,7 @@ namespace bx
             int sequenceIndex = z % 2;
             for( int x = 0; x < numQuadsInRow; ++x, ++sequenceIndex )
             {
-                const u16* sequence = ( sequenceIndex == 0 ) ? odd : even;
+                const u16* sequence = ( ( sequenceIndex % 2 ) == 0 ) ? odd : even;
                 for( int s = 0; s < N_SEQ; ++s )
                 {
                     iPtr[s] = vertexOffset + sequence[s];
@@ -235,14 +235,35 @@ namespace bx
         SSEScalar quadCoord( _mm_cvtps_epi32( ( quadCoordV ).get128() ) );
         quadCoord.ix *= -1; // switch to left handed
 
-        const int heightSampleIndex = quadCoord.iz * numSamplesInRow + quadCoord.ix;
-        SYS_ASSERT( heightSampleIndex < numSamplesInRow*numSamplesInRow );
+        const int heightSampleIndex0 = quadCoord.iz * numSamplesInRow + quadCoord.ix;
+        const int heightSampleIndex1 = heightSampleIndex0 + 1;
+        const int heightSampleIndex2 = (quadCoord.iz + 1) * numSamplesInRow + ( quadCoord.ix + 1 );
+        const int heightSampleIndex3 = (quadCoord.iz + 1) * numSamplesInRow + quadCoord.ix;
+        SYS_ASSERT( heightSampleIndex0 < numSamplesInRow*numSamplesInRow );
+        SYS_ASSERT( heightSampleIndex1 < numSamplesInRow*numSamplesInRow );
+        SYS_ASSERT( heightSampleIndex2 < numSamplesInRow*numSamplesInRow );
+        SYS_ASSERT( heightSampleIndex3 < numSamplesInRow*numSamplesInRow );
+        
         const float* heightSamples = _GetCellHeightSamples( terr, tileIndex );
-        Vector3 samplePosLocal = quadCoordV * quadSize;
-        samplePosLocal.setY( heightSamples[heightSampleIndex] );
+        
+        const Vector3 localXoffset = Vector3( quadSize, 0.f, 0.f );
+        const Vector3 localZoffset = Vector3( 0.f, 0.f, quadSize );
+
+        Vector3 samplePosLocal0 = quadCoordV * quadSize;
+        Vector3 samplePosLocal1 = samplePosLocal0 - localXoffset;
+        Vector3 samplePosLocal2 = samplePosLocal1 + localZoffset;
+        Vector3 samplePosLocal3 = samplePosLocal0 + localZoffset;
+        
+        samplePosLocal0.setY( heightSamples[heightSampleIndex0] );
+        samplePosLocal1.setY( heightSamples[heightSampleIndex1] );
+        samplePosLocal2.setY( heightSamples[heightSampleIndex2] );
+        samplePosLocal3.setY( heightSamples[heightSampleIndex3] );
 
         bxGfxDebugDraw::addSphere( Vector4( beginTileWorld, 0.2f ), 0xFF0000FF, 1 );
-        bxGfxDebugDraw::addSphere( Vector4( samplePosLocal + beginTileWorld, 0.1f ), 0xFFFF00FF, 1 );
+        bxGfxDebugDraw::addSphere( Vector4( samplePosLocal0 + beginTileWorld, 0.1f ), 0xFFFF00FF, 1 );
+        bxGfxDebugDraw::addSphere( Vector4( samplePosLocal1 + beginTileWorld, 0.1f ), 0xFFFF00FF, 1 );
+        bxGfxDebugDraw::addSphere( Vector4( samplePosLocal2 + beginTileWorld, 0.1f ), 0xFFFF00FF, 1 );
+        bxGfxDebugDraw::addSphere( Vector4( samplePosLocal3 + beginTileWorld, 0.1f ), 0xFFFF00FF, 1 );
 
     }
 

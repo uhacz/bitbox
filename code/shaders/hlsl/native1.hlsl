@@ -8,6 +8,7 @@ passes:
         {
             depth_test = 1;
             depth_write = 0;
+            //fill_mode = "WIREFRAME";
             //color_mask = "";
         };
     };
