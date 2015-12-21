@@ -65,16 +65,23 @@ namespace bx
         u32 _centerGridSpaceX = _radius;
         u32 _centerGridSpaceY = _radius;
 
-        bxGdiIndexBuffer _tileIndices;
+        bxGdiIndexBuffer _tileIndicesBuffer;
 
         //bxGrid _grid;
         void* _memoryHandle = nullptr;
+        //// shared read only buffers
+        Vector3* _cellXZSamples = nullptr;
+        u16*   _cellHeightSampleIndices = nullptr;
+        u16*   _cellHeightSampleTriangle = nullptr;
+        
         GfxMeshInstance** _meshInstances = nullptr;
         PhxActor** _phxActors = nullptr;
         bxGdiRenderSource* _renderSources = nullptr;
         i32x3* _cellWorldCoords = nullptr;
         f32*   _cellHeightSamples = nullptr;
         u8*    _cellFlags = nullptr;
+
+        
     };
     
     inline int radiusToLength( int rad ) { return rad * 2 + 1; }
@@ -168,7 +175,7 @@ namespace bx
 
             bxGdiVertexBuffer vbuffer = dev->createVertexBuffer( vstream, numVertices, nullptr );
             bxGdi::renderSource_setVertexBuffer( rsource, vbuffer, 0 );
-            bxGdi::renderSource_setIndexBuffer( rsource, terr->_tileIndices );
+            bxGdi::renderSource_setIndexBuffer( rsource, terr->_tileIndicesBuffer );
             
             bx::GfxMeshInstance* meshInstance = nullptr;
             bx::gfxMeshInstanceCreate( &meshInstance, gfx );
@@ -196,7 +203,7 @@ namespace bx
             bxGdi::renderSource_release( dev, rsource );
         }
 
-        dev->releaseIndexBuffer( &terr->_tileIndices );
+        dev->releaseIndexBuffer( &terr->_tileIndicesBuffer );
     }
     
     struct _TerrainVertex
@@ -444,7 +451,7 @@ namespace bx
         _TerrainCreatePhysics( t, gameScene->phxScene );
 
         const int SUBDIV = t->_tileSubdiv;
-        _TerrainMeshCreateIndices( &t->_tileIndices, engine->gdiDevice, SUBDIV );
+        _TerrainMeshCreateIndices( &t->_tileIndicesBuffer, engine->gdiDevice, SUBDIV );
         _TerrainMeshCreate( t, engine->gdiDevice, gameScene->gfxScene, SUBDIV );
 
         terr[0] = t;
