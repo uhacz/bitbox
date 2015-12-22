@@ -70,9 +70,9 @@ namespace bx
         //bxGrid _grid;
         void* _memoryHandle = nullptr;
         //// shared read only buffers
-        Vector3* _cellXZSamples = nullptr;
-        u16*   _cellHeightSampleIndices = nullptr;
-        u16*   _cellHeightSampleTriangle = nullptr;
+        //Vector3* _cellXZSamples = nullptr;
+        //u16*   _cellHeightSampleIndices = nullptr;
+        //u16*   _cellHeightSampleTriangle = nullptr;
         
         GfxMeshInstance** _meshInstances = nullptr;
         PhxActor** _phxActors = nullptr;
@@ -84,6 +84,13 @@ namespace bx
         
     };
     
+    namespace TerrainConst
+    {
+        static const u16 indicesSequenceOdd[6] = { 0, 1, 2, 0, 2, 3 };
+        static const u16 indicesSequenceEven[6] = { 3, 0, 1, 3, 1, 2 };
+        static const int N_INDICES_SEQ = sizeof( indicesSequenceOdd ) / sizeof( *indicesSequenceOdd );
+    }///
+
     inline int radiusToLength( int rad ) { return rad * 2 + 1; }
     inline int radiusToDataLength( int rad ) { int a = radiusToLength( rad ); return a*a; }
     inline int xyToIndex( int x, int y, int w ) { return y * w + x; }
@@ -119,9 +126,7 @@ namespace bx
         SYS_ASSERT( numQuadsInRow*numQuadsInRow == numQuads );
         SYS_ASSERT( numVertices < 0xFFFF );
 
-        const u16 odd[] = { 0, 1, 2, 0, 2, 3 };
-        const u16 even[] = { 3, 0, 1, 3, 1, 2 };
-        const int N_SEQ = sizeof( odd ) / sizeof( *odd );
+        
 
         u16* indices = (u16*)BX_MALLOC( bxDefaultAllocator(), numIndices * sizeof( u16 ), 2 );
                 
@@ -132,14 +137,14 @@ namespace bx
             int sequenceIndex = z % 2;
             for( int x = 0; x < numQuadsInRow; ++x, ++sequenceIndex )
             {
-                const u16* sequence = ( ( sequenceIndex % 2 ) == 0 ) ? odd : even;
-                for( int s = 0; s < N_SEQ; ++s )
+                const u16* sequence = ( ( sequenceIndex % 2 ) == 0 ) ? TerrainConst::indicesSequenceOdd : TerrainConst::indicesSequenceEven;
+                for( int s = 0; s < TerrainConst::N_INDICES_SEQ; ++s )
                 {
                     iPtr[s] = vertexOffset + sequence[s];
                 }
 
                 vertexOffset += 4;
-                iPtr += N_SEQ;
+                iPtr += TerrainConst::N_INDICES_SEQ;
             }
         }
 
@@ -242,6 +247,9 @@ namespace bx
         SSEScalar quadCoord( _mm_cvtps_epi32( ( quadCoordV ).get128() ) );
         quadCoord.ix *= -1; // switch to left handed
 
+        const int sequenceIndex = ( ( ( quadCoord.iz % 2 ) + quadCoord.ix ) % 2 ) == 0;
+        const u16* indices = ( sequenceIndex ) ? TerrainConst::indicesSequenceOdd : TerrainConst::indicesSequenceEven;
+
         const int heightSampleIndex0 = quadCoord.iz * numSamplesInRow + quadCoord.ix;
         const int heightSampleIndex1 = heightSampleIndex0 + 1;
         const int heightSampleIndex2 = (quadCoord.iz + 1) * numSamplesInRow + ( quadCoord.ix + 1 );
@@ -255,23 +263,32 @@ namespace bx
         
         const Vector3 localXoffset = Vector3( quadSize, 0.f, 0.f );
         const Vector3 localZoffset = Vector3( 0.f, 0.f, quadSize );
+        //const Vector3 baseSampleLocal = 
 
-        Vector3 samplePosLocal0 = quadCoordV * quadSize;
-        Vector3 samplePosLocal1 = samplePosLocal0 - localXoffset;
-        Vector3 samplePosLocal2 = samplePosLocal1 + localZoffset;
-        Vector3 samplePosLocal3 = samplePosLocal0 + localZoffset;
+        Vector3 samplePosLocal[] =
+        {
+            quadCoordV * quadSize,
+            samplePosLocal[0] - localXoffset,
+            samplePosLocal[1] + localZoffset,
+            samplePosLocal[0] + localZoffset,
+        };
         
-        samplePosLocal0.setY( heightSamples[heightSampleIndex0] );
-        samplePosLocal1.setY( heightSamples[heightSampleIndex1] );
-        samplePosLocal2.setY( heightSamples[heightSampleIndex2] );
-        samplePosLocal3.setY( heightSamples[heightSampleIndex3] );
+        samplePosLocal[0].setY( heightSamples[heightSampleIndex0] );
+        samplePosLocal[1].setY( heightSamples[heightSampleIndex1] );
+        samplePosLocal[2].setY( heightSamples[heightSampleIndex2] );
+        samplePosLocal[3].setY( heightSamples[heightSampleIndex3] );
 
-        bxGfxDebugDraw::addSphere( Vector4( beginTileWorld, 0.2f ), 0xFF0000FF, 1 );
-        bxGfxDebugDraw::addSphere( Vector4( samplePosLocal0 + beginTileWorld, 0.1f ), 0xFFFF00FF, 1 );
-        bxGfxDebugDraw::addSphere( Vector4( samplePosLocal1 + beginTileWorld, 0.1f ), 0xFFFF00FF, 1 );
-        bxGfxDebugDraw::addSphere( Vector4( samplePosLocal2 + beginTileWorld, 0.1f ), 0xFFFF00FF, 1 );
-        bxGfxDebugDraw::addSphere( Vector4( samplePosLocal3 + beginTileWorld, 0.1f ), 0xFFFF00FF, 1 );
+        for( int i = 0; i < TerrainConst::N_INDICES_SEQ; i += 3 )
+        {
+            const u16* tri = indices + i;
+            const Vector3& p0 = samplePosLocal[tri[0]];
+            const Vector3& p1 = samplePosLocal[tri[1]];
+            const Vector3& p2 = samplePosLocal[tri[2]];
 
+            bxGfxDebugDraw::addLine( beginTileWorld + p0, beginTileWorld + p1, 0xFF0000FF, 1 );
+            bxGfxDebugDraw::addLine( beginTileWorld + p0, beginTileWorld + p2, 0xFF0000FF, 1 );
+            bxGfxDebugDraw::addLine( beginTileWorld + p1, beginTileWorld + p2, 0xFF0000FF, 1 );
+        }
     }
 
     void _TerrainMeshTileVerticesCompute( Terrain* terr, int tileIndex, bxGdiContextBackend* gdi )
