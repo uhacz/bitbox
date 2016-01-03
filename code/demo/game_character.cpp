@@ -363,8 +363,10 @@ void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* s
     {
         CharacterInternal::simulateShapeBodyBegin( character, externalForces, fixedDt );
         {
+            const Vector4 bsphere( character->shapeBody.com.pos, 1.5f );
             bx::phxContactsClear( character->contacts );
-            bx::phxContactsCollide( character->contacts, scene->phxScene, character->particles.pos1, character->particles.size, 0.05f, Vector4( character->shapeBody.com.pos, 1.5f ) );
+            bx::phxContactsCollide( character->contacts, scene->phxScene, character->particles.pos1, character->particles.size, 0.05f, bsphere );
+            bx::terrainCollide( character->contacts, scene->terrain, character->particles.pos1, character->particles.size, 0.05f, bsphere );
             PBD_Simulate::resolveContacts( &character->particles, character->contacts );
             CharacterInternal::simulateShapeUpdatePose( character, 1.f, shapeStiffness );
         }

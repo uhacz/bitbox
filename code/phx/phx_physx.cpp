@@ -515,8 +515,12 @@ void phxActorPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene )
     (void)scene;
 
     PxRigidActor* rigid = (PxRigidActor*)actor;
-    SYS_ASSERT( rigid->getScene() == scene->scene );
-
+#ifdef ASSERTION_ENABLED
+    if( rigid->getScene() )
+    {
+        SYS_ASSERT( rigid->getScene() == scene->scene );
+    }
+#endif
     const PxTransform pxPose = toPxTransform( pose );
     rigid->setGlobalPose( pxPose );
 }

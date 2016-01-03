@@ -15,6 +15,6 @@ namespace bx
     void terrainDestroy( Terrain** terr, GameScene* gameScene, bxEngine* engine );
 
     void terrainTick( Terrain* terr, GameScene* gameScene, bxGdiContextBackend* gdi, float deltaTime );
-    void terrainCollide( PhxContacts* con, const Vector3* points, int nPoints, float pointRadius, const Vector4& bsphere );
+    void terrainCollide( PhxContacts* con, Terrain* terr, const Vector3* points, int nPoints, float pointRadius, const Vector4& bsphere );
 
 }///
