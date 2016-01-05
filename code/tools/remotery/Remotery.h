@@ -42,20 +42,35 @@ documented just below this comment.
 #define RMT_INCLUDED_H
 
 
-// Disable this to not include any bits of Remotery in your build
-#define RMT_ENABLED
+// Set to 0 to not include any bits of Remotery in your build
+#ifndef RMT_ENABLED
+#define RMT_ENABLED 1
+#endif
 
 // Used by the Celtoys TinyCRT library (not released yet)
-//#define RMT_USE_TINYCRT
+#ifndef RMT_USE_TINYCRT
+#define RMT_USE_TINYCRT 0
+#endif
 
 // Assuming CUDA headers/libs are setup, allow CUDA profiling
-//#define RMT_USE_CUDA
+#ifndef RMT_USE_CUDA
+#define RMT_USE_CUDA 0
+#endif
 
 // Assuming Direct3D 11 headers/libs are setup, allow D3D11 profiling
-#define RMT_USE_D3D11
+#ifndef RMT_USE_D3D11
+#define RMT_USE_D3D11 1
+#endif
 
 // Allow OpenGL profiling
-//#define RMT_USE_OPENGL
+#ifndef RMT_USE_OPENGL
+#define RMT_USE_OPENGL 0
+#endif
+
+// Initially use POSIX thread names to name threads instead of Thread0, 1, ...
+#ifndef RMT_USE_POSIX_THREADNAMES
+#define RMT_USE_POSIX_THREADNAMES 0
+#endif
 
 
 /*
@@ -89,25 +104,42 @@ documented just below this comment.
     #define RMT_PLATFORM_POSIX
 #endif
 
+#ifdef RMT_DLL
+    #if defined (RMT_PLATFORM_WINDOWS)
+        #if defined (RMT_IMPL)
+            #define RMT_API __declspec(dllexport)
+        #else
+            #define RMT_API __declspec(dllimport)
+        #endif
+    #elif defined (RMT_PLATFORM_POSIX)
+        #if defined (RMT_IMPL)
+            #define RMT_API __attribute__((visibility("default")))
+        #else
+            #define RMT_API
+        #endif
+    #endif
+#else
+    #define RMT_API
+#endif
 
 // Allows macros to be written that can work around the inability to do: #define(x) #ifdef x
 // with the C preprocessor.
-#ifdef RMT_ENABLED
+#if RMT_ENABLED
     #define IFDEF_RMT_ENABLED(t, f) t
 #else
     #define IFDEF_RMT_ENABLED(t, f) f
 #endif
-#if defined(RMT_ENABLED) && defined(RMT_USE_CUDA)
+#if RMT_ENABLED && RMT_USE_CUDA
     #define IFDEF_RMT_USE_CUDA(t, f) t
 #else
     #define IFDEF_RMT_USE_CUDA(t, f) f
 #endif
-#if defined(RMT_ENABLED) && defined(RMT_USE_D3D11)
+#if RMT_ENABLED && RMT_USE_D3D11
     #define IFDEF_RMT_USE_D3D11(t, f) t
 #else
     #define IFDEF_RMT_USE_D3D11(t, f) f
 #endif
-#if defined(RMT_ENABLED) && defined(RMT_USE_OPENGL)
+#if RMT_ENABLED && RMT_USE_OPENGL
 #define IFDEF_RMT_USE_OPENGL(t, f) t
 #else
 #define IFDEF_RMT_USE_OPENGL(t, f) f
@@ -236,7 +268,7 @@ typedef enum rmtError
 // Can call remotery functions on a null pointer
 // TODO: Can embed extern "C" in these macros?
 
-#define rmt_Settings()																\
+#define rmt_Settings()                                                              \
     RMT_OPTIONAL_RET(RMT_ENABLED, _rmt_Settings(), NULL )
 
 #define rmt_CreateGlobalInstance(rmt)                                               \
@@ -263,6 +295,9 @@ typedef enum rmtError
         _rmt_BeginCPUSample(#name, &rmt_sample_hash_##name);                        \
     })
 
+#define rmt_BeginCPUSampleDynamic(namestr)                                          \
+    RMT_OPTIONAL(RMT_ENABLED, _rmt_BeginCPUSample(namestr, NULL))
+
 #define rmt_EndCPUSample()                                                          \
     RMT_OPTIONAL(RMT_ENABLED, _rmt_EndCPUSample())
 
@@ -277,7 +312,7 @@ typedef void (*rmtInputHandlerPtr)(const char* text, void* context);
 // Struture to fill in to modify Remotery default settings
 typedef struct rmtSettings
 {
-    rmtU32 port;
+    rmtU16 port;
 
     // How long to sleep between server updates, hopefully trying to give
     // a little CPU back to other threads.
@@ -303,7 +338,7 @@ typedef struct rmtSettings
 
     // Context pointer that gets sent to Remotery console callback function
     void* input_handler_context;
-    
+
     rmtPStr logFilename;
 } rmtSettings;
 
@@ -358,6 +393,9 @@ typedef struct rmtCUDABind
         _rmt_BeginD3D11Sample(#name, &rmt_sample_hash_##name);              \
     })
 
+#define rmt_BeginD3D11SampleDynamic(namestr)                                \
+    RMT_OPTIONAL(RMT_USE_D3D11, _rmt_BeginD3D11Sample(namestr, NULL))
+
 #define rmt_EndD3D11Sample()                                                \
     RMT_OPTIONAL(RMT_USE_D3D11, _rmt_EndD3D11Sample())
 
@@ -373,6 +411,9 @@ typedef struct rmtCUDABind
         static rmtU32 rmt_sample_hash_##name = 0;                           \
         _rmt_BeginOpenGLSample(#name, &rmt_sample_hash_##name);             \
     })
+
+#define rmt_BeginOpenGLSampleDynamic(namestr)                               \
+    RMT_OPTIONAL(RMT_USE_OPENGL, _rmt_BeginOpenGLSample(namestr, NULL))
 
 #define rmt_EndOpenGLSample()                                               \
     RMT_OPTIONAL(RMT_USE_OPENGL, _rmt_EndOpenGLSample())
@@ -392,10 +433,10 @@ typedef struct rmtCUDABind
 #ifdef __cplusplus
 
 
-#ifdef RMT_ENABLED
+#if RMT_ENABLED
 
 // Types that end samples in their destructors
-extern "C" void _rmt_EndCPUSample(void);
+extern "C" RMT_API void _rmt_EndCPUSample(void);
 struct rmt_EndCPUSampleOnScopeExit
 {
     ~rmt_EndCPUSampleOnScopeExit()
@@ -403,8 +444,8 @@ struct rmt_EndCPUSampleOnScopeExit
         _rmt_EndCPUSample();
     }
 };
-#ifdef RMT_USE_CUDA
-extern "C" void _rmt_EndCUDASample(void* stream);
+#if RMT_USE_CUDA
+extern "C" RMT_API void _rmt_EndCUDASample(void* stream);
 struct rmt_EndCUDASampleOnScopeExit
 {
     rmt_EndCUDASampleOnScopeExit(void* stream) : stream(stream)
@@ -417,8 +458,8 @@ struct rmt_EndCUDASampleOnScopeExit
     void* stream;
 };
 #endif
-#ifdef RMT_USE_D3D11
-extern "C" void _rmt_EndD3D11Sample(void);
+#if RMT_USE_D3D11
+extern "C" RMT_API void _rmt_EndD3D11Sample(void);
 struct rmt_EndD3D11SampleOnScopeExit
 {
     ~rmt_EndD3D11SampleOnScopeExit()
@@ -428,8 +469,8 @@ struct rmt_EndD3D11SampleOnScopeExit
 };
 #endif
 
-#ifdef RMT_USE_OPENGL
-extern "C" void _rmt_EndOpenGLSample(void);
+#if RMT_USE_OPENGL
+extern "C" RMT_API void _rmt_EndOpenGLSample(void);
 struct rmt_EndOpenGLSampleOnScopeExit
 {
     ~rmt_EndOpenGLSampleOnScopeExit()
@@ -471,40 +512,40 @@ struct rmt_EndOpenGLSampleOnScopeExit
 
 
 
-#ifdef RMT_ENABLED
+#if RMT_ENABLED
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-rmtSettings* _rmt_Settings( void );
-enum rmtError _rmt_CreateGlobalInstance(Remotery** remotery);
-void _rmt_DestroyGlobalInstance(Remotery* remotery);
-void _rmt_SetGlobalInstance(Remotery* remotery);
-Remotery* _rmt_GetGlobalInstance(void);
-void _rmt_SetCurrentThreadName(rmtPStr thread_name);
-void _rmt_LogText(rmtPStr text);
-void _rmt_BeginCPUSample(rmtPStr name, rmtU32* hash_cache);
-void _rmt_EndCPUSample(void);
+RMT_API rmtSettings* _rmt_Settings( void );
+RMT_API enum rmtError _rmt_CreateGlobalInstance(Remotery** remotery);
+RMT_API void _rmt_DestroyGlobalInstance(Remotery* remotery);
+RMT_API void _rmt_SetGlobalInstance(Remotery* remotery);
+RMT_API Remotery* _rmt_GetGlobalInstance(void);
+RMT_API void _rmt_SetCurrentThreadName(rmtPStr thread_name);
+RMT_API void _rmt_LogText(rmtPStr text);
+RMT_API void _rmt_BeginCPUSample(rmtPStr name, rmtU32* hash_cache);
+RMT_API void _rmt_EndCPUSample(void);
 
-#ifdef RMT_USE_CUDA
-void _rmt_BindCUDA(const rmtCUDABind* bind);
-void _rmt_BeginCUDASample(rmtPStr name, rmtU32* hash_cache, void* stream);
-void _rmt_EndCUDASample(void* stream);
+#if RMT_USE_CUDA
+RMT_API void _rmt_BindCUDA(const rmtCUDABind* bind);
+RMT_API void _rmt_BeginCUDASample(rmtPStr name, rmtU32* hash_cache, void* stream);
+RMT_API void _rmt_EndCUDASample(void* stream);
 #endif
 
-#ifdef RMT_USE_D3D11
-void _rmt_BindD3D11(void* device, void* context);
-void _rmt_UnbindD3D11(void);
-void _rmt_BeginD3D11Sample(rmtPStr name, rmtU32* hash_cache);
-void _rmt_EndD3D11Sample(void);
+#if RMT_USE_D3D11
+RMT_API void _rmt_BindD3D11(void* device, void* context);
+RMT_API void _rmt_UnbindD3D11(void);
+RMT_API void _rmt_BeginD3D11Sample(rmtPStr name, rmtU32* hash_cache);
+RMT_API void _rmt_EndD3D11Sample(void);
 #endif
 
-#ifdef RMT_USE_OPENGL
-void _rmt_BindOpenGL();
-void _rmt_UnbindOpenGL(void);
-void _rmt_BeginOpenGLSample(rmtPStr name, rmtU32* hash_cache);
-void _rmt_EndOpenGLSample(void);
+#if RMT_USE_OPENGL
+RMT_API void _rmt_BindOpenGL();
+RMT_API void _rmt_UnbindOpenGL(void);
+RMT_API void _rmt_BeginOpenGLSample(rmtPStr name, rmtU32* hash_cache);
+RMT_API void _rmt_EndOpenGLSample(void);
 #endif
 
 #ifdef __cplusplus

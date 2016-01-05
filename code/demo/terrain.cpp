@@ -18,38 +18,15 @@
 
 #include "game.h"
 #include "scene.h"
-#include "util/common.h"
-#include "util/perlin_noise.h"
+#include <util/common.h>
+#include <util/perlin_noise.h>
+#include <util/collision.h>
+#include <engine/profiler.h>
 
 namespace bx
 {
-    union i32x2
-    {
-        struct
-        {
-            i32 x, y;
-        };
-        i32 xyz[2];
-
-        i32x2() : x( 0 ), y( 0 ) {}
-        i32x2( i32 all ) : x( all ), y( all ) {}
-        i32x2( i32 a, i32 b ) : x( a ), y( b ) {}
-    };
-    union i32x3
-    {
-        struct
-        {
-            i32 x, y, z;
-        };
-        i32 xyz[3];
-
-        i32x3(): x(0), y(0), z(0) {}
-        i32x3( i32 all ) : x( all ), y( all ), z( all ) {}
-        i32x3( i32 a, i32 b, i32 c ): x( a ), y( b ), z( c ) {}
-    };
     inline Vector3 toVector3( const i32x3& i ) { return Vector3( (float)i.x, (float)i.y, (float)i.z ); }
-
-
+    
     inline int radiusToLength( int rad ) { return rad * 2 + 1; }
     inline int radiusToDataLength( int rad ) { int a = radiusToLength( rad ); return a*a; }
     inline int xyToIndex( int x, int y, int w ) { return y * w + x; }
@@ -76,7 +53,7 @@ namespace bx
         static const int N_INDICES_SEQ = sizeof( indicesSequenceOdd ) / sizeof( *indicesSequenceOdd );
 
         static const Vector3 noiseSeed( 43.32214f, 5.3214325467f, 1.0412312f );
-        static const float noiseFreq = 0.05f;
+        static const float noiseFreq = 0.015f;
     }///
 
     struct TerrainVertex
@@ -89,10 +66,10 @@ namespace bx
     {
         Vector3 _upVector = Vector3::yAxis();
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
-        f32 _tileSize = 25.f;
+        f32 _tileSize = 35.f;
         f32 _tileSizeInv = 1.f / _tileSize;
-        i32 _radius = 5;
-        i32 _tileSubdiv = 3;
+        i32 _radius = 8;
+        i32 _tileSubdiv = 4;
 
         union
         {
@@ -108,13 +85,7 @@ namespace bx
 
         bxGdiIndexBuffer _tileIndicesBuffer;
 
-        //bxGrid _grid;
         void* _memoryHandle = nullptr;
-        //// shared read only buffers
-        //Vector3* _cellXZSamples = nullptr;
-        //u16*   _cellHeightSampleIndices = nullptr;
-        //u16*   _cellHeightSampleTriangle = nullptr;
-        
         GfxMeshInstance** _meshInstances = nullptr;
         PhxActor** _phxActors = nullptr;
         bxGdiRenderSource* _renderSources = nullptr;
@@ -244,56 +215,6 @@ namespace bx
         float y = bxNoise_perlin( nx, ny, nz, 16, 64, 8 );
         return y * height;
     }
-
-    void _FindQuad( Vector3 points[4], u16 triangles[6], const Terrain* terr, const Vector3& wpos, int tileIndex )
-    {
-        const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
-        const int numSamplesInRow = numQuadsInRow + 1;
-        const Vector3 tileCenterPos = toVector3( terr->_cellWorldCoords[tileIndex] );
-        const float tileExt = terr->_tileSize * 0.5f;
-        const float quadSize = terr->_tileSize / (float)numQuadsInRow;
-        const float quadExt = quadSize * 0.5f;
-
-        const Vector3 beginTileLocal = Vector3( tileExt, 0.f, -tileExt );
-        const Vector3 beginTileWorld = tileCenterPos + beginTileLocal;
-        const Vector3 posInTile = wpos - beginTileWorld;
-        Vector3 quadCoordV = posInTile / quadSize;
-        quadCoordV = (Vector3( _mm_round_ps( quadCoordV.get128(), _MM_FROUND_TRUNC ) ));
-        SSEScalar quadCoord( _mm_cvtps_epi32( ( quadCoordV ).get128() ) );
-        quadCoord.as_vec128i = _mm_min_epi32( quadCoord.as_vec128i, _mm_set1_epi32( numSamplesInRow - 1 ) );
-        quadCoord.ix *= -1; // switch to left handed
-
-        const int sequenceIndex = ( ( ( quadCoord.iz % 2 ) + quadCoord.ix ) % 2 ) == 0;
-        const u16* indices = ( sequenceIndex ) ? TerrainConst::indicesSequenceOdd : TerrainConst::indicesSequenceEven;
-
-        const int heightSampleIndex0 = quadCoord.iz * numSamplesInRow + quadCoord.ix;
-        const int heightSampleIndex1 = heightSampleIndex0 + 1;
-        const int heightSampleIndex2 = (quadCoord.iz + 1) * numSamplesInRow + ( quadCoord.ix + 1 );
-        const int heightSampleIndex3 = (quadCoord.iz + 1) * numSamplesInRow + quadCoord.ix;
-        SYS_ASSERT( heightSampleIndex0 < numSamplesInRow*numSamplesInRow );
-        SYS_ASSERT( heightSampleIndex1 < numSamplesInRow*numSamplesInRow );
-        SYS_ASSERT( heightSampleIndex2 < numSamplesInRow*numSamplesInRow );
-        SYS_ASSERT( heightSampleIndex3 < numSamplesInRow*numSamplesInRow );
-        
-        const float* heightSamples = terr->cellHeightSamplesGet( tileIndex );
-        
-        const Vector3 localXoffset = Vector3( quadSize, 0.f, 0.f );
-        const Vector3 localZoffset = Vector3( 0.f, 0.f, quadSize );
-        //const Vector3 baseSampleLocal = 
-
-        points[0] = beginTileWorld + quadCoordV * quadSize;
-        points[1] = points[0] - localXoffset;
-        points[2] = points[1] + localZoffset;
-        points[3] = points[0] + localZoffset;
-        
-        points[0].setY( heightSamples[heightSampleIndex0] );
-        points[1].setY( heightSamples[heightSampleIndex1] );
-        points[2].setY( heightSamples[heightSampleIndex2] );
-        points[3].setY( heightSamples[heightSampleIndex3] );
-
-        memcpy( triangles, indices, 6 * sizeof( *triangles ) );
-    }
-
     void _TerrainMeshTileVerticesCompute( Terrain* terr, int tileIndex, bxGdiContextBackend* gdi )
     {
         const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
@@ -301,7 +222,7 @@ namespace bx
         const float tileExt = terr->_tileSize * 0.5f;
         const float quadSize = terr->_tileSize / (float)numQuadsInRow;
         const float quadExt = quadSize * 0.5f;
-        
+
         const Vector3 beginVertex = Vector3( tileExt, 0.f, -tileExt );
         const Vector3 localXoffset = Vector3( quadSize, 0.f, 0.f );
         const Vector3 localZoffset = Vector3( 0.f, 0.f, quadSize );
@@ -311,20 +232,16 @@ namespace bx
         float* heightSamples = terr->cellHeightSamplesGet( tileIndex );
 
         TerrainVertex* vertices = (TerrainVertex*)gdi->mapVertices( tileVbuffer, 0, tileVbuffer.numElements, bxGdi::eMAP_WRITE );
-        __m128* vtxPtr128 = (__m128*)vertices;
+        __m128* vtxPtr128 = ( __m128* )vertices;
 
-        //const float phase = PI2 / (float)(numQuadsInRow - 1);
         const int numSamplesInRow = numQuadsInRow + 1;
-        const float height = 5.f;
-
-        for ( int iz = 0; iz <= numQuadsInRow; ++iz )
+        const float height = 15.f;
+        for( int iz = 0; iz <= numQuadsInRow; ++iz )
         {
             const float z = iz * quadSize;
-            //const float c = cos( iz * phase );
-            for ( int ix = 0; ix <= numQuadsInRow; ++ix )
+            for( int ix = 0; ix <= numQuadsInRow; ++ix )
             {
                 const float x = ix * quadSize;
-                //const float y = c * sin( phase * ix );
                 Vector3 v0 = beginVertex + Vector3( -x, 0.f, z );
                 const float h = height;
                 const float h0 = _TerrainNoise( tileCenterPos + v0, h, TerrainConst::noiseSeed, TerrainConst::noiseFreq );
@@ -348,18 +265,12 @@ namespace bx
                 Vector3 v1 = v0 - localXoffset;
                 Vector3 v2 = v1 + localZoffset;
                 Vector3 v3 = v0 + localZoffset;
-                
-                //const float h = height;
-                //const float h0 = _TerrainNoise( tileCenterPos + v0, h, noiseOffset, noiseFreq );
-                //const float h1 = _TerrainNoise( tileCenterPos + v1, h, noiseOffset, noiseFreq );
-                //const float h2 = _TerrainNoise( tileCenterPos + v2, h, noiseOffset, noiseFreq );
-                //const float h3 = _TerrainNoise( tileCenterPos + v3, h, noiseOffset, noiseFreq );
 
                 const int sampleIndex0 = iz * numSamplesInRow + ix;
-                const int sampleIndex1 = iz * numSamplesInRow + (ix + 1);
-                const int sampleIndex2 = (iz + 1) * numSamplesInRow + (ix + 1);
-                const int sampleIndex3 = (iz + 1) * numSamplesInRow + ix;
-                
+                const int sampleIndex1 = iz * numSamplesInRow + ( ix + 1 );
+                const int sampleIndex2 = ( iz + 1 ) * numSamplesInRow + ( ix + 1 );
+                const int sampleIndex3 = ( iz + 1 ) * numSamplesInRow + ix;
+
                 SYS_ASSERT( sampleIndex0 < numSamplesInRow*numSamplesInRow );
                 SYS_ASSERT( sampleIndex1 < numSamplesInRow*numSamplesInRow );
                 SYS_ASSERT( sampleIndex2 < numSamplesInRow*numSamplesInRow );
@@ -369,11 +280,6 @@ namespace bx
                 const float h1 = heightSamples[sampleIndex1];
                 const float h2 = heightSamples[sampleIndex2];
                 const float h3 = heightSamples[sampleIndex3];
-
-                //heightSamples[sampleIndex0] = h0;
-                //heightSamples[sampleIndex1] = h1;
-                //heightSamples[sampleIndex2] = h2;
-                //heightSamples[sampleIndex3] = h3;
 
                 v0.setY( h0 );
                 v1.setY( h1 );
@@ -399,9 +305,8 @@ namespace bx
         }
         gdi->unmapVertices( tileVbuffer );
 
-        SYS_ASSERT( (uptr)(vtxPtr128) == (uptr)(vertices + tileVbuffer.numElements) );
+        SYS_ASSERT( (uptr)( vtxPtr128 ) == (uptr)( vertices + tileVbuffer.numElements ) );
     }
-
     void _TerrainCreatePhysics( Terrain* terr, PhxScene* phxScene )
     {
         int gridNumCells = radiusToDataLength( terr->_radius );
@@ -529,6 +434,8 @@ namespace bx
 
         const int gridCoordsDx = gridCoords1.ix - gridCoords0.ix;
         const int gridCoordsDz = gridCoords1.iz - gridCoords0.iz;
+
+        rmt_BeginCPUSample( Terrain_computeTiles );
 
         int gridRadius = terr->_radius;
         int gridWH = radiusToLength( gridRadius );
@@ -662,7 +569,12 @@ namespace bx
                 }
             }
         }
+
+        rmt_EndCPUSample();
+
         //bxGfxDebugDraw::addBox( Matrix4::translation( currPosWorldRounded), Vector3( terr->_tileSize * 0.5f ), 0xFF00FF00, 1 );
+
+        rmt_BeginCPUSample( Terrain_generateTiles );
 
         const Vector3 ext( terr->_tileSize * 0.5f, 0.1f, terr->_tileSize * 0.5f );
         for( int i = 0; i < gridNumCells; ++i )
@@ -685,6 +597,9 @@ namespace bx
 
             terr->_cellFlags[i] &= ~( ECellFlag::NEW );
         }
+        rmt_EndCPUSample();
+
+
         terr->_prevPlayerPosition = playerPosition;
 
         if ( ImGui::Begin( "terrain" ) )
@@ -699,45 +614,54 @@ namespace bx
 
     namespace 
     {
-        bool testPointInTriangle( const Vector3& P, const Vector3& A, const Vector3& B, const Vector3& C )
+        void _FindQuad( Vector3 points[4], u16 triangles[6], const Terrain* terr, const Vector3& wpos, int tileIndex )
         {
-            const Vector3 v0 = C - A;
-            const Vector3 v1 = B - A;
-            const Vector3 v2 = P - A;
+            const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
+            const int numSamplesInRow = numQuadsInRow + 1;
+            const Vector3 tileCenterPos = toVector3( terr->_cellWorldCoords[tileIndex] );
+            const float tileExt = terr->_tileSize * 0.5f;
+            const float quadSize = terr->_tileSize / (float)numQuadsInRow;
+            const float quadExt = quadSize * 0.5f;
 
-            union
-            {
-                __m128 dot128;
-                struct  
-                {
-                    f32 dot00;
-                    f32 dot01;
-                    f32 dot02;
-                    f32 dot11;
-                };
-            };
-            f32 dot12;
+            const Vector3 beginTileLocal = Vector3( tileExt, 0.f, -tileExt );
+            const Vector3 beginTileWorld = tileCenterPos + beginTileLocal;
+            const Vector3 posInTile = wpos - beginTileWorld;
+            Vector3 quadCoordV = posInTile / quadSize;
+            quadCoordV -= Vector3( FLT_EPSILON );
+            quadCoordV = ( Vector3( _mm_round_ps( quadCoordV.get128(), _MM_FROUND_TRUNC ) ) );
+            SSEScalar quadCoord( _mm_cvtps_epi32( ( quadCoordV ).get128() ) );
+            quadCoord.as_vec128i = _mm_min_epi32( quadCoord.as_vec128i, _mm_set1_epi32( numSamplesInRow - 1 ) );
+            quadCoord.ix = -quadCoord.ix; // switch to left handed
 
-            Soa::Vector3 a( v0, v0, v0, v1 );
-            Soa::Vector3 b( v0, v1, v2, v1 );
+            const int sequenceIndex = ( ( ( quadCoord.iz % 2 ) + quadCoord.ix ) % 2 ) == 0;
+            const u16* indices = ( sequenceIndex ) ? TerrainConst::indicesSequenceOdd : TerrainConst::indicesSequenceEven;
 
-            dot128 = dot( a, b );
-            dot12 = dot( v1, v2 ).getAsFloat();
-            // Compute barycentric coordinates
-            const float invDenom = 1.f / (dot00 * dot11 - dot01 * dot01);
-            const float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-            const float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+            const int heightSampleIndex0 = quadCoord.iz * numSamplesInRow + quadCoord.ix;
+            const int heightSampleIndex1 = heightSampleIndex0 + 1;
+            const int heightSampleIndex2 = ( quadCoord.iz + 1 ) * numSamplesInRow + ( quadCoord.ix + 1 );
+            const int heightSampleIndex3 = ( quadCoord.iz + 1 ) * numSamplesInRow + quadCoord.ix;
+            SYS_ASSERT( heightSampleIndex0 < numSamplesInRow*numSamplesInRow );
+            SYS_ASSERT( heightSampleIndex1 < numSamplesInRow*numSamplesInRow );
+            SYS_ASSERT( heightSampleIndex2 < numSamplesInRow*numSamplesInRow );
+            SYS_ASSERT( heightSampleIndex3 < numSamplesInRow*numSamplesInRow );
 
-            // Check if point is in triangle
-            return (u >= 0.f) && (v >= 0.f) && (u + v < 1.f);
-        }
+            const float* heightSamples = terr->cellHeightSamplesGet( tileIndex );
 
-        inline int moduloNegInf( int a, int b )
-        {
-            int resultA = a - ((int)floor( (float)a / (float)b ) * b);
-            int resultB = ( a >= 0 ) ? a % b : a - (-iceil( ::abs( a ), b ) * b);
-            SYS_ASSERT( resultA == resultB );
-            return resultA;
+            const Vector3 localXoffset = Vector3( quadSize, 0.f, 0.f );
+            const Vector3 localZoffset = Vector3( 0.f, 0.f, quadSize );
+            //const Vector3 baseSampleLocal = 
+
+            points[0] = beginTileWorld + quadCoordV * quadSize;
+            points[1] = points[0] - localXoffset;
+            points[2] = points[1] + localZoffset;
+            points[3] = points[0] + localZoffset;
+
+            points[0].setY( heightSamples[heightSampleIndex0] );
+            points[1].setY( heightSamples[heightSampleIndex1] );
+            points[2].setY( heightSamples[heightSampleIndex2] );
+            points[3].setY( heightSamples[heightSampleIndex3] );
+
+            memcpy( triangles, indices, 6 * sizeof( *triangles ) );
         }
 
         void terrainFindQuadForPoint( Vector3 points[4], u16 triangles[6], const Terrain* terr, const Vector3& wpos, bool debugDraw )
@@ -782,28 +706,14 @@ namespace bx
             //    }
             //}
         }
-
     }
 
     void terrainCollide( PhxContacts* con, Terrain* terr, const Vector3* points, int nPoints, float pointRadius, const Vector4& bsphere )
     {
-        
-        //Vector3 bsphereRounded;
-        //union
-        //{
-        //    __m128i bsphereGridCoords128;
-        //    struct{ i32 x, y, z, w; }bsphereGridCoords;
-        //};
-        //computeGridPositions( &bsphereRounded, &bsphereGridCoords128, bsphere.getXYZ(), Vector3::yAxis(), terr->_tileSize );
-        //bsphereGridCoords.x += terr->_radius;
-        //bsphereGridCoords.z += terr->_radius;
-
-        //const int centerTileIndex = bsphereGridCoords.z * radiusToLength( terr->_radius ) + bsphereGridCoords.x;
         Vector3 quadPoints[4];
         u16 quadTriangles[6];
-        //_FindQuad( quadPoints, quadTriangles, terr, bsphere.getXYZ(), centerTileIndex );
 
-        
+        rmt_BeginCPUSample( Terrain_collide );
 
         for ( int i = 0; i < nPoints; ++i )
         {
@@ -817,17 +727,14 @@ namespace bx
             const Vector3& p4 = quadPoints[quadTriangles[4]];
             const Vector3& p5 = quadPoints[quadTriangles[5]];
 
-            const Vector3 n0 = normalize( cross( p1 - p0, p2 - p0 ) );
-            const Vector3 n1 = normalize( cross( p4 - p3, p5 - p3 ) );
 
-            const Vector4 tri0Plane = makePlane( n0, p0 );
-            const Vector4 tri1Plane = makePlane( n1, p3 );
 
-        
-
-            bool hit = testPointInTriangle( point, p0, p1, p2 );
+            int hit = testPointInTriangle( point, p0, p1, p2 );
             if( hit )
             {
+                const Vector3 n0 = normalize( cross( p1 - p0, p2 - p0 ) );
+                const Vector4 tri0Plane = makePlane( n0, p0 );
+                
                 float depth = dot( Vector4( point, oneVec ), tri0Plane ).getAsFloat();
                 if( depth <= 0.f )
                 {
@@ -839,6 +746,8 @@ namespace bx
                 hit = testPointInTriangle( point, p3, p4, p5 );
                 if ( hit )
                 {
+                    const Vector3 n1 = normalize( cross( p4 - p3, p5 - p3 ) );
+                    const Vector4 tri1Plane = makePlane( n1, p3 );
                     float depth = dot( Vector4( point, oneVec ), tri1Plane ).getAsFloat();
                     if ( depth <= 0.f )
                     {
@@ -847,6 +756,8 @@ namespace bx
                 }
             }
         }
+
+        rmt_EndCPUSample();
     }
 
 }///

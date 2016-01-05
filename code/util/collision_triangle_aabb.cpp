@@ -2,7 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 
-namespace bxOverlap
+namespace bx
 {
     namespace reference
     {
@@ -192,7 +192,7 @@ namespace bxOverlap
         }
     }
 
-    int triangle_aabb( const Vector3& aabbCenter, const Vector3& aabbExt, const Vector3 triPoints[3] )
+    int overlapTriangleAABB( const Vector3& aabbCenter, const Vector3& aabbExt, const Vector3 triPoints[3] )
     {
         const float* aabbCenter_flt = (const float *)&aabbCenter;
         const float* aabbExt_ftl = (const float *)&aabbExt;
@@ -205,7 +205,7 @@ namespace bxOverlap
 
     }
 
-    int triangle_aabb( const Vector3& minAABB, const Vector3& maxAABB, const Vector3* triPoints, const unsigned triIndices[3] )
+    int overlapTriangleAABB( const Vector3& minAABB, const Vector3& maxAABB, const Vector3* triPoints, const unsigned triIndices[3] )
     {
         const Vector3 size = maxAABB - minAABB;
         const Vector3 ext = size * halfVec;

@@ -69,6 +69,30 @@ union float4_t
     float4_t( f32 vx, f32 vy, f32 vz, f32 vw ) : x( vx ), y( vy ), z( vz ), w( vw ) {}
 };
 
+union i32x2
+{
+    struct
+    {
+        i32 x, y;
+    };
+    i32 xyz[2];
+
+    i32x2() : x( 0 ), y( 0 ) {}
+    i32x2( i32 all ) : x( all ), y( all ) {}
+    i32x2( i32 a, i32 b ) : x( a ), y( b ) {}
+};
+union i32x3
+{
+    struct
+    {
+        i32 x, y, z;
+    };
+    i32 xyz[3];
+
+    i32x3() : x( 0 ), y( 0 ), z( 0 ) {}
+    i32x3( i32 all ) : x( all ), y( all ), z( all ) {}
+    i32x3( i32 a, i32 b, i32 c ) : x( a ), y( b ), z( c ) {}
+};
 
 #ifdef x86
 typedef atomic32 atomic;
@@ -84,57 +108,6 @@ typedef atomic64 atomic;
 
 #define TYPE_OFFSET_GET_POINTER(type,offset) ( (offset)? (type*)((iptr)(&offset)+(iptr)(offset)) : (type*)0 )
 #define TYPE_POINTER_GET_OFFSET(base, address) ( (base) ? (u32)(PTR_TO_U32(address) - PTR_TO_U32(base)) : 0 )
-
-//////////////////////////////////////////////////////////////////////////
-#define DECL_WRAP_INC( type_name, type, stype, bit_mask ) \
-	static inline type wrap_inc_##type_name( const type val, const type min, const type max ) \
-{ \
-	__pragma(warning(push))	\
-	__pragma(warning(disable:4146))	\
-	const type result_inc = val + 1; \
-	const type max_diff = max - val; \
-	const type max_diff_nz = (type)( (stype)( max_diff | -max_diff ) >> bit_mask ); \
-	const type max_diff_eqz = ~max_diff_nz; \
-	const type result = ( result_inc & max_diff_nz ) | ( min & max_diff_eqz ); \
-	\
-	return (result); \
-	__pragma(warning(pop))	\
-}
-DECL_WRAP_INC( u8 , u8 , i8, 7 )
-DECL_WRAP_INC( u16, u16, i16, 15 )
-DECL_WRAP_INC( u32, u32, i32, 31 )
-DECL_WRAP_INC( u64, u64, i64, 63 )
-DECL_WRAP_INC( i8 , i8 , i8, 7 )
-DECL_WRAP_INC( i16, i16, i16, 15 )
-DECL_WRAP_INC( i32, i32, i32, 31 )
-DECL_WRAP_INC( i64, i64, i64, 63 )
-
-///
-///
-#define DECL_WRAP_DEC( type_name, type, stype, bit_mask ) \
-	static inline type wrap_dec_##type_name( const type val, const type min, const type max ) \
-{ \
-	__pragma(warning(push))	\
-	__pragma(warning(disable:4146))	\
-	const type result_dec = val - 1; \
-	const type min_diff = min - val; \
-	const type min_diff_nz = (type)( (stype)( min_diff | -min_diff ) >> bit_mask ); \
-	const type min_diff_eqz = ~min_diff_nz; \
-	const type result = ( result_dec & min_diff_nz ) | ( max & min_diff_eqz ); \
-	\
-	return (result); \
-	__pragma(warning(pop))	\
-} 
-DECL_WRAP_DEC( u8 , u8 , i8, 7 )
-DECL_WRAP_DEC( u16, u16, i16, 15 )
-DECL_WRAP_DEC( u32, u32, i32, 31 )
-DECL_WRAP_DEC( u64, u64, i64, 63 )
-DECL_WRAP_DEC( i8 , i8 , i8, 7 )
-DECL_WRAP_DEC( i16, i16, i16, 15 )
-DECL_WRAP_DEC( i32, i32, i32, 31 )
-DECL_WRAP_DEC( i64, i64, i64, 63 )
-//////////////////////////////////////////////////////////////////////////
-
 
 #ifdef _MSC_VER
 #define BIT_ALIGNMENT( alignment )	__declspec(align(alignment))	

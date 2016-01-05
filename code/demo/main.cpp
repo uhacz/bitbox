@@ -155,6 +155,7 @@ public:
 
     virtual bool update( u64 deltaTimeUS )
     {
+        rmt_BeginCPUSample( FRAME );
         const double deltaTimeS = bxTime::toSeconds( deltaTimeUS );
         const float deltaTime = (float)deltaTimeS;
         
@@ -264,7 +265,7 @@ public:
         
 
         _time += deltaTime;
-
+        rmt_EndCPUSample();
         return true;
     }
     float _time;
