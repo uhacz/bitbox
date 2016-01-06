@@ -441,37 +441,50 @@ bool phxActorCreateStatic( PhxActor** actor, PhxContext* ctx, const Matrix4& pos
     return true;
 }
 
+namespace
+{
+	void toPxHeightFieldDesc( PxHeightFieldDesc* desc, const PhxHeightField& geometry )
+	{
+		const int numSamples = geometry.numCols * geometry.numRows;
+		const int sampleStride = sizeof(PxHeightFieldSample);
+		PxHeightFieldSample* samples = (PxHeightFieldSample*)BX_MALLOC(bxDefaultAllocator(), numSamples * sampleStride, ALIGNOF(PxHeightFieldSample));
+		for (int i = 0; i < numSamples; ++i)
+		{
+			PxHeightFieldSample& sample = samples[i];
+			sample.height = (i16)(geometry.samples[i] * geometry.sampleValueConversion);
+			sample.materialIndex0 = 1;
+			sample.materialIndex1 = 1;
+			if (i % 2)
+				sample.setTessFlag();
+		}
+
+		desc->format = PxHeightFieldFormat::eS16_TM;
+		desc->samples.data = samples;
+		desc->samples.stride = sampleStride;
+		desc->nbRows = geometry.numRows;
+		desc->nbColumns = geometry.numCols;
+		desc->thickness = geometry.thickness;
+	}
+	void freePxHeightFieldDescSamples(PxHeightFieldDesc* desc)
+	{
+		void* samples = (void*)desc->samples.data;
+		BX_FREE0(bxDefaultAllocator(), samples );
+	}
+}///
+
 bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxHeightField& geometry, const PhxMaterial* material /*= nullptr */ )
 {
     PxPhysics* sdk = ctx->physics;
 
     const PxTransform pxPose = toPxTransform( pose );
-
-    const int numSamples = geometry.numCols * geometry.numRows;
-    const int sampleStride = sizeof( PxHeightFieldSample );
-    PxHeightFieldSample* samples = ( PxHeightFieldSample*)BX_MALLOC( bxDefaultAllocator(), numSamples * sampleStride, ALIGNOF( PxHeightFieldSample ) );
-    for( int i = 0 ; i < numSamples; ++i )
-    {
-        PxHeightFieldSample& sample = samples[i];
-        sample.height = (i16)( geometry.samples[i] * geometry.sampleValueConversion );
-        sample.materialIndex0 = 1;
-        sample.materialIndex1 = 1;
-        if( i % 2 )
-            sample.setTessFlag();
-    }
-
-    PxHeightFieldDesc hfDesc;
-    hfDesc.format = PxHeightFieldFormat::eS16_TM;
-    hfDesc.samples.data = samples;
-    hfDesc.samples.stride = sampleStride;
-    hfDesc.nbRows = geometry.numRows;
-    hfDesc.nbColumns = geometry.numCols;
-    hfDesc.thickness = geometry.thickness;
+	PxHeightFieldDesc hfDesc;
+	toPxHeightFieldDesc( &hfDesc, geometry );
 
     PxHeightField* hf = sdk->createHeightField( hfDesc );
-    BX_FREE0( bxDefaultAllocator(), samples );
 
-    if( !hf )
+	freePxHeightFieldDescSamples(&hfDesc);
+    
+	if( !hf )
     {
         return false;
     }
@@ -536,6 +549,27 @@ void phxActorTargetPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scen
     PxRigidDynamic* rigidDynamic = (PxRigidDynamic*)rigid;
     rigidDynamic->setKinematicTarget( pxPose );    
 }
+
+void phxActorUpdateHeightField(PhxActor* actor, const PhxHeightField& geometry)
+{
+	PxHeightFieldDesc hfDesc;
+	toPxHeightFieldDesc( &hfDesc, geometry );
+	
+	PxRigidActor* rigid = (PxRigidActor*)actor;
+	
+	PxShape* shape = nullptr;
+	rigid->getShapes( &shape, 1 );
+	SYS_ASSERT( shape->getGeometryType() == PxGeometryType::eHEIGHTFIELD );
+
+	PxHeightFieldGeometry
+
+
+	
+	freePxHeightFieldDescSamples( &hfDesc );
+
+
+}
+
 
 void phxSceneActorAdd( PhxScene* scene, PhxActor** actors, int nActors )
 {

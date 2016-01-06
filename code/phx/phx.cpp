@@ -51,7 +51,7 @@ namespace bx
         *con = newCon;
     }
 
-    void phxContactsCreate( PhxContacts** c, int capacity )
+void phxContactsCreate(PhxContacts** c, int capacity)
     {
         PhxContacts* contacts = BX_NEW( bxDefaultAllocator(), PhxContacts );
         memset( contacts, 0x00, sizeof( PhxContacts ) );

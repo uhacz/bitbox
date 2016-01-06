@@ -177,6 +177,8 @@ public:
             ImGui::End();
         }
 
+		rmt_BeginCPUSample(FRAME_UPDATE);
+
         bx::GfxCamera* camera = __scene.cameraManager->stack()->top();
 
         {
@@ -230,16 +232,24 @@ public:
 
         bx::gfxContextTick( _engine.gfxContext, _engine.gdiDevice );
 
+		rmt_EndCPUSample();
+
         bx::GfxCommandQueue* cmdq = nullptr;
         bx::gfxCommandQueueAcquire( &cmdq, _engine.gfxContext, _engine.gdiContext );
         bx::gfxContextFrameBegin( _engine.gfxContext, _engine.gdiContext );
 
-        bx::gfxSceneDraw( __scene.gfxScene, cmdq, camera );
-        bxGfxGUI::draw( _engine.gdiContext );
+		rmt_BeginCPUSample(FRAME_DRAW);
+		rmt_BeginCPUSample(scene);
+		bx::gfxSceneDraw(__scene.gfxScene, cmdq, camera);
+		rmt_EndCPUSample();
+        
+		rmt_BeginCPUSample(gui);
+		bxGfxGUI::draw( _engine.gdiContext );
+		rmt_EndCPUSample();
+		rmt_EndCPUSample();
 
         bx::gfxContextFrameEnd( _engine.gfxContext, _engine.gdiContext );
         bx::gfxCommandQueueRelease( &cmdq );
-
 
         
 

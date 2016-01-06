@@ -157,15 +157,26 @@ float Get_avg_luminance(Texture2D tex_lum, float2 uv )
 	return exp( tex_lum.SampleLevel( _samp_linear, uv, 10.f ).x );
 }
 
+float3 ACESFilm(float3 x)
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
 // Applies the filmic curve from John Hable's presentation
 float3 Tone_map_filmic_ALU( float3 color )
 {
+    //return ACESFilm(color);
     color = max(0, color - 0.004f);
     color = (color * (6.2f * color + 0.5f)) / (color * (6.2f * color + 1.7f)+ 0.06f);
 
     // result has 1/2.2 baked in
     return pow(color, 2.2f);
-    //return color;
+    return color;
 }
 
 // Determines the color based on exposure settings

@@ -109,7 +109,7 @@ namespace bx
     
     void phxActorPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene );
     void phxActorTargetPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene );
-
+	void phxActorUpdateHeightField( PhxActor* actor, const PhxHeightField& geometry );
     void phxSceneActorAdd( PhxScene* scene, PhxActor** actors, int nActors );
 
 }////
