@@ -82,6 +82,7 @@ $shape 0.5 0.5 2.5
 $pos 1.48442649973 5.57510598077 -6.65725432685
 $rot 0.0 0.0 0.0
 $material "grey"
+$density 0.1
 :dblock_commit
 
 @dblock pCube10
@@ -89,6 +90,7 @@ $shape 0.5 0.5 2.5
 $pos 2.56034910804 6.36643186073 -6.65725432685
 $rot 0.0 0.0 0.0
 $material "grey"
+$density 2.0
 :dblock_commit
 
 @dblock pCube11
@@ -96,6 +98,7 @@ $shape 0.5 0.5 2.5
 $pos 3.25686482717 7.08873012902 -6.65725432685
 $rot 0.0 0.0 0.0
 $material "grey"
+$density 1.0
 :dblock_commit
 
 @dblock pCube12
@@ -103,5 +106,7 @@ $shape 3.59315788583 0.5 2.39710527274
 $pos 7.12624428688 8.03456698934 -6.65725432685
 $rot 0.0 0.0 0.0
 $material "grey"
+$density 10.0
 :dblock_commit
+
 

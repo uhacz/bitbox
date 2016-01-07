@@ -521,7 +521,11 @@ void phxActorDestroy( PhxActor** actor )
     actor[0] = nullptr;
 
 }
-
+Matrix4 phxActorPoseGet( PhxActor* actor )
+{
+	PxRigidActor* rigid = (PxRigidActor*)actor;
+	return toMatrix4( rigid->getGlobalPose() );
+}
 void phxActorPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene )
 {
     (void)scene;

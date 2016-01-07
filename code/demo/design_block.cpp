@@ -59,14 +59,20 @@ struct DesignBlockImpl : public DesignBlock
     {
         eMAX_BLOCKS = 0xFFFF,
     };
+
+	enum EBlockFlag : u32
+	{
+		eDYNAMIC = 0x1,
+	};
+
     struct Data
     {
         Matrix4* pose;
         DesignBlock::Shape* shape;
 
         u32* name;
-        u64* tag;
-
+		u32* flag;
+		u64* tag;
         bx::GfxMeshInstance** meshInstance;
         bx::PhxActor** physics;
 
@@ -78,7 +84,8 @@ struct DesignBlockImpl : public DesignBlock
     id_array_t< eMAX_BLOCKS > _idContainer;
     Data _data;
 
-    array_t< Handle > _list_updatePose;
+	array_t< Handle > _list_dynamicBlocks;
+	array_t< Handle > _list_updatePose;
     array_t< CreateDesc > _list_create;
     array_t< Handle > _list_release;
 
@@ -117,7 +124,8 @@ struct DesignBlockImpl : public DesignBlock
         memSize += newcap * sizeof( *_data.pose );
         memSize += newcap * sizeof( *_data.shape );
         memSize += newcap * sizeof( *_data.name );
-        memSize += newcap * sizeof( *_data.tag );
+		memSize += newcap * sizeof( *_data.flag );
+		memSize += newcap * sizeof( *_data.tag );
         memSize += newcap * sizeof( *_data.meshInstance );
         memSize += newcap * sizeof( *_data.physics );
         //memSize += newcap * sizeof( *_data.phxShape );
@@ -135,7 +143,8 @@ struct DesignBlockImpl : public DesignBlock
         newdata.pose = chunker.add< Matrix4 >( newcap );
         newdata.shape = chunker.add< DesignBlock::Shape >( newcap );
         newdata.name = chunker.add< u32 >( newcap );
-        newdata.tag = chunker.add< u64 >( newcap );
+		newdata.flag = chunker.add< u32 >( newcap );
+		newdata.tag = chunker.add< u64 >( newcap );
         newdata.meshInstance = chunker.add< GfxMeshInstance* >( newcap );
         newdata.physics = chunker.add< PhxActor* >( newcap );
 
@@ -146,7 +155,8 @@ struct DesignBlockImpl : public DesignBlock
             BX_CONTAINER_COPY_DATA( &newdata, &_data, pose );
             BX_CONTAINER_COPY_DATA( &newdata, &_data, shape );
             BX_CONTAINER_COPY_DATA( &newdata, &_data, name );
-            BX_CONTAINER_COPY_DATA( &newdata, &_data, tag );
+			BX_CONTAINER_COPY_DATA( &newdata, &_data, flag );
+			BX_CONTAINER_COPY_DATA( &newdata, &_data, tag );
             BX_CONTAINER_COPY_DATA( &newdata, &_data, meshInstance );
             BX_CONTAINER_COPY_DATA( &newdata, &_data, physics );
 
@@ -224,10 +234,12 @@ struct DesignBlockImpl : public DesignBlock
                 //bxPhx::shape_release( cs, &_data.phxShape[i] );
                 phxActorDestroy( &_data.physics[i] );
                 gfxMeshInstanceDestroy( &_data.meshInstance[i] );
+
                 //bxGfx::worldMeshRemoveAndRelease( &_data.gfxMeshI[i] );
 
             }
             id_array::destroyAll( _idContainer );
+			array::clear( _list_dynamicBlocks );
             array::clear( _list_updatePose );
             array::clear( _list_create );
             array::clear( _list_release );
@@ -307,6 +319,8 @@ struct DesignBlockImpl : public DesignBlock
                 else
                 {
                     phxActorCreateDynamic( &actor, phxContextGet( phxScene ), pose, geometry, createDesc.desc.density );
+					_data.flag[index] |= EBlockFlag::eDYNAMIC;
+					array::push_back( _list_dynamicBlocks, h );
                 }
                 
                 _data.physics[index] = actor;
@@ -336,12 +350,59 @@ struct DesignBlockImpl : public DesignBlock
             _data.pose[thisIndex] = _data.pose[lastIndex];
             _data.shape[thisIndex] = _data.shape[lastIndex];
             _data.name[thisIndex] = _data.name[lastIndex];
+			_data.flag[thisIndex] = _data.flag[lastIndex];
             _data.tag[thisIndex] = _data.tag[lastIndex];
             _data.meshInstance[thisIndex] = _data.meshInstance[lastIndex];
             //_data.phxShape[thisIndex] = _data.phxShape[lastIndex];
         }
+
+		/// check dynamic blocks list
+		if( !array::empty( _list_release ) )
+		{
+			for( int i = 0; i < array::size( _list_dynamicBlocks ); )
+			{
+				id_t id = makeId( _list_dynamicBlocks[i] );
+				if( !id_array::has( _idContainer, id ) )
+				{
+					array::erase_swap( _list_dynamicBlocks, i );
+				}
+				else
+				{
+					++i;
+				}
+			}
+		}
+
         array::clear( _list_release );
     }
+
+	inline void _BlockGfxPoseUpdate( int dataIndex )
+	{
+		GfxMeshInstance* meshInstance = _data.meshInstance[dataIndex];
+
+		const Matrix4& pose = _data.pose[dataIndex];
+		const DesignBlock::Shape& shape = _data.shape[dataIndex];
+		Vector3 scale( 1.f );
+
+		switch( shape.type )
+		{
+		case Shape::eSPHERE:
+		{
+			scale = Vector3( shape.radius * 2.f );
+		}break;
+		case Shape::eCAPSULE:
+		{
+			SYS_NOT_IMPLEMENTED;
+		}break;
+		case Shape::eBOX:
+		{
+			scale = Vector3( shape.vec4 ) * 2.f;
+		}break;
+		}
+		const Matrix4 poseWithScale = appendScale( pose, scale );
+
+		gfxMeshInstanceWorldMatrixSet( meshInstance, &poseWithScale, 1 );
+	}
 
     void _Tick()
     {
@@ -352,32 +413,20 @@ struct DesignBlockImpl : public DesignBlock
                 if ( dataIndex == -1 )
                     continue;
 
-                GfxMeshInstance* meshInstance = _data.meshInstance[dataIndex];
-
-                const Matrix4& pose = _data.pose[dataIndex];
-                const DesignBlock::Shape& shape = _data.shape[dataIndex];
-                Vector3 scale( 1.f );
-
-                switch( shape.type )
-                {
-                case Shape::eSPHERE:
-                    {
-                        scale = Vector3( shape.radius * 2.f );
-                    }break;
-                case Shape::eCAPSULE:
-                    {
-                        SYS_NOT_IMPLEMENTED;
-                    }break;
-                case Shape::eBOX:
-                    {
-                        scale = Vector3( shape.vec4 ) * 2.f;
-                    }break;
-                }
-                const Matrix4 poseWithScale = appendScale( pose, scale );
-
-                gfxMeshInstanceWorldMatrixSet( meshInstance, &poseWithScale, 1 );
+				_BlockGfxPoseUpdate( dataIndex );
             }
             array::clear( _list_updatePose );
+
+			for( int i = 0; i < array::size( _list_dynamicBlocks ); ++i )
+			{
+				int dataIndex = _DataIndexGet( _list_dynamicBlocks[i] );
+				if( dataIndex == -1 )
+					continue;
+
+				_data.pose[dataIndex] = phxActorPoseGet( _data.physics[dataIndex] );
+				_BlockGfxPoseUpdate( dataIndex );
+			
+			}
         }
     }
 };
