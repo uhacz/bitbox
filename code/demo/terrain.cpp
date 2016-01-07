@@ -70,6 +70,7 @@ namespace bx
         f32 _tileSizeInv = 1.f / _tileSize;
         i32 _radius = 8;
         i32 _tileSubdiv = 4;
+        f32 _height = 15.f;
 
         union
         {
@@ -89,7 +90,7 @@ namespace bx
         GfxMeshInstance** _meshInstances = nullptr;
         PhxActor** _phxActors = nullptr;
         bxGdiRenderSource* _renderSources = nullptr;
-        i32x3* _cellWorldCoords = nullptr;
+        Vector3* _cellWorldCoords = nullptr;
         f32*   _cellHeightSamples = nullptr;
         u8*    _cellFlags = nullptr;
 
@@ -218,7 +219,7 @@ namespace bx
     void _TerrainMeshTileVerticesCompute( Terrain* terr, int tileIndex, bxGdiContextBackend* gdi )
     {
         const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
-        const Vector3 tileCenterPos = toVector3( terr->_cellWorldCoords[tileIndex] );
+        const Vector3& tileCenterPos = terr->_cellWorldCoords[tileIndex];
         const float tileExt = terr->_tileSize * 0.5f;
         const float quadSize = terr->_tileSize / (float)numQuadsInRow;
         const float quadExt = quadSize * 0.5f;
@@ -235,7 +236,7 @@ namespace bx
         __m128* vtxPtr128 = ( __m128* )vertices;
 
         const int numSamplesInRow = numQuadsInRow + 1;
-        const float height = 15.f;
+        const float height = terr->_height;
         for( int iz = 0; iz <= numQuadsInRow; ++iz )
         {
             const float z = iz * quadSize;
@@ -307,19 +308,44 @@ namespace bx
 
         SYS_ASSERT( (uptr)( vtxPtr128 ) == (uptr)( vertices + tileVbuffer.numElements ) );
     }
+
+    void _FillHeightFieldDesc( PhxHeightField* desc, const Terrain* terr, const float* samples = nullptr )
+    {
+        const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
+        const int numSamplesInRow = numQuadsInRow + 1;
+
+        desc->samples = nullptr;
+        desc->sampleValueConversion = (float)INT16_MAX / terr->_height;
+        desc->numRows = numSamplesInRow;
+        desc->numCols = numSamplesInRow;
+        desc->rowScale = terr->_tileSize / (float)( numSamplesInRow - 1 );
+        desc->colScale = desc->rowScale;
+        desc->heightScale = terr->_height / (float)INT16_MAX;
+        desc->thickness = 10.f;
+    }
+
     void _TerrainCreatePhysics( Terrain* terr, PhxScene* phxScene )
     {
         int gridNumCells = radiusToDataLength( terr->_radius );
+        
 
         PhxContext* phx = phxContextGet( phxScene );
 
-        const PhxGeometry geom( terr->_tileSize * 0.5f, 0.1f, terr->_tileSize * 0.5f );
+        //const PhxGeometry geom( terr->_tileSize * 0.5f, 0.1f, terr->_tileSize * 0.5f );
+        PhxHeightField geom;
+        _FillHeightFieldDesc( &geom, terr );
+
+        const float tileOffset = terr->_tileSize * 0.5f;
         const Matrix4 pose = Matrix4::identity();
+        const Matrix4 shapeOffset = Matrix4::rotationY( -PI/2 ) * Matrix4::translation( Vector3(-tileOffset, 0.f,-tileOffset) ); // Matrix4::rotationY( PI / 2 );
 
         for ( int i = 0; i < gridNumCells; ++i )
         {
+            const float* heightSamples = terr->cellHeightSamplesGet( i );
+            geom.samples = heightSamples;
             PhxActor* actor = nullptr;
-            bool bres = phxActorCreateDynamic( &actor, phx, pose, geom, -1.f );
+            //bool bres = phxActorCreateDynamic( &actor, phx, pose, geom, -1.f );
+            bool bres = phxActorCreateHeightfield( &actor, phx, pose, geom, nullptr, shapeOffset );
 
             SYS_ASSERT( bres );
             SYS_ASSERT( terr->_phxActors[i] == nullptr );
@@ -327,7 +353,7 @@ namespace bx
             terr->_phxActors[i] = actor;
         }
 
-        //phxSceneActorAdd( phxScene, terr->_phxActors, gridNumCells );
+        phxSceneActorAdd( phxScene, terr->_phxActors, gridNumCells );
     }
     void _TerrainDestroyPhysics( Terrain* terr, PhxScene* phxScene )
     {
@@ -371,7 +397,7 @@ namespace bx
         t->_meshInstances = chunker.add< bx::GfxMeshInstance* >( gridCellCount );
         t->_phxActors = chunker.add< bx::PhxActor* >( gridCellCount );
         t->_renderSources = chunker.add< bxGdiRenderSource >( gridCellCount );
-        t->_cellWorldCoords = chunker.add< i32x3 >( gridCellCount );
+        t->_cellWorldCoords = chunker.add< Vector3 >( gridCellCount );
         t->_cellHeightSamples = chunker.add< f32 >( numSamplesInCell * gridCellCount );
         t->_cellFlags = chunker.add< u8 >( gridCellCount );
         chunker.check();
@@ -457,11 +483,11 @@ namespace bx
                     int coordX = gridCoords1.ix + ix;
                     int coordGridSpaceX = coordX + terr->_radius;
 
-                    i32x3 worldSpaceCoords( coordX * cellSize, 0, coordZ * cellSize );
                     
                     int dataIndex = xyToIndex( coordGridSpaceX, coordGridSpaceZ, gridWH );
                     SYS_ASSERT( dataIndex < gridNumCells );
                     
+                    const Vector3 worldSpaceCoords( (float)(coordX * cellSize), 0.f, (float)( coordZ * cellSize ) );
                     terr->_cellWorldCoords[dataIndex] = worldSpaceCoords;
                     terr->_cellFlags[dataIndex] |= ECellFlag::NEW;
                 }
@@ -521,10 +547,11 @@ namespace bx
                         int x = gridCoords1.ix + ix;
                         int z = gridCoords1.iz + iz;
 
-                        i32x3 worldSpaceCoords( x * cellSize, 0, z * cellSize );
 
                         int dataIndex = xyToIndex( col, row, gridWH );
                         SYS_ASSERT( dataIndex < gridNumCells );
+                        
+                        Vector3 worldSpaceCoords( (float)(x * cellSize), 0.f, (float)(z * cellSize) );
                         terr->_cellWorldCoords[dataIndex] = worldSpaceCoords;
 
                         terr->_cellFlags[dataIndex] |= ECellFlag::NEW;
@@ -557,10 +584,11 @@ namespace bx
                         int x = gridCoords1.ix + ix;
                         int z = gridCoords1.iz + iz;
 
-                        i32x3 worldSpaceCoords( x * cellSize, 0, z * cellSize );
 
                         int dataIndex = xyToIndex( col, row, gridWH );
                         SYS_ASSERT( dataIndex < gridNumCells );
+                        
+                        const Vector3 worldSpaceCoords( (float)( x * cellSize ), 0.f, (float)( z * cellSize ) );
                         terr->_cellWorldCoords[dataIndex] = worldSpaceCoords;
 
                         terr->_cellFlags[dataIndex] |= ECellFlag::NEW;
@@ -576,21 +604,28 @@ namespace bx
 
         rmt_BeginCPUSample( Terrain_generateTiles );
 
+        PhxHeightField hfGeom;
+        _FillHeightFieldDesc( &hfGeom, terr );
+
         const Vector3 ext( terr->_tileSize * 0.5f, 0.1f, terr->_tileSize * 0.5f );
         for( int i = 0; i < gridNumCells; ++i )
         {
-            i32x3 ipos = terr->_cellWorldCoords[i];
-            Vector3 pos = toVector3( ipos );
+            Vector3 pos = terr->_cellWorldCoords[i];
+            //Vector3 pos = toVector3( ipos );
             //pos += ext;
 
             u32 color = 0xff00ff00;
             if( terr->_cellFlags[i] & ECellFlag::NEW )
             {
-                const Matrix4 tilePose = Matrix4::translation( pos );
-                phxActorPoseSet( terr->_phxActors[i], tilePose, gameScene->phxScene );
-                gfxMeshInstanceWorldMatrixSet( terr->_meshInstances[i], &tilePose, 1 );
                 color = 0xffff0000;
                 _TerrainMeshTileVerticesCompute( terr, i, gdi );
+
+                const Matrix4 tilePose = Matrix4::translation( pos );
+                phxActorPoseSet( terr->_phxActors[i], tilePose, gameScene->phxScene );
+                
+                hfGeom.samples = terr->cellHeightSamplesGet( i );
+                phxActorUpdateHeightField( terr->_phxActors[i], hfGeom );
+                gfxMeshInstanceWorldMatrixSet( terr->_meshInstances[i], &tilePose, 1 );
             }
             
             //bxGfxDebugDraw::addBox( Matrix4::translation( pos ), ext, color, 1 );
@@ -618,7 +653,7 @@ namespace bx
         {
             const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
             const int numSamplesInRow = numQuadsInRow + 1;
-            const Vector3 tileCenterPos = toVector3( terr->_cellWorldCoords[tileIndex] );
+            const Vector3& tileCenterPos = terr->_cellWorldCoords[tileIndex];
             const float tileExt = terr->_tileSize * 0.5f;
             const float quadSize = terr->_tileSize / (float)numQuadsInRow;
             const float quadExt = quadSize * 0.5f;

@@ -463,16 +463,17 @@ namespace
 		desc->samples.stride = sampleStride;
 		desc->nbRows = geometry.numRows;
 		desc->nbColumns = geometry.numCols;
-		desc->thickness = geometry.thickness;
+		desc->thickness =-geometry.thickness;
 	}
-	void freePxHeightFieldDescSamples(PxHeightFieldDesc* desc)
+	
+    void freePxHeightFieldDescSamples(PxHeightFieldDesc* desc)
 	{
 		void* samples = (void*)desc->samples.data;
 		BX_FREE0(bxDefaultAllocator(), samples );
 	}
 }///
 
-bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxHeightField& geometry, const PhxMaterial* material /*= nullptr */ )
+bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxHeightField& geometry, const PhxMaterial* material /*= nullptr */, const Matrix4& shapeOffset /*= Matrix4::identity()*/ )
 {
     PxPhysics* sdk = ctx->physics;
 
@@ -495,7 +496,7 @@ bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4
     pxActor->setRigidBodyFlag( PxRigidBodyFlag::eKINEMATIC, true );
 
     PxMaterial* pxMaterial = ctx->defaultMaterial;
-    PxShape* shape = pxActor->createShape( hfGeom, *pxMaterial, PxTransform::createIdentity() );
+    PxShape* shape = pxActor->createShape( hfGeom, *pxMaterial, toPxTransform( shapeOffset ) );
     if( !shape )
     {
         bxLogError( "Failed to create shape for heightfield actor!!" );
@@ -504,8 +505,6 @@ bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4
     pxActor->setActorFlag( PxActorFlag::eVISUALIZATION, true );
     physxActorShapesFlagSet( pxActor, PxShapeFlag::eVISUALIZATION, true );
     physxActorShapesCollisionGroupSet( pxActor, 1, 0xFFFFFFFF );
-    
-
 
     actor[0] = pxActor;
     return true;
@@ -549,27 +548,24 @@ void phxActorTargetPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scen
     PxRigidDynamic* rigidDynamic = (PxRigidDynamic*)rigid;
     rigidDynamic->setKinematicTarget( pxPose );    
 }
-
-void phxActorUpdateHeightField(PhxActor* actor, const PhxHeightField& geometry)
+void phxActorUpdateHeightField( PhxActor* actor, const PhxHeightField& geometry )
 {
-	PxHeightFieldDesc hfDesc;
-	toPxHeightFieldDesc( &hfDesc, geometry );
-	
-	PxRigidActor* rigid = (PxRigidActor*)actor;
-	
-	PxShape* shape = nullptr;
-	rigid->getShapes( &shape, 1 );
-	SYS_ASSERT( shape->getGeometryType() == PxGeometryType::eHEIGHTFIELD );
+    PxRigidActor* rigid = (PxRigidActor*)actor;
+    PxShape* shape = nullptr;
+    rigid->getShapes( &shape, 1 );
+    SYS_ASSERT( shape->getGeometryType() == PxGeometryType::eHEIGHTFIELD );
 
-	PxHeightFieldGeometry
+    PxHeightFieldGeometry hfGeom;
+    shape->getHeightFieldGeometry( hfGeom );
 
+    PxHeightFieldDesc hfDesc;
+    toPxHeightFieldDesc( &hfDesc, geometry );
 
-	
-	freePxHeightFieldDescSamples( &hfDesc );
+    bool bres = hfGeom.heightField->modifySamples( 0, 0, hfDesc );
+    SYS_ASSERT( bres == true );
 
-
+    freePxHeightFieldDescSamples( &hfDesc );
 }
-
 
 void phxSceneActorAdd( PhxScene* scene, PhxActor** actors, int nActors )
 {

@@ -75,7 +75,7 @@ namespace bx
 
     struct PhxHeightField
     {
-        f32* samples = nullptr;
+        const f32* samples = nullptr;
         f32 sampleValueConversion = 1.f;
       
         i32 numRows = 0;
@@ -102,16 +102,15 @@ namespace bx
 
     bool phxActorCreateDynamic( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxGeometry& geometry, float density, const PhxMaterial* material = nullptr, const Matrix4& shapeOffset = Matrix4::identity() );
     bool phxActorCreateStatic( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxGeometry& geometry, const PhxMaterial* material = nullptr, const Matrix4& shapeOffset = Matrix4::identity() );
-    bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxHeightField& geometry, const PhxMaterial* material = nullptr );
+    bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxHeightField& geometry, const PhxMaterial* material = nullptr, const Matrix4& shapeOffset = Matrix4::identity() );
     void phxActorDestroy( PhxActor** actor );
-
-    
-    
+        
     void phxActorPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene );
     void phxActorTargetPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene );
-	void phxActorUpdateHeightField( PhxActor* actor, const PhxHeightField& geometry );
+    void phxActorUpdateHeightField( PhxActor* actor, const float* samples );
+    void phxActorUpdateHeightField( PhxActor* actor, const PhxHeightField& geometry );
+    
     void phxSceneActorAdd( PhxScene* scene, PhxActor** actors, int nActors );
-
 }////
 
 namespace bx
