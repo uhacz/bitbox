@@ -8,7 +8,7 @@
 
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_gui.h>
-
+#include <engine/profiler.h>
 namespace bx
 {
 namespace

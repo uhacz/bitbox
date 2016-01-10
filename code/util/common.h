@@ -77,8 +77,8 @@ inline u16 depthToBits( float depth )
 inline int moduloNegInf( int a, int b )
 {
     int resultA = a - ( (int)floor( (float)a / (float)b ) * b );
-    int resultB = ( a >= 0 ) ? a % b : a - ( -iceil( ::abs( a ), b ) * b );
-    SYS_ASSERT( resultA == resultB );
+    //int resultB = ( a >= 0 ) ? a % b : a - ( -iceil( ::abs( a ), b ) * b );
+    //SYS_ASSERT( resultA == resultB );
     return resultA;
 }
 

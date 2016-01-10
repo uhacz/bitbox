@@ -15,6 +15,7 @@
 
 #include "scene.h"
 #include "phx/phx.h"
+#include "tools/remotery/Remotery.h"
 
 namespace 
 {
@@ -297,6 +298,7 @@ void characterDeinit( Character* character, bxGdiDeviceBackend* dev )
 
 void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* scene, const bxInput& input, float deltaTime )
 {
+	rmt_BeginCPUSample( CHARACTER );
     CharacterInternal::collectInputData( &character->input, input, deltaTime );
 
     bx::GfxCamera* camera = scene->cameraManager->stack()->top();
@@ -359,6 +361,8 @@ void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* s
 
     const bool doIteration = character->_dtAcc >= fixedDt;
 
+	rmt_BeginCPUSample( iteration );
+
     while( character->_dtAcc >= fixedDt )
     {
         CharacterInternal::simulateShapeBodyBegin( character, externalForces, fixedDt );
@@ -376,7 +380,7 @@ void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* s
         character->_dtAcc -= fixedDt;
         character->_jumpAcc = 0.f;
     }
-
+	rmt_EndCPUSample();
     if( doIteration )
     {
         bxGdiRenderSource* rsource = bx::gfxMeshInstanceRenderSourceGet( character->meshInstance );
@@ -394,6 +398,7 @@ void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* s
     }
 
     //CharacterInternal::debugDraw( character );
+	rmt_EndCPUSample();
 }
 
 Matrix4 characterPoseGet( const Character* ch )
