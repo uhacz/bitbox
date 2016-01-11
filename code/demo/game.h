@@ -57,6 +57,23 @@ namespace bx
 //}///
 
 
+namespace bx
+{
+    struct CharacterController
+    {
+        static void create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose );
+        static void release( CharacterController** cc, GameScene* scene );
+        
+        CharacterController() {}
+        virtual ~CharacterController() {}
+
+        virtual void tick( GameScene* scene, const bxInput& input, float deltaTime ) = 0;
+        virtual Matrix4 worldPose() const = 0;
+
+    };
+}////
+
+
 
 namespace bx
 {

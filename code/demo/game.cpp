@@ -481,3 +481,78 @@
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+namespace bx
+{
+    struct CharacterControllerImpl : public CharacterController
+    {
+        struct DynamicState
+        {
+            Vector3 _pos0 = Vector3(0.f);
+            Vector3 _pos1 = Vector3( 0.f );
+            Vector3 _vel = Vector3( 0.f );
+            Vector3 _upDir = Vector3( 0.f, 1.f, 0.f );
+            Quat _rotation = Quat::identity();
+
+            void setPose( const Matrix4& worldPose )
+            {
+                _pos0 = worldPose.getTranslation();
+                _pos1 = worldPose.getTranslation();
+                _vel = Vector3( 0.f );
+                _rotation = Quat( worldPose.getUpper3x3() );
+            }
+        };
+        struct Capsule
+        {
+            f32 _radius = 0.25f;
+            f32 _halfHeight = 0.5f;
+        };
+
+        DynamicState _dstate0;
+        Capsule _capsule0;
+
+        void create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose )
+        {
+            CharacterControllerImpl* c = BX_NEW( bxDefaultAllocator(), CharacterControllerImpl );
+            c->_Init( scene, worldPose );
+
+            cc[0] = c;
+        }
+        void release( CharacterController** cc, GameScene* scene )
+        {
+            if( !cc[0] )
+                return;
+
+            CharacterControllerImpl* impl = (CharacterControllerImpl*)cc[0];
+            impl->_Deinit( scene );
+
+            BX_DELETE0( bxDefaultAllocator(), cc[0] );
+        }
+
+        void _Init( GameScene* scene, const Matrix4& worldPose )
+        {
+            _dstate0.setPose( worldPose );
+        }
+
+        void _Deinit( GameScene* scene )
+        {
+        
+        }
+
+        void _Teleport( const Matrix4& worldPose )
+        {
+            _dstate0.setPose( worldPose );
+        }
+
+        //////////////////////////////////////////////////////////////////////////
+        virtual void tick( GameScene* scene, const bxInput& input, float deltaTime )
+        {
+        
+        }
+        virtual Matrix4 worldPose() const
+        {
+            return Matrix4( _dstate0._rotation, _dstate0._pos0 );
+        }
+    };
+
+}///
+
