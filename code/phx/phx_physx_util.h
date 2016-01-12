@@ -76,7 +76,13 @@ inline PxTransform toPxTransform( const Transform3& pose )
     const PxQuat rot = toPxQuat( Quat( pose.getUpper3x3() ) );
     return PxTransform( pos, rot.getNormalized() );
 }
+inline PxTransform toPxTransform( const TransformTQ& pose )
+{
+    const PxVec3 pos = toPxVec3( pose.t );
+    const PxQuat rot = toPxQuat( pose.q );
+    return PxTransform( pos, rot );
+}
 
-#define releasePhysxObject( ob ) if( ob ) { ob->release(); ob = 0; }
+#define releasePhysXObject( ob ) if( ob ) { ob->release(); ob = 0; }
 
 }///

@@ -17,7 +17,7 @@
 
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_gui.h>
-
+#include <phx/phx.h>
 #include <smmintrin.h>
 #include "physics.h"
 #include <system/input.h>
@@ -490,7 +490,6 @@ namespace bx
             Vector3 _pos0 = Vector3(0.f);
             Vector3 _pos1 = Vector3( 0.f );
             Vector3 _vel = Vector3( 0.f );
-            Vector3 _upDir = Vector3( 0.f, 1.f, 0.f );
             Quat _rotation = Quat::identity();
 
             void setPose( const Matrix4& worldPose )
@@ -501,14 +500,10 @@ namespace bx
                 _rotation = Quat( worldPose.getUpper3x3() );
             }
         };
-        struct Capsule
-        {
-            f32 _radius = 0.25f;
-            f32 _halfHeight = 0.5f;
-        };
 
+        Vector3 _upDir = Vector3( 0.f, 1.f, 0.f );
         DynamicState _dstate0;
-        Capsule _capsule0;
+        PhxGeometry _capsule0 = PhxGeometry( 0.25f, 0.5f );
 
         void create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose )
         {
@@ -546,8 +541,56 @@ namespace bx
         //////////////////////////////////////////////////////////////////////////
         virtual void tick( GameScene* scene, const bxInput& input, float deltaTime )
         {
-        
+            const float deltaTimeInv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
+            const Vector3 gravity = -_upDir * 9.f;
+            const float dampingCoeff = 0.2f;
+            const float damping = pow( 1.f - dampingCoeff, deltaTime );
+            
+            {
+                DynamicState* ds = &_dstate0;
+
+                Vector3 pos0 = ds->_pos0;
+                Vector3 vel = ds->_vel;
+
+                vel += gravity * deltaTime;
+                vel *= damping;
+
+                Vector3 pos1 = pos0 + vel * deltaTime;
+
+                ds->_pos1 = pos1;
+                ds->_vel = vel;
+            }
+
+            {
+                const PhxGeometry& capsule = _capsule0;
+
+                DynamicState* ds = &_dstate0;
+                const Vector3& pos0 = ds->_pos0;
+                Vector3 pos1 = ds->_pos1;
+
+                const Vector3 rd = pos1 - pos0;
+                const TransformTQ
+                const float displ = length( rd ).getAsFloat();
+
+                PhxQueryHit hit;
+                const TransformTQ pose( ds->_rotation, ds->_pos0 );
+
+                if( phxSweep( &hit, scene->phxScene, capsule, pose, rd, displ * 1.1f ) )
+                {
+                    pos0 += 
+                }
+                
+
+
+            }
+
+            {
+                DynamicState* ds = &_dstate0;
+                ds->_vel = ( ds->_pos1 - ds->_pos0 ) * deltaTimeInv;
+                ds->_pos0 = ds->_pos1;
+            }
         }
+
         virtual Matrix4 worldPose() const
         {
             return Matrix4( _dstate0._rotation, _dstate0._pos0 );

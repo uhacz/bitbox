@@ -163,12 +163,12 @@ void phxContextShutdown( PhxContext** phx )
         SYS_ASSERT( false );
     }
 
-    releasePhysxObject( p->cpuDispatcher );
-    releasePhysxObject( p->defaultMaterial );
-    releasePhysxObject( p->cooking );
+    releasePhysXObject( p->cpuDispatcher );
+    releasePhysXObject( p->defaultMaterial );
+    releasePhysXObject( p->cooking );
     PxCloseExtensions();
-    releasePhysxObject( p->physics );
-    releasePhysxObject( p->foundation );
+    releasePhysXObject( p->physics );
+    releasePhysXObject( p->foundation );
 
     BX_DELETE0( bxDefaultAllocator(), phx[0] );
 }
@@ -264,8 +264,8 @@ void phxSceneDestroy( PhxScene** scene )
     //s->scene->setSimulationEventCallback( NULL );
     BX_FREE0( bxDefaultAllocator(), s->scratchBuffer );
     BX_DELETE0( bxDefaultAllocator(), s->stepper );
-    releasePhysxObject( s->controllerManager );
-    releasePhysxObject( s->scene );
+    releasePhysXObject( s->controllerManager );
+    releasePhysXObject( s->scene );
 
     BX_DELETE0( bxDefaultAllocator(), scene[0] );
 }
@@ -625,5 +625,74 @@ namespace bx
         }
 
         return nCollisions;
+    }
+
+    static inline PxFilterData phxDefaultFilterDataForQueries( u32 currentFlags = 0xFFFFFFFF )
+    {
+        PxFilterData fd;
+        fd.word0 = currentFlags; // & ~(1u << _GetPlaneCollisionGroup() );
+        fd.word1 = fd.word0;
+        return fd;
+    }
+
+    inline void phxQueryHitFill( PhxQueryHit* result, const PxLocationHit& hit )
+    {
+        if( result->mask & PhxQueryHit::ePOSITION )
+            result->position = toVector3( hit.position );
+        if( result->mask & PhxQueryHit::eNORMAL )
+            result->normal = toVector3( hit.normal );
+        if( result->mask & PhxQueryHit::eDISTANCE )
+            result->distance = hit.distance;
+
+        result->shape = hit.shape;
+        result->actor = hit.actor;
+    }
+
+    inline PxHitFlags toPxHitFlags( const PhxQueryHit& hit )
+    {
+        PxHitFlags hitFlags = PxHitFlag::ePRECISE_SWEEP; // | PxHitFlag::eMTD;
+        
+        if( hit.mask & PhxQueryHit::ePOSITION )
+            hitFlags |= PxHitFlag::ePOSITION;
+
+        if( hit.mask & PhxQueryHit::eNORMAL )
+            hitFlags |= PxHitFlag::eNORMAL;
+        
+        if( hit.mask & PhxQueryHit::eDISTANCE )
+            hitFlags |= PxHitFlag::eDISTANCE;
+
+        return hitFlags;
+    }
+
+    bool phxSweep( PhxQueryHit* hit, const PhxScene* scene, const PhxGeometry& geometry, const TransformTQ& worldPose, const Vector3& dir, float maxDistance )
+    {
+        PhxGeometryConversion geomCvt( geometry );
+        const PxTransform pxPose = toPxTransform( worldPose );
+
+        const PxScene* pxscene = scene->scene;
+
+        const PxHitFlags hitFlags = toPxHitFlags( *hit );
+        
+        PxQueryFilterData queryFd;
+        queryFd.flags = ( PxQueryFlag::eDYNAMIC | PxQueryFlag::eSTATIC );// | PxQueryFlag::ePREFILTER | PxQueryFlag::ePOSTFILTER )
+        queryFd.data = phxDefaultFilterDataForQueries();
+
+        const PxVec3 rd = toPxVec3( dir ).getNormalized();
+
+        PxSweepBuffer sweepHitBuffer;
+        const bool bres = pxscene->sweep( *geomCvt.geometry, pxPose, rd, maxDistance, sweepHitBuffer, hitFlags, queryFd );
+        if( bres )
+        {
+            const PxSweepHit& sweepHit = sweepHitBuffer.getAnyHit( 0 );
+            phxQueryHitFill( hit, sweepHit );
+        }
+        else
+        {
+            hit->position = worldPose.t + dir*maxDistance;
+            hit->distance = maxDistance;
+            hit->normal = -dir;
+        }
+
+        return bres;
     }
 }///

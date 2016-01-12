@@ -94,7 +94,6 @@ void phxContactsCreate(PhxContacts** c, int capacity)
     {
         con->size = 0;
     }
-
-    
+   
 
 }///

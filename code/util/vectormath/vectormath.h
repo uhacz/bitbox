@@ -356,3 +356,29 @@ inline float computeAngle( const Vector3& v0, const Vector3& v1 )
     return ::atan2( sine, cosine );
 }
 
+struct TransformTQ
+{
+    Quat q;
+    Vector3 t;
+
+    TransformTQ() {}
+    
+    TransformTQ( const Quat& r )
+        : q(r), t(0.f) {}
+    
+    TransformTQ( const Vector3& v )
+        : q( Quat::identity() ), t( v ) {}
+    
+    TransformTQ( const Quat& r, const Vector3& v )
+        : q( r ), t( v ) {}
+
+    TransformTQ( const Matrix4& m )
+        : q( m.getUpper3x3() ), t( m.getTranslation() ) {}
+
+    inline static TransformTQ identity() { return TransformTQ( Quat::identity(), Vector3( 0.f ) ); }
+};
+
+inline Vector3 transform( const TransformTQ& tq, const Vector3& point )
+{
+    return fastTransform( tq.q, tq.t, point );
+}

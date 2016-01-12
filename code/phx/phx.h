@@ -100,6 +100,23 @@ namespace bx
         {}
     };
 
+    struct PhxQueryHit
+    {
+        enum EMask : u32
+        {
+            ePOSITION = BIT_OFFSET( 0 ),
+            eNORMAL = BIT_OFFSET( 1 ),
+            eDISTANCE = BIT_OFFSET( 2 ),
+            eALL = ePOSITION | eNORMAL | eDISTANCE,
+        };
+        Vector3 position = Vector3(0.f);
+        Vector3 normal = Vector3(0.f);
+        f32 distance = 0.f;
+        PhxActor* actor = nullptr;
+        PhxShape* shape = nullptr;
+        u32 mask = eALL;
+    };
+
     bool phxActorCreateDynamic( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxGeometry& geometry, float density, const PhxMaterial* material = nullptr, const Matrix4& shapeOffset = Matrix4::identity() );
     bool phxActorCreateStatic( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxGeometry& geometry, const PhxMaterial* material = nullptr, const Matrix4& shapeOffset = Matrix4::identity() );
     bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxHeightField& geometry, const PhxMaterial* material = nullptr, const Matrix4& shapeOffset = Matrix4::identity() );
@@ -125,4 +142,5 @@ namespace bx
     void phxContactsClear( PhxContacts* con );
 
     int phxContactsCollide( PhxContacts* con, const PhxScene* scene, const Vector3* points, int nPoints, float pointRadius, const Vector4& bsphere );
+    bool phxSweep( PhxQueryHit* hit, const PhxScene* scene, const PhxGeometry& geometry, const TransformTQ& worldPose, const Vector3& dir, float maxDistance );
 }///
