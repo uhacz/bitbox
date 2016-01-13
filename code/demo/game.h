@@ -62,7 +62,7 @@ namespace bx
     struct CharacterController
     {
         static void create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose );
-        static void release( CharacterController** cc, GameScene* scene );
+        static void destroy( CharacterController** cc, GameScene* scene );
         
         CharacterController() {}
         virtual ~CharacterController() {}

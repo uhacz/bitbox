@@ -389,6 +389,7 @@ void physxActorShapesCollisionGroupSet( PxRigidActor* actor, u32 selfMask, u32 c
         fd.word0 = selfMask;
         fd.word1 = collideWithMask;
         shape->setSimulationFilterData( fd );
+        shape->setQueryFilterData( fd );
     }
 }
 

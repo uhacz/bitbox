@@ -227,6 +227,8 @@ namespace bx
 
         bx::terrainCreate( &scene->terrain, scene, engine );
         scene->character = bx::character_new();
+        bx::CharacterController::create( &scene->characterController, scene, Matrix4::translation( Vector3(0.f, 5.f, 0.f ) ) );
+        
 
         //scene->flock = bxGame::flock_new();
 
@@ -237,7 +239,7 @@ namespace bx
     void gameSceneShutdown( GameScene* scene, bxEngine* engine )
     {
         //bxGame::flock_delete( &scene->flock );
-
+        bx::CharacterController::destroy( &scene->characterController, scene );
         bx::characterDeinit( scene->character, engine->gdiDevice );
         bx::character_delete( &scene->character );
 

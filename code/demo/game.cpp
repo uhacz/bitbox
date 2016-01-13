@@ -22,6 +22,7 @@
 #include "physics.h"
 #include <system/input.h>
 #include <util/signal_filter.h>
+#include "scene.h"
 
 //namespace bxGame
 //{
@@ -503,25 +504,7 @@ namespace bx
 
         Vector3 _upDir = Vector3( 0.f, 1.f, 0.f );
         DynamicState _dstate0;
-        PhxGeometry _capsule0 = PhxGeometry( 0.25f, 0.5f );
-
-        void create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose )
-        {
-            CharacterControllerImpl* c = BX_NEW( bxDefaultAllocator(), CharacterControllerImpl );
-            c->_Init( scene, worldPose );
-
-            cc[0] = c;
-        }
-        void release( CharacterController** cc, GameScene* scene )
-        {
-            if( !cc[0] )
-                return;
-
-            CharacterControllerImpl* impl = (CharacterControllerImpl*)cc[0];
-            impl->_Deinit( scene );
-
-            BX_DELETE0( bxDefaultAllocator(), cc[0] );
-        }
+        PhxGeometry _geometry0 = PhxGeometry( 0.25f );
 
         void _Init( GameScene* scene, const Matrix4& worldPose )
         {
@@ -542,7 +525,7 @@ namespace bx
         virtual void tick( GameScene* scene, const bxInput& input, float deltaTime )
         {
             const float deltaTimeInv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
-            const Vector3 gravity = -_upDir * 9.f;
+            const Vector3 gravity = -_upDir * 0.1f;
             const float dampingCoeff = 0.2f;
             const float damping = pow( 1.f - dampingCoeff, deltaTime );
             
@@ -562,26 +545,25 @@ namespace bx
             }
 
             {
-                const PhxGeometry& capsule = _capsule0;
+                const PhxGeometry& sweepGeom = _geometry0;
 
                 DynamicState* ds = &_dstate0;
                 const Vector3& pos0 = ds->_pos0;
                 Vector3 pos1 = ds->_pos1;
 
                 const Vector3 rd = pos1 - pos0;
-                const TransformTQ
                 const float displ = length( rd ).getAsFloat();
 
                 PhxQueryHit hit;
                 const TransformTQ pose( ds->_rotation, ds->_pos0 );
 
-                if( phxSweep( &hit, scene->phxScene, capsule, pose, rd, displ * 1.1f ) )
+                if( phxSweep( &hit, scene->phxScene, sweepGeom, pose, rd, displ ) )
                 {
-                    pos0 += 
+                    pos1 = hit.position + hit.normal * sweepGeom.sphere.radius;
+                    bxGfxDebugDraw::addSphere( Vector4( hit.position, 0.1f ), 0xFF0000FF, 1 );
                 }
                 
-
-
+                ds->_pos1 = pos1;
             }
 
             {
@@ -589,6 +571,8 @@ namespace bx
                 ds->_vel = ( ds->_pos1 - ds->_pos0 ) * deltaTimeInv;
                 ds->_pos0 = ds->_pos1;
             }
+
+            bxGfxDebugDraw::addSphere( Vector4( _dstate0._pos0, _geometry0.sphere.radius ), 0xFFFF00FF, 1 );
         }
 
         virtual Matrix4 worldPose() const
@@ -597,5 +581,22 @@ namespace bx
         }
     };
 
+    void CharacterController::create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose )
+    {
+        CharacterControllerImpl* c = BX_NEW( bxDefaultAllocator(), CharacterControllerImpl );
+        c->_Init( scene, worldPose );
+
+        cc[0] = c;
+    }
+    void CharacterController::destroy( CharacterController** cc, GameScene* scene )
+    {
+        if( !cc[0] )
+            return;
+
+        CharacterControllerImpl* impl = (CharacterControllerImpl*)cc[0];
+        impl->_Deinit( scene );
+
+        BX_DELETE0( bxDefaultAllocator(), cc[0] );
+    }
 }///
 
