@@ -525,7 +525,7 @@ namespace bx
         virtual void tick( GameScene* scene, const bxInput& input, float deltaTime )
         {
             const float deltaTimeInv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
-            const Vector3 gravity = -_upDir * 0.1f;
+            const Vector3 gravity = -_upDir * 9.f;
             const float dampingCoeff = 0.2f;
             const float damping = pow( 1.f - dampingCoeff, deltaTime );
             
@@ -557,10 +557,12 @@ namespace bx
                 PhxQueryHit hit;
                 const TransformTQ pose( ds->_rotation, ds->_pos0 );
 
-                if( phxSweep( &hit, scene->phxScene, sweepGeom, pose, rd, displ ) )
+                if( phxSweep( &hit, scene->phxScene, sweepGeom, pose, normalizeSafe( rd ), displ ) )
                 {
-                    pos1 = hit.position + hit.normal * sweepGeom.sphere.radius;
-                    bxGfxDebugDraw::addSphere( Vector4( hit.position, 0.1f ), 0xFF0000FF, 1 );
+					//pos1 = pos0 + normalize( rd ) * hit.distance; // +hit.normal * sweepGeom.sphere.radius;
+					pos1 = hit.position + hit.normal * sweepGeom.sphere.radius;
+                    bxGfxDebugDraw::addSphere( Vector4( pos1, 0.1f ), 0xFF0000FF, 1 );
+					bxGfxDebugDraw::addLine( hit.position, hit.normal + hit.position, 0x0000FFFF, 1 );
                 }
                 
                 ds->_pos1 = pos1;

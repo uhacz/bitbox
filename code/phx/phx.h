@@ -48,6 +48,8 @@ namespace bx
                 f32 radius;
                 f32 halfHeight;
             }capsule;
+
+			f32 params[3];
         };
         PhxGeometry( f32 ex, f32 ey, f32 ez )
             : type( eBOX )
@@ -61,6 +63,8 @@ namespace bx
             : type( eSPHERE)
         {
             sphere.radius = r;
+			params[1] = 0.f;
+			params[2] = 0.f;
         }
         
         PhxGeometry( f32 r, f32 hh )
@@ -68,6 +72,7 @@ namespace bx
         {
             capsule.radius = r;
             capsule.halfHeight = hh;
+			params[2] = 0.f;
         }
 
         PhxGeometry() = default;

@@ -9,6 +9,7 @@
 #include <util/thread/mutex.h>
 #include <util/range_splitter.h>
 #include <util/view_frustum.h>
+#include <util/camera.h>
 
 struct BIT_ALIGNMENT_16 bxGfxDebugDraw_Shpere
 {
@@ -175,19 +176,22 @@ namespace bxGfxDebugDraw
     }
 
 
-    void flush( bxGdiContext* ctx, const Matrix4& viewProj )
+    void flush( bxGdiContext* ctx, const Matrix4& view, const Matrix4& proj )
     {
         if( !__dd )
             return;
 
         bxScopeBenaphore lock( __dd->lock );
         
-        bxGdiHwStateDesc hwState;
-        hwState.raster.fillMode = bxGdi::eFILL_WIREFRAME;
+        //bxGdiHwStateDesc hwState;
+        //hwState.raster.fillMode = bxGdi::eFILL_WIREFRAME;
+
+		const Matrix4 projDx11 = bx::gfx::cameraMatrixProjectionDx11( proj );
+		const Matrix4 viewProj = projDx11 * view;
 
         __dd->fxI->setUniform( "view_proj_matrix", viewProj );
-        __dd->fxI->setHwState( 0, hwState );
-        __dd->fxI->setHwState( 1, hwState );
+        //__dd->fxI->setHwState( 0, hwState );
+        //__dd->fxI->setHwState( 1, hwState );
 
         //ctx->clear();
         ctx->setCbuffer( __dd->cbuffer_instances, 1, bxGdi::eSTAGE_MASK_VERTEX );

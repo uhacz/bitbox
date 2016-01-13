@@ -9,6 +9,13 @@ namespace bx{ namespace gfx{
         return Matrix4::perspective( fov, aspect, znear, zfar );
     }
 
+	Matrix4 cameraMatrixProjectionDx11( const Matrix4 & proj )
+	{
+		const Matrix4 sc = Matrix4::scale( Vector3( 1, 1, 0.5f ) );
+		const Matrix4 tr = Matrix4::translation( Vector3( 0, 0, 1 ) );
+		return sc * tr * proj;
+	}
+
     Matrix4 cameraMatrixOrtho( float orthoWidth, float orthoHeight, float znear, float zfar, int rtWidth, int rtHeight )
     {
         const float orthoWidthHalf = orthoWidth * 0.5f;

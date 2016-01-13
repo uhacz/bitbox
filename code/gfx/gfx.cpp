@@ -12,6 +12,7 @@
 #include <util/time.h>
 #include <util/handle_manager.h>
 #include <util/float16.h>
+#include <util/camera.h>
 
 #include <gdi/gdi_render_source.h>
 #include <gdi/gdi_shader.h>
@@ -106,10 +107,7 @@ namespace bx
     void gfxViewFrameParamsFill( GfxViewFrameParams* fparams, const GfxCamera* camera, int rtWidth, int rtHeight )
     {
         //SYS_STATIC_ASSERT( sizeof( FrameData ) == 376 );
-
-        const Matrix4 sc = Matrix4::scale( Vector3( 1, 1, 0.5f ) );
-        const Matrix4 tr = Matrix4::translation( Vector3( 0, 0, 1 ) );
-        const Matrix4 proj = sc * tr * camera->proj;
+		const Matrix4 proj = bx::gfx::cameraMatrixProjectionDx11( camera->proj );
 
         fparams->_camera_view = camera->view;
         fparams->_camera_proj = proj;
@@ -913,16 +911,16 @@ namespace bx
         //    gfxSubmitFullScreenQuad( gdi, fxI, "ambientTransfer" );
 
         //}
+		{
+			//gdi->clear();
+			gdi->changeRenderTargets( &ctx->_framebuffer[eFB_TEMP0], 1, ctx->_framebuffer[eFB_DEPTH] );
+			bxGfxDebugDraw::flush( gdi, camera->view, camera->proj );
+		}
 
         gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_TEMP0], gfxCameraAspect( camera ) );
         //gfxRasterizeFramebuffer( gdi, ctx->_shadow._texDepth, gfxCameraAspect( camera ) );
 
-        {
-            gdi->clearResourcesRO();
-            gdi->changeRenderTargets( &ctx->_framebuffer[eFB_TEMP0], 1, ctx->_framebuffer[eFB_DEPTH] );
-            bxGfxDebugDraw::flush( gdi, camera->viewProj );
-            gdi->changeToMainFramebuffer();
-        }
+
 
     }
 }///

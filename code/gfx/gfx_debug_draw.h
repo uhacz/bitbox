@@ -17,6 +17,6 @@ namespace bxGfxDebugDraw
     void addFrustum( const Matrix4& viewProj, u32 colorRGBA, int depth );
     void addFrustum( const Vector3 corners[8], u32 colorRGBA, int depth );
 
-    void flush( bxGdiContext* ctx, const Matrix4& viewProj );
+    void flush( bxGdiContext* ctx, const Matrix4& view, const Matrix4& proj );
 
 }///

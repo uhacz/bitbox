@@ -651,7 +651,7 @@ namespace bx
 
     inline PxHitFlags toPxHitFlags( const PhxQueryHit& hit )
     {
-        PxHitFlags hitFlags = PxHitFlag::ePRECISE_SWEEP; // | PxHitFlag::eMTD;
+        PxHitFlags hitFlags = PxHitFlag::ePRECISE_SWEEP | PxHitFlag::eASSUME_NO_INITIAL_OVERLAP; // | PxHitFlag::eMTD;
         
         if( hit.mask & PhxQueryHit::ePOSITION )
             hitFlags |= PxHitFlag::ePOSITION;

@@ -6,6 +6,7 @@
 namespace bx{ namespace gfx{
 
     Matrix4 cameraMatrixProjection( float aspect, float fov, float znear, float zfar );
+	Matrix4 cameraMatrixProjectionDx11( const Matrix4& proj );
     Matrix4 cameraMatrixOrtho( float orthoWidth, float orthoHeight, float znear, float zfar, int rtWidth, int rtHeight );
     Matrix4 cameraMatrixOrtho( float left, float right, float bottom, float top, float near, float far );
     floatInVec cameraDepth( const Matrix4& cameraWorld, const Vector3& worldPosition );

@@ -7,7 +7,8 @@ passes:
         hwstate =
         {
             depth_test = 1;
-            depth_write = 0;
+            depth_write = 1;
+            fill_mode = "WIREFRAME";
         };
     };
     lines =
@@ -17,7 +18,8 @@ passes:
         hwstate =
         {
             depth_test = 1;
-            depth_write = 0;
+            depth_write = 1;
+            fill_mode = "WIREFRAME";
         };
     };
 };#~header
