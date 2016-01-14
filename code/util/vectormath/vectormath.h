@@ -198,11 +198,11 @@ inline Vector4 sinv4( const Vector4& x )
     return Vector4( sinf4( x.get128() ) );
 }
 
-inline const Vector3 normalizeSafe( const Vector3& v, const floatInVec& eps = floatInVec( 0.0001f ) )
+inline const Vector3 normalizeSafe( const Vector3& v, const floatInVec& eps = floatInVec( FLT_EPSILON ) )
 {
     return select( Vector3(0.f), normalize(v), lengthSqr( v ) >= eps );
 }
-inline const Vector3 normalizeSafeApprox( const Vector3& v, const floatInVec& eps = floatInVec( 0.0001f ) )
+inline const Vector3 normalizeSafeApprox( const Vector3& v, const floatInVec& eps = floatInVec( FLT_EPSILON ) )
 {
     return select( Vector3(0.f), normalizeApprox(v), lengthSqr( v ) >= eps );
 }

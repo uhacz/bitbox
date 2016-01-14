@@ -31,7 +31,7 @@ namespace bx
     {
         f32 _dtAcc = 0.f;
 
-        void follow( bx::GfxCamera* camera, const Character* character, float deltaTime, int cameraMoved = 0 );
+        void follow( bx::GfxCamera* camera, const Vector3& characterPos, const Vector3& characterUpVector, float deltaTime, int cameraMoved = 0 );
     };
 }///
 
@@ -69,6 +69,7 @@ namespace bx
 
         virtual void tick( GameScene* scene, const bxInput& input, float deltaTime ) = 0;
         virtual Matrix4 worldPose() const = 0;
+        virtual Vector3 upDirection() const = 0;
 
     };
 }////

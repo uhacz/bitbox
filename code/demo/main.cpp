@@ -217,10 +217,12 @@ public:
 			__scene.dblock->tick();
             bx::terrainTick( __scene.terrain, &__scene, _engine.gdiContext->backend(), deltaTime * 2.f );
             bx::characterTick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
-            __scene.characterController->tick( &__scene, win->input, deltaTime );
+            __scene.characterController->tick( &__scene, win->input, deltaTime * 2.f );
             if( !useDebugCamera )
             {
-                __scene.cameraController.follow( camera, __scene.character, deltaTime, cameraInputCtx.anyMovement() );
+                const Vector3 characterPos = __scene.characterController->worldPose().getTranslation();
+                const Vector3 characterUp = __scene.characterController->upDirection();
+                __scene.cameraController.follow( camera, characterPos, characterUp, deltaTime, cameraInputCtx.anyMovement() );
             }
 
             bxGfxDebugDraw::addAxes( appendScale( Matrix4::identity(), Vector3( 5.f ) ) );

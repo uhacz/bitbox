@@ -506,6 +506,8 @@ namespace bx
         DynamicState _dstate0;
         PhxGeometry _geometry0 = PhxGeometry( 0.25f );
 
+        f32 timeAcc_ = 0.f;
+
         void _Init( GameScene* scene, const Matrix4& worldPose )
         {
             _dstate0.setPose( worldPose );
@@ -524,54 +526,62 @@ namespace bx
         //////////////////////////////////////////////////////////////////////////
         virtual void tick( GameScene* scene, const bxInput& input, float deltaTime )
         {
-            const float deltaTimeInv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
+            timeAcc_ += deltaTime;
+            
+            float deltaTimeFix = 1.f / 60.f;
+            const float deltaTimeInv = 60.f; // ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
             const Vector3 gravity = -_upDir * 9.f;
             const float dampingCoeff = 0.2f;
             const float damping = pow( 1.f - dampingCoeff, deltaTime );
             
+            while( timeAcc_ >= deltaTimeFix )
             {
-                DynamicState* ds = &_dstate0;
-
-                Vector3 pos0 = ds->_pos0;
-                Vector3 vel = ds->_vel;
-
-                vel += gravity * deltaTime;
-                vel *= damping;
-
-                Vector3 pos1 = pos0 + vel * deltaTime;
-
-                ds->_pos1 = pos1;
-                ds->_vel = vel;
-            }
-
-            {
-                const PhxGeometry& sweepGeom = _geometry0;
-
-                DynamicState* ds = &_dstate0;
-                const Vector3& pos0 = ds->_pos0;
-                Vector3 pos1 = ds->_pos1;
-
-                const Vector3 rd = pos1 - pos0;
-                const float displ = length( rd ).getAsFloat();
-
-                PhxQueryHit hit;
-                const TransformTQ pose( ds->_rotation, ds->_pos0 );
-
-                if( phxSweep( &hit, scene->phxScene, sweepGeom, pose, normalizeSafe( rd ), displ ) )
                 {
-					//pos1 = pos0 + normalize( rd ) * hit.distance; // +hit.normal * sweepGeom.sphere.radius;
-					pos1 = hit.position + hit.normal * sweepGeom.sphere.radius;
-                    bxGfxDebugDraw::addSphere( Vector4( pos1, 0.1f ), 0xFF0000FF, 1 );
-					bxGfxDebugDraw::addLine( hit.position, hit.normal + hit.position, 0x0000FFFF, 1 );
-                }
-                
-                ds->_pos1 = pos1;
-            }
+                    DynamicState* ds = &_dstate0;
 
-            {
-                DynamicState* ds = &_dstate0;
-                ds->_vel = ( ds->_pos1 - ds->_pos0 ) * deltaTimeInv;
-                ds->_pos0 = ds->_pos1;
+                    Vector3 pos0 = ds->_pos0;
+                    Vector3 vel = ds->_vel;
+
+                    vel += gravity * deltaTimeFix;
+                    vel *= damping;
+
+                    Vector3 pos1 = pos0 + vel * deltaTimeFix;
+
+                    ds->_pos1 = pos1;
+                    ds->_vel = vel;
+                }
+
+                {
+                    const PhxGeometry& sweepGeom = _geometry0;
+
+                    DynamicState* ds = &_dstate0;
+                    const Vector3& pos0 = ds->_pos0;
+                    Vector3 pos1 = ds->_pos1;
+
+                    const Vector3 rd = pos1 - pos0;
+                    const float displ = length( rd ).getAsFloat();
+
+
+                    if( displ > FLT_EPSILON )
+                    {
+                        PhxQueryHit hit;
+                        const TransformTQ pose( ds->_rotation, ds->_pos0 );
+                        if( phxSweep( &hit, scene->phxScene, sweepGeom, pose, normalize( rd ), displ ) )
+                        {
+                            pos1 = hit.position + hit.normal * sweepGeom.sphere.radius;
+                        }
+                    }
+
+                    ds->_pos1 = pos1;
+                }
+
+                {
+                    DynamicState* ds = &_dstate0;
+                    ds->_vel = ( ds->_pos1 - ds->_pos0 ) * deltaTimeInv;
+                    ds->_pos0 = ds->_pos1;
+                }
+
+                timeAcc_ -= deltaTimeFix;
             }
 
             bxGfxDebugDraw::addSphere( Vector4( _dstate0._pos0, _geometry0.sphere.radius ), 0xFFFF00FF, 1 );
@@ -581,6 +591,13 @@ namespace bx
         {
             return Matrix4( _dstate0._rotation, _dstate0._pos0 );
         }
+
+        virtual Vector3 upDirection() const
+        {
+            return _upDir;
+        }
+
+
     };
 
     void CharacterController::create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose )
