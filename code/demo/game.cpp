@@ -486,6 +486,16 @@ namespace bx
 {
     struct CharacterControllerImpl : public CharacterController
     {
+		struct Input
+		{
+			f32 analogX = 0.f;
+			f32 analogY = 0.f;
+			f32 jump = 0.f;
+			f32 crouch = 0.f;
+			f32 L2 = 0.f;
+			f32 R2 = 0.f;
+		};
+
         struct DynamicState
         {
             Vector3 _pos0 = Vector3(0.f);
@@ -504,18 +514,27 @@ namespace bx
 
         Vector3 _upDir = Vector3( 0.f, 1.f, 0.f );
         DynamicState _dstate0;
-        PhxGeometry _geometry0 = PhxGeometry( 0.25f );
+        PhxGeometry _geometry0 = PhxGeometry( 0.5f );
+		PhxActor* _actor = nullptr;
+
+		Input _input;
+		f32 _jumpAcc = 0.f;
 
         f32 timeAcc_ = 0.f;
 
         void _Init( GameScene* scene, const Matrix4& worldPose )
         {
             _dstate0.setPose( worldPose );
+			PhxContext* phxCtx = phxContextGet( scene->phxScene );
+			const Matrix4 pose( _dstate0._rotation, _dstate0._pos0 );
+			phxActorCreateDynamic( &_actor, phxCtx, pose, _geometry0, -10.f );
+			phxSceneActorAdd( scene->phxScene, &_actor, 1 );
+			phxActorQueryEnable( _actor, false );
         }
 
         void _Deinit( GameScene* scene )
         {
-        
+			phxActorDestroy( &_actor );
         }
 
         void _Teleport( const Matrix4& worldPose )
@@ -523,17 +542,96 @@ namespace bx
             _dstate0.setPose( worldPose );
         }
 
+		void _CollectInputData( const bxInput& sysInput, float deltaTime )
+		{
+			float analogX = 0.f;
+			float analogY = 0.f;
+			float jump = 0.f;
+			float crouch = 0.f;
+			float L2 = 0.f;
+			float R2 = 0.f;
+
+			const bxInput_Pad& pad = bxInput_getPad( sysInput );
+			const bxInput_PadState* padState = pad.currentState();
+			if( padState->connected )
+			{
+				analogX = padState->analog.left_X;
+				analogY = padState->analog.left_Y;
+
+				crouch = (f32)bxInput_isPadButtonPressedOnce( pad, bxInput_PadState::eCIRCLE );
+				jump = (f32)bxInput_isPadButtonPressedOnce( pad, bxInput_PadState::eCROSS );
+
+				L2 = padState->analog.L2;
+				R2 = padState->analog.R2;
+			}
+			else
+			{
+				const bxInput_Keyboard* kbd = &sysInput.kbd;
+
+				const int inLeft = bxInput_isKeyPressed( kbd, 'A' );
+				const int inRight = bxInput_isKeyPressed( kbd, 'D' );
+				const int inFwd = bxInput_isKeyPressed( kbd, 'W' );
+				const int inBack = bxInput_isKeyPressed( kbd, 'S' );
+				const int inJump = bxInput_isKeyPressedOnce( kbd, ' ' );
+				const int inCrouch = bxInput_isKeyPressedOnce( kbd, bxInput::eKEY_LSHIFT );
+				const int inL2 = bxInput_isKeyPressed( kbd, 'Q' );
+				const int inR2 = bxInput_isKeyPressed( kbd, 'E' );
+
+				analogX = -(float)inLeft + (float)inRight;
+				analogY = -(float)inBack + (float)inFwd;
+
+				crouch = (f32)inCrouch;
+				jump = (f32)inJump;
+
+				L2 = (float)inL2;
+				R2 = (float)inR2;
+
+				//bxLogInfo( "x: %f, y: %f", charInput->analogX, charInput->jump );
+			}
+
+			const float RC = 0.01f;
+			_input.analogX = signalFilter_lowPass( analogX, _input.analogX, RC, deltaTime );
+			_input.analogY = signalFilter_lowPass( analogY, _input.analogY, RC, deltaTime );
+			_input.jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
+			_input.crouch = signalFilter_lowPass( crouch, _input.crouch, RC, deltaTime );
+			_input.L2 = L2;
+			_input.R2 = R2;
+		}
+
         //////////////////////////////////////////////////////////////////////////
         virtual void tick( GameScene* scene, const bxInput& input, float deltaTime )
         {
-            timeAcc_ += deltaTime;
-            
-            float deltaTimeFix = 1.f / 60.f;
-            const float deltaTimeInv = 60.f; // ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
-            const Vector3 gravity = -_upDir * 9.f;
-            const float dampingCoeff = 0.2f;
-            const float damping = pow( 1.f - dampingCoeff, deltaTime );
-            
+			_CollectInputData( input, deltaTime );
+
+			bx::GfxCamera* camera = scene->cameraManager->stack()->top();
+			const Matrix4 cameraWorld = bx::gfxCameraWorldMatrixGet( camera );
+			Vector3 inputVector( 0.f );
+			{
+				Vector3 xInputForce = Vector3::xAxis() * _input.analogX;
+				Vector3 yInputForce = -Vector3::zAxis() * _input.analogY;
+
+				const float maxInputForce = 1.25f;
+				inputVector = (xInputForce + yInputForce);// *maxInputForce;
+
+				const floatInVec externalForcesValue = minf4( length( inputVector ), floatInVec( maxInputForce ) );
+				inputVector = projectVectorOnPlane( cameraWorld.getUpper3x3() * inputVector, Vector4( _upDir, oneVec ) );
+				inputVector = normalizeSafe( inputVector ) * externalForcesValue;
+				_jumpAcc += _input.jump * 4;
+
+				//bxGfxDebugDraw::addLine( character->bottomBody.com.pos, character->bottomBody.com.pos + externalForces + character->upVector*character->_jumpAcc, 0xFFFFFFFF, true );
+			}
+
+			timeAcc_ += deltaTime;
+			timeAcc_ = minOfPair( 0.1f, timeAcc_ );
+
+			float deltaTimeFix = 1.f / 60.f;
+			const float deltaTimeInv = 60.f; // ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
+			const float dampingCoeff = 0.2f;
+			const float damping = pow( 1.f - dampingCoeff, deltaTime );
+			
+			const Vector3 gravity = -_upDir * 9.f;
+			const Vector3 jumpVector = _upDir * _jumpAcc;
+			
             while( timeAcc_ >= deltaTimeFix )
             {
                 {
@@ -542,7 +640,8 @@ namespace bx
                     Vector3 pos0 = ds->_pos0;
                     Vector3 vel = ds->_vel;
 
-                    vel += gravity * deltaTimeFix;
+					vel += ( inputVector + jumpVector );
+					vel += ( gravity ) * deltaTimeFix;
                     vel *= damping;
 
                     Vector3 pos1 = pos0 + vel * deltaTimeFix;
@@ -565,14 +664,20 @@ namespace bx
                     if( displ > FLT_EPSILON )
                     {
                         PhxQueryHit hit;
-                        const TransformTQ pose( ds->_rotation, ds->_pos0 );
-                        if( phxSweep( &hit, scene->phxScene, sweepGeom, pose, normalize( rd ), displ ) )
+                        const TransformTQ pose( ds->_rotation, ds->_pos1 );
+						const Vector3 rdn = normalize( rd );
+                        if( phxSweep( &hit, scene->phxScene, sweepGeom, pose, -_upDir, displ ) )
                         {
-                            pos1 = hit.position + hit.normal * sweepGeom.sphere.radius;
+							//if( hit.distance < displ )
+							{
+								//pos1 = pos0 + rdn * hit.distance;// ;
+								pos1 = hit.position + hit.normal * sweepGeom.sphere.radius;
+							}
                         }
                     }
-
-                    ds->_pos1 = pos1;
+					ds->_pos1 = pos1;
+					//const Matrix4 actorPose = phxActorPoseGet( _actor );
+                    //ds->_pos1 = actorPose.getTranslation();
                 }
 
                 {
@@ -581,7 +686,12 @@ namespace bx
                     ds->_pos0 = ds->_pos1;
                 }
 
+				{
+					phxActorTargetPoseSet( _actor, Matrix4( _dstate0._rotation, _dstate0._pos1 ), scene->phxScene );
+				}
+
                 timeAcc_ -= deltaTimeFix;
+				_jumpAcc = 0.f;
             }
 
             bxGfxDebugDraw::addSphere( Vector4( _dstate0._pos0, _geometry0.sphere.radius ), 0xFFFF00FF, 1 );

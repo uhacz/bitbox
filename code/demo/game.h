@@ -30,7 +30,7 @@ namespace bx
     struct CameraController
     {
         f32 _dtAcc = 0.f;
-
+		f32 _cameraMoved = 0.f;
         void follow( bx::GfxCamera* camera, const Vector3& characterPos, const Vector3& characterUpVector, float deltaTime, int cameraMoved = 0 );
     };
 }///

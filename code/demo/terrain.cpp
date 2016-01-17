@@ -76,7 +76,7 @@ namespace bx
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
         f32 _tileSize = 35.f;
         f32 _tileSizeInv = 1.f / _tileSize;
-        i32 _radius = 2;
+        i32 _radius = 8;
         i32 _tileSubdiv = 4;
         f32 _height = 15.f;
 

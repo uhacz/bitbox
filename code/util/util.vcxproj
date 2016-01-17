@@ -106,6 +106,7 @@
     <ClInclude Include="math.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="perlin_noise.h" />
+    <ClInclude Include="poly\par_shapes.h" />
     <ClInclude Include="poly\poly_shape.h" />
     <ClInclude Include="pool_allocator.h" />
     <ClInclude Include="queue.h" />

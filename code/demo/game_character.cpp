@@ -133,7 +133,7 @@ namespace
                 paramEval( massInv0, massInv1, len, c, iconstraint );
 
                 Vector3 dpos0, dpos1;
-                bxPhx::pbd_solveDistanceConstraint( &dpos0, &dpos1, p0, p1, massInv0, massInv1, c.d, 1.f, 1.f );
+                bxPhx::pbd_solveDistanceConstraint( &dpos0, &dpos1, p0, p1, massInv0, massInv1, c.d, stiffness, stiffness );
 
                 cp->pos1[c.i0] += dpos0;
                 cp->pos1[c.i1] += dpos1;
@@ -197,220 +197,22 @@ namespace
 }
 
 
-namespace bx{
-
-Character* character_new()
+namespace bx
 {
-    Character* ch = BX_NEW( bxDefaultAllocator(), Character );
+	static inline int computeShapeParticleCount( int nIterations )
+	{
+		//int outer = ( int )::pow( 2 + nIterations, 3.0 );
+		//int inner = ( int )::pow( nIterations, 3.0 );
+		//return ( outer - inner ) + 1;
 
-    ch->upVector = Vector3::yAxis();
-    ch->contacts = 0;
-    ch->_dtAcc = 0.f;
-    ch->_jumpAcc = 0.f;
-    ch->_shapeBlendAlpha = 0.f;
-
-    memset( &ch->particles, 0x00, sizeof( ParticleData ) );
-    memset( &ch->constraints, 0x00, sizeof( ConstraintData ) );
-    memset( &ch->restPos, 0x00, sizeof( BodyRestPosition ) );
-    //memset( &ch->mainBody, 0x00, sizeof( Character1::Body ) );
-    memset( &ch->shapeMeshData, 0x00, sizeof( MeshData ) );
-    memset( &ch->shapeBody, 0x00, sizeof( Character::Body ) );
-    //memset( ch->wheelRestPos, 0x00, sizeof( ch->wheelRestPos ) );
-    //memset( &ch->mainBodyConstraints, 0x00, sizeof( bxGame::Constraint ) );
-    //memset( &ch->wheelBodyConstraints, 0x00, sizeof( bxGame::Constraint ) );
-    memset( &ch->input, 0x00, sizeof( Character::Input ) );
-
-    return ch;
-}
-void character_delete( Character** character )
-{
-    if( !character[0] )
-        return;
-
-    BX_DELETE0( bxDefaultAllocator(), character[0] );
-}
-
-static inline int computeShapeParticleCount( int nIterations )
-{
-    //int outer = ( int )::pow( 2 + nIterations, 3.0 );
-    //int inner = ( int )::pow( nIterations, 3.0 );
-    //return ( outer - inner ) + 1;
-
-    int iter[6] = { nIterations, nIterations, nIterations, nIterations, nIterations, nIterations };
-    return bxPolyShape_computeNumPoints( iter );
-}
-static inline int computeShapeTriangleCount( int nIterations )
-{
-    int iter[6] = { nIterations, nIterations, nIterations, nIterations, nIterations, nIterations };
-    return bxPolyShape_computeNumTriangles( iter );
-}
-
-void characterInit( Character* ch, bxGdiDeviceBackend* dev, GameScene* scene, const Matrix4& worldPose )
-{
-    const int BODY_SHAPE_ITERATIONS = 6;
-    
-    //ch->mainBody.particleBegin = 0;
-    //ch->mainBody.particleEnd = 3;
-    //ch->mainBody.constraintBegin = 0;
-    //ch->mainBody.constraintEnd = 3;
-
-    ch->shapeBody.particleBegin = 0;
-    ch->shapeBody.particleEnd = ch->shapeBody.particleBegin + computeShapeParticleCount( BODY_SHAPE_ITERATIONS );
-    //ch->wheelBody.constraintBegin = 3;
-    //ch->wheelBody.constraintEnd = ch->wheelBody.constraintBegin + 3;
-
-    int nConstraints = 0;
-    //nConstraints += ch->mainBody.constaintCount();
-    //nConstraints += ch->wheelBody.constaintCount();
-
-    int nPoints = 0;
-    //nPoints += ch->mainBody.particleCount();
-    nPoints += ch->shapeBody.particleCount();
-
-    int nIndices = 0;
-    nIndices += computeShapeTriangleCount( BODY_SHAPE_ITERATIONS ) * 3;
-
-    MeshData::alloc( &ch->shapeMeshData, nIndices );
-
-
-    ParticleData::alloc( &ch->particles, nPoints );
-    ch->particles.size = nPoints;
-
-    //ConstraintData::alloc( &ch->constraints, nConstraints );
-    //ch->constraints.size = nConstraints;
-
-    BodyRestPosition::alloc( &ch->restPos, ch->shapeBody.particleCount() );
-
-    //CharacterInternal::initMainBody( ch, worldPose );
-    CharacterInternal::initShapeBody( ch, BODY_SHAPE_ITERATIONS, worldPose );
-    CharacterInternal::initShapeMesh( ch, dev, scene->gfxScene );
-    bx::phxContactsCreate( &ch->contacts, nPoints );
-}
-void characterDeinit( Character* character, bxGdiDeviceBackend* dev )
-{
-    bx::phxContactsDestroy( &character->contacts );
-    CharacterInternal::deinitShapeMesh( character, dev );
-    BodyRestPosition::free( &character->restPos );
-    ConstraintData::free( &character->constraints );
-    ParticleData::free( &character->particles );
-    MeshData::free( &character->shapeMeshData );
-}
-
-void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* scene, const bxInput& input, float deltaTime )
-{
-	rmt_BeginCPUSample( CHARACTER );
-    CharacterInternal::collectInputData( &character->input, input, deltaTime );
-
-    bx::GfxCamera* camera = scene->cameraManager->stack()->top();
-    const Matrix4 cameraWorld = bx::gfxCameraWorldMatrixGet( camera );
-    Vector3 externalForces( 0.f );
-    {
-        Vector3 xInputForce = Vector3::xAxis() * character->input.analogX;
-        Vector3 yInputForce = -Vector3::zAxis() * character->input.analogY;
-        
-        const float maxInputForce = 0.25f;
-        externalForces = (xInputForce + yInputForce) * maxInputForce;
-
-        const floatInVec externalForcesValue = minf4( length( externalForces ), floatInVec( maxInputForce ) );
-        externalForces = projectVectorOnPlane( cameraWorld.getUpper3x3() * externalForces, Vector4( character->upVector, oneVec ) );
-        externalForces = normalizeSafe( externalForces ) * externalForcesValue;
-        character->_jumpAcc += character->input.jump * 10;
-
-        //bxGfxDebugDraw::addLine( character->bottomBody.com.pos, character->bottomBody.com.pos + externalForces + character->upVector*character->_jumpAcc, 0xFFFFFFFF, true );
-    }
-
-    {
-        float dAlpha = 0.f;
-        dAlpha -= character->input.L2 * deltaTime;
-        dAlpha += character->input.R2 * deltaTime;
-
-        if( ::abs( dAlpha ) > FLT_EPSILON )
-        {
-            character->_shapeBlendAlpha += dAlpha;
-            character->_shapeBlendAlpha = clamp( character->_shapeBlendAlpha, 0.f, 1.f );
-
-            Character::Body& body = character->shapeBody;
-            for( int ipoint = body.particleBegin; ipoint < body.particleEnd; ++ipoint )
-            {
-                const Vector3& a = character->restPos.sphere[ipoint];
-                const Vector3& b = character->restPos.box[ipoint];
-
-                character->restPos.current[ipoint] = lerp( character->_shapeBlendAlpha, a, b );
-            }
-        }
-
-    }
-
-    const float staticFriction = 0.95f;
-    const float dynamicFriction = 0.6f;
-    const float shapeStiffness = 0.4f;
-
-    const float fixedFreq = 60.f;
-    const float fixedDt = 1.f / fixedFreq;
-
-    character->_dtAcc += deltaTime;
-
-    //const floatInVec dtv( fixedDt );
-    //const floatInVec dtvInv = select( zeroVec, oneVec / dtv, dtv > fltEpsVec );
-
-    const int jump = character->_jumpAcc > FLT_EPSILON;
-    if ( jump )
-    {
-        externalForces *= dot( externalForces, character->upVector );
-    }
-
-    const bool doIteration = character->_dtAcc >= fixedDt;
-
-	rmt_BeginCPUSample( iteration );
-
-    while( character->_dtAcc >= fixedDt )
-    {
-        CharacterInternal::simulateShapeBodyBegin( character, externalForces, fixedDt );
-        {
-            const Vector4 bsphere( character->shapeBody.com.pos, 1.5f );
-            bx::phxContactsClear( character->contacts );
-            bx::phxContactsCollide( character->contacts, scene->phxScene, character->particles.pos1, character->particles.size, 0.05f, bsphere );
-            bx::terrainCollide( character->contacts, scene->terrain, character->particles.pos1, character->particles.size, 0.05f, bsphere );
-            PBD_Simulate::resolveContacts( &character->particles, character->contacts );
-            CharacterInternal::simulateShapeUpdatePose( character, 1.f, shapeStiffness );
-        }
-        CharacterInternal::simulateFinalize( character, staticFriction, dynamicFriction, fixedDt );
-        CharacterInternal::computeCharacterPose( character );
-
-        character->_dtAcc -= fixedDt;
-        character->_jumpAcc = 0.f;
-    }
-	rmt_EndCPUSample();
-    if( doIteration )
-    {
-        bxGdiRenderSource* rsource = bx::gfxMeshInstanceRenderSourceGet( character->meshInstance );
-        const bxGdiVertexBuffer& vbuffer = bxGdi::renderSourceVertexBuffer( rsource, 0 );
-        MeshVertex* vertices = (MeshVertex*)ctx->mapVertices( vbuffer, 0, vbuffer.numElements, bxGdi::eMAP_WRITE );
-        CharacterInternal::updateMesh( vertices, character->particles.pos0, character->particles.size, character->shapeMeshData.indices, character->shapeMeshData.nIndices );
-        ctx->unmapVertices( vbuffer );
-
-        
-        const Vector3 minAABB = character->shapeBody.com.pos - Vector3( 0.5f );
-        const Vector3 maxAABB = character->shapeBody.com.pos + Vector3( 0.5f );
-        bx::GfxMeshInstanceData miData;
-        miData.locaAABBSet( minAABB, maxAABB );
-        bx::gfxMeshInstanceDataSet( character->meshInstance, miData );
-    }
-
-    //CharacterInternal::debugDraw( character );
-	rmt_EndCPUSample();
-}
-
-Matrix4 characterPoseGet( const Character* ch )
-{
-    //return Matrix4( Matrix3(  ch->sideVector, ch->upVector, ch->frontVector ), ch->feetCenterPos );
-    return Matrix4( ch->shapeBody.com.rot, ch->shapeBody.com.pos );
-}
-Vector3 characterUpVectorGet( const Character* ch )
-{
-    return ch->upVector;
-}
-
+		int iter[6] = { nIterations, nIterations, nIterations, nIterations, nIterations, nIterations };
+		return bxPolyShape_computeNumPoints( iter );
+	}
+	static inline int computeShapeTriangleCount( int nIterations )
+	{
+		int iter[6] = { nIterations, nIterations, nIterations, nIterations, nIterations, nIterations };
+		return bxPolyShape_computeNumTriangles( iter );
+	}
 //////////////////////////////////////////////////////////////////////////
 void ParticleData::alloc( ParticleData* data, int newcap )
 {
@@ -657,81 +459,6 @@ static inline void initConstraint( Constraint* c, const Vector3& p0, const Vecto
     c->i1 = (i16)i1;
     c->d = length( p0 - p1 ).getAsFloat();
 }
-//static inline void projectDistanceConstraints( ParticleData* pdata, const Constraint* constraints, int nConstraints, float stiffness, int iterationCount )
-//{
-//    for( int iter = 0; iter < iterationCount; ++iter )
-//    {
-//        for( int iconstraint = 0; iconstraint < nConstraints; ++iconstraint )
-//        {
-//            const Constraint& c = constraints[iconstraint];
-//
-//            const Vector3& p0 = pdata->pos1[c.i0];
-//            const Vector3& p1 = pdata->pos1[c.i1];
-//            const float massInv0 = pdata->massInv[c.i0];
-//            const float massInv1 = pdata->massInv[c.i1];
-//
-//            Vector3 dpos0, dpos1;
-//            bxPhx::pbd_solveDistanceConstraint( &dpos0, &dpos1, p0, p1, massInv0, massInv1, c.d, stiffness, stiffness );
-//
-//            pdata->pos1[c.i0] += dpos0;
-//            pdata->pos1[c.i1] += dpos1;
-//        }
-//    }
-//}
-
-//void initMainBody( Character1* ch, const Matrix4& worldPose )
-//{
-//    ParticleData& p = ch->particles;
-//    Character1::Body& body = ch->mainBody;
-//
-//    const float a = 0.5f;
-//    const float b = 0.4f;
-//
-//    const Matrix3 worldRot = worldPose.getUpper3x3();
-//    const Vector3 axisX = worldRot.getCol0();
-//    const Vector3 axisY = worldRot.getCol1();
-//    const Vector3 axisZ = worldRot.getCol2();
-//    const Vector3 worldPos = worldPose.getTranslation();
-//
-//    p.pos0[0] = worldPos + axisZ * a * 0.5f;
-//    p.pos0[1] = worldPos + axisX * b - axisZ * a * 0.5f;
-//    p.pos0[2] = worldPos - axisX * b - axisZ * a * 0.5f;
-//
-//
-//    float massSum = 0.f;
-//    body.com.pos = Vector3( 0.f );
-//    body.com.rot = Quat( worldPose.getUpper3x3() );
-//
-//    for( int i = body.particleBegin; i < body.particleEnd; ++i )
-//    {
-//        p.pos1[i] = p.pos0[i];
-//        p.vel[i] = Vector3( 0.f );
-//
-//        float mass = 2.f;
-//        if( i == 0 )
-//            mass += 4.f;
-//
-//        p.mass[i] = mass;
-//        p.massInv[i] = 1.f / mass;
-//
-//        body.com.pos += p.pos0[0];
-//        massSum += mass;
-//    }
-//
-//    body.com.pos /= massSum;
-//    
-//    {
-//        int csBegin = body.constraintBegin;
-//        int pBegin = body.particleBegin;
-//        
-//        Constraint* cs = ch->constraints.desc + csBegin;
-//        Vector3* pos0 = ch->particles.pos0 + pBegin;
-//
-//        initConstraint( &cs[0], pos0[0], pos0[1], pBegin + 0, pBegin + 1 );
-//        initConstraint( &cs[1], pos0[0], pos0[2], pBegin + 0, pBegin + 2 );
-//        initConstraint( &cs[2], pos0[1], pos0[2], pBegin + 1, pBegin + 2 );
-//    }
-//}
 
 void updateMesh( MeshVertex* vertices, const Vector3* points, int nPoints, const u16* indices, int nIndices )
 {
@@ -790,9 +517,6 @@ void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bx::GfxScene* gfxSce
     const Character::Body& body = ch->shapeBody;
     const int nPoints = body.particleCount();
 
-    //MeshVertex* vertices = (MeshVertex*)BX_MALLOC( bxDefaultAllocator(), nPoints * sizeof( MeshVertex ), 4 );
-    //updateMesh( vertices, p.pos0, nPoints, ch->shapeMeshData.indices, ch->shapeMeshData.nIndices );
-
     bxGdiVertexStreamDesc sdesc;
     sdesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
     sdesc.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
@@ -818,24 +542,6 @@ void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bx::GfxScene* gfxSce
     bx::gfxSceneMeshInstanceAdd( gfxScene, meshInstance );
 
     ch->meshInstance = meshInstance;
-
-    //bxGfx_StreamsDesc sdesc( nPoints, ch->shapeMeshData.nIndices );
-    //sdesc.vstreamBegin().addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 ).addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
-    //sdesc.vstreamEnd();
-    //sdesc.istreamSet( bxGdi::eTYPE_USHORT, ch->shapeMeshData.indices );
-
-//    bxGfx_HMesh hmesh = bxGfx::meshCreate();
-   // bxGfx::meshStreamsSet( hmesh, dev, sdesc );
-    //bxGfx::meshShaderSet( hmesh, dev, resourceManager, bxGfxMaterialManager::findMaterial( "red" ) );
-
-    //bxGfx_HInstanceBuffer hinst = bxGfx::instanceBuffeCreate( 1 );
-    //ch->shapeMeshI = bxGfx::worldMeshAdd( gfxWorld, hmesh, 1 );
-
-    //bxGfx_HInstanceBuffer hinst = bxGfx::meshInstanceHInstanceBuffer( ch->shapeMeshI );
-    //Matrix4 pose = Matrix4::identity();
-    //bxGfx::instanceBufferDataSet( hinst, &pose, 1 );
-    
-    //BX_FREE0( bxDefaultAllocator(), vertices );
 }
 
 void deinitShapeMesh( Character* ch, bxGdiDeviceBackend* dev )
@@ -934,135 +640,10 @@ void initShapeBody( Character* ch, int shapeIterations, const Matrix4& worldPose
 
     body.com.pos = mulAsVec4( worldPose, com );
     body.com.rot = Quat( worldPose.getUpper3x3() );
-
-    //const int nEdgePoints = shapeIterations + 2;
-    //const float step = 1.f / ( nEdgePoints - 1 );
-    //int pointCounter = 0;
-
-    //localPointsBox[0] = Vector3( 0.f );
-    //localPointsSphere[0] = Vector3( 0.f );
-    //++pointCounter;
-
-    //for( int iz = 0; iz < nEdgePoints; ++iz )
-    //{
-    //    const float z = -0.5f + iz * step;
-    //    const bool edgez = iz == 0 || iz == ( nEdgePoints - 1 );
-    //    
-    //    for( int iy = 0; iy < nEdgePoints; ++iy )
-    //    {
-    //        const float y = -0.5f + iy * step;
-    //        const bool edgey = iy == 0 || iy == ( nEdgePoints - 1 );
-    //        
-    //        for( int ix = 0; ix < nEdgePoints; ++ix )
-    //        {
-    //            const bool edgex = ix == 0 || ix == ( nEdgePoints - 1 );
-    //            
-    //            if( !edgex && !edgey && !edgez )
-    //                continue;
-    //            
-    //            const float x = -0.5f + ix * step;
-
-    //            SYS_ASSERT( pointCounter < nPoints );
-
-    //            Vector3 pos( x, y, z );
-
-    //            localPointsBox[pointCounter] = pos;
-    //            localPointsSphere[pointCounter] = normalize( pos );
-
-    //            ++pointCounter;
-    //        }
-    //    }
-    //}
-    //Vector3 localPoints[Character1::eWHEEL_BODY_PARTICLE_COUNT] =
-    //{
-    //    Vector3( -a*0.66f, 0.f, 0.f ),
-    //    Vector3(  a*0.66f, 0.f, 0.f ),
-
-    //    Vector3( 0.f, 1.f, 0.f ),
-    //    Vector3( 0.f, 1.f, 1.f ),
-    //    Vector3( 0.f, 0.f, 1.f ),
-    //    Vector3( 0.f,-1.f, 1.f ),
-    //    
-    //    Vector3( 0.f,-1.f, 0.f ),
-    //    Vector3( 0.f,-1.f,-1.f ),
-    //    Vector3( 0.f, 0.f,-1.f ),
-    //    Vector3( 0.f, 1.f,-1.f ),
-    //};
-
-
-    //int mainBegin = ch->mainBody.particleBegin;
-    //int shapeBegin = body.particleBegin;
-
-    //const Vector3* mainPos0 = ch->particles.pos0 + mainBegin;
-    //const Vector3* shapePos0 = ch->particles.pos0 + shapeBegin;
-
-    //Constraint* cs = ch->constraints.desc + body.constraintBegin;
-    //initConstraint( cs + 0, mainPos0[0], shapePos0[0], mainBegin+0, shapeBegin );
-    //initConstraint( cs + 1, mainPos0[1], shapePos0[0], mainBegin+1, shapeBegin );
-    //initConstraint( cs + 2, mainPos0[2], shapePos0[0], mainBegin+2, shapeBegin );
-
-    //int left = body.particleBegin;
-    //int right = body.particleBegin + 1;
-    //
-    //initConstraint( &ch->wheelBodyConstraints[0], p.pos0[left], p.pos0[right], left, right);
-
-    //initConstraint( &ch->wheelBodyConstraints[1], p.pos0[0], p.pos0[left], 0, left );
-    //initConstraint( &ch->wheelBodyConstraints[2], p.pos0[1], p.pos0[left], 1, left );
-    //initConstraint( &ch->wheelBodyConstraints[3], p.pos0[2], p.pos0[left], 2, left );
-
-    //initConstraint( &ch->wheelBodyConstraints[4], p.pos0[0], p.pos0[right], 0, right );
-    //initConstraint( &ch->wheelBodyConstraints[5], p.pos0[1], p.pos0[right], 1, right );
-    //initConstraint( &ch->wheelBodyConstraints[6], p.pos0[2], p.pos0[right], 2, right );
-    
+	    
     bxPolyShape_deallocateShape( &shape );
 }
 
-
-//
-//void simulateMainBodyBegin( Character1* ch, const Vector3& extForce, float deltaTime )
-//{
-//    ParticleData* cp = &ch->particles;
-//    const Character1::Body& body = ch->mainBody;
-//
-//    //const floatInVec dtv( deltaTime );
-//    //const floatInVec dampingCoeff = fastPow_01Approx( oneVec - floatInVec( 0.1f ), dtv );
-//    
-//    const Vector3 gravity = -ch->upVector * 9.1f;
-//    const Vector3 jumpVector = ch->upVector * ch->_jumpAcc;
-//
-//    PBD_VelPlug_MainBody velPlug;
-//    velPlug.body = &ch->mainBody;
-//    velPlug.inputVec = extForce;
-//    velPlug.jumpVec = jumpVector;
-//
-//    PBD_Simulate::predictPosition( cp, body.particleBegin, body.particleEnd, gravity, 0.1f, deltaTime, velPlug );
-//    
-//    const Constraint* cs = ch->constraints.desc + body.constraintBegin;
-//    for( int iiter = 0; iiter < 4; ++iiter )
-//        PBD_Simulate::projectDistanceConstraint( cp, cs, body.constaintCount(), 1.f, PBD_ConstraintParamEval_Null() );
-//
-//    //const int nPoint = body.count();
-//    //for( int ipoint = body.begin; ipoint < body.end; ++ipoint )
-//    //{
-//    //    Vector3 pos = cp->pos0[ipoint];
-//    //    Vector3 vel = cp->vel[ipoint];
-//
-//    //    vel += (gravity)* dtv;
-//    //    vel *= dampingCoeff;
-//
-//    //    if( ipoint == body.begin )
-//    //    {
-//    //        vel += extForce;
-//    //    }
-//    //    vel += jumpVector;
-//    //    pos += vel * dtv;
-//
-//    //    cp->pos1[ipoint] = pos;
-//    //    cp->vel[ipoint] = vel;
-//    //}
-//
-//    //projectDistanceConstraints( cp, ch->mainBodyConstraints, Character1::eMAIN_BODY_CONSTRAINT_COUNT, 1.f, 4 );
-//}
 
 void simulateShapeBodyBegin( Character* ch, const Vector3& extForce, float deltaTime )
 {
@@ -1158,6 +739,171 @@ void computeCharacterPose( Character* ch )
 
 }}///
 
+namespace bx
+{
+	Character* character_new()
+	{
+		Character* ch = BX_NEW( bxDefaultAllocator(), Character );
+		return ch;
+	}
+	void character_delete( Character** character )
+	{
+		if( !character[0] )
+			return;
 
+		BX_DELETE0( bxDefaultAllocator(), character[0] );
+	}
+	
+	void characterInit( Character* ch, bxGdiDeviceBackend* dev, GameScene* scene, const Matrix4& worldPose )
+	{
+		const int BODY_SHAPE_ITERATIONS = 6;
+
+		ch->shapeBody.particleBegin = 0;
+		ch->shapeBody.particleEnd = ch->shapeBody.particleBegin + computeShapeParticleCount( BODY_SHAPE_ITERATIONS );
+
+		int nConstraints = 0;
+		int nPoints = 0;
+		nPoints += ch->shapeBody.particleCount();
+
+		int nIndices = 0;
+		nIndices += computeShapeTriangleCount( BODY_SHAPE_ITERATIONS ) * 3;
+
+		MeshData::alloc( &ch->shapeMeshData, nIndices );
+
+
+		ParticleData::alloc( &ch->particles, nPoints );
+		ch->particles.size = nPoints;
+
+		BodyRestPosition::alloc( &ch->restPos, ch->shapeBody.particleCount() );
+
+		CharacterInternal::initShapeBody( ch, BODY_SHAPE_ITERATIONS, worldPose );
+		CharacterInternal::initShapeMesh( ch, dev, scene->gfxScene );
+		bx::phxContactsCreate( &ch->contacts, nPoints );
+	}
+	void characterDeinit( Character* character, bxGdiDeviceBackend* dev )
+	{
+		bx::phxContactsDestroy( &character->contacts );
+		CharacterInternal::deinitShapeMesh( character, dev );
+		BodyRestPosition::free( &character->restPos );
+		ConstraintData::free( &character->constraints );
+		ParticleData::free( &character->particles );
+		MeshData::free( &character->shapeMeshData );
+	}
+
+	void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* scene, const bxInput& input, float deltaTime )
+	{
+		rmt_BeginCPUSample( CHARACTER );
+		CharacterInternal::collectInputData( &character->input, input, deltaTime );
+
+		bx::GfxCamera* camera = scene->cameraManager->stack()->top();
+		const Matrix4 cameraWorld = bx::gfxCameraWorldMatrixGet( camera );
+		Vector3 externalForces( 0.f );
+		{
+			Vector3 xInputForce = Vector3::xAxis() * character->input.analogX;
+			Vector3 yInputForce = -Vector3::zAxis() * character->input.analogY;
+
+			const float maxInputForce = 0.25f;
+			externalForces = (xInputForce + yInputForce) * maxInputForce;
+
+			const floatInVec externalForcesValue = minf4( length( externalForces ), floatInVec( maxInputForce ) );
+			externalForces = projectVectorOnPlane( cameraWorld.getUpper3x3() * externalForces, Vector4( character->upVector, oneVec ) );
+			externalForces = normalizeSafe( externalForces ) * externalForcesValue;
+			character->_jumpAcc += character->input.jump * 10;
+
+			//bxGfxDebugDraw::addLine( character->bottomBody.com.pos, character->bottomBody.com.pos + externalForces + character->upVector*character->_jumpAcc, 0xFFFFFFFF, true );
+		}
+
+		{
+			float dAlpha = 0.f;
+			dAlpha -= character->input.L2 * deltaTime;
+			dAlpha += character->input.R2 * deltaTime;
+
+			if( ::abs( dAlpha ) > FLT_EPSILON )
+			{
+				character->_shapeBlendAlpha += dAlpha;
+				character->_shapeBlendAlpha = clamp( character->_shapeBlendAlpha, 0.f, 1.f );
+
+				Character::Body& body = character->shapeBody;
+				for( int ipoint = body.particleBegin; ipoint < body.particleEnd; ++ipoint )
+				{
+					const Vector3& a = character->restPos.sphere[ipoint];
+					const Vector3& b = character->restPos.box[ipoint];
+
+					character->restPos.current[ipoint] = lerp( character->_shapeBlendAlpha, a, b );
+				}
+			}
+
+		}
+
+		const float staticFriction = 0.95f;
+		const float dynamicFriction = 0.6f;
+		const float shapeStiffness = 0.4f;
+
+		const float fixedFreq = 60.f;
+		const float fixedDt = 1.f / fixedFreq;
+
+		character->_dtAcc += deltaTime;
+
+		//const floatInVec dtv( fixedDt );
+		//const floatInVec dtvInv = select( zeroVec, oneVec / dtv, dtv > fltEpsVec );
+
+		const int jump = character->_jumpAcc > FLT_EPSILON;
+		if( jump )
+		{
+			externalForces *= dot( externalForces, character->upVector );
+		}
+
+		const bool doIteration = character->_dtAcc >= fixedDt;
+
+		rmt_BeginCPUSample( iteration );
+
+		while( character->_dtAcc >= fixedDt )
+		{
+			CharacterInternal::simulateShapeBodyBegin( character, externalForces, fixedDt );
+			{
+				const Vector4 bsphere( character->shapeBody.com.pos, 1.5f );
+				bx::phxContactsClear( character->contacts );
+				bx::phxContactsCollide( character->contacts, scene->phxScene, character->particles.pos1, character->particles.size, 0.05f, bsphere );
+				bx::terrainCollide( character->contacts, scene->terrain, character->particles.pos1, character->particles.size, 0.05f, bsphere );
+				PBD_Simulate::resolveContacts( &character->particles, character->contacts );
+				CharacterInternal::simulateShapeUpdatePose( character, 1.f, shapeStiffness );
+			}
+			CharacterInternal::simulateFinalize( character, staticFriction, dynamicFriction, fixedDt );
+			CharacterInternal::computeCharacterPose( character );
+
+			character->_dtAcc -= fixedDt;
+			character->_jumpAcc = 0.f;
+		}
+		rmt_EndCPUSample();
+		if( doIteration )
+		{
+			bxGdiRenderSource* rsource = bx::gfxMeshInstanceRenderSourceGet( character->meshInstance );
+			const bxGdiVertexBuffer& vbuffer = bxGdi::renderSourceVertexBuffer( rsource, 0 );
+			MeshVertex* vertices = (MeshVertex*)ctx->mapVertices( vbuffer, 0, vbuffer.numElements, bxGdi::eMAP_WRITE );
+			CharacterInternal::updateMesh( vertices, character->particles.pos0, character->particles.size, character->shapeMeshData.indices, character->shapeMeshData.nIndices );
+			ctx->unmapVertices( vbuffer );
+
+
+			const Vector3 minAABB = character->shapeBody.com.pos - Vector3( 0.5f );
+			const Vector3 maxAABB = character->shapeBody.com.pos + Vector3( 0.5f );
+			bx::GfxMeshInstanceData miData;
+			miData.locaAABBSet( minAABB, maxAABB );
+			bx::gfxMeshInstanceDataSet( character->meshInstance, miData );
+		}
+
+		//CharacterInternal::debugDraw( character );
+		rmt_EndCPUSample();
+	}
+
+	Matrix4 characterPoseGet( const Character* ch )
+	{
+		//return Matrix4( Matrix3(  ch->sideVector, ch->upVector, ch->frontVector ), ch->feetCenterPos );
+		return Matrix4( ch->shapeBody.com.rot, ch->shapeBody.com.pos );
+	}
+	Vector3 characterUpVectorGet( const Character* ch )
+	{
+		return ch->upVector;
+	}
+}////
 
 

@@ -2,38 +2,18 @@
 #include <gfx/gfx.h>
 #include <util/debug.h>
 #include <util/signal_filter.h>
+#include <util/common.h>
 
 namespace bx
 {
-    void characterCameraFollow( bx::GfxCamera* camera, const Vector3& characterPos, const Vector3& characterUpVector, float deltaTime, int cameraMoved )
+    void characterCameraFollow( bx::GfxCamera* camera, const Vector3& characterPos, const Vector3& characterUpVector, float deltaTime, float cameraMoved )
     {
         const Matrix4& cameraPose = bx::gfxCameraWorldMatrixGet( camera );
         const Matrix3 cameraRot = cameraPose.getUpper3x3();
         const Vector3 cameraPos = bx::gfxCameraEye( camera );
-        //const Matrix4 characterPose = characterPoseGet( character );
-        //const Vector3 characterPosition = characterPose.getTranslation();
-        //const Vector3 playerUpVector = characterUpVectorGet( character );
-
+        
         const Vector3 toPlayerVec = (characterPos - cameraPos);
-        const Vector3 toPlayerDir = normalize( toPlayerVec );
-
-        const float RC = 0.1f; // (cameraMoved) ? 0.1f : 0.1f;
-        const Vector3 z = -toPlayerDir; // signalFilter_lowPass( -toPlayerDir, cameraRot.getCol2(), RC, deltaTime );
-        const Vector3 x = normalize( cross( characterUpVector, z ) );
-        const Vector3 y = normalize( cross( z, x ) );
-
-        const Matrix3 lookAtRot( x, y, z );
-
-        //const Quat lookAtQ( lookAtRot );
-        //const Quat cameraQ( cameraRot );
-
-        //const floatInVec diff = dot( lookAtQ, cameraQ );
-        //const floatInVec alpha = smoothstepf4( zeroVec, oneVec, diff );
-        //const Quat rot = normalize( slerp( alpha, lookAtQ, cameraQ ) );
-        //const Quat rot = normalize( slerp( deltaTime, cameraQ, lookAtQ ) );
-        //camera->matrix.world.setUpper3x3( Matrix3( rot ) );
-        //camera->matrix.world.setUpper3x3( lookAtRot );
-
+        
 
         const floatInVec referenceDistance( 10.f );
         const floatInVec cameraPosStiffness( 1.f * deltaTime );
@@ -52,6 +32,24 @@ namespace bx
             dpos -= characterUpVector * diff * deltaTime;
         }
 
+		const Vector3 toPlayerDir = normalize( characterPos - (cameraPos + dpos) );
+		const Vector3 cameraDir = bx::gfxCameraDir( camera );
+		//const float d = dot( toPlayerDir, cameraDir ).getAsFloat();
+
+		Matrix3 lookAtRot = cameraPose.getUpper3x3();
+		//if( d < 0.9f )
+		{
+			const Vector3 z = -toPlayerDir;
+			const Vector3 x = normalize( cross( characterUpVector, z ) );
+			const Vector3 y = normalize( cross( z, x ) );
+			
+			const float alpha = lerp( cameraMoved, deltaTime, 1.f );
+			const Quat lookAtQsmooth = slerp( alpha, Quat( lookAtRot ), Quat( Matrix3( x, y, z ) ) );
+			lookAtRot = Matrix3( lookAtQsmooth );
+		}
+
+		 // ;
+
         //camera->matrix.world.setTranslation( cameraPos + dpos );
 
         bx::gfxCameraWorldMatrixSet( camera, Matrix4( lookAtRot, cameraPos + dpos ) );
@@ -62,10 +60,10 @@ namespace bx
     {
         const float fixedDt = 1.f / 60.f;
         _dtAcc += deltaTime;
-
+		_cameraMoved = signalFilter_lowPass( (float)cameraMoved, _cameraMoved, 0.05f, deltaTime );
         while( _dtAcc >= fixedDt )
         {
-            characterCameraFollow( camera, characterPos, characterUpVector, fixedDt, cameraMoved );
+            characterCameraFollow( camera, characterPos, characterUpVector, fixedDt, _cameraMoved );
             _dtAcc -= fixedDt;
         }
     }

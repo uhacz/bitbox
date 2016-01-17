@@ -553,6 +553,30 @@ void phxActorTargetPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scen
     PxRigidDynamic* rigidDynamic = (PxRigidDynamic*)rigid;
     rigidDynamic->setKinematicTarget( pxPose );    
 }
+
+void phxActorCollisionEnable( PhxActor* actor, bool yesNo )
+{
+	PxRigidActor* rigid = (PxRigidActor*)actor;
+	u32 nshapes = rigid->getNbShapes();
+	for( u32 i = 0; i < nshapes; ++i )
+	{
+		PxShape* shape = nullptr;
+		rigid->getShapes( &shape, 1, i );
+		shape->setFlag( PxShapeFlag::eSIMULATION_SHAPE, yesNo );
+	}
+}
+void phxActorQueryEnable( PhxActor* actor, bool yesNo )
+{
+	PxRigidActor* rigid = (PxRigidActor*)actor;
+	u32 nshapes = rigid->getNbShapes();
+	for( u32 i = 0; i < nshapes; ++i )
+	{
+		PxShape* shape = nullptr;
+		rigid->getShapes( &shape, 1, i );
+		shape->setFlag( PxShapeFlag::eSCENE_QUERY_SHAPE, yesNo );
+	}
+}
+
 void phxActorUpdateHeightField( PhxActor* actor, const PhxHeightField& geometry )
 {
     PxRigidActor* rigid = (PxRigidActor*)actor;

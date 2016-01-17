@@ -130,6 +130,10 @@ namespace bx
 	Matrix4 phxActorPoseGet( PhxActor* actor );
 	void phxActorPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene );
     void phxActorTargetPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scene );
+
+	void phxActorCollisionEnable( PhxActor* actor, bool yesNo );
+	void phxActorQueryEnable( PhxActor* actor, bool yesNo );
+
     void phxActorUpdateHeightField( PhxActor* actor, const PhxHeightField& geometry );
     
     void phxSceneActorAdd( PhxScene* scene, PhxActor** actors, int nActors );
