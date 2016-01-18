@@ -5,8 +5,12 @@
 #include <util/debug.h>
 #include <util/grid.h>
 #include <util/buffer_utils.h>
+#include <util/common.h>
+#include <util/perlin_noise.h>
+#include <util/collision.h>
 
 #include <gdi/gdi_render_source.h>
+#include <gdi/gdi_shader.h>
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_gui.h>
 #include <phx/phx.h>
@@ -18,9 +22,8 @@
 
 #include "game.h"
 #include "scene.h"
-#include <util/common.h>
-#include <util/perlin_noise.h>
-#include <util/collision.h>
+
+
 #include <engine/profiler.h>
 
 namespace bx
@@ -64,11 +67,19 @@ namespace bx
         static const float noiseFreq = 0.02f;
     }///
 
-    struct TerrainVertex
+    struct TerrainVertexPos
     {
         float3_t pos;
-        float3_t nrm;
+        
     };
+	struct TerrainVertexNrm
+	{
+		float3_t nrm;
+	};
+	struct TerrainVertexDrv
+	{
+		float4_t drv;
+	};
 
     struct Terrain
     {
@@ -87,6 +98,7 @@ namespace bx
 			Vector3 localZoffset;
 			i32 numQuadsInRow;
 			i32 numSamplesInRow;
+			i32 numSamplesInCell;
 			f32 tileExt;
 			f32 quadSize;
 			f32 quadSizeInv;
@@ -105,14 +117,16 @@ namespace bx
         };
 
         bxGdiIndexBuffer _tileIndicesBuffer;
+		bxGdiShaderFx_Instance* _shaderFx = nullptr;
 
         void* _memoryHandle = nullptr;
         GfxMeshInstance** _meshInstances = nullptr;
         PhxActor** _phxActors = nullptr;
         bxGdiRenderSource* _renderSources = nullptr;
-        Vector3* _cellWorldCoords = nullptr;
-        f32*   _cellHeightSamples = nullptr;
-        u8*    _cellFlags = nullptr;
+        Vector3*  _cellWorldCoords = nullptr;
+        f32*	  _cellHeightSamples = nullptr;
+		Vector4* _cellNoise = nullptr;
+        u8*       _cellFlags = nullptr;
 
         //////////////////////////////////////////////////////////////////////////
         ////
@@ -124,13 +138,15 @@ namespace bx
         }
         inline float* cellHeightSamplesGet( int cellIndex ) const
         {
-            const int numQuadsInRow = _ComputeNumQuadsInRow( _tileSubdiv );
-            const int numSamplesInRow = numQuadsInRow + 1;
-            const int numSamplesInCell = numSamplesInRow * numSamplesInRow;
-            float* result = _cellHeightSamples + numSamplesInCell * cellIndex;
-            SYS_ASSERT( (uptr)(result + numSamplesInCell) <= (uptr)(_cellHeightSamples + numSamplesInCell * radiusToDataLength( _radius )) );
+			float* result = _cellHeightSamples + tileData_.numSamplesInCell * cellIndex;
+            SYS_ASSERT( (uptr)(result + tileData_.numSamplesInCell) <= (uptr)(_cellHeightSamples + tileData_.numSamplesInCell * radiusToDataLength( _radius )) );
             return result;
         }
+		inline Vector4* cellNoiseGet( int cellIndex ) const
+		{
+			return _cellNoise + tileData_.numSamplesInCell * cellIndex;
+		}
+
     };
     
     void _TerrainMeshCreateIndices( bxGdiIndexBuffer* ibuffer, bxGdiDeviceBackend* dev, int subdiv )
@@ -176,14 +192,19 @@ namespace bx
     {
         int gridNumCells = radiusToDataLength( terr->_radius );
         GfxContext* gfx = gfxContextGet( gfxScene );
-        bxGdiShaderFx_Instance* material = bx::gfxMaterialFind( "green" );
+		bxGdiShaderFx_Instance* material = terr->_shaderFx; // bx::gfxMaterialFind( "green" );
 
         const Vector3 localAABBMin( -terr->_tileSize * 0.5f );
         const Vector3 localAABBMax(  terr->_tileSize * 0.5f );
 
-        bxGdiVertexStreamDesc vstream;
-        vstream.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3, 0 );
-        vstream.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
+        bxGdiVertexStreamDesc vstream0;
+        vstream0.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3, 0 );
+		
+		bxGdiVertexStreamDesc vstream1;
+		vstream1.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
+
+		bxGdiVertexStreamDesc vstream2;
+		vstream2.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 4, 0 );
         
         SYS_ASSERT( subdiv > 0 );
         const int numQuads = _ComputeNumQuads( subdiv );
@@ -194,8 +215,12 @@ namespace bx
             bxGdiRenderSource* rsource = &terr->_renderSources[i];
             rsource->numVertexBuffers = 1;
 
-            bxGdiVertexBuffer vbuffer = dev->createVertexBuffer( vstream, numVertices, nullptr );
-            bxGdi::renderSource_setVertexBuffer( rsource, vbuffer, 0 );
+            bxGdiVertexBuffer vbuffer0 = dev->createVertexBuffer( vstream0, numVertices, nullptr );
+			bxGdiVertexBuffer vbuffer1 = dev->createVertexBuffer( vstream1, numVertices, nullptr );
+			bxGdiVertexBuffer vbuffer2 = dev->createVertexBuffer( vstream2, numVertices, nullptr );
+            bxGdi::renderSource_setVertexBuffer( rsource, vbuffer0, 0 );
+			bxGdi::renderSource_setVertexBuffer( rsource, vbuffer1, 1 );
+			bxGdi::renderSource_setVertexBuffer( rsource, vbuffer2, 1 );
             bxGdi::renderSource_setIndexBuffer( rsource, terr->_tileIndicesBuffer );
             
             bx::GfxMeshInstance* meshInstance = nullptr;
@@ -227,17 +252,17 @@ namespace bx
         dev->releaseIndexBuffer( &terr->_tileIndicesBuffer );
     }
 
-    inline float _TerrainNoise( const Vector3& vertex, float height, const Vector3& offset, float freq )
+    inline void _TerrainNoise( float noizz[4], const Vector3& vertex, float height, const Vector3& offset, float freq )
     {
         SSEScalar s( (vertex * freq + TerrainConst::noiseSeed).get128() );
         float nx = s.x;
         float ny = s.x + s.z + s.y;
         float nz = s.z;
         
-        float noise[4];
-        bxNoise_fbm( noise, nx, ny, nz, 16 );
+        //float noise[4];
+        bxNoise_fbm( noizz, nx, ny, nz, 16 );
         //float y = bxNoise_perlin( nx, ny, nz, 16, 64, 8 );
-        return noise[0] * height;
+		//noizz[0] *= height;
     }
 
 	
@@ -246,21 +271,9 @@ namespace bx
     {
 		const Terrain::TileData& td = terr->tileData_;
         const Vector3& tileCenterPos = terr->_cellWorldCoords[tileIndex];
-		/*const int numQuadsInRow = _ComputeNumQuadsInRow( terr->_tileSubdiv );
-		const float tileExt = terr->_tileSize * 0.5f;
-        const float quadSize = terr->_tileSize / (float)numQuadsInRow;
-        const float quadExt = quadSize * 0.5f;*/
-
-        //const Vector3 beginVertex = Vector3( tileExt, 0.f, -tileExt );
-        //const Vector3 localXoffset = Vector3( quadSize, 0.f, 0.f );
-        //const Vector3 localZoffset = Vector3( 0.f, 0.f, quadSize );
-
-        const bxGdiVertexBuffer& tileVbuffer = terr->_renderSources[tileIndex].vertexBuffers[0];
 
         float* heightSamples = terr->cellHeightSamplesGet( tileIndex );
-
-        TerrainVertex* vertices = (TerrainVertex*)gdi->mapVertices( tileVbuffer, 0, tileVbuffer.numElements, bxGdi::eMAP_WRITE );
-        __m128* vtxPtr128 = ( __m128* )vertices;
+		Vector4* heightDerivSamples = terr->cellNoiseGet( tileIndex );
 
         const int numSamplesInRow = td.numQuadsInRow + 1;
         const float height = terr->_height;
@@ -272,14 +285,28 @@ namespace bx
                 const float x = ix * td.quadSize;
                 Vector3 v0 = td.beginTileLocal + Vector3( -x, 0.f, z );
                 const float h = height;
-                const float h0 = _TerrainNoise( tileCenterPos + v0, h, TerrainConst::noiseSeed, TerrainConst::noiseFreq );
+				float4_t noizz;
+                _TerrainNoise( noizz.xyzw, tileCenterPos + v0, h, TerrainConst::noiseSeed, TerrainConst::noiseFreq );
 
                 const int sampleIndex0 = iz * numSamplesInRow + ix;
                 SYS_ASSERT( sampleIndex0 < numSamplesInRow*numSamplesInRow );
 
-                heightSamples[sampleIndex0] = h0;
+                heightSamples[sampleIndex0] = noizz.x * height;
+				heightDerivSamples[sampleIndex0] = Vector4( noizz.x, noizz.y, noizz.z, noizz.w );
             }
         }
+
+
+		const bxGdiVertexBuffer& tileVbuffer0 = terr->_renderSources[tileIndex].vertexBuffers[0];
+		const bxGdiVertexBuffer& tileVbuffer1 = terr->_renderSources[tileIndex].vertexBuffers[1];
+		const bxGdiVertexBuffer& tileVbuffer2 = terr->_renderSources[tileIndex].vertexBuffers[2];
+
+		TerrainVertexPos* verticesPos = (TerrainVertexPos*)gdi->mapVertices( tileVbuffer0, 0, tileVbuffer0.numElements, bxGdi::eMAP_WRITE );
+		TerrainVertexNrm* verticesNrm = (TerrainVertexNrm*)gdi->mapVertices( tileVbuffer1, 0, tileVbuffer1.numElements, bxGdi::eMAP_WRITE );
+		TerrainVertexDrv* verticesDrv = (TerrainVertexDrv*)gdi->mapVertices( tileVbuffer2, 0, tileVbuffer2.numElements, bxGdi::eMAP_WRITE );
+		__m128* vtxPtr128 = (__m128*)verticesPos;
+		__m128* nrmPtr128 = (__m128*)verticesNrm;
+		__m128* drvPtr128 = (__m128*)verticesDrv;
 
 		const __m128i numSamplesInRowVec = _mm_set1_epi32( td.numSamplesInRow );
 
@@ -308,10 +335,10 @@ namespace bx
 				//SYS_ASSERT( a.m128i_i32[2] == sampleIndex2 );
 				//SYS_ASSERT( a.m128i_i32[3] == sampleIndex3 );
 
-				SYS_ASSERT( sampleIndices[0] < td.numSamplesInRow*td.numSamplesInRow );
-				SYS_ASSERT( sampleIndices[1] < td.numSamplesInRow*td.numSamplesInRow );
-				SYS_ASSERT( sampleIndices[2] < td.numSamplesInRow*td.numSamplesInRow );
-				SYS_ASSERT( sampleIndices[3] < td.numSamplesInRow*td.numSamplesInRow );
+				SYS_ASSERT( sampleIndices[0] < td.numSamplesInCell );
+				SYS_ASSERT( sampleIndices[1] < td.numSamplesInCell );
+				SYS_ASSERT( sampleIndices[2] < td.numSamplesInCell );
+				SYS_ASSERT( sampleIndices[3] < td.numSamplesInCell );
 
                 const float h0 = heightSamples[sampleIndices[0]];
                 const float h1 = heightSamples[sampleIndices[1]];
@@ -333,16 +360,29 @@ namespace bx
                 const Vector3 n2 = normalize( cross( e32, e12 ) );
                 const Vector3 n3 = normalize( cross( e32, e03 ) );
 
-                storeXYZArray( v0, n0, v1, n1, vtxPtr128 );
-                vtxPtr128 += 3;
+				storeXYZArray( v0, v1, v2, v3, vtxPtr128 );
+				vtxPtr128 += 3;
 
-                storeXYZArray( v2, n2, v3, n3, vtxPtr128 );
-                vtxPtr128 += 3;
+				storeXYZArray( n0, n1, n2, n3, nrmPtr128 );
+				nrmPtr128 += 3;
+
+				drvPtr128[0] = heightDerivSamples[sampleIndices[0]].get128();
+				drvPtr128[1] = heightDerivSamples[sampleIndices[1]].get128();
+				drvPtr128[2] = heightDerivSamples[sampleIndices[2]].get128();
+				drvPtr128[3] = heightDerivSamples[sampleIndices[3]].get128();
+
+                //storeXYZArray( v0, n0, v1, n1, vtxPtr128 );
+                //vtxPtr128 += 3;
+				//
+                //storeXYZArray( v2, n2, v3, n3, vtxPtr128 );
+                //vtxPtr128 += 3;
             }
         }
-        gdi->unmapVertices( tileVbuffer );
+		gdi->unmapVertices( tileVbuffer2 );
+		gdi->unmapVertices( tileVbuffer1 );
+		gdi->unmapVertices( tileVbuffer0 );
 
-        SYS_ASSERT( (uptr)( vtxPtr128 ) == (uptr)( vertices + tileVbuffer.numElements ) );
+        SYS_ASSERT( (uptr)( vtxPtr128 ) == (uptr)( verticesPos + tileVbuffer0.numElements ) );
     }
 
     void _FillHeightFieldDesc( PhxHeightField* desc, const Terrain* terr, const float* samples = nullptr )
@@ -422,6 +462,7 @@ namespace bx
         memSize += gridCellCount * sizeof( *t->_renderSources );
         memSize += gridCellCount * sizeof( *t->_cellWorldCoords );
         memSize += numSamplesInCell * gridCellCount * sizeof( *t->_cellHeightSamples );
+		memSize += numSamplesInCell * gridCellCount * sizeof( *t->_cellNoise );
         memSize += gridCellCount * sizeof( *t->_cellFlags );
 
         void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 16 );
@@ -435,12 +476,17 @@ namespace bx
         t->_renderSources = chunker.add< bxGdiRenderSource >( gridCellCount );
         t->_cellWorldCoords = chunker.add< Vector3 >( gridCellCount );
         t->_cellHeightSamples = chunker.add< f32 >( numSamplesInCell * gridCellCount );
+		t->_cellNoise = chunker.add< Vector4 >( numSamplesInCell * gridCellCount );
         t->_cellFlags = chunker.add< u8 >( gridCellCount );
         chunker.check();
 
         _TerrainCreatePhysics( t, gameScene->phxScene );
 
-        const int SUBDIV = t->_tileSubdiv;
+		{
+			bxGdiShaderFx_Instance* fxI = bxGdi::shaderFx_createWithInstance( engine->gdiDevice, engine->resourceManager, "terrain" );
+			t->_shaderFx = fxI;
+		}
+		const int SUBDIV = t->_tileSubdiv;
         _TerrainMeshCreateIndices( &t->_tileIndicesBuffer, engine->gdiDevice, SUBDIV );
         _TerrainMeshCreate( t, engine->gdiDevice, gameScene->gfxScene, SUBDIV );
 
@@ -455,6 +501,7 @@ namespace bx
 			td.localZoffset = Vector3( 0.f, 0.f, td.quadSize );
 			td.numQuadsInRow = _ComputeNumQuadsInRow( t->_tileSubdiv );
 			td.numSamplesInRow = numQuadsInRow + 1;
+			td.numSamplesInCell = td.numSamplesInRow * td.numSamplesInRow;
 		}
 
         terr[0] = t;
@@ -465,6 +512,7 @@ namespace bx
         if ( !terr[0] )
             return;
 
+		bxGdi::shaderFx_releaseWithInstance( engine->gdiDevice, engine->resourceManager, &terr[0]->_shaderFx );
         _TerrainMeshDestroy( terr[0], engine->gdiDevice );
         _TerrainDestroyPhysics( terr[0], gameScene->phxScene );
         BX_FREE0( bxDefaultAllocator(), terr[0]->_memoryHandle );
