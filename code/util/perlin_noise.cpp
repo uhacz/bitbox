@@ -103,6 +103,8 @@ static float stb__perlin_grad(int hash, float x, float y, float z)
 // 0 to mean "don't care". (The noise always wraps every 256 due
 // details of the implementation, even if you ask for larger or no
 // wrapping.)
+#define stb__perlin_ease(a)   (((a*6-15)*a + 10) * a * a * a)
+
 float stb_perlin_noise3(float x, float y, float z, int x_wrap, int y_wrap, int z_wrap)
 {
     float u,v,w;
@@ -120,8 +122,6 @@ float stb_perlin_noise3(float x, float y, float z, int x_wrap, int y_wrap, int z
     int y0 = py & y_mask, y1 = (py+1) & y_mask;
     int z0 = pz & z_mask, z1 = (pz+1) & z_mask;
     int r0,r1, r00,r01,r10,r11;
-
-#define stb__perlin_ease(a)   (((a*6-15)*a + 10) * a * a * a)
 
     x -= px; u = stb__perlin_ease(x);
     y -= py; v = stb__perlin_ease(y);
@@ -158,5 +158,109 @@ float stb_perlin_noise3(float x, float y, float z, int x_wrap, int y_wrap, int z
 float bxNoise_perlin( float x, float y, float z, int x_wrap, int y_wrap, int z_wrap )
 {
     return stb_perlin_noise3( x, y, z, x_wrap, y_wrap, z_wrap );
+}
+
+
+namespace
+{
+    static inline float fade( float x )
+    {
+        return x*x*x * ( x * ( x*6.0f - 15.0f ) + 10.0f );
+    }
+    static inline float dfade( float x )
+    {
+        return 30.0f * x*x * ( x * ( x - 2.0f ) + 1.0f );
+    }
+    static inline float my_random_magic( int x, int y, int z, float fx, float fy, float fz )
+    {
+        x = x & 255;
+        y = y & 255;
+        z = z & 255;
+
+        const int c = stb__perlin_randtab[z];
+        const int b = stb__perlin_randtab[y + c];
+        const int a = stb__perlin_randtab[x + b];
+
+        return stb__perlin_grad( a, fx, fy, fz );
+    }
+}
+
+void bxNoise_perlin( float out[4], float x, float y, float z )
+{
+    const float fi = floor( x );
+    const float fj = floor( y );
+    const float fk = floor( z );
+
+    const int i = (int)fi;
+    const int j = (int)fj;
+    const int k = (int)fk;
+
+    const float u0 = x - fi;
+    const float v0 = y - fj;
+    const float w0 = z - fk;
+
+    const float du = dfade( u0 );
+    const float dv = dfade( v0 );
+    const float dw = dfade( w0 );
+
+    const float u = fade( u0 );
+    const float v = fade( v0 );
+    const float w = fade( w0 );
+
+    const float a = my_random_magic( i + 0, j + 0, k + 0, u0, v0, w0 );
+    const float b = my_random_magic( i + 1, j + 0, k + 0, u0 - 1, v0, w0 );
+    const float c = my_random_magic( i + 0, j + 1, k + 0, u0, v0 - 1, w0 );
+    const float d = my_random_magic( i + 1, j + 1, k + 0, u0 - 1, v0 - 1, w0 );
+    const float e = my_random_magic( i + 0, j + 0, k + 1, u0, v0, w0 - 1 );
+    const float f = my_random_magic( i + 1, j + 0, k + 1, u0 - 1, v0, w0 - 1 );
+    const float g = my_random_magic( i + 0, j + 1, k + 1, u0, v0 - 1, w0 - 1 );
+    const float h = my_random_magic( i + 1, j + 1, k + 1, u0 - 1, v0 - 1, w0 - 1 );
+
+    const float k0 = a;
+    const float k1 = b - a;
+    const float k2 = c - a;
+    const float k3 = e - a;
+    const float k4 = a - b - c + d;
+    const float k5 = a - c - e + g;
+    const float k6 = a - b - e + f;
+    const float k7 = -a + b + c - d + e - f - g + h;
+
+    const float value = k0 + k1*u + k2*v + k3*w + k4*u*v + k5*v*w + k6*w*u + k7*u*v*w;
+    const float dx = du * ( k1 + k4*v + k6*w + k7*v*w );
+    const float dy = dv * ( k2 + k5*w + k4*u + k7*w*u );
+    const float dz = dw * ( k3 + k6*u + k5*v + k7*u*v );
+
+    out[0] = value;
+    out[1] = dx;
+    out[2] = dy;
+    out[3] = dz;
+}
+
+void bxNoise_fbm( float out[4], float x, float y, float z, int octaves )
+{
+    float f = 0.0f;
+    float w = 0.5f;
+    float dx = 0.0f;
+    float dy = 0.0f;
+    float dz = 0.0f;
+    for( int i = 0; i < octaves; i++ )
+    {
+        float n[4];
+        bxNoise_perlin( n, x, y, z );
+        dx += n[1];
+        dy += n[2];
+        dz += n[3];
+
+        f += w * n[0] / ( 1.0f + dx*dx + dy*dy + dz*dz ); // replace with "w * n[0]" for a classic fbm()
+        w *= 0.5f;
+        x *= 2.0f;
+        y *= 2.0f;
+        z *= 2.0f;
+    }
+
+    out[0] = f;
+    out[1] = dx;
+    out[2] = dy;
+    out[3] = dz;
 }
 

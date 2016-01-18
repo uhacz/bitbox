@@ -61,7 +61,7 @@ namespace bx
         static const int N_INDICES_SEQ = sizeof( indicesSequenceOdd ) / sizeof( *indicesSequenceOdd );
 
         static const Vector3 noiseSeed( 43.32214f, 5.3214325467f, 1.0412312f );
-        static const float noiseFreq = 0.015f;
+        static const float noiseFreq = 0.02f;
     }///
 
     struct TerrainVertex
@@ -78,7 +78,7 @@ namespace bx
         f32 _tileSizeInv = 1.f / _tileSize;
         i32 _radius = 8;
         i32 _tileSubdiv = 4;
-        f32 _height = 15.f;
+        f32 _height = 20.f;
 
 		struct TileData
 		{
@@ -233,8 +233,11 @@ namespace bx
         float nx = s.x;
         float ny = s.x + s.z + s.y;
         float nz = s.z;
-        float y = bxNoise_perlin( nx, ny, nz, 16, 64, 8 );
-        return y * height;
+        
+        float noise[4];
+        bxNoise_fbm( noise, nx, ny, nz, 16 );
+        //float y = bxNoise_perlin( nx, ny, nz, 16, 64, 8 );
+        return noise[0] * height;
     }
 
 	
