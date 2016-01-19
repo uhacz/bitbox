@@ -36,6 +36,7 @@ struct bxGdiRenderSource
 
 namespace bxGdi
 {
+    int renderSource_memorySizeCompute( int numStreams );
     bxGdiRenderSource* renderSource_new( int numStreams, bxAllocator* allocator = bxDefaultAllocator() );
     void renderSource_free( bxGdiRenderSource** rsource, bxAllocator* allocator = bxDefaultAllocator() );
     void renderSource_release( bxGdiDeviceBackend* dev, bxGdiRenderSource* rsource );

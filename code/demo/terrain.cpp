@@ -63,6 +63,7 @@ namespace bx
         static const u16 indicesSequenceEven[6] = { 3, 0, 1, 3, 1, 2 };
         static const int N_INDICES_SEQ = sizeof( indicesSequenceOdd ) / sizeof( *indicesSequenceOdd );
 
+        static const int NUM_STREAMS_PER_RENDER_SOURCE = 3;
         static const Vector3 noiseSeed( 43.32214f, 5.3214325467f, 1.0412312f );
         static const float noiseFreq = 0.02f;
     }///
@@ -122,10 +123,13 @@ namespace bx
         void* _memoryHandle = nullptr;
         GfxMeshInstance** _meshInstances = nullptr;
         PhxActor** _phxActors = nullptr;
-        bxGdiRenderSource* _renderSources = nullptr;
+        
+        u8* _renderSourcesMemoryBlock = nullptr;
+        bxGdiRenderSource** _renderSources = nullptr;
+        
         Vector3*  _cellWorldCoords = nullptr;
         f32*	  _cellHeightSamples = nullptr;
-		Vector4* _cellNoise = nullptr;
+		Vector4*  _cellNoise = nullptr;
         u8*       _cellFlags = nullptr;
 
         //////////////////////////////////////////////////////////////////////////
@@ -212,15 +216,15 @@ namespace bx
 
         for( int i = 0; i < gridNumCells; ++i )
         {
-            bxGdiRenderSource* rsource = &terr->_renderSources[i];
-            rsource->numVertexBuffers = 1;
+            bxGdiRenderSource* rsource = terr->_renderSources[i];
+            rsource->numVertexBuffers = TerrainConst::NUM_STREAMS_PER_RENDER_SOURCE;
 
             bxGdiVertexBuffer vbuffer0 = dev->createVertexBuffer( vstream0, numVertices, nullptr );
 			bxGdiVertexBuffer vbuffer1 = dev->createVertexBuffer( vstream1, numVertices, nullptr );
 			bxGdiVertexBuffer vbuffer2 = dev->createVertexBuffer( vstream2, numVertices, nullptr );
             bxGdi::renderSource_setVertexBuffer( rsource, vbuffer0, 0 );
 			bxGdi::renderSource_setVertexBuffer( rsource, vbuffer1, 1 );
-			bxGdi::renderSource_setVertexBuffer( rsource, vbuffer2, 1 );
+			bxGdi::renderSource_setVertexBuffer( rsource, vbuffer2, 2 );
             bxGdi::renderSource_setIndexBuffer( rsource, terr->_tileIndicesBuffer );
             
             bx::GfxMeshInstance* meshInstance = nullptr;
@@ -244,7 +248,7 @@ namespace bx
         {
             bx::gfxMeshInstanceDestroy( &terr->_meshInstances[i] );
 
-            bxGdiRenderSource* rsource = &terr->_renderSources[i];
+            bxGdiRenderSource* rsource = terr->_renderSources[i];
             bxGdi::renderSource_setIndexBuffer( rsource, bxGdiIndexBuffer() );
             bxGdi::renderSource_release( dev, rsource );
         }
@@ -297,9 +301,9 @@ namespace bx
         }
 
 
-		const bxGdiVertexBuffer& tileVbuffer0 = terr->_renderSources[tileIndex].vertexBuffers[0];
-		const bxGdiVertexBuffer& tileVbuffer1 = terr->_renderSources[tileIndex].vertexBuffers[1];
-		const bxGdiVertexBuffer& tileVbuffer2 = terr->_renderSources[tileIndex].vertexBuffers[2];
+		const bxGdiVertexBuffer& tileVbuffer0 = terr->_renderSources[tileIndex]->vertexBuffers[0];
+		const bxGdiVertexBuffer& tileVbuffer1 = terr->_renderSources[tileIndex]->vertexBuffers[1];
+		const bxGdiVertexBuffer& tileVbuffer2 = terr->_renderSources[tileIndex]->vertexBuffers[2];
 
 		TerrainVertexPos* verticesPos = (TerrainVertexPos*)gdi->mapVertices( tileVbuffer0, 0, tileVbuffer0.numElements, bxGdi::eMAP_WRITE );
 		TerrainVertexNrm* verticesNrm = (TerrainVertexNrm*)gdi->mapVertices( tileVbuffer1, 0, tileVbuffer1.numElements, bxGdi::eMAP_WRITE );
@@ -370,7 +374,7 @@ namespace bx
 				drvPtr128[1] = heightDerivSamples[sampleIndices[1]].get128();
 				drvPtr128[2] = heightDerivSamples[sampleIndices[2]].get128();
 				drvPtr128[3] = heightDerivSamples[sampleIndices[3]].get128();
-
+                drvPtr128 += 4;
                 //storeXYZArray( v0, n0, v1, n1, vtxPtr128 );
                 //vtxPtr128 += 3;
 				//
@@ -456,9 +460,13 @@ namespace bx
         const int numSamplesInRow = numQuadsInRow + 1;
         const int numSamplesInCell = numSamplesInRow * numSamplesInRow;
         
+        const int renderSourceMemorySize = bxGdi::renderSource_memorySizeCompute( TerrainConst::NUM_STREAMS_PER_RENDER_SOURCE );
+        struct RenderSourceMemory { u8 mem[TerrainConst::NUM_STREAMS_PER_RENDER_SOURCE]; };
+
         int memSize = 0;
         memSize += gridCellCount * sizeof( *t->_meshInstances );
         memSize += gridCellCount * sizeof( *t->_phxActors );
+        memSize += gridCellCount * renderSourceMemorySize;
         memSize += gridCellCount * sizeof( *t->_renderSources );
         memSize += gridCellCount * sizeof( *t->_cellWorldCoords );
         memSize += numSamplesInCell * gridCellCount * sizeof( *t->_cellHeightSamples );
@@ -467,18 +475,23 @@ namespace bx
 
         void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 16 );
         memset( mem, 0x00, memSize );
-
         t->_memoryHandle = mem;
 
         bxBufferChunker chunker( mem, memSize );
         t->_meshInstances = chunker.add< bx::GfxMeshInstance* >( gridCellCount );
         t->_phxActors = chunker.add< bx::PhxActor* >( gridCellCount );
-        t->_renderSources = chunker.add< bxGdiRenderSource >( gridCellCount );
+        t->_renderSources = chunker.add< bxGdiRenderSource* >( gridCellCount );
+        t->_renderSourcesMemoryBlock = chunker.addBlock( gridCellCount * renderSourceMemorySize );
         t->_cellWorldCoords = chunker.add< Vector3 >( gridCellCount );
         t->_cellHeightSamples = chunker.add< f32 >( numSamplesInCell * gridCellCount );
 		t->_cellNoise = chunker.add< Vector4 >( numSamplesInCell * gridCellCount );
         t->_cellFlags = chunker.add< u8 >( gridCellCount );
         chunker.check();
+
+        for( int i = 0; i < gridCellCount; ++i )
+        {
+            t->_renderSources[i] = (bxGdiRenderSource*)( t->_renderSourcesMemoryBlock + renderSourceMemorySize * i );
+        }
 
         _TerrainCreatePhysics( t, gameScene->phxScene );
 

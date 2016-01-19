@@ -17,6 +17,14 @@ struct bxBufferChunker
         current = next;
         return (T*)result;
     }
+    unsigned char* addBlock( int size, int alignment = 4 )
+    {
+        unsigned char* result = (unsigned char*)TYPE_ALIGN( current, alignment );
+
+        unsigned char* next = result + size;
+        current = next;
+        return result;
+    }
 
     void check()
     {

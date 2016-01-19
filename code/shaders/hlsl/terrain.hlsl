@@ -19,6 +19,7 @@ struct in_VS
     uint instanceID : SV_InstanceID;
     float3 pos : POSITION;
     float3 normal : NORMAL;
+    float4 noise : TEXCOORD0;
 };
 
 struct in_PS
@@ -27,6 +28,7 @@ struct in_PS
     float4 s_pos : TEXCOORD0;
     float3 w_pos : TEXCOORD1;
     nointerpolation float3 w_normal : TEXCOORD2;
+    nointerpolation float4 noise : TEXCOORD3;
 };
 
 struct out_PS
@@ -57,6 +59,7 @@ in_PS vs_main(in_VS IN)
     OUT.w_normal = transformNormal(row0IT, row1IT, row2IT, IN.normal);
     OUT.h_pos = mul(_camera_viewProj, float4(OUT.w_pos, 1.f));
     OUT.s_pos = OUT.h_pos;
+    OUT.noise = IN.noise;
 
     return OUT;
 }
@@ -131,6 +134,7 @@ out_PS ps_main(in_PS IN)
 
     float3 c = lerp(ambient, direct, NdotL * shadow);
 
-    OUT.rgba = float4(c, 1.0);
+    //OUT.rgba = float4(c, 1.0);
+    OUT.rgba = ( length( IN.noise.yzw ).xxxx );
     return OUT;
 }
