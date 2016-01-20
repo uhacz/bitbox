@@ -28,7 +28,7 @@ struct in_PS
     float4 s_pos : TEXCOORD0;
     float3 w_pos : TEXCOORD1;
     nointerpolation float3 w_normal : TEXCOORD2;
-    nointerpolation float4 noise : TEXCOORD3;
+    float4 noise : TEXCOORD3;
 };
 
 struct out_PS
@@ -86,10 +86,18 @@ float3 calculateSunDirectionSpecular(float3 sunDirection, float3 worldPos)
     float3 S = R - DdotR * D;
     float3 L = DdotR < d ? normalize(d * D + normalize(S) * r) : R;    return L;
 }
-
+float3 palette( in float t, in float3 a, in float3 b, in float3 c, in float3 d )
+{
+    return a + b*cos( TWO_PI*( c*t + d ) );
+}
 out_PS ps_main(in_PS IN)
 {
-    float3 diffuseColor = float3(0.f, 1.f, 0.f);
+    const float3 colorA = float3( 0.5, 0.5, 0.5 );
+    const float3 colorB = float3( 0.5, 0.5, 0.5 );
+    const float3 colorC = float3( 1.0, 1.0, 0.5 );
+    const float3 colorD = float3( 0.8, 0.9, 0.3 );
+
+    float3 diffuseColor = palette( IN.noise.z, colorA, colorB, colorC, colorD ); // float3( 0.f, 1.f, 0.f );
     float3 fresnelColor = float3(0.1f, 0.2f, 0.3f);
     float3 ambientColor = float3(0.1f, 0.1f, 0.1f);
     float diffuseCoeff = 0.4f;
@@ -134,7 +142,7 @@ out_PS ps_main(in_PS IN)
 
     float3 c = lerp(ambient, direct, NdotL * shadow);
 
-    //OUT.rgba = float4(c, 1.0);
-    OUT.rgba = ( length( IN.noise.yzw ).xxxx );
+    OUT.rgba = float4(c, 1.0);
+    //OUT.rgba = float4( IN.noise.yyy, 1.0 );
     return OUT;
 }

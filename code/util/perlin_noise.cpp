@@ -259,8 +259,10 @@ void bxNoise_fbm( float out[4], float x, float y, float z, int octaves )
     }
 
     out[0] = f;
-    out[1] = dx;
-    out[2] = dy;
-    out[3] = dz;
+    
+    float octavesInv = 1.f / (float)octaves;
+    out[1] = dx * octavesInv;
+    out[2] = dy * octavesInv;
+    out[3] = dz * octavesInv;
 }
 
