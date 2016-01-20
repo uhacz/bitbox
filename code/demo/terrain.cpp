@@ -64,10 +64,21 @@ namespace bx
         static const int N_INDICES_SEQ = sizeof( indicesSequenceOdd ) / sizeof( *indicesSequenceOdd );
 
         static const int NUM_STREAMS_PER_RENDER_SOURCE = 3;
-        static const Vector3 noiseSeed( 43.32214f, 5.3214325467f, 1.0412312f );
+        static const Vector3 noiseSeed( 0.32214f, 10.3214325467f, 2.0412312f );
         static const float noiseFreq = 0.02f;
     }///
+	inline void _TerrainNoise( float noizz[4], const Vector3& vertex, float height, const Vector3& offset, float freq )
+	{
+		SSEScalar s( (vertex * freq + TerrainConst::noiseSeed).get128() );
+		float nx = s.x;
+		float ny = s.y;
+		float nz = s.z;
 
+		//float noise[4];
+		bxNoise_fbm( noizz, nx, ny, nz, 8, 0.25f, 3.0f );
+		//float y = bxNoise_perlin( nx, ny, nz, 16, 64, 8 );
+		//noizz[0] *= height;
+	}
     struct TerrainVertexPos
     {
         float3_t pos;
@@ -89,7 +100,7 @@ namespace bx
         f32 _tileSize = 35.f;
         f32 _tileSizeInv = 1.f / _tileSize;
         i32 _radius = 8;
-        i32 _tileSubdiv = 4;
+        i32 _tileSubdiv = 5;
         f32 _height = 20.f;
 
 		struct TileData
@@ -256,21 +267,6 @@ namespace bx
         dev->releaseIndexBuffer( &terr->_tileIndicesBuffer );
     }
 
-    inline void _TerrainNoise( float noizz[4], const Vector3& vertex, float height, const Vector3& offset, float freq )
-    {
-        SSEScalar s( (vertex * freq + TerrainConst::noiseSeed).get128() );
-        float nx = s.x;
-        float ny = s.x + s.z + s.y;
-        float nz = s.z;
-        
-        //float noise[4];
-        bxNoise_fbm( noizz, nx, ny, nz, 16 );
-        //float y = bxNoise_perlin( nx, ny, nz, 16, 64, 8 );
-		//noizz[0] *= height;
-    }
-
-	
-
     void _TerrainMeshTileVerticesCompute( Terrain* terr, int tileIndex, bxGdiContextBackend* gdi )
     {
 		const Terrain::TileData& td = terr->tileData_;
@@ -296,7 +292,10 @@ namespace bx
                 SYS_ASSERT( sampleIndex0 < numSamplesInRow*numSamplesInRow );
 
                 heightSamples[sampleIndex0] = noizz.x * height;
-				heightDerivSamples[sampleIndex0] = Vector4( noizz.x, noizz.y, noizz.z, noizz.w );
+
+				Vector4 noizz4( noizz.x, noizz.y, noizz.z, noizz.w );
+				heightDerivSamples[sampleIndex0] = noizz4; // *0.5f + Vector4( 0.5f );
+				
             }
         }
 

@@ -7,4 +7,4 @@
 // wrapping.)
 float bxNoise_perlin(float x, float y, float z, int x_wrap = 0, int y_wrap = 0, int z_wrap = 0 );
 void bxNoise_perlin( float out[4], float x, float y, float z );
-void bxNoise_fbm( float out[4], float x, float y, float z, int octaves );
+void bxNoise_fbm( float out[4], float x, float y, float z, int octaves, float wstep = 0.5f, float dstep = 2.f );

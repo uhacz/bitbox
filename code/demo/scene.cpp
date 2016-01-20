@@ -232,7 +232,7 @@ namespace bx
 
         //scene->flock = bxGame::flock_new();
 
-        bx::characterInit( scene->character, engine->gdiDevice, scene, Matrix4( Matrix3::identity(), Vector3( 0.f, 2.f, 0.f ) ) );
+        bx::characterInit( scene->character, engine->gdiDevice, scene, Matrix4( Matrix3::identity(), Vector3( 0.f, 5.f, 0.f ) ) );
         //bxGame::flock_init( scene->flock, 128, Vector3( 0.f ), 5.f );
     }
 

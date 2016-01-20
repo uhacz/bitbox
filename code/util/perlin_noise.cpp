@@ -236,10 +236,10 @@ void bxNoise_perlin( float out[4], float x, float y, float z )
     out[3] = dz;
 }
 
-void bxNoise_fbm( float out[4], float x, float y, float z, int octaves )
+void bxNoise_fbm( float out[4], float x, float y, float z, int octaves, float wstep/* = 0.5f*/, float dstep/* = 2.f*/ )
 {
     float f = 0.0f;
-    float w = 0.5f;
+    float w = 1.f;
     float dx = 0.0f;
     float dy = 0.0f;
     float dz = 0.0f;
@@ -252,10 +252,10 @@ void bxNoise_fbm( float out[4], float x, float y, float z, int octaves )
         dz += n[3];
 
         f += w * n[0] / ( 1.0f + dx*dx + dy*dy + dz*dz ); // replace with "w * n[0]" for a classic fbm()
-        w *= 0.5f;
-        x *= 2.0f;
-        y *= 2.0f;
-        z *= 2.0f;
+        w *= wstep;
+        x *= dstep;
+        y *= dstep;
+        z *= dstep;
     }
 
     out[0] = f;
