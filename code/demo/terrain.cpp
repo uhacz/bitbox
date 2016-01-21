@@ -100,7 +100,7 @@ namespace bx
         f32 _tileSize = 35.f;
         f32 _tileSizeInv = 1.f / _tileSize;
         i32 _radius = 8;
-        i32 _tileSubdiv = 5;
+        i32 _tileSubdiv = 4;
         f32 _height = 20.f;
 
 		struct TileData
@@ -311,6 +311,8 @@ namespace bx
 		__m128* nrmPtr128 = (__m128*)verticesNrm;
 		__m128* drvPtr128 = (__m128*)verticesDrv;
 
+		memset( verticesNrm, 0x00, tileVbuffer1.numElements * sizeof( TerrainVertexNrm ) );
+
 		const __m128i numSamplesInRowVec = _mm_set1_epi32( td.numSamplesInRow );
 
         for( int iz = 0; iz < td.numQuadsInRow; ++iz )
@@ -381,6 +383,10 @@ namespace bx
                 //vtxPtr128 += 3;
             }
         }
+
+		SYS_ASSERT( (uptr)nrmPtr128 == (uptr)( verticesNrm + tileVbuffer1.numElements) );
+
+
 		gdi->unmapVertices( tileVbuffer2 );
 		gdi->unmapVertices( tileVbuffer1 );
 		gdi->unmapVertices( tileVbuffer0 );

@@ -27,7 +27,7 @@ struct in_PS
     float4 h_pos : SV_Position;
     float4 s_pos : TEXCOORD0;
     float3 w_pos : TEXCOORD1;
-    /*noperspective*/ float3 w_normal : TEXCOORD2;
+    noperspective float3 w_normal : TEXCOORD2;
     float4 noise : TEXCOORD3;
 };
 
@@ -92,19 +92,19 @@ float3 palette( in float t, in float3 a, in float3 b, in float3 c, in float3 d )
 }
 out_PS ps_main(in_PS IN)
 {
-    const float3 colorA = float3(0.4, 0.7, 0.0);
-    const float3 colorB = float3(0.2, 0.6, 0.0);
-    const float3 colorC = float3(0.0, 0.5, 0.0);
-    const float3 colorD = float3(0.3, 0.1, 0.0);
+    const float3 colorA = float3(0.5, 0.5, 0.5);
+    const float3 colorB = float3(0.5, 0.5, 0.5);
+    const float3 colorC = float3(0.2, 0.2, 0.2);
+    const float3 colorD = float3(0.3, 0.9, 0.1) + 0.31;
 
     float paletteT = saturate( 1.f - dot( IN.w_normal, float3(0,1,0) ) );
-    paletteT = smoothstep(0, 1.f, paletteT);
+    //paletteT = smoothstep(0, 1.f, paletteT);
     float3 diffuseColor = palette( paletteT, colorA, colorB, colorC, colorD ); // float3( 0.f, 1.f, 0.f );
     float3 fresnelColor = float3(0.1f, 0.2f, 0.3f);
-    float3 ambientColor = float3(0.1f, 0.1f, 0.1f);
-    float diffuseCoeff = 0.4f;
+    float3 ambientColor = float3(0.3f, 0.5f, 0.6f);
+    float diffuseCoeff = 0.6f;
     float specularCoeff = 0.2f;
-    float ambientCoeff = 0.25f;
+    float ambientCoeff = 0.5f;
     float roughnessCoeff = 0.8f;
 
     out_PS OUT;

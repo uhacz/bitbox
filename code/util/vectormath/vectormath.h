@@ -382,3 +382,13 @@ inline Vector3 transform( const TransformTQ& tq, const Vector3& point )
 {
     return fastTransform( tq.q, tq.t, point );
 }
+inline void addStoreXYZArray( const Vector3 &vec0, const Vector3 &vec1, const Vector3 &vec2, const Vector3 &vec3, __m128 * threeQuads )
+{
+	__m128 xxxx = _mm_shuffle_ps( vec1.get128(), vec1.get128(), _MM_SHUFFLE( 0, 0, 0, 0 ) );
+	__m128 zzzz = _mm_shuffle_ps( vec2.get128(), vec2.get128(), _MM_SHUFFLE( 2, 2, 2, 2 ) );
+	VM_ATTRIBUTE_ALIGN16 unsigned int xsw[4] = { 0, 0, 0, 0xffffffff };
+	VM_ATTRIBUTE_ALIGN16 unsigned int zsw[4] = { 0xffffffff, 0, 0, 0 };
+	threeQuads[0] = _mm_add_ps( threeQuads[0], vec_sel( vec0.get128(), xxxx, xsw ) );
+	threeQuads[1] = _mm_add_ps( threeQuads[1], _mm_shuffle_ps( vec1.get128(), vec2.get128(), _MM_SHUFFLE( 1, 0, 2, 1 ) ) );
+	threeQuads[2] = _mm_add_ps( threeQuads[2], vec_sel( _mm_shuffle_ps( vec3.get128(), vec3.get128(), _MM_SHUFFLE( 2, 1, 0, 3 ) ), zzzz, zsw ) );
+}
