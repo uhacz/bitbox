@@ -26,9 +26,7 @@ namespace bx
 
         bx::Character* character = nullptr;
         bx::Terrain* terrain = nullptr;
-        //bx::CharacterController* characterController = nullptr;
         bx::CameraController cameraController;
-        //bxGame::Flock* flock;
     };
 
     void gameSceneStartup( GameScene* scene, bxEngine* engine );

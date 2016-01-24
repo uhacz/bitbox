@@ -170,13 +170,13 @@ float3 ACESFilm(float3 x)
 // Applies the filmic curve from John Hable's presentation
 float3 Tone_map_filmic_ALU( float3 color )
 {
-    //return ACESFilm(color);
-    color = max(0, color - 0.004f);
-    color = (color * (6.2f * color + 0.5f)) / (color * (6.2f * color + 1.7f)+ 0.06f);
-
-    // result has 1/2.2 baked in
-    return pow(color, 2.2f);
-    return color;
+    return ACESFilm(color);
+    //color = max(0, color - 0.004f);
+    //color = (color * (6.2f * color + 0.5f)) / (color * (6.2f * color + 1.7f)+ 0.06f);
+    //
+    //// result has 1/2.2 baked in
+    //return pow(color, 2.2f);
+    //return color;
 }
 
 // Determines the color based on exposure settings

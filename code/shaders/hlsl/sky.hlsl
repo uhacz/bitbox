@@ -114,16 +114,28 @@ float3 calculateSkyLuminanceRGB( in float3 s, in float3 e, in float t )
 
     return YxyToRGB( Yp );
 }
+
+float3 ACESFilm(float3 x)
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
 float4 ps_main( in_PS IN ) : SV_Target0
 {
     float2 uv_m11 = float2(IN.uv.x, 1.0 - IN.uv.y) * 2.0 - 1.0;
     uv_m11.x *= _camera_aspect; // apect
     
-    float turbidity = 2;
+    float turbidity = 3;
     float3 sunDir = -_sunDirection; // normalize( float3( -1.f, 1.0f, 0.f ) );
     float3 viewDir = normalize( mul( ( float3x3 )_camera_world, float3( uv_m11, -1.0 ) ) );
     float3 skyLuminance = calculateSkyLuminanceRGB( sunDir, viewDir, turbidity );
-    return float4( skyLuminance * 250.f , 1.0 );
+    skyLuminance = ACESFilm( skyLuminance * 0.05 ); //(float3)1.0 - exp( -(skyLuminance * 0.1 ) );
+    return float4( skyLuminance * _skyIlluminanceInLux , 1.0 );
     //return float4(skyLuminance * 0.05f, 1.0);
 }
 

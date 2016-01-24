@@ -98,10 +98,11 @@ out_PS ps_main(in_PS IN)
     const float3 colorD = float3(0.3, 0.9, 0.1) + 0.31;
 
     float paletteT = saturate( 1.f - dot( IN.w_normal, float3(0,1,0) ) );
+
     //paletteT = smoothstep(0, 1.f, paletteT);
     float3 diffuseColor = palette( paletteT, colorA, colorB, colorC, colorD ); // float3( 0.f, 1.f, 0.f );
-    float3 fresnelColor = float3(0.1f, 0.2f, 0.3f);
-    float3 ambientColor = float3(0.3f, 0.5f, 0.6f);
+    float3 fresnelColor = palette(IN.noise.x, colorA, colorB, colorC, colorD); //float3(0.1f, 0.2f, 0.3f);
+    float3 ambientColor = palette(IN.noise.y, colorA, colorB, colorC, colorD); //float3(0.3f, 0.5f, 0.6f);
     float diffuseCoeff = 0.6f;
     float specularCoeff = 0.2f;
     float ambientCoeff = 0.5f;

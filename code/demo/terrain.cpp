@@ -75,7 +75,7 @@ namespace bx
 		float nz = s.z;
 
 		//float noise[4];
-		bxNoise_fbm( noizz, nx, ny, nz, 8, 0.25f, 3.0f );
+		bxNoise_fbm( noizz, nx, ny, nz, 16, 0.25f, 3.0f );
 		//float y = bxNoise_perlin( nx, ny, nz, 16, 64, 8 );
 		//noizz[0] *= height;
 	}
@@ -101,7 +101,7 @@ namespace bx
         f32 _tileSizeInv = 1.f / _tileSize;
         i32 _radius = 8;
         i32 _tileSubdiv = 4;
-        f32 _height = 20.f;
+        f32 _height = 10.f;
 
 		struct TileData
 		{

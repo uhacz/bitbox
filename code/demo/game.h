@@ -82,14 +82,14 @@ namespace bx
     {
         virtual ~GraphActor() {}
 
-        virtual void load() {}
-        virtual void unload() {}
+        virtual void load( bxEngine* engine, GameScene* scene ) {}
+        virtual void unload( bxEngine* engine, GameScene* scene ) {}
 
-        virtual void parallelTick() {}
-        virtual void serialTick() {}
-
-        
+        virtual void parallelTick( GameScene* scene, u64 deltaTimeMS ) {}
+        virtual void serialTick( GameScene* scene, u64 deltaTimeMS ) {}
     };
+
+
 
 
 }////
