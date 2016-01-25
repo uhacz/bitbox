@@ -76,6 +76,7 @@ namespace bx
 
 
 
+struct bxEngine;
 namespace bx
 {
     struct GraphActor

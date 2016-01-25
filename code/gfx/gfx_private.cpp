@@ -397,7 +397,7 @@ namespace bx
 
             {
                 params.diffuseColor = float3_t( 0.15f, 0.15f, 0.15f );
-                params.diffuseCoeff = 0.28f;
+                params.diffuseCoeff = 0.9f;
                 params.roughnessCoeff = 1.0f;
                 params.specularCoeff = 0.01f;
                 params.ambientColor = float3_t( 0.6f );
