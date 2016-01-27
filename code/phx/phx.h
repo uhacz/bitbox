@@ -9,6 +9,7 @@ namespace bx
     struct PhxScene;
     typedef void PhxActor;
     typedef void PhxShape;
+    struct PhxCCT;
 
     bool phxContextStartup( PhxContext** phx, int maxThreads );
     void phxContextShutdown( PhxContext** phx );
@@ -135,8 +136,35 @@ namespace bx
 	void phxActorQueryEnable( PhxActor* actor, bool yesNo );
 
     void phxActorUpdateHeightField( PhxActor* actor, const PhxHeightField& geometry );
-    
     void phxSceneActorAdd( PhxScene* scene, PhxActor** actors, int nActors );
+
+    ////
+    // character controller
+    struct PhxCCTDesc 
+    {
+        Vector3 position = Vector3(0.f);
+        Vector3 upDirection = Vector3::yAxis();
+        f32 capsuleRadius = 0.25f;
+        f32 capsuleHeight = 0.25f;
+        PhxMaterial material;
+    };
+    bool phxCCTCreate( PhxCCT** cct, PhxScene* scene, const PhxCCTDesc& desc );
+    void phxCCTDestroy( PhxCCT** cct );
+
+    struct PhxCCTMoveResult
+    {
+        Vector3 dpos = Vector3(0.f);
+        u8 collisionSide = 0;
+        u8 collisionUp = 0;
+        u8 collisionDown = 0;
+        u8 padding__ = 0;
+    };
+    void phxCCTMove( PhxCCTMoveResult* result, PhxCCT* cct, const Vector3& displacement, float deltaTime );
+
+    Vector3 phxCCTFootPositionGet( PhxCCT* cct );
+    Vector3 phxCCTCenterPositionGet( PhxCCT* cct );
+    Vector3 phxCCTUpDirectionGet( PhxCCT* cct );
+    void phxCCTUpDirectionSet( PhxCCT* cct, const Vector3& upDir );
 }////
 
 namespace bx

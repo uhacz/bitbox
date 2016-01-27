@@ -605,6 +605,100 @@ void phxSceneActorAdd( PhxScene* scene, PhxActor** actors, int nActors )
     }
 }
 
+////
+//
+struct PhxCCT
+{
+    PxController* cct = nullptr;
+    PxMaterial* material = nullptr;
+    PxFilterData moveFd;
+};
+
+bool phxCCTCreate( PhxCCT** cct, PhxScene* scene, const PhxCCTDesc& desc )
+{
+    PxCapsuleControllerDesc cdesc;
+    cdesc.radius = desc.capsuleRadius;
+    cdesc.height = desc.capsuleHeight;
+    cdesc.contactOffset = 0.1f;
+    //    cdesc.scaleCoeff = 0.9f;
+    cdesc.invisibleWallHeight = 0.f;
+
+    cdesc.climbingMode = PxCapsuleClimbingMode::eEASY;
+    cdesc.stepOffset = 0.0f;//cdesc.radius;
+    cdesc.slopeLimit = 0.0f;//0.707f;
+    //cdesc.invisibleWallHeight = cdesc.radius;
+    cdesc.nonWalkableMode = PxCCTNonWalkableMode::ePREVENT_CLIMBING;
+
+    cdesc.position = toPxExtendedVec3( desc.position );
+    cdesc.upDirection = toPxVec3( desc.upDirection );
+
+    PxController* pxCCT = nullptr;
+    PxMaterial* mat = nullptr;
+    PhxCCT* impl = nullptr;
+
+    
+    mat = scene->ctx->physics->createMaterial( desc.material.sfriction, desc.material.dfriction, desc.material.restitution );
+    if( !mat )
+    {
+        goto phxCCTCreateERROR;
+    }
+
+    cdesc.material = mat;
+    pxCCT = scene->controllerManager->createController( cdesc );
+    if( !pxCCT )
+    {
+        goto phxCCTCreateERROR;
+    }
+
+
+    impl = BX_NEW( bxDefaultAllocator(), PhxCCT );
+    impl->cct = pxCCT;
+    impl->material = mat;
+    impl->moveFd.word0 = 0xFFFFFFFF;
+
+    cct[0] = impl;
+
+    return true;
+
+phxCCTCreateERROR:
+    releasePhysXObject( mat );
+    releasePhysXObject( pxCCT );
+    BX_DELETE0( bxDefaultAllocator(), impl );
+    return false;
+}
+void phxCCTDestroy( PhxCCT** cct )
+{
+    if( !cct[0] )
+        return;
+
+    PhxCCT* impl = cct[0];
+    releasePhysXObject( impl->cct );
+    releasePhysXObject( impl->material );
+
+    BX_DELETE0( bxDefaultAllocator(), cct[0] );
+}
+void phxCCTMove( PhxCCTMoveResult* result, PhxCCT* cct, const Vector3& displacement, float deltaTime )
+{
+    
+}
+
+Vector3 phxCCTFootPositionGet( PhxCCT* cct )
+{
+    return toVector3( cct->cct->getFootPosition() );
+}
+Vector3 phxCCTCenterPositionGet( PhxCCT* cct )
+{
+    return toVector3( cct->cct->getPosition() );
+}
+Vector3 phxCCTUpDirectionGet( PhxCCT* cct )
+{
+    return toVector3( cct->cct->getUpDirection() );
+}
+void phxCCTUpDirectionSet( PhxCCT* cct, const Vector3& upDir )
+{
+    cct->cct->setUpDirection( toPxVec3( upDir ) );
+}
+
 }///
 
 
