@@ -24,7 +24,8 @@ namespace bx
         bx::GfxScene* gfxScene = nullptr;
         bx::PhxScene* phxScene = nullptr;
 
-        bx::Character* character = nullptr;
+        //bx::Character* character = nullptr;
+        bx::CharacterController* cct = nullptr;
         bx::Terrain* terrain = nullptr;
         bx::CameraController cameraController;
     };

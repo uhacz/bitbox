@@ -565,7 +565,7 @@ namespace bx
 
     void terrainTick( Terrain* terr, GameScene* gameScene, bxGdiContextBackend* gdi, float deltaTime )
     {
-        const Vector3 playerPosition = bx::characterPoseGet( gameScene->character ).getTranslation();
+        const Vector3 playerPosition = gameScene->cct->worldPose().getTranslation();//bx::characterPoseGet( gameScene->character ).getTranslation();
         //Vector3 currPosWorldRounded, prevPosWorldRounded;
         __m128i currPosWorldGrid = terr->computeWorldGridCoords( playerPosition );
         __m128i prevPosWorldGrid = terr->computeWorldGridCoords( terr->_prevPlayerPosition );

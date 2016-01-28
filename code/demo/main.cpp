@@ -216,14 +216,14 @@ public:
         {//// game update
 			__scene.dblock->tick();
             bx::terrainTick( __scene.terrain, &__scene, _engine.gdiContext->backend(), deltaTime * 2.f );
-            bx::characterTick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
-            //__scene.characterController->tick( &__scene, win->input, deltaTime * 2.f );
+            //bx::characterTick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
+            __scene.cct->tick( &__scene, win->input, deltaTime * 2.f );
             if( !useDebugCamera )
             {
-                //const Vector3 characterPos = __scene.characterController->worldPose().getTranslation();
-                //const Vector3 characterUp = __scene.characterController->upDirection();
-				const Vector3 characterPos = bx::characterPoseGet( __scene.character ).getTranslation();
-				const Vector3 characterUp = bx::characterUpVectorGet( __scene.character );
+                const Vector3 characterPos = __scene.cct->worldPose().getTranslation();
+                const Vector3 characterUp  = __scene.cct->upDirection();
+				//const Vector3 characterPos = bx::characterPoseGet( __scene.character ).getTranslation();
+				//const Vector3 characterUp = bx::characterUpVectorGet( __scene.character );
                 __scene.cameraController.follow( camera, characterPos, characterUp, deltaTime, cameraInputCtx.anyMovement() );
             }
 

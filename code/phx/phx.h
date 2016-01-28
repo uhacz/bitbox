@@ -146,7 +146,7 @@ namespace bx
         Vector3 upDirection = Vector3::yAxis();
         f32 capsuleRadius = 0.25f;
         f32 capsuleHeight = 0.25f;
-        PhxMaterial material;
+        PhxMaterial material = PhxMaterial( 0.1f, 0.5f, 0.2f );
     };
     bool phxCCTCreate( PhxCCT** cct, PhxScene* scene, const PhxCCTDesc& desc );
     void phxCCTDestroy( PhxCCT** cct );

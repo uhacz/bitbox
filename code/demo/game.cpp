@@ -514,8 +514,10 @@ namespace bx
 
         Vector3 _upDir = Vector3( 0.f, 1.f, 0.f );
         DynamicState _dstate0;
-        PhxGeometry _geometry0 = PhxGeometry( 0.5f );
-		PhxActor* _actor = nullptr;
+        PhxGeometry _geometry0 = PhxGeometry( 0.25f, 0.5f );
+        PhxCCTMoveResult _cctMoveStats;
+        PhxCCT* _cct = nullptr;
+        //PhxActor* _actor = nullptr;
 
 		Input _input;
 		f32 _jumpAcc = 0.f;
@@ -525,16 +527,25 @@ namespace bx
         void _Init( GameScene* scene, const Matrix4& worldPose )
         {
             _dstate0.setPose( worldPose );
-			PhxContext* phxCtx = phxContextGet( scene->phxScene );
-			const Matrix4 pose( _dstate0._rotation, _dstate0._pos0 );
-			phxActorCreateDynamic( &_actor, phxCtx, pose, _geometry0, -10.f );
-			phxSceneActorAdd( scene->phxScene, &_actor, 1 );
-			phxActorQueryEnable( _actor, false );
+			//PhxContext* phxCtx = phxContextGet( scene->phxScene );
+			//const Matrix4 pose( _dstate0._rotation, _dstate0._pos0 );
+			//phxActorCreateDynamic( &_actor, phxCtx, pose, _geometry0, -10.f );
+			//phxSceneActorAdd( scene->phxScene, &_actor, 1 );
+			//phxActorQueryEnable( _actor, false );
+
+            PhxCCTDesc cctDesc;
+            cctDesc.capsuleHeight = _geometry0.capsule.halfHeight * 2.f;
+            cctDesc.capsuleRadius = _geometry0.capsule.radius;
+            cctDesc.position = worldPose.getTranslation();
+            cctDesc.upDirection = _upDir;
+            bool bres = phxCCTCreate( &_cct, scene->phxScene, cctDesc );
+            SYS_ASSERT( bres );
         }
 
         void _Deinit( GameScene* scene )
         {
-			phxActorDestroy( &_actor );
+			//phxActorDestroy( &_actor );
+            phxCCTDestroy( &_cct );
         }
 
         void _Teleport( const Matrix4& worldPose )
@@ -610,7 +621,7 @@ namespace bx
 				Vector3 xInputForce = Vector3::xAxis() * _input.analogX;
 				Vector3 yInputForce = -Vector3::zAxis() * _input.analogY;
 
-				const float maxInputForce = 1.25f;
+				const float maxInputForce = 0.25f;
 				inputVector = (xInputForce + yInputForce);// *maxInputForce;
 
 				const floatInVec externalForcesValue = minf4( length( inputVector ), floatInVec( maxInputForce ) );
@@ -626,7 +637,7 @@ namespace bx
 
 			float deltaTimeFix = 1.f / 60.f;
 			const float deltaTimeInv = 60.f; // ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
-			const float dampingCoeff = 0.2f;
+            const float dampingCoeff = 0.2f;
 			const float damping = pow( 1.f - dampingCoeff, deltaTime );
 			
 			const Vector3 gravity = -_upDir * 9.f;
@@ -651,30 +662,33 @@ namespace bx
                 }
 
                 {
-                    const PhxGeometry& sweepGeom = _geometry0;
+                    //const PhxGeometry& sweepGeom = _geometry0;
 
                     DynamicState* ds = &_dstate0;
                     const Vector3& pos0 = ds->_pos0;
                     Vector3 pos1 = ds->_pos1;
 
                     const Vector3 rd = pos1 - pos0;
-                    const float displ = length( rd ).getAsFloat();
+                    //const float displ = length( rd ).getAsFloat();
+                    
+                    phxCCTMove( &_cctMoveStats, _cct, rd, deltaTimeFix );
 
+                    pos1 = pos0 + _cctMoveStats.dpos;
 
-                    if( displ > FLT_EPSILON )
-                    {
-                        PhxQueryHit hit;
-                        const TransformTQ pose( ds->_rotation, ds->_pos1 );
-						const Vector3 rdn = normalize( rd );
-                        if( phxSweep( &hit, scene->phxScene, sweepGeom, pose, -_upDir, displ ) )
-                        {
-							//if( hit.distance < displ )
-							{
-								//pos1 = pos0 + rdn * hit.distance;// ;
-								pos1 = hit.position + hit.normal * sweepGeom.sphere.radius;
-							}
-                        }
-                    }
+                    //if( displ > FLT_EPSILON )
+                    //{
+                    //    PhxQueryHit hit;
+                    //    const TransformTQ pose( ds->_rotation, ds->_pos1 );
+					//	const Vector3 rdn = normalize( rd );
+                    //    if( phxSweep( &hit, scene->phxScene, sweepGeom, pose, -_upDir, displ ) )
+                    //    {
+					//		//if( hit.distance < displ )
+					//		{
+					//			//pos1 = pos0 + rdn * hit.distance;// ;
+					//			pos1 = hit.position + hit.normal * sweepGeom.sphere.radius;
+					//		}
+                    //    }
+                    //}
 					ds->_pos1 = pos1;
 					//const Matrix4 actorPose = phxActorPoseGet( _actor );
                     //ds->_pos1 = actorPose.getTranslation();
@@ -686,9 +700,9 @@ namespace bx
                     ds->_pos0 = ds->_pos1;
                 }
 
-				{
-					phxActorTargetPoseSet( _actor, Matrix4( _dstate0._rotation, _dstate0._pos1 ), scene->phxScene );
-				}
+				//{
+				//	phxActorTargetPoseSet( _actor, Matrix4( _dstate0._rotation, _dstate0._pos1 ), scene->phxScene );
+				//}
 
                 timeAcc_ -= deltaTimeFix;
 				_jumpAcc = 0.f;

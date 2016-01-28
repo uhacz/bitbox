@@ -679,7 +679,22 @@ void phxCCTDestroy( PhxCCT** cct )
 }
 void phxCCTMove( PhxCCTMoveResult* result, PhxCCT* cct, const Vector3& displacement, float deltaTime )
 {
+    PxControllerFilters filters;
+    filters.mFilterData = &cct->moveFd;
+    filters.mFilterFlags = ( PxQueryFlag::eDYNAMIC | PxQueryFlag::eSTATIC /*| PxQueryFlag::ePREFILTER | PxQueryFlag::ePOSTFILTER*/ );
+
+    const float minDistance = deltaTime * 0.001f;
+    const PxExtendedVec3 prevPos = cct->cct->getFootPosition();
+    const PxControllerCollisionFlags collisionFlags = cct->cct->move( toPxVec3( displacement ), minDistance, deltaTime, filters );
+    const PxExtendedVec3 currPos = cct->cct->getFootPosition();
     
+    if( result )
+    {
+        result->collisionUp = collisionFlags.isSet( PxControllerCollisionFlag::eCOLLISION_UP );
+        result->collisionDown = collisionFlags.isSet( PxControllerCollisionFlag::eCOLLISION_DOWN );
+        result->collisionSide = collisionFlags.isSet( PxControllerCollisionFlag::eCOLLISION_SIDES );
+        result->dpos = toVector3( currPos - prevPos );
+    }
 }
 
 Vector3 phxCCTFootPositionGet( PhxCCT* cct )
