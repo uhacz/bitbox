@@ -662,47 +662,61 @@ namespace bx
                 }
 
                 {
-                    //const PhxGeometry& sweepGeom = _geometry0;
-
                     DynamicState* ds = &_dstate0;
                     const Vector3& pos0 = ds->_pos0;
                     Vector3 pos1 = ds->_pos1;
+
+					Vector4 collisionNrmDepth( 0.f );
+					{
+						const Vector3 ro = phxCCTCenterPositionGet( _cct );
+						const Vector3 rd = -_upDir;
+
+						PhxQueryHit hit;
+						const TransformTQ pose( ro );
+						if( phxSweep( &hit, scene->phxScene, _geometry0, pose, -_upDir, 0.25f ) )
+						{
+							//bxGfxDebugDraw::addSphere( Vector4( hit.position, 0.1f ), 0xFFFF00FF, 1 );
+							//bxGfxDebugDraw::addLine( hit.position, hit.position + hit.normal, 0x0000FFFF, 1 );
+							collisionNrmDepth = Vector4( hit.normal, deltaTimeFix );
+						}
+					}
+
+					if( lengthSqr( collisionNrmDepth ).getAsFloat() > FLT_EPSILON )
+					{
+						Vector3 dpos( 0.f );
+						bxPhx::pbd_computeFriction( &dpos, pos0, pos1, collisionNrmDepth.getXYZ(), collisionNrmDepth.getW().getAsFloat(), 0.1f, 0.1f );
+						pos1 += dpos;
+					}
 
                     const Vector3 rd = pos1 - pos0;
                     //const float displ = length( rd ).getAsFloat();
                     
                     phxCCTMove( &_cctMoveStats, _cct, rd, deltaTimeFix );
-
+					
                     pos1 = pos0 + _cctMoveStats.dpos;
-
-                    //if( displ > FLT_EPSILON )
-                    //{
-                    //    PhxQueryHit hit;
-                    //    const TransformTQ pose( ds->_rotation, ds->_pos1 );
-					//	const Vector3 rdn = normalize( rd );
-                    //    if( phxSweep( &hit, scene->phxScene, sweepGeom, pose, -_upDir, displ ) )
-                    //    {
-					//		//if( hit.distance < displ )
-					//		{
-					//			//pos1 = pos0 + rdn * hit.distance;// ;
-					//			pos1 = hit.position + hit.normal * sweepGeom.sphere.radius;
-					//		}
-                    //    }
-                    //}
 					ds->_pos1 = pos1;
-					//const Matrix4 actorPose = phxActorPoseGet( _actor );
-                    //ds->_pos1 = actorPose.getTranslation();
-                }
-
-                {
+				}
+				
+				{
                     DynamicState* ds = &_dstate0;
                     ds->_vel = ( ds->_pos1 - ds->_pos0 ) * deltaTimeInv;
                     ds->_pos0 = ds->_pos1;
                 }
 
-				//{
-				//	phxActorTargetPoseSet( _actor, Matrix4( _dstate0._rotation, _dstate0._pos1 ), scene->phxScene );
-				//}
+				{
+					const Vector4 plane = makePlane( _upDir, _dstate0._pos0 );
+					Vector3 velXZ = projectVectorOnPlane( _dstate0._vel, plane );
+					if( lengthSqr( velXZ ).getAsFloat() > 0.1f )
+					{
+						Vector3 dir = fastRotate( _dstate0._rotation, Vector3::zAxis() );
+						const Quat drot = Quat::rotation( dir, normalizeSafe( velXZ ) );
+
+						_dstate0._rotation = slerp( deltaTime*2.f, _dstate0._rotation, _dstate0._rotation * drot );
+					}
+
+					bxGfxDebugDraw::addAxes( Matrix4( _dstate0._rotation, _dstate0._pos0 ) );
+
+				}
 
                 timeAcc_ -= deltaTimeFix;
 				_jumpAcc = 0.f;

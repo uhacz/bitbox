@@ -683,7 +683,7 @@ void phxCCTMove( PhxCCTMoveResult* result, PhxCCT* cct, const Vector3& displacem
     filters.mFilterData = &cct->moveFd;
     filters.mFilterFlags = ( PxQueryFlag::eDYNAMIC | PxQueryFlag::eSTATIC /*| PxQueryFlag::ePREFILTER | PxQueryFlag::ePOSTFILTER*/ );
 
-    const float minDistance = deltaTime * 0.001f;
+    const float minDistance = deltaTime * 0.00001f;
     const PxExtendedVec3 prevPos = cct->cct->getFootPosition();
     const PxControllerCollisionFlags collisionFlags = cct->cct->move( toPxVec3( displacement ), minDistance, deltaTime, filters );
     const PxExtendedVec3 currPos = cct->cct->getFootPosition();
@@ -801,7 +801,11 @@ namespace bx
     bool phxSweep( PhxQueryHit* hit, const PhxScene* scene, const PhxGeometry& geometry, const TransformTQ& worldPose, const Vector3& dir, float maxDistance )
     {
         PhxGeometryConversion geomCvt( geometry );
-        const PxTransform pxPose = toPxTransform( worldPose );
+        PxTransform pxPose = toPxTransform( worldPose );
+		if( geometry.type == PhxGeometry::eCAPSULE )
+		{
+			pxPose.q *= PxQuat( physx::PxHalfPi, PxVec3( 0.f, 0.f, 1.f ) );
+		}
 
         const PxScene* pxscene = scene->scene;
 
