@@ -6,11 +6,11 @@
 
 namespace bx
 {
-    void characterCameraFollow( bx::GfxCamera* camera, const Vector3& characterPos, const Vector3& characterUpVector, float deltaTime, float cameraMoved )
+    void characterCameraFollow( bx::GfxCamera* camera, const Vector3& characterPos, const Vector3& characterUpVector, const Vector3& characterDeltaPos, float deltaTime, float cameraMoved )
     {
         const Matrix4& cameraPose = bx::gfxCameraWorldMatrixGet( camera );
         const Matrix3 cameraRot = cameraPose.getUpper3x3();
-        const Vector3 cameraPos = bx::gfxCameraEye( camera );
+        const Vector3 cameraPos = bx::gfxCameraEye( camera ) + characterDeltaPos;
         
         const Vector3 toPlayerVec = (characterPos - cameraPos);
         
@@ -32,7 +32,7 @@ namespace bx
             dpos -= characterUpVector * diff * deltaTime;
         }
 
-		const Vector3 toPlayerDir = normalize( characterPos - (cameraPos + dpos) );
+		const Vector3 toPlayerDir = normalize( characterPos - (cameraPos) );
 		const Vector3 cameraDir = bx::gfxCameraDir( camera );
 		//const float d = dot( toPlayerDir, cameraDir ).getAsFloat();
 
@@ -43,9 +43,10 @@ namespace bx
 			const Vector3 x = normalize( cross( characterUpVector, z ) );
 			const Vector3 y = normalize( cross( z, x ) );
 			
-			const float alpha = lerp( cameraMoved, deltaTime, 1.f );
-			const Quat lookAtQsmooth = slerp( alpha, Quat( lookAtRot ), Quat( Matrix3( x, y, z ) ) );
-			lookAtRot = Matrix3( lookAtQsmooth );
+			//const float alpha = lerp( cameraMoved, deltaTime, 1.f );
+			//const Quat lookAtQsmooth = slerp( alpha, Quat( lookAtRot ), Quat( Matrix3( x, y, z ) ) );
+			//lookAtRot = Matrix3( lookAtQsmooth );
+			lookAtRot = Matrix3( x, y, z );
 		}
 
 		 // ;
@@ -56,14 +57,14 @@ namespace bx
 
     }
 
-    void CameraController::follow( bx::GfxCamera* camera, const Vector3& characterPos, const Vector3& characterUpVector, float deltaTime, int cameraMoved /*= 0 */ )
+    void CameraController::follow( bx::GfxCamera* camera, const Vector3& characterPos, const Vector3& characterUpVector, const Vector3& characterDeltaPos, float deltaTime, int cameraMoved /*= 0 */ )
     {
         const float fixedDt = 1.f / 60.f;
         _dtAcc += deltaTime;
 		_cameraMoved = signalFilter_lowPass( (float)cameraMoved, _cameraMoved, 0.05f, deltaTime );
         while( _dtAcc >= fixedDt )
         {
-            characterCameraFollow( camera, characterPos, characterUpVector, fixedDt, _cameraMoved );
+            characterCameraFollow( camera, characterPos, characterUpVector, characterDeltaPos, fixedDt, _cameraMoved );
             _dtAcc -= fixedDt;
         }
     }

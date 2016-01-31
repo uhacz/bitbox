@@ -523,10 +523,10 @@ VECTORMATH_FORCE_INLINE const Quat select( const Quat &quat0, const Quat &quat1,
     return select( quat0, quat1, boolInVec(select1) );
 }
 
-//VECTORMATH_FORCE_INLINE const Quat select( const Quat &quat0, const Quat &quat1, const boolInVec &select1 )
-//{
-//    return Quat( vec_sel( quat0.get128(), quat1.get128(), select1.get128() ) );
-//}
+VECTORMATH_FORCE_INLINE const Quat select( const Quat &quat0, const Quat &quat1, const boolInVec &select1 )
+{
+    return Quat( vec_sel( quat0.get128(), quat1.get128(), select1.get128() ) );
+}
 
 VECTORMATH_FORCE_INLINE void loadXYZW(Quat& quat, const float* fptr)
 {

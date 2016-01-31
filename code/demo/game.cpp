@@ -523,6 +523,8 @@ namespace bx
 		f32 _jumpAcc = 0.f;
 
         f32 timeAcc_ = 0.f;
+		const f32 _deltaTimeInv = 60.f;
+		const f32 _deltaTime = 1.f / 60.f;
 
         void _Init( GameScene* scene, const Matrix4& worldPose )
         {
@@ -621,7 +623,7 @@ namespace bx
 				Vector3 xInputForce = Vector3::xAxis() * _input.analogX;
 				Vector3 yInputForce = -Vector3::zAxis() * _input.analogY;
 
-				const float maxInputForce = 0.25f;
+				const float maxInputForce = 0.2f;
 				inputVector = (xInputForce + yInputForce);// *maxInputForce;
 
 				const floatInVec externalForcesValue = minf4( length( inputVector ), floatInVec( maxInputForce ) );
@@ -635,14 +637,16 @@ namespace bx
 			timeAcc_ += deltaTime;
 			timeAcc_ = minOfPair( 0.1f, timeAcc_ );
 
-			float deltaTimeFix = 1.f / 60.f;
-			const float deltaTimeInv = 60.f; // ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
+			const float deltaTimeFix = _deltaTime;
+			const float deltaTimeInv = _deltaTimeInv; // ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
             const float dampingCoeff = 0.2f;
 			const float damping = pow( 1.f - dampingCoeff, deltaTime );
 			
 			const Vector3 gravity = -_upDir * 9.f;
 			const Vector3 jumpVector = _upDir * _jumpAcc;
-			
+			const float SPEED_LIMIT = 1.f;
+			const floatInVec spdLimitSqr( SPEED_LIMIT * SPEED_LIMIT );
+
             while( timeAcc_ >= deltaTimeFix )
             {
                 {
@@ -701,6 +705,17 @@ namespace bx
                     DynamicState* ds = &_dstate0;
                     ds->_vel = ( ds->_pos1 - ds->_pos0 ) * deltaTimeInv;
                     ds->_pos0 = ds->_pos1;
+
+
+					const Vector3 vel = ds->_vel;
+					Vector3 velXZ = projectVectorOnPlane( vel, makePlane( _upDir, ds->_pos0 ) );
+					Vector3 velY = vel - velXZ;
+					{
+						const floatInVec spdSqr = lengthSqr( velXZ );
+						velXZ = select( velXZ, velXZ * (spdLimitSqr / floatInVec( sqrtf4( spdSqr.get128() ) )), spdSqr > spdLimitSqr );
+					}
+
+					ds->_vel = velXZ + velY;
                 }
 
 				{
@@ -713,29 +728,43 @@ namespace bx
 
 						_dstate0._rotation = slerp( deltaTime*2.f, _dstate0._rotation, _dstate0._rotation * drot );
 					}
-
-					bxGfxDebugDraw::addAxes( Matrix4( _dstate0._rotation, _dstate0._pos0 ) );
-
 				}
-
-                timeAcc_ -= deltaTimeFix;
+				
+				timeAcc_ -= deltaTimeFix;
 				_jumpAcc = 0.f;
             }
 
-            bxGfxDebugDraw::addSphere( Vector4( _dstate0._pos0, _geometry0.sphere.radius ), 0xFFFF00FF, 1 );
+			bxGfxDebugDraw::addAxes( Matrix4( _dstate0._rotation, _dstate0._pos0 ) );
+			bxGfxDebugDraw::addBox( Matrix4( _dstate0._rotation, _dstate0._pos0 ), Vector3( _geometry0.capsule.radius ), 0xFFFF00FF, 1 );
+            //bxGfxDebugDraw::addSphere( Vector4( _dstate0._pos0, _geometry0.sphere.radius ), 0xFFFF00FF, 1 );
         }
 
         virtual Matrix4 worldPose() const
         {
             return Matrix4( _dstate0._rotation, _dstate0._pos0 );
         }
+		virtual Matrix4 worldPoseFoot() const
+		{
+			return Matrix4( _dstate0._rotation, phxCCTFootPositionGet( _cct ) );
+		}
 
         virtual Vector3 upDirection() const
         {
             return _upDir;
         }
 
-
+		virtual Vector3 footPosition() const
+		{
+			return phxCCTFootPositionGet( _cct );
+		}
+		virtual Vector3 centerPosition() const
+		{
+			return phxCCTCenterPositionGet( _cct );
+		}
+		virtual Vector3 deltaPosition() const
+		{
+			return _dstate0._vel * _deltaTime;
+		}
     };
 
     void CharacterController::create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose )
@@ -755,5 +784,174 @@ namespace bx
 
         BX_DELETE0( bxDefaultAllocator(), cc[0] );
     }
+
+	//////////////////////////////////////////////////////////////////////////
+	struct CharacterAnim
+	{
+		enum EJoint : u32
+		{
+			eJOINT_HIPS = 0,
+			
+			eJOINT_SPINE0,
+			eJOINT_SPINE1,
+			eJOINT_HEAD,
+			
+			eJOINT_LSHOULDER,
+			eJOINT_LELBOW,
+			eJOINT_LHAND,
+			
+			eJOINT_RSHOULDER,
+			eJOINT_RELBOW,
+			eJOINT_RHAND,
+			
+			eJOINT_LHIP,
+			eJOINT_LKNEE,
+			eJOINT_LFOOT,
+			
+			eJOINT_RHIP,
+			eJOINT_RKNEE,
+			eJOINT_RFOOT,
+			
+			eJOINT_COUNT,
+		};
+		static const i16 _parentIndices[EJoint::eJOINT_COUNT];
+		static const Vector3 _bindPositionWorld[EJoint::eJOINT_COUNT];
+
+		TransformTQ _localPose[EJoint::eJOINT_COUNT];
+		TransformTQ _worldPose[EJoint::eJOINT_COUNT];
+		
+	};
+	const i16 CharacterAnim::_parentIndices[CharacterAnim::EJoint::eJOINT_COUNT] =
+	{
+		-1,
+		0, 1, 2,
+		2, 4, 5,
+		2, 7, 8,
+		0, 10, 11,
+		0, 13, 14,
+	};
+
+	const Vector3 CharacterAnim::_bindPositionWorld[CharacterAnim::EJoint::eJOINT_COUNT] =
+	{
+		Vector3( 0.f, 0.466f, 0.f ),
+		Vector3( 0.f, 0.6f, 0.f ), Vector3( 0.f, 0.7f, 0.f ), Vector3( 0.f, 0.8f, 0.f ),
+		Vector3( 0.15f, 0.633f, 0.f ), Vector3( 0.15f, 0.5f, 0.f ), Vector3( 0.15f, 0.350f, 0.f ),
+		Vector3(-0.15f, 0.633f, 0.f ), Vector3(-0.15f, 0.5f, 0.f ), Vector3(-0.15f, 0.350f, 0.f ),
+		Vector3( 0.10f, 0.4f, 0.f ), Vector3( 0.10f, 0.2f, 0.f ), Vector3( 0.10f, 0.0f, 0.f ),
+		Vector3(-0.10f, 0.4f, 0.f ), Vector3(-0.10f, 0.2f, 0.f ), Vector3(-0.10f, 0.0f, 0.f ),
+	};
+	
+	namespace
+	{
+		// quat (qr) aims z-axis along vector
+		Quat quatAim( const Vector3& dir )
+		{
+			union Cvt
+			{
+				__m128 m128;
+				struct { f32 x, y, z, w; };
+			};
+
+			Cvt v1 = { dir.get128() };
+			Cvt qr;
+			qr.x = v1.y;
+			qr.y = -v1.x;
+			qr.z = 0;
+			qr.w = 1 - v1.z;
+
+			Quat result( qr.m128 );
+			const floatInVec d = dot( result, result );
+			return select( Quat::identity(), result * rsqrtf4( d.get128() ), d > fltEpsVec );
+		}
+		inline Quat quatAim( const Vector3& P1, const Vector3& P2 )
+		{
+			return quatAim( normalize( P2 - P1 ) );
+		}
+		
+		void computeLocalAndWorld( TransformTQ* worldPose, TransformTQ* localPose, const Vector3* bindPositionWorld, const i16* parentIndices, const TransformTQ& rootTQ, int begin, int end )
+		{
+			for( int i = begin; i <= end; ++i )
+			{
+				Vector3 dir;
+				if( i < end )
+				{
+					dir = bindPositionWorld[i + 1] - bindPositionWorld[i];
+				}
+				else
+				{
+					dir = bindPositionWorld[i] - bindPositionWorld[i - 1];
+				}
+
+				dir = normalize( dir );
+				Quat rotationWorld = quatAim( dir ) * Quat::rotationY( PI_HALF );
+				Vector3 positionWorld = bindPositionWorld[i];
+
+				TransformTQ parentTransform = TransformTQ::identity();
+				if( parentIndices[i] != -1 )
+				{
+					parentTransform = worldPose[parentIndices[i]];
+				}
+
+				const TransformTQ world = transform( rootTQ, TransformTQ( rotationWorld, positionWorld ) );
+				const TransformTQ local = transformInv( parentTransform, world );
+
+				worldPose[i] = world;
+				localPose[i] = local;
+			}
+		}
+	}////
+
+	void charAnimCreate( CharacterAnim** canim, GameScene* scene, const Matrix4& worldPose, float scale )
+	{
+		CharacterAnim* ca = BX_NEW( bxDefaultAllocator(), CharacterAnim );
+
+		const TransformTQ rootTQ( worldPose );
+		Vector3 bindPoseScaled[CharacterAnim::eJOINT_COUNT];
+		for( int i = 0; i < CharacterAnim::EJoint::eJOINT_COUNT; ++i )
+		{
+			bindPoseScaled[i] = ca->_bindPositionWorld[i] * scale;
+		}
+		ca->_localPose[CharacterAnim::eJOINT_HIPS] = TransformTQ( bindPoseScaled[CharacterAnim::eJOINT_HIPS] );
+		ca->_worldPose[CharacterAnim::eJOINT_HIPS] = transform( rootTQ, ca->_localPose[CharacterAnim::eJOINT_HIPS] );
+		
+		computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_SPINE0, CharacterAnim::eJOINT_HEAD );
+		computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_LSHOULDER, CharacterAnim::eJOINT_LHAND );
+		computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_RSHOULDER, CharacterAnim::eJOINT_RHAND);
+		computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_LHIP, CharacterAnim::eJOINT_LFOOT );
+		computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_RHIP, CharacterAnim::eJOINT_RFOOT );
+
+		//for( int i = 0; i < CharacterAnim::EJoint::eJOINT_COUNT; ++i )
+		//{
+		//	ca->_pose[i] = mulAsVec4( worldWithScale, ca->_bindPose[i] );
+		//}
+
+		canim[0] = ca;
+	}
+	void charAnimDestroy( CharacterAnim** canim, GameScene* scene )
+	{
+		if( !canim[0] )
+			return;
+
+		BX_DELETE0( bxDefaultAllocator(), canim[0] );
+	}
+	void charAnimTick( CharacterAnim* canim, const Matrix4& worldPose, float deltaTime )
+	{
+
+		const TransformTQ rootTQ( worldPose );
+		canim->_worldPose[CharacterAnim::eJOINT_HIPS] = transform( rootTQ, canim->_localPose[CharacterAnim::eJOINT_HIPS] );
+		for( int i = CharacterAnim::eJOINT_SPINE0; i < CharacterAnim::eJOINT_COUNT; ++i )
+		{
+			const i16 parentIndex = canim->_parentIndices[i];
+			const TransformTQ& parent = canim->_worldPose[parentIndex];
+			const TransformTQ& world = transform( parent, canim->_localPose[i] );
+
+			canim->_worldPose[i] = world;
+
+			bxGfxDebugDraw::addSphere( Vector4( world.t, 0.05f ), 0xFF00FFFF, 1 );
+			bxGfxDebugDraw::addLine( parent.t, world.t, 0x00FF00FF, 1 );
+									 
+			//bxGfxDebugDraw::addAxes( Matrix4( world.q, world.t ) ); // , 0x00FF00FF, 1 );
+		}
+	}
 }///
 

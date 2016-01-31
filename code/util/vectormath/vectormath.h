@@ -382,6 +382,17 @@ inline Vector3 transform( const TransformTQ& tq, const Vector3& point )
 {
     return fastTransform( tq.q, tq.t, point );
 }
+inline TransformTQ transform( const TransformTQ& a, const TransformTQ& b )
+{
+	return TransformTQ( a.q * b.q, fastTransform( a.q, a.t, b.t ) );
+}
+inline TransformTQ transformInv( const TransformTQ& a, const TransformTQ& b )
+{
+	const Quat qconj = conj( a.q );
+	return TransformTQ( qconj * b.q, rotate( qconj, b.t - a.t ) );
+}
+
+
 inline void addStoreXYZArray( const Vector3 &vec0, const Vector3 &vec1, const Vector3 &vec2, const Vector3 &vec3, __m128 * threeQuads )
 {
 	__m128 xxxx = _mm_shuffle_ps( vec1.get128(), vec1.get128(), _MM_SHUFFLE( 0, 0, 0, 0 ) );

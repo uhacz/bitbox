@@ -31,7 +31,7 @@ namespace bx
     {
         f32 _dtAcc = 0.f;
 		f32 _cameraMoved = 0.f;
-        void follow( bx::GfxCamera* camera, const Vector3& characterPos, const Vector3& characterUpVector, float deltaTime, int cameraMoved = 0 );
+        void follow( bx::GfxCamera* camera, const Vector3& characterPos, const Vector3& characterUpVector, const Vector3& characterDeltaPos, float deltaTime, int cameraMoved = 0 );
     };
 }///
 
@@ -69,9 +69,19 @@ namespace bx
 
         virtual void tick( GameScene* scene, const bxInput& input, float deltaTime ) = 0;
         virtual Matrix4 worldPose() const = 0;
+		virtual Matrix4 worldPoseFoot() const = 0;
         virtual Vector3 upDirection() const = 0;
-
+		virtual Vector3 footPosition() const = 0;
+		virtual Vector3 centerPosition() const = 0;
+		virtual Vector3 deltaPosition() const = 0;
     };
+
+	//////////////////////////////////////////////////////////////////////////
+	struct CharacterAnim;
+	void charAnimCreate( CharacterAnim** canim, GameScene* scene, const Matrix4& worldPose, float scale );
+	void charAnimDestroy( CharacterAnim** canim, GameScene* scene );
+	void charAnimTick( CharacterAnim* canim, const Matrix4& worldPose, float deltaTime );
+	
 }////
 
 
