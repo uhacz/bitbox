@@ -24,6 +24,9 @@
 #include <util/signal_filter.h>
 #include "scene.h"
 
+#include <anim/anim.h>
+#include <util/time.h>
+
 //namespace bxGame
 //{
 //    struct FlockParticles
@@ -952,6 +955,64 @@ namespace bx
 									 
 			//bxGfxDebugDraw::addAxes( Matrix4( world.q, world.t ) ); // , 0x00FF00FF, 1 );
 		}
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	struct CharacterAnimController
+	{
+		bxAnim_Context* _animCtx = nullptr;
+		bxAnim_Skel* _skel = nullptr;
+		bxAnim_Clip* _clip = nullptr;
+
+		u64 _timeUS = 0;
+	};
+	void charAnimControllerCreate( CharacterAnimController** canim, GameScene* scene )
+	{
+		CharacterAnimController* ca = BX_NEW( bxDefaultAllocator(), CharacterAnimController );
+
+		ca->_skel = bxAnimExt::loadSkelFromFile( resourceManagerGet(), "anim/human.skel" );
+		ca->_clip = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/run.anim" );
+		ca->_animCtx = bxAnim::contextInit( *ca->_skel );
+		
+		canim[0] = ca;
+	}
+	void charAnimControllerDestroy( CharacterAnimController** canim )
+	{
+		if( !canim[0] )
+			return;
+
+		CharacterAnimController* ca = canim[0];
+		bxAnimExt::unloadAnimFromFile( resourceManagerGet(), &ca->_clip );
+		bxAnimExt::unloadSkelFromFile( resourceManagerGet(), &ca->_skel );
+		bxAnim::contextDeinit( &ca->_animCtx );
+
+		BX_DELETE0( bxDefaultAllocator(), canim[0] );
+	}
+	void charAnimControllerTick( CharacterAnimController* canim, const Matrix4& worldPose, u64 deltaTimeUS )
+	{
+		const float timeS = (float)bxTime::toSeconds( canim->_timeUS );
+
+		const float clipTimeS = ::fmod( timeS, canim->_clip->duration );
+		bxAnim::evaluateClip( canim->_animCtx->poseStack[0], canim->_clip, clipTimeS );
+
+		bxAnim_Joint rootJoint = toAnimJoint_noScale( worldPose );
+		bxAnim_Joint* localJoints = canim->_animCtx->poseStack[0];
+		bxAnim_Joint* worldJoints = canim->_animCtx->poseCache[0];
+		bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
+
+		const float scale = 0.05f;
+		const i16* parentIndices = TYPE_OFFSET_GET_POINTER( i16, canim->_skel->offsetParentIndices );
+		for( int i = 0; i < canim->_skel->numJoints; ++i )
+		{
+			bxGfxDebugDraw::addSphere( Vector4( worldJoints[i].position, scale ), 0xFF0000FF, 1 );
+			if( parentIndices[i] != -1 )
+			{
+				const bxAnim_Joint& parentJoint = worldJoints[parentIndices[i]];
+				bxGfxDebugDraw::addLine( parentJoint.position, worldJoints[i].position, 0x00FF00FF, 1 );
+			}
+		}
+
+		canim->_timeUS += deltaTimeUS;
 	}
 }///
 

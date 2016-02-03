@@ -218,7 +218,8 @@ public:
             bx::terrainTick( __scene.terrain, &__scene, _engine.gdiContext->backend(), deltaTime * 2.f );
             //bx::characterTick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
             __scene.cct->tick( &__scene, win->input, deltaTime * 2.f );
-			bx::charAnimTick( __scene.canim, __scene.cct->worldPoseFoot(), deltaTime );
+			//bx::charAnimTick( __scene.canim, __scene.cct->worldPoseFoot(), deltaTime );
+			bx::charAnimControllerTick( __scene.canim, __scene.cct->worldPoseFoot(), deltaTimeUS );
             if( !useDebugCamera )
             {
                 const Vector3 characterPos = __scene.cct->worldPose().getTranslation();

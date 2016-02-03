@@ -16,6 +16,15 @@ struct BIT_ALIGNMENT_16 bxAnim_Joint
     }
 };
 
+inline bxAnim_Joint toAnimJoint_noScale( const Matrix4& RT )
+{
+	bxAnim_Joint joint;
+	joint.position = RT.getTranslation();
+	joint.rotation = Quat( RT.getUpper3x3() );
+	joint.scale = Vector3( 1.f );
+	return joint;
+}
+
 inline Matrix4 toMatrix4( const bxAnim_Joint& j )
 {
 	Matrix4 m4x4( j.rotation, j.position );

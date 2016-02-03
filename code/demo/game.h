@@ -81,6 +81,12 @@ namespace bx
 	void charAnimCreate( CharacterAnim** canim, GameScene* scene, const Matrix4& worldPose, float scale );
 	void charAnimDestroy( CharacterAnim** canim, GameScene* scene );
 	void charAnimTick( CharacterAnim* canim, const Matrix4& worldPose, float deltaTime );
+
+	//////////////////////////////////////////////////////////////////////////
+	struct CharacterAnimController;
+	void charAnimControllerCreate( CharacterAnimController** canim, GameScene* scene );
+	void charAnimControllerDestroy( CharacterAnimController** canim );
+	void charAnimControllerTick( CharacterAnimController* canim, const Matrix4& worldPose, u64 deltaTimeUS );
 	
 }////
 
