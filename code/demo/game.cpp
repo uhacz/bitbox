@@ -487,6 +487,22 @@
 
 namespace bx
 {
+	//////////////////////////////////////////////////////////////////////////
+	struct CharacterAnimController
+	{
+		Vector3 _footDisplacementL = Vector3( 0.f );
+		Vector3 _footDisplacementR = Vector3( 0.f );
+		i16 _footIndexL = -1;
+		i16 _footIndexR = -1;
+		f32 _locomotion = 0.f;
+
+		bxAnim_Context* _animCtx = nullptr;
+		bxAnim_Skel* _skel = nullptr;
+		bxAnim_Clip* _clip = nullptr;
+
+		u64 _timeUS = 0;
+	};
+
     struct CharacterControllerImpl : public CharacterController
     {
 		struct Input
@@ -615,6 +631,19 @@ namespace bx
 		}
 
         //////////////////////////////////////////////////////////////////////////
+
+		static Vector3 applySpeedLimitXZ( const Vector3& vel, const Vector3& upDir, const floatInVec spdLimitSqr )
+		{
+			Vector3 velXZ = projectVectorOnPlane( vel, makePlane( upDir, Vector3(0.f) ) );
+			Vector3 velY = vel - velXZ;
+			{
+				const floatInVec spdSqr = lengthSqr( velXZ );
+				velXZ = select( velXZ, velXZ * (spdLimitSqr / floatInVec( sqrtf4( spdSqr.get128() ) )), spdSqr > spdLimitSqr );
+			}
+
+			return velXZ + velY;
+		}
+
         virtual void tick( GameScene* scene, const bxInput& input, float deltaTime )
         {
 			_CollectInputData( input, deltaTime );
@@ -643,11 +672,11 @@ namespace bx
 			const float deltaTimeFix = _deltaTime;
 			const float deltaTimeInv = _deltaTimeInv; // ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
             const float dampingCoeff = 0.2f;
-			const float damping = pow( 1.f - dampingCoeff, deltaTime );
+			const float damping = pow( 1.f - dampingCoeff, deltaTimeFix );
 			
 			const Vector3 gravity = -_upDir * 9.f;
 			const Vector3 jumpVector = _upDir * _jumpAcc;
-			const float SPEED_LIMIT = 1.f;
+			const float SPEED_LIMIT = scene->canim->_locomotion * deltaTimeInv;
 			const floatInVec spdLimitSqr( SPEED_LIMIT * SPEED_LIMIT );
 
             while( timeAcc_ >= deltaTimeFix )
@@ -661,6 +690,8 @@ namespace bx
 					vel += ( inputVector + jumpVector );
 					vel += ( gravity ) * deltaTimeFix;
                     vel *= damping;
+
+					vel = applySpeedLimitXZ( vel, _upDir, spdLimitSqr );
 
                     Vector3 pos1 = pos0 + vel * deltaTimeFix;
 
@@ -709,16 +740,7 @@ namespace bx
                     ds->_vel = ( ds->_pos1 - ds->_pos0 ) * deltaTimeInv;
                     ds->_pos0 = ds->_pos1;
 
-
-					const Vector3 vel = ds->_vel;
-					Vector3 velXZ = projectVectorOnPlane( vel, makePlane( _upDir, ds->_pos0 ) );
-					Vector3 velY = vel - velXZ;
-					{
-						const floatInVec spdSqr = lengthSqr( velXZ );
-						velXZ = select( velXZ, velXZ * (spdLimitSqr / floatInVec( sqrtf4( spdSqr.get128() ) )), spdSqr > spdLimitSqr );
-					}
-
-					ds->_vel = velXZ + velY;
+					ds->_vel = applySpeedLimitXZ( ds->_vel, _upDir, spdLimitSqr );
                 }
 
 				{
@@ -730,6 +752,7 @@ namespace bx
 						const Quat drot = Quat::rotation( dir, normalizeSafe( velXZ ) );
 
 						_dstate0._rotation = slerp( deltaTime*2.f, _dstate0._rotation, _dstate0._rotation * drot );
+						_dstate0._rotation = normalize( _dstate0._rotation );
 					}
 				}
 				
@@ -957,21 +980,7 @@ namespace bx
 		}
 	}
 
-	//////////////////////////////////////////////////////////////////////////
-	struct CharacterAnimController
-	{
-        Vector3 _footDisplacementL = Vector3( 0.f );
-        Vector3 _footDisplacementR = Vector3( 0.f );
-        i16 _footIndexL = -1;
-        i16 _footIndexR = -1;
 
-
-        bxAnim_Context* _animCtx = nullptr;
-		bxAnim_Skel* _skel = nullptr;
-		bxAnim_Clip* _clip = nullptr;
-
-		u64 _timeUS = 0;
-	};
 	void charAnimControllerCreate( CharacterAnimController** canim, GameScene* scene )
 	{
 		CharacterAnimController* ca = BX_NEW( bxDefaultAllocator(), CharacterAnimController );
@@ -999,29 +1008,49 @@ namespace bx
 	}
 	void charAnimControllerTick( CharacterAnimController* canim, const Matrix4& worldPose, u64 deltaTimeUS )
 	{
+		const float deltaTimeS = (float)bxTime::toSeconds( deltaTimeUS );
 		const float timeS = (float)bxTime::toSeconds( canim->_timeUS );
         const float clipTimeS = ::fmod( timeS, canim->_clip->duration );
 
         bxAnim_Joint rootJoint = toAnimJoint_noScale( worldPose );
         bxAnim_Joint* localJoints = canim->_animCtx->poseStack[0];
         bxAnim_Joint* worldJoints = canim->_animCtx->poseCache[0];
+		bxAnim_Joint* worldJointsZero = canim->_animCtx->poseCache[1];
 
-        const Vector3 prevFootPositionL = worldJoints[canim->_footIndexL].position;
-        const Vector3 prevFootPositionR = worldJoints[canim->_footIndexR].position;
+        const Vector3 prevFootPositionL = worldJointsZero[canim->_footIndexL].position;
+        const Vector3 prevFootPositionR = worldJointsZero[canim->_footIndexR].position;
 		bxAnim::evaluateClip( localJoints, canim->_clip, clipTimeS );
-        bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
-        const Vector3 currFootPositionL = worldJoints[canim->_footIndexL].position;
-        const Vector3 currFootPositionR = worldJoints[canim->_footIndexR].position;
+        bxAnimExt::localJointsToWorldJoints( worldJointsZero, localJoints, canim->_skel, bxAnim_Joint::identity() );
+        const Vector3 currFootPositionL = worldJointsZero[canim->_footIndexL].position;
+        const Vector3 currFootPositionR = worldJointsZero[canim->_footIndexR].position;
 
-        const Vector3 footDisplacementL = currFootPositionL - prevFootPositionL;
-        const Vector3 footDisplacementR = currFootPositionL - prevFootPositionR;
+		//
 
-        Vector3 footDisplacement = maxPerElem( footDisplacementL, footDisplacementR );
-        footDisplacement = projectVectorOnPlane( footDisplacement, makePlane( worldPose.getCol0().getXYZ(), worldPose.getTranslation() ) );
-        footDisplacement = projectVectorOnPlane( footDisplacement, makePlane( worldPose.getCol1().getXYZ(), worldPose.getTranslation() ) );
+        Vector3 footDisplacementL = currFootPositionL - prevFootPositionL;
+        Vector3 footDisplacementR = currFootPositionR - prevFootPositionR;
 
-        bxGfxDebugDraw::addLine( worldPose.getTranslation(), worldPose.getTranslation() + footDisplacement * 60.f, 0x0000FFFF, 1 );
+		//Vector3 footDisplacement = maxPerElem( footDisplacementL, footDisplacementR );
+		const Vector4 planeX = makePlane( worldPose.getCol0().getXYZ(), Vector3(0.f) );
+		const Vector4 planeY = makePlane( worldPose.getCol1().getXYZ(), Vector3(0.f) );
+		const Vector3 dirZ = worldPose.getCol2().getXYZ();
 
+        footDisplacementL = projectVectorOnPlane( footDisplacementL, planeX );
+        footDisplacementL = projectVectorOnPlane( footDisplacementL, planeY );
+
+		footDisplacementR = projectVectorOnPlane( footDisplacementR, planeX );
+		footDisplacementR = projectVectorOnPlane( footDisplacementR, planeY );
+
+		floatInVec footDisplacementLValue = length( footDisplacementL ); //select( zeroVec, , dot( footDisplacementL, dirZ ) < zeroVec );
+		floatInVec footDisplacementRValue = length( footDisplacementR ); //select( zeroVec, , dot( footDisplacementR, dirZ ) < zeroVec );
+
+		const floatInVec footDisplacementValue = maxf4( footDisplacementLValue, footDisplacementRValue );
+
+        bxGfxDebugDraw::addLine( worldPose.getTranslation(), worldPose.getTranslation() + worldPose.getCol2().getXYZ() * footDisplacementValue, 0x0000FFFF, 1 );
+
+
+		canim->_locomotion = footDisplacementValue.getAsFloat(); // signalFilter_lowPass( footDisplacementValue.getAsFloat(), canim->_locomotion, 0.5f, deltaTimeS );
+
+		bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
 		const float scale = 0.05f;
 		const i16* parentIndices = TYPE_OFFSET_GET_POINTER( i16, canim->_skel->offsetParentIndices );
 		for( int i = 0; i < canim->_skel->numJoints; ++i )
@@ -1034,7 +1063,7 @@ namespace bx
 			}
 		}
 
-		canim->_timeUS += deltaTimeUS;
+		canim->_timeUS += deltaTimeUS / 2;
 	}
 }///
 

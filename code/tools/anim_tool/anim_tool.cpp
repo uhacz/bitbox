@@ -78,7 +78,9 @@ namespace animTool
         aiAnimation* animation = scene->mAnimations[0];
 
         anim->startTime = 0.f;
-        anim->endTime = (float)animation->mDuration;
+        
+		/// because animation->mDuration is number of frames
+		anim->endTime = (float)( animation->mDuration / animation->mTicksPerSecond );
         anim->sampleFrequency = (float)animation->mTicksPerSecond;
 
         const u32 num_joints = (u32)skel.jointNames.size();
@@ -382,7 +384,7 @@ bool exportSkeleton( const char* out_filename, const char* in_filename )
 bool exportAnimation( const char* out_filename, const char* in_filename, unsigned flags )
 {
     const unsigned import_flags = 0;
-    initAssImp();
+    initAssImp(); 
     const aiScene* aiscene = aiImportFile( in_filename, import_flags );
     if( !aiscene )
     {

@@ -59,7 +59,7 @@ namespace bx
 
 namespace bx
 {
-    struct CharacterController
+	struct CharacterController
     {
         static void create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose );
         static void destroy( CharacterController** cc, GameScene* scene );
