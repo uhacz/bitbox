@@ -960,7 +960,13 @@ namespace bx
 	//////////////////////////////////////////////////////////////////////////
 	struct CharacterAnimController
 	{
-		bxAnim_Context* _animCtx = nullptr;
+        Vector3 _footDisplacementL = Vector3( 0.f );
+        Vector3 _footDisplacementR = Vector3( 0.f );
+        i16 _footIndexL = -1;
+        i16 _footIndexR = -1;
+
+
+        bxAnim_Context* _animCtx = nullptr;
 		bxAnim_Skel* _skel = nullptr;
 		bxAnim_Clip* _clip = nullptr;
 
@@ -974,6 +980,9 @@ namespace bx
 		ca->_clip = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/run.anim" );
 		ca->_animCtx = bxAnim::contextInit( *ca->_skel );
 		
+        ca->_footIndexL = bxAnim::getJointByName( ca->_skel, "LeftFoot" );
+        ca->_footIndexR = bxAnim::getJointByName( ca->_skel, "RightFoot" );
+
 		canim[0] = ca;
 	}
 	void charAnimControllerDestroy( CharacterAnimController** canim )
@@ -991,14 +1000,27 @@ namespace bx
 	void charAnimControllerTick( CharacterAnimController* canim, const Matrix4& worldPose, u64 deltaTimeUS )
 	{
 		const float timeS = (float)bxTime::toSeconds( canim->_timeUS );
+        const float clipTimeS = ::fmod( timeS, canim->_clip->duration );
 
-		const float clipTimeS = ::fmod( timeS, canim->_clip->duration );
-		bxAnim::evaluateClip( canim->_animCtx->poseStack[0], canim->_clip, clipTimeS );
+        bxAnim_Joint rootJoint = toAnimJoint_noScale( worldPose );
+        bxAnim_Joint* localJoints = canim->_animCtx->poseStack[0];
+        bxAnim_Joint* worldJoints = canim->_animCtx->poseCache[0];
 
-		bxAnim_Joint rootJoint = toAnimJoint_noScale( worldPose );
-		bxAnim_Joint* localJoints = canim->_animCtx->poseStack[0];
-		bxAnim_Joint* worldJoints = canim->_animCtx->poseCache[0];
-		bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
+        const Vector3 prevFootPositionL = worldJoints[canim->_footIndexL].position;
+        const Vector3 prevFootPositionR = worldJoints[canim->_footIndexR].position;
+		bxAnim::evaluateClip( localJoints, canim->_clip, clipTimeS );
+        bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
+        const Vector3 currFootPositionL = worldJoints[canim->_footIndexL].position;
+        const Vector3 currFootPositionR = worldJoints[canim->_footIndexR].position;
+
+        const Vector3 footDisplacementL = currFootPositionL - prevFootPositionL;
+        const Vector3 footDisplacementR = currFootPositionL - prevFootPositionR;
+
+        Vector3 footDisplacement = maxPerElem( footDisplacementL, footDisplacementR );
+        footDisplacement = projectVectorOnPlane( footDisplacement, makePlane( worldPose.getCol0().getXYZ(), worldPose.getTranslation() ) );
+        footDisplacement = projectVectorOnPlane( footDisplacement, makePlane( worldPose.getCol1().getXYZ(), worldPose.getTranslation() ) );
+
+        bxGfxDebugDraw::addLine( worldPose.getTranslation(), worldPose.getTranslation() + footDisplacement * 60.f, 0x0000FFFF, 1 );
 
 		const float scale = 0.05f;
 		const i16* parentIndices = TYPE_OFFSET_GET_POINTER( i16, canim->_skel->offsetParentIndices );
