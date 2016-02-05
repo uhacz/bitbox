@@ -728,7 +728,6 @@ namespace bx
 
                     const Vector3 rd = pos1 - pos0;
                     //const float displ = length( rd ).getAsFloat();
-                    
                     phxCCTMove( &_cctMoveStats, _cct, rd, deltaTimeFix );
 					
                     pos1 = pos0 + _cctMoveStats.dpos;
@@ -740,7 +739,7 @@ namespace bx
                     ds->_vel = ( ds->_pos1 - ds->_pos0 ) * deltaTimeInv;
                     ds->_pos0 = ds->_pos1;
 
-					ds->_vel = applySpeedLimitXZ( ds->_vel, _upDir, spdLimitSqr );
+					//ds->_vel = applySpeedLimitXZ( ds->_vel, _upDir, spdLimitSqr );
                 }
 
 				{
@@ -1015,14 +1014,19 @@ namespace bx
         bxAnim_Joint rootJoint = toAnimJoint_noScale( worldPose );
         bxAnim_Joint* localJoints = canim->_animCtx->poseStack[0];
         bxAnim_Joint* worldJoints = canim->_animCtx->poseCache[0];
-		bxAnim_Joint* worldJointsZero = canim->_animCtx->poseCache[1];
+		//bxAnim_Joint* worldJointsZero = canim->_animCtx->poseCache[1];
 
-        const Vector3 prevFootPositionL = worldJointsZero[canim->_footIndexL].position;
-        const Vector3 prevFootPositionR = worldJointsZero[canim->_footIndexR].position;
+        const Vector3 prevFootPositionL = worldJoints[canim->_footIndexL].position - rootJoint.position;
+        const Vector3 prevFootPositionR = worldJoints[canim->_footIndexR].position - rootJoint.position;
 		bxAnim::evaluateClip( localJoints, canim->_clip, clipTimeS );
-        bxAnimExt::localJointsToWorldJoints( worldJointsZero, localJoints, canim->_skel, bxAnim_Joint::identity() );
-        const Vector3 currFootPositionL = worldJointsZero[canim->_footIndexL].position;
-        const Vector3 currFootPositionR = worldJointsZero[canim->_footIndexR].position;
+        bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
+        
+        //bxAnim_Joint rootJointZero = bxAnim_Joint::identity();
+        //rootJointZero.rotation = rootJoint.rotation;
+        //bxAnimExt::localJointsToWorldJoints( worldJointsZero, localJoints, canim->_skel, rootJointZero );
+
+        const Vector3 currFootPositionL = worldJoints[canim->_footIndexL].position - rootJoint.position;
+        const Vector3 currFootPositionR = worldJoints[canim->_footIndexR].position - rootJoint.position;
 
 		//
 
@@ -1048,22 +1052,28 @@ namespace bx
         bxGfxDebugDraw::addLine( worldPose.getTranslation(), worldPose.getTranslation() + worldPose.getCol2().getXYZ() * footDisplacementValue, 0x0000FFFF, 1 );
 
 
-		canim->_locomotion = footDisplacementValue.getAsFloat(); // signalFilter_lowPass( footDisplacementValue.getAsFloat(), canim->_locomotion, 0.5f, deltaTimeS );
+		canim->_locomotion = signalFilter_lowPass( footDisplacementValue.getAsFloat(), canim->_locomotion, 0.05f, deltaTimeS );
 
-		bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
+        if( ImGui::Begin( "CharacterAnimController" ) )
+        {
+            ImGui::Text( "locomotion %f", canim->_locomotion );
+        }
+        ImGui::End();
+
+
 		const float scale = 0.05f;
 		const i16* parentIndices = TYPE_OFFSET_GET_POINTER( i16, canim->_skel->offsetParentIndices );
 		for( int i = 0; i < canim->_skel->numJoints; ++i )
 		{
-			bxGfxDebugDraw::addSphere( Vector4( worldJoints[i].position, scale ), 0xFF0000FF, 1 );
+            bxGfxDebugDraw::addSphere( Vector4( worldJoints[i].position, scale ), 0xFF0000FF, 1 );
 			if( parentIndices[i] != -1 )
 			{
-				const bxAnim_Joint& parentJoint = worldJoints[parentIndices[i]];
-				bxGfxDebugDraw::addLine( parentJoint.position, worldJoints[i].position, 0x00FF00FF, 1 );
+                const bxAnim_Joint& parentJoint = worldJoints[parentIndices[i]];
+                bxGfxDebugDraw::addLine( parentJoint.position, worldJoints[i].position, 0x00FF00FF, 1 );
 			}
 		}
 
-		canim->_timeUS += deltaTimeUS / 2;
+        canim->_timeUS += deltaTimeUS / 4;
 	}
 }///
 
