@@ -217,8 +217,8 @@ public:
 			__scene.dblock->tick();
             bx::terrainTick( __scene.terrain, &__scene, _engine.gdiContext->backend(), deltaTime * 2.f );
             //bx::characterTick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
-			bx::charAnimControllerTick( __scene.canim, __scene.cct->worldPoseFoot(), deltaTimeUS );
 			__scene.cct->tick( &__scene, win->input, deltaTime * 2.f );
+			bx::charAnimControllerTick( __scene.canim, &__scene, deltaTimeUS );
 			//bx::charAnimTick( __scene.canim, __scene.cct->worldPoseFoot(), deltaTime );
 			
             if( !useDebugCamera )

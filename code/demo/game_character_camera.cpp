@@ -15,7 +15,7 @@ namespace bx
         const Vector3 toPlayerVec = (characterPos - cameraPos);
         
 
-        const floatInVec referenceDistance( 10.f );
+        const floatInVec referenceDistance( 5.f );
         const floatInVec cameraPosStiffness( 1.f * deltaTime );
 
         Vector3 dpos( 0.f );

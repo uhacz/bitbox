@@ -112,11 +112,12 @@ void evaluateBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim
 	ctx->cmdArraySize = cmd_array_size;
 }
 
-void evaluateCommandList( bxAnim_Context* ctx, const bxAnim_Cmd* cmdList,  const bxAnim_BlendBranch* blendBranches, unsigned int numBranches, const bxAnim_BlendLeaf* blendLeaves, unsigned int numLeaves, const bxAnim_Skel* skeleton )
+void evaluateCommandList( bxAnim_Context* ctx,  const bxAnim_BlendBranch* blendBranches, unsigned int numBranches, const bxAnim_BlendLeaf* blendLeaves, unsigned int numLeaves, const bxAnim_Skel* skeleton )
 {
-	u8 counter = 0;
-
-	ctx->poseStackIndex = -1;
+    const bxAnim_Cmd* cmdList = ctx->cmdArray;
+    u8 counter = 0;
+    
+    ctx->poseStackIndex = -1;
 	
     while( cmdList->command != bxAnim::eCMD_OP_END_LIST )
 	{

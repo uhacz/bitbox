@@ -488,17 +488,50 @@
 namespace bx
 {
 	//////////////////////////////////////////////////////////////////////////
+	namespace ECharacterAnimClip
+	{
+        enum {
+            eIDLE = 0,
+            eWALK,
+            eRUN,
+            eCOUNT,
+        };
+	};
+	namespace ECharacterAnimBranch
+	{
+        enum {
+            eROOT = 0,
+            eLOCO,
+            eCOUNT,
+        };
+	};
+	namespace ECharacterAnimLeaf
+	{
+        enum {
+            eIDLE = 0,
+            eWALK,
+            eRUN,
+            eCOUNT,
+        };
+	};
+
+	struct CharacterAnimBlendTree
+	{
+        bxAnim_BlendBranch _branch[ECharacterAnimBranch::eCOUNT];
+        bxAnim_BlendLeaf _leaf[ECharacterAnimLeaf::eCOUNT];
+	};
+
 	struct CharacterAnimController
 	{
-		Vector3 _footDisplacementL = Vector3( 0.f );
-		Vector3 _footDisplacementR = Vector3( 0.f );
+        Vector3 _prevFootPosL = Vector3( 0.f );
+        Vector3 _prevFootPosR = Vector3( 0.f );
 		i16 _footIndexL = -1;
 		i16 _footIndexR = -1;
 		f32 _locomotion = 0.f;
 
 		bxAnim_Context* _animCtx = nullptr;
 		bxAnim_Skel* _skel = nullptr;
-		bxAnim_Clip* _clip = nullptr;
+		bxAnim_Clip* _clip[ ECharacterAnimClip::eCOUNT ];
 
 		u64 _timeUS = 0;
 	};
@@ -605,8 +638,8 @@ namespace bx
 				const int inFwd = bxInput_isKeyPressed( kbd, 'W' );
 				const int inBack = bxInput_isKeyPressed( kbd, 'S' );
 				const int inJump = bxInput_isKeyPressedOnce( kbd, ' ' );
-				const int inCrouch = bxInput_isKeyPressedOnce( kbd, bxInput::eKEY_LSHIFT );
-				const int inL2 = bxInput_isKeyPressed( kbd, 'Q' );
+				const int inCrouch = bxInput_isKeyPressedOnce( kbd, 'Z' );
+				const int inL2 = bxInput_isKeyPressed( kbd, bxInput::eKEY_LSHIFT );
 				const int inR2 = bxInput_isKeyPressed( kbd, 'E' );
 
 				analogX = -(float)inLeft + (float)inRight;
@@ -631,14 +664,20 @@ namespace bx
 		}
 
         //////////////////////////////////////////////////////////////////////////
+        static void splitVelocityXZ_Y( Vector3* velXZ, Vector3* velY, const Vector3& vel, const Vector3& upDir )
+        {
+            velXZ[0] = projectVectorOnPlane( vel, makePlane( upDir, Vector3( 0.f ) ) );
+            velY[0] = vel - velXZ[0];
+        }
 
-		static Vector3 applySpeedLimitXZ( const Vector3& vel, const Vector3& upDir, const floatInVec spdLimitSqr )
+		static Vector3 applySpeedLimitXZ( const Vector3& vel, const Vector3& upDir, const floatInVec spdLimit )
 		{
-			Vector3 velXZ = projectVectorOnPlane( vel, makePlane( upDir, Vector3(0.f) ) );
-			Vector3 velY = vel - velXZ;
+            Vector3 velXZ, velY;
+            splitVelocityXZ_Y( &velXZ, &velY, vel, upDir );
 			{
-				const floatInVec spdSqr = lengthSqr( velXZ );
-				velXZ = select( velXZ, velXZ * (spdLimitSqr / floatInVec( sqrtf4( spdSqr.get128() ) )), spdSqr > spdLimitSqr );
+				const floatInVec spd = length( velXZ );
+				const floatInVec velScaler = (spdLimit / spd );
+				velXZ = select( velXZ, velXZ * velScaler, spd > spdLimit );
 			}
 
 			return velXZ + velY;
@@ -661,6 +700,7 @@ namespace bx
 				const floatInVec externalForcesValue = minf4( length( inputVector ), floatInVec( maxInputForce ) );
 				inputVector = projectVectorOnPlane( cameraWorld.getUpper3x3() * inputVector, Vector4( _upDir, oneVec ) );
 				inputVector = normalizeSafe( inputVector ) * externalForcesValue;
+                inputVector += inputVector * 2.f * _input.L2;
 				_jumpAcc += _input.jump * 4;
 
 				//bxGfxDebugDraw::addLine( character->bottomBody.com.pos, character->bottomBody.com.pos + externalForces + character->upVector*character->_jumpAcc, 0xFFFFFFFF, true );
@@ -671,13 +711,14 @@ namespace bx
 
 			const float deltaTimeFix = _deltaTime;
 			const float deltaTimeInv = _deltaTimeInv; // ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
-            const float dampingCoeff = 0.2f;
+            const float dampingCoeff = ( _input.L2 ) ? 0.15f : 0.995f;
 			const float damping = pow( 1.f - dampingCoeff, deltaTimeFix );
 			
 			const Vector3 gravity = -_upDir * 9.f;
 			const Vector3 jumpVector = _upDir * _jumpAcc;
-			const float SPEED_LIMIT = scene->canim->_locomotion * deltaTimeInv;
-			const floatInVec spdLimitSqr( SPEED_LIMIT * SPEED_LIMIT );
+
+            //const bool noInput = ::abs( _input.analogX ) < 0.1f && ::abs( _input.analogY ) < 0.1f;
+			const floatInVec SPEED_LIMIT = (lengthSqr( _dstate0._vel ).getAsFloat() < 0.1f ) ? oneVec : floatInVec( scene->canim->_locomotion );
 
             while( timeAcc_ >= deltaTimeFix )
             {
@@ -689,9 +730,13 @@ namespace bx
 
 					vel += ( inputVector + jumpVector );
 					vel += ( gravity ) * deltaTimeFix;
-                    vel *= damping;
+                    
+                    Vector3 velXZ, velY;
+                    splitVelocityXZ_Y( &velXZ, &velY, vel, _upDir );
+                    velXZ *= damping;
+                    vel = velXZ + velY;
 
-					vel = applySpeedLimitXZ( vel, _upDir, spdLimitSqr );
+                    //ds->_vel = applySpeedLimitXZ( ds->_vel, _upDir, SPEED_LIMIT );
 
                     Vector3 pos1 = pos0 + vel * deltaTimeFix;
 
@@ -719,19 +764,23 @@ namespace bx
 						}
 					}
 
-					if( lengthSqr( collisionNrmDepth ).getAsFloat() > FLT_EPSILON )
-					{
-						Vector3 dpos( 0.f );
-						bxPhx::pbd_computeFriction( &dpos, pos0, pos1, collisionNrmDepth.getXYZ(), collisionNrmDepth.getW().getAsFloat(), 0.1f, 0.1f );
-						pos1 += dpos;
-					}
+					//if( lengthSqr( collisionNrmDepth ).getAsFloat() > FLT_EPSILON )
+					//{
+					//	Vector3 dpos( 0.f );
+					//	bxPhx::pbd_computeFriction( &dpos, pos0, pos1, collisionNrmDepth.getXYZ(), collisionNrmDepth.getW().getAsFloat(), 0.1f, 0.1f );
+					//	pos1 += dpos;
+					//}
 
-                    const Vector3 rd = pos1 - pos0;
+                    Vector3 rd = pos1 - pos0;
+                    rd = applySpeedLimitXZ( rd, _upDir, SPEED_LIMIT );
                     //const float displ = length( rd ).getAsFloat();
                     phxCCTMove( &_cctMoveStats, _cct, rd, deltaTimeFix );
 					
                     pos1 = pos0 + _cctMoveStats.dpos;
-					ds->_pos1 = pos1;
+                    ds->_pos1 = pos1;
+                    //Vector3 v = ( pos1 - pos0 ) * deltaTimeInv;
+                    //v = applySpeedLimitXZ( v, _upDir, SPEED_LIMIT );
+                    //ds->_pos1 = pos0 + v * deltaTimeFix;
 				}
 				
 				{
@@ -739,7 +788,7 @@ namespace bx
                     ds->_vel = ( ds->_pos1 - ds->_pos0 ) * deltaTimeInv;
                     ds->_pos0 = ds->_pos1;
 
-					//ds->_vel = applySpeedLimitXZ( ds->_vel, _upDir, spdLimitSqr );
+					//ds->_vel = applySpeedLimitXZ( ds->_vel, _upDir, SPEED_LIMIT );
                 }
 
 				{
@@ -760,8 +809,16 @@ namespace bx
             }
 
 			bxGfxDebugDraw::addAxes( Matrix4( _dstate0._rotation, _dstate0._pos0 ) );
-			bxGfxDebugDraw::addBox( Matrix4( _dstate0._rotation, _dstate0._pos0 ), Vector3( _geometry0.capsule.radius ), 0xFFFF00FF, 1 );
+			//bxGfxDebugDraw::addBox( Matrix4( _dstate0._rotation, _dstate0._pos0 ), Vector3( _geometry0.capsule.radius ), 0xFFFF00FF, 1 );
             //bxGfxDebugDraw::addSphere( Vector4( _dstate0._pos0, _geometry0.sphere.radius ), 0xFFFF00FF, 1 );
+
+            const Vector3 velocityXZ = projectVectorOnPlane( _dstate0._vel, makePlane( _upDir, Vector3( 0.f ) ) );
+            if( ImGui::Begin( "CharacterController" ) )
+            {
+                ImGui::Text( "speed: %f", length( velocityXZ ).getAsFloat() );
+            }
+            ImGui::End();
+
         }
 
         virtual Matrix4 worldPose() const
@@ -790,6 +847,10 @@ namespace bx
 		{
 			return _dstate0._vel * _deltaTime;
 		}
+        virtual Vector3 velocity() const
+        {
+            return _dstate0._vel;
+        }
     };
 
     void CharacterController::create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose )
@@ -809,183 +870,17 @@ namespace bx
 
         BX_DELETE0( bxDefaultAllocator(), cc[0] );
     }
-
-	//////////////////////////////////////////////////////////////////////////
-	struct CharacterAnim
-	{
-		enum EJoint : u32
-		{
-			eJOINT_HIPS = 0,
-			
-			eJOINT_SPINE0,
-			eJOINT_SPINE1,
-			eJOINT_HEAD,
-			
-			eJOINT_LSHOULDER,
-			eJOINT_LELBOW,
-			eJOINT_LHAND,
-			
-			eJOINT_RSHOULDER,
-			eJOINT_RELBOW,
-			eJOINT_RHAND,
-			
-			eJOINT_LHIP,
-			eJOINT_LKNEE,
-			eJOINT_LFOOT,
-			
-			eJOINT_RHIP,
-			eJOINT_RKNEE,
-			eJOINT_RFOOT,
-			
-			eJOINT_COUNT,
-		};
-		static const i16 _parentIndices[EJoint::eJOINT_COUNT];
-		static const Vector3 _bindPositionWorld[EJoint::eJOINT_COUNT];
-
-		TransformTQ _localPose[EJoint::eJOINT_COUNT];
-		TransformTQ _worldPose[EJoint::eJOINT_COUNT];
-		
-	};
-	const i16 CharacterAnim::_parentIndices[CharacterAnim::EJoint::eJOINT_COUNT] =
-	{
-		-1,
-		0, 1, 2,
-		2, 4, 5,
-		2, 7, 8,
-		0, 10, 11,
-		0, 13, 14,
-	};
-
-	const Vector3 CharacterAnim::_bindPositionWorld[CharacterAnim::EJoint::eJOINT_COUNT] =
-	{
-		Vector3( 0.f, 0.466f, 0.f ),
-		Vector3( 0.f, 0.6f, 0.f ), Vector3( 0.f, 0.7f, 0.f ), Vector3( 0.f, 0.8f, 0.f ),
-		Vector3( 0.15f, 0.633f, 0.f ), Vector3( 0.15f, 0.5f, 0.f ), Vector3( 0.15f, 0.350f, 0.f ),
-		Vector3(-0.15f, 0.633f, 0.f ), Vector3(-0.15f, 0.5f, 0.f ), Vector3(-0.15f, 0.350f, 0.f ),
-		Vector3( 0.10f, 0.4f, 0.f ), Vector3( 0.10f, 0.2f, 0.f ), Vector3( 0.10f, 0.0f, 0.f ),
-		Vector3(-0.10f, 0.4f, 0.f ), Vector3(-0.10f, 0.2f, 0.f ), Vector3(-0.10f, 0.0f, 0.f ),
-	};
-	
-	namespace
-	{
-		// quat (qr) aims z-axis along vector
-		Quat quatAim( const Vector3& dir )
-		{
-			union Cvt
-			{
-				__m128 m128;
-				struct { f32 x, y, z, w; };
-			};
-
-			Cvt v1 = { dir.get128() };
-			Cvt qr;
-			qr.x = v1.y;
-			qr.y = -v1.x;
-			qr.z = 0;
-			qr.w = 1 - v1.z;
-
-			Quat result( qr.m128 );
-			const floatInVec d = dot( result, result );
-			return select( Quat::identity(), result * rsqrtf4( d.get128() ), d > fltEpsVec );
-		}
-		inline Quat quatAim( const Vector3& P1, const Vector3& P2 )
-		{
-			return quatAim( normalize( P2 - P1 ) );
-		}
-		
-		void computeLocalAndWorld( TransformTQ* worldPose, TransformTQ* localPose, const Vector3* bindPositionWorld, const i16* parentIndices, const TransformTQ& rootTQ, int begin, int end )
-		{
-			for( int i = begin; i <= end; ++i )
-			{
-				Vector3 dir;
-				if( i < end )
-				{
-					dir = bindPositionWorld[i + 1] - bindPositionWorld[i];
-				}
-				else
-				{
-					dir = bindPositionWorld[i] - bindPositionWorld[i - 1];
-				}
-
-				dir = normalize( dir );
-				Quat rotationWorld = quatAim( dir ) * Quat::rotationY( PI_HALF );
-				Vector3 positionWorld = bindPositionWorld[i];
-
-				TransformTQ parentTransform = TransformTQ::identity();
-				if( parentIndices[i] != -1 )
-				{
-					parentTransform = worldPose[parentIndices[i]];
-				}
-
-				const TransformTQ world = transform( rootTQ, TransformTQ( rotationWorld, positionWorld ) );
-				const TransformTQ local = transformInv( parentTransform, world );
-
-				worldPose[i] = world;
-				localPose[i] = local;
-			}
-		}
-	}////
-
-	void charAnimCreate( CharacterAnim** canim, GameScene* scene, const Matrix4& worldPose, float scale )
-	{
-		CharacterAnim* ca = BX_NEW( bxDefaultAllocator(), CharacterAnim );
-
-		const TransformTQ rootTQ( worldPose );
-		Vector3 bindPoseScaled[CharacterAnim::eJOINT_COUNT];
-		for( int i = 0; i < CharacterAnim::EJoint::eJOINT_COUNT; ++i )
-		{
-			bindPoseScaled[i] = ca->_bindPositionWorld[i] * scale;
-		}
-		ca->_localPose[CharacterAnim::eJOINT_HIPS] = TransformTQ( bindPoseScaled[CharacterAnim::eJOINT_HIPS] );
-		ca->_worldPose[CharacterAnim::eJOINT_HIPS] = transform( rootTQ, ca->_localPose[CharacterAnim::eJOINT_HIPS] );
-		
-		computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_SPINE0, CharacterAnim::eJOINT_HEAD );
-		computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_LSHOULDER, CharacterAnim::eJOINT_LHAND );
-		computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_RSHOULDER, CharacterAnim::eJOINT_RHAND);
-		computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_LHIP, CharacterAnim::eJOINT_LFOOT );
-		computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_RHIP, CharacterAnim::eJOINT_RFOOT );
-
-		//for( int i = 0; i < CharacterAnim::EJoint::eJOINT_COUNT; ++i )
-		//{
-		//	ca->_pose[i] = mulAsVec4( worldWithScale, ca->_bindPose[i] );
-		//}
-
-		canim[0] = ca;
-	}
-	void charAnimDestroy( CharacterAnim** canim, GameScene* scene )
-	{
-		if( !canim[0] )
-			return;
-
-		BX_DELETE0( bxDefaultAllocator(), canim[0] );
-	}
-	void charAnimTick( CharacterAnim* canim, const Matrix4& worldPose, float deltaTime )
-	{
-
-		const TransformTQ rootTQ( worldPose );
-		canim->_worldPose[CharacterAnim::eJOINT_HIPS] = transform( rootTQ, canim->_localPose[CharacterAnim::eJOINT_HIPS] );
-		for( int i = CharacterAnim::eJOINT_SPINE0; i < CharacterAnim::eJOINT_COUNT; ++i )
-		{
-			const i16 parentIndex = canim->_parentIndices[i];
-			const TransformTQ& parent = canim->_worldPose[parentIndex];
-			const TransformTQ& world = transform( parent, canim->_localPose[i] );
-
-			canim->_worldPose[i] = world;
-
-			bxGfxDebugDraw::addSphere( Vector4( world.t, 0.05f ), 0xFF00FFFF, 1 );
-			bxGfxDebugDraw::addLine( parent.t, world.t, 0x00FF00FF, 1 );
-									 
-			//bxGfxDebugDraw::addAxes( Matrix4( world.q, world.t ) ); // , 0x00FF00FF, 1 );
-		}
-	}
-
-
+    
+    //////////////////////////////////////////////////////////////////////////
+    ///
 	void charAnimControllerCreate( CharacterAnimController** canim, GameScene* scene )
 	{
 		CharacterAnimController* ca = BX_NEW( bxDefaultAllocator(), CharacterAnimController );
 
 		ca->_skel = bxAnimExt::loadSkelFromFile( resourceManagerGet(), "anim/human.skel" );
-		ca->_clip = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/run.anim" );
+		ca->_clip[ECharacterAnimClip::eIDLE] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/idle.anim" );
+		ca->_clip[ECharacterAnimClip::eWALK] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/run.anim" );
+        ca->_clip[ECharacterAnimClip::eRUN] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/run.anim" );
 		ca->_animCtx = bxAnim::contextInit( *ca->_skel );
 		
         ca->_footIndexL = bxAnim::getJointByName( ca->_skel, "LeftFoot" );
@@ -999,44 +894,70 @@ namespace bx
 			return;
 
 		CharacterAnimController* ca = canim[0];
-		bxAnimExt::unloadAnimFromFile( resourceManagerGet(), &ca->_clip );
+		for( int i = 0; i < ECharacterAnimClip::eCOUNT; ++i )
+		{
+			bxAnimExt::unloadAnimFromFile( resourceManagerGet(), &ca->_clip[i] );
+		}
 		bxAnimExt::unloadSkelFromFile( resourceManagerGet(), &ca->_skel );
 		bxAnim::contextDeinit( &ca->_animCtx );
 
 		BX_DELETE0( bxDefaultAllocator(), canim[0] );
 	}
-	void charAnimControllerTick( CharacterAnimController* canim, const Matrix4& worldPose, u64 deltaTimeUS )
+	void charAnimControllerTick( CharacterAnimController* canim, GameScene* scene, u64 deltaTimeUS )
 	{
-		const float deltaTimeS = (float)bxTime::toSeconds( deltaTimeUS );
-		const float timeS = (float)bxTime::toSeconds( canim->_timeUS );
-        const float clipTimeS = ::fmod( timeS, canim->_clip->duration );
+        const float deltaTimeS = (float)bxTime::toSeconds( deltaTimeUS );
+        const float timeS = (float)bxTime::toSeconds( canim->_timeUS );
 
-        bxAnim_Joint rootJoint = toAnimJoint_noScale( worldPose );
-        bxAnim_Joint* localJoints = canim->_animCtx->poseStack[0];
-        bxAnim_Joint* worldJoints = canim->_animCtx->poseCache[0];
-		//bxAnim_Joint* worldJointsZero = canim->_animCtx->poseCache[1];
-
-        const Vector3 prevFootPositionL = worldJoints[canim->_footIndexL].position - rootJoint.position;
-        const Vector3 prevFootPositionR = worldJoints[canim->_footIndexR].position - rootJoint.position;
-		bxAnim::evaluateClip( localJoints, canim->_clip, clipTimeS );
-        bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
+        CharacterControllerImpl* ccImpl = (CharacterControllerImpl*)scene->cct;
+        const Vector3 ccVelocity = ccImpl->velocity();
+        const Vector3 ccVelocityXZ = projectVectorOnPlane( ccVelocity, makePlane( ccImpl->upDirection(), Vector3( 0.f ) ) );
+        const Vector3 ccVelocityY = ccVelocity - ccVelocityXZ;
         
-        //bxAnim_Joint rootJointZero = bxAnim_Joint::identity();
-        //rootJointZero.rotation = rootJoint.rotation;
-        //bxAnimExt::localJointsToWorldJoints( worldJointsZero, localJoints, canim->_skel, rootJointZero );
+        const float speedXZ = length( ccVelocityXZ ).getAsFloat();
+        const float rootBlendAlpha = smoothstep( 0.02f, 1.5f, speedXZ );
+        const float runBlendAlpha = linearstep( 2.2f, 3.f, speedXZ );
+        CharacterAnimBlendTree btree;
+        btree._branch[ECharacterAnimBranch::eROOT] = bxAnim_BlendBranch( ECharacterAnimLeaf::eIDLE | bxAnim::eBLEND_TREE_LEAF, ECharacterAnimBranch::eLOCO | bxAnim::eBLEND_TREE_BRANCH, rootBlendAlpha );
+        btree._branch[ECharacterAnimBranch::eLOCO] = bxAnim_BlendBranch( ECharacterAnimLeaf::eWALK| bxAnim::eBLEND_TREE_LEAF, ECharacterAnimLeaf::eRUN| bxAnim::eBLEND_TREE_LEAF, runBlendAlpha );
+        btree._leaf[ECharacterAnimLeaf::eIDLE] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eIDLE], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eIDLE]->duration ) );
+        btree._leaf[ECharacterAnimLeaf::eWALK] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eWALK], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eWALK]->duration ) );
+        btree._leaf[ECharacterAnimLeaf::eRUN] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eRUN], ::fmod( timeS * 1.3f, canim->_clip[ECharacterAnimClip::eRUN]->duration ) );
+        
+        bxAnim::evaluateBlendTree( canim->_animCtx
+                                   , ECharacterAnimBranch::eROOT | bxAnim::eBLEND_TREE_BRANCH
+                                   , btree._branch, ECharacterAnimBranch::eCOUNT
+                                   , btree._leaf, ECharacterAnimLeaf::eCOUNT
+                                   , canim->_skel );
+        bxAnim::evaluateCommandList( canim->_animCtx
+                                     , btree._branch, ECharacterAnimBranch::eCOUNT
+                                     , btree._leaf, ECharacterAnimLeaf::eCOUNT
+                                     , canim->_skel );
 
-        const Vector3 currFootPositionL = worldJoints[canim->_footIndexL].position - rootJoint.position;
-        const Vector3 currFootPositionR = worldJoints[canim->_footIndexR].position - rootJoint.position;
+        const Matrix4 rootPose = ccImpl->worldPoseFoot();
+        bxAnim_Joint rootJoint = toAnimJoint_noScale( rootPose );
+        bxAnim_Joint* localJoints = bxAnim::poseFromStack( canim->_animCtx, 0 );
+        bxAnim_Joint* worldJoints = canim->_animCtx->poseCache[0];
+		bxAnim_Joint* worldJointsZero = canim->_animCtx->poseCache[1];
 
-		//
+		const Vector3 prevFootPositionL = canim->_prevFootPosL; //worldJointsZero[canim->_footIndexL].position;
+		const Vector3 prevFootPositionR = canim->_prevFootPosR; //worldJointsZero[canim->_footIndexR].position;
+		//bxAnim::evaluateClip( localJoints, clip, clipTimeS );
+        bxAnim_Joint zeroJoint = bxAnim_Joint::identity();
+        zeroJoint.rotation = rootJoint.rotation;
+        bxAnimExt::localJointsToWorldJoints( worldJointsZero, localJoints, canim->_skel, zeroJoint );
+        
+        const Vector3 currFootPositionL = worldJointsZero[canim->_footIndexL].position;
+        const Vector3 currFootPositionR = worldJointsZero[canim->_footIndexR].position;
+        canim->_prevFootPosL = currFootPositionL;
+        canim->_prevFootPosR = currFootPositionR;
 
         Vector3 footDisplacementL = currFootPositionL - prevFootPositionL;
         Vector3 footDisplacementR = currFootPositionR - prevFootPositionR;
 
 		//Vector3 footDisplacement = maxPerElem( footDisplacementL, footDisplacementR );
-		const Vector4 planeX = makePlane( worldPose.getCol0().getXYZ(), Vector3(0.f) );
-		const Vector4 planeY = makePlane( worldPose.getCol1().getXYZ(), Vector3(0.f) );
-		const Vector3 dirZ = worldPose.getCol2().getXYZ();
+		const Vector4 planeX = makePlane( rootPose.getCol0().getXYZ(), Vector3(0.f) );
+		const Vector4 planeY = makePlane( rootPose.getCol1().getXYZ(), Vector3(0.f) );
+		const Vector3 dirZ = rootPose.getCol2().getXYZ();
 
         footDisplacementL = projectVectorOnPlane( footDisplacementL, planeX );
         footDisplacementL = projectVectorOnPlane( footDisplacementL, planeY );
@@ -1044,23 +965,23 @@ namespace bx
 		footDisplacementR = projectVectorOnPlane( footDisplacementR, planeX );
 		footDisplacementR = projectVectorOnPlane( footDisplacementR, planeY );
 
-		floatInVec footDisplacementLValue = length( footDisplacementL ); //select( zeroVec, , dot( footDisplacementL, dirZ ) < zeroVec );
-		floatInVec footDisplacementRValue = length( footDisplacementR ); //select( zeroVec, , dot( footDisplacementR, dirZ ) < zeroVec );
+		floatInVec footDisplacementLValue = select( zeroVec, length( footDisplacementL ), dot( footDisplacementL, dirZ ) <= zeroVec );
+        floatInVec footDisplacementRValue = select( zeroVec, length( footDisplacementR ), dot( footDisplacementR, dirZ ) <= zeroVec );
 
-		const floatInVec footDisplacementValue = maxf4( footDisplacementLValue, footDisplacementRValue );
+        const floatInVec footDisplacementValue = maxf4( footDisplacementLValue, footDisplacementRValue );
 
-        bxGfxDebugDraw::addLine( worldPose.getTranslation(), worldPose.getTranslation() + worldPose.getCol2().getXYZ() * footDisplacementValue, 0x0000FFFF, 1 );
-
-
-		canim->_locomotion = signalFilter_lowPass( footDisplacementValue.getAsFloat(), canim->_locomotion, 0.05f, deltaTimeS );
+        //bxGfxDebugDraw::addLine( worldPose.getTranslation(), worldPose.getTranslation() + worldPose.getCol2().getXYZ() * footDisplacementValue, 0x0000FFFF, 1 );
+        canim->_locomotion = lerp( deltaTimeS * 10.f, canim->_locomotion, footDisplacementValue.getAsFloat() );// footDisplacementValue.getAsFloat(), canim->_locomotion, 0.1f, deltaTimeS );
 
         if( ImGui::Begin( "CharacterAnimController" ) )
         {
             ImGui::Text( "locomotion %f", canim->_locomotion );
+            ImGui::Text( "rootBlendAlpha: %f", rootBlendAlpha );
+            ImGui::Text( "runBlendAlpha: %f", runBlendAlpha );
         }
         ImGui::End();
 
-
+		bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
 		const float scale = 0.05f;
 		const i16* parentIndices = TYPE_OFFSET_GET_POINTER( i16, canim->_skel->offsetParentIndices );
 		for( int i = 0; i < canim->_skel->numJoints; ++i )
@@ -1073,7 +994,180 @@ namespace bx
 			}
 		}
 
-        canim->_timeUS += deltaTimeUS / 4;
+        canim->_timeUS += deltaTimeUS;
 	}
+
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    struct CharacterAnim
+    {
+        enum EJoint : u32
+        {
+            eJOINT_HIPS = 0,
+
+            eJOINT_SPINE0,
+            eJOINT_SPINE1,
+            eJOINT_HEAD,
+
+            eJOINT_LSHOULDER,
+            eJOINT_LELBOW,
+            eJOINT_LHAND,
+
+            eJOINT_RSHOULDER,
+            eJOINT_RELBOW,
+            eJOINT_RHAND,
+
+            eJOINT_LHIP,
+            eJOINT_LKNEE,
+            eJOINT_LFOOT,
+
+            eJOINT_RHIP,
+            eJOINT_RKNEE,
+            eJOINT_RFOOT,
+
+            eJOINT_COUNT,
+        };
+        static const i16 _parentIndices[EJoint::eJOINT_COUNT];
+        static const Vector3 _bindPositionWorld[EJoint::eJOINT_COUNT];
+
+        TransformTQ _localPose[EJoint::eJOINT_COUNT];
+        TransformTQ _worldPose[EJoint::eJOINT_COUNT];
+
+    };
+    const i16 CharacterAnim::_parentIndices[CharacterAnim::EJoint::eJOINT_COUNT] =
+    {
+        -1,
+        0, 1, 2,
+        2, 4, 5,
+        2, 7, 8,
+        0, 10, 11,
+        0, 13, 14,
+    };
+
+    const Vector3 CharacterAnim::_bindPositionWorld[CharacterAnim::EJoint::eJOINT_COUNT] =
+    {
+        Vector3( 0.f, 0.466f, 0.f ),
+        Vector3( 0.f, 0.6f, 0.f ), Vector3( 0.f, 0.7f, 0.f ), Vector3( 0.f, 0.8f, 0.f ),
+        Vector3( 0.15f, 0.633f, 0.f ), Vector3( 0.15f, 0.5f, 0.f ), Vector3( 0.15f, 0.350f, 0.f ),
+        Vector3( -0.15f, 0.633f, 0.f ), Vector3( -0.15f, 0.5f, 0.f ), Vector3( -0.15f, 0.350f, 0.f ),
+        Vector3( 0.10f, 0.4f, 0.f ), Vector3( 0.10f, 0.2f, 0.f ), Vector3( 0.10f, 0.0f, 0.f ),
+        Vector3( -0.10f, 0.4f, 0.f ), Vector3( -0.10f, 0.2f, 0.f ), Vector3( -0.10f, 0.0f, 0.f ),
+    };
+
+    namespace
+    {
+        // quat (qr) aims z-axis along vector
+        Quat quatAim( const Vector3& dir )
+        {
+            union Cvt
+            {
+                __m128 m128;
+                struct { f32 x, y, z, w; };
+            };
+
+            Cvt v1 = { dir.get128() };
+            Cvt qr;
+            qr.x = v1.y;
+            qr.y = -v1.x;
+            qr.z = 0;
+            qr.w = 1 - v1.z;
+
+            Quat result( qr.m128 );
+            const floatInVec d = dot( result, result );
+            return select( Quat::identity(), result * rsqrtf4( d.get128() ), d > fltEpsVec );
+        }
+        inline Quat quatAim( const Vector3& P1, const Vector3& P2 )
+        {
+            return quatAim( normalize( P2 - P1 ) );
+        }
+
+        void computeLocalAndWorld( TransformTQ* worldPose, TransformTQ* localPose, const Vector3* bindPositionWorld, const i16* parentIndices, const TransformTQ& rootTQ, int begin, int end )
+        {
+            for( int i = begin; i <= end; ++i )
+            {
+                Vector3 dir;
+                if( i < end )
+                {
+                    dir = bindPositionWorld[i + 1] - bindPositionWorld[i];
+                }
+                else
+                {
+                    dir = bindPositionWorld[i] - bindPositionWorld[i - 1];
+                }
+
+                dir = normalize( dir );
+                Quat rotationWorld = quatAim( dir ) * Quat::rotationY( PI_HALF );
+                Vector3 positionWorld = bindPositionWorld[i];
+
+                TransformTQ parentTransform = TransformTQ::identity();
+                if( parentIndices[i] != -1 )
+                {
+                    parentTransform = worldPose[parentIndices[i]];
+                }
+
+                const TransformTQ world = transform( rootTQ, TransformTQ( rotationWorld, positionWorld ) );
+                const TransformTQ local = transformInv( parentTransform, world );
+
+                worldPose[i] = world;
+                localPose[i] = local;
+            }
+        }
+    }////
+
+    void charAnimCreate( CharacterAnim** canim, GameScene* scene, const Matrix4& worldPose, float scale )
+    {
+        CharacterAnim* ca = BX_NEW( bxDefaultAllocator(), CharacterAnim );
+
+        const TransformTQ rootTQ( worldPose );
+        Vector3 bindPoseScaled[CharacterAnim::eJOINT_COUNT];
+        for( int i = 0; i < CharacterAnim::EJoint::eJOINT_COUNT; ++i )
+        {
+            bindPoseScaled[i] = ca->_bindPositionWorld[i] * scale;
+        }
+        ca->_localPose[CharacterAnim::eJOINT_HIPS] = TransformTQ( bindPoseScaled[CharacterAnim::eJOINT_HIPS] );
+        ca->_worldPose[CharacterAnim::eJOINT_HIPS] = transform( rootTQ, ca->_localPose[CharacterAnim::eJOINT_HIPS] );
+
+        computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_SPINE0, CharacterAnim::eJOINT_HEAD );
+        computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_LSHOULDER, CharacterAnim::eJOINT_LHAND );
+        computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_RSHOULDER, CharacterAnim::eJOINT_RHAND );
+        computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_LHIP, CharacterAnim::eJOINT_LFOOT );
+        computeLocalAndWorld( ca->_worldPose, ca->_localPose, bindPoseScaled, CharacterAnim::_parentIndices, rootTQ, CharacterAnim::eJOINT_RHIP, CharacterAnim::eJOINT_RFOOT );
+
+        //for( int i = 0; i < CharacterAnim::EJoint::eJOINT_COUNT; ++i )
+        //{
+        //	ca->_pose[i] = mulAsVec4( worldWithScale, ca->_bindPose[i] );
+        //}
+
+        canim[0] = ca;
+    }
+    void charAnimDestroy( CharacterAnim** canim, GameScene* scene )
+    {
+        if( !canim[0] )
+            return;
+
+        BX_DELETE0( bxDefaultAllocator(), canim[0] );
+    }
+    void charAnimTick( CharacterAnim* canim, const Matrix4& worldPose, float deltaTime )
+    {
+
+        const TransformTQ rootTQ( worldPose );
+        canim->_worldPose[CharacterAnim::eJOINT_HIPS] = transform( rootTQ, canim->_localPose[CharacterAnim::eJOINT_HIPS] );
+        for( int i = CharacterAnim::eJOINT_SPINE0; i < CharacterAnim::eJOINT_COUNT; ++i )
+        {
+            const i16 parentIndex = canim->_parentIndices[i];
+            const TransformTQ& parent = canim->_worldPose[parentIndex];
+            const TransformTQ& world = transform( parent, canim->_localPose[i] );
+
+            canim->_worldPose[i] = world;
+
+            bxGfxDebugDraw::addSphere( Vector4( world.t, 0.05f ), 0xFF00FFFF, 1 );
+            bxGfxDebugDraw::addLine( parent.t, world.t, 0x00FF00FF, 1 );
+
+            //bxGfxDebugDraw::addAxes( Matrix4( world.q, world.t ) ); // , 0x00FF00FF, 1 );
+        }
+    }
 }///
 

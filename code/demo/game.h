@@ -74,19 +74,20 @@ namespace bx
 		virtual Vector3 footPosition() const = 0;
 		virtual Vector3 centerPosition() const = 0;
 		virtual Vector3 deltaPosition() const = 0;
+        virtual Vector3 velocity() const = 0;
     };
-
-	//////////////////////////////////////////////////////////////////////////
-	struct CharacterAnim;
-	void charAnimCreate( CharacterAnim** canim, GameScene* scene, const Matrix4& worldPose, float scale );
-	void charAnimDestroy( CharacterAnim** canim, GameScene* scene );
-	void charAnimTick( CharacterAnim* canim, const Matrix4& worldPose, float deltaTime );
-
+    
 	//////////////////////////////////////////////////////////////////////////
 	struct CharacterAnimController;
 	void charAnimControllerCreate( CharacterAnimController** canim, GameScene* scene );
 	void charAnimControllerDestroy( CharacterAnimController** canim );
-	void charAnimControllerTick( CharacterAnimController* canim, const Matrix4& worldPose, u64 deltaTimeUS );
+	void charAnimControllerTick( CharacterAnimController* canim, GameScene* scene, u64 deltaTimeUS );
+
+    //////////////////////////////////////////////////////////////////////////
+    struct CharacterAnim;
+    void charAnimCreate( CharacterAnim** canim, GameScene* scene, const Matrix4& worldPose, float scale );
+    void charAnimDestroy( CharacterAnim** canim, GameScene* scene );
+    void charAnimTick( CharacterAnim* canim, const Matrix4& worldPose, float deltaTime );
 	
 }////
 
