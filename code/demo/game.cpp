@@ -529,6 +529,8 @@ namespace bx
 		i16 _footIndexR = -1;
 		f32 _locomotion = 0.f;
 
+        f32 _runBlendAlpha = 0.f;
+
 		bxAnim_Context* _animCtx = nullptr;
 		bxAnim_Skel* _skel = nullptr;
 		bxAnim_Clip* _clip[ ECharacterAnimClip::eCOUNT ];
@@ -880,7 +882,7 @@ namespace bx
 		ca->_skel = bxAnimExt::loadSkelFromFile( resourceManagerGet(), "anim/human.skel" );
 		ca->_clip[ECharacterAnimClip::eIDLE] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/idle.anim" );
 		ca->_clip[ECharacterAnimClip::eWALK] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/run.anim" );
-        ca->_clip[ECharacterAnimClip::eRUN] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/run.anim" );
+        ca->_clip[ECharacterAnimClip::eRUN] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/fast_run.anim" );
 		ca->_animCtx = bxAnim::contextInit( *ca->_skel );
 		
         ca->_footIndexL = bxAnim::getJointByName( ca->_skel, "LeftFoot" );
@@ -915,13 +917,22 @@ namespace bx
         
         const float speedXZ = length( ccVelocityXZ ).getAsFloat();
         const float rootBlendAlpha = smoothstep( 0.02f, 1.5f, speedXZ );
-        const float runBlendAlpha = linearstep( 2.2f, 3.f, speedXZ );
+        //const float runBlendAlpha = ccImpl->_input.L2;// linearstep( 2.2f, 2.5f, speedXZ );
+        
+        if( ccImpl->_input.L2 )
+            canim->_runBlendAlpha += deltaTimeS;
+        else
+            canim->_runBlendAlpha -= deltaTimeS;
+        canim->_runBlendAlpha = clamp( canim->_runBlendAlpha, 0.f, 1.f );
+        const float runBlendAlpha = canim->_runBlendAlpha;
+
+
         CharacterAnimBlendTree btree;
         btree._branch[ECharacterAnimBranch::eROOT] = bxAnim_BlendBranch( ECharacterAnimLeaf::eIDLE | bxAnim::eBLEND_TREE_LEAF, ECharacterAnimBranch::eLOCO | bxAnim::eBLEND_TREE_BRANCH, rootBlendAlpha );
         btree._branch[ECharacterAnimBranch::eLOCO] = bxAnim_BlendBranch( ECharacterAnimLeaf::eWALK| bxAnim::eBLEND_TREE_LEAF, ECharacterAnimLeaf::eRUN| bxAnim::eBLEND_TREE_LEAF, runBlendAlpha );
         btree._leaf[ECharacterAnimLeaf::eIDLE] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eIDLE], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eIDLE]->duration ) );
         btree._leaf[ECharacterAnimLeaf::eWALK] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eWALK], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eWALK]->duration ) );
-        btree._leaf[ECharacterAnimLeaf::eRUN] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eRUN], ::fmod( timeS * 1.3f, canim->_clip[ECharacterAnimClip::eRUN]->duration ) );
+        btree._leaf[ECharacterAnimLeaf::eRUN] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eRUN], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eRUN]->duration ) );
         
         bxAnim::evaluateBlendTree( canim->_animCtx
                                    , ECharacterAnimBranch::eROOT | bxAnim::eBLEND_TREE_BRANCH
