@@ -116,7 +116,7 @@ namespace bxAnim
 
     inline u8 poseStackPush( bxAnim_Context* ctx )
     {
-        ctx->poseStackIndex = ( ctx->poseStackIndex + 1 ) % bxAnim_Context::ePOSE_CACHE_SIZE;
+        ctx->poseStackIndex = ( ctx->poseStackIndex + 1 ) % bxAnim_Context::ePOSE_STACK_SIZE;
         return ctx->poseStackIndex;
     }
     inline u8 poseStackIndex( const bxAnim_Context* ctx, i8 depth )

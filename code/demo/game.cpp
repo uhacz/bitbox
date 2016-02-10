@@ -494,6 +494,7 @@ namespace bx
             eIDLE = 0,
             eWALK,
             eRUN,
+            eJUMP,
             eCOUNT,
         };
 	};
@@ -502,6 +503,7 @@ namespace bx
         enum {
             eROOT = 0,
             eLOCO,
+            eMOTION,
             eCOUNT,
         };
 	};
@@ -511,6 +513,7 @@ namespace bx
             eIDLE = 0,
             eWALK,
             eRUN,
+            eJUMP,
             eCOUNT,
         };
 	};
@@ -883,6 +886,7 @@ namespace bx
 		ca->_clip[ECharacterAnimClip::eIDLE] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/idle.anim" );
 		ca->_clip[ECharacterAnimClip::eWALK] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/run.anim" );
         ca->_clip[ECharacterAnimClip::eRUN] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/fast_run.anim" );
+        ca->_clip[ECharacterAnimClip::eJUMP] = bxAnimExt::loadAnimFromFile( resourceManagerGet(), "anim/jump.anim" );
 		ca->_animCtx = bxAnim::contextInit( *ca->_skel );
 		
         ca->_footIndexL = bxAnim::getJointByName( ca->_skel, "LeftFoot" );
@@ -926,13 +930,16 @@ namespace bx
         canim->_runBlendAlpha = clamp( canim->_runBlendAlpha, 0.f, 1.f );
         const float runBlendAlpha = canim->_runBlendAlpha;
 
+        const float jumpBlendAlpha = 0.f;
 
         CharacterAnimBlendTree btree;
-        btree._branch[ECharacterAnimBranch::eROOT] = bxAnim_BlendBranch( ECharacterAnimLeaf::eIDLE | bxAnim::eBLEND_TREE_LEAF, ECharacterAnimBranch::eLOCO | bxAnim::eBLEND_TREE_BRANCH, rootBlendAlpha );
+        btree._branch[ECharacterAnimBranch::eROOT] = bxAnim_BlendBranch( ECharacterAnimLeaf::eIDLE | bxAnim::eBLEND_TREE_LEAF, ECharacterAnimBranch::eMOTION| bxAnim::eBLEND_TREE_BRANCH, rootBlendAlpha );
         btree._branch[ECharacterAnimBranch::eLOCO] = bxAnim_BlendBranch( ECharacterAnimLeaf::eWALK| bxAnim::eBLEND_TREE_LEAF, ECharacterAnimLeaf::eRUN| bxAnim::eBLEND_TREE_LEAF, runBlendAlpha );
+        btree._branch[ECharacterAnimBranch::eMOTION] = bxAnim_BlendBranch( ECharacterAnimBranch::eLOCO | bxAnim::eBLEND_TREE_BRANCH, ECharacterAnimLeaf::eJUMP | bxAnim::eBLEND_TREE_LEAF, jumpBlendAlpha );
         btree._leaf[ECharacterAnimLeaf::eIDLE] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eIDLE], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eIDLE]->duration ) );
         btree._leaf[ECharacterAnimLeaf::eWALK] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eWALK], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eWALK]->duration ) );
-        btree._leaf[ECharacterAnimLeaf::eRUN] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eRUN], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eRUN]->duration ) );
+        btree._leaf[ECharacterAnimLeaf::eRUN]  = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eRUN] , ::fmod( timeS, canim->_clip[ECharacterAnimClip::eRUN]->duration ) );
+        btree._leaf[ECharacterAnimLeaf::eJUMP] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eJUMP], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eJUMP]->duration ) * jumpBlendAlpha );
         
         bxAnim::evaluateBlendTree( canim->_animCtx
                                    , ECharacterAnimBranch::eROOT | bxAnim::eBLEND_TREE_BRANCH
