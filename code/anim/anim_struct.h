@@ -1,6 +1,7 @@
 #pragma once
 
 #include <util/type.h>
+#include <util/debug.h>
 
 struct BIT_ALIGNMENT_16 bxAnim_Skel
 {
@@ -114,16 +115,26 @@ namespace bxAnim
         return ctx->poseCache[current_index];
     }
 
+    inline void poseStackPop( bxAnim_Context* ctx )
+    {
+        SYS_ASSERT( ctx->poseStackIndex > 0 );
+        --ctx->poseStackIndex;
+    }
+
     inline u8 poseStackPush( bxAnim_Context* ctx )
     {
         ctx->poseStackIndex = ( ctx->poseStackIndex + 1 ) % bxAnim_Context::ePOSE_STACK_SIZE;
         return ctx->poseStackIndex;
     }
+
+    /// depth: how many poses we going back in stack (stackIndex decrease)
     inline u8 poseStackIndex( const bxAnim_Context* ctx, i8 depth )
     {
-        const i8 iindex = (i8)ctx->poseStackIndex + depth;
-        const u8 index = (u8)iindex % bxAnim_Context::ePOSE_STACK_SIZE;
-        return index;
+        const i8 iindex = (i8)ctx->poseStackIndex - depth;
+        SYS_ASSERT( iindex < bxAnim_Context::ePOSE_STACK_SIZE );
+        SYS_ASSERT( iindex >= 0 );
+        //const u8 index = (u8)iindex % bxAnim_Context::ePOSE_STACK_SIZE;
+        return iindex;
     }
     inline bxAnim_Joint* poseFromStack( const bxAnim_Context* ctx, i8 depth )
     {

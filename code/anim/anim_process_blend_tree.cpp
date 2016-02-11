@@ -142,14 +142,14 @@ void evaluateCommandList( bxAnim_Context* ctx,  const bxAnim_BlendBranch* blendB
 			}
         case bxAnim::eCMD_OP_BLEND_STACK:
 			{
-				bxAnim_Joint* leftJoints  = poseFromStack( ctx, -1 );
+				bxAnim_Joint* leftJoints  = poseFromStack( ctx, 1 );
 				bxAnim_Joint* rightJoints = poseFromStack( ctx, 0 );
-
-				poseStackPush( ctx );
-				bxAnim_Joint* outJoints = poseFromStack( ctx, 0 );
+                //poseStackPush( ctx );
+				bxAnim_Joint* outJoints = poseFromStack( ctx, 1 );
 
 				blendJointsLinear( outJoints, leftJoints, rightJoints, cmdList->branch->alpha, skeleton->numJoints );
-
+                
+                poseStackPop( ctx );
 				break;
 			}
         case bxAnim::eCMD_OP_BLEND_CACHE:
