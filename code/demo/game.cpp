@@ -578,7 +578,9 @@ namespace bx
 
 		Input _input;
 		f32 _jumpAcc = 0.f;
+        f32 _prevJumpValue01 = 0.f;
         f32 _jumpValue01 = 0.f;
+        f32 _jumpValue02 = 0.f;
 
         f32 timeAcc_ = 0.f;
 		const f32 _deltaTimeInv = 60.f;
@@ -758,13 +760,13 @@ namespace bx
 					//Vector4 collisionNrmDepth( 0.f );
                     float distanceFromGround = 0.f;
 					{
-                        const float MAX_SWEEP_DISTANCE = 1.25f;
+                        const float MAX_SWEEP_DISTANCE = 1.5f;
                         const Vector3 ro = phxCCTCenterPositionGet( _cct );
 						const Vector3 rd = -_upDir;
 
 						PhxQueryHit hit;
 						const TransformTQ pose( ro );
-						if( phxSweep( &hit, scene->phxScene, _geometry0, pose, -_upDir, 1.25f ) )
+						if( phxSweep( &hit, scene->phxScene, _geometry0, pose, -_upDir, MAX_SWEEP_DISTANCE ) )
 						{
                             //bxGfxDebugDraw::addSphere( Vector4( hit.position, 0.1f ), 0xFFFF00FF, 1 );
 							//bxGfxDebugDraw::addLine( hit.position, hit.position + hit.normal, 0x0000FFFF, 1 );
@@ -774,6 +776,15 @@ namespace bx
                         distanceFromGround = linearstep( 0.1f, MAX_SWEEP_DISTANCE, hit.distance );
 					}
                     _jumpValue01 = signalFilter_lowPass( distanceFromGround, _jumpValue01, 0.1f, deltaTimeFix );
+                    if( _jumpValue01 > 0.01f )
+                    {
+                        _jumpValue02 += ::abs( _jumpValue01 - _prevJumpValue01 );
+                    }
+                    else
+                    {
+                        _jumpValue02 = 0.f;
+                    }
+                    _prevJumpValue01 = _jumpValue01;
                     //if( lengthSqr( collisionNrmDepth ).getAsFloat() > FLT_EPSILON )
 					//{
 					//	Vector3 dpos( 0.f );
@@ -827,6 +838,7 @@ namespace bx
             {
                 ImGui::Text( "speed: %f", length( velocityXZ ).getAsFloat() );
                 ImGui::Text( "jump: %f", _jumpValue01 );
+                ImGui::Text( "jump2: %f", _jumpValue02 );
             }
             ImGui::End();
 
@@ -937,6 +949,7 @@ namespace bx
         canim->_runBlendAlpha = clamp( canim->_runBlendAlpha, 0.f, 1.f );
         const float runBlendAlpha = canim->_runBlendAlpha;
 
+        const float jumpEvalTime = linearstep( 0.01f, 1.99f, ccImpl->_jumpValue02 );
 
         CharacterAnimBlendTree btree;
         btree._branch[ECharacterAnimBranch::eROOT] = bxAnim_BlendBranch( ECharacterAnimLeaf::eIDLE | bxAnim::eBLEND_TREE_LEAF, ECharacterAnimBranch::eMOTION| bxAnim::eBLEND_TREE_BRANCH, rootBlendAlpha );
@@ -945,7 +958,7 @@ namespace bx
         btree._leaf[ECharacterAnimLeaf::eIDLE] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eIDLE], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eIDLE]->duration ) );
         btree._leaf[ECharacterAnimLeaf::eWALK] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eWALK], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eWALK]->duration ) );
         btree._leaf[ECharacterAnimLeaf::eRUN]  = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eRUN] , ::fmod( timeS, canim->_clip[ECharacterAnimClip::eRUN]->duration ) );
-        btree._leaf[ECharacterAnimLeaf::eJUMP] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eJUMP], canim->_clip[ECharacterAnimClip::eJUMP]->duration * jumpBlendAlpha );
+        btree._leaf[ECharacterAnimLeaf::eJUMP] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eJUMP], canim->_clip[ECharacterAnimClip::eJUMP]->duration * jumpEvalTime );
         
         bxAnim::evaluateBlendTree( canim->_animCtx
                                    , ECharacterAnimBranch::eROOT | bxAnim::eBLEND_TREE_BRANCH

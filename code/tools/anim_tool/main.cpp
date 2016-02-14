@@ -1,7 +1,7 @@
 #include "anim_tool.h"
 #include <iostream>
 
-#define ANIM_TOOL_TEST
+//#define ANIM_TOOL_TEST
 
 int main( int argc, char** argv )
 {
@@ -10,7 +10,7 @@ int main( int argc, char** argv )
     //const char* input_file = "d:/tmp/bitBox/assets/.src/anim/run.bvh";// argv[1];
     //const char* output_anim = "d:/tmp/bitBox/assets/anim/run.anim"; // ( argc > 2 ) ? argv[2] : 0;
     //const char* output_skel = "d:/tmp/bitBox/assets/anim/human.skel";
-    const char* input_file =  "d:/dev/code/bitBox/assets/.src/anim/jump.bvh";// argv[1];
+    const char* input_file =  "d:/dev/code/bitBox/assets/.src/anim/jump1.bvh";// argv[1];
     const char* output_anim = "d:/dev/code/bitBox/assets/anim/jump.anim"; // ( argc > 2 ) ? argv[2] : 0;
     const char* output_skel = "d:/dev/code/bitBox/assets/anim/human.skel";
 

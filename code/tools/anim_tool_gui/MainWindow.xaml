@@ -1,0 +1,27 @@
+﻿<Window x:Class="anim_tool_gui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:anim_tool_gui"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="350" Width="381.193">
+    <Grid>
+        <ListView x:Name="listView" HorizontalAlignment="Left" Height="218" Margin="10,92,0,0" VerticalAlignment="Top" Width="259" >
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Name" Width="120" DisplayMemberBinding="{Binding Name}" />
+                </GridView>
+            </ListView.View>
+        </ListView>
+        <Button x:Name="exportSkel" Content="Export Skel" HorizontalAlignment="Left" Margin="274,92,0,0" VerticalAlignment="Top" Width="75" Click="exportSkel_Click"/>
+        <Button x:Name="exportAnim" Content="Export Anim" HorizontalAlignment="Left" Margin="274,119,0,0" VerticalAlignment="Top" Width="75" Click="exportAnim_Click" RenderTransformOrigin="0.551,2.182"/>
+        <TextBox x:Name="srcDir" HorizontalAlignment="Left" Height="23" Margin="10,10,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="259"/>
+        <TextBox x:Name="dstDir" HorizontalAlignment="Left" Height="23" Margin="10,37,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="259"/>
+        <Button x:Name="selectSrcDir" Content="Select Src Dir" HorizontalAlignment="Left" Margin="274,11,0,0" VerticalAlignment="Top" Width="89" Click="selectSrcDir_Click"/>
+        <Button x:Name="selectDstDir" Content="Select Dst Dir" HorizontalAlignment="Left" Margin="274,38,0,0" VerticalAlignment="Top" Width="89" Click="selectDstDir_Click"/>
+        <TextBox x:Name="binDir" HorizontalAlignment="Left" Height="23" Margin="10,64,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="259"/>
+        <Button x:Name="selectBinDir" Content="Select Bin Dir" HorizontalAlignment="Left" Margin="274,64,0,0" VerticalAlignment="Top" Width="89" Click="selectBinDir_Click"/>
+
+    </Grid>
+</Window>
