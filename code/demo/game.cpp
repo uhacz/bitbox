@@ -484,6 +484,46 @@
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+namespace bx
+{
+    struct FuzzyFunction
+    {
+        enum EType : u32
+        {
+            eLINEAR = 0,
+            eSPLINE,
+        };
+        struct Point
+        {
+            f32 x, y;
+        };
+        EType type;
+        bxTag64 name;
+        Point points[4];
+        f32 xmin;
+        f32 xmax;
+
+        float evaluateLinear( float t )
+        {
+            
+        }
+        float evaluateSpline( float t )
+        {
+        
+        }
+    };
+    float fuzzyFunctionEvalueate( const FuzzyFunction& ff, float x )
+    {
+        float t = linearstep( ff.xmin, ff.xmax, x );
+        switch( type )
+        {
+        case FuzzyFunction::eLINEAR: return ff.evaluateLinear( t );
+        case FuzzyFunction::eSPLINE: return ff.evaluateSpline( t );
+        default: return 0.f;
+        }
+    }
+}///
+
 
 namespace bx
 {
