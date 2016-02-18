@@ -491,34 +491,83 @@ namespace bx
         enum EType : u32
         {
             eLINEAR = 0,
-            eSPLINE,
+            eCOSINE,
         };
+
         struct Point
         {
             f32 x, y;
         };
         EType type;
         bxTag64 name;
-        Point points[4];
+        f32 pointX[4];
+        f32 pointY[4];
         f32 xmin;
         f32 xmax;
 
-        float evaluateLinear( float t )
+        void init( const char* nam, EType typ, float xmi, float xma )
         {
-            
+            SYS_ASSERT( strlen( nam ) <= 8 );
+            type = typ;
+            name = bxTag64( nam );
+            xmin = xmi;
+            xmax = xma;
         }
-        float evaluateSpline( float t )
+        void pointSet( int index, float x, float y )
         {
-        
+            pointX[index] = linearstep( xmin, xmax, x );
+            pointY[index] = y;
+        }
+
+        void findSpan( int* index0, int* index1, float* u, float t ) const
+        {
+            SYS_ASSERT( t >= 0.f && t <= 1.0f );
+            
+            int i0 = 0;
+            int i1 = 0;
+            while( t > pointX[i1] )
+                ++i1;
+
+            if( i1 == 0 )
+            {
+                index0[0] = 0;
+                index1[0] = 1;
+                u[0] = 0.f;
+            }
+            else
+            {
+                index0[0] = i1-1;
+                index1[0] = i1;
+                u[0] = linearstep( pointX[i1-1], pointX[i1], t );
+            }
+        }
+
+        float evaluateLinear( float t ) const 
+        {
+            int index0 = 0;
+            int index1 = 0;
+            float u = 0.f;
+            findSpan( &index0, &index1, &u, t );
+            return lerp( u, pointY[index0], pointY[index1] );
+        }
+        float evaluateCosine( float t ) const
+        {
+            int index0 = 0;
+            int index1 = 0;
+            float u = 0.f;
+            findSpan( &index0, &index1, &u, t );
+
+            const float u2 = ( 1.f - ::cos( u * PI ) ) * 0.5f;
+            return lerp( u2, pointY[index0], pointY[index1] );
         }
     };
-    float fuzzyFunctionEvalueate( const FuzzyFunction& ff, float x )
+    float fuzzyFunctionEvaluate( const FuzzyFunction& ff, float x )
     {
         float t = linearstep( ff.xmin, ff.xmax, x );
-        switch( type )
+        switch( ff.type )
         {
         case FuzzyFunction::eLINEAR: return ff.evaluateLinear( t );
-        case FuzzyFunction::eSPLINE: return ff.evaluateSpline( t );
+        case FuzzyFunction::eCOSINE: return ff.evaluateCosine( t );
         default: return 0.f;
         }
     }
@@ -626,6 +675,8 @@ namespace bx
 		const f32 _deltaTimeInv = 60.f;
 		const f32 _deltaTime = 1.f / 60.f;
 
+        FuzzyFunction _ff0;
+
         void _Init( GameScene* scene, const Matrix4& worldPose )
         {
             _dstate0.setPose( worldPose );
@@ -642,6 +693,13 @@ namespace bx
             cctDesc.upDirection = _upDir;
             bool bres = phxCCTCreate( &_cct, scene->phxScene, cctDesc );
             SYS_ASSERT( bres );
+
+            _ff0.init( "small", FuzzyFunction::eLINEAR, 0.f, 1.f );
+            _ff0.pointSet( 0, 0.f, 1.f );
+            _ff0.pointSet( 1, 0.2f, 1.f );
+            _ff0.pointSet( 2, 0.8f, 0.5f );
+            _ff0.pointSet( 3, 1.0f, 0.f );
+
         }
 
         void _Deinit( GameScene* scene )
@@ -879,6 +937,20 @@ namespace bx
                 ImGui::Text( "speed: %f", length( velocityXZ ).getAsFloat() );
                 ImGui::Text( "jump: %f", _jumpValue01 );
                 ImGui::Text( "jump2: %f", _jumpValue02 );
+            }
+            ImGui::End();
+
+
+            float y[100];
+            for( int i = 0; i < 100; ++i )
+            {
+                float t = (float)i / ( 99 );
+                y[i] = fuzzyFunctionEvaluate( _ff0, t );
+            }
+
+            if( ImGui::Begin( "FuzzyFunction" ) )
+            {
+                ImGui::PlotLines( "small", y, 100, 0, nullptr, 0.f, 1.f, ImVec2( 0, 80 ) );
             }
             ImGui::End();
 
