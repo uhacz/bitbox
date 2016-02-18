@@ -494,16 +494,22 @@ namespace bx
             eCOSINE,
         };
 
-        struct Point
-        {
-            f32 x, y;
-        };
         EType type;
-        bxTag64 name;
         f32 pointX[4];
         f32 pointY[4];
         f32 xmin;
         f32 xmax;
+        bxTag64 name;
+
+        FuzzyFunction()
+        {
+            type = eLINEAR;
+            memset( pointX, 0x00, sizeof( pointX ) );
+            memset( pointY, 0x00, sizeof( pointY ) );
+            xmin = 0.f;
+            xmax = 1.f;
+            name = bxTag64( "none" );
+        }
 
         void init( const char* nam, EType typ, float xmi, float xma )
         {
@@ -571,6 +577,47 @@ namespace bx
         default: return 0.f;
         }
     }
+
+
+    struct CharacterLogic
+    {
+        enum EFunction
+        {
+            eIN_FUZZY_VELH_LOW = 0,
+            eIN_FUZZY_VELH_HIGH,
+
+            eIN_FUZZY_COUNT,
+
+            eOUT_FUZZY_WALK = 0,
+            eOUT_FUZZY_RUN,
+        };
+
+        FuzzyFunction inFuzzyFunc[eFUZZY_COUNT];
+        FuzzyFunction outFuzzyFunc[
+        f32 fuzzyValue[eFUZZY_COUNT];
+
+        void init()
+        {
+            {
+                FuzzyFunction& ff = fuzzyFunc[eFUZZY_VELH_LOW];
+                ff.init( "vhLOW", FuzzyFunction::eLINEAR, 0.f, 2.5f );
+                ff.pointSet( 0, 0.0f, 0.0f );
+                ff.pointSet( 1, 0.5f, 1.0f );
+                ff.pointSet( 2, 1.0f, 1.0f );
+                ff.pointSet( 3, 2.5f, 1.0f );
+            }
+
+            {
+                FuzzyFunction& ff = fuzzyFunc[eFUZZY_VELH_HIGH];
+                ff.init( "vhHIGH", FuzzyFunction::eLINEAR, 0.f, 2.5f );
+                ff.pointSet( 0, 0.5f, 0.f );
+                ff.pointSet( 1, 2.0f, 1.f );
+                ff.pointSet( 2, 2.5f, 1.f );
+                ff.pointSet( 3, 2.5f, 1.f );
+            }
+        }
+    };
+
 }///
 
 
