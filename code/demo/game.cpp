@@ -499,7 +499,6 @@ namespace bx
         f32 pointY[4];
         f32 xmin;
         f32 xmax;
-        bxTag64 name;
 
         FuzzyFunction()
         {
@@ -508,14 +507,11 @@ namespace bx
             memset( pointY, 0x00, sizeof( pointY ) );
             xmin = 0.f;
             xmax = 1.f;
-            name = bxTag64( "none" );
         }
 
-        void init( const char* nam, EType typ, float xmi, float xma )
+        void init( EType typ, float xmi, float xma )
         {
-            SYS_ASSERT( strlen( nam ) <= 8 );
             type = typ;
-            name = bxTag64( nam );
             xmin = xmi;
             xmax = xma;
         }
@@ -577,46 +573,46 @@ namespace bx
         default: return 0.f;
         }
     }
-
-
-    struct CharacterLogic
+    
+    struct FuzzyRule
     {
-        enum EFunction
+        enum EOperator : u8
         {
-            eIN_FUZZY_VELH_LOW = 0,
-            eIN_FUZZY_VELH_HIGH,
-
-            eIN_FUZZY_COUNT,
-
-            eOUT_FUZZY_WALK = 0,
-            eOUT_FUZZY_RUN,
+            eOR = 0,
+            eAND
         };
-
-        FuzzyFunction inFuzzyFunc[eFUZZY_COUNT];
-        FuzzyFunction outFuzzyFunc[
-        f32 fuzzyValue[eFUZZY_COUNT];
-
-        void init()
-        {
-            {
-                FuzzyFunction& ff = fuzzyFunc[eFUZZY_VELH_LOW];
-                ff.init( "vhLOW", FuzzyFunction::eLINEAR, 0.f, 2.5f );
-                ff.pointSet( 0, 0.0f, 0.0f );
-                ff.pointSet( 1, 0.5f, 1.0f );
-                ff.pointSet( 2, 1.0f, 1.0f );
-                ff.pointSet( 3, 2.5f, 1.0f );
-            }
-
-            {
-                FuzzyFunction& ff = fuzzyFunc[eFUZZY_VELH_HIGH];
-                ff.init( "vhHIGH", FuzzyFunction::eLINEAR, 0.f, 2.5f );
-                ff.pointSet( 0, 0.5f, 0.f );
-                ff.pointSet( 1, 2.0f, 1.f );
-                ff.pointSet( 2, 2.5f, 1.f );
-                ff.pointSet( 3, 2.5f, 1.f );
-            }
-        }
+        EOperator inOperator;
+        i8 inFunc0;
+        i8 inFunc1;
+        i8 outFunc;
     };
+
+    struct FuzzyLogic
+    {
+        array_t< bxTag64 > _funcName;
+        array_t< FuzzyFunction > _func;
+        array_t< FuzzyRule > _rules;
+
+        array_t< f32 > _inputValue;
+        array_t< f32 > _fuzzyValue;
+        array_t< i32 > _activeRule;
+        
+        int functionAdd( FuzzyFunction* outFunc, const char* name );
+        int rulaAdd( int inIndex0, int inIndex1, int outIndex, FuzzyRule::EOperator op );
+
+        int inputValueSet( const char* name, float value );
+
+        void fuzzification();
+        void inference();
+        float defuzzification();
+    };
+
+    float fuzzyLogicCompute( FuzzyLogic* fuzzy )
+    {
+        fuzzy->fuzzification();
+        fuzzy->inference();
+        return fuzzy->defuzzification();
+    }
 
 }///
 
