@@ -97,7 +97,7 @@ namespace bx
     {
         Vector3 _upVector = Vector3::yAxis();
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
-        f32 _tileSize = 25.f;
+        f32 _tileSize = 7.53f;
         f32 _tileSizeInv = 1.f / _tileSize;
         i32 _radius = 8;
         i32 _tileSubdiv = 5;

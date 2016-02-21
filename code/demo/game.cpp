@@ -515,10 +515,14 @@ namespace bx
             xmin = xmi;
             xmax = xma;
         }
-        void pointSet( int index, float x, float y )
+
+        float range() const { return xmax - xmin; }
+
+        FuzzyFunction& pointSet( int index, float x, float y )
         {
             pointX[index] = linearstep( xmin, xmax, x );
             pointY[index] = y;
+            return *this;
         }
 
         void findSpan( int* index0, int* index1, float* u, float t ) const
@@ -573,45 +577,348 @@ namespace bx
         default: return 0.f;
         }
     }
+    float fuzzyFunctionEvaluateNormalized( const FuzzyFunction& ff, float t )
+    {
+        switch( ff.type )
+        {
+        case FuzzyFunction::eLINEAR: return ff.evaluateLinear( t );
+        case FuzzyFunction::eCOSINE: return ff.evaluateCosine( t );
+        default: return 0.f;
+        }
+    }
     
     struct FuzzyRule
     {
-        enum EOperator : u8
+        enum EOperator : u16
         {
-            eOR = 0,
+            eNONE = 0,
+            eOR,
             eAND
         };
-        EOperator inOperator;
-        i8 inFunc0;
-        i8 inFunc1;
-        i8 outFunc;
-    };
+        EOperator inOperator = eNONE;
+        i8 inVar0 = -1;
+        i8 inVar1 = -1;
+        i8 outVar = -1;
+        i8 inFunc0 = -1;
+        i8 inFunc1 = -1;
+        i8 outFunc = -1;
 
+        bool isValid() const
+        {
+            return ( inVar0 != -1 ) && ( inFunc0 != -1 ) && ( outFunc != -1 ) && ( outVar != -1 );
+        }
+
+        bool isComplex() const
+        {
+            return ( inVar1 != -1 ) && ( inFunc1 != -1 );
+        }
+    };
+    struct FuzzyRuleContext
+    {
+        f32 inValue0 = 0.f;
+        f32 inValue1 = 0.f;
+        f32 outValue = 0.f;
+    };
+    
     struct FuzzyLogic
     {
-        array_t< bxTag64 > _funcName;
-        array_t< FuzzyFunction > _func;
-        array_t< FuzzyRule > _rules;
+        enum
+        {
+            eMAX_INPUT_VAR = 4,
+            eMAX_OUTPUT_VAR = 4,
+            eMAX_FUNC = 16,
+            eMAX_RULES = 16,
+        };
 
-        array_t< f32 > _inputValue;
-        array_t< f32 > _fuzzyValue;
-        array_t< i32 > _activeRule;
+        bxTag64 _inputName[eMAX_INPUT_VAR];
+        bxTag64 _outputName[eMAX_OUTPUT_VAR];
+        bxTag64 _funcName[eMAX_FUNC];
+
+        FuzzyFunction _func[eMAX_FUNC];
+        FuzzyRule _rule[eMAX_RULES];
+        FuzzyRuleContext _ruleContext[eMAX_RULES];
+
+        f32 _valueIn[eMAX_INPUT_VAR];
+        f32 _valueOut[eMAX_OUTPUT_VAR];
+
+        //f32 _valueFuzzy[eMAX_FUNC];
+        //f32 _valueFuzzyOut[eMAX_RULES];
+        //u8 _activeRule[eMAX_RULES];
+
+        i8 _numInput = 0;
+        i8 _numOutput = 0;
+        i8 _numFunc = 0;
+        i8 _numRule = 0;
         
-        int functionAdd( FuzzyFunction* outFunc, const char* name );
-        int rulaAdd( int inIndex0, int inIndex1, int outIndex, FuzzyRule::EOperator op );
+        int _FindName( const char* name, const bxTag64* container, int n )
+        {
+            const u64 nameTag = bxTag64( name );
+            for( int i = 0; i < n; ++i )
+            {
+                if( nameTag == container[i] )
+                    return i;
+            }
+            return -1;
+        }
 
-        int inputValueSet( const char* name, float value );
+        int inputVarAdd( const char* name )
+        {
+            if( _numInput >= eMAX_INPUT_VAR )
+                return -1;
 
-        void fuzzification();
-        void inference();
-        float defuzzification();
+            int found = _FindName( name, _inputName, _numInput );
+            if( found != -1 )
+            {
+                return found;
+            }
+
+            int index = _numInput++;
+            _inputName[index] = bxTag64( name );
+            _valueIn[index] = 0.f;
+            return index;
+        }
+
+        int outputVarAdd( const char* name )
+        {
+            if( _numOutput >= eMAX_OUTPUT_VAR )
+                return -1;
+
+            int found = _FindName( name, _outputName, _numOutput );
+            if( found != -1 )
+            {
+                return found;
+            }
+
+            int index = _numOutput++;
+            _outputName[index] = bxTag64( name );
+            _valueOut[index] = 0.f;
+            return index;
+        }
+
+        FuzzyFunction* functionAdd( const char* name )
+        {
+            if( _numFunc >= eMAX_FUNC )
+                return nullptr;
+
+            SYS_ASSERT( strlen( name ) <= 8 );
+            const bxTag64 nameTag = bxTag64( name );
+            const int found = _FindName( name, _funcName, _numFunc );
+            if( found != -1 )
+            {
+                //bxLogWarning( "%s functions '%s' already exists!", name );
+                return &_func[found];
+            }
+
+            const int index = _numFunc++;
+            _funcName[index] = nameTag;
+            //_valueFuzzy[index] = 0.f;
+            return &_func[index];
+        }
+
+        FuzzyLogic& IF( const char* var, const char* func )
+        {
+            SYS_ASSERT( _numRule < eMAX_RULES );
+            FuzzyRule& rule = _rule[_numRule];
+            rule.inVar0 = _FindName( var, _inputName, _numInput );
+            rule.inFunc0 = _FindName( func, _funcName, _numFunc );
+            return *this;
+        }
+        FuzzyLogic& AND( const char* var, const char* func )
+        {
+            SYS_ASSERT( _numRule < eMAX_RULES );
+            FuzzyRule& rule = _rule[_numRule];
+            rule.inVar1 = _FindName( var, _inputName, _numInput );
+            rule.inFunc1 = _FindName( func, _funcName, _numFunc );
+            rule.inOperator = FuzzyRule::eAND;
+            return *this;
+        }
+        FuzzyLogic& OR( const char* var, const char* func )
+        {
+            FuzzyRule& rule = _rule[_numRule];
+            rule.inVar1 = _FindName( var, _inputName, _numInput );
+            rule.inFunc1 = _FindName( func, _funcName, _numFunc );
+            rule.inOperator = FuzzyRule::eOR;
+            return *this;
+        }
+        void THEN( const char* var, const char* func )
+        {
+            SYS_ASSERT( _numRule < eMAX_RULES );
+            FuzzyRule& rule = _rule[_numRule];
+            rule.outVar = _FindName( var, _outputName, _numOutput );
+            rule.outFunc = _FindName( func, _funcName, _numFunc );
+            SYS_ASSERT( rule.isValid() );
+
+            _ruleContext[_numRule] = FuzzyRuleContext();
+
+            ++_numRule;
+        }
+
+//         bool rulaAdd( const char* outFunc, const char* inFunc0, const char* inFunc1 = nullptr, FuzzyRule::EOperator op = FuzzyRule::eNONE )
+//         {
+//             if( _numRule >= eMAX_RULES )
+//                 return false;
+// 
+//             int inIndex0 = -1;
+//             int inIndex1 = -1;
+//             int outIndex = -1;
+// 
+//             inIndex0 = _FindName( inFunc0, _funcName, _numFunc );
+//             if( inFunc1 )
+//                 inIndex1 = _FindName( inFunc1, _funcName, _numFunc );
+// 
+//             outIndex = _FindName( outFunc, _funcName, _numFunc );
+// 
+//             if( inIndex0 != -1 && inIndex1 != -1 && outIndex != -1 && op != FuzzyRule::eNONE )
+//             {
+//                 int ruleIndex = _numRule++;
+//                 FuzzyRule& rule = _rule[ruleIndex];
+//                 rule.inFunc0 = inIndex0;
+//                 rule.inFunc1 = inIndex1;
+//                 rule.outFunc = outIndex;
+//                 rule.inOperator = op;
+//                 _valueFuzzyOut[ruleIndex] = 0.f;
+//                 return true;
+//             }
+//             else if( inIndex0 != -1 && outIndex != -1 )
+//             {
+//                 int ruleIndex = _numRule++;
+//                 FuzzyRule& rule = _rule[ruleIndex];
+//                 rule.inFunc0 = inIndex0;
+//                 rule.inFunc1 = -1;
+//                 rule.outFunc = outIndex;
+//                 rule.inOperator = FuzzyRule::eNONE;
+//                 _valueFuzzyOut[ruleIndex] = 0.f;
+//                 return true;
+//             }
+//             return false;
+//         }
+
+        bool inputValueSet( const char* name, float value )
+        {
+            const u64 nameTag = bxTag64( name );
+            int index = _FindName( name, _inputName, _numInput );
+            if( index == -1 )
+                return false;
+
+            _valueIn[index] = value;
+            return true;
+        }
+        bool outputValueGet( float* value, const char* name )
+        {
+            const u64 nameTag = bxTag64( name );
+            int index = _FindName( name, _outputName, _numOutput );
+            if( index == -1 )
+                return false;
+
+            value[0] = _valueOut[index];
+            return true;
+        }
+
+        void fuzzification()
+        {
+            for( int i = 0; i < _numRule; ++i )
+            {
+                const FuzzyRule& r = _rule[i];
+                SYS_ASSERT( r.isValid() );
+
+                FuzzyRuleContext& rCtx = _ruleContext[i];
+
+                const float v0 = _valueIn[r.inVar0];
+                const FuzzyFunction& f0 = _func[r.inFunc0];
+
+                rCtx.inValue0 = fuzzyFunctionEvaluate( f0, v0 );
+                
+                if( r.isComplex() )
+                {
+                    const float v1 = _valueIn[r.inVar1];
+                    const FuzzyFunction& f1 = _func[r.inFunc1];
+
+                    rCtx.inValue1 = fuzzyFunctionEvaluate( f1, v1 );
+                }
+            }
+        }
+        void inference()
+        {
+            for( int i = 0; i < _numRule; ++i )
+            {
+                const FuzzyRule& rule = _rule[i];
+                SYS_ASSERT( rule.isValid() );
+                FuzzyRuleContext& rCtx = _ruleContext[i];
+                
+                
+                if( !rule.isComplex() )
+                {
+                    rCtx.outValue = rCtx.inValue0;
+                    //_valueFuzzyOut[i] = _valueFuzzy[rule.inFunc0];
+                }
+                else
+                {
+                    const float v0 = rCtx.inValue0;
+                    const float v1 = rCtx.inValue1;
+                    switch( rule.inOperator )
+                    {
+                    case FuzzyRule::eAND:
+                        rCtx.outValue = v0 * v1;
+                        break;
+                    case FuzzyRule::eOR:
+                        rCtx.outValue = 1.f - ( 1.f - v0 ) * ( 1.f - v1 );
+                        break;
+                    default:
+                        SYS_ASSERT( false );
+                        break;
+                    }
+                }
+            }
+        }
+        void defuzzification()
+        {
+            float sum[eMAX_OUTPUT_VAR];
+            float sumWeighted[eMAX_OUTPUT_VAR];
+            memset( sum, 0x00, sizeof( sum ) );
+            memset( sumWeighted, 0x00, sizeof( sumWeighted ) );
+            
+            const int INTEGRATION_STEPS = 50;
+            const float stepSize = 1.f / float( INTEGRATION_STEPS - 1 );
+            
+            for( int i = 0; i < _numRule; ++i )
+            {
+                const FuzzyRule& r = _rule[i];
+                const FuzzyRuleContext& rCtx = _ruleContext[i];
+
+                const float mu = rCtx.outValue;
+                
+                if( mu < FLT_EPSILON )
+                    continue;
+
+                const FuzzyFunction& outFunction = _func[r.outFunc];
+                const float functionRange = outFunction.range();
+                const float a = functionRange * stepSize;
+                float t = 0.f;
+                for( int j = 0; j < INTEGRATION_STEPS; ++j )
+                {
+                    float value = fuzzyFunctionEvaluateNormalized( outFunction, t );
+                    float s = value * a;
+                    sum[r.outVar] += s;
+                    sumWeighted[r.outVar] += s * mu;
+
+                    t += stepSize;
+                }
+            }
+
+            for( int i = 0; i < _numOutput; ++i )
+            {
+                float s = sum[i];
+                float sw = sumWeighted[i];
+                _valueOut[i] = ( s > FLT_EPSILON ) ? sw / s : 0.f;
+            }
+        }
     };
 
-    float fuzzyLogicCompute( FuzzyLogic* fuzzy )
+    void fuzzyLogicCompute( FuzzyLogic* fuzzy )
     {
         fuzzy->fuzzification();
         fuzzy->inference();
-        return fuzzy->defuzzification();
+        fuzzy->defuzzification();
     }
 
 }///
@@ -685,6 +992,16 @@ namespace bx
 			f32 R2 = 0.f;
 		};
 
+        struct State
+        {
+            f32 motionForward = 0.f;
+            f32 runForward = 0.f;
+            f32 motionUp = 0.f;
+            f32 motionDown = 0.f;
+            f32 motionLeft = 0.f;
+            f32 motionRight = 0.f;
+        };
+
         struct DynamicState
         {
             Vector3 _pos0 = Vector3(0.f);
@@ -714,11 +1031,15 @@ namespace bx
         f32 _jumpValue01 = 0.f;
         f32 _jumpValue02 = 0.f;
 
+        State _state;
+
         f32 timeAcc_ = 0.f;
 		const f32 _deltaTimeInv = 60.f;
 		const f32 _deltaTime = 1.f / 60.f;
 
-        FuzzyFunction _ff0;
+        FuzzyLogic _fuzzyLogic;
+
+        //FuzzyFunction _ff0;
 
         void _Init( GameScene* scene, const Matrix4& worldPose )
         {
@@ -737,11 +1058,62 @@ namespace bx
             bool bres = phxCCTCreate( &_cct, scene->phxScene, cctDesc );
             SYS_ASSERT( bres );
 
-            _ff0.init( "small", FuzzyFunction::eLINEAR, 0.f, 1.f );
-            _ff0.pointSet( 0, 0.f, 1.f );
-            _ff0.pointSet( 1, 0.2f, 1.f );
-            _ff0.pointSet( 2, 0.8f, 0.5f );
-            _ff0.pointSet( 3, 1.0f, 0.f );
+            //_ff0.init( "small", FuzzyFunction::eLINEAR, 0.f, 1.f );
+            //_ff0.pointSet( 0, 0.f, 1.f );
+            //_ff0.pointSet( 1, 0.2f, 1.f );
+            //_ff0.pointSet( 2, 0.8f, 0.5f );
+            //_ff0.pointSet( 3, 1.0f, 0.f );
+
+            _fuzzyLogic.inputVarAdd( "vel");
+            _fuzzyLogic.inputVarAdd( "run" );
+            _fuzzyLogic.outputVarAdd( "motion" );
+            _fuzzyLogic.outputVarAdd( "running" );
+
+            FuzzyFunction* f = nullptr;
+            {
+                f = _fuzzyLogic.functionAdd( "vlow" );
+                f->init( FuzzyFunction::eLINEAR, 0.f, 1.f );
+                f->pointSet( 0, 0.f, 0.f );
+                f->pointSet( 1, 0.2f, 1.f );
+                f->pointSet( 2, 0.8f, 0.5f );
+                f->pointSet( 3, 1.0f, 0.f );
+                
+                f = _fuzzyLogic.functionAdd( "vhigh" );
+                f->init( FuzzyFunction::eLINEAR, 0.25f, 3.0f );
+                f->pointSet( 0, 0.25f, 0.f );
+                f->pointSet( 1, 0.7f, 0.5f );
+                f->pointSet( 2, 1.5f, 1.0f );
+                f->pointSet( 3, 3.0f, 1.0f );
+            }
+            {
+                f = _fuzzyLogic.functionAdd( "locoLow" );
+                f->init( FuzzyFunction::eCOSINE, 0.0f, 1.0f );
+                f->pointSet( 0, 0.0f, 0.f );
+                f->pointSet( 1, 0.25f, 1.0f );
+                f->pointSet( 2, 0.5f, 0.0f );
+                f->pointSet( 3, 0.0f, 0.0f );
+
+                f = _fuzzyLogic.functionAdd( "locoHigh" );
+                f->init( FuzzyFunction::eCOSINE, 0.0f, 1.0f );
+                f->pointSet( 0, 0.25f, 0.0f );
+                f->pointSet( 1, 0.5f, 0.5f );
+                f->pointSet( 2, 1.0f, 1.0f );
+                f->pointSet( 3, 1.0f, 1.0f );
+            }
+
+            {
+                f = _fuzzyLogic.functionAdd( "irun" );
+                f->init( FuzzyFunction::eCOSINE, 0.f, 1.f );
+                f->pointSet( 0, 0.f, 0.f ).pointSet( 1, 1.f, 1.f ).pointSet( 2, 1.f, 1.f ).pointSet( 3, 1.f, 1.f );
+
+                f = _fuzzyLogic.functionAdd( "orun" );
+                f->init( FuzzyFunction::eCOSINE, 0.f, 1.f );
+                f->pointSet( 0, 0.f, 0.f ).pointSet( 1, 1.f, 1.f ).pointSet( 2, 1.f, 1.f ).pointSet( 3, 1.f, 1.f );
+            }
+
+            _fuzzyLogic.IF( "vel", "vlow" ).THEN( "motion", "locoLow" );
+            _fuzzyLogic.IF( "vel", "vhigh" ).THEN( "motion", "locoHigh" );
+            _fuzzyLogic.IF( "vel", "vhigh" ).AND( "run", "irun" ).THEN( "running", "orun" );
 
         }
 
@@ -975,27 +1347,49 @@ namespace bx
             //bxGfxDebugDraw::addSphere( Vector4( _dstate0._pos0, _geometry0.sphere.radius ), 0xFFFF00FF, 1 );
 
             const Vector3 velocityXZ = projectVectorOnPlane( _dstate0._vel, makePlane( _upDir, Vector3( 0.f ) ) );
+            const float speedXZ = length( velocityXZ ).getAsFloat();
+            _fuzzyLogic.inputValueSet( "vel", speedXZ );
+            _fuzzyLogic.inputValueSet( "run", linearstep( 2.f, 2.7f, speedXZ ) );
+            fuzzyLogicCompute( &_fuzzyLogic );
+
+            {
+                float v;
+                _fuzzyLogic.outputValueGet( &v, "motion" );
+                _state.motionForward = signalFilter_lowPass( v, _state.motionForward, 0.1f, deltaTime );
+            }
+            {
+                float v;
+                _fuzzyLogic.outputValueGet( &v, "running" );
+                _state.runForward = signalFilter_lowPass( v, _state.runForward, 0.1f, deltaTime );
+            }
+            //_fuzzyLogic.outputValueGet( &_state.runForward, "" );
+
+
             if( ImGui::Begin( "CharacterController" ) )
             {
                 ImGui::Text( "speed: %f", length( velocityXZ ).getAsFloat() );
                 ImGui::Text( "jump: %f", _jumpValue01 );
                 ImGui::Text( "jump2: %f", _jumpValue02 );
+
+                ImGui::Text( "motion: %f", _state.motionForward );
+                ImGui::Text( "running: %f", _state.runForward );
             }
             ImGui::End();
 
+            
 
-            float y[100];
-            for( int i = 0; i < 100; ++i )
-            {
-                float t = (float)i / ( 99 );
-                y[i] = fuzzyFunctionEvaluate( _ff0, t );
-            }
+            //float y[100];
+            //for( int i = 0; i < 100; ++i )
+            //{
+            //    float t = (float)i / ( 99 );
+            //    y[i] = fuzzyFunctionEvaluate( _ff0, t );
+            //}
 
-            if( ImGui::Begin( "FuzzyFunction" ) )
-            {
-                ImGui::PlotLines( "small", y, 100, 0, nullptr, 0.f, 1.f, ImVec2( 0, 80 ) );
-            }
-            ImGui::End();
+            //if( ImGui::Begin( "FuzzyFunction" ) )
+            //{
+            //    ImGui::PlotLines( "small", y, 100, 0, nullptr, 0.f, 1.f, ImVec2( 0, 80 ) );
+            //}
+            //ImGui::End();
 
         }
 
@@ -1094,10 +1488,10 @@ namespace bx
         
         const float speed = length( ccVelocity ).getAsFloat();
         const float jumpBlendAlpha = smoothstep( 0.f, 0.9f, ccImpl->_jumpValue01 );
-        const float rootBlendAlpha = maxOfPair( smoothstep( 0.02f, 1.5f, speed ), jumpBlendAlpha );
+        const float rootBlendAlpha = ccImpl->_state.motionForward; // maxOfPair( smoothstep( 0.02f, 1.5f, speed ), jumpBlendAlpha );
         //const float runBlendAlpha = ccImpl->_input.L2;// linearstep( 2.2f, 2.5f, speedXZ );
         
-        if( ccImpl->_input.L2 )
+        if( ccImpl->_state.runForward )
             canim->_runBlendAlpha += deltaTimeS;
         else
             canim->_runBlendAlpha -= deltaTimeS;
