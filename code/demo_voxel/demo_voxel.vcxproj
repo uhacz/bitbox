@@ -61,7 +61,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>Xinput9_1_0.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;dxguid.lib;libconfig.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Xinput9_1_0.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;dxguid.lib;libconfig.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CharacterKinematicCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CommonCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CookingCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3ExtensionsCHECKED.lib;$(PHYSX_SDK)\Lib\win64\PxTaskCHECKED.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -96,6 +96,9 @@
     </ProjectReference>
     <ProjectReference Include="..\gfx\gfx.vcxproj">
       <Project>{f3b3bc37-9aaa-4b41-af4e-144c1317f283}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\phx\phx.vcxproj">
+      <Project>{2f15f600-6dda-4beb-a95f-eab6abcd71bc}</Project>
     </ProjectReference>
     <ProjectReference Include="..\resource_manager\resource_manager.vcxproj">
       <Project>{117290a3-4a22-4c58-9ac0-ed1c8efa49e3}</Project>

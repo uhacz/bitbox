@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo", "code\demo\demo.vcxproj", "{5F629FF1-027F-46DE-9FD9-FFB264626895}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -34,6 +34,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "voxel", "code\voxel\voxel.v
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo_voxel", "code\demo_voxel\demo_voxel.vcxproj", "{EE5FE887-5D56-4693-8C38-87422EDA9DBF}"
 	ProjectSection(ProjectDependencies) = postProject
+		{2F15F600-6DDA-4BEB-A95F-EAB6ABCD71BC} = {2F15F600-6DDA-4BEB-A95F-EAB6ABCD71BC}
 		{752EE42B-6767-4D1C-8CE2-227E00965D51} = {752EE42B-6767-4D1C-8CE2-227E00965D51}
 	EndProjectSection
 EndProject

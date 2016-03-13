@@ -81,21 +81,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="voxel.cpp" />
-    <ClCompile Include="voxel_container.cpp" />
-    <ClCompile Include="voxel_file.cpp" />
-    <ClCompile Include="voxel_gfx.cpp" />
-    <ClCompile Include="voxel_octree.cpp" />
-    <ClCompile Include="voxel_scene.cpp" />
-    <ClCompile Include="voxel_util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="voxel.h" />
-    <ClInclude Include="voxel_container.h" />
-    <ClInclude Include="voxel_file.h" />
-    <ClInclude Include="voxel_gfx.h" />
-    <ClInclude Include="voxel_octree.h" />
-    <ClInclude Include="voxel_scene.h" />
-    <ClInclude Include="voxel_type.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
