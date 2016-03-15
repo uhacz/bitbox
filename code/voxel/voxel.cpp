@@ -2,6 +2,7 @@
 #include <util/memory.h>
 #include <util/buffer_utils.h>
 #include <util/containers.h>
+#include <util/bbox.h>
 #include <string.h>
 
 //#include <gdi/gdi_backend.h>
@@ -80,13 +81,9 @@ namespace bx
     {
         u16 children[8];
     };
-    struct OctreeNode
-    {
-        u16 child_index = 0xFFFF;
-        u16 unused = 0xFFFF;
-    };
     struct Octree
     {
+        static const int ROOT_INDEX = 0;
         //// 
         struct Data
         {
@@ -95,7 +92,6 @@ namespace bx
             void* memory_handle = nullptr;
 
             Vector4* pos_size;
-            OctreeNode* nodes = nullptr;
             OctreeNodeData* nodes_data = nullptr;
             OctreeChild* children = nullptr;
         } _data;
@@ -106,7 +102,6 @@ namespace bx
         {
             int mem_size = 0;
             mem_size += newCapacity * sizeof( *_data.pos_size );
-            mem_size += newCapacity * sizeof( *_data.nodes );
             mem_size += newCapacity * sizeof( *_data.nodes_data );
             mem_size += newCapacity * sizeof( *_data.children );
 
@@ -120,7 +115,6 @@ namespace bx
 
             bxBufferChunker chunker( mem_handle, mem_size );
             newData.pos_size = chunker.add< Vector4 >( newCapacity );
-            newData.nodes = chunker.add< OctreeNode >( newCapacity );
             newData.nodes_data = chunker.add< OctreeNodeData >( newCapacity );
             newData.children = chunker.add< OctreeChild >( newCapacity );
 
@@ -129,7 +123,6 @@ namespace bx
             if( size )
             {
                 BX_CONTAINER_COPY_DATA( &newData, &_data, pos_size );
-                BX_CONTAINER_COPY_DATA( &newData, &_data, nodes );
                 BX_CONTAINER_COPY_DATA( &newData, &_data, nodes_data );
                 BX_CONTAINER_COPY_DATA( &newData, &_data, children );
             }
@@ -150,11 +143,19 @@ namespace bx
 
             int index = _data.size++;
             _data.pos_size[index] = Vector4( pos, size );
-            _data.nodes[index] = OctreeNode();
             _data.nodes_data[index] = octreeNodeDataMake( data );
             memset( _data.children + index, 0xff, sizeof( OctreeChild ) );
             return index;
         }
+
+        void nodeAABB( int index )
+        {
+            const Vector4& pos_size = _data.pos_size[index];
+            const Vector3 pos = pos_size.getXYZ();
+            Vector3 ext( _data.pos_size[index].getW() * halfVec );
+            return bxAABB( pos - ext, pos + ext );
+        }
+
     };
 
     void octreeCreate( Octree** octPtr, float size )
@@ -170,9 +171,20 @@ namespace bx
         BX_DELETE0( bxDefaultAllocator(), octPtr[0] );
     }
 
-    int octreePointInsert( Octree* oct, const Vector3 pos )
+    namespace
     {
-        
+        void octreePointInsertR( int* outNodeIndex, Octree* oct, int currentNodeIndex, const Vector3& point )
+        {
+            bxAABB nodeAABB = oct->nodeAABB( currentNodeIndex );
+            bool collision = bxAABB::
+        }
+    }
+
+
+    int octreePointInsert( Octree* oct, const Vector3 point )
+    {
+        int nodeIndex = -1;
+        octreePointInsertR( &nodeIndex, oct, Octree::ROOT_INDEX, point );
     }
     OctreeNodeData octreeDataGet( Octree* oct, int nodeIndex )
     {
