@@ -71,15 +71,16 @@
 
 namespace bx
 {
-    OctreeNodeData octreeNodeDataMake( u32 data )
+    OctreeNodeData octreeNodeDataMake( uptr data )
     {
         OctreeNodeData ond;
         ond.value = data;
         return ond;
     }
-    struct OctreeChild
+    union OctreeChild
     {
-        u16 children[8];
+        u16 index_flat[8];
+        u16 index[2][2][2];
     };
     struct Octree
     {
@@ -136,7 +137,7 @@ namespace bx
             _data = Data();
         }
 
-        int nodeAlloc( const Vector3 pos, float size, u32 data = 0 )
+        int nodeAlloc( const Vector3 pos, float size, uptr data = 0 )
         {
             if( _data.size >= _data.capacity )
                 return -1;
@@ -148,7 +149,7 @@ namespace bx
             return index;
         }
 
-        void nodeAABB( int index )
+        bxAABB nodeAABB( int index )
         {
             const Vector4& pos_size = _data.pos_size[index];
             const Vector3 pos = pos_size.getXYZ();
@@ -173,22 +174,71 @@ namespace bx
 
     namespace
     {
-        void octreePointInsertR( int* outNodeIndex, Octree* oct, int currentNodeIndex, const Vector3& point )
+        void octreeCreateChildNode( Octree* oct, int nodeIndex, int ichild, const Vector3 offsetFromCenter )
         {
-            bxAABB nodeAABB = oct->nodeAABB( currentNodeIndex );
-            bool collision = bxAABB::
+            const Vector3 nodeCenter = oct->_data.pos_size[nodeIndex].getXYZ();
+            const floatInVec childSize = oct->_data.pos_size[nodeIndex].getW() * halfVec;
+            const Vector3 childCenter = nodeCenter + offsetFromCenter * childSize;
+
+            const int index = oct->nodeAlloc( childCenter, childSize.getAsFloat() );
+            oct->_data.children[nodeIndex].index_flat[ichild] = index;
+        }
+
+        void octreePointInsertR( int* outNodeIndex, Octree* oct, int currentNodeIndex, const Vector3& point, uptr data, float nodeSizeThreshold )
+        {
+            if( *outNodeIndex != -1 )
+                return;
+
+            const bxAABB nodeAABB = oct->nodeAABB( currentNodeIndex );
+            const bool collision = bxAABB::isPointInside( nodeAABB, point );
+            if( !collision )
+                return;
+
+            const Vector4& pos_size = oct->_data.pos_size[currentNodeIndex];
+            const float nodeSize = pos_size.getW().getAsFloat();
+           
+            if( collision && ( nodeSize <= nodeSizeThreshold ) )
+            {
+                outNodeIndex[0] = currentNodeIndex;
+                oct->_data.nodes_data[currentNodeIndex].value = data;
+                return;
+            }
+            
+            OctreeChild& children = oct->_data.children[currentNodeIndex];
+            if( children.index_flat[0] == UINT16_MAX )
+            {
+                octreeCreateChildNode( oct, currentNodeIndex, 0, Vector3( 1.f,-1.f,-1.f ) );
+                octreeCreateChildNode( oct, currentNodeIndex, 1, Vector3(-1.f,-1.f,-1.f ) );
+                octreeCreateChildNode( oct, currentNodeIndex, 2, Vector3( 1.f, 1.f,-1.f ) );
+                octreeCreateChildNode( oct, currentNodeIndex, 3, Vector3(-1.f, 1.f,-1.f ) );
+                octreeCreateChildNode( oct, currentNodeIndex, 4, Vector3( 1.f,-1.f, 1.f ) );
+                octreeCreateChildNode( oct, currentNodeIndex, 5, Vector3(-1.f,-1.f, 1.f ) );
+                octreeCreateChildNode( oct, currentNodeIndex, 6, Vector3( 1.f, 1.f, 1.f ) );
+                octreeCreateChildNode( oct, currentNodeIndex, 7, Vector3(-1.f, 1.f, 1.f ) );
+            }
+            for( int i = 0; i < 8; ++i )
+            {
+                octreePointInsertR( outNodeIndex, oct, children.index_flat[i], point, data, nodeSizeThreshold );
+            }
         }
     }
 
 
-    int octreePointInsert( Octree* oct, const Vector3 point )
+    int octreePointInsert( Octree* oct, const Vector3 point, uptr data )
     {
+        const float NODE_SIZE_THRESHOLD = 1.f + FLT_EPSILON;
         int nodeIndex = -1;
-        octreePointInsertR( &nodeIndex, oct, Octree::ROOT_INDEX, point );
+        octreePointInsertR( &nodeIndex, oct, Octree::ROOT_INDEX, point, data, NODE_SIZE_THRESHOLD );
+        return nodeIndex;
     }
     OctreeNodeData octreeDataGet( Octree* oct, int nodeIndex )
     {
+        if( nodeIndex < 0 || nodeIndex >= oct->_data.size )
+        {
+            return octreeNodeDataMake( UINT64_MAX );
+        }
 
+        return oct->_data.nodes_data[nodeIndex];
     }
     OctreeNodeData octreeDataLookup( Octree* oct, const Vector3 pos )
     {

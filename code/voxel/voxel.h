@@ -71,13 +71,13 @@ namespace bx
     struct Octree;
     struct OctreeNodeData
     {
-        u32 value = 0;
+        uptr value = 0;
     };
     
     void octreeCreate( Octree** octPtr, float size );
     void octreeDestroy( Octree** octPtr );
 
-    int octreePointInsert( Octree* oct, const Vector3 pos );
+    int octreePointInsert( Octree* oct, const Vector3 pos, uptr data );
     OctreeNodeData octreeDataGet( Octree* oct, int nodeIndex );
     OctreeNodeData octreeDataLookup( Octree* oct, const Vector3 pos );
 }///
