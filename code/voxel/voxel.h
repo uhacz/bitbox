@@ -80,6 +80,8 @@ namespace bx
     int octreePointInsert( Octree* oct, const Vector3 pos, uptr data );
     OctreeNodeData octreeDataGet( Octree* oct, int nodeIndex );
     OctreeNodeData octreeDataLookup( Octree* oct, const Vector3 pos );
+
+    void octreeDebugDraw( Octree* oct, u32 color0 = 0x00FF00FF, u32 color1 = 0xFF0000FF );
 }///
 
 namespace bx

@@ -6,7 +6,7 @@
 
 #include <gdi/gdi_context.h>
 
-//#include <voxel/voxel.h>
+#include <voxel/voxel.h>
 //#include <voxel/voxel_file.h>
 //#include <voxel/voxel_scene.h>
 //#include <voxel/voxel_gfx.h>
@@ -44,7 +44,7 @@ struct bxVoxelFramebuffer
 //    bxGfxCamera_InputContext cameraInputCtx;
 //};
 
-
+bx::Octree* octree = nullptr;
 //static bxVoxelFramebuffer fb;
 //static bxVoxel_Scene vxscene;
 class bxDemoApp : public bxApplication
@@ -53,6 +53,9 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxEngine_startup( &_engine );
+
+        bx::octreeCreate( &octree, 256.f );
+        bx::octreePointInsert( octree, Vector3( 10.f, 10.f, 10.f ), 0xff );
 
         //const int fbWidth = 1920;
         //const int fbHeight = 1080;
@@ -104,7 +107,7 @@ public:
         //{
         //    _engine.gdiDevice->releaseTexture( &fb.textures[ifb] );
         //}
-
+        bx::octreeDestroy( &octree );
         bxEngine_shutdown( &_engine );
     }
     virtual bool update( u64 deltaTimeUS )

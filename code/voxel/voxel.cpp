@@ -1,9 +1,10 @@
 #include "voxel.h"
 #include <util/memory.h>
 #include <util/buffer_utils.h>
-#include <util/containers.h>
+#include <util/array.h>
 #include <util/bbox.h>
 #include <string.h>
+#include "gfx/gfx_debug_draw.h"
 
 //#include <gdi/gdi_backend.h>
 //#include <gdi/gdi_context.h>
@@ -178,7 +179,7 @@ namespace bx
         {
             const Vector3 nodeCenter = oct->_data.pos_size[nodeIndex].getXYZ();
             const floatInVec childSize = oct->_data.pos_size[nodeIndex].getW() * halfVec;
-            const Vector3 childCenter = nodeCenter + offsetFromCenter * childSize;
+            const Vector3 childCenter = nodeCenter + offsetFromCenter * childSize * halfVec;
 
             const int index = oct->nodeAlloc( childCenter, childSize.getAsFloat() );
             oct->_data.children[nodeIndex].index_flat[ichild] = index;
@@ -242,7 +243,25 @@ namespace bx
     }
     OctreeNodeData octreeDataLookup( Octree* oct, const Vector3 pos )
     {
+        return octreeNodeDataMake( 0 );
     }
+
+    void octreeDebugDraw( Octree* oct, u32 color0 /*= 0x00FF00FF*/, u32 color1 /*= 0xFF0000FF */ )
+    {
+        int n = oct->_data.size;
+        for( int i = 0; i < n; ++i )
+        {
+            //bxAABB aabb = oct->nodeAABB( i );
+            const Vector4& posAndSize = oct->_data.pos_size[i];
+            Vector3 aabbCenter = posAndSize.getXYZ();
+            Vector3 aabbSize = Vector3( posAndSize.getW() );
+
+            u32 color = ( oct->_data.nodes_data[i].value == UINT64_MAX ) ? color0 : color1;
+
+            bxGfxDebugDraw::addBox( Matrix4::translation( aabbCenter ), aabbSize * 0.5f, color, true );
+        }
+    }
+
 }///
 
 namespace bx
@@ -254,4 +273,7 @@ namespace bx
     {
         
     };
+
+
+
 }////
