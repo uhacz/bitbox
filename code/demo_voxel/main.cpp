@@ -16,6 +16,7 @@
 #include <gfx/gfx_gui.h>
 
 #include <engine/engine.h>
+#include "gfx/gfx_debug_draw.h"
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -52,10 +53,12 @@ class bxDemoApp : public bxApplication
 public:
     virtual bool startup( int argc, const char** argv )
     {
-        bxEngine_startup( &_engine );
-
+        bx::Engine::startup( &_engine );
+        bx::Scene::startup( &_scene, &_engine );
+        bx::DevCamera::startup( &_dev_camera, &_scene, &_engine );
+        
         bx::octreeCreate( &octree, 256.f );
-        bx::octreePointInsert( octree, Vector3( 10.f, 10.f, 10.f ), 0xff );
+        bx::octreePointInsert( octree, Vector3( 9.f, 10.f, 10.f ), 0xff );
 
         //const int fbWidth = 1920;
         //const int fbHeight = 1080;
@@ -108,7 +111,10 @@ public:
         //    _engine.gdiDevice->releaseTexture( &fb.textures[ifb] );
         //}
         bx::octreeDestroy( &octree );
-        bxEngine_shutdown( &_engine );
+
+        bx::DevCamera::shutdown( &_dev_camera, &_engine );
+        bx::Scene::shutdown( &_scene, &_engine );
+        bx::Engine::shutdown( &_engine );
     }
     virtual bool update( u64 deltaTimeUS )
     {
@@ -116,7 +122,9 @@ public:
         const float deltaTime = (float)deltaTimeS;
 
         bxWindow* win = bxWindow_get();
-        if ( bxInput_isKeyPressedOnce( &win->input.kbd, bxInput::eKEY_ESC ) )
+        const bxInput* input = bxInput_get();
+
+        if ( bxInput_isKeyPressedOnce( &input->kbd, bxInput::eKEY_ESC ) )
         {
             return false;
         }
@@ -129,6 +137,8 @@ public:
             ImGui::Text( "FPS: %.5f", 1.f / deltaTime );
             ImGui::End();
         }
+
+        _dev_camera.tick( input, deltaTime );
 
         //bxGfxCamera_InputContext* cameraInputCtx = &vxscene.cameraInputCtx;
 
@@ -143,10 +153,37 @@ public:
 
         //bxGfx::cameraManager_update( vxscene._cameraManager, deltaTime );
 
-
+        
         //const bxGfxCamera& currentCamera = bxGfx::camera_current( vxscene._cameraManager );
+        bx::GfxCamera* camera = _engine.camera_manager->stack()->top();
+        bx::gfxCameraComputeMatrices( camera );
 
-        bxGdiContext* gdiContext = _engine.gdiContext;
+        {
+            bx::phxSceneSync( _scene.phx );
+        }
+
+        { /// game update
+            octreeDebugDraw( octree );
+            bxGfxDebugDraw::addAxes( appendScale( Matrix4::identity(), Vector3( 5.f ) ) );
+        }
+
+        {
+            bx::phxSceneSimulate( _scene.phx, deltaTime );
+        }
+
+        bx::gfxContextTick( _engine.gfx_context, _engine.gdi_device );
+
+        bx::GfxCommandQueue* cmdq = nullptr;
+        bx::gfxCommandQueueAcquire( &cmdq, _engine.gfx_context, _engine.gdi_context );
+        bx::gfxContextFrameBegin( _engine.gfx_context, _engine.gdi_context );
+
+        bx::gfxSceneDraw( _scene.gfx, cmdq, camera );
+
+        bxGfxGUI::draw( _engine.gdi_context );
+        
+        bx::gfxContextFrameEnd( _engine.gfx_context, _engine.gdi_context );
+        bx::gfxCommandQueueRelease( &cmdq );
+
 
         //{
         //    bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::xAxis(), 0xFF0000FF, true );
@@ -167,15 +204,13 @@ public:
         //bxGfxDebugDraw::flush( gdiContext, currentCamera.matrix.viewProj );
         //bxGfx::rasterizeFramebuffer( gdiContext, fb.textures[bxVoxelFramebuffer::eCOLOR], currentCamera );
         
-        bxGfxGUI::draw( gdiContext );
-        gdiContext->backend()->swap();
-
         time += deltaTime;
-
         return true;
     }
-    float time;
-    bxEngine _engine;
+    float time = 0.f;
+    bx::Engine _engine;
+    bx::Scene _scene;
+    bx::DevCamera _dev_camera;
 };
 
 int main( int argc, const char* argv[] )

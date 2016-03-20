@@ -94,6 +94,7 @@ struct DesignBlockSceneScriptCallback : public bxAsciiScript_Callback
 {
     DesignBlockSceneScriptCallback();
 
+    virtual void addCallback( bxAsciiScript* script );
     virtual void onCreate( const char* typeName, const char* objectName );
     virtual void onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData );
     virtual void onCommand( const char* cmdName, const bxAsciiScript_AttribData& args );

@@ -1,22 +1,62 @@
 #pragma once
 
-#include "profiler.h"
-#include <gdi/gdi_context.h>
+
 #include <resource_manager/resource_manager.h>
+#include <gdi/gdi_context.h>
 #include <phx/phx.h>
 #include <gfx/gfx.h>
 
-struct bxEngine
+#include "profiler.h"
+#include "camera_manager.h"
+
+struct bxInput;
+
+namespace bx
 {
-    bxGdiDeviceBackend*   gdiDevice;
-    bxGdiContext*         gdiContext;
-    bxResourceManager*    resourceManager;
+    struct Engine
+    {
+        bxGdiDeviceBackend*   gdi_device = nullptr;
+        bxGdiContext*         gdi_context = nullptr;
+        bxResourceManager*    resource_manager = nullptr;
+        CameraManager*        camera_manager = nullptr;
 
-    bx::GfxContext*       gfxContext;
-    bx::PhxContext*       phxContext;
-    //// tool for profiling
-    Remotery* _remotery;
-};
+        GfxContext*       gfx_context = nullptr;
+        PhxContext*       phx_context = nullptr;
+        
+        //// tool for profiling
+        Remotery* _remotery = nullptr;
 
-void bxEngine_startup( bxEngine* e );
-void bxEngine_shutdown( bxEngine* e );
+        ////
+        CameraManagerSceneScriptCallback* _camera_script_callback;
+
+        static void startup( Engine* e );
+        static void shutdown( Engine* e );
+    };
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    struct Scene
+    {
+        bx::GfxScene* gfx = nullptr;
+        bx::PhxScene* phx = nullptr;
+
+        static void startup( Scene* scene, Engine* engine );
+        static void shutdown( Scene* scene, Engine* engine );
+    };
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    struct DevCamera
+    {
+        GfxCamera* camera = nullptr;
+        gfx::CameraInputContext input_ctx;
+
+        void tick( const bxInput* input, float deltaTime );
+
+        static void startup( DevCamera* devCamera, Scene* scene, Engine* engine );
+        static void shutdown( DevCamera* devCamera, Engine* engine );
+    };
+
+}///

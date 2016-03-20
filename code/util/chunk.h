@@ -5,9 +5,9 @@
 
 struct bxChunk
 {
-    i32 begin;
-    i32 end;
-    i32 current;
+    i32 begin = 0;
+    i32 end = 0;
+    i32 current = 0;
 };
 
 inline void bxChunk_create( bxChunk* chunks, int nChunks, int nItems )

@@ -34,8 +34,11 @@ struct bxAsciiScript_AttribData
     unsigned dataSizeInBytes() const { return numBytes; }
 };
 
+struct bxAsciiScript;
 struct bxAsciiScript_Callback
 {
+    virtual void addCallback( bxAsciiScript* script ) = 0;
+
     virtual void onCreate( const char* typeName, const char* objectName ) = 0;
     virtual void onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData ) = 0;
     virtual void onCommand( const char* cmdName, const bxAsciiScript_AttribData& args ) = 0;

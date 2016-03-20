@@ -589,7 +589,12 @@ void bxGdiContext::clearBuffers(float r, float g, float b, float a, float d, int
     pending._clearColor.set( r, g, b, a, d, flag_color, flag_depth );
 }
 
-void bxGdiContext::draw(unsigned num_vertices, unsigned start_index)
+void bxGdiContext::submitState()
+{
+    bxGdi::ContextPriv::_PrepareDraw( this );
+}
+
+void bxGdiContext::draw( unsigned num_vertices, unsigned start_index )
 {
     bxGdi::ContextPriv::_PrepareDraw( this );
     _ctx->draw( num_vertices, start_index );

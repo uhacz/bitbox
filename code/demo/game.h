@@ -19,7 +19,7 @@ namespace bx
 
     void characterInit( Character* character, bxGdiDeviceBackend* dev, GameScene* scene, const Matrix4& worldPose );
     void characterDeinit( Character* character, bxGdiDeviceBackend* dev );
-    void characterTick( Character* character, bxGdiContextBackend* gdi, GameScene* scene, const bxInput& input, float deltaTime );
+    void characterTick( Character* character, bxGdiContextBackend* gdi, GameScene* scene, GfxCamera* camera, const bxInput& input, float deltaTime );
 
     Matrix4 characterPoseGet( const Character* character );
     Vector3 characterUpVectorGet( const Character* character );
@@ -67,7 +67,7 @@ namespace bx
         CharacterController() {}
         virtual ~CharacterController() {}
 
-        virtual void tick( GameScene* scene, const bxInput& input, float deltaTime ) = 0;
+        virtual void tick( GameScene* scene, GfxCamera* camera, const bxInput& input, float deltaTime ) = 0;
         virtual Matrix4 worldPose() const = 0;
 		virtual Matrix4 worldPoseFoot() const = 0;
         virtual Vector3 upDirection() const = 0;
@@ -93,15 +93,15 @@ namespace bx
 
 
 
-struct bxEngine;
 namespace bx
 {
+    struct Engine;
     struct GraphActor
     {
         virtual ~GraphActor() {}
 
-        virtual void load( bxEngine* engine, GameScene* scene ) {}
-        virtual void unload( bxEngine* engine, GameScene* scene ) {}
+        virtual void load( bx::Engine* engine, GameScene* scene ) {}
+        virtual void unload( bx::Engine* engine, GameScene* scene ) {}
 
         virtual void parallelTick( GameScene* scene, u64 deltaTimeMS ) {}
         virtual void serialTick( GameScene* scene, u64 deltaTimeMS ) {}

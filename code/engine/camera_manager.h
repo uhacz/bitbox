@@ -34,16 +34,13 @@ namespace bx
 {
     struct CameraManagerSceneScriptCallback : public bxAsciiScript_Callback
     {
-        virtual void onCreate( const char* typeName, const char* objectName );
-        virtual void onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData );
-        virtual void onCommand( const char* cmdName, const bxAsciiScript_AttribData& args );
+        virtual void addCallback( bxAsciiScript* script ) override;
+        virtual void onCreate( const char* typeName, const char* objectName ) override;
+        virtual void onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData ) override;
+        virtual void onCommand( const char* cmdName, const bxAsciiScript_AttribData& args ) override;
 
-        CameraManagerSceneScriptCallback();
-
-        GfxContext* _gfx;
-        CameraManager* _menago;
-        GfxCamera* _current;
-
-
+        GfxContext* _gfx = nullptr;
+        CameraManager* _menago = nullptr;
+        GfxCamera* _current = nullptr;
     };
 }////

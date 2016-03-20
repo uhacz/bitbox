@@ -27,27 +27,24 @@ class bxDemoApp : public bxApplication
 public:
     virtual bool startup( int argc, const char** argv )
     {
-        bxEngine_startup( &_engine );
+        bx::Engine::startup( &_engine );
         gameSceneStartup( &__scene, &_engine );
 
         //bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager );
 
-        bx::CameraManagerSceneScriptCallback cameraScriptCallback;
-        cameraScriptCallback._menago = __scene.cameraManager;
-        cameraScriptCallback._gfx = _engine.gfxContext;
+        //bx::CameraManagerSceneScriptCallback cameraScriptCallback;
+        //cameraScriptCallback._menago = __scene.cameraManager;
+        //cameraScriptCallback._gfx = _engine.gfxContext;
 
         bx::DesignBlockSceneScriptCallback dblockScriptCallback;
         dblockScriptCallback.dblock = __scene.dblock;
 
         bxAsciiScript sceneScript;
-        bxScene::script_addCallback( &sceneScript, "camera", &cameraScriptCallback );
-        bxScene::script_addCallback( &sceneScript, "camera_push", &cameraScriptCallback );
-
-        bxScene::script_addCallback( &sceneScript, "dblock", &dblockScriptCallback );
-        bxScene::script_addCallback( &sceneScript, "dblock_commit", &dblockScriptCallback );
+        _engine._camera_script_callback->addCallback( &sceneScript );
+        dblockScriptCallback.addCallback( &sceneScript );
 
         const char* sceneName = bxConfig::global_string( "scene" );
-        bxFS::File scriptFile = _engine.resourceManager->readTextFileSync( sceneName );
+        bxFS::File scriptFile = _engine.resource_manager->readTextFileSync( sceneName );
 
         if( scriptFile.ok() )
         {
@@ -59,10 +56,10 @@ public:
             char const* cameraName = bxConfig::global_string( "camera" );
             if( cameraName )
             {
-                bx::GfxCamera* camera = __scene.cameraManager->find( cameraName );
+                bx::GfxCamera* camera = _engine.camera_manager->find( cameraName );
                 if( camera )
                 {
-                    __scene.cameraManager->stack()->push( camera );
+                    _engine.camera_manager->stack()->push( camera );
                 }
                 //bxGfxCamera_Id id = bxGfx::camera_find( __scene._cameraManager, cameraName );
                 //if ( id.hash != bxGfx::camera_top( __scene._cameraManager ).hash )
@@ -150,7 +147,7 @@ public:
         //bx::gfxCameraDestroy( &camera );
                 
         gameSceneShutdown( &__scene, &_engine );
-        bxEngine_shutdown( &_engine );
+        bx::Engine::shutdown( &_engine );
     }
 
     virtual bool update( u64 deltaTimeUS )
@@ -179,7 +176,7 @@ public:
 
 		rmt_BeginCPUSample(FRAME_UPDATE);
 
-        bx::GfxCamera* camera = __scene.cameraManager->stack()->top();
+        bx::GfxCamera* camera = _engine.camera_manager->stack()->top();
 
         {
             bxInput* input = &win->input;
@@ -207,17 +204,17 @@ public:
         }
         bx::gfxCameraComputeMatrices( camera );
 
-        __scene.dblock->manageResources( __scene.gfxScene, __scene.phxScene );
+        __scene.dblock->manageResources( __scene.gfx_scene(), __scene.phx_scene() );
         
         {
-            bx::phxSceneSync( __scene.phxScene );
+            bx::phxSceneSync( __scene.phx_scene() );
         }
         
         {//// game update
 			__scene.dblock->tick();
-            bx::terrainTick( __scene.terrain, &__scene, _engine.gdiContext->backend(), deltaTime * 2.f );
+            bx::terrainTick( __scene.terrain, &__scene, _engine.gdi_context->backend(), deltaTime * 2.f );
             //bx::characterTick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
-			__scene.cct->tick( &__scene, win->input, deltaTime * 2.f );
+			__scene.cct->tick( &__scene, camera, win->input, deltaTime * 2.f );
 			bx::charAnimControllerTick( __scene.canim, &__scene, deltaTimeUS );
 			//bx::charAnimTick( __scene.canim, __scene.cct->worldPoseFoot(), deltaTime );
 			
@@ -237,28 +234,28 @@ public:
         bx::gfxCameraComputeMatrices( camera );
 
         {
-            bx::phxSceneSimulate( __scene.phxScene, deltaTime );
+            bx::phxSceneSimulate( __scene.phx_scene(), deltaTime );
         }
 
-        bx::gfxContextTick( _engine.gfxContext, _engine.gdiDevice );
+        bx::gfxContextTick( _engine.gfx_context, _engine.gdi_device );
 
 		rmt_EndCPUSample();
 
         bx::GfxCommandQueue* cmdq = nullptr;
-        bx::gfxCommandQueueAcquire( &cmdq, _engine.gfxContext, _engine.gdiContext );
-        bx::gfxContextFrameBegin( _engine.gfxContext, _engine.gdiContext );
+        bx::gfxCommandQueueAcquire( &cmdq, _engine.gfx_context, _engine.gdi_context );
+        bx::gfxContextFrameBegin( _engine.gfx_context, _engine.gdi_context );
 
 		rmt_BeginCPUSample(FRAME_DRAW);
 		rmt_BeginCPUSample(scene);
-		bx::gfxSceneDraw(__scene.gfxScene, cmdq, camera);
+		bx::gfxSceneDraw(__scene.gfx_scene(), cmdq, camera);
 		rmt_EndCPUSample();
         
 		rmt_BeginCPUSample(gui);
-		bxGfxGUI::draw( _engine.gdiContext );
+		bxGfxGUI::draw( _engine.gdi_context );
 		rmt_EndCPUSample();
 		rmt_EndCPUSample();
 
-        bx::gfxContextFrameEnd( _engine.gfxContext, _engine.gdiContext );
+        bx::gfxContextFrameEnd( _engine.gfx_context, _engine.gdi_context );
         bx::gfxCommandQueueRelease( &cmdq );
 
         
@@ -288,8 +285,8 @@ public:
         rmt_EndCPUSample();
         return true;
     }
-    float _time;
-    bxEngine _engine;
+    float _time = 0.f;
+    bx::Engine _engine;
 };
 
 int main( int argc, const char* argv[] )

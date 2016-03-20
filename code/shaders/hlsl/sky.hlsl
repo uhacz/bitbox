@@ -125,17 +125,28 @@ float3 ACESFilm(float3 x)
     return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
 }
 
-float4 ps_main( in_PS IN ) : SV_Target0
+struct PS_OUT
+{
+    float4 rgba : SV_Target0;
+    //float depth : SV_Depth;
+};
+
+PS_OUT ps_main( in_PS IN )
 {
     float2 uv_m11 = float2(IN.uv.x, 1.0 - IN.uv.y) * 2.0 - 1.0;
     uv_m11.x *= _camera_aspect; // apect
     
     float turbidity = 3;
     float3 sunDir = -_sunDirection; // normalize( float3( -1.f, 1.0f, 0.f ) );
-    float3 viewDir = normalize( mul( ( float3x3 )_camera_world, float3( uv_m11, -1.0 ) ) );
+    float3 viewDir = normalize( mul( ( float3x3 )_camera_world, float3( uv_m11, -2.0 ) ) );
     float3 skyLuminance = calculateSkyLuminanceRGB( sunDir, viewDir, turbidity );
     skyLuminance = ACESFilm( skyLuminance * 0.05 ); //(float3)1.0 - exp( -(skyLuminance * 0.1 ) );
-    return float4( skyLuminance * _skyIlluminanceInLux , 1.0 );
+    
+    PS_OUT output;
+    output.rgba = float4( skyLuminance * _skyIlluminanceInLux , 1.0 );
+    //output.depth = 1.0;
+
+    return output;
     //return float4(skyLuminance * 0.05f, 1.0);
 }
 

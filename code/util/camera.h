@@ -3,7 +3,8 @@
 #include "viewport.h"
 #include <util/vectormath/vectormath.h>
 
-namespace bx{ namespace gfx{
+namespace bx{ 
+namespace gfx{
 
     Matrix4 cameraMatrixProjection( float aspect, float fov, float znear, float zfar );
 	Matrix4 cameraMatrixProjectionDx11( const Matrix4& proj );
