@@ -138,7 +138,7 @@ namespace bx
             _data = Data();
         }
 
-        int nodeAlloc( const Vector3 pos, float size, uptr data = 0 )
+        int nodeAlloc( const Vector3 pos, float size, uptr data = UINT64_MAX )
         {
             if( _data.size >= _data.capacity )
                 return -1;
@@ -256,9 +256,11 @@ namespace bx
             Vector3 aabbCenter = posAndSize.getXYZ();
             Vector3 aabbSize = Vector3( posAndSize.getW() );
 
-            u32 color = ( oct->_data.nodes_data[i].value == UINT64_MAX ) ? color0 : color1;
-
-            bxGfxDebugDraw::addBox( Matrix4::translation( aabbCenter ), aabbSize * 0.5f, color, true );
+            bxGfxDebugDraw::addBox( Matrix4::translation( aabbCenter ), aabbSize * 0.5f, color0, true );
+            if( oct->_data.nodes_data[i].value != UINT64_MAX )
+            {
+                bxGfxDebugDraw::addSphere( Vector4( aabbCenter, posAndSize.getW() * halfVec ), color1, true );
+            }
         }
     }
 

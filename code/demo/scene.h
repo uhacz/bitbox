@@ -3,12 +3,12 @@
 #include "physics.h"
 #include "game.h"
 #include "design_block.h"
-#include "camera_manager.h"
 #include "terrain.h"
 
 #include <gfx/gfx.h>
+#include <engine/engine.h>
 
-struct bxEngine;
+
 
 namespace bx{
     struct PhxScene;
@@ -18,11 +18,11 @@ namespace bx
 {
     struct GameScene
     {
-        bx::CameraManager* cameraManager = nullptr;
+        Scene scene;
         bx::DesignBlock* dblock = nullptr;
     
-        bx::GfxScene* gfxScene = nullptr;
-        bx::PhxScene* phxScene = nullptr;
+        //bx::GfxScene* gfxScene = nullptr;
+        //bx::PhxScene* phxScene = nullptr;
 
         //bx::Character* character = nullptr;
         bx::CharacterController* cct = nullptr;
@@ -30,10 +30,13 @@ namespace bx
 		//bx::CharacterAnim* canim = nullptr;
 		bx::Terrain* terrain = nullptr;
         bx::CameraController cameraController;
+
+        GfxScene* gfx_scene() { return scene.gfx; }
+        PhxScene* phx_scene() { return scene.phx; }
     };
 
-    void gameSceneStartup( GameScene* scene, bxEngine* engine );
-    void gameSceneShutdown( GameScene* scene, bxEngine* engine );
+    void gameSceneStartup( GameScene* scene, bx::Engine* engine );
+    void gameSceneShutdown( GameScene* scene, bx::Engine* engine );
 }
 
 

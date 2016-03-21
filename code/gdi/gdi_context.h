@@ -220,6 +220,8 @@ public:
     void clearBuffers           ( float rgbad[5], int flag_color, int flag_depth );
     void clearBuffers           ( float r, float g, float b, float a, float d, int flag_color, int flag_depth );
 
+    void submitState            ();
+
     void draw                   ( unsigned num_vertices, unsigned start_index );
     void drawIndexed            ( unsigned num_indices, unsigned start_index, unsigned base_vertex );
     void drawInstanced          ( unsigned num_vertices, unsigned start_index, unsigned num_instances );

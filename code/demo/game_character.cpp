@@ -777,7 +777,7 @@ namespace bx
 		BodyRestPosition::alloc( &ch->restPos, ch->shapeBody.particleCount() );
 
 		CharacterInternal::initShapeBody( ch, BODY_SHAPE_ITERATIONS, worldPose );
-		CharacterInternal::initShapeMesh( ch, dev, scene->gfxScene );
+		CharacterInternal::initShapeMesh( ch, dev, scene->gfx_scene() );
 		bx::phxContactsCreate( &ch->contacts, nPoints );
 	}
 	void characterDeinit( Character* character, bxGdiDeviceBackend* dev )
@@ -790,12 +790,11 @@ namespace bx
 		MeshData::free( &character->shapeMeshData );
 	}
 
-	void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* scene, const bxInput& input, float deltaTime )
+	void characterTick( Character* character, bxGdiContextBackend* ctx, GameScene* scene, GfxCamera* camera, const bxInput& input, float deltaTime )
 	{
 		rmt_BeginCPUSample( CHARACTER );
 		CharacterInternal::collectInputData( &character->input, input, deltaTime );
 
-		bx::GfxCamera* camera = scene->cameraManager->stack()->top();
 		const Matrix4 cameraWorld = bx::gfxCameraWorldMatrixGet( camera );
 		Vector3 externalForces( 0.f );
 		{
@@ -863,7 +862,7 @@ namespace bx
 			{
 				const Vector4 bsphere( character->shapeBody.com.pos, 1.5f );
 				bx::phxContactsClear( character->contacts );
-				bx::phxContactsCollide( character->contacts, scene->phxScene, character->particles.pos1, character->particles.size, 0.05f, bsphere );
+				bx::phxContactsCollide( character->contacts, scene->phx_scene(), character->particles.pos1, character->particles.size, 0.05f, bsphere );
 				bx::terrainCollide( character->contacts, scene->terrain, character->particles.pos1, character->particles.size, 0.05f, bsphere );
 				PBD_Simulate::resolveContacts( &character->particles, character->contacts );
 				CharacterInternal::simulateShapeUpdatePose( character, 1.f, shapeStiffness );

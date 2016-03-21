@@ -527,6 +527,12 @@ DesignBlockSceneScriptCallback::DesignBlockSceneScriptCallback()
     descClear();
 }
 
+void DesignBlockSceneScriptCallback::addCallback( bxAsciiScript* script )
+{
+    bxScene::script_addCallback( script, "dblock", this );
+    bxScene::script_addCallback( script, "dblock_commit", this );
+}
+
 void DesignBlockSceneScriptCallback::descClear()
 {
     memset( &desc.name, 0x00, sizeof( desc.name ) );

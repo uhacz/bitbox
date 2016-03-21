@@ -240,12 +240,12 @@ namespace bx
         return false;
     }
 
-
-    CameraManagerSceneScriptCallback::CameraManagerSceneScriptCallback()
-        : _gfx(nullptr)
-        , _menago( nullptr )
-        , _current( nullptr )
-    {}
+    void CameraManagerSceneScriptCallback::addCallback( bxAsciiScript* script )
+    {
+        bxScene::script_addCallback( script, "camera", this );
+        bxScene::script_addCallback( script, "camera_push", this );
+        _current = nullptr;
+    }
 
     void CameraManagerSceneScriptCallback::onCreate( const char* typeName, const char* objectName )
     {

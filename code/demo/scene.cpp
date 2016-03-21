@@ -1,5 +1,4 @@
 #include "scene.h"
-#include <engine/engine.h>
 
 //#include <util/buffer_utils.h>
 
@@ -216,13 +215,11 @@
 
 namespace bx
 {
-    void gameSceneStartup( GameScene* scene, bxEngine* engine )
+    void gameSceneStartup( GameScene* scene, bx::Engine* engine )
     {
-        bx::gfxSceneCreate( &scene->gfxScene, engine->gfxContext );
-        bx::phxSceneCreate( &scene->phxScene, engine->phxContext );
+        Scene::startup( &scene->scene, engine );
 
         bx::designBlockStartup( &scene->dblock );
-        bx::cameraManagerStartup( &scene->cameraManager, engine->gfxContext );
 
 
         bx::terrainCreate( &scene->terrain, scene, engine );
@@ -236,8 +233,9 @@ namespace bx
         //bxGame::flock_init( scene->flock, 128, Vector3( 0.f ), 5.f );
     }
 
-    void gameSceneShutdown( GameScene* scene, bxEngine* engine )
+    void gameSceneShutdown( GameScene* scene, bx::Engine* engine )
     {
+        Scene::shutdown( &scene->scene, engine );
         //bxGame::flock_delete( &scene->flock );
 		bx::charAnimControllerDestroy( &scene->canim );
 		bx::CharacterController::destroy( &scene->cct, scene );
@@ -245,15 +243,13 @@ namespace bx
         //bx::character_delete( &scene->character );
 
         bx::terrainDestroy( &scene->terrain, scene, engine );
-
-        bx::cameraManagerShutdown( &scene->cameraManager );
     
         scene->dblock->cleanUp();
-        scene->dblock->manageResources( scene->gfxScene, scene->phxScene );
+        scene->dblock->manageResources( scene->gfx_scene(), scene->phx_scene() );
         bx::designBlockShutdown( &scene->dblock );
     
-        bx::phxSceneDestroy( &scene->phxScene );
-        bx::gfxSceneDestroy( &scene->gfxScene );
+        //bx::phxSceneDestroy( &scene->phxScene );
+        //bx::gfxSceneDestroy( &scene->gfxScene );
     }
 
 }///

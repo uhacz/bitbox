@@ -799,8 +799,6 @@ namespace bx
 
         const GfxScene::Data& data = scene->_data;
         int nMeshes = scene->_data.size;
-        if ( !nMeshes )
-            return;
 
         bxChunk colorChunk, depthChunk;
         sceneBuildSortListColorDepth( &colorChunk, &depthChunk, scene, camera );
@@ -818,10 +816,16 @@ namespace bx
             gfxViewUploadInstanceData( gdi, &view, scene->_data, depthList, depthChunk.begin, depthChunk.current );
             gdi->changeRenderTargets( nullptr, 0, ctx->_framebuffer[eFB_DEPTH] );
             gdi->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 0, 1 );
-
-            bxGdiShaderFx_Instance* fxI = gfxGlobalResourcesGet()->fx.utils;
-            bxGdi::shaderFx_enable( gdi, fxI, "zPrepassDepthOnly" );
-            sortListDepthSubmit( gdi, view, scene, depthList, depthChunk.begin, depthChunk.current );
+            if( nMeshes )
+            {
+                bxGdiShaderFx_Instance* fxI = gfxGlobalResourcesGet()->fx.utils;
+                bxGdi::shaderFx_enable( gdi, fxI, "zPrepassDepthOnly" );
+                sortListDepthSubmit( gdi, view, scene, depthList, depthChunk.begin, depthChunk.current );
+            }
+            else
+            {
+                gdi->submitState();
+            }
         }
 
         /// shadow
@@ -858,7 +862,6 @@ namespace bx
             gdi->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
             fxI->setTexture( "tex_source", tmp1Texture );
             gfxSubmitFullScreenQuad( gdi, fxI, "blurY" );
-
         }
 
         gdi->clear();
@@ -914,12 +917,12 @@ namespace bx
 		{
 			//gdi->clear();
 			gdi->changeRenderTargets( &ctx->_framebuffer[eFB_TEMP0], 1, ctx->_framebuffer[eFB_DEPTH] );
-			bxGfxDebugDraw::flush( gdi, camera->view, camera->proj );
+            bxGfxDebugDraw::flush( gdi, camera->view, camera->proj );
+
 		}
 
         gfxRasterizeFramebuffer( gdi, ctx->_framebuffer[eFB_TEMP0], gfxCameraAspect( camera ) );
         //gfxRasterizeFramebuffer( gdi, ctx->_shadow._texDepth, gfxCameraAspect( camera ) );
-
 
 
     }

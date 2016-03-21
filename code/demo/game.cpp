@@ -1055,7 +1055,7 @@ namespace bx
             cctDesc.capsuleRadius = _geometry0.capsule.radius;
             cctDesc.position = worldPose.getTranslation();
             cctDesc.upDirection = _upDir;
-            bool bres = phxCCTCreate( &_cct, scene->phxScene, cctDesc );
+            bool bres = phxCCTCreate( &_cct, scene->phx_scene(), cctDesc );
             SYS_ASSERT( bres );
 
             //_ff0.init( "small", FuzzyFunction::eLINEAR, 0.f, 1.f );
@@ -1204,11 +1204,10 @@ namespace bx
 			return velXZ + velY;
 		}
 
-        virtual void tick( GameScene* scene, const bxInput& input, float deltaTime )
+        virtual void tick( GameScene* scene, GfxCamera* camera, const bxInput& input, float deltaTime )
         {
 			_CollectInputData( input, deltaTime );
 
-			bx::GfxCamera* camera = scene->cameraManager->stack()->top();
 			const Matrix4 cameraWorld = bx::gfxCameraWorldMatrixGet( camera );
 			Vector3 inputVector( 0.f );
 			{
@@ -1279,7 +1278,7 @@ namespace bx
 
 						PhxQueryHit hit;
 						const TransformTQ pose( ro );
-						if( phxSweep( &hit, scene->phxScene, _geometry0, pose, -_upDir, MAX_SWEEP_DISTANCE ) )
+						if( phxSweep( &hit, scene->phx_scene(), _geometry0, pose, -_upDir, MAX_SWEEP_DISTANCE ) )
 						{
                             //bxGfxDebugDraw::addSphere( Vector4( hit.position, 0.1f ), 0xFFFF00FF, 1 );
 							//bxGfxDebugDraw::addLine( hit.position, hit.position + hit.normal, 0x0000FFFF, 1 );

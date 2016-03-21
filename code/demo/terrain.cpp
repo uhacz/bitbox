@@ -451,7 +451,7 @@ namespace bx
         }
     }
 
-    void terrainCreate( Terrain** terr, GameScene* gameScene, bxEngine* engine )
+    void terrainCreate( Terrain** terr, GameScene* gameScene, bx::Engine* engine )
     {
         Terrain* t = BX_NEW( bxDefaultAllocator(), Terrain );
 
@@ -498,15 +498,15 @@ namespace bx
             t->_renderSources[i] = (bxGdiRenderSource*)( t->_renderSourcesMemoryBlock + renderSourceMemorySize * i );
         }
 
-        _TerrainCreatePhysics( t, gameScene->phxScene );
+        _TerrainCreatePhysics( t, gameScene->phx_scene() );
 
 		{
-			bxGdiShaderFx_Instance* fxI = bxGdi::shaderFx_createWithInstance( engine->gdiDevice, engine->resourceManager, "terrain" );
+			bxGdiShaderFx_Instance* fxI = bxGdi::shaderFx_createWithInstance( engine->gdi_device, engine->resource_manager, "terrain" );
 			t->_shaderFx = fxI;
 		}
 		const int SUBDIV = t->_tileSubdiv;
-        _TerrainMeshCreateIndices( &t->_tileIndicesBuffer, engine->gdiDevice, SUBDIV );
-        _TerrainMeshCreate( t, engine->gdiDevice, gameScene->gfxScene, SUBDIV );
+        _TerrainMeshCreateIndices( &t->_tileIndicesBuffer, engine->gdi_device, SUBDIV );
+        _TerrainMeshCreate( t, engine->gdi_device, gameScene->gfx_scene(), SUBDIV );
 
 		{
 			Terrain::TileData& td = t->tileData_;
@@ -525,14 +525,14 @@ namespace bx
         terr[0] = t;
     }
 
-    void terrainDestroy( Terrain** terr, GameScene* gameScene, bxEngine* engine )
+    void terrainDestroy( Terrain** terr, GameScene* gameScene, bx::Engine* engine )
     {
         if ( !terr[0] )
             return;
 
-		bxGdi::shaderFx_releaseWithInstance( engine->gdiDevice, engine->resourceManager, &terr[0]->_shaderFx );
-        _TerrainMeshDestroy( terr[0], engine->gdiDevice );
-        _TerrainDestroyPhysics( terr[0], gameScene->phxScene );
+		bxGdi::shaderFx_releaseWithInstance( engine->gdi_device, engine->resource_manager, &terr[0]->_shaderFx );
+        _TerrainMeshDestroy( terr[0], engine->gdi_device );
+        _TerrainDestroyPhysics( terr[0], gameScene->phx_scene() );
         BX_FREE0( bxDefaultAllocator(), terr[0]->_memoryHandle );
         BX_FREE0( bxDefaultAllocator(), terr[0] );
     }
@@ -736,7 +736,7 @@ namespace bx
                 _TerrainMeshTileVerticesCompute( terr, i, gdi );
 
                 const Matrix4 tilePose = Matrix4::translation( pos );
-                phxActorPoseSet( terr->_phxActors[i], tilePose, gameScene->phxScene );
+                phxActorPoseSet( terr->_phxActors[i], tilePose, gameScene->phx_scene() );
                 
                 hfGeom.samples = terr->cellHeightSamplesGet( i );
                 phxActorUpdateHeightField( terr->_phxActors[i], hfGeom );
