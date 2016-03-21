@@ -44,6 +44,22 @@ struct bxVoxelFramebuffer
 //    bxGfxCamera_InputContext cameraInputCtx;
 //};
 
+struct Scene
+{
+    bx::GfxScene* gfx_scene = nullptr;
+
+    void startup( bxEngine* e )
+    {
+        bx::gfxSceneCreate( &gfx_scene, e->gfxContext );
+    }
+    void shutdown( bxEngine* e )
+    {
+        bx::gfxSceneDestroy( &gfx_scene );
+    }
+};
+Scene __scene;
+bx::gfx::CameraInputContext cameraInputCtx;
+
 bx::Octree* octree = nullptr;
 //static bxVoxelFramebuffer fb;
 //static bxVoxel_Scene vxscene;
@@ -53,6 +69,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxEngine_startup( &_engine );
+        __scene.startup( &_engine );
+        
 
         bx::octreeCreate( &octree, 256.f );
         bx::octreePointInsert( octree, Vector3( 10.f, 10.f, 10.f ), 0xff );
@@ -108,6 +126,8 @@ public:
         //    _engine.gdiDevice->releaseTexture( &fb.textures[ifb] );
         //}
         bx::octreeDestroy( &octree );
+
+        __scene.shutdown();
         bxEngine_shutdown( &_engine );
     }
     virtual bool update( u64 deltaTimeUS )
