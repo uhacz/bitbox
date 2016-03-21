@@ -58,7 +58,7 @@ public:
         bx::DevCamera::startup( &_dev_camera, &_scene, &_engine );
         
         bx::octreeCreate( &octree, 256.f );
-        bx::octreePointInsert( octree, Vector3( 9.f, 10.f, 10.f ), 0xff );
+        bx::octreePointInsert( octree, Vector3( 9.f, 9.f, 9.f ), 0xff );
 
         //const int fbWidth = 1920;
         //const int fbHeight = 1080;

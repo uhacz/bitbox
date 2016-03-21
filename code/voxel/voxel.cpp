@@ -185,20 +185,29 @@ namespace bx
             oct->_data.children[nodeIndex].index_flat[ichild] = index;
         }
 
-        void octreePointInsertR( int* outNodeIndex, Octree* oct, int currentNodeIndex, const Vector3& point, uptr data, float nodeSizeThreshold )
+        static inline int pointInAABBf4( const vec_float4 bboxMin, const vec_float4 bboxMax, const vec_float4 point )
+        {
+            const vec_float4 a = vec_cmple( bboxMin, point );
+            const vec_float4 b = vec_cmpge( bboxMax, point );
+            const vec_float4 a_n_b = vec_and( a, b );
+            const vec_float4 r = vec_and( vec_splat( a_n_b, 0 ), vec_and( vec_splat( a_n_b, 1 ), vec_splat( a_n_b, 2 ) ) );
+            return _mm_movemask_ps( r );
+        }
+
+        void octreePointInsertR( int* outNodeIndex, Octree* oct, int currentNodeIndex, const Vector3 point, uptr data, float nodeSizeThreshold )
         {
             if( *outNodeIndex != -1 )
                 return;
 
             const bxAABB nodeAABB = oct->nodeAABB( currentNodeIndex );
-            const bool collision = bxAABB::isPointInside( nodeAABB, point );
+            const int collision = pointInAABBf4( nodeAABB.min.get128(), nodeAABB.max.get128(), point.get128() );
             if( !collision )
                 return;
 
             const Vector4& pos_size = oct->_data.pos_size[currentNodeIndex];
             const float nodeSize = pos_size.getW().getAsFloat();
            
-            if( collision && ( nodeSize <= nodeSizeThreshold ) )
+            if( nodeSize <= nodeSizeThreshold )
             {
                 outNodeIndex[0] = currentNodeIndex;
                 oct->_data.nodes_data[currentNodeIndex].value = data;
