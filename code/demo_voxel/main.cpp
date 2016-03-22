@@ -58,7 +58,22 @@ public:
         bx::DevCamera::startup( &_dev_camera, &_scene, &_engine );
         
         bx::octreeCreate( &octree, 256.f );
-        bx::octreePointInsert( octree, Vector3( 9.f, 9.f, 9.f ), 0xff );
+
+        float start = 2.f;
+        float end = 8.f;
+        for( float z = start; z <= end; z += 1.f )
+        {
+            for( float y = start; y <= end; y += 1.f )
+            {
+                for( float x = start; x <= end; x += 1.f )
+                {
+                    Vector3 p( x, y, z );
+                    bx::octreePointInsert( octree, p, 0xFFFFFFFF );
+                }
+            }
+        }
+
+        //bx::octreePointInsert( octree, Vector3( 8.5f, 8.5f, 9.0f ), 0xff );
 
         //const int fbWidth = 1920;
         //const int fbHeight = 1080;
@@ -164,6 +179,17 @@ public:
 
         { /// game update
             octreeDebugDraw( octree );
+
+            const Matrix4 cameraWorld = gfxCameraWorldMatrixGet( camera );
+            const Vector3 ro = cameraWorld.getTranslation();
+            const Vector3 rd =-cameraWorld.getCol2().getXYZ();
+            int nodeIndex = octreeRaycast( octree, ro, rd );
+            if( nodeIndex != -1 )
+            {
+                Vector4 nodePosSize = octreeNodePosSize( octree, nodeIndex );
+                bxGfxDebugDraw::addSphere( Vector4( nodePosSize.getXYZ(), nodePosSize.getW() * halfVec ), 0x000000FF, true );
+            }
+
             bxGfxDebugDraw::addAxes( appendScale( Matrix4::identity(), Vector3( 5.f ) ) );
         }
 

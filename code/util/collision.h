@@ -40,4 +40,22 @@ namespace bx
         // Check if point is in triangle
         return ( u >= 0.f ) && ( v >= 0.f ) && ( u + v < 1.f );
     }
+
+    inline int intersectRayAABB( const Vector3 ro, const Vector3 rdInv, const floatInVec rayLength, const Vector3 minAABB, const Vector3 maxAABB )
+    {
+        const Vector3 t1( mulPerElem( minAABB - ro, rdInv ) );
+        const Vector3 t2( mulPerElem( maxAABB - ro, rdInv ) );
+
+        const Vector3 tmin1( minPerElem( t1, t2 ) );
+        const Vector3 tmax1( maxPerElem( t1, t2 ) );
+
+        const vec_float4 tmin = maxElem( tmin1 ).get128();
+        const vec_float4 tmax = minElem( tmax1 ).get128();
+
+        vec_float4 a = vec_cmpge( tmax, vec_max( _mm_setzero_ps(), tmin ) );
+        vec_float4 b = vec_cmplt( tmin, rayLength.get128() );
+        vec_float4 c = vec_and( a, b );
+        return _mm_movemask_ps( c );
+        //return ( tmax >= maxf4( zeroVec, tmin ) & tmin < rayLength );
+    }
 }///

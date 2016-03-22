@@ -71,7 +71,9 @@ namespace bx
     struct Octree;
     struct OctreeNodeData
     {
-        uptr value = 0;
+        uptr value = UINT64_MAX;
+
+        bool empty() const { return value == UINT64_MAX; }
     };
     
     void octreeCreate( Octree** octPtr, float size );
@@ -80,7 +82,8 @@ namespace bx
     int octreePointInsert( Octree* oct, const Vector3 pos, uptr data );
     OctreeNodeData octreeDataGet( Octree* oct, int nodeIndex );
     OctreeNodeData octreeDataLookup( Octree* oct, const Vector3 pos );
-
+    Vector4 octreeNodePosSize( Octree* oct, int nodeIndex );
+    int octreeRaycast( const Octree* oct, const Vector3 ro, const Vector3 rd, const floatInVec rayLength = floatInVec( FLT_MAX ) );
     void octreeDebugDraw( Octree* oct, u32 color0 = 0x00FF00FF, u32 color1 = 0xFF0000FF );
 }///
 

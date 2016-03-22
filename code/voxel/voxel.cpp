@@ -3,8 +3,10 @@
 #include <util/buffer_utils.h>
 #include <util/array.h>
 #include <util/bbox.h>
+#include <util/collision.h>
+#include <gfx/gfx_debug_draw.h>
+
 #include <string.h>
-#include "gfx/gfx_debug_draw.h"
 
 //#include <gdi/gdi_backend.h>
 //#include <gdi/gdi_context.h>
@@ -93,7 +95,7 @@ namespace bx
             i32 capacity = 0;
             void* memory_handle = nullptr;
 
-            Vector4* pos_size;
+            Vector4* pos_size = nullptr;
             OctreeNodeData* nodes_data = nullptr;
             OctreeChild* children = nullptr;
         } _data;
@@ -141,16 +143,17 @@ namespace bx
         int nodeAlloc( const Vector3 pos, float size, uptr data = UINT64_MAX )
         {
             if( _data.size >= _data.capacity )
-                return -1;
-
+            {
+                dataAlloc( _data.capacity * 2 );
+            }
             int index = _data.size++;
             _data.pos_size[index] = Vector4( pos, size );
             _data.nodes_data[index] = octreeNodeDataMake( data );
-            memset( _data.children + index, 0xff, sizeof( OctreeChild ) );
+            memset( &_data.children[index], 0xff, sizeof( OctreeChild ) );
             return index;
         }
 
-        bxAABB nodeAABB( int index )
+        bxAABB nodeAABB( int index ) const
         {
             const Vector4& pos_size = _data.pos_size[index];
             const Vector3 pos = pos_size.getXYZ();
@@ -163,7 +166,7 @@ namespace bx
     void octreeCreate( Octree** octPtr, float size )
     {
         Octree* oct = BX_NEW( bxDefaultAllocator(), Octree );
-        oct->dataAlloc( 64 + 1 );
+        oct->dataAlloc( 255 + 1 );
         oct->nodeAlloc( Vector3( 0.f ), size );
         octPtr[0] = oct;
     }
@@ -182,6 +185,7 @@ namespace bx
             const Vector3 childCenter = nodeCenter + offsetFromCenter * childSize * halfVec;
 
             const int index = oct->nodeAlloc( childCenter, childSize.getAsFloat() );
+            SYS_ASSERT( index >= 0 );
             oct->_data.children[nodeIndex].index_flat[ichild] = index;
         }
 
@@ -196,8 +200,8 @@ namespace bx
 
         void octreePointInsertR( int* outNodeIndex, Octree* oct, int currentNodeIndex, const Vector3 point, uptr data, float nodeSizeThreshold )
         {
-            if( *outNodeIndex != -1 )
-                return;
+            //if( *outNodeIndex != -1 )
+            //    return;
 
             const bxAABB nodeAABB = oct->nodeAABB( currentNodeIndex );
             const int collision = pointInAABBf4( nodeAABB.min.get128(), nodeAABB.max.get128(), point.get128() );
@@ -214,8 +218,7 @@ namespace bx
                 return;
             }
             
-            OctreeChild& children = oct->_data.children[currentNodeIndex];
-            if( children.index_flat[0] == UINT16_MAX )
+            if( oct->_data.children[currentNodeIndex].index_flat[0] == UINT16_MAX )
             {
                 octreeCreateChildNode( oct, currentNodeIndex, 0, Vector3( 1.f,-1.f,-1.f ) );
                 octreeCreateChildNode( oct, currentNodeIndex, 1, Vector3(-1.f,-1.f,-1.f ) );
@@ -226,6 +229,8 @@ namespace bx
                 octreeCreateChildNode( oct, currentNodeIndex, 6, Vector3( 1.f, 1.f, 1.f ) );
                 octreeCreateChildNode( oct, currentNodeIndex, 7, Vector3(-1.f, 1.f, 1.f ) );
             }
+
+            OctreeChild& children = oct->_data.children[currentNodeIndex];
             for( int i = 0; i < 8; ++i )
             {
                 octreePointInsertR( outNodeIndex, oct, children.index_flat[i], point, data, nodeSizeThreshold );
@@ -253,6 +258,56 @@ namespace bx
     OctreeNodeData octreeDataLookup( Octree* oct, const Vector3 pos )
     {
         return octreeNodeDataMake( 0 );
+    }
+
+    Vector4 octreeNodePosSize( Octree* oct, int nodeIndex )
+    {
+        if( nodeIndex < 0 || nodeIndex >= oct->_data.size )
+            return Vector4( -1.f );
+
+        return oct->_data.pos_size[nodeIndex];
+    }
+
+    namespace
+    {
+        void octreeRaycastR( int* result, const Octree* oct, int currentNodeIndex, const Vector3 ro, const Vector3 rdInv, const floatInVec rayLength )
+        {
+            if( *result != -1 )
+                return;
+            
+            const Octree::Data& data = oct->_data;
+
+            bxAABB aabb = oct->nodeAABB( currentNodeIndex );
+            OctreeNodeData currentNodeData = data.nodes_data[currentNodeIndex];
+
+            int collision = intersectRayAABB( ro, rdInv, rayLength, aabb.min, aabb.max );
+            if( !collision )
+                return;
+
+            if( !currentNodeData.empty() )
+            {
+                result[0] = currentNodeIndex;
+                return;
+            }
+
+            if( data.children[currentNodeIndex].index_flat[0] == UINT16_MAX )
+                return;
+
+            const OctreeChild& children = data.children[currentNodeIndex];
+            for( int i = 0; i < 8; ++i )
+            {
+                octreeRaycastR( result, oct, children.index_flat[i], ro, rdInv, rayLength );
+            }
+        }
+    }///
+
+    int octreeRaycast( const Octree* oct, const Vector3 ro, const Vector3 rd, const floatInVec rayLength )
+    {
+        const Vector3 rdInv = divPerElem( Vector3( 1.f ), rd );
+        int nodeIndex = -1;
+        octreeRaycastR( &nodeIndex, oct, Octree::ROOT_INDEX, ro, rdInv, rayLength );
+
+        return nodeIndex;
     }
 
     void octreeDebugDraw( Octree* oct, u32 color0 /*= 0x00FF00FF*/, u32 color1 /*= 0xFF0000FF */ )
