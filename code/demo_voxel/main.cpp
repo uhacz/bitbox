@@ -133,9 +133,6 @@ public:
     }
     virtual bool update( u64 deltaTimeUS )
     {
-        const double deltaTimeS = bxTime::toSeconds( deltaTimeUS );
-        const float deltaTime = (float)deltaTimeS;
-
         bxWindow* win = bxWindow_get();
         const bxInput* input = bxInput_get();
 
@@ -144,6 +141,10 @@ public:
             return false;
         }
 
+        rmt_BeginCPUSample( FRAME );
+
+        const double deltaTimeS = bxTime::toSeconds( deltaTimeUS );
+        const float deltaTime = (float)deltaTimeS;
         bxGfxGUI::newFrame( (float)deltaTimeS );
 
         {
@@ -183,7 +184,10 @@ public:
             const Matrix4 cameraWorld = gfxCameraWorldMatrixGet( camera );
             const Vector3 ro = cameraWorld.getTranslation();
             const Vector3 rd =-cameraWorld.getCol2().getXYZ();
+            rmt_BeginCPUSample( raycast );
             int nodeIndex = octreeRaycast( octree, ro, rd );
+            rmt_EndCPUSample();
+
             if( nodeIndex != -1 )
             {
                 Vector4 nodePosSize = octreeNodePosSize( octree, nodeIndex );
@@ -231,6 +235,8 @@ public:
         //bxGfx::rasterizeFramebuffer( gdiContext, fb.textures[bxVoxelFramebuffer::eCOLOR], currentCamera );
         
         time += deltaTime;
+
+        rmt_EndCPUSample();
         return true;
     }
     float time = 0.f;
