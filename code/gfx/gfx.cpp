@@ -104,6 +104,11 @@ namespace bx
         return camera->world;
     }
 
+    Matrix4 gfxCameraViewMatrixGet( const GfxCamera* camera )
+    {
+        return camera->view;
+    }
+
     void gfxViewFrameParamsFill( GfxViewFrameParams* fparams, const GfxCamera* camera, int rtWidth, int rtHeight )
     {
         //SYS_STATIC_ASSERT( sizeof( FrameData ) == 376 );

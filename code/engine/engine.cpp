@@ -87,7 +87,6 @@ void DevCamera::startup( DevCamera* devCamera, Scene* scene, Engine* engine )
     gfxCameraCreate( &devCamera->camera, engine->gfx_context );
     engine->camera_manager->add( devCamera->camera, "dev_camera" );
     engine->camera_manager->stack()->push( devCamera->camera );
-
 }
 
 void DevCamera::shutdown( DevCamera* devCamera, Engine* engine )

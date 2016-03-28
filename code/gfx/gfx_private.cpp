@@ -45,7 +45,7 @@ namespace bx
     GfxCameraParams::GfxCameraParams()
         : hAperture( 1.8f )
         , vAperture( 1.f )
-        , focalLength( 35.f )
+        , focalLength( 50.f )
         , zNear( 0.25f )
         , zFar( 250.f )
         , orthoWidth( 10.f )

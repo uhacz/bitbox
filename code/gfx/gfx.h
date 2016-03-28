@@ -36,6 +36,7 @@ namespace bx
 
     void gfxCameraWorldMatrixSet( GfxCamera* cam, const Matrix4& world );
     Matrix4 gfxCameraWorldMatrixGet( const GfxCamera* camera );
+    Matrix4 gfxCameraViewMatrixGet( const GfxCamera* camera );
 
     ////
     void gfxSunLightDirectionSet( GfxContext* ctx, const Vector3& direction );

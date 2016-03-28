@@ -2,7 +2,6 @@
 #include <util/memory.h>
 #include <util/buffer_utils.h>
 #include <util/array.h>
-#include <util/bbox.h>
 #include <util/collision.h>
 #include <gfx/gfx_debug_draw.h>
 
@@ -74,17 +73,33 @@
 
 namespace bx
 {
+
     OctreeNodeData octreeNodeDataMake( uptr data )
     {
         OctreeNodeData ond;
         ond.value = data;
         return ond;
     }
-    union OctreeChild
+    union OctreeNodeChild
     {
         u16 index_flat[8];
         u16 index[2][2][2];
     };
+
+    union OctreeNode
+    {
+        OctreeNodeData data;
+        OctreeNodeChild children;
+    };
+    union OctreeNodeFlag
+    {
+        u16 all = 0;
+        struct
+        {
+            u16 leaf_index : 16;
+        };
+    };
+
     struct Octree
     {
         static const int ROOT_INDEX = 0;
@@ -96,8 +111,8 @@ namespace bx
             void* memory_handle = nullptr;
 
             Vector4* pos_size = nullptr;
-            OctreeNodeData* nodes_data = nullptr;
-            OctreeChild* children = nullptr;
+            OctreeNode* node = nullptr;
+            OctreeNodeFlag* flag = nullptr;
         } _data;
 
         array_t<u16> _leaves;
@@ -106,8 +121,8 @@ namespace bx
         {
             int mem_size = 0;
             mem_size += newCapacity * sizeof( *_data.pos_size );
-            mem_size += newCapacity * sizeof( *_data.nodes_data );
-            mem_size += newCapacity * sizeof( *_data.children );
+            mem_size += newCapacity * sizeof( *_data.node );
+            mem_size += newCapacity * sizeof( *_data.flag );
 
             int size = _data.size;
             Data newData;
@@ -119,16 +134,16 @@ namespace bx
 
             bxBufferChunker chunker( mem_handle, mem_size );
             newData.pos_size = chunker.add< Vector4 >( newCapacity );
-            newData.nodes_data = chunker.add< OctreeNodeData >( newCapacity );
-            newData.children = chunker.add< OctreeChild >( newCapacity );
+            newData.node = chunker.add< OctreeNode >( newCapacity );
+            newData.flag = chunker.add< OctreeNodeFlag >( newCapacity );
 
             chunker.check();
 
             if( size )
             {
                 BX_CONTAINER_COPY_DATA( &newData, &_data, pos_size );
-                BX_CONTAINER_COPY_DATA( &newData, &_data, nodes_data );
-                BX_CONTAINER_COPY_DATA( &newData, &_data, children );
+                BX_CONTAINER_COPY_DATA( &newData, &_data, node );
+                BX_CONTAINER_COPY_DATA( &newData, &_data, flag );
             }
 
             BX_FREE0( bxDefaultAllocator(), _data.memory_handle );
@@ -148,8 +163,8 @@ namespace bx
             }
             int index = _data.size++;
             _data.pos_size[index] = Vector4( pos, size );
-            _data.nodes_data[index] = octreeNodeDataMake( data );
-            memset( &_data.children[index], 0xff, sizeof( OctreeChild ) );
+            memset( &_data.node[index], 0xff, sizeof( OctreeNode ) );
+            _data.flag[index].leaf_index = UINT16_MAX;
             return index;
         }
 
@@ -160,7 +175,7 @@ namespace bx
             Vector3 ext( data.pos_size[index].getW() * halfVec );
             return bxAABB( pos - ext, pos + ext );
         }
-        static void nodeChildrenAABB_soa( Soa::Vector3 minAABB[2], Soa::Vector3 maxAABB[2], const Data& data, const OctreeChild& children )
+        static void nodeChildrenAABB_soa( Soa::Vector3 minAABB[2], Soa::Vector3 maxAABB[2], const Data& data, const OctreeNodeChild& children )
         {
             const u16* i = children.index_flat;
             const Soa::Vector4 p[2] =
@@ -176,7 +191,6 @@ namespace bx
             maxAABB[0] = p[0].getXYZ() + ext;
             maxAABB[1] = p[1].getXYZ() + ext;
         }
-
     };
 
     void octreeCreate( Octree** octPtr, float size )
@@ -202,7 +216,7 @@ namespace bx
 
             const int index = oct->nodeAlloc( childCenter, childSize.getAsFloat() );
             SYS_ASSERT( index >= 0 );
-            oct->_data.children[nodeIndex].index_flat[ichild] = index;
+            oct->_data.node[nodeIndex].children.index_flat[ichild] = index;
         }
 
         static inline int pointInAABBf4( const vec_float4 bboxMin, const vec_float4 bboxMax, const vec_float4 point )
@@ -225,16 +239,23 @@ namespace bx
                 return;
 
             const Vector4& pos_size = oct->_data.pos_size[currentNodeIndex];
+            OctreeNodeFlag& flag = oct->_data.flag[currentNodeIndex];
             const float nodeSize = pos_size.getW().getAsFloat();
            
             if( nodeSize <= nodeSizeThreshold )
             {
                 outNodeIndex[0] = currentNodeIndex;
-                oct->_data.nodes_data[currentNodeIndex].value = data;
+                oct->_data.node[currentNodeIndex].data.value = data;
+                if( flag.leaf_index == UINT16_MAX )
+                {
+                    flag.leaf_index = (u16)array::push_back( oct->_leaves, (u16)currentNodeIndex );
+                }
                 return;
             }
             
-            if( oct->_data.children[currentNodeIndex].index_flat[0] == UINT16_MAX )
+
+            SYS_ASSERT( flag.leaf_index ==  UINT16_MAX );
+            if( oct->_data.node[currentNodeIndex].children.index_flat[0] == UINT16_MAX )
             {
                 octreeCreateChildNode( oct, currentNodeIndex, 0, Vector3( 1.f,-1.f,-1.f ) );
                 octreeCreateChildNode( oct, currentNodeIndex, 1, Vector3(-1.f,-1.f,-1.f ) );
@@ -246,7 +267,7 @@ namespace bx
                 octreeCreateChildNode( oct, currentNodeIndex, 7, Vector3(-1.f, 1.f, 1.f ) );
             }
 
-            OctreeChild& children = oct->_data.children[currentNodeIndex];
+            const OctreeNodeChild& children = oct->_data.node[currentNodeIndex].children;
             for( int i = 0; i < 8; ++i )
             {
                 octreePointInsertR( outNodeIndex, oct, children.index_flat[i], point, data, nodeSizeThreshold );
@@ -262,26 +283,39 @@ namespace bx
         octreePointInsertR( &nodeIndex, oct, Octree::ROOT_INDEX, point, data, NODE_SIZE_THRESHOLD );
         return nodeIndex;
     }
-    OctreeNodeData octreeDataGet( Octree* oct, int nodeIndex )
+    OctreeNodeData octreeDataGet( const Octree* oct, int nodeIndex )
     {
         if( nodeIndex < 0 || nodeIndex >= oct->_data.size )
         {
             return octreeNodeDataMake( UINT64_MAX );
         }
 
-        return oct->_data.nodes_data[nodeIndex];
+        if( oct->_data.flag[nodeIndex].leaf_index == UINT16_MAX )
+        {
+            return octreeNodeDataMake( UINT64_MAX );
+        }
+
+        return oct->_data.node[nodeIndex].data;
     }
-    OctreeNodeData octreeDataLookup( Octree* oct, const Vector3 pos )
+    OctreeNodeData octreeDataLookup( const Octree* oct, const Vector3 pos )
     {
         return octreeNodeDataMake( 0 );
     }
 
-    Vector4 octreeNodePosSize( Octree* oct, int nodeIndex )
+    Vector4 octreeNodePosSize( const Octree* oct, int nodeIndex )
     {
         if( nodeIndex < 0 || nodeIndex >= oct->_data.size )
             return Vector4( -1.f );
 
         return oct->_data.pos_size[nodeIndex];
+    }
+
+    bxAABB octreeNodeAABB( const Octree* oct, int nodeIndex )
+    {
+        if( nodeIndex < 0 || nodeIndex >= oct->_data.size )
+            return bxAABB( Vector3(0.f), Vector3(0.f) );
+
+        return Octree::nodeAABB( oct->_data, nodeIndex );
     }
 
     namespace
@@ -298,19 +332,18 @@ namespace bx
             const vec_float4 tmax = minElem( tmax1 );
             
             t[0] = tmin;
-            vec_float4 a = vec_cmpge( tmax, vec_max( _mm_setzero_ps(), tmin ) );
-            vec_float4 b = vec_cmplt( tmin, rayLength );
-            vec_float4 c = vec_and( a, b );
+            const vec_float4 a = vec_cmpge( tmax, vec_max( _mm_setzero_ps(), tmin ) );
+            const vec_float4 b = vec_cmplt( tmin, rayLength );
+            const vec_float4 c = vec_and( a, b );
             return _mm_movemask_ps( c );
         }
 
         void octreeRaycastR( int* hitNodeIndex, float* hitT, const Octree::Data& data, int currentNodeIndex, const Soa::Vector3 ro, const Soa::Vector3 rdInv, const vec_float4 rayLength )
         {
-            if( data.children[currentNodeIndex].index_flat[0] == UINT16_MAX )
+            const OctreeNodeChild& children = data.node[currentNodeIndex].children;
+            if( children.index_flat[0] == UINT16_MAX )
                 return;
 
-            const OctreeChild& children = data.children[currentNodeIndex];
-            int collision = 0;
             union
             {
                 vec_float4 tmin[2];
@@ -322,34 +355,32 @@ namespace bx
 
             Octree::nodeChildrenAABB_soa( childMinAABB, childMaxAABB, data, children );
 
-            collision = intersectRayAABB_soa( &tmin[0], ro, rdInv, rayLength, childMinAABB[0], childMaxAABB[0] );
-            collision = collision << 4;
-            collision |= intersectRayAABB_soa( &tmin[1], ro, rdInv, rayLength, childMinAABB[1], childMaxAABB[1] );
-            
-            //floatInVec tmin[8];
-            
-            //for( int i = 0; i < 8; ++i )
-            //{
-            //    bxAABB childAABB = Octree::nodeAABB( data, children.index_flat[i] );
-            //    collision[i] = intersectRayAABB( &tmin[i], ro, rdInv, rayLength, childAABB.min, childAABB.max );
-            //}
-
+            const int collision0 = intersectRayAABB_soa( &tmin[0], ro, rdInv, rayLength, childMinAABB[0], childMaxAABB[0] );
+            const int collision1 = intersectRayAABB_soa( &tmin[1], ro, rdInv, rayLength, childMinAABB[1], childMaxAABB[1] );
+            const int collision = collision1 << 4 | collision0;
 
             for( int i = 0; i < 8; ++i )
             {
                 if( !( collision & ( 1 << i ) ) )
                     continue;
 
+                //{
+                //    bxAABB childAABB = Octree::nodeAABB( data, children.index_flat[i] );
+                //    bxGfxDebugDraw::addBox( Matrix4::translation( bxAABB::center( childAABB ) ), bxAABB::size( childAABB )*0.5f, 0x0000FFFF, 1 );
+
+                //}
+
                 const int childNodeIndex = children.index_flat[i];
-                const OctreeNodeData ndata = data.nodes_data[childNodeIndex];
-                if( !ndata.empty() && tminf[i] < *hitT )
+                //const OctreeNodeData ndata = data.nodes_data[childNodeIndex];
+                if( data.flag[childNodeIndex].leaf_index != UINT16_MAX && tminf[i] < *hitT )
                 {
                     hitNodeIndex[0] = childNodeIndex;
                     hitT[0] = tminf[i];
                 }
-
-                octreeRaycastR( hitNodeIndex, hitT, data, childNodeIndex, ro, rdInv, rayLength );
-
+                else
+                {
+                    octreeRaycastR( hitNodeIndex, hitT, data, childNodeIndex, ro, rdInv, rayLength );
+                }
             }
         }
         //void octreeRaycastR1( int* hitNodeIndex, float* hitT, const Octree::Data& data, int currentNodeIndex, const Vector3 ro, const Vector3 rdInv, const floatInVec rayLength )
@@ -394,77 +425,6 @@ namespace bx
             bool empty() const { return _size == 0; }
             int size() const { return _size; }
         };
-        int octreeRaycastI( const Octree::Data& data, int rootNodeIndex, const Vector3 ro, const Vector3 rdInv, const floatInVec rayLength )
-        {
-            {
-                const bxAABB rootAABB = Octree::nodeAABB( data, rootNodeIndex );
-                floatInVec t;
-                int collision = intersectRayAABB( &t, ro, rdInv, rayLength, rootAABB.min, rootAABB.max );
-                if( !collision )
-                    return -1;
-            }
-            int result = -1;
-
-            OctreeRaycastStack<16> stack;
-            stack.push( rootNodeIndex );
-            do 
-            {
-                
-                int currentNodeIndex = stack.top();
-                const OctreeChild& children = data.children[currentNodeIndex];
-                if( children.index_flat[0] == UINT16_MAX )
-                    break;
-
-                floatInVec t[8];
-                int collision[8];
-                for( int i = 0; i < 8; ++i )
-                {
-                    bxAABB aabb = Octree::nodeAABB( data, children.index_flat[i] );
-                    collision[i] = intersectRayAABB( &t[i], ro, rdInv, rayLength, aabb.min, aabb.max );
-                    if( collision[i] )
-                    {
-                        bxGfxDebugDraw::addBox( Matrix4::translation( bxAABB::center( aabb ) ), bxAABB::size( aabb ) * halfVec, 0xFF0000FF, 1 );
-                    }
-                }
-
-                int bestIndex = -1;
-                float bestT = FLT_MAX;
-                for( int i = 0; i < 8; ++i )
-                {
-                    if( !collision[i] )
-                        continue;
-
-                    float ti = t[i].getAsFloat();
-                    if( bestT > ti )
-                    {
-                        bestT = ti;
-                        bestIndex = i;
-                    }
-                }
-
-                if( bestIndex == -1 )
-                {
-                    break;
-                }
-                else
-                {
-                    int bestNodeIndex = children.index_flat[bestIndex];
-                    const OctreeNodeData ndata = data.nodes_data[bestNodeIndex];
-                    if( ndata.empty() )
-                    {
-
-                        stack.push( bestNodeIndex );
-                    }
-                    else
-                    {
-                        result = bestNodeIndex;
-                        break;
-                    }
-                }
-            } while (1);
-
-            return result;
-        }
     }///
 
     int octreeRaycast( const Octree* oct, const Vector3 ro, const Vector3 rd, const floatInVec rayLength )
@@ -483,7 +443,7 @@ namespace bx
         float t = FLT_MAX;
 
         const Soa::Vector3 roSoa( ro );
-        const Soa::Vector3 rdInvSoa( rd );
+        const Soa::Vector3 rdInvSoa( rdInv );
         const vec_float4 rayLength4 = rayLength.get128();
 
         octreeRaycastR( &nodeIndex, &t, oct->_data, Octree::ROOT_INDEX, roSoa, rdInvSoa, rayLength4 );
@@ -503,7 +463,7 @@ namespace bx
             Vector3 aabbSize = Vector3( posAndSize.getW() );
 
             //bxGfxDebugDraw::addBox( Matrix4::translation( aabbCenter ), aabbSize * 0.5f, color0, true );
-            if( oct->_data.nodes_data[i].value != UINT64_MAX )
+            if( oct->_data.flag[i].leaf_index != UINT16_MAX )
             {
                 bxGfxDebugDraw::addSphere( Vector4( aabbCenter, posAndSize.getW() * halfVec ), color1, true );
             }
@@ -514,7 +474,13 @@ namespace bx
 
 namespace bx
 {
-    
+    struct VoxelActor
+    {
+        GfxMeshInstance* _gfx_mesh = nullptr;
+        Octree* _octree = nullptr;
+        hashmap_t _shell_map;
+        bxGdiBuffer _gpu_buffer;
+    };
 
 
     struct VoxelContainer

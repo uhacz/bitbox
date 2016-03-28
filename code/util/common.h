@@ -66,6 +66,14 @@ inline float lerp( float t, float a, float b )
     return a + t*( b - a );
 }
 
+inline float cubicpulse( float c, float w, float x )
+{
+    x = fabsf( x - c );
+    if( x > w ) return 0.0f;
+    x /= w;
+    return 1.0f - x*x*( 3.0f - 2.0f*x );
+}
+
 inline u16 depthToBits( float depth )
 {
     union { float f; unsigned i; } f2i;
