@@ -1,11 +1,15 @@
 #include "engine.h"
-#include <util/config.h>
-
 #include <system/window.h>
+#include <system/input.h>
+
+#include <util/config.h>
+#include <util/string_util.h>
+#include <util/array.h>
+#include <util/thread/mutex.h>
+#include <util/id_table.h>
 
 #include <gfx/gfx_gui.h>
 #include <gfx/gfx_debug_draw.h>
-#include <system/input.h>
 
 namespace bx
 {
@@ -114,10 +118,166 @@ void DevCamera::tick( const bxInput* input, float deltaTime )
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+struct NodeType
+{
+    i32 id = -1;
+    NodeTypeInfo info;
+
+    ~NodeType()
+    {
+        string::free_and_null( (char**)&info._type_name );
+    }
+};
+bool nodeInstanceInfoEmpty( const NodeInstanceInfo& info )
+{
+    bool result = true;
+    result &= info._type_id == -1;
+    result &= info._instance_id.hash == 0;
+
+    result &= info._type_name == nullptr;
+    result &= info._instance_name == nullptr;
+
+    result &= info._graph == nullptr;
+    result &= info._parent.hash == 0;
+    result &= info._first_child.hash == 0;
+    result &= info._next_slibling.hash == 0;
+    return result;
+}
+void nodeInstanceInfoClear( NodeInstanceInfo* info )
+{
+    memset( info, 0x00, sizeof( NodeInstanceInfo ) );
+    info->_type_id = -1;
+}
+
+
 struct GraphGlobal
 {
-    
+    enum
+    {
+        eMAX_NODES = 1024*8,
+    };
+    array_t< NodeType > _node_types;
+    id_table_t< eMAX_NODES > _id_table;
+    Node* _nodes[eMAX_NODES];
+    NodeInstanceInfo _instance_info[eMAX_NODES];
+
+    bxRecursiveBenaphore _lock_nodes;
+
+    void startup()
+    {
+        memset( _nodes, 0x00, sizeof( _nodes ) );
+        for( int i = 0; i < eMAX_NODES; ++i )
+        {
+            nodeInstanceInfoClear( &_instance_info[i] );
+        }
+    }
+
+    void shutdown()
+    {
+        SYS_ASSERT( id_table::size( _id_table ) == 0 );
+        for( int i = 0; i < eMAX_NODES; ++i )
+        {
+            SYS_ASSERT( _nodes[i] == nullptr );
+            SYS_ASSERT( nodeInstanceInfoEmpty( _instance_info[i] ) );
+        }
+
+        for( int i = 0; i < array::size( _node_types ); ++i )
+        {
+            if( _node_types[i].info._type_deinit )
+            {
+                ( *_node_types[i].info._type_deinit )( );
+            }
+        }
+    }
+
+    int typeFind( const char* name )
+    {
+        for( int i = 0; i < array::size( _node_types ); ++i )
+        {
+            if( string::equal( name, _node_types[i].info._type_name ) )
+                return i;
+        }
+        return -1;
+    }
+
+    int typeAdd( const NodeTypeInfo& info )
+    {
+        int found = typeFind( info._type_name );
+        if( found != -1 )
+        {
+            bxLogError( "Node type already exists '%s'", info._type_name );
+            return -1;
+        }
+            
+
+        int index = array::push_back( _node_types, NodeType() );
+        NodeType& type = array::back( _node_types );
+        type.id = index;
+        type.info = info;
+        type.info._type_name = string::duplicate( nullptr, info._type_name );
+
+        if( info._type_init )
+        {
+            ( *info._type_init )( );
+        }
+
+        return index;
+    }
+
+    id_t nodeCreate( const char* typeName, const char* nodeName )
+    {
+
+        int typeIndex = typeFind( typeName );
+        if( typeIndex == -1 )
+        {
+            bxLogError( "Node type '%s' not found", typeName );
+            return makeInvalidHandle<id_t>();
+        }
+
+        NodeType* type = &_node_types[typeIndex];
+        Node* node = ( *type->info._creator )( );
+        SYS_ASSERT( node != nullptr );
+
+        _lock_nodes.lock();
+        id_t id = id_table::create( _id_table );
+        _lock_nodes.unlock();
+
+        SYS_ASSERT( _nodes[id.index] == nullptr );
+        _nodes[id.index] = node;
+
+        NodeInstanceInfo& instance = _instance_info[id.index];
+        SYS_ASSERT( nodeInstanceInfoEmpty( instance ) );
+
+        instance._type_id = type->id;
+        instance._instance_id = id;
+        instance._type_name = type->info._type_name;
+        instance._instance_name = string::duplicate( nullptr, nodeName );
+
+        return id;
+    }
+
 };
+static GraphGlobal* __graphGlobal = nullptr;
+void graphGlobalStartup()
+{
+    SYS_ASSERT( __graphGlobal == nullptr );
+    __graphGlobal = BX_NEW( bxDefaultAllocator(), GraphGlobal );
+    __graphGlobal->startup();
+}
+void graphGlobalShutdown()
+{
+    if( !__graphGlobal )
+        return;
+
+    __graphGlobal->shutdown();
+    BX_DELETE0( bxDefaultAllocator(), __graphGlobal );
+}
+
+bool nodeRegister( const NodeTypeInfo& typeInfo )
+{
+    int ires = __graphGlobal->typeAdd( typeInfo );
+    return ( ires == -1 ) ? false : true;
+}
 
 struct Graph
 {};

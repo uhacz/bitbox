@@ -66,55 +66,53 @@ namespace bx
     struct Node;
     struct Graph;
 
-    typedef Node* ( *NodeCreator )( );
-    typedef void( *NodeInit )( Node* self );
-    typedef void( *NodeDeinit )( Node* self );
-    typedef void( *NodeLoad )( Node* self, Scene* scene );
-    typedef void( *NodeUnload )( Node* self, Scene* scene );
-    typedef void( *NodeTick )( Node* self, Scene* scene );
-
-    struct NodeDesc
+    struct NodeTypeInfo
     {
+        typedef void( *TypeInit )( );
+        typedef void( *TypeDeinit )( );
+        typedef Node* ( *Creator )( );
+        typedef void( *Load )( Node* self, Scene* scene );
+        typedef void( *Unload )( Node* self, Scene* scene );
+        typedef void( *Tick )( Node* self, Scene* scene );
+
         const char* _type_name = nullptr;
 
-        NodeCreator _creator = nullptr;
-        NodeInit _init = nullptr;
-        NodeDeinit _deinit = nullptr;
-        NodeLoad _load = nullptr;
-        NodeUnload _unload = nullptr;
-        NodeTick _tick = nullptr;
+        TypeInit _type_init = nullptr;
+        TypeDeinit _type_deinit = nullptr;
+        Creator _creator = nullptr;
+        Load _load = nullptr;
+        Unload _unload = nullptr;
+        Tick _tick = nullptr;
     };
 
     struct NodeInstanceInfo
     {
-        u32 _type_id;
-        const char* _type_name;
-        
+        i32 _type_id;
         id_t _instance_id;
+        
+        const char* _type_name;
         const char* _instance_name;
 
-        Graph* _graph = nullptr;
-        Node* _parent = nullptr;
-        Node* _first_child = nullptr;
-        Node* _next_slibling = nullptr;
+        Graph* _graph;
+        id_t _parent;
+        id_t _first_child;
+        id_t _next_slibling;
     };
 
     void graphGlobalStartup();
     void graphGlobalShutdown();
+    bool nodeRegister( const NodeTypeInfo& typeInfo );
 
     void graphCreate( Graph** graph );
     void graphDestroy( Graph** graph );
     void graphTick( Graph* graph );
-    bool graphNodeAdd( Graph* graph, Node* node );
-    void graphNodeRemove( Node* node );
-    bool graphNodeLink( Node* parent, Node* child );
-    bool graphNodeUnlink( Node* parent, Node* child );
+    bool graphNodeAdd( Graph* graph, id_t id );
+    void graphNodeRemove( id_t id );
+    bool graphNodeLink( id_t parent, id_t child );
+    bool graphNodeUnlink( id_t child );
 
-    bool nodeRegister( NodeDesc* nodeDesc );
-    bool nodeCreate( Node** out, const char* typeName );
-    void nodeDestroy( Node** intOut );
-    void nodeInstanceInfoGet( NodeInstanceInfo* nif, Node* node );
-
-
-
+    bool nodeCreate( id_t* out, const char* typeName, const char* nodeName );
+    void nodeDestroy( id_t* inOut );
+    NodeInstanceInfo* nodeInstanceInfoGet( id_t id );
+    Node* nodeInstanceGet( id_t id );
 }///
