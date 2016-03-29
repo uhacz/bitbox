@@ -59,4 +59,62 @@ namespace bx
         static void shutdown( DevCamera* devCamera, Engine* engine );
     };
 
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    struct Node;
+    struct Graph;
+
+    typedef Node* ( *NodeCreator )( );
+    typedef void( *NodeInit )( Node* self );
+    typedef void( *NodeDeinit )( Node* self );
+    typedef void( *NodeLoad )( Node* self, Scene* scene );
+    typedef void( *NodeUnload )( Node* self, Scene* scene );
+    typedef void( *NodeTick )( Node* self, Scene* scene );
+
+    struct NodeDesc
+    {
+        const char* _type_name = nullptr;
+
+        NodeCreator _creator = nullptr;
+        NodeInit _init = nullptr;
+        NodeDeinit _deinit = nullptr;
+        NodeLoad _load = nullptr;
+        NodeUnload _unload = nullptr;
+        NodeTick _tick = nullptr;
+    };
+
+    struct NodeInstanceInfo
+    {
+        u32 _type_id;
+        const char* _type_name;
+        
+        id_t _instance_id;
+        const char* _instance_name;
+
+        Graph* _graph = nullptr;
+        Node* _parent = nullptr;
+        Node* _first_child = nullptr;
+        Node* _next_slibling = nullptr;
+    };
+
+    void graphGlobalStartup();
+    void graphGlobalShutdown();
+
+    void graphCreate( Graph** graph );
+    void graphDestroy( Graph** graph );
+    void graphTick( Graph* graph );
+    bool graphNodeAdd( Graph* graph, Node* node );
+    void graphNodeRemove( Node* node );
+    bool graphNodeLink( Node* parent, Node* child );
+    bool graphNodeUnlink( Node* parent, Node* child );
+
+    bool nodeRegister( NodeDesc* nodeDesc );
+    bool nodeCreate( Node** out, const char* typeName );
+    void nodeDestroy( Node** intOut );
+    void nodeInstanceInfoGet( NodeInstanceInfo* nif, Node* node );
+
+
+
 }///
