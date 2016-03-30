@@ -11,6 +11,8 @@
 #include <gfx/gfx_gui.h>
 #include <gfx/gfx_debug_draw.h>
 
+#include <atomic>
+
 namespace bx
 {
 void Engine::startup( Engine* e )
@@ -231,9 +233,13 @@ struct GraphGlobal
         return index;
     }
 
+    bool nodeIsValid( id_t id ) const
+    {
+        return id_table::has( _id_table, id );
+    }
+
     id_t nodeCreate( const char* typeName, const char* nodeName )
     {
-
         int typeIndex = typeFind( typeName );
         if( typeIndex == -1 )
         {
@@ -262,6 +268,7 @@ struct GraphGlobal
 
         return id;
     }
+
     void nodeDestroy( id_t id )
     {
         _lock_nodes.lock();
@@ -285,7 +292,6 @@ struct GraphGlobal
         id_table::destroy( _id_table, id );
         _lock_nodes.unlock();
     }
-
 };
 static GraphGlobal* __graphGlobal = nullptr;
 void graphGlobalStartup()
@@ -308,9 +314,45 @@ bool nodeRegister( const NodeTypeInfo& typeInfo )
     int ires = __graphGlobal->typeAdd( typeInfo );
     return ( ires == -1 ) ? false : true;
 }
+bool nodeCreate( id_t* out, const char* typeName, const char* nodeName )
+{
+    out[0] = __graphGlobal->nodeCreate( typeName, nodeName );
+    return __graphGlobal->nodeIsValid( *out );
+}
+void nodeDestroy( id_t* inOut )
+{
+    __graphGlobal->nodeDestroy( *inOut );
+    inOut[0] = makeInvalidHandle<id_t>();
+}
 
+bool nodeIsAlive( id_t id )
+{
+    return __graphGlobal->nodeIsValid( id );
+}
+
+NodeInstanceInfo nodeInstanceInfoGet( id_t id )
+{
+    SYS_ASSERT( __graphGlobal->nodeIsValid( id ) );
+    return __graphGlobal->_instance_info[id.index];
+}
+
+Node* nodeInstanceGet( id_t id )
+{
+    SYS_ASSERT( __graphGlobal->nodeIsValid( id ) );
+    return __graphGlobal->_nodes[id.index];
+}
+
+//////////////////////////////////////////////////////////////////////////
 struct Graph
-{};
+{
+    array_t< id_t > _id_nodes;
+    array_t< Node* > _nodes;
+    array_t< i16 > _nodes_type_index;
+
+    std::atomic_bool _flag_recompute;
+
+};
+
 
 
 

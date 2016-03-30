@@ -63,7 +63,7 @@ namespace bx
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
-    struct Node;
+    struct Node {};
     struct Graph;
 
     struct NodeTypeInfo
@@ -115,6 +115,7 @@ namespace bx
 
     bool nodeCreate( id_t* out, const char* typeName, const char* nodeName );
     void nodeDestroy( id_t* inOut );
-    NodeInstanceInfo* nodeInstanceInfoGet( id_t id );
+    bool nodeIsAlive( id_t id );
+    NodeInstanceInfo nodeInstanceInfoGet( id_t id );
     Node* nodeInstanceGet( id_t id );
 }///
