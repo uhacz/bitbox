@@ -118,9 +118,10 @@ void DevCamera::tick( const bxInput* input, float deltaTime )
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+
 struct NodeType
 {
-    i32 id = -1;
+    i32 index = -1;
     NodeTypeInfo info;
 
     ~NodeType()
@@ -131,7 +132,7 @@ struct NodeType
 bool nodeInstanceInfoEmpty( const NodeInstanceInfo& info )
 {
     bool result = true;
-    result &= info._type_id == -1;
+    result &= info._type_index == -1;
     result &= info._instance_id.hash == 0;
 
     result &= info._type_name == nullptr;
@@ -146,9 +147,15 @@ bool nodeInstanceInfoEmpty( const NodeInstanceInfo& info )
 void nodeInstanceInfoClear( NodeInstanceInfo* info )
 {
     memset( info, 0x00, sizeof( NodeInstanceInfo ) );
-    info->_type_id = -1;
+    info->_type_index = -1;
+}
+void nodeInstanceInfoRelease( NodeInstanceInfo* info )
+{
+    string::free( (char*)info->_instance_name );
+    nodeInstanceInfoClear( info );
 }
 
+//////////////////////////////////////////////////////////////////////////
 
 struct GraphGlobal
 {
@@ -212,7 +219,7 @@ struct GraphGlobal
 
         int index = array::push_back( _node_types, NodeType() );
         NodeType& type = array::back( _node_types );
-        type.id = index;
+        type.index = index;
         type.info = info;
         type.info._type_name = string::duplicate( nullptr, info._type_name );
 
@@ -248,12 +255,35 @@ struct GraphGlobal
         NodeInstanceInfo& instance = _instance_info[id.index];
         SYS_ASSERT( nodeInstanceInfoEmpty( instance ) );
 
-        instance._type_id = type->id;
+        instance._type_index = type->index;
         instance._instance_id = id;
         instance._type_name = type->info._type_name;
         instance._instance_name = string::duplicate( nullptr, nodeName );
 
         return id;
+    }
+    void nodeDestroy( id_t id )
+    {
+        _lock_nodes.lock();
+        bool valid = id_table::has( _id_table, id );
+        _lock_nodes.unlock();
+        
+        if( !valid )
+            return;
+
+        int index = id.index;
+        Node* node = _nodes[index];
+        NodeInstanceInfo* iinfo = &_instance_info[index];
+        const NodeType& type = _node_types[iinfo->_type_index];
+        SYS_ASSERT( type.index == iinfo->_type_index );
+        
+        nodeInstanceInfoRelease( &_instance_info[index] );
+        ( *type.info._destroyer )( node );
+        _nodes[index] = nullptr;
+
+        _lock_nodes.lock();
+        id_table::destroy( _id_table, id );
+        _lock_nodes.unlock();
     }
 
 };

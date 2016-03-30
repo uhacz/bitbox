@@ -71,6 +71,7 @@ namespace bx
         typedef void( *TypeInit )( );
         typedef void( *TypeDeinit )( );
         typedef Node* ( *Creator )( );
+        typedef void ( *Destroyer )( Node* node );
         typedef void( *Load )( Node* self, Scene* scene );
         typedef void( *Unload )( Node* self, Scene* scene );
         typedef void( *Tick )( Node* self, Scene* scene );
@@ -79,6 +80,7 @@ namespace bx
 
         TypeInit _type_init = nullptr;
         TypeDeinit _type_deinit = nullptr;
+        Destroyer _destroyer = nullptr;
         Creator _creator = nullptr;
         Load _load = nullptr;
         Unload _unload = nullptr;
@@ -87,7 +89,7 @@ namespace bx
 
     struct NodeInstanceInfo
     {
-        i32 _type_id;
+        i32 _type_index;
         id_t _instance_id;
         
         const char* _type_name;
