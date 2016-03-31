@@ -60,6 +60,7 @@ union id_t
         u16 index;
     };
 };
+inline bool operator == ( id_t a, id_t b ) { return a.hash == b.hash; }
 
 inline id_t make_id( u32 hash ){
     id_t id = { hash };

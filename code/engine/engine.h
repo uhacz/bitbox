@@ -96,22 +96,19 @@ namespace bx
         const char* _instance_name;
 
         Graph* _graph;
-        id_t _parent;
-        id_t _first_child;
-        id_t _next_slibling;
     };
 
     void graphGlobalStartup();
     void graphGlobalShutdown();
+    void graphGlobalTick();
     bool nodeRegister( const NodeTypeInfo& typeInfo );
 
     void graphCreate( Graph** graph );
     void graphDestroy( Graph** graph );
-    void graphTick( Graph* graph );
     bool graphNodeAdd( Graph* graph, id_t id );
     void graphNodeRemove( id_t id );
-    bool graphNodeLink( id_t parent, id_t child );
-    bool graphNodeUnlink( id_t child );
+    void graphNodeLink( id_t parent, id_t child );
+    void graphNodeUnlink( id_t child );
 
     bool nodeCreate( id_t* out, const char* typeName, const char* nodeName );
     void nodeDestroy( id_t* inOut );

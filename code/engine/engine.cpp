@@ -12,6 +12,8 @@
 #include <gfx/gfx_debug_draw.h>
 
 #include <atomic>
+#include "util/array_util.h"
+#include <mutex>
 
 namespace bx
 {
@@ -141,9 +143,9 @@ bool nodeInstanceInfoEmpty( const NodeInstanceInfo& info )
     result &= info._instance_name == nullptr;
 
     result &= info._graph == nullptr;
-    result &= info._parent.hash == 0;
-    result &= info._first_child.hash == 0;
-    result &= info._next_slibling.hash == 0;
+    //result &= info._parent.hash == 0;
+    //result &= info._first_child.hash == 0;
+    //result &= info._next_slibling.hash == 0;
     return result;
 }
 void nodeInstanceInfoClear( NodeInstanceInfo* info )
@@ -170,7 +172,10 @@ struct GraphGlobal
     Node* _nodes[eMAX_NODES];
     NodeInstanceInfo _instance_info[eMAX_NODES];
 
+    array_t< Graph* > _graphs;
+
     bxRecursiveBenaphore _lock_nodes;
+    std::mutex _lock_graphs;
 
     void startup()
     {
@@ -197,6 +202,16 @@ struct GraphGlobal
                 ( *_node_types[i].info._type_deinit )( );
             }
         }
+    }
+
+    void nodesLock() { _lock_nodes.lock(); }
+    void nodesUnlock() { _lock_nodes.unlock(); }
+    void graphsLock() { _lock_graphs.lock(); }
+    void graphsUnlock() { _lock_graphs.unlock(); }
+        
+    NodeInstanceInfo* nodeInstanceInfoGet( id_t id )
+    {
+        return &_instance_info[id.index];
     }
 
     int typeFind( const char* name )
@@ -308,6 +323,16 @@ void graphGlobalShutdown()
     __graphGlobal->shutdown();
     BX_DELETE0( bxDefaultAllocator(), __graphGlobal );
 }
+void graphGlobalTick()
+{
+    __graphGlobal->graphsLock();
+    __graphGlobal->nodesLock();
+
+
+
+    __graphGlobal->nodesUnlock();
+    __graphGlobal->graphsUnlock();
+}
 
 bool nodeRegister( const NodeTypeInfo& typeInfo )
 {
@@ -346,13 +371,123 @@ Node* nodeInstanceGet( id_t id )
 struct Graph
 {
     array_t< id_t > _id_nodes;
-    array_t< Node* > _nodes;
-    array_t< i16 > _nodes_type_index;
 
-    std::atomic_bool _flag_recompute;
+    std::mutex _lock_nodes;
+    bool _flag_recompute = false;
 
+
+    void startup() {}
+    void shutdown()
+    {
+        for( int i = 0; i < array::size( _id_nodes ); ++i )
+        {
+            graphNodeRemove( _id_nodes[i] );
+        }
+    }
+
+    int nodeFind( id_t id )
+    {
+        return array::find1( array::begin( _id_nodes ), array::end( _id_nodes ), array::OpEqual<id_t>( id ) );
+    }
 };
 
+void graphCreate( Graph** graph )
+{
+    Graph* g = BX_NEW( bxDefaultAllocator(), Graph );
+    g->startup();
+
+    __graphGlobal->graphsLock();
+    array::push_back( __graphGlobal->_graphs, g );
+    __graphGlobal->graphsUnlock();
+
+    graph[0] = g;
+}
+void graphDestroy( Graph** graph )
+{
+    if( !graph[0] )
+        return;
+
+    __graphGlobal->graphsLock();
+    int found = array::find1( array::begin( __graphGlobal->_graphs ), array::end( __graphGlobal->_graphs ), array::OpEqual<Graph*>( graph[0] ) );
+    SYS_ASSERT( found != -1 );
+    array::erase( __graphGlobal->_graphs, found );
+    __graphGlobal->graphsUnlock();
+
+    graph[0]->shutdown();
+    BX_DELETE0( bxDefaultAllocator(), graph[0] );
+}
+
+void graphTick( Graph* graph )
+{
+    graph->_lock_nodes.lock();
+
+
+
+    graph->_lock_nodes.unlock();
+}
+
+bool graphNodeAdd( Graph* graph, id_t id )
+{
+    bool result = false;
+
+    graph->_lock_nodes.lock();
+    
+    int found = graph->nodeFind( id );
+    if( found == -1 )
+    {
+        __graphGlobal->nodesLock();
+        NodeInstanceInfo* info = __graphGlobal->nodeInstanceInfoGet( id );
+        if( info )
+        {
+            if( info->_graph )
+            {
+                bxLogError( "Node is already in graph." );
+            }
+            else
+            {
+                array::push_back( graph->_id_nodes, id );
+                info->_graph = graph;
+                result = true;
+            }
+        }
+        __graphGlobal->nodesUnlock();
+    }
+    
+    graph->_flag_recompute = true;
+    graph->_lock_nodes.unlock();
+
+    return result;
+}
+void graphNodeRemove( id_t id )
+{
+    Graph* g = nullptr;
+
+    __graphGlobal->nodesLock();
+    NodeInstanceInfo* info = __graphGlobal->nodeInstanceInfoGet( id );
+    if( info )
+    {
+        g = info->_graph;
+        info->_graph = nullptr;
+    }
+    __graphGlobal->nodesUnlock();
+
+    if( g )
+    {
+        g->_lock_nodes.lock();
+        int found = g->nodeFind( id );
+        SYS_ASSERT( found != -1 );
+        array::erase_swap( g->_id_nodes, found );
+        g->_flag_recompute = true;
+        g->_lock_nodes.unlock();
+    }
+}
+void graphNodeLink( id_t parent, id_t child )
+{
+}
+
+void graphNodeUnlink( id_t child )
+{
+}
 
 
 
