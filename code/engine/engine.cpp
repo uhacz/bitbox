@@ -14,6 +14,7 @@
 #include <atomic>
 #include "util/array_util.h"
 #include <mutex>
+#include "util/pool_allocator.h"
 
 namespace bx
 {
@@ -160,6 +161,11 @@ void nodeInstanceInfoRelease( NodeInstanceInfo* info )
 }
 
 //////////////////////////////////////////////////////////////////////////
+struct NodeToDestroy
+{
+    Node* node = nullptr;
+    NodeInstanceInfo* info = nullptr;
+};
 
 struct GraphGlobal
 {
@@ -170,20 +176,22 @@ struct GraphGlobal
     array_t< NodeType > _node_types;
     id_table_t< eMAX_NODES > _id_table;
     Node* _nodes[eMAX_NODES];
-    NodeInstanceInfo _instance_info[eMAX_NODES];
+    NodeInstanceInfo* _instance_info[eMAX_NODES];
+    bxPoolAllocator _alloc_instance_info;
 
+    array_t< NodeToDestroy > _nodes_to_destroy;
     array_t< Graph* > _graphs;
 
     bxRecursiveBenaphore _lock_nodes;
-    std::mutex _lock_graphs;
+    bxRecursiveBenaphore _lock_instance_info_alloc;
+    bxBenaphore _lock_graphs;
+    bxBenaphore _lock_nodes_to_destroy;
 
     void startup()
     {
         memset( _nodes, 0x00, sizeof( _nodes ) );
-        for( int i = 0; i < eMAX_NODES; ++i )
-        {
-            nodeInstanceInfoClear( &_instance_info[i] );
-        }
+        memset( _instance_info, 0x00, sizeof( _instance_info ) );
+        _alloc_instance_info.startup( sizeof( NodeInstanceInfo ), eMAX_NODES, bxDefaultAllocator(), 8 );
     }
 
     void shutdown()
@@ -192,8 +200,9 @@ struct GraphGlobal
         for( int i = 0; i < eMAX_NODES; ++i )
         {
             SYS_ASSERT( _nodes[i] == nullptr );
-            SYS_ASSERT( nodeInstanceInfoEmpty( _instance_info[i] ) );
+            SYS_ASSERT( _instance_info[i] == nullptr );
         }
+        _alloc_instance_info.shutdown();
 
         for( int i = 0; i < array::size( _node_types ); ++i )
         {
@@ -209,11 +218,33 @@ struct GraphGlobal
     void graphsLock() { _lock_graphs.lock(); }
     void graphsUnlock() { _lock_graphs.unlock(); }
         
-    NodeInstanceInfo* nodeInstanceInfoGet( id_t id )
+    //////////////////////////////////////////////////////////////////////////
+    NodeInstanceInfo* nodeInstanceInfoAllocate()
     {
-        return &_instance_info[id.index];
+        _lock_instance_info_alloc.lock();
+        NodeInstanceInfo* info = (NodeInstanceInfo*)_alloc_instance_info.alloc();
+        _lock_instance_info_alloc.unlock();
+        nodeInstanceInfoClear( info );
+        return info;
+    }
+    void nodeInstanceInfoFree( NodeInstanceInfo* info )
+    {
+        if( !info )
+            return;
+        
+        nodeInstanceInfoRelease( info );
+
+        _lock_instance_info_alloc.lock();
+        _alloc_instance_info.free( info );
+        _lock_instance_info_alloc.unlock();
     }
 
+    NodeInstanceInfo* nodeInstanceInfoGet( id_t id )
+    {
+        return _instance_info[id.index];
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     int typeFind( const char* name )
     {
         for( int i = 0; i < array::size( _node_types ); ++i )
@@ -247,124 +278,180 @@ struct GraphGlobal
 
         return index;
     }
-
+    
+    //////////////////////////////////////////////////////////////////////////
     bool nodeIsValid( id_t id ) const
     {
         return id_table::has( _id_table, id );
     }
 
-    id_t nodeCreate( const char* typeName, const char* nodeName )
+    void idAcquire( id_t* id )
     {
-        int typeIndex = typeFind( typeName );
-        if( typeIndex == -1 )
-        {
-            bxLogError( "Node type '%s' not found", typeName );
-            return makeInvalidHandle<id_t>();
-        }
+        _lock_nodes.lock();
+        id[0] = id_table::create( _id_table );
+        _lock_nodes.unlock();
+    }
+    void idRelease( id_t id )
+    {
+        _lock_nodes.lock();
+        id_table::destroy( _id_table, id );
+        _lock_nodes.unlock();
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void nodeCreate( id_t id, int typeIndex, const char* nodeName )
+    {
+        //int typeIndex = typeFind( typeName );
+        //if( typeIndex == -1 )
+        //{
+        //    bxLogError( "Node type '%s' not found", typeName );
+        //    return makeInvalidHandle<id_t>();
+        //}
 
         NodeType* type = &_node_types[typeIndex];
         Node* node = ( *type->info._creator )( );
         SYS_ASSERT( node != nullptr );
 
-        _lock_nodes.lock();
-        id_t id = id_table::create( _id_table );
-        _lock_nodes.unlock();
+        //_lock_nodes.lock();
+        //id_t id = id_table::create( _id_table );
+        //_lock_nodes.unlock();
 
         SYS_ASSERT( _nodes[id.index] == nullptr );
         _nodes[id.index] = node;
 
-        NodeInstanceInfo& instance = _instance_info[id.index];
-        SYS_ASSERT( nodeInstanceInfoEmpty( instance ) );
+        NodeInstanceInfo* instance = nodeInstanceInfoAllocate();
+        //NodeInstanceInfo& instance = _instance_info[id.index];
+        //SYS_ASSERT( nodeInstanceInfoEmpty( instance ) );
+        _instance_info[id.index] = instance;
+        instance->_type_index = type->index;
+        instance->_instance_id = id;
+        instance->_type_name = type->info._type_name;
+        instance->_instance_name = string::duplicate( nullptr, nodeName );
 
-        instance._type_index = type->index;
-        instance._instance_id = id;
-        instance._type_name = type->info._type_name;
-        instance._instance_name = string::duplicate( nullptr, nodeName );
-
-        return id;
+        //return id;
     }
 
-    void nodeDestroy( id_t id )
+    /// this function doesn't have to be thread safe. It's called in safe place.
+    void nodeDestroy( Node* node, NodeInstanceInfo* info )
     {
-        _lock_nodes.lock();
-        bool valid = id_table::has( _id_table, id );
-        _lock_nodes.unlock();
-        
-        if( !valid )
-            return;
+        const NodeType& type = _node_types[info->_type_index];
+        SYS_ASSERT( type.index == info->_type_index );
 
-        int index = id.index;
-        Node* node = _nodes[index];
-        NodeInstanceInfo* iinfo = &_instance_info[index];
-        const NodeType& type = _node_types[iinfo->_type_index];
-        SYS_ASSERT( type.index == iinfo->_type_index );
-        
-        nodeInstanceInfoRelease( &_instance_info[index] );
+        nodeInstanceInfoFree( info );
         ( *type.info._destroyer )( node );
-        _nodes[index] = nullptr;
 
-        _lock_nodes.lock();
-        id_table::destroy( _id_table, id );
-        _lock_nodes.unlock();
+        //bool valid = id_table::has( _id_table, id );
+        //        
+        //if( !valid )
+        //    return;
+
+        //int index = id.index;
+        //Node* node = _nodes[index];
+        //NodeInstanceInfo* iinfo = &_instance_info[index];
+        //const NodeType& type = _node_types[iinfo->_type_index];
+        //SYS_ASSERT( type.index == iinfo->_type_index );
+        //
+        //nodeInstanceInfoRelease( &_instance_info[index] );
+        //( *type.info._destroyer )( node );
+        //_nodes[index] = nullptr;
+
+        //id_table::destroy( _id_table, id );
     }
 };
-static GraphGlobal* __graphGlobal = nullptr;
+static GraphGlobal* _global = nullptr;
+
+//////////////////////////////////////////////////////////////////////////
 void graphGlobalStartup()
 {
-    SYS_ASSERT( __graphGlobal == nullptr );
-    __graphGlobal = BX_NEW( bxDefaultAllocator(), GraphGlobal );
-    __graphGlobal->startup();
+    SYS_ASSERT( _global == nullptr );
+    _global = BX_NEW( bxDefaultAllocator(), GraphGlobal );
+    _global->startup();
 }
 void graphGlobalShutdown()
 {
-    if( !__graphGlobal )
+    if( !_global )
         return;
 
-    __graphGlobal->shutdown();
-    BX_DELETE0( bxDefaultAllocator(), __graphGlobal );
+    _global->shutdown();
+    BX_DELETE0( bxDefaultAllocator(), _global );
 }
+
+//////////////////////////////////////////////////////////////////////////
 void graphGlobalTick()
 {
-    __graphGlobal->graphsLock();
-    __graphGlobal->nodesLock();
+    _global->graphsLock();
+    _global->nodesLock();
+    
+    _global->_lock_nodes_to_destroy.lock();
+    while( !array::empty( _global->_nodes_to_destroy ) )
+    {
+        NodeToDestroy ntd = array::back( _global->_nodes_to_destroy );
+        array::pop_back( _global->_nodes_to_destroy );
+        _global->nodeDestroy( ntd.node, ntd.info );
+    }
+    array::clear( _global->_nodes_to_destroy );
+    _global->_lock_nodes_to_destroy.unlock();
 
-
-
-    __graphGlobal->nodesUnlock();
-    __graphGlobal->graphsUnlock();
+    _global->nodesUnlock();
+    _global->graphsUnlock();
 }
 
+//////////////////////////////////////////////////////////////////////////
 bool nodeRegister( const NodeTypeInfo& typeInfo )
 {
-    int ires = __graphGlobal->typeAdd( typeInfo );
+    int ires = _global->typeAdd( typeInfo );
     return ( ires == -1 ) ? false : true;
 }
+//////////////////////////////////////////////////////////////////////////
 bool nodeCreate( id_t* out, const char* typeName, const char* nodeName )
 {
-    out[0] = __graphGlobal->nodeCreate( typeName, nodeName );
-    return __graphGlobal->nodeIsValid( *out );
+    int typeIndex = _global->typeFind( typeName );
+    if( typeIndex == -1 )
+    {
+        bxLogError( "Node type '%s' not found", typeName );
+        return false;
+    }
+
+    _global->idAcquire( out );
+    _global->nodeCreate( *out, typeIndex, nodeName );
+
+    return _global->nodeIsValid( *out );
 }
 void nodeDestroy( id_t* inOut )
 {
-    __graphGlobal->nodeDestroy( *inOut );
+    if( !_global->nodeIsValid( *inOut ) )
+        return;
+
+    NodeToDestroy ntd;
+    ntd.node = _global->_nodes[inOut->index];
+    ntd.info = _global->_instance_info[ inOut->index ];
+
+    _global->_nodes[inOut->index] = nullptr;
+    _global->_instance_info[inOut->index] = nullptr;
+    
+    _global->idRelease( *inOut );
     inOut[0] = makeInvalidHandle<id_t>();
+
+    _global->_lock_nodes_to_destroy.lock();
+    array::push_back( _global->_nodes_to_destroy, ntd );
+    _global->_lock_nodes_to_destroy.unlock();
 }
 
 bool nodeIsAlive( id_t id )
 {
-    return __graphGlobal->nodeIsValid( id );
+    return _global->nodeIsValid( id );
 }
-
+//////////////////////////////////////////////////////////////////////////
 NodeInstanceInfo nodeInstanceInfoGet( id_t id )
 {
-    SYS_ASSERT( __graphGlobal->nodeIsValid( id ) );
-    return __graphGlobal->_instance_info[id.index];
+    SYS_ASSERT( _global->nodeIsValid( id ) );
+    return *_global->_instance_info[id.index];
 }
 
 Node* nodeInstanceGet( id_t id )
 {
-    SYS_ASSERT( __graphGlobal->nodeIsValid( id ) );
-    return __graphGlobal->_nodes[id.index];
+    SYS_ASSERT( _global->nodeIsValid( id ) );
+    return _global->_nodes[id.index];
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -396,9 +483,9 @@ void graphCreate( Graph** graph )
     Graph* g = BX_NEW( bxDefaultAllocator(), Graph );
     g->startup();
 
-    __graphGlobal->graphsLock();
-    array::push_back( __graphGlobal->_graphs, g );
-    __graphGlobal->graphsUnlock();
+    _global->graphsLock();
+    array::push_back( _global->_graphs, g );
+    _global->graphsUnlock();
 
     graph[0] = g;
 }
@@ -407,11 +494,11 @@ void graphDestroy( Graph** graph )
     if( !graph[0] )
         return;
 
-    __graphGlobal->graphsLock();
-    int found = array::find1( array::begin( __graphGlobal->_graphs ), array::end( __graphGlobal->_graphs ), array::OpEqual<Graph*>( graph[0] ) );
+    _global->graphsLock();
+    int found = array::find1( array::begin( _global->_graphs ), array::end( _global->_graphs ), array::OpEqual<Graph*>( graph[0] ) );
     SYS_ASSERT( found != -1 );
-    array::erase( __graphGlobal->_graphs, found );
-    __graphGlobal->graphsUnlock();
+    array::erase( _global->_graphs, found );
+    _global->graphsUnlock();
 
     graph[0]->shutdown();
     BX_DELETE0( bxDefaultAllocator(), graph[0] );
@@ -435,8 +522,8 @@ bool graphNodeAdd( Graph* graph, id_t id )
     int found = graph->nodeFind( id );
     if( found == -1 )
     {
-        __graphGlobal->nodesLock();
-        NodeInstanceInfo* info = __graphGlobal->nodeInstanceInfoGet( id );
+        _global->nodesLock();
+        NodeInstanceInfo* info = _global->nodeInstanceInfoGet( id );
         if( info )
         {
             if( info->_graph )
@@ -450,7 +537,7 @@ bool graphNodeAdd( Graph* graph, id_t id )
                 result = true;
             }
         }
-        __graphGlobal->nodesUnlock();
+        _global->nodesUnlock();
     }
     
     graph->_flag_recompute = true;
@@ -462,14 +549,14 @@ void graphNodeRemove( id_t id )
 {
     Graph* g = nullptr;
 
-    __graphGlobal->nodesLock();
-    NodeInstanceInfo* info = __graphGlobal->nodeInstanceInfoGet( id );
+    _global->nodesLock();
+    NodeInstanceInfo* info = _global->nodeInstanceInfoGet( id );
     if( info )
     {
         g = info->_graph;
         info->_graph = nullptr;
     }
-    __graphGlobal->nodesUnlock();
+    _global->nodesUnlock();
 
     if( g )
     {
