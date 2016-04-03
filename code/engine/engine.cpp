@@ -161,6 +161,48 @@ void nodeInstanceInfoRelease( NodeInstanceInfo* info )
 }
 
 //////////////////////////////////////////////////////////////////////////
+template< typename T, typename Tlock >
+struct array_thread_safe_t : public array_t< T >
+{
+    Tlock _lock;
+
+    int push_back_with_lock( const T& value )
+    {
+        lock();
+        int index = array::push_back( *this, value );
+        unlock();
+        return index;
+    }
+    void erase_swap_with_lock( int index )
+    {
+        lock();
+        array::erase_swap( *this, index );
+        unlock();
+    }
+    void erase_with_lock( int index )
+    {
+        lock();
+        array::erase( *this, index );
+        unlock();
+    }
+
+    bool pop_from_back_with_lock( T* value )
+    {
+        lock();
+        bool e = array::empty( *this );
+        if( !e )
+        {
+            value[0] = array::back( *this );
+            array::pop_back( *this );
+        }
+        unlock();
+        return !e;
+    }
+
+    void lock() { _lock.lock(); }
+    void unlock() { _lock.unlock(); }
+};
+
 struct NodeToDestroy
 {
     Node* node = nullptr;
@@ -186,7 +228,7 @@ struct GraphGlobal
     bxRecursiveBenaphore _lock_instance_info_alloc;
     bxBenaphore _lock_graphs;
     bxBenaphore _lock_nodes_to_destroy;
-
+    
     void startup()
     {
         memset( _nodes, 0x00, sizeof( _nodes ) );
@@ -339,23 +381,6 @@ struct GraphGlobal
 
         nodeInstanceInfoFree( info );
         ( *type.info._destroyer )( node );
-
-        //bool valid = id_table::has( _id_table, id );
-        //        
-        //if( !valid )
-        //    return;
-
-        //int index = id.index;
-        //Node* node = _nodes[index];
-        //NodeInstanceInfo* iinfo = &_instance_info[index];
-        //const NodeType& type = _node_types[iinfo->_type_index];
-        //SYS_ASSERT( type.index == iinfo->_type_index );
-        //
-        //nodeInstanceInfoRelease( &_instance_info[index] );
-        //( *type.info._destroyer )( node );
-        //_nodes[index] = nullptr;
-
-        //id_table::destroy( _id_table, id );
     }
 };
 static GraphGlobal* _global = nullptr;
@@ -377,23 +402,35 @@ void graphGlobalShutdown()
 }
 
 //////////////////////////////////////////////////////////////////////////
+namespace
+{
+    void graphGlobal_destroyNodes()
+    {
+        bool done = false;
+        do
+        {
+            NodeToDestroy ntd;
+            _global->_lock_nodes_to_destroy.lock();
+            done = array::empty( _global->_nodes_to_destroy );
+            if( !done )
+            {
+                ntd = array::back( _global->_nodes_to_destroy );
+                array::pop_back( _global->_nodes_to_destroy );
+            }
+            _global->_lock_nodes_to_destroy.unlock();
+
+            if( !done )
+            {
+                _global->nodeDestroy( ntd.node, ntd.info );
+            }
+
+        } while( !done );
+    }
+}
+
 void graphGlobalTick()
 {
-    _global->graphsLock();
-    _global->nodesLock();
-    
-    _global->_lock_nodes_to_destroy.lock();
-    while( !array::empty( _global->_nodes_to_destroy ) )
-    {
-        NodeToDestroy ntd = array::back( _global->_nodes_to_destroy );
-        array::pop_back( _global->_nodes_to_destroy );
-        _global->nodeDestroy( ntd.node, ntd.info );
-    }
-    array::clear( _global->_nodes_to_destroy );
-    _global->_lock_nodes_to_destroy.unlock();
-
-    _global->nodesUnlock();
-    _global->graphsUnlock();
+    graphGlobal_destroyNodes();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -414,7 +451,7 @@ bool nodeCreate( id_t* out, const char* typeName, const char* nodeName )
 
     _global->idAcquire( out );
     _global->nodeCreate( *out, typeIndex, nodeName );
-
+    
     return _global->nodeIsValid( *out );
 }
 void nodeDestroy( id_t* inOut )
@@ -457,19 +494,32 @@ Node* nodeInstanceGet( id_t id )
 //////////////////////////////////////////////////////////////////////////
 struct Graph
 {
-    array_t< id_t > _id_nodes;
+    typedef array_thread_safe_t< id_t, bxBenaphore > IdArrayThreadSafe;
+    IdArrayThreadSafe _id_nodes;
+    IdArrayThreadSafe _nodes_to_load;
+    IdArrayThreadSafe _nodes_to_unload;
+    
+    std::atomic_bool _flag_recompute;
 
-    std::mutex _lock_nodes;
-    bool _flag_recompute = false;
-
-
-    void startup() {}
-    void shutdown()
+    void startup()
+    {
+        _flag_recompute = false;
+    }
+    void shutdown( bool destroyNodes )
     {
         for( int i = 0; i < array::size( _id_nodes ); ++i )
         {
             graphNodeRemove( _id_nodes[i] );
         }
+        if( destroyNodes )
+        {
+            for( int i = 0; i < array::size( _id_nodes ); ++i )
+            {
+                nodeDestroy( &_id_nodes[i] );
+            }
+        }
+
+        array::clear( _id_nodes );
     }
 
     int nodeFind( id_t id )
@@ -489,7 +539,7 @@ void graphCreate( Graph** graph )
 
     graph[0] = g;
 }
-void graphDestroy( Graph** graph )
+void graphDestroy( Graph** graph, bool destroyNodes )
 {
     if( !graph[0] )
         return;
@@ -500,26 +550,46 @@ void graphDestroy( Graph** graph )
     array::erase( _global->_graphs, found );
     _global->graphsUnlock();
 
-    graph[0]->shutdown();
+    graph[0]->shutdown( destroyNodes );
     BX_DELETE0( bxDefaultAllocator(), graph[0] );
+}
+
+namespace
+{
+    void graph_loadNodes( Graph* graph )
+    {
+        bool done = false;
+        do 
+        {
+            id_t id;
+            done = !graph->_nodes_to_load.pop_from_back_with_lock( &id );
+
+            if( !done && _global->nodeIsValid( id ) )
+            {
+                NodeInstanceInfo info = nodeInstanceGet( id );
+            }
+
+        } while ( !done );
+    }
 }
 
 void graphTick( Graph* graph )
 {
-    graph->_lock_nodes.lock();
+    graph->_id_nodes.lock();
 
 
 
-    graph->_lock_nodes.unlock();
+    graph->_id_nodes.unlock();
 }
 
 bool graphNodeAdd( Graph* graph, id_t id )
 {
     bool result = false;
 
-    graph->_lock_nodes.lock();
-    
+    graph->_id_nodes.lock();
     int found = graph->nodeFind( id );
+    graph->_id_nodes.unlock();
+
     if( found == -1 )
     {
         _global->nodesLock();
@@ -532,17 +602,16 @@ bool graphNodeAdd( Graph* graph, id_t id )
             }
             else
             {
-                array::push_back( graph->_id_nodes, id );
+                graph->_id_nodes.push_back_with_lock( id );
+                graph->_nodes_to_load.push_back_with_lock( id );
                 info->_graph = graph;
                 result = true;
+                graph->_flag_recompute = true;
             }
         }
         _global->nodesUnlock();
     }
     
-    graph->_flag_recompute = true;
-    graph->_lock_nodes.unlock();
-
     return result;
 }
 void graphNodeRemove( id_t id )
@@ -560,12 +629,14 @@ void graphNodeRemove( id_t id )
 
     if( g )
     {
-        g->_lock_nodes.lock();
+        g->_id_nodes.lock();
         int found = g->nodeFind( id );
         SYS_ASSERT( found != -1 );
         array::erase_swap( g->_id_nodes, found );
+        g->_id_nodes.unlock();
+
+        g->_nodes_to_unload.push_back_with_lock( id );
         g->_flag_recompute = true;
-        g->_lock_nodes.unlock();
     }
 }
 void graphNodeLink( id_t parent, id_t child )

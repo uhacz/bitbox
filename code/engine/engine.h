@@ -104,7 +104,7 @@ namespace bx
     bool nodeRegister( const NodeTypeInfo& typeInfo );
 
     void graphCreate( Graph** graph );
-    void graphDestroy( Graph** graph );
+    void graphDestroy( Graph** graph, bool destroyNodes = true );
     bool graphNodeAdd( Graph* graph, id_t id );
     void graphNodeRemove( id_t id );
     void graphNodeLink( id_t parent, id_t child );
