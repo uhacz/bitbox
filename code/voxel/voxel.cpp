@@ -476,10 +476,10 @@ namespace bx
 {
     struct VoxelActor
     {
-        GfxMeshInstance* _gfx_mesh = nullptr;
-        Octree* _octree = nullptr;
-        hashmap_t _shell_map;
-        bxGdiBuffer _gpu_buffer;
+        //GfxMeshInstance* _gfx_mesh = nullptr;
+        //Octree* _octree = nullptr;
+        //hashmap_t _shell_map;
+        //bxGdiBuffer _gpu_buffer;
     };
 
 

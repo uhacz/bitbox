@@ -105,8 +105,9 @@ namespace bx
 
     void graphCreate( Graph** graph );
     void graphDestroy( Graph** graph, bool destroyNodes = true );
+    void graphLoad( Graph* graph, const char* filename );
     bool graphNodeAdd( Graph* graph, id_t id );
-    void graphNodeRemove( id_t id );
+    void graphNodeRemove( id_t id, bool destroyNode = false );
     void graphNodeLink( id_t parent, id_t child );
     void graphNodeUnlink( id_t child );
 
@@ -116,3 +117,26 @@ namespace bx
     NodeInstanceInfo nodeInstanceInfoGet( id_t id );
     Node* nodeInstanceGet( id_t id );
 }///
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+namespace bx
+{
+    struct GfxMeshInstance;
+
+    struct MeshNode : public Node
+    {
+        GfxMeshInstance* _mesh_instance = nullptr;
+
+        static void type_init();
+        static void type_deinit();
+        static Node* creator();
+        static void destroyer( Node* node );
+        static void load( Node* self, NodeInstanceInfo instance, Scene* scene );
+        static void unload( Node* self, NodeInstanceInfo instance, Scene* scene );
+        static void tick( Node* self, NodeInstanceInfo instance, Scene* scene );
+    };
+}////

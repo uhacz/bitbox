@@ -5,6 +5,7 @@
 #include <util/config.h>
 #include <util/string_util.h>
 #include <util/array.h>
+#include <util/queue.h>
 #include <util/thread/mutex.h>
 #include <util/id_table.h>
 #include <util/array_util.h>
@@ -39,19 +40,23 @@ void Engine::startup( Engine* e )
     gfxContextStartup( &e->gfx_context, e->gdi_device );
     phxContextStartup( &e->phx_context, 4 );
 
-    rmt_CreateGlobalInstance( &e->_remotery );
-
     e->_camera_script_callback = BX_NEW( bxDefaultAllocator(), CameraManagerSceneScriptCallback );
     e->_camera_script_callback->_gfx = e->gfx_context;
     e->_camera_script_callback->_menago = e->camera_manager;
     e->_camera_script_callback->_current = nullptr;
+ 
+    graphGlobalStartup();
+
+    rmt_CreateGlobalInstance( &e->_remotery );
 }
 void Engine::shutdown( Engine* e )
 {
-    BX_DELETE0( bxDefaultAllocator(), e->_camera_script_callback );
-    
     rmt_DestroyGlobalInstance( e->_remotery );
     e->_remotery = 0;
+
+    graphGlobalShutdown();
+
+    BX_DELETE0( bxDefaultAllocator(), e->_camera_script_callback );
 
     phxContextShutdown( &e->phx_context );
     gfxContextShutdown( &e->gfx_context, e->gdi_device );
@@ -162,52 +167,20 @@ void nodeInstanceInfoRelease( NodeInstanceInfo* info )
 }
 
 //////////////////////////////////////////////////////////////////////////
-template< typename T, typename Tlock >
-struct array_thread_safe_t : public array_t< T >
-{
-    Tlock _lock;
-
-    int push_back_with_lock( const T& value )
-    {
-        lock();
-        int index = array::push_back( *this, value );
-        unlock();
-        return index;
-    }
-    void erase_swap_with_lock( int index )
-    {
-        lock();
-        array::erase_swap( *this, index );
-        unlock();
-    }
-    void erase_with_lock( int index )
-    {
-        lock();
-        array::erase( *this, index );
-        unlock();
-    }
-
-    bool pop_from_back_with_lock( T* value )
-    {
-        lock();
-        bool e = array::empty( *this );
-        if( !e )
-        {
-            value[0] = array::back( *this );
-            array::pop_back( *this );
-        }
-        unlock();
-        return !e;
-    }
-
-    void lock() { _lock.lock(); }
-    void unlock() { _lock.unlock(); }
-};
-
 struct NodeToDestroy
 {
     Node* node = nullptr;
     NodeInstanceInfo* info = nullptr;
+};
+struct NodeToUnload
+{
+    id_t id = makeInvalidHandle<id_t>();
+    bool destroyAfterUnload = false;
+};
+struct GraphToLoad
+{
+    Graph* graph = nullptr;
+    char* filename = nullptr;
 };
 
 struct GraphGlobal
@@ -224,10 +197,12 @@ struct GraphGlobal
 
     array_t< NodeToDestroy >    _nodes_to_destroy;
     array_t< Graph* >           _graphs;
+    queue_t< GraphToLoad >      _graphs_to_load;
 
     bxRecursiveBenaphore        _lock_nodes;
     bxRecursiveBenaphore        _lock_instance_info_alloc;
     bxBenaphore                 _lock_graphs;
+    bxBenaphore                 _lock_graphs_to_load;
     bxBenaphore                 _lock_nodes_to_destroy;
     
     void startup()
@@ -311,7 +286,6 @@ struct GraphGlobal
             bxLogError( "Node type already exists '%s'", info._type_name );
             return -1;
         }
-            
 
         int index = array::push_back( _node_types, NodeType() );
         NodeType& type = array::back( _node_types );
@@ -364,8 +338,6 @@ struct GraphGlobal
         instance->_type_name = type->info._type_name;
         instance->_instance_name = string::duplicate( nullptr, nodeName );
     }
-
-    /// this function doesn't have to be thread safe. It's called in safe place.
     void nodeDestroy( Node* node, NodeInstanceInfo* info )
     {
         const NodeType& type = _node_types[info->_type_index];
@@ -375,7 +347,98 @@ struct GraphGlobal
         ( *type.info._destroyer )( node );
     }
 };
+//////////////////////////////////////////////////////////////////////////
 static GraphGlobal* _global = nullptr;
+
+//////////////////////////////////////////////////////////////////////////
+struct Graph
+{
+    array_t<id_t>           _id_nodes;
+    queue_t<id_t>           _nodes_to_load;
+    queue_t<NodeToUnload>   _nodes_to_unload;
+    array_t<id_t>           _id_nodes_tick_sort;
+
+    bxBenaphore _lock_nodes;
+    bxBenaphore _lock_nodes_to_load;
+    bxBenaphore _lock_nodes_to_unload;
+    
+    std::atomic_bool _flag_recompute;
+
+
+
+    void startup()
+    {
+        _flag_recompute = false;
+    }
+
+    void shutdown( bool destroyNodes )
+    {
+        for( int i = 0; i < array::size( _id_nodes ); ++i )
+        {
+            graphNodeRemove( _id_nodes[i] );
+        }
+        if( destroyNodes )
+        {
+            for( int i = 0; i < array::size( _id_nodes ); ++i )
+            {
+                nodeDestroy( &_id_nodes[i] );
+            }
+        }
+
+        array::clear( _id_nodes );
+    }
+
+    int nodeFind( id_t id )
+    {
+        return array::find1( array::begin( _id_nodes ), array::end( _id_nodes ), array::OpEqual<id_t>( id ) );
+    }
+
+
+    union NodeSortKey
+    {
+        u64 hash = 0;
+        struct
+        {
+            u64 index_in_graph : 16;
+            u64 instance_index : 16;
+            u64 type : 16;
+            u64 depth : 16;
+        };
+    };
+    void compile()
+    {
+        array_t< u64 > sortArray;
+        array::reserve( sortArray, array::size( _id_nodes ) );
+        for( int i = 0; i < array::size( _id_nodes ); ++i )
+        {
+            id_t id = _id_nodes[i];
+            NodeInstanceInfo info = nodeInstanceInfoGet( id );
+            NodeType* type = _global->typeGet( info._type_index );
+            if( type->info._tick )
+            {
+                NodeSortKey key;
+                key.depth = 1;
+                key.type = info._type_index;
+                key.instance_index = id.index;
+                key.index_in_graph = i;
+
+                array::push_back( sortArray, key.hash );
+            }
+        }
+
+        std::sort( array::begin( sortArray ), array::end( sortArray ), std::less< u64 >() );
+
+        array::clear( _id_nodes_tick_sort );
+        array::reserve( _id_nodes_tick_sort, array::size( sortArray ) );
+
+        for( int i = 0; i < array::size( sortArray ); ++i )
+        {
+            NodeSortKey key;
+            key.hash = sortArray[i];
+            array::push_back( _id_nodes_tick_sort, _id_nodes[key.index_in_graph] );
+        }
+    }
+};
 
 //////////////////////////////////////////////////////////////////////////
 void graphGlobalStartup()
@@ -461,6 +524,8 @@ void nodeDestroy( id_t* inOut )
     _global->idRelease( *inOut );
     inOut[0] = makeInvalidHandle<id_t>();
 
+    SYS_ASSERT( ntd.info->_graph == nullptr );
+
     _global->_lock_nodes_to_destroy.lock();
     array::push_back( _global->_nodes_to_destroy, ntd );
     _global->_lock_nodes_to_destroy.unlock();
@@ -484,87 +549,6 @@ Node* nodeInstanceGet( id_t id )
 }
 
 //////////////////////////////////////////////////////////////////////////
-struct Graph
-{
-    typedef array_thread_safe_t< id_t, bxBenaphore > IdArrayThreadSafe;
-    IdArrayThreadSafe _id_nodes;
-    IdArrayThreadSafe _nodes_to_load;
-    IdArrayThreadSafe _nodes_to_unload;
-    
-    array_t< id_t > _id_nodes_tick_sort;
-
-    std::atomic_bool _flag_recompute;
-
-    void startup()
-    {
-        _flag_recompute = false;
-    }
-    void shutdown( bool destroyNodes )
-    {
-        for( int i = 0; i < array::size( _id_nodes ); ++i )
-        {
-            graphNodeRemove( _id_nodes[i] );
-        }
-        if( destroyNodes )
-        {
-            for( int i = 0; i < array::size( _id_nodes ); ++i )
-            {
-                nodeDestroy( &_id_nodes[i] );
-            }
-        }
-
-        array::clear( _id_nodes );
-    }
-
-    int nodeFind( id_t id )
-    {
-        return array::find1( array::begin( _id_nodes ), array::end( _id_nodes ), array::OpEqual<id_t>( id ) );
-    }
-
-
-    union NodeSortKey
-    {
-        u64 hash = 0;
-        struct
-        {
-            u64 index_in_graph : 16;
-            u64 instance_index : 16;
-            u64 type : 16;
-            u64 depth : 16;
-        };
-    };
-    void compile()
-    {
-        array_t< u64 > sortArray;
-        array::reserve( sortArray, array::size( _id_nodes ) );
-        for( int i = 0; i < array::size( _id_nodes ); ++i )
-        {
-            id_t id = _id_nodes[i];
-            NodeInstanceInfo info = nodeInstanceInfoGet( id );
-
-            NodeSortKey key;
-            key.depth = 1;
-            key.type = info._type_index;
-            key.instance_index = id.index;
-            key.index_in_graph = i;
-
-            array::push_back( sortArray, key.hash );
-        }
-
-        std::sort( array::begin( sortArray ), array::end( sortArray ), std::less< u64 >() );
-
-        array::clear( _id_nodes_tick_sort );
-        array::reserve( _id_nodes_tick_sort, array::size( sortArray ) );
-
-        for( int i = 0; i < array::size( sortArray ); ++i )
-        {
-            NodeSortKey key;
-            key.hash = sortArray[i];
-            array::push_back( _id_nodes_tick_sort, _id_nodes[key.index_in_graph] );
-        }
-    }
-};
-
 void graphCreate( Graph** graph )
 {
     Graph* g = BX_NEW( bxDefaultAllocator(), Graph );
@@ -590,16 +574,34 @@ void graphDestroy( Graph** graph, bool destroyNodes )
     graph[0]->shutdown( destroyNodes );
     BX_DELETE0( bxDefaultAllocator(), graph[0] );
 }
+void graphLoad( Graph* graph, const char* filename )
+{
+    (void)graph;
+    (void)filename;
+}
 
 namespace
 {
+    template< class T, class Tlock >
+    inline bool pop_from_back_with_lock( T* value, queue_t<T>& q, Tlock& lock )
+    {
+        lock.lock();
+        bool e = queue::empty( q );
+        if( !e )
+        {
+            value[0] = queue::back( q );
+            queue::pop_back( q );
+        }
+        lock.unlock();
+        return !e;
+    }
     void graph_nodesLoad( Graph* graph, Scene* scene )
     {
         bool done = false;
         do 
         {
             id_t id;
-            done = !graph->_nodes_to_load.pop_from_back_with_lock( &id );
+            done = !pop_from_back_with_lock( &id, graph->_nodes_to_load, graph->_lock_nodes_to_load );
 
             if( !done && _global->nodeIsValid( id ) )
             {
@@ -616,15 +618,21 @@ namespace
         bool done = false;
         do
         {
-            id_t id;
-            done = !graph->_nodes_to_unload.pop_from_back_with_lock( &id );
+            NodeToUnload ntu;
+            done = !pop_from_back_with_lock( &ntu, graph->_nodes_to_unload, graph->_lock_nodes_to_unload );
 
-            if( !done && _global->nodeIsValid( id ) )
+            
+            if( !done && _global->nodeIsValid( ntu.id ) )
             {
-                NodeInstanceInfo info = nodeInstanceInfoGet( id );
-                Node* node = nodeInstanceGet( id );
+                NodeInstanceInfo info = nodeInstanceInfoGet( ntu.id );
+                Node* node = nodeInstanceGet( ntu.id );
                 NodeType* type = _global->typeGet( info._type_index );
                 ( *type->info._unload )( node, info, scene );
+
+                if( ntu.destroyAfterUnload )
+                {
+                    nodeDestroy( &ntu.id );
+                }
             }
         } while( !done );
     }
@@ -645,7 +653,7 @@ namespace
 
 void graphTick( Graph* graph, Scene* scene )
 {
-    graph->_id_nodes.lock();
+    graph->_lock_nodes.lock();
 
     graph_nodesLoad( graph, scene );
     graph_nodesUnload( graph, scene );
@@ -658,16 +666,16 @@ void graphTick( Graph* graph, Scene* scene )
     
     graph_nodesTick( graph, scene );
 
-    graph->_id_nodes.unlock();
+    graph->_lock_nodes.unlock();
 }
 
 bool graphNodeAdd( Graph* graph, id_t id )
 {
     bool result = false;
 
-    graph->_id_nodes.lock();
+    graph->_lock_nodes.lock();
     int found = graph->nodeFind( id );
-    graph->_id_nodes.unlock();
+    graph->_lock_nodes.unlock();
 
     if( found == -1 )
     {
@@ -690,14 +698,19 @@ bool graphNodeAdd( Graph* graph, id_t id )
 
     if( result )
     {
-        graph->_id_nodes.push_back_with_lock( id );
-        graph->_nodes_to_load.push_back_with_lock( id );
+        graph->_lock_nodes.lock();
+        array::push_back( graph->_id_nodes, id );
+        graph->_lock_nodes.unlock();
+
+        graph->_lock_nodes_to_load.lock();
+        queue::push_front( graph->_nodes_to_load, id );
+        graph->_lock_nodes_to_load.unlock();
         graph->_flag_recompute = true;
     }
     
     return result;
 }
-void graphNodeRemove( id_t id )
+void graphNodeRemove( id_t id, bool destroyNode )
 {
     Graph* g = nullptr;
 
@@ -712,13 +725,18 @@ void graphNodeRemove( id_t id )
 
     if( g )
     {
-        g->_id_nodes.lock();
+        g->_lock_nodes.lock();
         int found = g->nodeFind( id );
         SYS_ASSERT( found != -1 );
         array::erase_swap( g->_id_nodes, found );
-        g->_id_nodes.unlock();
+        g->_lock_nodes.unlock();
 
-        g->_nodes_to_unload.push_back_with_lock( id );
+        g->_lock_nodes_to_unload.lock();
+        NodeToUnload ntu;
+        ntu.id = id;
+        ntu.destroyAfterUnload = destroyNode;
+        queue::push_front( g->_nodes_to_unload, ntu );
+        g->_lock_nodes_to_unload.unlock();
         g->_flag_recompute = true;
     }
 }

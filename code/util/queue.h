@@ -74,7 +74,7 @@ namespace queue
     template< typename T > void push_front( queue_t<T>& q, const T &item )
     {
         if ( !space(q) )
-            grow(q);
+            queue_internal::grow(q);
 
         q.offset = (q.offset - 1 + q.data.size) % q.data.size;
         ++q.size;
