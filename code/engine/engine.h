@@ -66,15 +66,26 @@ namespace bx
     struct Node {};
     struct Graph;
 
+    struct NodeInstanceInfo
+    {
+        i32 _type_index;
+        id_t _instance_id;
+
+        const char* _type_name;
+        const char* _instance_name;
+
+        Graph* _graph;
+    };
+
     struct NodeTypeInfo
     {
         typedef void( *TypeInit )( );
         typedef void( *TypeDeinit )( );
         typedef Node* ( *Creator )( );
         typedef void ( *Destroyer )( Node* node );
-        typedef void( *Load )( Node* self, Scene* scene );
-        typedef void( *Unload )( Node* self, Scene* scene );
-        typedef void( *Tick )( Node* self, Scene* scene );
+        typedef void( *Load )( Node* self, NodeInstanceInfo instance, Scene* scene );
+        typedef void( *Unload )( Node* self, NodeInstanceInfo instance, Scene* scene );
+        typedef void( *Tick )( Node* self, NodeInstanceInfo instance, Scene* scene );
 
         const char* _type_name = nullptr;
 
@@ -87,20 +98,9 @@ namespace bx
         Tick _tick = nullptr;
     };
 
-    struct NodeInstanceInfo
-    {
-        i32 _type_index;
-        id_t _instance_id;
-        
-        const char* _type_name;
-        const char* _instance_name;
-
-        Graph* _graph;
-    };
-
     void graphGlobalStartup();
     void graphGlobalShutdown();
-    void graphGlobalTick();
+    void graphGlobalTick( Scene* scene );
     bool nodeRegister( const NodeTypeInfo& typeInfo );
 
     void graphCreate( Graph** graph );
