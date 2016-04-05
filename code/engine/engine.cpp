@@ -133,12 +133,12 @@ void DevCamera::tick( const bxInput* input, float deltaTime )
 struct NodeType
 {
     i32 index = -1;
-    NodeTypeInfo info;
+    const NodeTypeInfo* info = nullptr;
 
-    ~NodeType()
-    {
-        string::free_and_null( (char**)&info._type_name );
-    }
+    //~NodeType()
+    //{
+    //    string::free_and_null( (char**)&info._type_name );
+    //}
 };
 bool nodeInstanceInfoEmpty( const NodeInstanceInfo& info )
 {
@@ -224,9 +224,9 @@ struct GraphGlobal
 
         for( int i = 0; i < array::size( _node_types ); ++i )
         {
-            if( _node_types[i].info._type_deinit )
+            if( _node_types[i].info->_type_deinit )
             {
-                ( *_node_types[i].info._type_deinit )( );
+                ( *_node_types[i].info->_type_deinit )( );
             }
         }
     }
@@ -272,18 +272,18 @@ struct GraphGlobal
     {
         for( int i = 0; i < array::size( _node_types ); ++i )
         {
-            if( string::equal( name, _node_types[i].info._type_name ) )
+            if( string::equal( name, _node_types[i].info->_type_name ) )
                 return i;
         }
         return -1;
     }
 
-    int typeAdd( const NodeTypeInfo& info )
+    int typeAdd( const NodeTypeInfo* info )
     {
-        int found = typeFind( info._type_name );
+        int found = typeFind( info->_type_name );
         if( found != -1 )
         {
-            bxLogError( "Node type already exists '%s'", info._type_name );
+            bxLogError( "Node type already exists '%s'", info->_type_name );
             return -1;
         }
 
@@ -291,11 +291,11 @@ struct GraphGlobal
         NodeType& type = array::back( _node_types );
         type.index = index;
         type.info = info;
-        type.info._type_name = string::duplicate( nullptr, info._type_name );
+        //type.info._type_name = string::duplicate( nullptr, info._type_name );
 
-        if( info._type_init )
+        if( info->_type_init )
         {
-            ( *info._type_init )( );
+            ( *info->_type_init )( );
         }
 
         return index;
@@ -325,7 +325,7 @@ struct GraphGlobal
     void nodeCreate( id_t id, int typeIndex, const char* nodeName )
     {
         NodeType* type = &_node_types[typeIndex];
-        Node* node = ( *type->info._creator )( );
+        Node* node = ( *type->info->_creator )( );
         SYS_ASSERT( node != nullptr );
 
         SYS_ASSERT( _nodes[id.index] == nullptr );
@@ -335,7 +335,7 @@ struct GraphGlobal
         _instance_info[id.index] = instance;
         instance->_type_index = type->index;
         instance->_instance_id = id;
-        instance->_type_name = type->info._type_name;
+        instance->_type_name = type->info->_type_name;
         instance->_instance_name = string::duplicate( nullptr, nodeName );
     }
     void nodeDestroy( Node* node, NodeInstanceInfo* info )
@@ -344,7 +344,7 @@ struct GraphGlobal
         SYS_ASSERT( type.index == info->_type_index );
 
         nodeInstanceInfoFree( info );
-        ( *type.info._destroyer )( node );
+        ( *type.info->_destroyer )( node );
     }
 };
 //////////////////////////////////////////////////////////////////////////
@@ -414,7 +414,7 @@ struct Graph
             id_t id = _id_nodes[i];
             NodeInstanceInfo info = nodeInstanceInfoGet( id );
             NodeType* type = _global->typeGet( info._type_index );
-            if( type->info._tick )
+            if( type->info->_tick )
             {
                 NodeSortKey key;
                 key.depth = 1;
@@ -483,13 +483,25 @@ namespace
     }
 }
 
+void graphTick( Graph* graph, Scene* scene );
 void graphGlobalTick( Scene* scene )
 {
     graphGlobal_destroyNodes();
+
+    _global->nodesLock();
+    _global->graphsLock();
+
+    for( int i = 0; i < array::size( _global->_graphs ); ++i )
+    {
+        graphTick( _global->_graphs[i], scene );
+    }
+
+    _global->graphsUnlock();
+    _global->nodesUnlock();
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool nodeRegister( const NodeTypeInfo& typeInfo )
+bool nodeRegister( const NodeTypeInfo* typeInfo )
 {
     int ires = _global->typeAdd( typeInfo );
     return ( ires == -1 ) ? false : true;
@@ -608,7 +620,7 @@ namespace
                 NodeInstanceInfo info = nodeInstanceInfoGet( id );
                 Node* node = nodeInstanceGet( id );
                 NodeType* type = _global->typeGet( info._type_index );
-                ( *type->info._load )( node, info, scene );
+                ( *type->info->_load )( node, info, scene );
             }
 
         } while ( !done );
@@ -627,7 +639,7 @@ namespace
                 NodeInstanceInfo info = nodeInstanceInfoGet( ntu.id );
                 Node* node = nodeInstanceGet( ntu.id );
                 NodeType* type = _global->typeGet( info._type_index );
-                ( *type->info._unload )( node, info, scene );
+                ( *type->info->_unload )( node, info, scene );
 
                 if( ntu.destroyAfterUnload )
                 {
@@ -646,7 +658,7 @@ namespace
             NodeInstanceInfo info = nodeInstanceInfoGet( id );
             Node* node = nodeInstanceGet( id );
             NodeType* type = _global->typeGet( info._type_index );
-            ( *type->info._tick )( node, info, scene );
+            ( *type->info->_tick )( node, info, scene );
         }
     }
 }
@@ -751,4 +763,56 @@ void graphNodeUnlink( id_t child )
 
 
 
+}////
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+#include <gfx/gfx.h>
+namespace bx
+{
+
+    NodeTypeInfo MeshNode::__type_info = MeshNode::__typeInfoFill();
+    void MeshNode::_TypeInit()
+    {
+
+    }
+
+    void MeshNode::_TypeDeinit()
+    {
+
+    }
+
+    Node* MeshNode::_Creator()
+    {
+        return BX_NEW( bxDefaultAllocator(), MeshNode );
+    }
+
+    void MeshNode::_Destroyer( Node* node )
+    {
+        BX_FREE( bxDefaultAllocator(), node );
+    }
+
+    void MeshNode::_Load( Node* node, NodeInstanceInfo instance, Scene* scene )
+    {
+        GfxMeshInstance* mi = nullptr;
+        gfxMeshInstanceCreate( &mi, gfxContextGet( scene->gfx ) );
+
+        GfxMeshInstanceData miData;
+        miData.renderSourceSet( gfxGlobalResourcesGet()->mesh.box );
+        miData.fxInstanceSet( gfxMaterialFind( "red" ) );
+        miData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
+        gfxMeshInstanceDataSet( mi, miData );
+        gfxMeshInstanceWorldMatrixSet( mi, &Matrix4::identity(), 1 );
+        gfxSceneMeshInstanceAdd( scene->gfx, mi );
+
+        self(node)->_mesh_instance = mi;
+    }
+
+    void MeshNode::_Unload( Node* node, NodeInstanceInfo instance, Scene* scene )
+    {
+        auto meshNode = self( node );
+        gfxMeshInstanceDestroy( &meshNode->_mesh_instance );
+    }
 }////

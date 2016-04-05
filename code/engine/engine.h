@@ -83,9 +83,9 @@ namespace bx
         typedef void( *TypeDeinit )( );
         typedef Node* ( *Creator )( );
         typedef void ( *Destroyer )( Node* node );
-        typedef void( *Load )( Node* self, NodeInstanceInfo instance, Scene* scene );
-        typedef void( *Unload )( Node* self, NodeInstanceInfo instance, Scene* scene );
-        typedef void( *Tick )( Node* self, NodeInstanceInfo instance, Scene* scene );
+        typedef void( *Load )( Node* node, NodeInstanceInfo instance, Scene* scene );
+        typedef void( *Unload )( Node* node, NodeInstanceInfo instance, Scene* scene );
+        typedef void( *Tick )( Node* node, NodeInstanceInfo instance, Scene* scene );
 
         const char* _type_name = nullptr;
 
@@ -101,7 +101,7 @@ namespace bx
     void graphGlobalStartup();
     void graphGlobalShutdown();
     void graphGlobalTick( Scene* scene );
-    bool nodeRegister( const NodeTypeInfo& typeInfo );
+    bool nodeRegister( const NodeTypeInfo* typeInfo );
 
     void graphCreate( Graph** graph );
     void graphDestroy( Graph** graph, bool destroyNodes = true );
@@ -122,7 +122,6 @@ namespace bx
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-
 namespace bx
 {
     struct GfxMeshInstance;
@@ -131,12 +130,30 @@ namespace bx
     {
         GfxMeshInstance* _mesh_instance = nullptr;
 
-        static void type_init();
-        static void type_deinit();
-        static Node* creator();
-        static void destroyer( Node* node );
-        static void load( Node* self, NodeInstanceInfo instance, Scene* scene );
-        static void unload( Node* self, NodeInstanceInfo instance, Scene* scene );
-        static void tick( Node* self, NodeInstanceInfo instance, Scene* scene );
+        static void _TypeInit();
+        static void _TypeDeinit();
+        static Node* _Creator();
+        static void _Destroyer( Node* node );
+        static void _Load( Node* node, NodeInstanceInfo instance, Scene* scene );
+        static void _Unload( Node* node, NodeInstanceInfo instance, Scene* scene );
+        //static void tick( Node* node, NodeInstanceInfo instance, Scene* scene );
+        
+        //////////////////////////////////////////////////////////////////////////
+        ////
+        static NodeTypeInfo __typeInfoFill()
+        {
+            NodeTypeInfo info;
+            info._type_name = "Mesh";
+            info._type_init = MeshNode::_TypeInit;
+            info._type_deinit = MeshNode::_TypeDeinit;
+            info._destroyer = MeshNode::_Destroyer;
+            info._creator = MeshNode::_Creator;
+            info._load = MeshNode::_Load;
+            info._unload = MeshNode::_Unload;
+            //info._tick = MeshNode::tick;
+            return info;
+        }
+        static NodeTypeInfo __type_info;
+        static MeshNode* self( Node* node ) { return (MeshNode*)node; }
     };
 }////

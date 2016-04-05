@@ -111,6 +111,16 @@ public:
 
         //bxVoxel::container_load( _engine.gdiDevice, _engine.resourceManager, vxscene._container );
 
+        bx::nodeRegister( &bx::MeshNode::__type_info );
+
+        bx::Graph* graph = nullptr;
+        bx::graphCreate( &graph );
+
+        id_t nodeId;
+        bx::nodeCreate( &nodeId, "Mesh", "box" );
+
+        bx::graphNodeAdd( graph, nodeId );
+
         return true;
     }
     virtual void shutdown()
@@ -180,91 +190,92 @@ public:
         }
 
         { /// game update
-            //octreeDebugDraw( octree );
+            bx::graphGlobalTick( &_scene );
+            octreeDebugDraw( octree );
 
-            const Matrix4 cameraWorld = gfxCameraWorldMatrixGet( camera );
-            {
-                const Matrix4 objWorld = Matrix4::identity();
-                const Matrix4 cameraInObj = inverse( objWorld ) * cameraWorld;
-                
-                const Vector3 cameraX = cameraInObj.getCol0().getXYZ();
-                const Vector3 cameraY = cameraInObj.getCol1().getXYZ();
-                const Vector3 cameraZ = -cameraInObj.getCol2().getXYZ();
-                
-                const Vector4 rootPosSize = octreeNodePosSize( octree, 0 );
-                const Vector3 center = rootPosSize.getXYZ();
-                const floatInVec ext = ( rootPosSize.getW() * halfVec );
+            //const Matrix4 cameraWorld = gfxCameraWorldMatrixGet( camera );
+            //{
+            //    const Matrix4 objWorld = Matrix4::identity();
+            //    const Matrix4 cameraInObj = inverse( objWorld ) * cameraWorld;
+            //    
+            //    const Vector3 cameraX = cameraInObj.getCol0().getXYZ();
+            //    const Vector3 cameraY = cameraInObj.getCol1().getXYZ();
+            //    const Vector3 cameraZ = -cameraInObj.getCol2().getXYZ();
+            //    
+            //    const Vector4 rootPosSize = octreeNodePosSize( octree, 0 );
+            //    const Vector3 center = rootPosSize.getXYZ();
+            //    const floatInVec ext = ( rootPosSize.getW() * halfVec );
 
-                Matrix3 objWorldRot = objWorld.getUpper3x3();
+            //    Matrix3 objWorldRot = objWorld.getUpper3x3();
 
-               
-                const Vector3 objExtX = Vector3( ext, zeroVec, zeroVec );
-                const Vector3 objExtY = Vector3( zeroVec, ext, zeroVec );
-                const Vector3 objExtZ = Vector3( zeroVec, zeroVec, ext );
+            //   
+            //    const Vector3 objExtX = Vector3( ext, zeroVec, zeroVec );
+            //    const Vector3 objExtY = Vector3( zeroVec, ext, zeroVec );
+            //    const Vector3 objExtZ = Vector3( zeroVec, zeroVec, ext );
 
-                const floatInVec extX = sum( absPerElem( Vector3( dot( objExtX, cameraX ), dot( objExtY, cameraX ), dot( objExtZ, cameraX ) ) ) );
-                const floatInVec extY = sum( absPerElem( Vector3( dot( objExtX, cameraY ), dot( objExtY, cameraY ), dot( objExtZ, cameraY ) ) ) );
-                const floatInVec extZ = sum( absPerElem( Vector3( dot( objExtX, cameraZ ), dot( objExtY, cameraZ ), dot( objExtZ, cameraZ ) ) ) );
-                                
-                Vector3 e( extX, extY, extZ );
-                Vector3 a = center - cameraX*extX - cameraY*extY;
-                Vector3 b = center + cameraX*extX - cameraY*extY;
-                Vector3 c = center + cameraX*extX + cameraY*extY;
-                Vector3 d = center - cameraX*extX + cameraY*extY;
+            //    const floatInVec extX = sum( absPerElem( Vector3( dot( objExtX, cameraX ), dot( objExtY, cameraX ), dot( objExtZ, cameraX ) ) ) );
+            //    const floatInVec extY = sum( absPerElem( Vector3( dot( objExtX, cameraY ), dot( objExtY, cameraY ), dot( objExtZ, cameraY ) ) ) );
+            //    const floatInVec extZ = sum( absPerElem( Vector3( dot( objExtX, cameraZ ), dot( objExtY, cameraZ ), dot( objExtZ, cameraZ ) ) ) );
+            //                    
+            //    Vector3 e( extX, extY, extZ );
+            //    Vector3 a = center - cameraX*extX - cameraY*extY;
+            //    Vector3 b = center + cameraX*extX - cameraY*extY;
+            //    Vector3 c = center + cameraX*extX + cameraY*extY;
+            //    Vector3 d = center - cameraX*extX + cameraY*extY;
 
-                bxGfxDebugDraw::addLine( a, b, 0x666666FF, 1 );
-                bxGfxDebugDraw::addLine( b, c, 0x666666FF, 1 );
-                bxGfxDebugDraw::addLine( c, d, 0x666666FF, 1 );
-                bxGfxDebugDraw::addLine( d, a, 0x666666FF, 1 );
+            //    bxGfxDebugDraw::addLine( a, b, 0x666666FF, 1 );
+            //    bxGfxDebugDraw::addLine( b, c, 0x666666FF, 1 );
+            //    bxGfxDebugDraw::addLine( c, d, 0x666666FF, 1 );
+            //    bxGfxDebugDraw::addLine( d, a, 0x666666FF, 1 );
 
-                Vector3 ad = d - a;
-                Vector3 ab = b - a;
+            //    Vector3 ad = d - a;
+            //    Vector3 ab = b - a;
 
-                //float w = rootPosSize.getW();
-                float xscale = ::abs( dot( cameraZ, Vector3::xAxis() ).getAsFloat() );
-                xscale = cubicpulse( 0.5f, 0.5f, xscale );
+            //    //float w = rootPosSize.getW();
+            //    float xscale = ::abs( dot( cameraZ, Vector3::xAxis() ).getAsFloat() );
+            //    xscale = cubicpulse( 0.5f, 0.5f, xscale );
 
-                float yscale = ::abs( dot( cameraZ, Vector3::yAxis() ).getAsFloat() );
-                yscale = cubicpulse( 0.5f, 0.5f, yscale );
+            //    float yscale = ::abs( dot( cameraZ, Vector3::yAxis() ).getAsFloat() );
+            //    yscale = cubicpulse( 0.5f, 0.5f, yscale );
 
-                const float adLen = length( ad ).getAsFloat();
-                const float abLen = length( ab ).getAsFloat();
-                const float xstep = 0.5f; //lerp( xscale, 1.f, ::sqrt( 2.f ) );
-                const float ystep = 0.5f; //lerp( yscale, 1.f, ::sqrt( 2.f ) );
-                
-                float iy = ystep * 0.5f;
-                const Vector3 ro = cameraWorld.getTranslation();
-                rmt_BeginCPUSample( raycast );
-                while( iy <= adLen )
-                {
-                    Vector3 yoffset = cameraY * iy;
-                    float ix = xstep * 0.5f;
-                    while( ix <= abLen )
-                    {
-                        Vector3 rayEnd = a;
-                        rayEnd += cameraX * ix;
-                        rayEnd += yoffset;
+            //    const float adLen = length( ad ).getAsFloat();
+            //    const float abLen = length( ab ).getAsFloat();
+            //    const float xstep = 0.5f; //lerp( xscale, 1.f, ::sqrt( 2.f ) );
+            //    const float ystep = 0.5f; //lerp( yscale, 1.f, ::sqrt( 2.f ) );
+            //    
+            //    float iy = ystep * 0.5f;
+            //    const Vector3 ro = cameraWorld.getTranslation();
+            //    rmt_BeginCPUSample( raycast );
+            //    while( iy <= adLen )
+            //    {
+            //        Vector3 yoffset = cameraY * iy;
+            //        float ix = xstep * 0.5f;
+            //        while( ix <= abLen )
+            //        {
+            //            Vector3 rayEnd = a;
+            //            rayEnd += cameraX * ix;
+            //            rayEnd += yoffset;
 
-                        //
-                        const Vector3 rd = normalize( rayEnd - ro );
-                        int nodeIndex = octreeRaycast( octree, ro, rd );
-                        if( nodeIndex != -1 )
-                        {
-                            //bxGfxDebugDraw::addSphere( Vector4( rayEnd, 0.1f ), 0x666666FF, 1 );
-                            Vector4 nodePosSize = octreeNodePosSize( octree, nodeIndex );
-                            bxGfxDebugDraw::addSphere( Vector4( nodePosSize.getXYZ(), nodePosSize.getW() * halfVec ), 0x000000FF, true );
-                        }
-                        ix += xstep;
-                    }
-                    iy += ystep;
-                }
-                rmt_EndCPUSample();
+            //            //
+            //            const Vector3 rd = normalize( rayEnd - ro );
+            //            int nodeIndex = octreeRaycast( octree, ro, rd );
+            //            if( nodeIndex != -1 )
+            //            {
+            //                //bxGfxDebugDraw::addSphere( Vector4( rayEnd, 0.1f ), 0x666666FF, 1 );
+            //                Vector4 nodePosSize = octreeNodePosSize( octree, nodeIndex );
+            //                bxGfxDebugDraw::addSphere( Vector4( nodePosSize.getXYZ(), nodePosSize.getW() * halfVec ), 0x000000FF, true );
+            //            }
+            //            ix += xstep;
+            //        }
+            //        iy += ystep;
+            //    }
+            //    rmt_EndCPUSample();
 
 
 
-                //bxGfxDebugDraw::addSphere( Vector4( a, 0.5f ), 0x666666FF, 1 );
-                //bxGfxDebugDraw::addSphere( Vector4( b, 0.5f ), 0x666666FF, 1 );
-            }
+            //    //bxGfxDebugDraw::addSphere( Vector4( a, 0.5f ), 0x666666FF, 1 );
+            //    //bxGfxDebugDraw::addSphere( Vector4( b, 0.5f ), 0x666666FF, 1 );
+            //}
             
             //const Vector3 ro = cameraWorld.getTranslation();
             //const Vector3 rd = -cameraWorld.getCol2().getXYZ();
