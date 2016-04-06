@@ -45,7 +45,7 @@ void Engine::startup( Engine* e )
     e->_camera_script_callback->_menago = e->camera_manager;
     e->_camera_script_callback->_current = nullptr;
  
-    graphGlobalStartup();
+    graphContextStartup();
 
     rmt_CreateGlobalInstance( &e->_remotery );
 }
@@ -54,7 +54,7 @@ void Engine::shutdown( Engine* e )
     rmt_DestroyGlobalInstance( e->_remotery );
     e->_remotery = 0;
 
-    graphGlobalShutdown();
+    graphContextShutdown();
 
     BX_DELETE0( bxDefaultAllocator(), e->_camera_script_callback );
 
@@ -188,7 +188,7 @@ struct GraphToUnload
     bool destroyAfterUnload = false;
 };
 
-struct GraphGlobal
+struct GraphContext
 {
     enum
     {
@@ -203,7 +203,8 @@ struct GraphGlobal
     array_t< NodeToDestroy >    _nodes_to_destroy;
     array_t< Graph* >           _graphs;
     queue_t< GraphToLoad >      _graphs_to_load;
-    queue_t< GraphToUnload* >   _graphs_to_unload;
+    queue_t< GraphToUnload >    _graphs_to_unload;
+    queue_t< Graph* >           _graphs_to_destroy;
 
     bxRecursiveBenaphore        _lock_nodes;
     bxRecursiveBenaphore        _lock_instance_info_alloc;
@@ -355,7 +356,7 @@ struct GraphGlobal
     }
 };
 //////////////////////////////////////////////////////////////////////////
-static GraphGlobal* _global = nullptr;
+static GraphContext* _ctx = nullptr;
 
 //////////////////////////////////////////////////////////////////////////
 struct Graph
@@ -369,11 +370,11 @@ struct Graph
     bxBenaphore _lock_nodes_to_load;
     bxBenaphore _lock_nodes_to_unload;
     
-    std::atomic_bool _flag_recompute;
+    std::atomic_uint32_t _flag_recompute;
 
     void startup()
     {
-        _flag_recompute = false;
+        _flag_recompute = 0;
     }
 
     void shutdown( bool destroyNodes )
@@ -410,7 +411,7 @@ struct Graph
         {
             id_t id = _id_nodes[i];
             NodeInstanceInfo info = nodeInstanceInfoGet( id );
-            NodeType* type = _global->typeGet( info._type_index );
+            NodeType* type = _ctx->typeGet( info._type_index );
             if( type->info->_tick )
             {
                 NodeSortKey key;
@@ -438,19 +439,19 @@ struct Graph
 };
 
 //////////////////////////////////////////////////////////////////////////
-void graphGlobalStartup()
+void graphContextStartup()
 {
-    SYS_ASSERT( _global == nullptr );
-    _global = BX_NEW( bxDefaultAllocator(), GraphGlobal );
-    _global->startup();
+    SYS_ASSERT( _ctx == nullptr );
+    _ctx = BX_NEW( bxDefaultAllocator(), GraphContext );
+    _ctx->startup();
 }
-void graphGlobalShutdown()
+void graphContextShutdown()
 {
-    if( !_global )
+    if( !_ctx )
         return;
 
-    _global->shutdown();
-    BX_DELETE0( bxDefaultAllocator(), _global );
+    _ctx->shutdown();
+    BX_DELETE0( bxDefaultAllocator(), _ctx );
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -476,116 +477,146 @@ namespace
         do
         {
             NodeToDestroy ntd;
-            _global->_lock_nodes_to_destroy.lock();
-            done = array::empty( _global->_nodes_to_destroy );
+            _ctx->_lock_nodes_to_destroy.lock();
+            done = array::empty( _ctx->_nodes_to_destroy );
             if( !done )
             {
-                ntd = array::back( _global->_nodes_to_destroy );
-                array::pop_back( _global->_nodes_to_destroy );
+                ntd = array::back( _ctx->_nodes_to_destroy );
+                array::pop_back( _ctx->_nodes_to_destroy );
             }
-            _global->_lock_nodes_to_destroy.unlock();
+            _ctx->_lock_nodes_to_destroy.unlock();
 
             if( !done )
             {
-                _global->nodeDestroy( ntd.node, ntd.info );
+                _ctx->nodeDestroy( ntd.node, ntd.info );
             }
 
         } while( !done );
     }
 
-    void graphGlobal_destroyGraphs()
+    void graphGlobal_unloadGraphs()
     {
         bool done = false;
         do 
         {
             GraphToUnload gtu;
-            done = !pop_from_back_with_lock( &gtu, _global->_lock_graphs_to_unload, _global->_lock_graphs_to_unload );
+            done = !pop_from_back_with_lock( &gtu, _ctx->_graphs_to_unload, _ctx->_lock_graphs_to_unload );
 
             if( !done )
             {
                 gtu.graph->shutdown( gtu.destroyAfterUnload );
+                queue::push_front( _ctx->_graphs_to_destroy, gtu.graph );
             }
 
         } while ( !done );
     }
-
-}
-
-void graphTick( Graph* graph, Scene* scene );
-void graphGlobalTick( Scene* scene )
-{
-    graphGlobal_destroyNodes();
-
-    _global->nodesLock();
-    _global->graphsLock();
-
-    for( int i = 0; i < array::size( _global->_graphs ); ++i )
+    
+    void graphGlobal_destroyGraphs()
     {
-        graphTick( _global->_graphs[i], scene );
+        while( !queue::empty( _ctx->_graphs_to_destroy ) )
+        {
+            Graph* g = queue::back( _ctx->_graphs_to_destroy );
+            queue::pop_back( _ctx->_graphs_to_destroy );
+
+            int found = array::find1( array::begin( _ctx->_graphs ), array::end( _ctx->_graphs ), array::OpEqual<Graph*>( g ) );
+            SYS_ASSERT( found != -1 );
+            array::erase( _ctx->_graphs, found );
+
+            BX_DELETE0( bxDefaultAllocator(), g );
+        }
     }
 
-    _global->graphsUnlock();
-    _global->nodesUnlock();
+}
+void graphPreTick( Graph* graph, Scene* scene );
+void graphTick( Graph* graph, Scene* scene );
+
+void graphContextTick( Scene* scene )
+{
+    graphGlobal_unloadGraphs();
+    
+    _ctx->graphsLock();
+    
+    for( int i = 0; i < array::size( _ctx->_graphs ); ++i )
+    {
+        graphPreTick( _ctx->_graphs[i], scene );
+    }
+    
+    graphGlobal_destroyGraphs();
+
+    _ctx->graphsUnlock();
+
+    graphGlobal_destroyNodes();
+
+    _ctx->nodesLock();
+    _ctx->graphsLock();
+
+    for( int i = 0; i < array::size( _ctx->_graphs ); ++i )
+    {
+        graphTick( _ctx->_graphs[i], scene );
+    }
+
+    _ctx->graphsUnlock();
+    _ctx->nodesUnlock();
 }
 
 //////////////////////////////////////////////////////////////////////////
 bool nodeRegister( const NodeTypeInfo* typeInfo )
 {
-    int ires = _global->typeAdd( typeInfo );
+    int ires = _ctx->typeAdd( typeInfo );
     return ( ires == -1 ) ? false : true;
 }
 //////////////////////////////////////////////////////////////////////////
 bool nodeCreate( id_t* out, const char* typeName, const char* nodeName )
 {
-    int typeIndex = _global->typeFind( typeName );
+    int typeIndex = _ctx->typeFind( typeName );
     if( typeIndex == -1 )
     {
         bxLogError( "Node type '%s' not found", typeName );
         return false;
     }
 
-    _global->idAcquire( out );
-    _global->nodeCreate( *out, typeIndex, nodeName );
+    _ctx->idAcquire( out );
+    _ctx->nodeCreate( *out, typeIndex, nodeName );
     
-    return _global->nodeIsValid( *out );
+    return _ctx->nodeIsValid( *out );
 }
 void nodeDestroy( id_t* inOut )
 {
-    if( !_global->nodeIsValid( *inOut ) )
+    if( !_ctx->nodeIsValid( *inOut ) )
         return;
 
     NodeToDestroy ntd;
-    ntd.node = _global->_nodes[inOut->index];
-    ntd.info = _global->_instance_info[ inOut->index ];
+    ntd.node = _ctx->_nodes[inOut->index];
+    ntd.info = _ctx->_instance_info[ inOut->index ];
 
-    _global->_nodes[inOut->index] = nullptr;
-    _global->_instance_info[inOut->index] = nullptr;
+    _ctx->_nodes[inOut->index] = nullptr;
+    _ctx->_instance_info[inOut->index] = nullptr;
     
-    _global->idRelease( *inOut );
+    _ctx->idRelease( *inOut );
     inOut[0] = makeInvalidHandle<id_t>();
 
     SYS_ASSERT( ntd.info->_graph == nullptr );
 
-    _global->_lock_nodes_to_destroy.lock();
-    array::push_back( _global->_nodes_to_destroy, ntd );
-    _global->_lock_nodes_to_destroy.unlock();
+    _ctx->_lock_nodes_to_destroy.lock();
+    array::push_back( _ctx->_nodes_to_destroy, ntd );
+    _ctx->_lock_nodes_to_destroy.unlock();
 }
 
 bool nodeIsAlive( id_t id )
 {
-    return _global->nodeIsValid( id );
+    return _ctx->nodeIsValid( id );
 }
 //////////////////////////////////////////////////////////////////////////
 NodeInstanceInfo nodeInstanceInfoGet( id_t id )
 {
-    SYS_ASSERT( _global->nodeIsValid( id ) );
-    return *_global->_instance_info[id.index];
+    SYS_ASSERT( _ctx->nodeIsValid( id ) );
+    return *_ctx->_instance_info[id.index];
 }
 
 Node* nodeInstanceGet( id_t id )
 {
-    SYS_ASSERT( _global->nodeIsValid( id ) );
-    return _global->_nodes[id.index];
+    SYS_ASSERT( _ctx->nodeIsValid( id ) );
+    return _ctx->_nodes[id.index];
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -594,9 +625,9 @@ void graphCreate( Graph** graph )
     Graph* g = BX_NEW( bxDefaultAllocator(), Graph );
     g->startup();
 
-    _global->graphsLock();
-    array::push_back( _global->_graphs, g );
-    _global->graphsUnlock();
+    _ctx->graphsLock();
+    array::push_back( _ctx->_graphs, g );
+    _ctx->graphsUnlock();
 
     graph[0] = g;
 }
@@ -609,16 +640,10 @@ void graphDestroy( Graph** graph, bool destroyNodes )
     gtu.graph = graph[0];
     gtu.destroyAfterUnload = destroyNodes;
     graph[0] = nullptr;
-
-    _global->graphsLock();
-    int found = array::find1( array::begin( _global->_graphs ), array::end( _global->_graphs ), array::OpEqual<Graph*>( gtu.graph ) );
-    SYS_ASSERT( found != -1 );
-    array::erase( _global->_graphs, found );
-    _global->graphsUnlock();
     
-    _global->_lock_graphs_to_unload.lock();
-    queue::push_front( _global->_graphs_to_unload, gtu );
-    _global->_lock_graphs_to_unload.unlock();
+    _ctx->_lock_graphs_to_unload.lock();
+    queue::push_front( _ctx->_graphs_to_unload, gtu );
+    _ctx->_lock_graphs_to_unload.unlock();
 
     //graph[0]->shutdown( destroyNodes );
     //BX_DELETE0( bxDefaultAllocator(), graph[0] );
@@ -627,6 +652,14 @@ void graphLoad( Graph* graph, const char* filename )
 {
     (void)graph;
     (void)filename;
+
+    GraphToLoad gtl;
+    gtl.graph = graph;
+    gtl.filename = string::duplicate( nullptr, filename );
+
+    _ctx->_lock_graphs_to_load.lock();
+    queue::push_front( _ctx->_graphs_to_load, gtl );
+    _ctx->_lock_graphs_to_load.unlock();
 }
 
 namespace
@@ -634,43 +667,65 @@ namespace
     void graph_nodesLoad( Graph* graph, Scene* scene )
     {
         bool done = false;
+        bool recomputeGraph = false;
         do 
         {
             id_t id;
             done = !pop_from_back_with_lock( &id, graph->_nodes_to_load, graph->_lock_nodes_to_load );
 
-            if( !done && _global->nodeIsValid( id ) )
+            if( !done && _ctx->nodeIsValid( id ) )
             {
                 NodeInstanceInfo info = nodeInstanceInfoGet( id );
                 Node* node = nodeInstanceGet( id );
-                NodeType* type = _global->typeGet( info._type_index );
+                NodeType* type = _ctx->typeGet( info._type_index );
                 ( *type->info->_load )( node, info, scene );
+
+                graph->_lock_nodes.lock();
+                array::push_back( graph->_id_nodes, id );
+                graph->_lock_nodes.unlock();
+
+                recomputeGraph = true;
             }
 
         } while ( !done );
+
+        graph->_flag_recompute |= recomputeGraph;
     }
     void graph_nodesUnload( Graph* graph, Scene* scene )
     {
         bool done = false;
+        bool recomputeGraph = false;
         do
         {
             NodeToUnload ntu;
             done = !pop_from_back_with_lock( &ntu, graph->_nodes_to_unload, graph->_lock_nodes_to_unload );
-
             
-            if( !done && _global->nodeIsValid( ntu.id ) )
+            if( !done && _ctx->nodeIsValid( ntu.id ) )
             {
-                NodeInstanceInfo info = nodeInstanceInfoGet( ntu.id );
+                NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( ntu.id );
                 Node* node = nodeInstanceGet( ntu.id );
-                NodeType* type = _global->typeGet( info._type_index );
-                ( *type->info->_unload )( node, info, scene );
+                NodeType* type = _ctx->typeGet( info->_type_index );
+                ( *type->info->_unload )( node, *info, scene );
+
+                info->_graph = nullptr;
+                
+                graph->_lock_nodes.lock();
+                    int found = graph->nodeFind( ntu.id );
+                    SYS_ASSERT( found != -1 );
+                    array::erase_swap( graph->_id_nodes, found );
+                graph->_lock_nodes.unlock();
+
 
                 if( ntu.destroyAfterUnload )
                 {
                     nodeDestroy( &ntu.id );
                 }
+
+                recomputeGraph = true;
             }
         } while( !done );
+
+        graph->_flag_recompute |= recomputeGraph;
     }
     void graph_nodesTick( Graph* graph, Scene* scene )
     {
@@ -681,18 +736,20 @@ namespace
 
             NodeInstanceInfo info = nodeInstanceInfoGet( id );
             Node* node = nodeInstanceGet( id );
-            NodeType* type = _global->typeGet( info._type_index );
+            NodeType* type = _ctx->typeGet( info._type_index );
             ( *type->info->_tick )( node, info, scene );
         }
     }
+}
+void graphPreTick( Graph* graph, Scene* scene )
+{
+    graph_nodesLoad( graph, scene );
+    graph_nodesUnload( graph, scene );
 }
 
 void graphTick( Graph* graph, Scene* scene )
 {
     graph->_lock_nodes.lock();
-
-    graph_nodesLoad( graph, scene );
-    graph_nodesUnload( graph, scene );
 
     if( graph->_flag_recompute )
     {
@@ -709,14 +766,14 @@ bool graphNodeAdd( Graph* graph, id_t id )
 {
     bool result = false;
 
-    graph->_lock_nodes.lock();
-    int found = graph->nodeFind( id );
-    graph->_lock_nodes.unlock();
+    //graph->_lock_nodes.lock();
+    //int found = graph->nodeFind( id );
+    //graph->_lock_nodes.unlock();
 
-    if( found == -1 )
+    //if( found == -1 )
     {
-        _global->nodesLock();
-        NodeInstanceInfo* info = _global->nodeInstanceInfoGet( id );
+        _ctx->nodesLock();
+        NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
         if( info )
         {
             if( info->_graph )
@@ -729,19 +786,19 @@ bool graphNodeAdd( Graph* graph, id_t id )
                 result = true;
             }
         }
-        _global->nodesUnlock();
+        _ctx->nodesUnlock();
     }
 
     if( result )
     {
-        graph->_lock_nodes.lock();
-        array::push_back( graph->_id_nodes, id );
-        graph->_lock_nodes.unlock();
+        //graph->_lock_nodes.lock();
+        //array::push_back( graph->_id_nodes, id );
+        //graph->_lock_nodes.unlock();
 
         graph->_lock_nodes_to_load.lock();
         queue::push_front( graph->_nodes_to_load, id );
         graph->_lock_nodes_to_load.unlock();
-        graph->_flag_recompute = true;
+        //graph->_flag_recompute = true;
     }
     
     return result;
@@ -750,30 +807,31 @@ void graphNodeRemove( id_t id, bool destroyNode )
 {
     Graph* g = nullptr;
 
-    _global->nodesLock();
-    NodeInstanceInfo* info = _global->nodeInstanceInfoGet( id );
+    _ctx->nodesLock();
+    NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
     if( info )
     {
         g = info->_graph;
-        info->_graph = nullptr;
+        //info->_graph = nullptr;
     }
-    _global->nodesUnlock();
+    _ctx->nodesUnlock();
 
     if( g )
     {
-        g->_lock_nodes.lock();
-        int found = g->nodeFind( id );
-        SYS_ASSERT( found != -1 );
-        array::erase_swap( g->_id_nodes, found );
-        g->_lock_nodes.unlock();
+        //g->_lock_nodes.lock();
+        //int found = g->nodeFind( id );
+        //SYS_ASSERT( found != -1 );
+        //array::erase_swap( g->_id_nodes, found );
+        //g->_lock_nodes.unlock();
 
-        g->_lock_nodes_to_unload.lock();
         NodeToUnload ntu;
         ntu.id = id;
         ntu.destroyAfterUnload = destroyNode;
+
+        g->_lock_nodes_to_unload.lock();
         queue::push_front( g->_nodes_to_unload, ntu );
         g->_lock_nodes_to_unload.unlock();
-        g->_flag_recompute = true;
+        //g->_flag_recompute = true;
     }
 }
 void graphNodeLink( id_t parent, id_t child )

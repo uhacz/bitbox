@@ -190,7 +190,7 @@ public:
         }
 
         { /// game update
-            bx::graphGlobalTick( &_scene );
+            bx::graphContextTick( &_scene );
             //octreeDebugDraw( octree );
 
             //const Matrix4 cameraWorld = gfxCameraWorldMatrixGet( camera );

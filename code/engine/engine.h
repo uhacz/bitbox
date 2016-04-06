@@ -98,9 +98,9 @@ namespace bx
         Tick _tick = nullptr;
     };
 
-    void graphGlobalStartup();
-    void graphGlobalShutdown();
-    void graphGlobalTick( Scene* scene );
+    void graphContextStartup();
+    void graphContextShutdown();
+    void graphContextTick( Scene* scene );
     bool nodeRegister( const NodeTypeInfo* typeInfo );
 
     void graphCreate( Graph** graph );
