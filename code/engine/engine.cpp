@@ -182,6 +182,11 @@ struct GraphToLoad
     Graph* graph = nullptr;
     char* filename = nullptr;
 };
+struct GraphToUnload
+{
+    Graph* graph = nullptr;
+    bool destroyAfterUnload = false;
+};
 
 struct GraphGlobal
 {
@@ -198,11 +203,13 @@ struct GraphGlobal
     array_t< NodeToDestroy >    _nodes_to_destroy;
     array_t< Graph* >           _graphs;
     queue_t< GraphToLoad >      _graphs_to_load;
+    queue_t< GraphToUnload* >   _graphs_to_unload;
 
     bxRecursiveBenaphore        _lock_nodes;
     bxRecursiveBenaphore        _lock_instance_info_alloc;
     bxBenaphore                 _lock_graphs;
     bxBenaphore                 _lock_graphs_to_load;
+    bxBenaphore                 _lock_graphs_to_unload;
     bxBenaphore                 _lock_nodes_to_destroy;
     
     void startup()
@@ -364,8 +371,6 @@ struct Graph
     
     std::atomic_bool _flag_recompute;
 
-
-
     void startup()
     {
         _flag_recompute = false;
@@ -375,16 +380,8 @@ struct Graph
     {
         for( int i = 0; i < array::size( _id_nodes ); ++i )
         {
-            graphNodeRemove( _id_nodes[i] );
+            graphNodeRemove( _id_nodes[i], destroyNodes );
         }
-        if( destroyNodes )
-        {
-            for( int i = 0; i < array::size( _id_nodes ); ++i )
-            {
-                nodeDestroy( &_id_nodes[i] );
-            }
-        }
-
         array::clear( _id_nodes );
     }
 
@@ -459,6 +456,20 @@ void graphGlobalShutdown()
 //////////////////////////////////////////////////////////////////////////
 namespace
 {
+    template< class T, class Tlock >
+    inline bool pop_from_back_with_lock( T* value, queue_t<T>& q, Tlock& lock )
+    {
+        lock.lock();
+        bool e = queue::empty( q );
+        if( !e )
+        {
+            value[0] = queue::back( q );
+            queue::pop_back( q );
+        }
+        lock.unlock();
+        return !e;
+    }
+
     void graphGlobal_destroyNodes()
     {
         bool done = false;
@@ -481,6 +492,23 @@ namespace
 
         } while( !done );
     }
+
+    void graphGlobal_destroyGraphs()
+    {
+        bool done = false;
+        do 
+        {
+            GraphToUnload gtu;
+            done = !pop_from_back_with_lock( &gtu, _global->_lock_graphs_to_unload, _global->_lock_graphs_to_unload );
+
+            if( !done )
+            {
+                gtu.graph->shutdown( gtu.destroyAfterUnload );
+            }
+
+        } while ( !done );
+    }
+
 }
 
 void graphTick( Graph* graph, Scene* scene );
@@ -577,14 +605,23 @@ void graphDestroy( Graph** graph, bool destroyNodes )
     if( !graph[0] )
         return;
 
+    GraphToUnload gtu;
+    gtu.graph = graph[0];
+    gtu.destroyAfterUnload = destroyNodes;
+    graph[0] = nullptr;
+
     _global->graphsLock();
-    int found = array::find1( array::begin( _global->_graphs ), array::end( _global->_graphs ), array::OpEqual<Graph*>( graph[0] ) );
+    int found = array::find1( array::begin( _global->_graphs ), array::end( _global->_graphs ), array::OpEqual<Graph*>( gtu.graph ) );
     SYS_ASSERT( found != -1 );
     array::erase( _global->_graphs, found );
     _global->graphsUnlock();
+    
+    _global->_lock_graphs_to_unload.lock();
+    queue::push_front( _global->_graphs_to_unload, gtu );
+    _global->_lock_graphs_to_unload.unlock();
 
-    graph[0]->shutdown( destroyNodes );
-    BX_DELETE0( bxDefaultAllocator(), graph[0] );
+    //graph[0]->shutdown( destroyNodes );
+    //BX_DELETE0( bxDefaultAllocator(), graph[0] );
 }
 void graphLoad( Graph* graph, const char* filename )
 {
@@ -594,19 +631,6 @@ void graphLoad( Graph* graph, const char* filename )
 
 namespace
 {
-    template< class T, class Tlock >
-    inline bool pop_from_back_with_lock( T* value, queue_t<T>& q, Tlock& lock )
-    {
-        lock.lock();
-        bool e = queue::empty( q );
-        if( !e )
-        {
-            value[0] = queue::back( q );
-            queue::pop_back( q );
-        }
-        lock.unlock();
-        return !e;
-    }
     void graph_nodesLoad( Graph* graph, Scene* scene )
     {
         bool done = false;
