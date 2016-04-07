@@ -100,6 +100,7 @@ namespace bx
 
     void graphContextStartup();
     void graphContextShutdown();
+    void graphContextCleanup( Scene* scene );
     void graphContextTick( Scene* scene );
     bool nodeRegister( const NodeTypeInfo* typeInfo );
 

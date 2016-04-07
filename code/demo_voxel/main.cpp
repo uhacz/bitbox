@@ -137,7 +137,7 @@ public:
         //    _engine.gdiDevice->releaseTexture( &fb.textures[ifb] );
         //}
         bx::octreeDestroy( &octree );
-
+        bx::graphContextCleanup( &_scene );
         bx::DevCamera::shutdown( &_dev_camera, &_engine );
         bx::Scene::shutdown( &_scene, &_engine );
         bx::Engine::shutdown( &_engine );

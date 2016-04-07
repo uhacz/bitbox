@@ -383,7 +383,6 @@ struct Graph
         {
             graphNodeRemove( _id_nodes[i], destroyNodes );
         }
-        array::clear( _id_nodes );
     }
 
     int nodeFind( id_t id )
@@ -439,22 +438,6 @@ struct Graph
 };
 
 //////////////////////////////////////////////////////////////////////////
-void graphContextStartup()
-{
-    SYS_ASSERT( _ctx == nullptr );
-    _ctx = BX_NEW( bxDefaultAllocator(), GraphContext );
-    _ctx->startup();
-}
-void graphContextShutdown()
-{
-    if( !_ctx )
-        return;
-
-    _ctx->shutdown();
-    BX_DELETE0( bxDefaultAllocator(), _ctx );
-}
-
-//////////////////////////////////////////////////////////////////////////
 namespace
 {
     template< class T, class Tlock >
@@ -471,7 +454,7 @@ namespace
         return !e;
     }
 
-    void graphGlobal_destroyNodes()
+    void graphContext_destroyNodes()
     {
         bool done = false;
         do
@@ -494,7 +477,7 @@ namespace
         } while( !done );
     }
 
-    void graphGlobal_unloadGraphs()
+    void graphContext_unloadGraphs()
     {
         bool done = false;
         do 
@@ -504,14 +487,17 @@ namespace
 
             if( !done )
             {
-                gtu.graph->shutdown( gtu.destroyAfterUnload );
+                for( int i = 0; i < array::size( gtu.graph->_id_nodes ); ++i )
+                {
+                    graphNodeRemove( gtu.graph->_id_nodes[i], gtu.destroyAfterUnload );
+                }
                 queue::push_front( _ctx->_graphs_to_destroy, gtu.graph );
             }
 
         } while ( !done );
     }
     
-    void graphGlobal_destroyGraphs()
+    void graphContext_destroyGraphs()
     {
         while( !queue::empty( _ctx->_graphs_to_destroy ) )
         {
@@ -532,7 +518,7 @@ void graphTick( Graph* graph, Scene* scene );
 
 void graphContextTick( Scene* scene )
 {
-    graphGlobal_unloadGraphs();
+    graphContext_unloadGraphs();
     
     _ctx->graphsLock();
     
@@ -541,11 +527,11 @@ void graphContextTick( Scene* scene )
         graphPreTick( _ctx->_graphs[i], scene );
     }
     
-    graphGlobal_destroyGraphs();
+    graphContext_destroyGraphs();
 
     _ctx->graphsUnlock();
 
-    graphGlobal_destroyNodes();
+    graphContext_destroyNodes();
 
     _ctx->nodesLock();
     _ctx->graphsLock();
@@ -843,6 +829,33 @@ void graphNodeUnlink( id_t child )
 }
 
 
+//////////////////////////////////////////////////////////////////////////
+void graphContextStartup()
+{
+    SYS_ASSERT( _ctx == nullptr );
+    _ctx = BX_NEW( bxDefaultAllocator(), GraphContext );
+    _ctx->startup();
+}
+void graphContextShutdown()
+{
+    if( !_ctx )
+        return;
+
+    _ctx->shutdown();
+    BX_DELETE0( bxDefaultAllocator(), _ctx );
+}
+
+void graphContextCleanup( Scene* scene )
+{
+    for( int i = 0; i < array::size( _ctx->_graphs ); ++i )
+    {
+        Graph* g = _ctx->_graphs[i];
+        graphDestroy( &g, true );
+    }
+
+    graphContextTick( scene );
+}
+
 
 
 }////
@@ -886,7 +899,9 @@ namespace bx
         miData.fxInstanceSet( gfxMaterialFind( "red" ) );
         miData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
         gfxMeshInstanceDataSet( mi, miData );
-        gfxMeshInstanceWorldMatrixSet( mi, &Matrix4::identity(), 1 );
+
+        Matrix4 pose = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -2.f, 0.f ) ), Vector3( 50.f, 0.1f, 50.f ) );
+        gfxMeshInstanceWorldMatrixSet( mi, &pose, 1 );
         gfxSceneMeshInstanceAdd( scene->gfx, mi );
 
         self(node)->_mesh_instance = mi;
