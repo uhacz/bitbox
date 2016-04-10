@@ -63,9 +63,10 @@ namespace bx
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
+    typedef i32 AttributeIndex;
     struct Node {};
     struct Graph;
-
+    
     struct NodeInstanceInfo
     {
         i32 _type_index;
@@ -117,6 +118,34 @@ namespace bx
     bool nodeIsAlive( id_t id );
     NodeInstanceInfo nodeInstanceInfoGet( id_t id );
     Node* nodeInstanceGet( id_t id );
+
+    ////
+    //
+    AttributeIndex nodeAttributeAddFloat ( id_t id, const char* name );
+    AttributeIndex nodeAttributeAddInt   ( id_t id, const char* name );
+    AttributeIndex nodeAttributeAddFloat3( id_t id, const char* name );
+    AttributeIndex nodeAttributeAddString( id_t id, const char* name );
+
+    float       nodeAttributeFloat  ( id_t id, const char* name );
+    int         nodeAttributeInt    ( id_t id, const char* name );
+    Vector3     nodeAttributeVector3( id_t id, const char* name );
+    const char* nodeAttributeString ( id_t id, const char* name );
+
+    float       nodeAttributeFloat  ( id_t id, AttributeIndex index );
+    int         nodeAttributeInt    ( id_t id, AttributeIndex index );
+    Vector3     nodeAttributeVector3( id_t id, AttributeIndex index );
+    const char* nodeAttributeString ( id_t id, AttributeIndex index );
+
+    bool nodeAttributeFloatSet  ( id_t id, const char* name, float value );
+    bool nodeAttributeIntSet    ( id_t id, const char* name, int value );
+    bool nodeAttributeVector3Set( id_t id, const char* name, const Vector3 value );
+    bool nodeAttributeStringSet ( id_t id, const char* name, const char* value );
+
+    bool nodeAttributeFloatSet  ( id_t id, AttributeIndex index, float value );
+    bool nodeAttributeIntSet    ( id_t id, AttributeIndex index, int value );
+    bool nodeAttributeVector3Set( id_t id, AttributeIndex index, const Vector3 value );
+    bool nodeAttributeStringSet ( id_t id, AttributeIndex index, const char* value );
+
 }///
 
 //////////////////////////////////////////////////////////////////////////

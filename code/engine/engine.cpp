@@ -10,6 +10,7 @@
 #include <util/id_table.h>
 #include <util/array_util.h>
 #include <util/pool_allocator.h>
+#include <util/buffer_utils.h>
 
 #include <gfx/gfx_gui.h>
 #include <gfx/gfx_debug_draw.h>
@@ -129,17 +130,230 @@ void DevCamera::tick( const bxInput* input, float deltaTime )
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+namespace AttributeType
+{
+    enum Enum : u32
+    {
+        eINT = 0,
+        eFLOAT,
+        eFLOAT3,
+        eSTRING,
 
+        eTYPE_COUNT,
+    };
+    static const unsigned char _stride[eTYPE_COUNT] =
+    {
+        4,
+        4,
+        12,
+        8,
+    };
+    static const unsigned char _alignment[eTYPE_COUNT] =
+    {
+        4,
+        4,
+        4,
+        8,
+    };
+}///
+
+struct AttributeStruct
+{
+    union Name
+    {
+        u64 hash = 0;
+        char str[8];
+    };
+
+    void* _memory_handle = nullptr;
+    i32 _size = 0;
+    i32 _capacity = 0;
+
+    AttributeType::Enum* _type = nullptr;
+    Name* _name = nullptr;
+
+    int find( const char* name ) const
+    {
+        const Name* name8 = (Name*)name;
+        for( int i = 0; i < _size; ++i )
+        {
+            if( name8->hash == _name[i].hash )
+                return i;
+        }
+        return -1;
+    }
+
+    void alloc( int newCapacity )
+    {
+        int memSize = newCapacity * ( sizeof( Name ) + sizeof( AttributeType::Enum ) );
+        void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 4 );
+        memset( mem, 0x00, memSize );
+
+        bxBufferChunker chunker( mem, memSize );
+        AttributeType::Enum* newType = chunker.add< AttributeType::Enum >( newCapacity );
+        Name* newName = chunker.add< Name >( newCapacity );
+
+        if( _size )
+        {
+            memcpy( newType, _type, _size * sizeof( *_type ) );
+            memcpy( newName, _name, _size * sizeof( *_name ) );
+        }
+        BX_FREE( bxDefaultAllocator(), _memory_handle );
+
+        _memory_handle = mem;
+        _type = newType;
+        _name = newName;
+        _capacity = newCapacity;
+    }
+    void free()
+    {
+        BX_FREE( bxDefaultAllocator(), _memory_handle );
+        _name = nullptr;
+        _type = nullptr;
+        _size = 0;
+        _capacity = 0;
+    }
+
+    int add( const char* name, AttributeType::Enum typ )
+    {
+        unsigned nameLen = string::length( name );
+        
+        SYS_ASSERT( nameLen <= 8 );
+        SYS_ASSERT( typ != AttributeType::eTYPE_COUNT );
+
+        if( _size >= _capacity )
+        {
+            alloc( _capacity * 2 + 4 );
+        }
+
+        int index = _size++;
+        _type[index] = typ;
+        _name[index].hash = 0;
+        memcpy( _name[index].str, name, nameLen );
+        return index;
+    }
+
+    int stride( int index ) const { return AttributeType::_stride[_type[index]]; }
+    int alignment( int index ) const { return AttributeType::_alignment[_type[index]]; }
+};
+
+struct AttributeInstance
+{
+    struct Value
+    {
+        u16 type = AttributeType::eTYPE_COUNT;
+        u16 offset = 0;
+    };
+    struct String
+    {
+        char* c_str;
+    };
+
+    Value* _values = nullptr;
+    u8* _blob = nullptr;
+    u32 _blob_size_in_bytes = 0;
+    i32 _num_values = 0;
+
+    static void startup( AttributeInstance** outPtr, const AttributeStruct& attrStruct )
+    {
+        const int n = attrStruct._size;
+        if( n == 0 )
+        {
+            return;
+        }
+
+        int memDataSize = 0;
+        for( int i = 0; i < n; ++i )
+        {
+            memDataSize += attrStruct.stride( i );
+        }
+
+        int memSize = n * sizeof( Value );
+        memSize += memDataSize;
+        memSize += sizeof( AttributeInstance );
+
+        void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 4 );
+        memset( mem, 0x00, memSize );
+        
+        bxBufferChunker chunker( mem, memSize );
+
+        AttributeInstance* attrI = chunker.add< AttributeInstance >();
+        attrI->_values = chunker.add< Value >( n );
+        attrI->_blob = chunker.addBlock( memDataSize );
+
+        chunker.check();
+
+        u16 offset = 0;
+        for( int i = 0; i < n; ++i )
+        {
+            Value& v = attrI->_values[i];
+            v.offset = offset;
+            v.type = attrStruct._type[i];
+            offset += attrStruct.stride( i );
+        }
+
+        attrI->_blob_size_in_bytes = memDataSize;
+        attrI->_num_values = n;
+
+        outPtr[0] = attrI;
+    }
+
+    static void shutdown( AttributeInstance** attrIPtr )
+    {
+        AttributeInstance* attrI = attrIPtr[0];
+        if( !attrI )
+            return;
+
+        for( int i = 0; i < attrI->_num_values; ++i )
+        {
+            Value& v = attrI->_values[i];
+            if( v.type == AttributeType::eSTRING )
+            {
+                String* str = (String*)( attrI->_blob + v.offset );
+                string::free_and_null( &str->c_str );
+            }
+        }
+
+        BX_FREE0( bxDefaultAllocator(), attrIPtr[0] );
+    }
+
+    u8* pointerGet( int index, AttributeType::Enum type )
+    {
+        SYS_ASSERT( index < _num_values );
+        SYS_ASSERT( _values[index].type == type );
+
+        return _blob + _values[index].offset;
+    }
+    void dataSet( int index, AttributeType::Enum type, const void* data )
+    {
+        SYS_ASSERT( index < _num_values );
+        SYS_ASSERT( _values[index].type == type );
+        SYS_ASSERT( type != AttributeType::eSTRING );
+
+        const int stride = AttributeType::_stride[type];
+        u8* dst = _blob + _values[index].offset;
+        memcpy( dst, data, stride );
+    }
+    void stringSet( int index, const char* str )
+    {
+        SYS_ASSERT( index < _num_values );
+        SYS_ASSERT( _values[index].type == AttributeType::eSTRING );
+
+        String* dstStr = (String*)( _blob + _values[index].offset );
+        dstStr->c_str = string::duplicate( dstStr->c_str, str );
+    }
+
+};
+
+
+//////////////////////////////////////////////////////////////////////////
 struct NodeType
 {
     i32 index = -1;
     const NodeTypeInfo* info = nullptr;
-
-    //~NodeType()
-    //{
-    //    string::free_and_null( (char**)&info._type_name );
-    //}
+    AttributeStruct attributes;
 };
+
 bool nodeInstanceInfoEmpty( const NodeInstanceInfo& info )
 {
     bool result = true;
@@ -171,6 +385,7 @@ struct NodeToDestroy
 {
     Node* node = nullptr;
     NodeInstanceInfo* info = nullptr;
+    AttributeInstance* attributes = nullptr;
 };
 struct NodeToUnload
 {
@@ -197,7 +412,9 @@ struct GraphContext
     array_t< NodeType >         _node_types;
     id_table_t< eMAX_NODES >    _id_table;
     Node*                       _nodes[eMAX_NODES];
+    AttributeInstance*          _attributes[eMAX_NODES];
     NodeInstanceInfo*           _instance_info[eMAX_NODES];
+    
     bxPoolAllocator             _alloc_instance_info;
 
     array_t< NodeToDestroy >    _nodes_to_destroy;
@@ -217,6 +434,7 @@ struct GraphContext
     {
         memset( _nodes, 0x00, sizeof( _nodes ) );
         memset( _instance_info, 0x00, sizeof( _instance_info ) );
+        memset( _attributes, 0x00, sizeof( _attributes ) );
         _alloc_instance_info.startup( sizeof( NodeInstanceInfo ), eMAX_NODES, bxDefaultAllocator(), 8 );
     }
 
@@ -236,6 +454,8 @@ struct GraphContext
             {
                 ( *_node_types[i].info->_type_deinit )( );
             }
+
+            _node_types[i].attributes.free();
         }
     }
 
@@ -303,7 +523,7 @@ struct GraphContext
 
         if( info->_type_init )
         {
-            ( *info->_type_init )( );
+            ( *info->_type_init )();
         }
 
         return index;
@@ -345,11 +565,15 @@ struct GraphContext
         instance->_instance_id = id;
         instance->_type_name = type->info->_type_name;
         instance->_instance_name = string::duplicate( nullptr, nodeName );
+
+        AttributeInstance::startup( &_attributes[id.index], type->attributes );
     }
-    void nodeDestroy( Node* node, NodeInstanceInfo* info )
+    void nodeDestroy( Node* node, NodeInstanceInfo* info, AttributeInstance* attrI )
     {
         const NodeType& type = _node_types[info->_type_index];
         SYS_ASSERT( type.index == info->_type_index );
+        
+        AttributeInstance::shutdown( &attrI );
 
         nodeInstanceInfoFree( info );
         ( *type.info->_destroyer )( node );
@@ -471,7 +695,7 @@ namespace
 
             if( !done )
             {
-                _ctx->nodeDestroy( ntd.node, ntd.info );
+                _ctx->nodeDestroy( ntd.node, ntd.info, ntd.attributes );
             }
 
         } while( !done );
@@ -574,9 +798,11 @@ void nodeDestroy( id_t* inOut )
     NodeToDestroy ntd;
     ntd.node = _ctx->_nodes[inOut->index];
     ntd.info = _ctx->_instance_info[ inOut->index ];
+    ntd.attributes = _ctx->_attributes[inOut->index];
 
     _ctx->_nodes[inOut->index] = nullptr;
     _ctx->_instance_info[inOut->index] = nullptr;
+    _ctx->_attributes[inOut->index] = nullptr;
     
     _ctx->idRelease( *inOut );
     inOut[0] = makeInvalidHandle<id_t>();
@@ -604,6 +830,55 @@ Node* nodeInstanceGet( id_t id )
     SYS_ASSERT( _ctx->nodeIsValid( id ) );
     return _ctx->_nodes[id.index];
 }
+////
+//
+namespace
+{
+    AttributeIndex nodeAttributeAdd( id_t id, const char* name, AttributeType::Enum attributeType )
+    {
+        NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
+        NodeType* type = _ctx->typeGet( info->_type_index );
+        SYS_ASSERT( type->attributes.find( name ) == -1 );
+        return type->attributes.add( name, attributeType );
+    }
+}
+AttributeIndex nodeAttributeAddFloat( id_t id, const char* name )
+{
+    return nodeAttributeAdd( id, name, AttributeType::eFLOAT );
+}
+AttributeIndex nodeAttributeAddInt( id_t id, const char* name )
+{
+    return nodeAttributeAdd( id, name, AttributeType::eINT );
+}
+AttributeIndex nodeAttributeAddFloat3( id_t id, const char* name )
+{
+    return nodeAttributeAdd( id, name, AttributeType::eFLOAT3 );
+}
+AttributeIndex nodeAttributeAddString( id_t id, const char* name )
+{
+    return nodeAttributeAdd( id, name, AttributeType::eSTRING );
+}
+
+float       nodeAttributeFloat( id_t id, const char* name );
+int         nodeAttributeInt( id_t id, const char* name );
+Vector3     nodeAttributeVector3( id_t id, const char* name );
+const char* nodeAttributeString( id_t id, const char* name );
+
+float       nodeAttributeFloat( id_t id, AttributeIndex index );
+int         nodeAttributeInt( id_t id, AttributeIndex index );
+Vector3     nodeAttributeVector3( id_t id, AttributeIndex index );
+const char* nodeAttributeString( id_t id, AttributeIndex index );
+
+bool nodeAttributeFloatSet( id_t id, const char* name, float value );
+bool nodeAttributeIntSet( id_t id, const char* name, int value );
+bool nodeAttributeVector3Set( id_t id, const char* name, const Vector3 value );
+bool nodeAttributeStringSet( id_t id, const char* name, const char* value );
+
+bool nodeAttributeFloatSet( id_t id, AttributeIndex index, float value );
+bool nodeAttributeIntSet( id_t id, AttributeIndex index, int value );
+bool nodeAttributeVector3Set( id_t id, AttributeIndex index, const Vector3 value );
+bool nodeAttributeStringSet( id_t id, AttributeIndex index, const char* value );
+
 
 //////////////////////////////////////////////////////////////////////////
 void graphCreate( Graph** graph )
