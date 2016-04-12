@@ -132,7 +132,7 @@ void DevCamera::tick( const bxInput* input, float deltaTime )
 //////////////////////////////////////////////////////////////////////////
 namespace AttributeType
 {
-    enum Enum : u32
+    enum Enum : u8
     {
         eINT = 0,
         eFLOAT,
@@ -143,10 +143,10 @@ namespace AttributeType
     };
     static const unsigned char _stride[eTYPE_COUNT] =
     {
-        4,
-        4,
-        12,
-        8,
+        sizeof( i32 ),
+        sizeof( f32 ),
+        sizeof( f32 ) * 3,
+        sizeof( void* ),
     };
     static const unsigned char _alignment[eTYPE_COUNT] =
     {
@@ -154,6 +154,11 @@ namespace AttributeType
         4,
         4,
         8,
+    };
+
+    struct String
+    {
+        char* c_str;
     };
 }///
 
@@ -171,6 +176,9 @@ struct AttributeStruct
 
     AttributeType::Enum* _type = nullptr;
     Name* _name = nullptr;
+    u16* _offset = nullptr;
+    
+    array_t< u8 > _default_values;
 
     int find( const char* name ) const
     {
@@ -185,33 +193,70 @@ struct AttributeStruct
 
     void alloc( int newCapacity )
     {
-        int memSize = newCapacity * ( sizeof( Name ) + sizeof( AttributeType::Enum ) );
+        int memSize = newCapacity * ( sizeof( Name ) + sizeof( AttributeType::Enum ) + sizeof( *_offset ) );
         void* mem = BX_MALLOC( bxDefaultAllocator(), memSize, 4 );
         memset( mem, 0x00, memSize );
 
         bxBufferChunker chunker( mem, memSize );
         AttributeType::Enum* newType = chunker.add< AttributeType::Enum >( newCapacity );
         Name* newName = chunker.add< Name >( newCapacity );
+        u16* newOffset = chunker.add< u16 >( newCapacity );
+
+        chunker.check();
 
         if( _size )
         {
             memcpy( newType, _type, _size * sizeof( *_type ) );
             memcpy( newName, _name, _size * sizeof( *_name ) );
+            memcpy( newOffset, _offset, _size * sizeof( *_offset ) );
         }
         BX_FREE( bxDefaultAllocator(), _memory_handle );
 
         _memory_handle = mem;
         _type = newType;
         _name = newName;
+        _offset = newOffset;
         _capacity = newCapacity;
     }
     void free()
     {
+        for( int i = 0; i < _size; ++i )
+        {
+            if( _type[i] == AttributeType::eSTRING )
+            {
+                AttributeType::String* strAttr = ( AttributeType::String* )( array::begin( _default_values ) + _offset[i] );
+                string::free_and_null( &strAttr->c_str );
+            }
+        }
+        
+        
         BX_FREE( bxDefaultAllocator(), _memory_handle );
         _name = nullptr;
         _type = nullptr;
+        _offset = nullptr;
         _size = 0;
         _capacity = 0;
+
+        array::clear( _default_values );
+        _default_values.~array_t<u8>();
+    }
+
+    void setDefaultValue( int index, const void* defaulValue )
+    {
+        const int numBytes = AttributeType::_stride[_type[index]];
+        const u8* defaulValueBytes = (u8*)defaulValue;
+
+        for( int ib = 0; ib < numBytes; ++ib )
+        {
+            array::push_back( _default_values, defaulValueBytes[ib] );
+        }
+    }
+    void setDefaultValueString( int index, const char* defaultString )
+    {
+        char* str = string::duplicate( nullptr, defaultString );
+        
+        AttributeType::String strAttr = { str };
+        setDefaultValue( index, &strAttr );
     }
 
     int add( const char* name, AttributeType::Enum typ )
@@ -230,6 +275,10 @@ struct AttributeStruct
         _type[index] = typ;
         _name[index].hash = 0;
         memcpy( _name[index].str, name, nameLen );
+
+        const int numBytes = AttributeType::_stride[typ];
+        const int offset = array::size( _default_values );
+        _offset[index] = offset;
         return index;
     }
 
@@ -243,10 +292,6 @@ struct AttributeInstance
     {
         u16 type = AttributeType::eTYPE_COUNT;
         u16 offset = 0;
-    };
-    struct String
-    {
-        char* c_str;
     };
 
     Value* _values = nullptr;
@@ -262,11 +307,11 @@ struct AttributeInstance
             return;
         }
 
-        int memDataSize = 0;
-        for( int i = 0; i < n; ++i )
-        {
-            memDataSize += attrStruct.stride( i );
-        }
+        const int memDataSize = array::size( attrStruct._default_values );
+        //for( int i = 0; i < n; ++i )
+        //{
+        //    memDataSize += attrStruct.stride( i );
+        //}
 
         int memSize = n * sizeof( Value );
         memSize += memDataSize;
@@ -283,15 +328,14 @@ struct AttributeInstance
 
         chunker.check();
 
-        u16 offset = 0;
         for( int i = 0; i < n; ++i )
         {
             Value& v = attrI->_values[i];
-            v.offset = offset;
+            v.offset = attrStruct._offset[i];
             v.type = attrStruct._type[i];
-            offset += attrStruct.stride( i );
         }
-
+        memcpy( attrI->_blob, array::begin( attrStruct._default_values ), array::size( attrStruct._default_values ) );
+        
         attrI->_blob_size_in_bytes = memDataSize;
         attrI->_num_values = n;
 
@@ -309,7 +353,7 @@ struct AttributeInstance
             Value& v = attrI->_values[i];
             if( v.type == AttributeType::eSTRING )
             {
-                String* str = (String*)( attrI->_blob + v.offset );
+                AttributeType::String* str = ( AttributeType::String* )( attrI->_blob + v.offset );
                 string::free_and_null( &str->c_str );
             }
         }
@@ -339,7 +383,7 @@ struct AttributeInstance
         SYS_ASSERT( index < _num_values );
         SYS_ASSERT( _values[index].type == AttributeType::eSTRING );
 
-        String* dstStr = (String*)( _blob + _values[index].offset );
+        AttributeType::String* dstStr = ( AttributeType::String* )( _blob + _values[index].offset );
         dstStr->c_str = string::duplicate( dstStr->c_str, str );
     }
 
@@ -357,13 +401,13 @@ struct NodeType
 bool nodeInstanceInfoEmpty( const NodeInstanceInfo& info )
 {
     bool result = true;
-    result &= info._type_index == -1;
-    result &= info._instance_id.hash == 0;
+    result &= info.type_index == -1;
+    result &= info.id.hash == 0;
 
-    result &= info._type_name == nullptr;
-    result &= info._instance_name == nullptr;
+    result &= info.type_name == nullptr;
+    result &= info.name == nullptr;
 
-    result &= info._graph == nullptr;
+    result &= info.graph == nullptr;
     //result &= info._parent.hash == 0;
     //result &= info._first_child.hash == 0;
     //result &= info._next_slibling.hash == 0;
@@ -372,11 +416,11 @@ bool nodeInstanceInfoEmpty( const NodeInstanceInfo& info )
 void nodeInstanceInfoClear( NodeInstanceInfo* info )
 {
     memset( info, 0x00, sizeof( NodeInstanceInfo ) );
-    info->_type_index = -1;
+    info->type_index = -1;
 }
 void nodeInstanceInfoRelease( NodeInstanceInfo* info )
 {
-    string::free( (char*)info->_instance_name );
+    string::free( (char*)info->name );
     nodeInstanceInfoClear( info );
 }
 
@@ -489,6 +533,10 @@ struct GraphContext
     {
         return _instance_info[id.index];
     }
+    AttributeInstance* attributesInstanceGet( id_t id )
+    {
+        return _attributes[id.index];
+    }
 
     //////////////////////////////////////////////////////////////////////////
     NodeType* typeGet( int index )
@@ -523,7 +571,7 @@ struct GraphContext
 
         if( info->_type_init )
         {
-            ( *info->_type_init )();
+            ( *info->_type_init )( index );
         }
 
         return index;
@@ -561,17 +609,17 @@ struct GraphContext
 
         NodeInstanceInfo* instance = nodeInstanceInfoAllocate();
         _instance_info[id.index] = instance;
-        instance->_type_index = type->index;
-        instance->_instance_id = id;
-        instance->_type_name = type->info->_type_name;
-        instance->_instance_name = string::duplicate( nullptr, nodeName );
+        instance->type_index = type->index;
+        instance->id = id;
+        instance->type_name = type->info->_type_name;
+        instance->name = string::duplicate( nullptr, nodeName );
 
         AttributeInstance::startup( &_attributes[id.index], type->attributes );
     }
     void nodeDestroy( Node* node, NodeInstanceInfo* info, AttributeInstance* attrI )
     {
-        const NodeType& type = _node_types[info->_type_index];
-        SYS_ASSERT( type.index == info->_type_index );
+        const NodeType& type = _node_types[info->type_index];
+        SYS_ASSERT( type.index == info->type_index );
         
         AttributeInstance::shutdown( &attrI );
 
@@ -634,12 +682,12 @@ struct Graph
         {
             id_t id = _id_nodes[i];
             NodeInstanceInfo info = nodeInstanceInfoGet( id );
-            NodeType* type = _ctx->typeGet( info._type_index );
+            NodeType* type = _ctx->typeGet( info.type_index );
             if( type->info->_tick )
             {
                 NodeSortKey key;
                 key.depth = 1;
-                key.type = info._type_index;
+                key.type = info.type_index;
                 key.instance_index = id.index;
                 key.index_in_graph = i;
 
@@ -807,7 +855,7 @@ void nodeDestroy( id_t* inOut )
     _ctx->idRelease( *inOut );
     inOut[0] = makeInvalidHandle<id_t>();
 
-    SYS_ASSERT( ntd.info->_graph == nullptr );
+    SYS_ASSERT( ntd.info->graph == nullptr );
 
     _ctx->_lock_nodes_to_destroy.lock();
     array::push_back( _ctx->_nodes_to_destroy, ntd );
@@ -834,40 +882,116 @@ Node* nodeInstanceGet( id_t id )
 //
 namespace
 {
-    AttributeIndex nodeAttributeAdd( id_t id, const char* name, AttributeType::Enum attributeType )
+    AttributeIndex nodeAttributeAdd( int typeIndex, const char* name, AttributeType::Enum attributeType, const void* defaultValue )
+    {
+        NodeType* type = _ctx->typeGet( typeIndex );
+        SYS_ASSERT( type->attributes.find( name ) == -1 );
+        AttributeIndex index = type->attributes.add( name, attributeType );
+        type->attributes.setDefaultValue( index, defaultValue );
+        return index;
+    }
+
+    NodeType* nodeTypeGet( id_t id )
     {
         NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
-        NodeType* type = _ctx->typeGet( info->_type_index );
-        SYS_ASSERT( type->attributes.find( name ) == -1 );
-        return type->attributes.add( name, attributeType );
+        NodeType* type = _ctx->typeGet( info->type_index );
+        return type;
     }
 }
-AttributeIndex nodeAttributeAddFloat( id_t id, const char* name )
+AttributeIndex nodeAttributeAddFloat( int typeIndex, const char* name, float defaultValue )
 {
-    return nodeAttributeAdd( id, name, AttributeType::eFLOAT );
+    return nodeAttributeAdd( typeIndex, name, AttributeType::eFLOAT, &defaultValue );
 }
-AttributeIndex nodeAttributeAddInt( id_t id, const char* name )
+AttributeIndex nodeAttributeAddInt( int typeIndex, const char* name, int defaultValue )
 {
-    return nodeAttributeAdd( id, name, AttributeType::eINT );
+    return nodeAttributeAdd( typeIndex, name, AttributeType::eINT, &defaultValue );
 }
-AttributeIndex nodeAttributeAddFloat3( id_t id, const char* name )
+AttributeIndex nodeAttributeAddFloat3( int typeIndex, const char* name, const float3_t& defaultValue )
 {
-    return nodeAttributeAdd( id, name, AttributeType::eFLOAT3 );
+    return nodeAttributeAdd( typeIndex, name, AttributeType::eFLOAT3, &defaultValue );
 }
-AttributeIndex nodeAttributeAddString( id_t id, const char* name )
+AttributeIndex nodeAttributeAddString( int typeIndex, const char* name, const char* defaultValue )
 {
-    return nodeAttributeAdd( id, name, AttributeType::eSTRING );
+    NodeType* type = _ctx->typeGet( typeIndex );
+    SYS_ASSERT( type->attributes.find( name ) == -1 );
+
+    AttributeIndex index = type->attributes.add( name, AttributeType::eSTRING );
+    type->attributes.setDefaultValueString( index, defaultValue );
+
+    return index;
 }
 
-float       nodeAttributeFloat( id_t id, const char* name );
-int         nodeAttributeInt( id_t id, const char* name );
-Vector3     nodeAttributeVector3( id_t id, const char* name );
-const char* nodeAttributeString( id_t id, const char* name );
 
-float       nodeAttributeFloat( id_t id, AttributeIndex index );
-int         nodeAttributeInt( id_t id, AttributeIndex index );
-Vector3     nodeAttributeVector3( id_t id, AttributeIndex index );
-const char* nodeAttributeString( id_t id, AttributeIndex index );
+bool nodeAttributeFloat( float* out, id_t id, const char* name )
+{
+    NodeType* type = nodeTypeGet( id );
+    int index = type->attributes.find( name );
+    if( index != -1 )
+    {
+        out[0] = nodeAttributeFloat( id, index );
+        return true;
+    }
+
+    return false;
+}
+bool nodeAttributeInt( int* out, id_t id, const char* name )
+{
+    NodeType* type = nodeTypeGet( id );
+    int index = type->attributes.find( name );
+    if( index != -1 )
+    {
+        out[0] = nodeAttributeInt( id, index );
+        return true;
+    }
+
+    return false;
+}
+
+bool nodeAttributeVector3( Vector3* out, id_t id, const char* name )
+{
+    NodeType* type = nodeTypeGet( id );
+    int index = type->attributes.find( name );
+    if( index != -1 )
+    {
+        out[0] = nodeAttributeVector3( id, index );
+        return true;
+    }
+
+    return false;
+}
+
+bool nodeAttributeString( const char** out, id_t id, const char* name )
+{
+    NodeType* type = nodeTypeGet( id );
+    int index = type->attributes.find( name );
+    if( index != -1 )
+    {
+        out[0] = nodeAttributeString( id, index );
+        return true;
+    }
+    return false;
+}
+
+float nodeAttributeFloat( id_t id, AttributeIndex index )
+{
+    float* ptr = (float*)_ctx->attributesInstanceGet( id )->pointerGet( index, AttributeType::eFLOAT );
+    return *ptr;
+}
+int nodeAttributeInt( id_t id, AttributeIndex index )
+{
+    int* ptr = (int*)_ctx->attributesInstanceGet( id )->pointerGet( index, AttributeType::eINT );
+    return *ptr;
+}
+Vector3 nodeAttributeVector3( id_t id, AttributeIndex index )
+{
+    float3_t* ptr = (float3_t*)_ctx->attributesInstanceGet( id )->pointerGet( index, AttributeType::eFLOAT3 );
+    return Vector3( ptr->x, ptr->y, ptr->z );
+}
+const char* nodeAttributeString( id_t id, AttributeIndex index )
+{
+    AttributeType::String* ptr = ( AttributeType::String* )_ctx->attributesInstanceGet( id )->pointerGet( index, AttributeType::eSTRING );
+    return ptr->c_str;
+}
 
 bool nodeAttributeFloatSet( id_t id, const char* name, float value );
 bool nodeAttributeIntSet( id_t id, const char* name, int value );
@@ -938,7 +1062,7 @@ namespace
             {
                 NodeInstanceInfo info = nodeInstanceInfoGet( id );
                 Node* node = nodeInstanceGet( id );
-                NodeType* type = _ctx->typeGet( info._type_index );
+                NodeType* type = _ctx->typeGet( info.type_index );
                 ( *type->info->_load )( node, info, scene );
 
                 graph->_lock_nodes.lock();
@@ -965,10 +1089,10 @@ namespace
             {
                 NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( ntu.id );
                 Node* node = nodeInstanceGet( ntu.id );
-                NodeType* type = _ctx->typeGet( info->_type_index );
+                NodeType* type = _ctx->typeGet( info->type_index );
                 ( *type->info->_unload )( node, *info, scene );
 
-                info->_graph = nullptr;
+                info->graph = nullptr;
                 
                 graph->_lock_nodes.lock();
                     int found = graph->nodeFind( ntu.id );
@@ -997,7 +1121,7 @@ namespace
 
             NodeInstanceInfo info = nodeInstanceInfoGet( id );
             Node* node = nodeInstanceGet( id );
-            NodeType* type = _ctx->typeGet( info._type_index );
+            NodeType* type = _ctx->typeGet( info.type_index );
             ( *type->info->_tick )( node, info, scene );
         }
     }
@@ -1037,13 +1161,13 @@ bool graphNodeAdd( Graph* graph, id_t id )
         NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
         if( info )
         {
-            if( info->_graph )
+            if( info->graph )
             {
                 bxLogError( "Node is already in graph." );
             }
             else
             {
-                info->_graph = graph;
+                info->graph = graph;
                 result = true;
             }
         }
@@ -1072,7 +1196,7 @@ void graphNodeRemove( id_t id, bool destroyNode )
     NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
     if( info )
     {
-        g = info->_graph;
+        g = info->graph;
         //info->_graph = nullptr;
     }
     _ctx->nodesUnlock();
@@ -1142,11 +1266,17 @@ void graphContextCleanup( Scene* scene )
 #include <gfx/gfx.h>
 namespace bx
 {
-
     NodeTypeInfo MeshNode::__type_info = MeshNode::__typeInfoFill();
-    void MeshNode::_TypeInit()
-    {
+    
+    bx::AttributeIndex MeshNode::attr_position = -1;
+    bx::AttributeIndex MeshNode::attr_rotation = -1;
+    bx::AttributeIndex MeshNode::attr_scale = -1;
 
+    void MeshNode::_TypeInit( int typeIndex )
+    {
+        attr_position = nodeAttributeAddFloat3( typeIndex, "pos", float3_t( 1.f, 3.f, 0.f ) );
+        attr_rotation = nodeAttributeAddFloat3( typeIndex, "rot", float3_t( 0.f, 3.14f * 0.25f, 0.f ) );
+        attr_scale = nodeAttributeAddFloat3( typeIndex, "scale", float3_t( 1.f ) );
     }
 
     void MeshNode::_TypeDeinit()
@@ -1175,7 +1305,11 @@ namespace bx
         miData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
         gfxMeshInstanceDataSet( mi, miData );
 
-        Matrix4 pose = appendScale( Matrix4( Matrix3::identity(), Vector3( 0.f, -2.f, 0.f ) ), Vector3( 50.f, 0.1f, 50.f ) );
+        const Vector3 pos = nodeAttributeVector3( instance.id, attr_position );
+        const Vector3 rot = nodeAttributeVector3( instance.id, attr_rotation );
+        const Vector3 scale = nodeAttributeVector3( instance.id, attr_scale );
+
+        Matrix4 pose = appendScale( Matrix4( Matrix3::rotationZYX( rot ), pos ), scale );
         gfxMeshInstanceWorldMatrixSet( mi, &pose, 1 );
         gfxSceneMeshInstanceAdd( scene->gfx, mi );
 
@@ -1187,4 +1321,10 @@ namespace bx
         auto meshNode = self( node );
         gfxMeshInstanceDestroy( &meshNode->_mesh_instance );
     }
+
+
+
+    
+
+
 }////

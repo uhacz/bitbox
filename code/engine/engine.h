@@ -69,18 +69,18 @@ namespace bx
     
     struct NodeInstanceInfo
     {
-        i32 _type_index;
-        id_t _instance_id;
+        i32 type_index;
+        id_t id;
 
-        const char* _type_name;
-        const char* _instance_name;
+        const char* type_name;
+        const char* name;
 
-        Graph* _graph;
+        Graph* graph;
     };
 
     struct NodeTypeInfo
     {
-        typedef void( *TypeInit )( );
+        typedef void( *TypeInit )( int typeIndex );
         typedef void( *TypeDeinit )( );
         typedef Node* ( *Creator )( );
         typedef void ( *Destroyer )( Node* node );
@@ -121,15 +121,15 @@ namespace bx
 
     ////
     //
-    AttributeIndex nodeAttributeAddFloat ( id_t id, const char* name );
-    AttributeIndex nodeAttributeAddInt   ( id_t id, const char* name );
-    AttributeIndex nodeAttributeAddFloat3( id_t id, const char* name );
-    AttributeIndex nodeAttributeAddString( id_t id, const char* name );
+    AttributeIndex nodeAttributeAddFloat ( int typeIndex, const char* name, float defaultValue );
+    AttributeIndex nodeAttributeAddInt   ( int typeIndex, const char* name, int defaultValue );
+    AttributeIndex nodeAttributeAddFloat3( int typeIndex, const char* name, const float3_t& defaultValue );
+    AttributeIndex nodeAttributeAddString( int typeIndex, const char* name, const char* defaultValue );
 
-    float       nodeAttributeFloat  ( id_t id, const char* name );
-    int         nodeAttributeInt    ( id_t id, const char* name );
-    Vector3     nodeAttributeVector3( id_t id, const char* name );
-    const char* nodeAttributeString ( id_t id, const char* name );
+    bool nodeAttributeFloat  ( float* out       , id_t id, const char* name );
+    bool nodeAttributeInt    ( int* out         , id_t id, const char* name );
+    bool nodeAttributeVector3( Vector3* out     , id_t id, const char* name );
+    bool nodeAttributeString ( const char** out , id_t id, const char* name );
 
     float       nodeAttributeFloat  ( id_t id, AttributeIndex index );
     int         nodeAttributeInt    ( id_t id, AttributeIndex index );
@@ -160,7 +160,7 @@ namespace bx
     {
         GfxMeshInstance* _mesh_instance = nullptr;
 
-        static void _TypeInit();
+        static void _TypeInit( int typeIndex );
         static void _TypeDeinit();
         static Node* _Creator();
         static void _Destroyer( Node* node );
@@ -185,5 +185,10 @@ namespace bx
         }
         static NodeTypeInfo __type_info;
         static MeshNode* self( Node* node ) { return (MeshNode*)node; }
+
+
+        static AttributeIndex attr_position;
+        static AttributeIndex attr_rotation;
+        static AttributeIndex attr_scale;
     };
 }////
