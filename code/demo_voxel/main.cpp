@@ -116,10 +116,35 @@ public:
         bx::Graph* graph = nullptr;
         bx::graphCreate( &graph );
 
-        id_t nodeId;
-        bx::nodeCreate( &nodeId, "Mesh", "box" );
+        bxAsciiScript sceneScript;
+        _engine._camera_script_callback->addCallback( &sceneScript );
+        _engine._graph_script_callback->addCallback( &sceneScript );
 
-        bx::graphNodeAdd( graph, nodeId );
+        const char* sceneName = bxConfig::global_string( "scene" );
+        bxFS::File scriptFile = _engine.resource_manager->readTextFileSync( sceneName );
+
+        if( scriptFile.ok() )
+        {
+            bxScene::script_run( &sceneScript, scriptFile.txt );
+        }
+        scriptFile.release();
+
+        {
+            char const* cameraName = bxConfig::global_string( "camera" );
+            if( cameraName )
+            {
+                bx::GfxCamera* camera = _engine.camera_manager->find( cameraName );
+                if( camera )
+                {
+                    _engine.camera_manager->stack()->push( camera );
+                }
+            }
+        }
+
+        //id_t nodeId;
+        //bx::nodeCreate( &nodeId, "Mesh", "box" );
+        //
+        //bx::graphNodeAdd( graph, nodeId );
 
         return true;
     }

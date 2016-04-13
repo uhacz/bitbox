@@ -16,6 +16,7 @@ struct bxInput;
 
 namespace bx
 {
+    struct GraphSceneScriptCallback;
     struct Engine
     {
         bxGdiDeviceBackend*   gdi_device = nullptr;
@@ -30,7 +31,8 @@ namespace bx
         Remotery* _remotery = nullptr;
 
         ////
-        CameraManagerSceneScriptCallback* _camera_script_callback;
+        GraphSceneScriptCallback*         _graph_script_callback = nullptr;
+        CameraManagerSceneScriptCallback* _camera_script_callback = nullptr;
 
         static void startup( Engine* e );
         static void shutdown( Engine* e );
@@ -152,12 +154,15 @@ namespace bx
     void nodeAttributeStringSet ( id_t id, AttributeIndex index, const char* value );
 
     //////////////////////////////////////////////////////////////////////////
-    struct GraphAsciiScriptCallback : public bxAsciiScript_Callback
+    struct GraphSceneScriptCallback : public bxAsciiScript_Callback
     {
         virtual void addCallback( bxAsciiScript* script );
         virtual void onCreate( const char* typeName, const char* objectName );
         virtual void onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData );
         virtual void onCommand( const char* cmdName, const bxAsciiScript_AttribData& args );
+
+        Graph* _graph = nullptr;
+        id_t _current_id = makeInvalidHandle<id_t>();
     };
 }///
 

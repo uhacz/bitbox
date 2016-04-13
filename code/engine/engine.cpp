@@ -46,6 +46,9 @@ void Engine::startup( Engine* e )
     e->_camera_script_callback->_menago = e->camera_manager;
     e->_camera_script_callback->_current = nullptr;
  
+    e->_graph_script_callback = BX_NEW( bxDefaultAllocator(), GraphSceneScriptCallback );
+
+
     graphContextStartup();
 
     rmt_CreateGlobalInstance( &e->_remotery );
@@ -57,6 +60,7 @@ void Engine::shutdown( Engine* e )
 
     graphContextShutdown();
 
+    BX_DELETE0( bxDefaultAllocator(), e->_graph_script_callback );
     BX_DELETE0( bxDefaultAllocator(), e->_camera_script_callback );
 
     phxContextShutdown( &e->phx_context );
@@ -282,6 +286,7 @@ struct AttributeStruct
         return index;
     }
 
+    AttributeType::Enum type( int index ) const { return _type[index]; }
     int stride( int index ) const { return AttributeType::_stride[_type[index]]; }
     int alignment( int index ) const { return AttributeType::_alignment[_type[index]]; }
 };
@@ -784,6 +789,8 @@ namespace
         }
     }
 
+
+
 }
 void graphPreTick( Graph* graph, Scene* scene );
 void graphTick( Graph* graph, Scene* scene );
@@ -1232,6 +1239,34 @@ namespace
         }
         return false;
     }
+
+    bool nodeAttributeSetByName1( id_t id, const char* name, const void* data, unsigned dataSize )
+    {
+        bool result = false;
+        NodeType* nodeType = nodeTypeGet( id );
+        int index = nodeType->attributes.find( name );
+        if( index != -1 )
+        {
+            AttributeType::Enum type = nodeType->attributes.type( index );
+            SYS_ASSERT( type != AttributeType::eTYPE_COUNT );
+
+            if( type != AttributeType::eSTRING )
+            {
+                const unsigned stride = nodeType->attributes.stride( index );
+                if( stride <= dataSize )
+                {
+                    _ctx->attributesInstanceGet( id )->dataSet( index, type, data );
+                    result = true;
+                }
+            }
+            else
+            {
+                _ctx->attributesInstanceGet( id )->stringSet( index, (const char*)data );
+                result = true;
+            }
+        }
+        return result;
+    }
 }///
 
 bool nodeAttributeFloatSet( id_t id, const char* name, float value )
@@ -1280,7 +1315,47 @@ void nodeAttributeStringSet( id_t id, AttributeIndex index, const char* value )
 }
 
 
+void GraphSceneScriptCallback::addCallback( bxAsciiScript* script )
+{
+    bxScene::script_addCallback( script, "node", this );
+    _current_id = makeInvalidHandle<id_t>();
+}
 
+void GraphSceneScriptCallback::onCreate( const char* typeName, const char* objectName )
+{
+    bool bres = nodeCreate( &_current_id, typeName, objectName );
+    if( bres )
+    {
+        bres = graphNodeAdd( _graph, _current_id );
+        if( !bres )
+        {
+            SYS_NOT_IMPLEMENTED;
+        }
+    }
+    else
+    {
+        _current_id = makeInvalidHandle<id_t>();
+        bxLogError( "Failed to create node '%s:%s", typeName, objectName );
+    }
+}
+
+void GraphSceneScriptCallback::onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData )
+{
+    if( !nodeIsAlive( _current_id ) )
+        return;
+
+    bool bres = nodeAttributeSetByName1( _current_id, attrName, attribData.dataPointer(), attribData.dataSizeInBytes() );
+    if( !bres )
+    {
+        bxLogError( "node attribute '%s' set failed", attrName );
+    }
+}
+
+void GraphSceneScriptCallback::onCommand( const char* cmdName, const bxAsciiScript_AttribData& args )
+{
+    (void)cmdName;
+    (void)args;
+}
 
 //////////////////////////////////////////////////////////////////////////
 void graphContextStartup()
