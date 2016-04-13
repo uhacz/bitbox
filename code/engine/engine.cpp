@@ -818,12 +818,236 @@ void graphContextTick( Scene* scene )
 }
 
 //////////////////////////////////////////////////////////////////////////
+void graphCreate( Graph** graph )
+{
+    Graph* g = BX_NEW( bxDefaultAllocator(), Graph );
+    g->startup();
+
+    _ctx->graphsLock();
+    array::push_back( _ctx->_graphs, g );
+    _ctx->graphsUnlock();
+
+    graph[0] = g;
+}
+void graphDestroy( Graph** graph, bool destroyNodes )
+{
+    if( !graph[0] )
+        return;
+
+    GraphToUnload gtu;
+    gtu.graph = graph[0];
+    gtu.destroyAfterUnload = destroyNodes;
+    graph[0] = nullptr;
+
+    _ctx->_lock_graphs_to_unload.lock();
+    queue::push_front( _ctx->_graphs_to_unload, gtu );
+    _ctx->_lock_graphs_to_unload.unlock();
+
+    //graph[0]->shutdown( destroyNodes );
+    //BX_DELETE0( bxDefaultAllocator(), graph[0] );
+}
+void graphLoad( Graph* graph, const char* filename )
+{
+    (void)graph;
+    (void)filename;
+
+    GraphToLoad gtl;
+    gtl.graph = graph;
+    gtl.filename = string::duplicate( nullptr, filename );
+
+    _ctx->_lock_graphs_to_load.lock();
+    queue::push_front( _ctx->_graphs_to_load, gtl );
+    _ctx->_lock_graphs_to_load.unlock();
+}
+
+namespace
+{
+    void graph_nodesLoad( Graph* graph, Scene* scene )
+    {
+        bool done = false;
+        bool recomputeGraph = false;
+        do
+        {
+            id_t id;
+            done = !pop_from_back_with_lock( &id, graph->_nodes_to_load, graph->_lock_nodes_to_load );
+
+            if( !done && _ctx->nodeIsValid( id ) )
+            {
+                NodeInstanceInfo info = nodeInstanceInfoGet( id );
+                Node* node = nodeInstanceGet( id );
+                NodeType* type = _ctx->typeGet( info.type_index );
+                ( *type->info->_load )( node, info, scene );
+
+                graph->_lock_nodes.lock();
+                array::push_back( graph->_id_nodes, id );
+                graph->_lock_nodes.unlock();
+
+                recomputeGraph = true;
+            }
+
+        } while( !done );
+
+        graph->_flag_recompute |= recomputeGraph;
+    }
+    void graph_nodesUnload( Graph* graph, Scene* scene )
+    {
+        bool done = false;
+        bool recomputeGraph = false;
+        do
+        {
+            NodeToUnload ntu;
+            done = !pop_from_back_with_lock( &ntu, graph->_nodes_to_unload, graph->_lock_nodes_to_unload );
+
+            if( !done && _ctx->nodeIsValid( ntu.id ) )
+            {
+                NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( ntu.id );
+                Node* node = nodeInstanceGet( ntu.id );
+                NodeType* type = _ctx->typeGet( info->type_index );
+                ( *type->info->_unload )( node, *info, scene );
+
+                info->graph = nullptr;
+
+                graph->_lock_nodes.lock();
+                int found = graph->nodeFind( ntu.id );
+                SYS_ASSERT( found != -1 );
+                array::erase_swap( graph->_id_nodes, found );
+                graph->_lock_nodes.unlock();
+
+
+                if( ntu.destroyAfterUnload )
+                {
+                    nodeDestroy( &ntu.id );
+                }
+
+                recomputeGraph = true;
+            }
+        } while( !done );
+
+        graph->_flag_recompute |= recomputeGraph;
+    }
+    void graph_nodesTick( Graph* graph, Scene* scene )
+    {
+        const int n = array::size( graph->_id_nodes_tick_sort );
+        for( int i = 0; i < n; ++i )
+        {
+            id_t id = graph->_id_nodes_tick_sort[i];
+
+            NodeInstanceInfo info = nodeInstanceInfoGet( id );
+            Node* node = nodeInstanceGet( id );
+            NodeType* type = _ctx->typeGet( info.type_index );
+            ( *type->info->_tick )( node, info, scene );
+        }
+    }
+}
+void graphPreTick( Graph* graph, Scene* scene )
+{
+    graph_nodesLoad( graph, scene );
+    graph_nodesUnload( graph, scene );
+}
+
+void graphTick( Graph* graph, Scene* scene )
+{
+    graph->_lock_nodes.lock();
+
+    if( graph->_flag_recompute )
+    {
+        graph->_flag_recompute = false;
+        graph->compile();
+    }
+
+    graph_nodesTick( graph, scene );
+
+    graph->_lock_nodes.unlock();
+}
+
+bool graphNodeAdd( Graph* graph, id_t id )
+{
+    bool result = false;
+
+    //graph->_lock_nodes.lock();
+    //int found = graph->nodeFind( id );
+    //graph->_lock_nodes.unlock();
+
+    //if( found == -1 )
+    {
+        _ctx->nodesLock();
+        NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
+        if( info )
+        {
+            if( info->graph )
+            {
+                bxLogError( "Node is already in graph." );
+            }
+            else
+            {
+                info->graph = graph;
+                result = true;
+            }
+        }
+        _ctx->nodesUnlock();
+    }
+
+    if( result )
+    {
+        //graph->_lock_nodes.lock();
+        //array::push_back( graph->_id_nodes, id );
+        //graph->_lock_nodes.unlock();
+
+        graph->_lock_nodes_to_load.lock();
+        queue::push_front( graph->_nodes_to_load, id );
+        graph->_lock_nodes_to_load.unlock();
+        //graph->_flag_recompute = true;
+    }
+
+    return result;
+}
+void graphNodeRemove( id_t id, bool destroyNode )
+{
+    Graph* g = nullptr;
+
+    _ctx->nodesLock();
+    NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
+    if( info )
+    {
+        g = info->graph;
+        //info->_graph = nullptr;
+    }
+    _ctx->nodesUnlock();
+
+    if( g )
+    {
+        //g->_lock_nodes.lock();
+        //int found = g->nodeFind( id );
+        //SYS_ASSERT( found != -1 );
+        //array::erase_swap( g->_id_nodes, found );
+        //g->_lock_nodes.unlock();
+
+        NodeToUnload ntu;
+        ntu.id = id;
+        ntu.destroyAfterUnload = destroyNode;
+
+        g->_lock_nodes_to_unload.lock();
+        queue::push_front( g->_nodes_to_unload, ntu );
+        g->_lock_nodes_to_unload.unlock();
+        //g->_flag_recompute = true;
+    }
+}
+void graphNodeLink( id_t parent, id_t child )
+{
+}
+
+void graphNodeUnlink( id_t child )
+{
+}
+
+
+//////////////////////////////////////////////////////////////////////////
 bool nodeRegister( const NodeTypeInfo* typeInfo )
 {
     int ires = _ctx->typeAdd( typeInfo );
     return ( ires == -1 ) ? false : true;
 }
-//////////////////////////////////////////////////////////////////////////
+
 bool nodeCreate( id_t* out, const char* typeName, const char* nodeName )
 {
     int typeIndex = _ctx->typeFind( typeName );
@@ -866,7 +1090,7 @@ bool nodeIsAlive( id_t id )
 {
     return _ctx->nodeIsValid( id );
 }
-//////////////////////////////////////////////////////////////////////////
+
 NodeInstanceInfo nodeInstanceInfoGet( id_t id )
 {
     SYS_ASSERT( _ctx->nodeIsValid( id ) );
@@ -893,6 +1117,7 @@ namespace
 
     NodeType* nodeTypeGet( id_t id )
     {
+        SYS_ASSERT( _ctx->nodeIsValid( id ) );
         NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
         NodeType* type = _ctx->typeGet( info->type_index );
         return type;
@@ -993,239 +1218,68 @@ const char* nodeAttributeString( id_t id, AttributeIndex index )
     return ptr->c_str;
 }
 
-bool nodeAttributeFloatSet( id_t id, const char* name, float value );
-bool nodeAttributeIntSet( id_t id, const char* name, int value );
-bool nodeAttributeVector3Set( id_t id, const char* name, const Vector3 value );
-bool nodeAttributeStringSet( id_t id, const char* name, const char* value );
-
-bool nodeAttributeFloatSet( id_t id, AttributeIndex index, float value );
-bool nodeAttributeIntSet( id_t id, AttributeIndex index, int value );
-bool nodeAttributeVector3Set( id_t id, AttributeIndex index, const Vector3 value );
-bool nodeAttributeStringSet( id_t id, AttributeIndex index, const char* value );
-
-
-//////////////////////////////////////////////////////////////////////////
-void graphCreate( Graph** graph )
-{
-    Graph* g = BX_NEW( bxDefaultAllocator(), Graph );
-    g->startup();
-
-    _ctx->graphsLock();
-    array::push_back( _ctx->_graphs, g );
-    _ctx->graphsUnlock();
-
-    graph[0] = g;
-}
-void graphDestroy( Graph** graph, bool destroyNodes )
-{
-    if( !graph[0] )
-        return;
-
-    GraphToUnload gtu;
-    gtu.graph = graph[0];
-    gtu.destroyAfterUnload = destroyNodes;
-    graph[0] = nullptr;
-    
-    _ctx->_lock_graphs_to_unload.lock();
-    queue::push_front( _ctx->_graphs_to_unload, gtu );
-    _ctx->_lock_graphs_to_unload.unlock();
-
-    //graph[0]->shutdown( destroyNodes );
-    //BX_DELETE0( bxDefaultAllocator(), graph[0] );
-}
-void graphLoad( Graph* graph, const char* filename )
-{
-    (void)graph;
-    (void)filename;
-
-    GraphToLoad gtl;
-    gtl.graph = graph;
-    gtl.filename = string::duplicate( nullptr, filename );
-
-    _ctx->_lock_graphs_to_load.lock();
-    queue::push_front( _ctx->_graphs_to_load, gtl );
-    _ctx->_lock_graphs_to_load.unlock();
-}
 
 namespace
 {
-    void graph_nodesLoad( Graph* graph, Scene* scene )
+    bool nodeAttributeSetByName( id_t id, const char* name, AttributeType::Enum type, const void* data )
     {
-        bool done = false;
-        bool recomputeGraph = false;
-        do 
+        NodeType* nodeType = nodeTypeGet( id );
+        int index = nodeType->attributes.find( name );
+        if( index != -1 )
         {
-            id_t id;
-            done = !pop_from_back_with_lock( &id, graph->_nodes_to_load, graph->_lock_nodes_to_load );
-
-            if( !done && _ctx->nodeIsValid( id ) )
-            {
-                NodeInstanceInfo info = nodeInstanceInfoGet( id );
-                Node* node = nodeInstanceGet( id );
-                NodeType* type = _ctx->typeGet( info.type_index );
-                ( *type->info->_load )( node, info, scene );
-
-                graph->_lock_nodes.lock();
-                array::push_back( graph->_id_nodes, id );
-                graph->_lock_nodes.unlock();
-
-                recomputeGraph = true;
-            }
-
-        } while ( !done );
-
-        graph->_flag_recompute |= recomputeGraph;
-    }
-    void graph_nodesUnload( Graph* graph, Scene* scene )
-    {
-        bool done = false;
-        bool recomputeGraph = false;
-        do
-        {
-            NodeToUnload ntu;
-            done = !pop_from_back_with_lock( &ntu, graph->_nodes_to_unload, graph->_lock_nodes_to_unload );
-            
-            if( !done && _ctx->nodeIsValid( ntu.id ) )
-            {
-                NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( ntu.id );
-                Node* node = nodeInstanceGet( ntu.id );
-                NodeType* type = _ctx->typeGet( info->type_index );
-                ( *type->info->_unload )( node, *info, scene );
-
-                info->graph = nullptr;
-                
-                graph->_lock_nodes.lock();
-                    int found = graph->nodeFind( ntu.id );
-                    SYS_ASSERT( found != -1 );
-                    array::erase_swap( graph->_id_nodes, found );
-                graph->_lock_nodes.unlock();
-
-
-                if( ntu.destroyAfterUnload )
-                {
-                    nodeDestroy( &ntu.id );
-                }
-
-                recomputeGraph = true;
-            }
-        } while( !done );
-
-        graph->_flag_recompute |= recomputeGraph;
-    }
-    void graph_nodesTick( Graph* graph, Scene* scene )
-    {
-        const int n = array::size( graph->_id_nodes_tick_sort );
-        for( int i = 0; i < n; ++i )
-        {
-            id_t id = graph->_id_nodes_tick_sort[i];
-
-            NodeInstanceInfo info = nodeInstanceInfoGet( id );
-            Node* node = nodeInstanceGet( id );
-            NodeType* type = _ctx->typeGet( info.type_index );
-            ( *type->info->_tick )( node, info, scene );
+            _ctx->attributesInstanceGet( id )->dataSet( index, type, data );
+            return true;
         }
+        return false;
     }
-}
-void graphPreTick( Graph* graph, Scene* scene )
-{
-    graph_nodesLoad( graph, scene );
-    graph_nodesUnload( graph, scene );
-}
+}///
 
-void graphTick( Graph* graph, Scene* scene )
+bool nodeAttributeFloatSet( id_t id, const char* name, float value )
 {
-    graph->_lock_nodes.lock();
-
-    if( graph->_flag_recompute )
+    return nodeAttributeSetByName( id, name, AttributeType::eFLOAT, &value );
+}
+bool nodeAttributeIntSet( id_t id, const char* name, int value )
+{
+    return nodeAttributeSetByName( id, name, AttributeType::eINT, &value );
+}
+bool nodeAttributeVector3Set( id_t id, const char* name, const Vector3 value )
+{
+    return nodeAttributeSetByName( id, name, AttributeType::eFLOAT3, &value );
+}
+bool nodeAttributeStringSet( id_t id, const char* name, const char* value )
+{
+    NodeType* type = nodeTypeGet( id );
+    int index = type->attributes.find( name );
+    if( index != -1 )
     {
-        graph->_flag_recompute = false;
-        graph->compile();
+        _ctx->attributesInstanceGet( id )->stringSet( index, value );
+        return true;
     }
-    
-    graph_nodesTick( graph, scene );
-
-    graph->_lock_nodes.unlock();
+    return false;
 }
 
-bool graphNodeAdd( Graph* graph, id_t id )
+void nodeAttributeFloatSet( id_t id, AttributeIndex index, float value )
 {
-    bool result = false;
-
-    //graph->_lock_nodes.lock();
-    //int found = graph->nodeFind( id );
-    //graph->_lock_nodes.unlock();
-
-    //if( found == -1 )
-    {
-        _ctx->nodesLock();
-        NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
-        if( info )
-        {
-            if( info->graph )
-            {
-                bxLogError( "Node is already in graph." );
-            }
-            else
-            {
-                info->graph = graph;
-                result = true;
-            }
-        }
-        _ctx->nodesUnlock();
-    }
-
-    if( result )
-    {
-        //graph->_lock_nodes.lock();
-        //array::push_back( graph->_id_nodes, id );
-        //graph->_lock_nodes.unlock();
-
-        graph->_lock_nodes_to_load.lock();
-        queue::push_front( graph->_nodes_to_load, id );
-        graph->_lock_nodes_to_load.unlock();
-        //graph->_flag_recompute = true;
-    }
-    
-    return result;
+    SYS_ASSERT( _ctx->nodeIsValid( id ) );
+    _ctx->attributesInstanceGet( id )->dataSet( index, AttributeType::eFLOAT, &value );
 }
-void graphNodeRemove( id_t id, bool destroyNode )
+void nodeAttributeIntSet( id_t id, AttributeIndex index, int value )
 {
-    Graph* g = nullptr;
-
-    _ctx->nodesLock();
-    NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( id );
-    if( info )
-    {
-        g = info->graph;
-        //info->_graph = nullptr;
-    }
-    _ctx->nodesUnlock();
-
-    if( g )
-    {
-        //g->_lock_nodes.lock();
-        //int found = g->nodeFind( id );
-        //SYS_ASSERT( found != -1 );
-        //array::erase_swap( g->_id_nodes, found );
-        //g->_lock_nodes.unlock();
-
-        NodeToUnload ntu;
-        ntu.id = id;
-        ntu.destroyAfterUnload = destroyNode;
-
-        g->_lock_nodes_to_unload.lock();
-        queue::push_front( g->_nodes_to_unload, ntu );
-        g->_lock_nodes_to_unload.unlock();
-        //g->_flag_recompute = true;
-    }
+    SYS_ASSERT( _ctx->nodeIsValid( id ) );
+    _ctx->attributesInstanceGet( id )->dataSet( index, AttributeType::eINT, &value );
 }
-void graphNodeLink( id_t parent, id_t child )
+void nodeAttributeVector3Set( id_t id, AttributeIndex index, const Vector3 value )
 {
+    SYS_ASSERT( _ctx->nodeIsValid( id ) );
+    _ctx->attributesInstanceGet( id )->dataSet( index, AttributeType::eFLOAT3, &value );
+}
+void nodeAttributeStringSet( id_t id, AttributeIndex index, const char* value )
+{
+    SYS_ASSERT( _ctx->nodeIsValid( id ) );
+    _ctx->attributesInstanceGet( id )->stringSet( index, value );
 }
 
-void graphNodeUnlink( id_t child )
-{
-}
+
 
 
 //////////////////////////////////////////////////////////////////////////

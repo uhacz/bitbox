@@ -6,8 +6,11 @@
 #include <phx/phx.h>
 #include <gfx/gfx.h>
 
+#include <util/ascii_script.h>
+
 #include "profiler.h"
 #include "camera_manager.h"
+
 
 struct bxInput;
 
@@ -99,12 +102,13 @@ namespace bx
         Tick _tick = nullptr;
     };
 
+    //////////////////////////////////////////////////////////////////////////
     void graphContextStartup();
     void graphContextShutdown();
     void graphContextCleanup( Scene* scene );
     void graphContextTick( Scene* scene );
-    bool nodeRegister( const NodeTypeInfo* typeInfo );
 
+    //////////////////////////////////////////////////////////////////////////
     void graphCreate( Graph** graph );
     void graphDestroy( Graph** graph, bool destroyNodes = true );
     void graphLoad( Graph* graph, const char* filename );
@@ -113,14 +117,15 @@ namespace bx
     void graphNodeLink( id_t parent, id_t child );
     void graphNodeUnlink( id_t child );
 
+    //////////////////////////////////////////////////////////////////////////
+    bool nodeRegister( const NodeTypeInfo* typeInfo );
     bool nodeCreate( id_t* out, const char* typeName, const char* nodeName );
     void nodeDestroy( id_t* inOut );
     bool nodeIsAlive( id_t id );
     NodeInstanceInfo nodeInstanceInfoGet( id_t id );
     Node* nodeInstanceGet( id_t id );
 
-    ////
-    //
+    //////////////////////////////////////////////////////////////////////////
     AttributeIndex nodeAttributeAddFloat ( int typeIndex, const char* name, float defaultValue );
     AttributeIndex nodeAttributeAddInt   ( int typeIndex, const char* name, int defaultValue );
     AttributeIndex nodeAttributeAddFloat3( int typeIndex, const char* name, const float3_t& defaultValue );
@@ -141,11 +146,19 @@ namespace bx
     bool nodeAttributeVector3Set( id_t id, const char* name, const Vector3 value );
     bool nodeAttributeStringSet ( id_t id, const char* name, const char* value );
 
-    bool nodeAttributeFloatSet  ( id_t id, AttributeIndex index, float value );
-    bool nodeAttributeIntSet    ( id_t id, AttributeIndex index, int value );
-    bool nodeAttributeVector3Set( id_t id, AttributeIndex index, const Vector3 value );
-    bool nodeAttributeStringSet ( id_t id, AttributeIndex index, const char* value );
+    void nodeAttributeFloatSet  ( id_t id, AttributeIndex index, float value );
+    void nodeAttributeIntSet    ( id_t id, AttributeIndex index, int value );
+    void nodeAttributeVector3Set( id_t id, AttributeIndex index, const Vector3 value );
+    void nodeAttributeStringSet ( id_t id, AttributeIndex index, const char* value );
 
+    //////////////////////////////////////////////////////////////////////////
+    struct GraphAsciiScriptCallback : public bxAsciiScript_Callback
+    {
+        virtual void addCallback( bxAsciiScript* script );
+        virtual void onCreate( const char* typeName, const char* objectName );
+        virtual void onAttribute( const char* attrName, const bxAsciiScript_AttribData& attribData );
+        virtual void onCommand( const char* cmdName, const bxAsciiScript_AttribData& args );
+    };
 }///
 
 //////////////////////////////////////////////////////////////////////////
