@@ -258,9 +258,7 @@ struct AttributeStruct
     void setDefaultValueString( int index, const char* defaultString )
     {
         char* str = string::duplicate( nullptr, defaultString );
-        
-        AttributeType::String strAttr = { str };
-        setDefaultValue( index, &strAttr );
+        setDefaultValue( index, &str );
     }
 
     int add( const char* name, AttributeType::Enum typ )
@@ -333,16 +331,26 @@ struct AttributeInstance
 
         chunker.check();
 
+        attrI->_blob_size_in_bytes = memDataSize;
+        attrI->_num_values = n;
+
         for( int i = 0; i < n; ++i )
         {
             Value& v = attrI->_values[i];
             v.offset = attrStruct._offset[i];
             v.type = attrStruct._type[i];
+
+            const void* defaultValuePtr = array::begin( attrStruct._default_values ) + v.offset;
+            if( attrStruct._type[i] != AttributeType::eSTRING )
+            {
+                attrI->dataSet( i, attrStruct._type[i], defaultValuePtr );
+            }
+            else
+            {
+                char** str = (char**)defaultValuePtr;
+                attrI->stringSet( i, *str );
+            }
         }
-        memcpy( attrI->_blob, array::begin( attrStruct._default_values ), array::size( attrStruct._default_values ) );
-        
-        attrI->_blob_size_in_bytes = memDataSize;
-        attrI->_num_values = n;
 
         outPtr[0] = attrI;
     }
@@ -358,8 +366,8 @@ struct AttributeInstance
             Value& v = attrI->_values[i];
             if( v.type == AttributeType::eSTRING )
             {
-                AttributeType::String* str = ( AttributeType::String* )( attrI->_blob + v.offset );
-                string::free_and_null( &str->c_str );
+                char** str = ( char** )( attrI->_blob + v.offset );
+                string::free_and_null( str );
             }
         }
 
@@ -388,8 +396,8 @@ struct AttributeInstance
         SYS_ASSERT( index < _num_values );
         SYS_ASSERT( _values[index].type == AttributeType::eSTRING );
 
-        AttributeType::String* dstStr = ( AttributeType::String* )( _blob + _values[index].offset );
-        dstStr->c_str = string::duplicate( dstStr->c_str, str );
+        char** dstStr = ( char** )( _blob + _values[index].offset );
+        *dstStr = string::duplicate( *dstStr, str );
     }
 
 };
@@ -1317,7 +1325,12 @@ void nodeAttributeStringSet( id_t id, AttributeIndex index, const char* value )
 
 void GraphSceneScriptCallback::addCallback( bxAsciiScript* script )
 {
-    bxScene::script_addCallback( script, "node", this );
+    for( int i = 0; i < array::size( _ctx->_node_types ); ++i )
+    {
+        const char* typeName = _ctx->_node_types[i].info->_type_name;
+        bxScene::script_addCallback( script, typeName, this );
+    }
+    
     _current_id = makeInvalidHandle<id_t>();
 }
 
@@ -1384,8 +1397,6 @@ void graphContextCleanup( Scene* scene )
     graphContextTick( scene );
 }
 
-
-
 }////
 
 //////////////////////////////////////////////////////////////////////////
@@ -1400,12 +1411,16 @@ namespace bx
     bx::AttributeIndex MeshNode::attr_position = -1;
     bx::AttributeIndex MeshNode::attr_rotation = -1;
     bx::AttributeIndex MeshNode::attr_scale = -1;
+    bx::AttributeIndex MeshNode::attr_mesh = -1;
+    bx::AttributeIndex MeshNode::attr_material = -1;
 
     void MeshNode::_TypeInit( int typeIndex )
     {
-        attr_position = nodeAttributeAddFloat3( typeIndex, "pos", float3_t( 1.f, 3.f, 0.f ) );
-        attr_rotation = nodeAttributeAddFloat3( typeIndex, "rot", float3_t( 0.f, 3.14f * 0.25f, 0.f ) );
+        attr_position = nodeAttributeAddFloat3( typeIndex, "pos", float3_t( 0.f, 0.f, 0.f ) );
+        attr_rotation = nodeAttributeAddFloat3( typeIndex, "rot", float3_t( 0.f, 0.f, 0.f ) );
         attr_scale = nodeAttributeAddFloat3( typeIndex, "scale", float3_t( 1.f ) );
+        attr_mesh = nodeAttributeAddString( typeIndex, "mesh", ":box" );
+        attr_material = nodeAttributeAddString( typeIndex, "material", "red" );
     }
 
     void MeshNode::_TypeDeinit()
@@ -1428,9 +1443,28 @@ namespace bx
         GfxMeshInstance* mi = nullptr;
         gfxMeshInstanceCreate( &mi, gfxContextGet( scene->gfx ) );
 
+        const char* mesh = nodeAttributeString( instance.id, attr_mesh );
+        bxGdiRenderSource* rsource = gfxGlobalResourcesGet()->mesh.box;
+        if( mesh[0] == ':' )
+        {
+            if( string::equal( mesh, ":box" ) )
+                rsource = gfxGlobalResourcesGet()->mesh.box;
+            else if( string::equal( mesh, ":sphere" ) )
+                rsource = gfxGlobalResourcesGet()->mesh.sphere;
+        }
+
+        const char* material = nodeAttributeString( instance.id, attr_material );
+        bxGdiShaderFx_Instance* fxI = gfxMaterialFind( material );
+        if( !fxI )
+        {
+            fxI = gfxMaterialFind( "red" );
+        }
+        
+
+        
         GfxMeshInstanceData miData;
-        miData.renderSourceSet( gfxGlobalResourcesGet()->mesh.box );
-        miData.fxInstanceSet( gfxMaterialFind( "red" ) );
+        miData.renderSourceSet( rsource );
+        miData.fxInstanceSet( fxI );
         miData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
         gfxMeshInstanceDataSet( mi, miData );
 

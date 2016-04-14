@@ -208,5 +208,7 @@ namespace bx
         static AttributeIndex attr_position;
         static AttributeIndex attr_rotation;
         static AttributeIndex attr_scale;
+        static AttributeIndex attr_mesh;
+        static AttributeIndex attr_material;
     };
 }////

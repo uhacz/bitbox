@@ -119,6 +119,7 @@ public:
         bxAsciiScript sceneScript;
         _engine._camera_script_callback->addCallback( &sceneScript );
         _engine._graph_script_callback->addCallback( &sceneScript );
+        _engine._graph_script_callback->_graph = graph;
 
         const char* sceneName = bxConfig::global_string( "scene" );
         bxFS::File scriptFile = _engine.resource_manager->readTextFileSync( sceneName );
