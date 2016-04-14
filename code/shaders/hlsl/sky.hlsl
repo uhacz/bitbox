@@ -136,11 +136,11 @@ PS_OUT ps_main( in_PS IN )
     float2 uv_m11 = float2(IN.uv.x, 1.0 - IN.uv.y) * 2.0 - 1.0;
     uv_m11.x *= _camera_aspect; // apect
     
-    float turbidity = 3;
+    float turbidity = 3.5;
     float3 sunDir = -_sunDirection; // normalize( float3( -1.f, 1.0f, 0.f ) );
     float3 viewDir = normalize( mul( ( float3x3 )_camera_world, float3( uv_m11, -2.0 ) ) );
     float3 skyLuminance = calculateSkyLuminanceRGB( sunDir, viewDir, turbidity );
-    skyLuminance = ACESFilm( skyLuminance * 0.05 ); //(float3)1.0 - exp( -(skyLuminance * 0.1 ) );
+    skyLuminance = ACESFilm( skyLuminance * 0.005 ); //(float3)1.0 - exp( -(skyLuminance * 0.1 ) );
     
     PS_OUT output;
     output.rgba = float4( skyLuminance * _skyIlluminanceInLux , 1.0 );

@@ -330,26 +330,6 @@ public:
         
         bx::gfxContextFrameEnd( _engine.gfx_context, _engine.gdi_context );
         bx::gfxCommandQueueRelease( &cmdq );
-
-
-        //{
-        //    bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::xAxis(), 0xFF0000FF, true );
-        //    bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::yAxis(), 0x00FF00FF, true );
-        //    bxGfxDebugDraw::addLine( Vector3( 0.f ), Vector3::zAxis(), 0x0000FFFF, true );
-        //}
-
-
-        //gdiContext->clear();
-        //gdiContext->changeRenderTargets( &fb.textures[0], 1, fb.textures[bxVoxelFramebuffer::eDEPTH] );
-        //gdiContext->clearBuffers( 0.f, 0.f, 0.f, 0.f, 1.f, 1, 1 );
-        //bxGdi::context_setViewport( gdiContext, fb.textures[0] );
-
-        //bxVoxel::gfx_displayListBuild( vxscene._container, currentCamera );
-        //bxVoxel::gfx_displayListDraw( gdiContext, vxscene._container, currentCamera );
-
-
-        //bxGfxDebugDraw::flush( gdiContext, currentCamera.matrix.viewProj );
-        //bxGfx::rasterizeFramebuffer( gdiContext, fb.textures[bxVoxelFramebuffer::eCOLOR], currentCamera );
         
         time += deltaTime;
 
