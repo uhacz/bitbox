@@ -10,6 +10,8 @@ namespace SettingsCompiler
     {
         Float,
         Int,
+        Float3,
+        Float4,
         Bool,
         Enum,
         Direction,
@@ -73,9 +75,11 @@ namespace SettingsCompiler
                     break;
                 case SettingType.Direction:
                 case SettingType.Color:
+                case SettingType.Float3:
                     typeString = "float3";
                     break;
                 case SettingType.Orientation:
+                case SettingType.Float4:
                     typeString = "float4";
                     break;
                 default:
