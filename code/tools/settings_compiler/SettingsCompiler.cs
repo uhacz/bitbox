@@ -84,16 +84,21 @@ namespace SettingsCompiler
 
         static void ReflectSettings(Assembly assembly, string inputFilePath, List<Setting> settings, List<Type> enumTypes)
         {
-            string filePath = Path.GetFileNameWithoutExtension(inputFilePath);
-            Type settingsType = assembly.GetType(filePath + ".Settings", false);
-            if(settingsType == null)
-                throw new Exception("Settings file " + inputFilePath + " doesn't define a \"Settings\" class");
+            //string filePath = Path.GetFileNameWithoutExtension(inputFilePath);
+            //Type settingsType = assembly.GetType(filePath + ".Settings", false);
+            //if(settingsType == null)
+            //    throw new Exception("Settings file " + inputFilePath + " doesn't define a \"Settings\" class");
 
-            ReflectType(settingsType, settings, enumTypes, "");
+            foreach (Type type in assembly.DefinedTypes)
+            {
+                ReflectType(type, settings, enumTypes, "");
 
-            Type[] nestedTypes = settingsType.GetNestedTypes();
-            foreach(Type nestedType in nestedTypes)
-                ReflectType(nestedType, settings, enumTypes, nestedType.Name);
+                Type[] nestedTypes = type.GetNestedTypes();
+                foreach (Type nestedType in nestedTypes)
+                    ReflectType(nestedType, settings, enumTypes, nestedType.Name);
+            }
+
+            
         }
 
         static void WriteIfChanged(List<string> lines, string outputPath)
