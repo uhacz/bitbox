@@ -342,13 +342,14 @@ namespace SettingsCompiler
 
             string outputDir = Path.GetDirectoryName(filePath);
             string outputPath = Path.Combine(outputDir, fileName) + ".h";
-            GenerateHeader(settings, fileName, outputPath, enumTypes);
 
-            outputPath = Path.Combine(outputDir, fileName) + ".cpp";
-            GenerateCPP(settings, fileName, outputPath, enumTypes);
+            //GenerateHeader(settings, fileName, outputPath, enumTypes);
 
-            outputPath = Path.Combine(outputDir, fileName) + ".hlsl";
-            GenerateHLSL(settings, fileName, outputPath, enumTypes);
+            //outputPath = Path.Combine(outputDir, fileName) + ".cpp";
+            //GenerateCPP(settings, fileName, outputPath, enumTypes);
+
+            //outputPath = Path.Combine(outputDir, fileName) + ".hlsl";
+            //GenerateHLSL(settings, fileName, outputPath, enumTypes);
 
             // Generate a dummy file that MSBuild can use to track dependencies
             outputPath = Path.Combine(outputDir, fileName) + ".deps";

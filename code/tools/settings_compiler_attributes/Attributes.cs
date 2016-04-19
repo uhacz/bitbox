@@ -55,6 +55,13 @@ namespace SettingsCompiler
         public float y;
         public float z;
 
+        public float3(float xyz)
+        {
+            x = xyz;
+            y = xyz;
+            z = xyz;
+        }
+
         public float3(float _x, float _y, float _z)
         {
             x = _x;
@@ -70,7 +77,14 @@ namespace SettingsCompiler
         public float z;
         public float w;
 
-        public float3(float _x, float _y, float _z, float _w)
+        public float4( float xyzw )
+        {
+            x = xyzw;
+            y = xyzw;
+            z = xyzw;
+            w = xyzw;
+        }
+        public float4(float _x, float _y, float _z, float _w)
         {
             x = _x;
             y = _y;
