@@ -3,19 +3,19 @@ using System.Reflection;
 
 namespace SettingsCompiler
 {
-    public struct Direction
-    {
-        public float X;
-        public float Y;
-        public float Z;
+    //public struct Direction
+    //{
+    //    public float X;
+    //    public float Y;
+    //    public float Z;
 
-        public Direction(float x, float y, float z)
-        {
-            X = x;
-            Y = y;
-            Z = z;
-        }
-    }
+    //    public Direction(float x, float y, float z)
+    //    {
+    //        X = x;
+    //        Y = y;
+    //        Z = z;
+    //    }
+    //}
 
     public struct Color
     {
@@ -31,23 +31,23 @@ namespace SettingsCompiler
         }
     }
 
-    public struct Orientation
-    {
-        public float X;
-        public float Y;
-        public float Z;
-        public float W;
+    //public struct Orientation
+    //{
+    //    public float X;
+    //    public float Y;
+    //    public float Z;
+    //    public float W;
 
-        public static Orientation Identity = new Orientation(0.0f, 0.0f, 0.0f, 1.0f);
+    //    public static Orientation Identity = new Orientation(0.0f, 0.0f, 0.0f, 1.0f);
 
-        public Orientation(float x, float y, float z, float w)
-        {
-            X = x;
-            Y = y;
-            Z = z;
-            W = w;
-        }
-    }
+    //    public Orientation(float x, float y, float z, float w)
+    //    {
+    //        X = x;
+    //        Y = y;
+    //        Z = z;
+    //        W = w;
+    //    }
+    //}
 
     public struct float3
     {
@@ -273,26 +273,6 @@ namespace SettingsCompiler
                 return attr.UseAsShaderConstant;
             else
                 return true;
-        }
-    }
-
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-    public class HDRAttribute : Attribute
-    {
-        public readonly bool HDR = false;
-
-        public HDRAttribute(bool hdr)
-        {
-            this.HDR = hdr;
-        }
-
-        public static bool HDRColor(FieldInfo field)
-        {
-            HDRAttribute attr = field.GetCustomAttribute<HDRAttribute>();
-            if(attr != null)
-                return attr.HDR;
-            else
-                return false;
         }
     }
 }

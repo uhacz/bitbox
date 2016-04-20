@@ -59,24 +59,30 @@ namespace SettingsCompiler
 
                 Type fieldType = field.FieldType;
                 object fieldValue = field.GetValue(settingsInstance);
-                if(fieldType == typeof(float))
+                if (fieldType == typeof(float))
                     settings.Add(new FloatSetting((float)fieldValue, field, group));
-                else if(fieldType == typeof(int))
+                else if (fieldType == typeof(int))
                     settings.Add(new IntSetting((int)fieldValue, field, group));
-                else if(fieldType == typeof(bool))
+                else if (fieldType == typeof(bool))
                     settings.Add(new BoolSetting((bool)fieldValue, field, group));
-                else if(fieldType.IsEnum)
+                else if (fieldType.IsEnum)
                 {
-                    if(enumTypes.Contains(fieldType) == false)
+                    if (enumTypes.Contains(fieldType) == false)
                         enumTypes.Add(fieldType);
                     settings.Add(new EnumSetting(fieldValue, field, fieldType, group));
                 }
-                else if(fieldType == typeof(Direction))
-                    settings.Add(new DirectionSetting((Direction)fieldValue, field, group));
-                else if(fieldType == typeof(Orientation))
-                    settings.Add(new OrientationSetting((Orientation)fieldValue, field, group));
-                else if(fieldType == typeof(Color))
+                //else if(fieldType == typeof(Direction))
+                //    settings.Add(new DirectionSetting((Direction)fieldValue, field, group));
+                //else if(fieldType == typeof(Orientation))
+                //    settings.Add(new OrientationSetting((Orientation)fieldValue, field, group));
+                else if (fieldType == typeof(float3))
+                    settings.Add(new Float3Setting((float3)fieldValue, field, group));
+                else if (fieldType == typeof(float4))
+                    settings.Add(new Float4Setting((float4)fieldValue, field, group));
+                else if (fieldType == typeof(Color))
                     settings.Add(new ColorSetting((Color)fieldValue, field, group));
+                else if (fieldType == typeof(string))
+                    settings.Add(new StringSetting((string)fieldValue, field, group));
                 else
                     throw new Exception("Invalid type for setting " + field.Name);
             }
@@ -119,217 +125,217 @@ namespace SettingsCompiler
                 File.WriteAllText(outputPath, outputText);
         }
 
-        public static void WriteEnumTypes(List<string> lines, List<Type> enumTypes)
-        {
-            foreach(Type enumType in enumTypes)
-            {
-                if(enumType.GetEnumUnderlyingType() != typeof(int))
-                    throw new Exception("Invalid underlying type for enum " + enumType.Name + ", must be int");
-                string[] enumNames = enumType.GetEnumNames();
-                int numEnumValues = enumNames.Length;
+        //public static void WriteEnumTypes(List<string> lines, List<Type> enumTypes)
+        //{
+        //    foreach(Type enumType in enumTypes)
+        //    {
+        //        if(enumType.GetEnumUnderlyingType() != typeof(int))
+        //            throw new Exception("Invalid underlying type for enum " + enumType.Name + ", must be int");
+        //        string[] enumNames = enumType.GetEnumNames();
+        //        int numEnumValues = enumNames.Length;
 
-                Array values = enumType.GetEnumValues();
-                int[] enumValues = new int[numEnumValues];
-                for(int i = 0; i < numEnumValues; ++i)
-                    enumValues[i] = (int)values.GetValue(i);
+        //        Array values = enumType.GetEnumValues();
+        //        int[] enumValues = new int[numEnumValues];
+        //        for(int i = 0; i < numEnumValues; ++i)
+        //            enumValues[i] = (int)values.GetValue(i);
 
-                lines.Add("enum class " + enumType.Name);
-                lines.Add("{");
-                for(int i = 0; i < values.Length; ++i)
-                    lines.Add("    " + enumNames[i] + " = " + enumValues[i] + ",");
-                lines.Add("\r\n    NumValues");
+        //        lines.Add("enum class " + enumType.Name);
+        //        lines.Add("{");
+        //        for(int i = 0; i < values.Length; ++i)
+        //            lines.Add("    " + enumNames[i] + " = " + enumValues[i] + ",");
+        //        lines.Add("\r\n    NumValues");
 
-                lines.Add("};\r\n");
+        //        lines.Add("};\r\n");
 
-                lines.Add("typedef EnumSettingT<" + enumType.Name + "> " + enumType.Name + "Setting;\r\n");
-            }
-        }
+        //        lines.Add("typedef EnumSettingT<" + enumType.Name + "> " + enumType.Name + "Setting;\r\n");
+        //    }
+        //}
 
-        public static void WriteEnumLabels(List<string> lines, List<Type> enumTypes)
-        {
-            foreach(Type enumType in enumTypes)
-            {
-                string[] enumNames = enumType.GetEnumNames();
-                int numEnumValues = enumNames.Length;
-                string[] enumLabels = new string[numEnumValues];
+        //public static void WriteEnumLabels(List<string> lines, List<Type> enumTypes)
+        //{
+        //    foreach(Type enumType in enumTypes)
+        //    {
+        //        string[] enumNames = enumType.GetEnumNames();
+        //        int numEnumValues = enumNames.Length;
+        //        string[] enumLabels = new string[numEnumValues];
 
-                for(int i = 0; i < numEnumValues; ++i)
-                {
-                    FieldInfo enumField = enumType.GetField(enumNames[i]);
-                    EnumLabelAttribute attr = enumField.GetCustomAttribute<EnumLabelAttribute>();
-                    enumLabels[i] = attr != null ? attr.Label : enumNames[i];
-                }
+        //        for(int i = 0; i < numEnumValues; ++i)
+        //        {
+        //            FieldInfo enumField = enumType.GetField(enumNames[i]);
+        //            EnumLabelAttribute attr = enumField.GetCustomAttribute<EnumLabelAttribute>();
+        //            enumLabels[i] = attr != null ? attr.Label : enumNames[i];
+        //        }
 
-                lines.Add("static const char* " + enumType.Name + "Labels[" + numEnumValues + "] =");
-                lines.Add("{");
-                foreach(string label in enumLabels)
-                    lines.Add("    \"" + label + "\",");
+        //        lines.Add("static const char* " + enumType.Name + "Labels[" + numEnumValues + "] =");
+        //        lines.Add("{");
+        //        foreach(string label in enumLabels)
+        //            lines.Add("    \"" + label + "\",");
 
-                lines.Add("};\r\n");
-            }
-        }
+        //        lines.Add("};\r\n");
+        //    }
+        //}
 
-        static void GenerateHeader(List<Setting> settings, string outputName, string outputPath,
-                                   List<Type> enumTypes)
-        {
-            List<string> lines = new List<string>();
+        //static void GenerateHeader(List<Setting> settings, string outputName, string outputPath,
+        //                           List<Type> enumTypes)
+        //{
+        //    List<string> lines = new List<string>();
 
-            lines.Add("#pragma once");
-            lines.Add("");
-            lines.Add("#include \"SampleFramework11/PCH.h\"");
-            lines.Add("#include \"SampleFramework11/Settings.h\"");
-            lines.Add("#include \"SampleFramework11/GraphicsTypes.h\"");
-            lines.Add("");
-            lines.Add("using namespace SampleFramework11;");
-            lines.Add("");
+        //    lines.Add("#pragma once");
+        //    lines.Add("");
+        //    lines.Add("#include \"SampleFramework11/PCH.h\"");
+        //    lines.Add("#include \"SampleFramework11/Settings.h\"");
+        //    lines.Add("#include \"SampleFramework11/GraphicsTypes.h\"");
+        //    lines.Add("");
+        //    lines.Add("using namespace SampleFramework11;");
+        //    lines.Add("");
 
-            WriteEnumTypes(lines, enumTypes);
+        //    WriteEnumTypes(lines, enumTypes);
 
-            lines.Add("namespace " + outputName);
-            lines.Add("{");
+        //    lines.Add("namespace " + outputName);
+        //    lines.Add("{");
 
-            uint numCBSettings = 0;
-            foreach(Setting setting in settings)
-            {
-                setting.WriteDeclaration(lines);
-                if(setting.UseAsShaderConstant)
-                    ++numCBSettings;
-            }
+        //    uint numCBSettings = 0;
+        //    foreach(Setting setting in settings)
+        //    {
+        //        setting.WriteDeclaration(lines);
+        //        if(setting.UseAsShaderConstant)
+        //            ++numCBSettings;
+        //    }
 
-            if(numCBSettings > 0)
-            {
-                lines.Add("");
-                lines.Add(string.Format("    struct {0}CBuffer",  outputName));
-                lines.Add("    {");
+        //    if(numCBSettings > 0)
+        //    {
+        //        lines.Add("");
+        //        lines.Add(string.Format("    struct {0}CBuffer",  outputName));
+        //        lines.Add("    {");
 
-                uint cbSize = 0;
-                foreach(Setting setting in settings)
-                    setting.WriteCBufferStruct(lines, ref cbSize);
+        //        uint cbSize = 0;
+        //        foreach(Setting setting in settings)
+        //            setting.WriteCBufferStruct(lines, ref cbSize);
 
-                lines.Add("    };");
-                lines.Add("");
-                lines.Add(string.Format("    extern ConstantBuffer<{0}CBuffer> CBuffer;", outputName));
-            }
+        //        lines.Add("    };");
+        //        lines.Add("");
+        //        lines.Add(string.Format("    extern ConstantBuffer<{0}CBuffer> CBuffer;", outputName));
+        //    }
 
-            lines.Add("");
-            lines.Add("    void Initialize(ID3D11Device* device);");
-            lines.Add("    void UpdateCBuffer(ID3D11DeviceContext* context);");
+        //    lines.Add("");
+        //    lines.Add("    void Initialize(ID3D11Device* device);");
+        //    lines.Add("    void UpdateCBuffer(ID3D11DeviceContext* context);");
 
-            lines.Add("};");
+        //    lines.Add("};");
 
-            WriteIfChanged(lines, outputPath);
-        }
+        //    WriteIfChanged(lines, outputPath);
+        //}
 
-        static void GenerateCPP(List<Setting> settings, string outputName, string outputPath,
-                                List<Type> enumTypes)
-        {
-            List<string> lines = new List<string>();
+        //static void GenerateCPP(List<Setting> settings, string outputName, string outputPath,
+        //                        List<Type> enumTypes)
+        //{
+        //    List<string> lines = new List<string>();
 
-            lines.Add("#include \"PCH.h\"");
-            lines.Add("#include \"" + outputName + ".h\"");
-            lines.Add("");
-            lines.Add("using namespace SampleFramework11;");
-            lines.Add("");
+        //    lines.Add("#include \"PCH.h\"");
+        //    lines.Add("#include \"" + outputName + ".h\"");
+        //    lines.Add("");
+        //    lines.Add("using namespace SampleFramework11;");
+        //    lines.Add("");
 
-            WriteEnumLabels(lines, enumTypes);
+        //    WriteEnumLabels(lines, enumTypes);
 
-            lines.Add("namespace " + outputName);
-            lines.Add("{");
+        //    lines.Add("namespace " + outputName);
+        //    lines.Add("{");
 
-            uint numCBSettings = 0;
-            foreach(Setting setting in settings)
-            {
-                setting.WriteDefinition(lines);
-                if(setting.UseAsShaderConstant)
-                    ++numCBSettings;
-            }
+        //    uint numCBSettings = 0;
+        //    foreach(Setting setting in settings)
+        //    {
+        //        setting.WriteDefinition(lines);
+        //        if(setting.UseAsShaderConstant)
+        //            ++numCBSettings;
+        //    }
 
-            if(numCBSettings > 0)
-            {
-                lines.Add("");
-                lines.Add(string.Format("    ConstantBuffer<{0}CBuffer> CBuffer;", outputName));
-            }
+        //    if(numCBSettings > 0)
+        //    {
+        //        lines.Add("");
+        //        lines.Add(string.Format("    ConstantBuffer<{0}CBuffer> CBuffer;", outputName));
+        //    }
 
-            lines.Add("");
-            lines.Add("    void Initialize(ID3D11Device* device)");
-            lines.Add("    {");
-            lines.Add("        TwBar* tweakBar = Settings.TweakBar();");
-            lines.Add("");
+        //    lines.Add("");
+        //    lines.Add("    void Initialize(ID3D11Device* device)");
+        //    lines.Add("    {");
+        //    lines.Add("        TwBar* tweakBar = Settings.TweakBar();");
+        //    lines.Add("");
 
-            foreach(Setting setting in settings)
-                setting.WriteInitialization(lines);
+        //    foreach(Setting setting in settings)
+        //        setting.WriteInitialization(lines);
 
-            if(numCBSettings > 0)
-                lines.Add("        CBuffer.Initialize(device);");
+        //    if(numCBSettings > 0)
+        //        lines.Add("        CBuffer.Initialize(device);");
 
-            lines.Add("    }");
+        //    lines.Add("    }");
 
-            lines.Add("");
-            lines.Add("    void UpdateCBuffer(ID3D11DeviceContext* context)");
-            lines.Add("    {");
+        //    lines.Add("");
+        //    lines.Add("    void UpdateCBuffer(ID3D11DeviceContext* context)");
+        //    lines.Add("    {");
 
-            foreach(Setting setting in settings)
-                setting.WriteCBufferUpdate(lines);
+        //    foreach(Setting setting in settings)
+        //        setting.WriteCBufferUpdate(lines);
 
-            if(numCBSettings > 0)
-            {
-                lines.Add("");
-                lines.Add("        CBuffer.ApplyChanges(context);");
-                lines.Add("        CBuffer.SetVS(context, 7);");
-                lines.Add("        CBuffer.SetHS(context, 7);");
-                lines.Add("        CBuffer.SetDS(context, 7);");
-                lines.Add("        CBuffer.SetGS(context, 7);");
-                lines.Add("        CBuffer.SetPS(context, 7);");
-                lines.Add("        CBuffer.SetCS(context, 7);");
-            }
+        //    if(numCBSettings > 0)
+        //    {
+        //        lines.Add("");
+        //        lines.Add("        CBuffer.ApplyChanges(context);");
+        //        lines.Add("        CBuffer.SetVS(context, 7);");
+        //        lines.Add("        CBuffer.SetHS(context, 7);");
+        //        lines.Add("        CBuffer.SetDS(context, 7);");
+        //        lines.Add("        CBuffer.SetGS(context, 7);");
+        //        lines.Add("        CBuffer.SetPS(context, 7);");
+        //        lines.Add("        CBuffer.SetCS(context, 7);");
+        //    }
 
-            lines.Add("    }");
+        //    lines.Add("    }");
 
-            lines.Add("}");
+        //    lines.Add("}");
 
-            WriteIfChanged(lines, outputPath);
-        }
+        //    WriteIfChanged(lines, outputPath);
+        //}
 
-        static void GenerateHLSL(List<Setting> settings, string outputName, string outputPath,
-                                 List<Type> enumTypes)
-        {
-            uint numCBSettings = 0;
-            foreach(Setting setting in settings)
-            {
-                if(setting.UseAsShaderConstant)
-                    ++numCBSettings;
-            }
+        //static void GenerateHLSL(List<Setting> settings, string outputName, string outputPath,
+        //                         List<Type> enumTypes)
+        //{
+        //    uint numCBSettings = 0;
+        //    foreach(Setting setting in settings)
+        //    {
+        //        if(setting.UseAsShaderConstant)
+        //            ++numCBSettings;
+        //    }
 
-            List<string> lines = new List<string>();
+        //    List<string> lines = new List<string>();
 
-            if(numCBSettings == 0)
-                WriteIfChanged(lines, outputPath);
+        //    if(numCBSettings == 0)
+        //        WriteIfChanged(lines, outputPath);
 
-            lines.Add(string.Format("cbuffer {0} : register(b7)", outputName));
-            lines.Add("{");
+        //    lines.Add(string.Format("cbuffer {0} : register(b7)", outputName));
+        //    lines.Add("{");
 
-            foreach(Setting setting in settings)
-                setting.WriteHLSL(lines);
+        //    foreach(Setting setting in settings)
+        //        setting.WriteHLSL(lines);
 
-            lines.Add("}");
-            lines.Add("");
+        //    lines.Add("}");
+        //    lines.Add("");
 
-            foreach(Type enumType in enumTypes)
-            {
-                string[] enumNames = enumType.GetEnumNames();
-                Array enumValues = enumType.GetEnumValues();
-                for(int i = 0; i < enumNames.Length; ++i)
-                {
-                    string line = "static const int " + enumType.Name + "_";
-                    line += enumNames[i] + " = " + (int)enumValues.GetValue(i) + ";";
-                    lines.Add(line);
-                }
+        //    foreach(Type enumType in enumTypes)
+        //    {
+        //        string[] enumNames = enumType.GetEnumNames();
+        //        Array enumValues = enumType.GetEnumValues();
+        //        for(int i = 0; i < enumNames.Length; ++i)
+        //        {
+        //            string line = "static const int " + enumType.Name + "_";
+        //            line += enumNames[i] + " = " + (int)enumValues.GetValue(i) + ";";
+        //            lines.Add(line);
+        //        }
 
-                lines.Add("");
-            }
+        //        lines.Add("");
+        //    }
 
-            WriteIfChanged(lines, outputPath);
-        }
+        //    WriteIfChanged(lines, outputPath);
+        //}
 
         static void Run(string[] args)
         {

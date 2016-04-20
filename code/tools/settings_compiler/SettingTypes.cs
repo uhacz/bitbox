@@ -14,9 +14,11 @@ namespace SettingsCompiler
         Float4,
         Bool,
         Enum,
-        Direction,
-        Orientation,
+
+        //Direction,
+        //Orientation,
         Color,
+        String,
     }
 
     public struct EnumValue
@@ -51,92 +53,93 @@ namespace SettingsCompiler
             UseAsShaderConstant = UseAsShaderConstantAttribute.UseFieldAsShaderConstant(field);
         }
 
-        public abstract void WriteDeclaration(List<string> lines);
-        public abstract void WriteDefinition(List<string> lines);
-        public abstract void WriteInitialization(List<string> lines);
+        public abstract void WriteGraphAttributeCreation(List<string> lines);
 
-        public void WriteHLSL(List<string> lines)
-        {
-            if(UseAsShaderConstant == false)
-                return;
+        //public abstract void WriteDeclaration(List<string> lines);
+        //public abstract void WriteDefinition(List<string> lines);
+        //public abstract void WriteInitialization(List<string> lines);
 
-            string typeString = "";
-            switch(Type)
-            {
-                case SettingType.Enum:
-                case SettingType.Int:
-                    typeString = "int";
-                    break;
-                case SettingType.Bool:
-                    typeString = "bool";
-                    break;
-                case SettingType.Float:
-                    typeString = "float";
-                    break;
-                case SettingType.Direction:
-                case SettingType.Color:
-                case SettingType.Float3:
-                    typeString = "float3";
-                    break;
-                case SettingType.Orientation:
-                case SettingType.Float4:
-                    typeString = "float4";
-                    break;
-                default:
-                    Debug.Assert(false);
-                    break;
-            }
+        //public void WriteHLSL(List<string> lines)
+        //{
+        //    if(UseAsShaderConstant == false)
+        //        return;
 
-            lines.Add("    " + typeString + " " + Name + ";");
-        }
+        //    string typeString = "";
+        //    switch(Type)
+        //    {
+        //        case SettingType.Enum:
+        //        case SettingType.Int:
+        //            typeString = "int";
+        //            break;
+        //        case SettingType.Bool:
+        //            typeString = "bool";
+        //            break;
+        //        case SettingType.Float:
+        //            typeString = "float";
+        //            break;
+        //        case SettingType.Direction:
+        //        case SettingType.Color:
+        //        case SettingType.Float3:
+        //            typeString = "float3";
+        //            break;
+        //        case SettingType.Orientation:
+        //        case SettingType.Float4:
+        //            typeString = "float4";
+        //            break;
+        //        default:
+        //            Debug.Assert(false);
+        //            break;
+        //    }
 
-        public void WriteCBufferStruct(List<string> lines, ref uint cbSize)
-        {
-            if(UseAsShaderConstant == false)
-                return;
+        //    lines.Add("    " + typeString + " " + Name + ";");
+        //}
 
-            string typeString = "";
-            switch(Type)
-            {
-                case SettingType.Enum:
-                case SettingType.Int:
-                    typeString = "int32";
-                    cbSize += 1;
-                    break;
-                case SettingType.Bool:
-                    typeString = "bool32";
-                    cbSize += 1;
-                    break;
-                case SettingType.Float:
-                    typeString = "float";
-                    cbSize += 1;
-                    break;
-                case SettingType.Direction:
-                case SettingType.Color:
-                    typeString = "Float3";
-                    if(cbSize % 4 > 1)
-                        typeString = "Float4Align " + typeString;
-                    cbSize += 3;
-                    break;
-                case SettingType.Orientation:
-                    typeString = "Float4Align Quaternion";
-                    cbSize += 4;
-                    break;
-                default:
-                    Debug.Assert(false);
-                    break;
-            }
+        //public void WriteCBufferStruct(List<string> lines, ref uint cbSize)
+        //{
+        //    if(UseAsShaderConstant == false)
+        //        return;
 
-            lines.Add("        " + typeString + " " + Name + ";");
-        }
+        //    string typeString = "";
+        //    switch(Type)
+        //    {
+        //        case SettingType.Enum:
+        //        case SettingType.Int:
+        //            typeString = "i32";
+        //            cbSize += 1;
+        //            break;
+        //        case SettingType.Bool:
+        //            typeString = "i32";
+        //            cbSize += 1;
+        //            break;
+        //        case SettingType.Float:
+        //            typeString = "float";
+        //            cbSize += 1;
+        //            break;
+        //        case SettingType.Direction:
+        //        case SettingType.Color:
+        //            typeString = "float3_t";
+        //            cbSize += 3;
+        //            break;
+        //        case SettingType.Orientation:
+        //        case SettingType.Float4:
+        //            typeString = "float4_t";
+        //            cbSize += 4;
+        //            break;
+        //        default:
+        //            Debug.Assert(false);
+        //            break;
+        //    }
 
-        public void WriteCBufferUpdate(List<string> lines)
-        {
-            if(UseAsShaderConstant == false)
-                return;
+        //    lines.Add("        " + typeString + " " + Name + ";");
+        //}
 
-            lines.Add(string.Format("        CBuffer.Data." + Name + " = {0};", Name));
-        }
+        //public void WriteCBufferUpdate(List<string> lines)
+        //{
+        //    if(UseAsShaderConstant == false)
+        //        return;
+
+        //    lines.Add(string.Format("        CBuffer.Data." + Name + " = {0};", Name));
+        //}
 
         public static string FloatString(float num)
         {
@@ -163,26 +166,57 @@ namespace SettingsCompiler
             return ", " + parameter.ToString().ToLower();
         }
 
-        public static string MakeParameter(Direction parameter)
+        public static string MakeParameter(float3 parameter)
         {
-            return ", Float3(" + FloatString(parameter.X) + ", " +
-                                 FloatString(parameter.Y) + ", " +
-                                 FloatString(parameter.Z) + ")";
+            return ", float3_t(" + FloatString(parameter.x) + ", " +
+                                   FloatString(parameter.y) + ", " +
+                                   FloatString(parameter.z) + ")";
         }
 
-        public static string MakeParameter(Orientation parameter)
+        public static string MakeParameter(float4 parameter)
         {
-            return ", Quaternion(" + FloatString(parameter.X) + ", " +
-                                     FloatString(parameter.Y) + ", " +
-                                     FloatString(parameter.Z) + ", " +
-                                     FloatString(parameter.W) + ")";
+            return ", float4_t(" + FloatString(parameter.x) + ", " +
+                                   FloatString(parameter.y) + ", " +
+                                   FloatString(parameter.z) + ", " +
+                                   FloatString(parameter.w) + ")";
         }
+
+        //public static string MakeParameter(Direction parameter)
+        //{
+        //    return ", Float3(" + FloatString(parameter.X) + ", " +
+        //                         FloatString(parameter.Y) + ", " +
+        //                         FloatString(parameter.Z) + ")";
+        //}
+
+        //public static string MakeParameter(Orientation parameter)
+        //{
+        //    return ", Quaternion(" + FloatString(parameter.X) + ", " +
+        //                             FloatString(parameter.Y) + ", " +
+        //                             FloatString(parameter.Z) + ", " +
+        //                             FloatString(parameter.W) + ")";
+        //}
 
         public static string MakeParameter(Color parameter)
         {
             return ", Float3(" + FloatString(parameter.R) + ", " +
                                  FloatString(parameter.G) + ", " +
                                  FloatString(parameter.B) + ")";
+        }
+    }
+
+    public class StringSetting : Setting
+    {
+        public string Value = "";
+
+        public StringSetting( string value, FieldInfo field, string group )
+            : base( field, SettingType.String, group )
+        {
+            Value = value;
+        }
+
+        public override void WriteGraphAttributeCreation(List<string> lines)
+        {
+            lines.Add("    bx::nodeAttributeAddString( typeIndex, " + Name + MakeParameter(Value) + ");");
         }
     }
 
@@ -202,31 +236,36 @@ namespace SettingsCompiler
             StepSizeAttribute.GetStepSize(field, ref StepSize);
         }
 
-        public override void WriteDeclaration(List<string> lines)
+        public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    extern FloatSetting " + Name + ";");
+            lines.Add("    bx::nodeAttributeAddFloat( typeIndex, " + Name + MakeParameter(Value) + ");");
         }
 
-        public override void WriteDefinition(List<string> lines)
-        {
-            lines.Add("    FloatSetting " + Name + ";");
-        }
+        //public override void WriteDeclaration(List<string> lines)
+        //{
+        //    lines.Add("    extern FloatSetting " + Name + ";");
+        //}
 
-        public override void WriteInitialization(List<string> lines)
-        {
-            string paramString = "tweakBar";
-            paramString += MakeParameter(Name);
-            paramString += MakeParameter(Group);
-            paramString += MakeParameter(DisplayName);
-            paramString += MakeParameter(HelpText);
-            paramString += MakeParameter(Value);
-            paramString += MakeParameter(MinValue);
-            paramString += MakeParameter(MaxValue);
-            paramString += MakeParameter(StepSize);
-            lines.Add("        " + Name + ".Initialize(" + paramString + ");");
-            lines.Add("        Settings.AddSetting(&" + Name + ");");
-            lines.Add("");
-        }
+        //public override void WriteDefinition(List<string> lines)
+        //{
+        //    lines.Add("    FloatSetting " + Name + ";");
+        //}
+
+        //public override void WriteInitialization(List<string> lines)
+        //{
+        //    string paramString = "tweakBar";
+        //    paramString += MakeParameter(Name);
+        //    paramString += MakeParameter(Group);
+        //    paramString += MakeParameter(DisplayName);
+        //    paramString += MakeParameter(HelpText);
+        //    paramString += MakeParameter(Value);
+        //    paramString += MakeParameter(MinValue);
+        //    paramString += MakeParameter(MaxValue);
+        //    paramString += MakeParameter(StepSize);
+        //    lines.Add("        " + Name + ".Initialize(" + paramString + ");");
+        //    lines.Add("        Settings.AddSetting(&" + Name + ");");
+        //    lines.Add("");
+        //}
     }
 
     public class IntSetting : Setting
@@ -243,30 +282,35 @@ namespace SettingsCompiler
             MaxValueAttribute.GetMaxValue(field, ref MaxValue);
         }
 
-        public override void WriteDeclaration(List<string> lines)
+        public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    extern IntSetting " + Name + ";");
+            lines.Add("    bx::nodeAttributeAddInt( typeIndex, " + Name + MakeParameter(Value) + ");");
         }
 
-        public override void WriteDefinition(List<string> lines)
-        {
-            lines.Add("    IntSetting " + Name + ";");
-        }
+        //public override void WriteDeclaration(List<string> lines)
+        //{
+        //    lines.Add("    extern IntSetting " + Name + ";");
+        //}
 
-        public override void WriteInitialization(List<string> lines)
-        {
-            string paramString = "tweakBar";
-            paramString += MakeParameter(Name);
-            paramString += MakeParameter(Group);
-            paramString += MakeParameter(DisplayName);
-            paramString += MakeParameter(HelpText);
-            paramString += MakeParameter(Value);
-            paramString += MakeParameter(MinValue);
-            paramString += MakeParameter(MaxValue);
-            lines.Add("        " + Name + ".Initialize(" + paramString + ");");
-            lines.Add("        Settings.AddSetting(&" + Name + ");");
-            lines.Add("");
-        }
+        //public override void WriteDefinition(List<string> lines)
+        //{
+        //    lines.Add("    IntSetting " + Name + ";");
+        //}
+
+        //public override void WriteInitialization(List<string> lines)
+        //{
+        //    string paramString = "tweakBar";
+        //    paramString += MakeParameter(Name);
+        //    paramString += MakeParameter(Group);
+        //    paramString += MakeParameter(DisplayName);
+        //    paramString += MakeParameter(HelpText);
+        //    paramString += MakeParameter(Value);
+        //    paramString += MakeParameter(MinValue);
+        //    paramString += MakeParameter(MaxValue);
+        //    lines.Add("        " + Name + ".Initialize(" + paramString + ");");
+        //    lines.Add("        Settings.AddSetting(&" + Name + ");");
+        //    lines.Add("");
+        //}
     }
 
     public class BoolSetting : Setting
@@ -279,28 +323,33 @@ namespace SettingsCompiler
             Value = value;
         }
 
-        public override void WriteDeclaration(List<string> lines)
+        public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    extern BoolSetting " + Name + ";");
+            lines.Add("    bx::nodeAttributeAddInt( typeIndex, " + Name + MakeParameter(Value ? 1 : 0) + ");" );
         }
 
-        public override void WriteDefinition(List<string> lines)
-        {
-            lines.Add("    BoolSetting " + Name + ";");
-        }
+        //public override void WriteDeclaration(List<string> lines)
+        //{
+        //    lines.Add("    extern BoolSetting " + Name + ";");
+        //}
 
-        public override void WriteInitialization(List<string> lines)
-        {
-            string paramString = "tweakBar";
-            paramString += MakeParameter(Name);
-            paramString += MakeParameter(Group);
-            paramString += MakeParameter(DisplayName);
-            paramString += MakeParameter(HelpText);
-            paramString += MakeParameter(Value);
-            lines.Add("        " + Name + ".Initialize(" + paramString + ");");
-            lines.Add("        Settings.AddSetting(&" + Name + ");");
-            lines.Add("");
-        }
+        //public override void WriteDefinition(List<string> lines)
+        //{
+        //    lines.Add("    BoolSetting " + Name + ";");
+        //}
+
+        //public override void WriteInitialization(List<string> lines)
+        //{
+        //    string paramString = "tweakBar";
+        //    paramString += MakeParameter(Name);
+        //    paramString += MakeParameter(Group);
+        //    paramString += MakeParameter(DisplayName);
+        //    paramString += MakeParameter(HelpText);
+        //    paramString += MakeParameter(Value);
+        //    lines.Add("        " + Name + ".Initialize(" + paramString + ");");
+        //    lines.Add("        Settings.AddSetting(&" + Name + ");");
+        //    lines.Add("");
+        //}
     }
 
     public class EnumSetting : Setting
@@ -319,110 +368,114 @@ namespace SettingsCompiler
             EnumTypeName = EnumType.Name;
         }
 
-        public override void WriteDeclaration(List<string> lines)
+        public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    extern " + EnumTypeName + "Setting " + Name + ";");
+            lines.Add("    bx::nodeAttributeAddInt( typeIndex, " + Name + ", 0 );" );
         }
+        //public override void WriteDeclaration(List<string> lines)
+        //{
+        //    lines.Add("    extern " + EnumTypeName + "Setting " + Name + ";");
+        //}
 
-        public override void WriteDefinition(List<string> lines)
-        {
-            lines.Add("    " + EnumTypeName + "Setting " + Name + ";");
-        }
+        //public override void WriteDefinition(List<string> lines)
+        //{
+        //    lines.Add("    " + EnumTypeName + "Setting " + Name + ";");
+        //}
 
-        private string MakeEnumParameter(object value)
-        {
-            string parameter = EnumTypeName + "::" + EnumType.GetEnumName(value);
-            return ", " + parameter;
-        }
+        //private string MakeEnumParameter(object value)
+        //{
+        //    string parameter = EnumTypeName + "::" + EnumType.GetEnumName(value);
+        //    return ", " + parameter;
+        //}
 
-        public override void WriteInitialization(List<string> lines)
-        {
-            string paramString = "tweakBar";
-            paramString += MakeParameter(Name);
-            paramString += MakeParameter(Group);
-            paramString += MakeParameter(DisplayName);
-            paramString += MakeParameter(HelpText);
-            paramString += MakeEnumParameter(Value);
-            paramString += MakeParameter(NumEnumValues);
-            paramString += ", " + EnumTypeName + "Labels";
-            lines.Add("        " + Name + ".Initialize(" + paramString + ");");
-            lines.Add("        Settings.AddSetting(&" + Name + ");");
-            lines.Add("");
-        }
+        //public override void WriteInitialization(List<string> lines)
+        //{
+        //    string paramString = "tweakBar";
+        //    paramString += MakeParameter(Name);
+        //    paramString += MakeParameter(Group);
+        //    paramString += MakeParameter(DisplayName);
+        //    paramString += MakeParameter(HelpText);
+        //    paramString += MakeEnumParameter(Value);
+        //    paramString += MakeParameter(NumEnumValues);
+        //    paramString += ", " + EnumTypeName + "Labels";
+        //    lines.Add("        " + Name + ".Initialize(" + paramString + ");");
+        //    lines.Add("        Settings.AddSetting(&" + Name + ");");
+        //    lines.Add("");
+        //}
     }
 
-    public class DirectionSetting : Setting
-    {
-        public Direction Value = new Direction(0.0f, 0.0f, 1.0f);
+    //public class DirectionSetting : Setting
+    //{
+    //    public Direction Value = new Direction(0.0f, 0.0f, 1.0f);
 
-        public DirectionSetting(Direction value, FieldInfo field, string group)
-            : base(field, SettingType.Direction, group)
-        {
-            Value = value;
-        }
+    //    public DirectionSetting(Direction value, FieldInfo field, string group)
+    //        : base(field, SettingType.Direction, group)
+    //    {
+    //        Value = value;
+    //    }
 
-        public override void WriteDeclaration(List<string> lines)
-        {
-            lines.Add("    extern DirectionSetting " + Name + ";");
-        }
+    //    public override void WriteDeclaration(List<string> lines)
+    //    {
+    //        lines.Add("    extern DirectionSetting " + Name + ";");
+    //    }
 
-        public override void WriteDefinition(List<string> lines)
-        {
-            lines.Add("    DirectionSetting " + Name + ";");
-        }
+    //    public override void WriteDefinition(List<string> lines)
+    //    {
+    //        lines.Add("    DirectionSetting " + Name + ";");
+    //    }
 
-        public override void WriteInitialization(List<string> lines)
-        {
-            string paramString = "tweakBar";
-            paramString += MakeParameter(Name);
-            paramString += MakeParameter(Group);
-            paramString += MakeParameter(DisplayName);
-            paramString += MakeParameter(HelpText);
-            paramString += MakeParameter(Value);
-            lines.Add("        " + Name + ".Initialize(" + paramString + ");");
-            lines.Add("        Settings.AddSetting(&" + Name + ");");
-            lines.Add("");
-        }
-    }
+    //    public override void WriteInitialization(List<string> lines)
+    //    {
+    //        string paramString = "tweakBar";
+    //        paramString += MakeParameter(Name);
+    //        paramString += MakeParameter(Group);
+    //        paramString += MakeParameter(DisplayName);
+    //        paramString += MakeParameter(HelpText);
+    //        paramString += MakeParameter(Value);
+    //        lines.Add("        " + Name + ".Initialize(" + paramString + ");");
+    //        lines.Add("        Settings.AddSetting(&" + Name + ");");
+    //        lines.Add("");
+    //    }
+    //}
 
-    public class OrientationSetting : Setting
-    {
-        public Orientation Value = Orientation.Identity;
+    //public class OrientationSetting : Setting
+    //{
+    //    public Orientation Value = Orientation.Identity;
 
-        public OrientationSetting(Orientation value, FieldInfo field, string group)
-            : base(field, SettingType.Orientation, group)
-        {
-            Value = value;
-        }
+    //    public OrientationSetting(Orientation value, FieldInfo field, string group)
+    //        : base(field, SettingType.Orientation, group)
+    //    {
+    //        Value = value;
+    //    }
 
-        public override void WriteDeclaration(List<string> lines)
-        {
-            lines.Add("    extern OrientationSetting " + Name + ";");
-        }
+    //    public override void WriteDeclaration(List<string> lines)
+    //    {
+    //        lines.Add("    extern OrientationSetting " + Name + ";");
+    //    }
 
-        public override void WriteDefinition(List<string> lines)
-        {
-            lines.Add("    OrientationSetting " + Name + ";");
-        }
+    //    public override void WriteDefinition(List<string> lines)
+    //    {
+    //        lines.Add("    OrientationSetting " + Name + ";");
+    //    }
 
-        public override void WriteInitialization(List<string> lines)
-        {
-            string paramString = "tweakBar";
-            paramString += MakeParameter(Name);
-            paramString += MakeParameter(Group);
-            paramString += MakeParameter(DisplayName);
-            paramString += MakeParameter(HelpText);
-            paramString += MakeParameter(Value);
-            lines.Add("        " + Name + ".Initialize(" + paramString + ");");
-            lines.Add("        Settings.AddSetting(&" + Name + ");");
-            lines.Add("");
-        }
-    }
+    //    public override void WriteInitialization(List<string> lines)
+    //    {
+    //        string paramString = "tweakBar";
+    //        paramString += MakeParameter(Name);
+    //        paramString += MakeParameter(Group);
+    //        paramString += MakeParameter(DisplayName);
+    //        paramString += MakeParameter(HelpText);
+    //        paramString += MakeParameter(Value);
+    //        lines.Add("        " + Name + ".Initialize(" + paramString + ");");
+    //        lines.Add("        Settings.AddSetting(&" + Name + ");");
+    //        lines.Add("");
+    //    }
+    //}
 
     public class ColorSetting : Setting
     {
         public Color Value = new Color(1.0f, 1.0f, 1.0f);
-        public bool HDR = false;
+        //public bool HDR = false;
         public float MinValue = float.MinValue;
         public float MaxValue = float.MaxValue;
         public float StepSize = 0.01f;
@@ -431,37 +484,86 @@ namespace SettingsCompiler
             : base(field, SettingType.Color, group)
         {
             Value = value;
-            HDR = HDRAttribute.HDRColor(field);
+            //HDR = HDRAttribute.HDRColor(field);
             MinValueAttribute.GetMinValue(field, ref MinValue);
             MaxValueAttribute.GetMaxValue(field, ref MaxValue);
             StepSizeAttribute.GetStepSize(field, ref StepSize);
         }
 
-        public override void WriteDeclaration(List<string> lines)
+        public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    extern ColorSetting " + Name + ";");
+            lines.Add("    bx::nodeAttributeAddFloat3( typeIndex, " + Name + MakeParameter(Value) + ");");
         }
 
-        public override void WriteDefinition(List<string> lines)
+        //public override void WriteDeclaration(List<string> lines)
+        //{
+        //    lines.Add("    extern ColorSetting " + Name + ";");
+        //}
+
+        //public override void WriteDefinition(List<string> lines)
+        //{
+        //    lines.Add("    ColorSetting " + Name + ";");
+        //}
+
+        //public override void WriteInitialization(List<string> lines)
+        //{
+        //    string paramString = "tweakBar";
+        //    paramString += MakeParameter(Name);
+        //    paramString += MakeParameter(Group);
+        //    paramString += MakeParameter(DisplayName);
+        //    paramString += MakeParameter(HelpText);
+        //    paramString += MakeParameter(Value);
+        //    paramString += MakeParameter(HDR);
+        //    paramString += MakeParameter(MinValue);
+        //    paramString += MakeParameter(MaxValue);
+        //    paramString += MakeParameter(StepSize);
+        //    lines.Add("        " + Name + ".Initialize(" + paramString + ");");
+        //    lines.Add("        Settings.AddSetting(&" + Name + ");");
+        //    lines.Add("");
+        //}
+    }
+
+    public class Float3Setting : Setting
+    {
+        public float3 Value = new float3(0.0f);
+        public float MinValue = float.MinValue;
+        public float MaxValue = float.MaxValue;
+        public float StepSize = 0.01f;
+
+        public Float3Setting(float3 value, FieldInfo field, string group)
+            : base(field, SettingType.Float3, group)
         {
-            lines.Add("    ColorSetting " + Name + ";");
+            Value = value;
+            MinValueAttribute.GetMinValue(field, ref MinValue);
+            MaxValueAttribute.GetMaxValue(field, ref MaxValue);
+            StepSizeAttribute.GetStepSize(field, ref StepSize);
         }
 
-        public override void WriteInitialization(List<string> lines)
+        public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            string paramString = "tweakBar";
-            paramString += MakeParameter(Name);
-            paramString += MakeParameter(Group);
-            paramString += MakeParameter(DisplayName);
-            paramString += MakeParameter(HelpText);
-            paramString += MakeParameter(Value);
-            paramString += MakeParameter(HDR);
-            paramString += MakeParameter(MinValue);
-            paramString += MakeParameter(MaxValue);
-            paramString += MakeParameter(StepSize);
-            lines.Add("        " + Name + ".Initialize(" + paramString + ");");
-            lines.Add("        Settings.AddSetting(&" + Name + ");");
-            lines.Add("");
+            lines.Add("    bx::nodeAttributeAddFloat3( typeIndex, " + Name + MakeParameter(Value) + ");");
+        }
+    }
+
+    public class Float4Setting : Setting
+    {
+        public float4 Value = new float4(0.0f);
+        public float MinValue = float.MinValue;
+        public float MaxValue = float.MaxValue;
+        public float StepSize = 0.01f;
+
+        public Float4Setting(float4 value, FieldInfo field, string group)
+            : base(field, SettingType.Float3, group)
+        {
+            Value = value;
+            MinValueAttribute.GetMinValue(field, ref MinValue);
+            MaxValueAttribute.GetMaxValue(field, ref MaxValue);
+            StepSizeAttribute.GetStepSize(field, ref StepSize);
+        }
+
+        public override void WriteGraphAttributeCreation(List<string> lines)
+        {
+            lines.Add("    bx::nodeAttributeAddFloat4( typeIndex, " + Name + MakeParameter(Value) + ");");
         }
     }
 }
