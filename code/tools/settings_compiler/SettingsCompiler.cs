@@ -339,14 +339,47 @@ namespace SettingsCompiler
         {
             List<string> lines = new List<string>();
 
-            lines.Add("{");
+            lines.Add( "#pragma once" );
 
+            lines.Add( string.Format("#define BX_{0}_ATTRIBUTES_DECLARE \\", outputName.ToUpper() ) );
             foreach (Setting attr in attribs)
             {
-                attr.WriteGraphAttributeCreation(lines);
+                lines.Add(string.Format("static bx::AttributeIndex attr_{0}; \\", attr.Name ));
             }
+            lines.Add("//");
 
+            lines.Add(string.Format("#define BX_{0}_ATTRIBUTES_DEFINE \\", outputName.ToUpper()));
+            foreach (Setting attr in attribs)
+            {
+                lines.Add(string.Format("bx::AttributeIndex {0}::attr_{1} = -1; \\", outputName, attr.Name));
+            }
+            lines.Add("//");
+
+
+            List<string> tmpLines = new List<string>();
+            lines.Add(string.Format("#define BX_{0}_ATTRIBUTES_CREATE \\", outputName.ToUpper() ));
+            lines.Add( "{\\" );
+            foreach (Setting attr in attribs)
+            {
+                tmpLines.Clear();
+                attr.WriteGraphAttributeCreation(tmpLines);
+                foreach (string line in tmpLines)
+                {
+                    lines.Add(string.Format( "attr_{0} = ", attr.Name ) + line + " \\");
+                }
+
+            }
             lines.Add("}");
+            lines.Add("//");
+
+            //lines.Add("{");
+            //
+            //foreach (Setting attr in attribs)
+            //{
+            //    attr.WriteGraphAttributeCreation(lines);
+            //}
+            //
+            //lines.Add("}");
 
             WriteIfChanged(lines, outputPath);
         }

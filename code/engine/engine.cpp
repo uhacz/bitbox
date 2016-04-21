@@ -1407,26 +1407,15 @@ void graphContextCleanup( Scene* scene )
 namespace bx
 {
     NodeTypeInfo MeshNode::__type_info = MeshNode::__typeInfoFill();
-    
-    bx::AttributeIndex MeshNode::attr_position = -1;
-    bx::AttributeIndex MeshNode::attr_rotation = -1;
-    bx::AttributeIndex MeshNode::attr_scale = -1;
-    bx::AttributeIndex MeshNode::attr_mesh = -1;
-    bx::AttributeIndex MeshNode::attr_material = -1;
+    BX_MESHNODE_ATTRIBUTES_DEFINE
 
     void MeshNode::_TypeInit( int typeIndex )
     {
-        attr_position = nodeAttributeAddFloat3( typeIndex, "pos", float3_t( 0.f, 0.f, 0.f ) );
-        attr_rotation = nodeAttributeAddFloat3( typeIndex, "rot", float3_t( 0.f, 0.f, 0.f ) );
-        attr_scale = nodeAttributeAddFloat3( typeIndex, "scale", float3_t( 1.f ) );
-        attr_mesh = nodeAttributeAddString( typeIndex, "mesh", ":box" );
-        attr_material = nodeAttributeAddString( typeIndex, "material", "red" );
+        BX_MESHNODE_ATTRIBUTES_CREATE
     }
 
     void MeshNode::_TypeDeinit()
-    {
-
-    }
+    {}
 
     Node* MeshNode::_Creator()
     {
@@ -1468,8 +1457,8 @@ namespace bx
         miData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
         gfxMeshInstanceDataSet( mi, miData );
 
-        const Vector3 pos = nodeAttributeVector3( instance.id, attr_position );
-        const Vector3 rot = nodeAttributeVector3( instance.id, attr_rotation );
+        const Vector3 pos = nodeAttributeVector3( instance.id, attr_pos);
+        const Vector3 rot = nodeAttributeVector3( instance.id, attr_rot);
         const Vector3 scale = nodeAttributeVector3( instance.id, attr_scale );
 
         Matrix4 pose = appendScale( Matrix4( Matrix3::rotationZYX( rot ), pos ), scale );

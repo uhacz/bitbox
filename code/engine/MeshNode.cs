@@ -7,5 +7,11 @@ public class Attributes
 	    float3 scale = new float3(1.0f);
 	    string mesh = ":box";
 	    string material = "red";
+
+        public float3 Position
+        {
+            get { return pos; }
+            set { pos = value; }
+        }
 	}
 }

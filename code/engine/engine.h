@@ -174,6 +174,8 @@ namespace bx
 {
     struct GfxMeshInstance;
 
+
+#include "MeshNode_attributes.h"
     struct MeshNode : public Node
     {
         GfxMeshInstance* _mesh_instance = nullptr;
@@ -204,11 +206,6 @@ namespace bx
         static NodeTypeInfo __type_info;
         static MeshNode* self( Node* node ) { return (MeshNode*)node; }
 
-
-        static AttributeIndex attr_position;
-        static AttributeIndex attr_rotation;
-        static AttributeIndex attr_scale;
-        static AttributeIndex attr_mesh;
-        static AttributeIndex attr_material;
+        BX_MESHNODE_ATTRIBUTES_DECLARE;
     };
 }////
