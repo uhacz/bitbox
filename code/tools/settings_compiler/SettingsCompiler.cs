@@ -88,23 +88,21 @@ namespace SettingsCompiler
             }
         }
 
-        static void ReflectSettings(Assembly assembly, string inputFilePath, List<Setting> settings, List<Type> enumTypes)
+        static void ReflectSettings(Assembly assembly, Type baseType, List<Setting> settings, List<Type> enumTypes)
         {
-            //string filePath = Path.GetFileNameWithoutExtension(inputFilePath);
-            //Type settingsType = assembly.GetType(filePath + ".Settings", false);
+            ReflectType(baseType, settings, enumTypes, "");
+
+            Type[] nestedTypes = baseType.GetNestedTypes();
+            foreach (Type nestedType in nestedTypes)
+                ReflectType(nestedType, settings, enumTypes, nestedType.Name);
+            
             //if(settingsType == null)
             //    throw new Exception("Settings file " + inputFilePath + " doesn't define a \"Settings\" class");
 
-            foreach (Type type in assembly.DefinedTypes)
-            {
-                ReflectType(type, settings, enumTypes, "");
-
-                Type[] nestedTypes = type.GetNestedTypes();
-                foreach (Type nestedType in nestedTypes)
-                    ReflectType(nestedType, settings, enumTypes, nestedType.Name);
-            }
-
-            
+            //foreach (Type type in assembly.DefinedTypes)
+            //{
+            //    
+            //}
         }
 
         static void WriteIfChanged(List<string> lines, string outputPath)
@@ -337,22 +335,72 @@ namespace SettingsCompiler
         //    WriteIfChanged(lines, outputPath);
         //}
 
+        static void GenerateAttribsCPP( List<Setting> attribs, string outputName, string outputPath )
+        {
+            List<string> lines = new List<string>();
+
+            lines.Add("{");
+
+            foreach (Setting attr in attribs)
+            {
+                attr.WriteGraphAttributeCreation(lines);
+            }
+
+            lines.Add("}");
+
+            WriteIfChanged(lines, outputPath);
+        }
+
         static void Run(string[] args)
         {
             if(args.Length < 1)
                 throw new Exception("Invalid command-line parameters");
 
             List<Setting> settings = new List<Setting>();
-            List<Type> enumTypes = new List<Type>();
+            List<Setting> attribs = new List<Setting>();
+            List<Type> settingsEnumTypes = new List<Type>();
+            List<Type> attribsEnumTypes = new List<Type>();
 
             string filePath = args[0];
             string fileName = Path.GetFileNameWithoutExtension(filePath);
+            string outputDir = Path.GetDirectoryName(filePath);
 
             Assembly compiledAssembly = CompileSettings(filePath);
-            ReflectSettings(compiledAssembly, filePath, settings, enumTypes);
 
-            string outputDir = Path.GetDirectoryName(filePath);
-            string outputPath = Path.Combine(outputDir, fileName) + ".h";
+
+
+
+            {
+                string filePathOnly = Path.GetFileNameWithoutExtension(filePath);
+                Type settingsType = compiledAssembly.GetType(filePathOnly + ".Settings", false);
+                Type attribsType = compiledAssembly.GetType(filePathOnly + ".Attributes", false);
+
+                if (settingsType == null && attribsType == null)
+                {
+                    throw new Exception("Settings file " + filePath + " doesn't define a \"Settings\" or \"Attributes\" class");
+                }
+
+                if (settingsType != null)
+                {
+                    ReflectSettings(compiledAssembly, settingsType, settings, settingsEnumTypes);
+                }
+                if (attribsType != null)
+                {
+                    ReflectSettings(compiledAssembly, attribsType, attribs, attribsEnumTypes);
+
+                    string attrOutputPath = Path.Combine(outputDir, fileName) + "_attributes.h";
+                    GenerateAttribsCPP(attribs, fileName, attrOutputPath);
+
+                    
+
+                }
+
+            }
+
+            //ReflectSettings(compiledAssembly, filePath, settings, enumTypes);
+
+            
+            //string outputPath = Path.Combine(outputDir, fileName) + ".h";
 
             //GenerateHeader(settings, fileName, outputPath, enumTypes);
 
@@ -363,7 +411,8 @@ namespace SettingsCompiler
             //GenerateHLSL(settings, fileName, outputPath, enumTypes);
 
             // Generate a dummy file that MSBuild can use to track dependencies
-            outputPath = Path.Combine(outputDir, fileName) + ".deps";
+            // Generate a dummy file that MSBuild can use to track dependencies
+            string outputPath = Path.Combine(outputDir, fileName) + ".deps";
             File.WriteAllText(outputPath, "This file is output to allow MSBuild to track dependencies");
         }
 

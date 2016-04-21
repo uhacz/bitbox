@@ -216,7 +216,7 @@ namespace SettingsCompiler
 
         public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    bx::nodeAttributeAddString( typeIndex, " + Name + MakeParameter(Value) + ");");
+            lines.Add("    bx::nodeAttributeAddString( typeIndex, " + MakeParameter( Name ) + MakeParameter(Value) + ");");
         }
     }
 
@@ -238,7 +238,7 @@ namespace SettingsCompiler
 
         public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    bx::nodeAttributeAddFloat( typeIndex, " + Name + MakeParameter(Value) + ");");
+            lines.Add("    bx::nodeAttributeAddFloat( typeIndex, " + MakeParameter(Name) + MakeParameter(Value) + ");");
         }
 
         //public override void WriteDeclaration(List<string> lines)
@@ -284,7 +284,7 @@ namespace SettingsCompiler
 
         public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    bx::nodeAttributeAddInt( typeIndex, " + Name + MakeParameter(Value) + ");");
+            lines.Add("    bx::nodeAttributeAddInt( typeIndex, " + MakeParameter(Name) + MakeParameter(Value) + ");");
         }
 
         //public override void WriteDeclaration(List<string> lines)
@@ -325,7 +325,7 @@ namespace SettingsCompiler
 
         public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    bx::nodeAttributeAddInt( typeIndex, " + Name + MakeParameter(Value ? 1 : 0) + ");" );
+            lines.Add("    bx::nodeAttributeAddInt( typeIndex, " + MakeParameter(Name) + MakeParameter(Value ? 1 : 0) + ");");
         }
 
         //public override void WriteDeclaration(List<string> lines)
@@ -370,7 +370,7 @@ namespace SettingsCompiler
 
         public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    bx::nodeAttributeAddInt( typeIndex, " + Name + ", 0 );" );
+            lines.Add("    bx::nodeAttributeAddInt( typeIndex, " + MakeParameter(Name) + ", 0 );");
         }
         //public override void WriteDeclaration(List<string> lines)
         //{
@@ -492,7 +492,7 @@ namespace SettingsCompiler
 
         public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    bx::nodeAttributeAddFloat3( typeIndex, " + Name + MakeParameter(Value) + ");");
+            lines.Add("    bx::nodeAttributeAddFloat3( typeIndex, " + MakeParameter(Name) + MakeParameter(Value) + ");");
         }
 
         //public override void WriteDeclaration(List<string> lines)
@@ -541,7 +541,7 @@ namespace SettingsCompiler
 
         public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    bx::nodeAttributeAddFloat3( typeIndex, " + Name + MakeParameter(Value) + ");");
+            lines.Add("    bx::nodeAttributeAddFloat3( typeIndex, " + MakeParameter(Name) + MakeParameter(Value) + ");");
         }
     }
 
@@ -563,7 +563,7 @@ namespace SettingsCompiler
 
         public override void WriteGraphAttributeCreation(List<string> lines)
         {
-            lines.Add("    bx::nodeAttributeAddFloat4( typeIndex, " + Name + MakeParameter(Value) + ");");
+            lines.Add("    bx::nodeAttributeAddFloat4( typeIndex, " + MakeParameter(Name) + MakeParameter(Value) + ");");
         }
     }
 }
