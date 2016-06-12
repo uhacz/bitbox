@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using System.Reflection;
 using System.CodeDom.Compiler;
 using Microsoft.CSharp;
@@ -15,6 +13,8 @@ namespace SettingsCompiler
     {
         static Assembly CompileSettings(string inputFilePath)
         {
+            string appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetName().CodeBase).Replace( "file:\\", "" );
+
             string fileName = Path.GetFileNameWithoutExtension(inputFilePath);
 
             string code = File.ReadAllText(inputFilePath);
@@ -28,7 +28,7 @@ namespace SettingsCompiler
             CompilerParameters compilerParams = new CompilerParameters();
             compilerParams.GenerateInMemory = true;
             compilerParams.ReferencedAssemblies.Add("System.dll");
-            compilerParams.ReferencedAssemblies.Add("SettingsCompilerAttributes.dll");
+            compilerParams.ReferencedAssemblies.Add( appPath +  "\\SettingsCompilerAttributes.dll");
             CompilerResults results = compiler.CompileAssemblyFromSource(compilerParams, sources);
             if(results.Errors.HasErrors)
             {
@@ -44,17 +44,12 @@ namespace SettingsCompiler
             return results.CompiledAssembly;
         }
 
-        static void ReflectType(Type settingsType, List<Setting> settings, List<Type> enumTypes,
-                                string group)
+        static void ReflectFields( List<Setting> settings, List<Type> enumTypes, string group, FieldInfo[] fields, object settingsInstance )
         {
-            object settingsInstance = Activator.CreateInstance(settingsType);
-
-            BindingFlags flags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
-            FieldInfo[] fields = settingsType.GetFields(flags);
-            foreach(FieldInfo field in fields)
+            foreach (FieldInfo field in fields)
             {
-                foreach(Setting setting in settings)
-                    if(setting.Name == field.Name)
+                foreach (Setting setting in settings)
+                    if (setting.Name == field.Name)
                         throw new Exception(string.Format("Duplicate setting \"{0}\" detected", setting.Name));
 
                 Type fieldType = field.FieldType;
@@ -88,13 +83,42 @@ namespace SettingsCompiler
             }
         }
 
-        static void ReflectSettings(Assembly assembly, Type baseType, List<Setting> settings, List<Type> enumTypes)
+        static void ReflectType(Type settingsType, SettingsContainer settCnt, string group)
         {
-            ReflectType(baseType, settings, enumTypes, "");
+            object settingsInstance = Activator.CreateInstance(settingsType);
+
+            {
+                BindingFlags flags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                FieldInfo[] fields = settingsType.GetFields(flags);
+                ReflectFields(settCnt.Settings, settCnt.Enums, group, fields, settingsInstance);
+            }
+
+            {
+                BindingFlags flags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+                FieldInfo[] fields = settingsType.GetFields(flags);
+                ReflectFields(settCnt.DirectSettings, settCnt.DirectEnums, group, fields, settingsInstance);
+            }
+
+        }
+
+        static void ReflectSettings( ref List<SettingsContainer> containers, Assembly assembly, Type baseType )
+        {
+            //ReflectType(baseType, settings, enumTypes, "");
 
             Type[] nestedTypes = baseType.GetNestedTypes();
             foreach (Type nestedType in nestedTypes)
-                ReflectType(nestedType, settings, enumTypes, nestedType.Name);
+            {
+                SettingsContainer container = new SettingsContainer();
+                container.Name = nestedType.Name;
+                if( nestedType.BaseType.Name == "Object")
+                    container.BaseName = "nodeType";
+                else
+                    container.BaseName = nestedType.BaseType.Name;
+                ReflectType(nestedType, container, nestedType.Name);
+
+                containers.Add(container);
+            }
+                
             
             //if(settingsType == null)
             //    throw new Exception("Settings file " + inputFilePath + " doesn't define a \"Settings\" class");
@@ -123,243 +147,27 @@ namespace SettingsCompiler
                 File.WriteAllText(outputPath, outputText);
         }
 
-        //public static void WriteEnumTypes(List<string> lines, List<Type> enumTypes)
-        //{
-        //    foreach(Type enumType in enumTypes)
-        //    {
-        //        if(enumType.GetEnumUnderlyingType() != typeof(int))
-        //            throw new Exception("Invalid underlying type for enum " + enumType.Name + ", must be int");
-        //        string[] enumNames = enumType.GetEnumNames();
-        //        int numEnumValues = enumNames.Length;
-
-        //        Array values = enumType.GetEnumValues();
-        //        int[] enumValues = new int[numEnumValues];
-        //        for(int i = 0; i < numEnumValues; ++i)
-        //            enumValues[i] = (int)values.GetValue(i);
-
-        //        lines.Add("enum class " + enumType.Name);
-        //        lines.Add("{");
-        //        for(int i = 0; i < values.Length; ++i)
-        //            lines.Add("    " + enumNames[i] + " = " + enumValues[i] + ",");
-        //        lines.Add("\r\n    NumValues");
-
-        //        lines.Add("};\r\n");
-
-        //        lines.Add("typedef EnumSettingT<" + enumType.Name + "> " + enumType.Name + "Setting;\r\n");
-        //    }
-        //}
-
-        //public static void WriteEnumLabels(List<string> lines, List<Type> enumTypes)
-        //{
-        //    foreach(Type enumType in enumTypes)
-        //    {
-        //        string[] enumNames = enumType.GetEnumNames();
-        //        int numEnumValues = enumNames.Length;
-        //        string[] enumLabels = new string[numEnumValues];
-
-        //        for(int i = 0; i < numEnumValues; ++i)
-        //        {
-        //            FieldInfo enumField = enumType.GetField(enumNames[i]);
-        //            EnumLabelAttribute attr = enumField.GetCustomAttribute<EnumLabelAttribute>();
-        //            enumLabels[i] = attr != null ? attr.Label : enumNames[i];
-        //        }
-
-        //        lines.Add("static const char* " + enumType.Name + "Labels[" + numEnumValues + "] =");
-        //        lines.Add("{");
-        //        foreach(string label in enumLabels)
-        //            lines.Add("    \"" + label + "\",");
-
-        //        lines.Add("};\r\n");
-        //    }
-        //}
-
-        //static void GenerateHeader(List<Setting> settings, string outputName, string outputPath,
-        //                           List<Type> enumTypes)
-        //{
-        //    List<string> lines = new List<string>();
-
-        //    lines.Add("#pragma once");
-        //    lines.Add("");
-        //    lines.Add("#include \"SampleFramework11/PCH.h\"");
-        //    lines.Add("#include \"SampleFramework11/Settings.h\"");
-        //    lines.Add("#include \"SampleFramework11/GraphicsTypes.h\"");
-        //    lines.Add("");
-        //    lines.Add("using namespace SampleFramework11;");
-        //    lines.Add("");
-
-        //    WriteEnumTypes(lines, enumTypes);
-
-        //    lines.Add("namespace " + outputName);
-        //    lines.Add("{");
-
-        //    uint numCBSettings = 0;
-        //    foreach(Setting setting in settings)
-        //    {
-        //        setting.WriteDeclaration(lines);
-        //        if(setting.UseAsShaderConstant)
-        //            ++numCBSettings;
-        //    }
-
-        //    if(numCBSettings > 0)
-        //    {
-        //        lines.Add("");
-        //        lines.Add(string.Format("    struct {0}CBuffer",  outputName));
-        //        lines.Add("    {");
-
-        //        uint cbSize = 0;
-        //        foreach(Setting setting in settings)
-        //            setting.WriteCBufferStruct(lines, ref cbSize);
-
-        //        lines.Add("    };");
-        //        lines.Add("");
-        //        lines.Add(string.Format("    extern ConstantBuffer<{0}CBuffer> CBuffer;", outputName));
-        //    }
-
-        //    lines.Add("");
-        //    lines.Add("    void Initialize(ID3D11Device* device);");
-        //    lines.Add("    void UpdateCBuffer(ID3D11DeviceContext* context);");
-
-        //    lines.Add("};");
-
-        //    WriteIfChanged(lines, outputPath);
-        //}
-
-        //static void GenerateCPP(List<Setting> settings, string outputName, string outputPath,
-        //                        List<Type> enumTypes)
-        //{
-        //    List<string> lines = new List<string>();
-
-        //    lines.Add("#include \"PCH.h\"");
-        //    lines.Add("#include \"" + outputName + ".h\"");
-        //    lines.Add("");
-        //    lines.Add("using namespace SampleFramework11;");
-        //    lines.Add("");
-
-        //    WriteEnumLabels(lines, enumTypes);
-
-        //    lines.Add("namespace " + outputName);
-        //    lines.Add("{");
-
-        //    uint numCBSettings = 0;
-        //    foreach(Setting setting in settings)
-        //    {
-        //        setting.WriteDefinition(lines);
-        //        if(setting.UseAsShaderConstant)
-        //            ++numCBSettings;
-        //    }
-
-        //    if(numCBSettings > 0)
-        //    {
-        //        lines.Add("");
-        //        lines.Add(string.Format("    ConstantBuffer<{0}CBuffer> CBuffer;", outputName));
-        //    }
-
-        //    lines.Add("");
-        //    lines.Add("    void Initialize(ID3D11Device* device)");
-        //    lines.Add("    {");
-        //    lines.Add("        TwBar* tweakBar = Settings.TweakBar();");
-        //    lines.Add("");
-
-        //    foreach(Setting setting in settings)
-        //        setting.WriteInitialization(lines);
-
-        //    if(numCBSettings > 0)
-        //        lines.Add("        CBuffer.Initialize(device);");
-
-        //    lines.Add("    }");
-
-        //    lines.Add("");
-        //    lines.Add("    void UpdateCBuffer(ID3D11DeviceContext* context)");
-        //    lines.Add("    {");
-
-        //    foreach(Setting setting in settings)
-        //        setting.WriteCBufferUpdate(lines);
-
-        //    if(numCBSettings > 0)
-        //    {
-        //        lines.Add("");
-        //        lines.Add("        CBuffer.ApplyChanges(context);");
-        //        lines.Add("        CBuffer.SetVS(context, 7);");
-        //        lines.Add("        CBuffer.SetHS(context, 7);");
-        //        lines.Add("        CBuffer.SetDS(context, 7);");
-        //        lines.Add("        CBuffer.SetGS(context, 7);");
-        //        lines.Add("        CBuffer.SetPS(context, 7);");
-        //        lines.Add("        CBuffer.SetCS(context, 7);");
-        //    }
-
-        //    lines.Add("    }");
-
-        //    lines.Add("}");
-
-        //    WriteIfChanged(lines, outputPath);
-        //}
-
-        //static void GenerateHLSL(List<Setting> settings, string outputName, string outputPath,
-        //                         List<Type> enumTypes)
-        //{
-        //    uint numCBSettings = 0;
-        //    foreach(Setting setting in settings)
-        //    {
-        //        if(setting.UseAsShaderConstant)
-        //            ++numCBSettings;
-        //    }
-
-        //    List<string> lines = new List<string>();
-
-        //    if(numCBSettings == 0)
-        //        WriteIfChanged(lines, outputPath);
-
-        //    lines.Add(string.Format("cbuffer {0} : register(b7)", outputName));
-        //    lines.Add("{");
-
-        //    foreach(Setting setting in settings)
-        //        setting.WriteHLSL(lines);
-
-        //    lines.Add("}");
-        //    lines.Add("");
-
-        //    foreach(Type enumType in enumTypes)
-        //    {
-        //        string[] enumNames = enumType.GetEnumNames();
-        //        Array enumValues = enumType.GetEnumValues();
-        //        for(int i = 0; i < enumNames.Length; ++i)
-        //        {
-        //            string line = "static const int " + enumType.Name + "_";
-        //            line += enumNames[i] + " = " + (int)enumValues.GetValue(i) + ";";
-        //            lines.Add(line);
-        //        }
-
-        //        lines.Add("");
-        //    }
-
-        //    WriteIfChanged(lines, outputPath);
-        //}
-
-        static void GenerateAttribsCPP( List<Setting> attribs, string outputName, string outputPath )
+        static void GenerateAttribsCPP( List<string> lines, SettingsContainer settCnt )
         {
-            List<string> lines = new List<string>();
-
-            lines.Add( "#pragma once" );
-
-            lines.Add( string.Format("#define BX_{0}_ATTRIBUTES_DECLARE \\", outputName.ToUpper() ) );
-            foreach (Setting attr in attribs)
+            lines.Add( string.Format("#define BX_{0}_ATTRIBUTES_DECLARE \\", settCnt.Name.ToUpper() ) );
+            foreach (Setting attr in settCnt.Settings )
             {
                 lines.Add(string.Format("static bx::AttributeIndex attr_{0}; \\", attr.Name ));
             }
             lines.Add("//");
 
-            lines.Add(string.Format("#define BX_{0}_ATTRIBUTES_DEFINE \\", outputName.ToUpper()));
-            foreach (Setting attr in attribs)
+            lines.Add(string.Format("#define BX_{0}_ATTRIBUTES_DEFINE \\", settCnt.Name.ToUpper()));
+            foreach (Setting attr in settCnt.Settings )
             {
-                lines.Add(string.Format("bx::AttributeIndex {0}::attr_{1} = -1; \\", outputName, attr.Name));
+                lines.Add(string.Format("bx::AttributeIndex {0}::attr_{1} = -1; \\", settCnt.Name, attr.Name));
             }
             lines.Add("//");
 
 
             List<string> tmpLines = new List<string>();
-            lines.Add(string.Format("#define BX_{0}_ATTRIBUTES_CREATE \\", outputName.ToUpper() ));
+            lines.Add(string.Format("#define BX_{0}_ATTRIBUTES_CREATE \\", settCnt.Name.ToUpper() ));
             lines.Add( "{\\" );
-            foreach (Setting attr in attribs)
+            foreach (Setting attr in settCnt.Settings )
             {
                 tmpLines.Clear();
                 attr.WriteGraphAttributeCreation(tmpLines);
@@ -371,28 +179,88 @@ namespace SettingsCompiler
             }
             lines.Add("}");
             lines.Add("//");
+            lines.Add("\n");
 
-            //lines.Add("{");
-            //
-            //foreach (Setting attr in attribs)
-            //{
-            //    attr.WriteGraphAttributeCreation(lines);
-            //}
-            //
-            //lines.Add("}");
+        }
 
-            WriteIfChanged(lines, outputPath);
+        static void GenerateSchemaXMLHeader( List<string> lines, string nameSpace )
+        {
+            lines.Add("<?xml version=\"1.0\" encoding=\"utf-8\" ?>");
+            lines.Add("<xs:schema");
+            lines.Add("elementFormDefault=\"qualified\"");
+            lines.Add(string.Format( "targetNamespace=\"{0}\"", nameSpace ));
+            lines.Add(string.Format( "xmlns=\"{0}\"", nameSpace ));
+            lines.Add("xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" >");
+            lines.Add("\n");
+        }
+        static void GenerateSchemaXMLFooter(List<string> lines)
+        {
+            lines.Add("\n");
+            lines.Add("</xs:schema>");
+        }
+
+        static void GenerateSchemaXML( List<string>lines, SettingsContainer settings )
+        {
+            //XmlSchemaSimpleType floatListType = new XmlSchemaSimpleType();
+            //floatListType.Name = "floatListType";
+            //XmlSchemaSimpleTypeList floatListTypeContent = new XmlSchemaSimpleTypeList();
+            //floatListTypeContent.ItemTypeName = new XmlQualifiedName("float");
+            //floatListType.Content = floatListTypeContent;
+
+            //XmlSchemaSimpleType float3Type = new XmlSchemaSimpleType();
+            //float3Type.Name = "float3_t";
+            //XmlSchemaSimpleTypeRestriction float3TypeContent = new XmlSchemaSimpleTypeRestriction();
+            //float3TypeContent.BaseType = floatListType;
+            //XmlSchemaLengthFacet float3TypeLength = new XmlSchemaLengthFacet();
+            //float3TypeLength.Value = "3";
+            //float3TypeContent.Facets.Add(float3TypeLength);
+
+
+
+            //XmlSchemaComplexType schemaType = new XmlSchemaComplexType();
+            //schemaType.Name = settings.Name;
+            //schemaType.Parent
+            //XmlWriter xmlWriter = XmlWriter.Create(outputPath);
+            //XmlSchemaAttribute
+
+            //xmlWriter.WriteEndDocument();
+            //xmlWriter.Close();
+
+            //const string ns = "xs";
+
+            //<xs:complexType name="LocatorNode">
+            //    <xs:complexContent>
+            //      <xs:extension base="nodeType">
+            //        <xs:attribute name="pos" type="float3_t" default="0 0 0"/>
+            //        <xs:attribute name="rot" type="float3_t" default="0 0 0"/>
+            //        <xs:attribute name="scale" type="float3_t" default="1 1 1"/>
+            //      </xs:extension>
+            //    </xs:complexContent>
+            //  </xs:complexType>
+
+            lines.Add("<xs:complexType name=\"" + settings.Name + "\">" );
+            lines.Add("\t<xs:complexContent>");
+            lines.Add("\t\t<xs:extension base=\"" + settings.BaseName + "\">");
+
+            foreach (Setting attr in settings.DirectSettings)
+            {
+                int before = lines.Count;
+                attr.WriteSchemaAttribute(lines);
+
+                for (int i = before; i < lines.Count; ++i)
+                    lines[i] = "\t\t\t" + lines[i];
+            }
+
+            lines.Add("\t\t</xs:extension>");
+            lines.Add("\t</xs:complexContent>");
+            lines.Add("</xs:complexType>");
+            lines.Add("\n");
         }
 
         static void Run(string[] args)
         {
             if(args.Length < 1)
                 throw new Exception("Invalid command-line parameters");
-
-            List<Setting> settings = new List<Setting>();
-            List<Setting> attribs = new List<Setting>();
-            List<Type> settingsEnumTypes = new List<Type>();
-            List<Type> attribsEnumTypes = new List<Type>();
 
             string filePath = args[0];
             string fileName = Path.GetFileNameWithoutExtension(filePath);
@@ -401,7 +269,8 @@ namespace SettingsCompiler
             Assembly compiledAssembly = CompileSettings(filePath);
 
 
-
+            List<SettingsContainer> settingsContainers = new List<SettingsContainer>();
+            List<SettingsContainer> attribsContainers = new List<SettingsContainer>();
 
             {
                 string filePathOnly = Path.GetFileNameWithoutExtension(filePath);
@@ -415,17 +284,43 @@ namespace SettingsCompiler
 
                 if (settingsType != null)
                 {
-                    ReflectSettings(compiledAssembly, settingsType, settings, settingsEnumTypes);
+                    ReflectSettings( ref settingsContainers, compiledAssembly, settingsType );
                 }
                 if (attribsType != null)
                 {
-                    ReflectSettings(compiledAssembly, attribsType, attribs, attribsEnumTypes);
+                    ReflectSettings( ref attribsContainers, compiledAssembly, attribsType );
 
-                    string attrOutputPath = Path.Combine(outputDir, fileName) + "_attributes.h";
-                    GenerateAttribsCPP(attribs, fileName, attrOutputPath);
+                    List<string> attrLines = new List<string>();
+                    List<string> schemaLines = new List<string>();
 
-                    
+                    attrLines.Add("#pragma once");
+                    GenerateSchemaXMLHeader(schemaLines, "bitBox");
 
+                    foreach ( SettingsContainer settCnt in attribsContainers )
+                    {
+                        GenerateAttribsCPP( attrLines, settCnt );
+                        GenerateSchemaXML( schemaLines, settCnt );
+                    }
+                    GenerateSchemaXMLFooter(schemaLines);
+
+
+                    string attrOutputPath = Path.Combine(outputDir, fileName ) + "_attributes.h";
+                    WriteIfChanged(attrLines, attrOutputPath);
+
+                    string outputSchemaDir = "";
+                    try
+                    {
+                        string toolRoot = System.Environment.GetEnvironmentVariable("BX_TOOL_ROOT");
+                        outputSchemaDir = Path.Combine(toolRoot, "SceneEditor/Schemas/");
+                    }
+                    catch
+                    {
+                        outputSchemaDir = outputDir;
+                    }
+
+                    string attrOutputPathSchema = Path.Combine(outputSchemaDir, fileName ) + "_schema.xsd";
+
+                    WriteIfChanged(schemaLines, attrOutputPathSchema);
                 }
 
             }

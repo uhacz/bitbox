@@ -82,11 +82,19 @@
   <ItemGroup>
     <ClInclude Include="camera_manager.h" />
     <ClInclude Include="engine.h" />
+    <ClInclude Include="engine_nodes_attributes.h" />
     <ClInclude Include="profiler.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera_manager.cpp" />
     <ClCompile Include="engine.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="engine_nodes.cs">
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(BX_ROOT)/bin/SettingsCompiler.exe %(FullPath)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Directory)%(Filename)_attributes%(Extension);%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Node Attributes Compiler</Message>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

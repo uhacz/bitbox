@@ -175,7 +175,7 @@ namespace bx
     struct GfxMeshInstance;
 
 
-#include "MeshNode_attributes.h"
+#include "engine_nodes_attributes.h"
     struct MeshNode : public Node
     {
         GfxMeshInstance* _mesh_instance = nullptr;

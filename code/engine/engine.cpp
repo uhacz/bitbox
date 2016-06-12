@@ -1448,9 +1448,7 @@ namespace bx
         {
             fxI = gfxMaterialFind( "red" );
         }
-        
-
-        
+               
         GfxMeshInstanceData miData;
         miData.renderSourceSet( rsource );
         miData.fxInstanceSet( fxI );

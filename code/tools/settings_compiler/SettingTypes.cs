@@ -54,96 +54,16 @@ namespace SettingsCompiler
         }
 
         public abstract void WriteGraphAttributeCreation(List<string> lines);
+        public abstract void WriteSchemaAttribute( List<string> lines );
 
-        //public abstract void WriteDeclaration(List<string> lines);
-        //public abstract void WriteDefinition(List<string> lines);
-        //public abstract void WriteInitialization(List<string> lines);
+        public static string schemaAttributeFormatString1 = "<xs:attribute name=\"{0}\" type=\"{1}\" default=\"{2}\"/>";
+        public static string schemaAttributeFormatString2 = "<xs:attribute name=\"{0}\" type=\"{1}\" default=\"{2} {3}\"/>";
+        public static string schemaAttributeFormatString3 = "<xs:attribute name=\"{0}\" type=\"{1}\" default=\"{2} {3} {4}\"/>";
+        public static string schemaAttributeFormatString4 = "<xs:attribute name=\"{0}\" type=\"{1}\" default=\"{2} {3} {4} {5}\"/>";
 
-        //public void WriteHLSL(List<string> lines)
-        //{
-        //    if(UseAsShaderConstant == false)
-        //        return;
-
-        //    string typeString = "";
-        //    switch(Type)
-        //    {
-        //        case SettingType.Enum:
-        //        case SettingType.Int:
-        //            typeString = "int";
-        //            break;
-        //        case SettingType.Bool:
-        //            typeString = "bool";
-        //            break;
-        //        case SettingType.Float:
-        //            typeString = "float";
-        //            break;
-        //        case SettingType.Direction:
-        //        case SettingType.Color:
-        //        case SettingType.Float3:
-        //            typeString = "float3";
-        //            break;
-        //        case SettingType.Orientation:
-        //        case SettingType.Float4:
-        //            typeString = "float4";
-        //            break;
-        //        default:
-        //            Debug.Assert(false);
-        //            break;
-        //    }
-
-        //    lines.Add("    " + typeString + " " + Name + ";");
-        //}
-
-        //public void WriteCBufferStruct(List<string> lines, ref uint cbSize)
-        //{
-        //    if(UseAsShaderConstant == false)
-        //        return;
-
-        //    string typeString = "";
-        //    switch(Type)
-        //    {
-        //        case SettingType.Enum:
-        //        case SettingType.Int:
-        //            typeString = "i32";
-        //            cbSize += 1;
-        //            break;
-        //        case SettingType.Bool:
-        //            typeString = "i32";
-        //            cbSize += 1;
-        //            break;
-        //        case SettingType.Float:
-        //            typeString = "float";
-        //            cbSize += 1;
-        //            break;
-        //        case SettingType.Direction:
-        //        case SettingType.Color:
-        //            typeString = "float3_t";
-        //            cbSize += 3;
-        //            break;
-        //        case SettingType.Orientation:
-        //        case SettingType.Float4:
-        //            typeString = "float4_t";
-        //            cbSize += 4;
-        //            break;
-        //        default:
-        //            Debug.Assert(false);
-        //            break;
-        //    }
-
-        //    lines.Add("        " + typeString + " " + Name + ";");
-        //}
-
-        //public void WriteCBufferUpdate(List<string> lines)
-        //{
-        //    if(UseAsShaderConstant == false)
-        //        return;
-
-        //    lines.Add(string.Format("        CBuffer.Data." + Name + " = {0};", Name));
-        //}
-
-        public static string FloatString(float num)
+        public static string FloatString(float num )
         {
-            return num.ToString("F4", CultureInfo.InvariantCulture) + "f";
+            return num.ToString( "F4", CultureInfo.InvariantCulture) + "f";
         }
 
         public static string MakeParameter(float parameter)
@@ -166,7 +86,7 @@ namespace SettingsCompiler
             return ", " + parameter.ToString().ToLower();
         }
 
-        public static string MakeParameter(float3 parameter)
+        public static string MakeParameter(float3 parameter )
         {
             return ", float3_t(" + FloatString(parameter.x) + ", " +
                                    FloatString(parameter.y) + ", " +
@@ -202,6 +122,24 @@ namespace SettingsCompiler
                                  FloatString(parameter.G) + ", " +
                                  FloatString(parameter.B) + ")";
         }
+
+        public static string SettingType_SchemaName(SettingType type)
+        {
+            switch (type)
+            {
+                case SettingType.Float: return "xs:float";
+                case SettingType.Int: return "xs:int";
+                case SettingType.Float3: return "float3_t";
+                case SettingType.Float4: return "float4_t";
+                case SettingType.Bool: return "xs:boolean";
+                case SettingType.Enum: return "xs:int";
+                case SettingType.Color: return "color_t";
+                case SettingType.String: return "xs:string";
+                default:
+                    throw new Exception("Unknown Settings type" );
+            }
+        }
+
     }
 
     public class StringSetting : Setting
@@ -217,6 +155,10 @@ namespace SettingsCompiler
         public override void WriteGraphAttributeCreation(List<string> lines)
         {
             lines.Add("bx::nodeAttributeAddString( typeIndex" + MakeParameter( Name ) + MakeParameter(Value) + ");");
+        }
+        public override void WriteSchemaAttribute(List<string> lines)
+        {
+            lines.Add( string.Format(CultureInfo.InvariantCulture, Setting.schemaAttributeFormatString1, Name, Setting.SettingType_SchemaName(Type), Value.ToString() ) );
         }
     }
 
@@ -240,32 +182,10 @@ namespace SettingsCompiler
         {
             lines.Add("bx::nodeAttributeAddFloat( typeIndex" + MakeParameter(Name) + MakeParameter(Value) + ");");
         }
-
-        //public override void WriteDeclaration(List<string> lines)
-        //{
-        //    lines.Add("    extern FloatSetting " + Name + ";");
-        //}
-
-        //public override void WriteDefinition(List<string> lines)
-        //{
-        //    lines.Add("    FloatSetting " + Name + ";");
-        //}
-
-        //public override void WriteInitialization(List<string> lines)
-        //{
-        //    string paramString = "tweakBar";
-        //    paramString += MakeParameter(Name);
-        //    paramString += MakeParameter(Group);
-        //    paramString += MakeParameter(DisplayName);
-        //    paramString += MakeParameter(HelpText);
-        //    paramString += MakeParameter(Value);
-        //    paramString += MakeParameter(MinValue);
-        //    paramString += MakeParameter(MaxValue);
-        //    paramString += MakeParameter(StepSize);
-        //    lines.Add("        " + Name + ".Initialize(" + paramString + ");");
-        //    lines.Add("        Settings.AddSetting(&" + Name + ");");
-        //    lines.Add("");
-        //}
+        public override void WriteSchemaAttribute(List<string> lines)
+        {
+            lines.Add(string.Format(CultureInfo.InvariantCulture, Setting.schemaAttributeFormatString1, Name, Setting.SettingType_SchemaName(Type), Value ));
+        }
     }
 
     public class IntSetting : Setting
@@ -286,31 +206,10 @@ namespace SettingsCompiler
         {
             lines.Add("bx::nodeAttributeAddInt( typeIndex" + MakeParameter(Name) + MakeParameter(Value) + ");");
         }
-
-        //public override void WriteDeclaration(List<string> lines)
-        //{
-        //    lines.Add("    extern IntSetting " + Name + ";");
-        //}
-
-        //public override void WriteDefinition(List<string> lines)
-        //{
-        //    lines.Add("    IntSetting " + Name + ";");
-        //}
-
-        //public override void WriteInitialization(List<string> lines)
-        //{
-        //    string paramString = "tweakBar";
-        //    paramString += MakeParameter(Name);
-        //    paramString += MakeParameter(Group);
-        //    paramString += MakeParameter(DisplayName);
-        //    paramString += MakeParameter(HelpText);
-        //    paramString += MakeParameter(Value);
-        //    paramString += MakeParameter(MinValue);
-        //    paramString += MakeParameter(MaxValue);
-        //    lines.Add("        " + Name + ".Initialize(" + paramString + ");");
-        //    lines.Add("        Settings.AddSetting(&" + Name + ");");
-        //    lines.Add("");
-        //}
+        public override void WriteSchemaAttribute(List<string> lines)
+        {
+            lines.Add(string.Format(CultureInfo.InvariantCulture, Setting.schemaAttributeFormatString1, Name, Setting.SettingType_SchemaName(Type), Value ) );
+        }
     }
 
     public class BoolSetting : Setting
@@ -327,29 +226,10 @@ namespace SettingsCompiler
         {
             lines.Add("bx::nodeAttributeAddInt( typeIndex" + MakeParameter(Name) + MakeParameter(Value ? 1 : 0) + ");");
         }
-
-        //public override void WriteDeclaration(List<string> lines)
-        //{
-        //    lines.Add("    extern BoolSetting " + Name + ";");
-        //}
-
-        //public override void WriteDefinition(List<string> lines)
-        //{
-        //    lines.Add("    BoolSetting " + Name + ";");
-        //}
-
-        //public override void WriteInitialization(List<string> lines)
-        //{
-        //    string paramString = "tweakBar";
-        //    paramString += MakeParameter(Name);
-        //    paramString += MakeParameter(Group);
-        //    paramString += MakeParameter(DisplayName);
-        //    paramString += MakeParameter(HelpText);
-        //    paramString += MakeParameter(Value);
-        //    lines.Add("        " + Name + ".Initialize(" + paramString + ");");
-        //    lines.Add("        Settings.AddSetting(&" + Name + ");");
-        //    lines.Add("");
-        //}
+        public override void WriteSchemaAttribute(List<string> lines)
+        {
+            lines.Add(string.Format(CultureInfo.InvariantCulture, Setting.schemaAttributeFormatString1, Name, Setting.SettingType_SchemaName(Type), Value.ToString().ToLower() ));
+        }
     }
 
     public class EnumSetting : Setting
@@ -371,6 +251,10 @@ namespace SettingsCompiler
         public override void WriteGraphAttributeCreation(List<string> lines)
         {
             lines.Add("bx::nodeAttributeAddInt( typeIndex" + MakeParameter(Name) + ", 0 );");
+        }
+        public override void WriteSchemaAttribute(List<string> lines)
+        {
+            lines.Add(string.Format(CultureInfo.InvariantCulture, Setting.schemaAttributeFormatString1, Name, Setting.SettingType_SchemaName(Type), Value.ToString() ));
         }
         //public override void WriteDeclaration(List<string> lines)
         //{
@@ -494,7 +378,10 @@ namespace SettingsCompiler
         {
             lines.Add("bx::nodeAttributeAddFloat3( typeIndex" + MakeParameter(Name) + MakeParameter(Value) + ");");
         }
-
+        public override void WriteSchemaAttribute(List<string> lines)
+        {
+            lines.Add(string.Format(CultureInfo.InvariantCulture, Setting.schemaAttributeFormatString3, Name, Setting.SettingType_SchemaName(Type), Value.R, Value.G, Value.B));
+        }
         //public override void WriteDeclaration(List<string> lines)
         //{
         //    lines.Add("    extern ColorSetting " + Name + ";");
@@ -543,6 +430,10 @@ namespace SettingsCompiler
         {
             lines.Add("bx::nodeAttributeAddFloat3( typeIndex" + MakeParameter(Name) + MakeParameter(Value) + ");");
         }
+        public override void WriteSchemaAttribute(List<string> lines)
+        {
+            lines.Add(string.Format(CultureInfo.InvariantCulture, Setting.schemaAttributeFormatString3, Name, Setting.SettingType_SchemaName(Type), Value.x, Value.y, Value.z ));
+        }
     }
 
     public class Float4Setting : Setting
@@ -565,5 +456,47 @@ namespace SettingsCompiler
         {
             lines.Add("bx::nodeAttributeAddFloat4( typeIndex" + MakeParameter(Name) + MakeParameter(Value) + ");");
         }
+        public override void WriteSchemaAttribute(List<string> lines)
+        {
+            lines.Add(string.Format(CultureInfo.InvariantCulture, Setting.schemaAttributeFormatString4, Name, Setting.SettingType_SchemaName(Type), Value.x, Value.y, Value.z, Value.w ));
+        }
+    }
+
+
+    public class SettingsContainer
+    {
+        public string Name { set; get; }
+        public string BaseName { set; get; }
+
+        public List<Setting> Settings
+        {
+            get { return m_settings; }
+        }
+        public List<Type> Enums
+        {
+            get { return m_enums; }
+        }
+
+        public List<Setting> DirectSettings
+        {
+            get { return m_directSettings; }
+        }
+        public List<Type> DirectEnums
+        {
+            get { return m_directEnums; }
+        }
+
+        /// <summary>
+        /// settings from entire hierarchy (flattened)
+        /// </summary>
+        private List<Setting> m_settings = new List<Setting>();
+        private List<Type> m_enums = new List<Type>();
+
+        /// <summary>
+        /// settings only from this class
+        /// </summary>
+        private List<Setting> m_directSettings = new List<Setting>();
+        private List<Type> m_directEnums = new List<Type>();
+
     }
 }
