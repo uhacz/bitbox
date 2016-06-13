@@ -1406,7 +1406,40 @@ void graphContextCleanup( Scene* scene )
 #include <gfx/gfx.h>
 namespace bx
 {
-    NodeTypeInfo MeshNode::__type_info = MeshNode::__typeInfoFill();
+    BX_GRAPH_DEFINE_NODE( Locator );
+    BX_LOCATORNODE_ATTRIBUTES_DEFINE
+    void LocatorNode::_TypeInit( int typeIndex )
+    {
+        BX_LOCATORNODE_ATTRIBUTES_CREATE
+    }
+    void LocatorNode::_TypeDeinit()
+    {}
+    Node* LocatorNode::_Creator()
+    {
+        return BX_NEW( bxDefaultAllocator(), LocatorNode );
+    }
+    void LocatorNode::_Destroyer( Node* node )
+    {
+        BX_DELETE( bxDefaultAllocator(), node );
+    }
+    void LocatorNode::_Load( Node* node, NodeInstanceInfo instance, Scene* scene )
+    {
+        const Vector3 pos = nodeAttributeVector3( instance.id, attr_pos );
+        const Vector3 rot = nodeAttributeVector3( instance.id, attr_rot );
+        const Vector3 scale = nodeAttributeVector3( instance.id, attr_scale );
+
+        self(node)->_pose = appendScale( Matrix4( Matrix3::rotationZYX( rot ), pos ), scale );
+    }
+    void LocatorNode::_Unload( Node* node, NodeInstanceInfo instance, Scene* scene )
+    {
+    }
+    void LocatorNode::tick( Node* node, NodeInstanceInfo instance, Scene* scene )
+    {
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    BX_GRAPH_DEFINE_NODE( Mesh );
     BX_MESHNODE_ATTRIBUTES_DEFINE
 
     void MeshNode::_TypeInit( int typeIndex )
@@ -1424,7 +1457,7 @@ namespace bx
 
     void MeshNode::_Destroyer( Node* node )
     {
-        BX_FREE( bxDefaultAllocator(), node );
+        BX_DELETE( bxDefaultAllocator(), node );
     }
 
     void MeshNode::_Load( Node* node, NodeInstanceInfo instance, Scene* scene )
@@ -1470,6 +1503,11 @@ namespace bx
     {
         auto meshNode = self( node );
         gfxMeshInstanceDestroy( &meshNode->_mesh_instance );
+    }
+
+    void MeshNode::tick( Node* node, NodeInstanceInfo instance, Scene* scene )
+    {
+    
     }
 
 

@@ -10,6 +10,7 @@
 
 #include "profiler.h"
 #include "camera_manager.h"
+#include <util/vectormath/vectormath.h>
 
 
 struct bxInput;
@@ -72,6 +73,13 @@ namespace bx
     struct Node {};
     struct Graph;
     
+    enum EExecMask
+    {
+        eLOAD = BIT_OFFSET( 0 ),
+        eUNLOAD = BIT_OFFSET( 1 ),
+        eTICK = BIT_OFFSET( 2 ),
+    };
+
     struct NodeInstanceInfo
     {
         i32 type_index;
@@ -172,40 +180,51 @@ namespace bx
 //////////////////////////////////////////////////////////////////////////
 namespace bx
 {
+
+#define BX_GRAPH_DECLARE_NODE( typeName, callbackMask ) \
+    static void _TypeInit( int typeIndex ); \
+    static void _TypeDeinit(); \
+    static Node* _Creator(); \
+    static void _Destroyer( Node* node ); \
+    static void _Load( Node* node, NodeInstanceInfo instance, Scene* scene ); \
+    static void _Unload( Node* node, NodeInstanceInfo instance, Scene* scene ); \
+    static void tick( Node* node, NodeInstanceInfo instance, Scene* scene ); \
+    static NodeTypeInfo __typeInfoFill() \
+    {\
+        NodeTypeInfo info;\
+        info._type_name = MAKE_STR(typeName);\
+        info._type_init   = typeName##Node::_TypeInit;\
+        info._type_deinit = typeName##Node::_TypeDeinit;\
+        info._destroyer   = typeName##Node::_Destroyer;\
+        info._creator     = typeName##Node::_Creator;\
+        info._load        = (callbackMask & EExecMask::eLOAD ) ? typeName##Node::_Load : nullptr;\
+        info._unload      = (callbackMask & EExecMask::eUNLOAD) ? typeName##Node::_Unload : nullptr;\
+        info._tick        = (callbackMask & EExecMask::eTICK ) ? typeName##Node::tick : nullptr;\
+        return info;\
+    }\
+    static NodeTypeInfo __type_info;\
+    static typeName##Node* self( Node* node ) { return (typeName##Node*)node; }
+
+#define BX_GRAPH_DEFINE_NODE( typeName )\
+    NodeTypeInfo typeName##Node::__type_info = typeName##Node::__typeInfoFill();\
+    
+
     struct GfxMeshInstance;
-
-
+    
 #include "engine_nodes_attributes.h"
+    struct LocatorNode : public Node
+    {
+        Matrix4 _pose = Matrix4::identity();
+
+        BX_GRAPH_DECLARE_NODE( Locator, EExecMask::eLOAD );
+        BX_LOCATORNODE_ATTRIBUTES_DECLARE;
+    };
+    
     struct MeshNode : public Node
     {
         GfxMeshInstance* _mesh_instance = nullptr;
 
-        static void _TypeInit( int typeIndex );
-        static void _TypeDeinit();
-        static Node* _Creator();
-        static void _Destroyer( Node* node );
-        static void _Load( Node* node, NodeInstanceInfo instance, Scene* scene );
-        static void _Unload( Node* node, NodeInstanceInfo instance, Scene* scene );
-        //static void tick( Node* node, NodeInstanceInfo instance, Scene* scene );
-        
-        //////////////////////////////////////////////////////////////////////////
-        ////
-        static NodeTypeInfo __typeInfoFill()
-        {
-            NodeTypeInfo info;
-            info._type_name = "Mesh";
-            info._type_init = MeshNode::_TypeInit;
-            info._type_deinit = MeshNode::_TypeDeinit;
-            info._destroyer = MeshNode::_Destroyer;
-            info._creator = MeshNode::_Creator;
-            info._load = MeshNode::_Load;
-            info._unload = MeshNode::_Unload;
-            //info._tick = MeshNode::tick;
-            return info;
-        }
-        static NodeTypeInfo __type_info;
-        static MeshNode* self( Node* node ) { return (MeshNode*)node; }
-
+        BX_GRAPH_DECLARE_NODE( Mesh, EExecMask::eLOAD|EExecMask::eUNLOAD );
         BX_MESHNODE_ATTRIBUTES_DECLARE;
     };
 }////
