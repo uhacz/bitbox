@@ -75,9 +75,9 @@ namespace bx
     
     enum EExecMask
     {
-        eLOAD = BIT_OFFSET( 0 ),
-        eUNLOAD = BIT_OFFSET( 1 ),
-        eTICK = BIT_OFFSET( 2 ),
+        eLOAD_UNLOAD = BIT_OFFSET( 0 ),
+        eTICK0 = BIT_OFFSET( 1 ),
+        eTICK1 = BIT_OFFSET( 2 ),
     };
 
     struct NodeInstanceInfo
@@ -91,25 +91,27 @@ namespace bx
         Graph* graph;
     };
 
+    struct NodeTypeInterface
+    {
+        virtual ~NodeTypeInterface() {} 
+
+        virtual void typeInit( int typeIndex ) { (void)typeIndex; }
+        virtual void typeDeinit() {}
+
+        virtual Node* creator() = 0;
+        virtual void destroyer( Node* node ) = 0;
+
+        virtual void load( Node* node, NodeInstanceInfo instance, Scene* scene ) { (void)node; (void)instance; (void)scene; }
+        virtual void unload( Node* node, NodeInstanceInfo instance, Scene* scene ) { (void)node; (void)instance; (void)scene; }
+        virtual void tick0( Node* node, NodeInstanceInfo instance, Scene* scene ) { (void)node; (void)instance; (void)scene; }
+        virtual void tick1( Node* node, NodeInstanceInfo instance, Scene* scene ) { (void)node; (void)instance; (void)scene; }
+    };
+
     struct NodeTypeInfo
     {
-        typedef void( *TypeInit )( int typeIndex );
-        typedef void( *TypeDeinit )( );
-        typedef Node* ( *Creator )( );
-        typedef void ( *Destroyer )( Node* node );
-        typedef void( *Load )( Node* node, NodeInstanceInfo instance, Scene* scene );
-        typedef void( *Unload )( Node* node, NodeInstanceInfo instance, Scene* scene );
-        typedef void( *Tick )( Node* node, NodeInstanceInfo instance, Scene* scene );
-
-        const char* _type_name = nullptr;
-
-        TypeInit _type_init = nullptr;
-        TypeDeinit _type_deinit = nullptr;
-        Destroyer _destroyer = nullptr;
-        Creator _creator = nullptr;
-        Load _load = nullptr;
-        Unload _unload = nullptr;
-        Tick _tick = nullptr;
+        NodeTypeInterface* _interface = nullptr;
+        const char* _name = nullptr;
+        u32 _exec_mask = 0;
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -181,33 +183,26 @@ namespace bx
 namespace bx
 {
 
-#define BX_GRAPH_DECLARE_NODE( typeName, callbackMask ) \
-    static void _TypeInit( int typeIndex ); \
-    static void _TypeDeinit(); \
-    static Node* _Creator(); \
-    static void _Destroyer( Node* node ); \
-    static void _Load( Node* node, NodeInstanceInfo instance, Scene* scene ); \
-    static void _Unload( Node* node, NodeInstanceInfo instance, Scene* scene ); \
-    static void tick( Node* node, NodeInstanceInfo instance, Scene* scene ); \
-    static NodeTypeInfo __typeInfoFill() \
+#define BX_GRAPH_DECLARE_NODE( typeName, interfaceName, execMask )\
+    static NodeTypeInfo __type_info; \
+    static interfaceName __type_interface; \
+    __forceinline static typeName* self( Node* node ) { return (typeName*)node; }\
+    static NodeTypeInfo __typeInfoFill()\
     {\
         NodeTypeInfo info;\
-        info._type_name = MAKE_STR(typeName);\
-        info._type_init   = typeName##Node::_TypeInit;\
-        info._type_deinit = typeName##Node::_TypeDeinit;\
-        info._destroyer   = typeName##Node::_Destroyer;\
-        info._creator     = typeName##Node::_Creator;\
-        info._load        = (callbackMask & EExecMask::eLOAD ) ? typeName##Node::_Load : nullptr;\
-        info._unload      = (callbackMask & EExecMask::eUNLOAD) ? typeName##Node::_Unload : nullptr;\
-        info._tick        = (callbackMask & EExecMask::eTICK ) ? typeName##Node::tick : nullptr;\
+        info._interface = &__type_interface;\
+        info._name = MAKE_STR(typeName);\
+        info._exec_mask = execMask; \
         return info;\
-    }\
-    static NodeTypeInfo __type_info;\
-    static typeName##Node* self( Node* node ) { return (typeName##Node*)node; }
+    }
 
-#define BX_GRAPH_DEFINE_NODE( typeName )\
-    NodeTypeInfo typeName##Node::__type_info = typeName##Node::__typeInfoFill();\
+#define BX_GRAPH_DEFINE_NODE( typeName, interfaceName )\
+    interfaceName typeName::__type_interface;\
+    NodeTypeInfo typeName::__type_info = typeName::__typeInfoFill()
     
+#define BX_GRAPH_NODE_STD_CREATOR_AND_DESTROYER( typeName )\
+    bx::Node* creator () { return BX_NEW( bxDefaultAllocator(), typeName ); }\
+    void destroyer( bx::Node* node ) { BX_DELETE( bxDefaultAllocator(), node ); }
 
     struct GfxMeshInstance;
     
@@ -216,7 +211,15 @@ namespace bx
     {
         Matrix4 _pose = Matrix4::identity();
 
-        BX_GRAPH_DECLARE_NODE( Locator, EExecMask::eLOAD );
+        struct Interface : public NodeTypeInterface
+        {
+            BX_GRAPH_NODE_STD_CREATOR_AND_DESTROYER( LocatorNode )
+            
+            void typeInit( int typeIndex ) override;
+            void load( Node* node, NodeInstanceInfo instance, Scene* scene ) override;
+        };
+
+        BX_GRAPH_DECLARE_NODE( LocatorNode, Interface, EExecMask::eLOAD_UNLOAD );
         BX_LOCATORNODE_ATTRIBUTES_DECLARE;
     };
     
@@ -224,7 +227,16 @@ namespace bx
     {
         GfxMeshInstance* _mesh_instance = nullptr;
 
-        BX_GRAPH_DECLARE_NODE( Mesh, EExecMask::eLOAD|EExecMask::eUNLOAD );
+        struct Interface : public NodeTypeInterface
+        {
+            BX_GRAPH_NODE_STD_CREATOR_AND_DESTROYER( MeshNode )
+
+            void typeInit( int typeIndex ) override;
+            void load( Node* node, NodeInstanceInfo instance, Scene* scene )  override;
+            void unload( Node* node, NodeInstanceInfo instance, Scene* scene )  override;
+        };
+
+        BX_GRAPH_DECLARE_NODE( MeshNode, Interface, EExecMask::eLOAD_UNLOAD );
         BX_MESHNODE_ATTRIBUTES_DECLARE;
     };
 }////

@@ -1,11 +1,11 @@
-@Mesh mesh0
+@MeshNode mesh0
 $pos 2.0 -1.0 0.0
 $scale 50.0 0.1 50.0
 
-@Mesh mesh1
+@MeshNode mesh1
 $pos 0.0 0.0 0.0
 $mesh ":sphere"
 
-@Mesh mesh2
+@MeshNode mesh2
 $pos -2.0 0.0 0.0
 $material "blue"

@@ -111,6 +111,7 @@ public:
 
         //bxVoxel::container_load( _engine.gdiDevice, _engine.resourceManager, vxscene._container );
 
+        bx::nodeRegister( &bx::LocatorNode::__type_info );
         bx::nodeRegister( &bx::MeshNode::__type_info );
 
         bx::Graph* graph = nullptr;

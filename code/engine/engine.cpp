@@ -186,10 +186,17 @@ struct AttributeStruct
 
     int find( const char* name ) const
     {
-        const Name* name8 = (Name*)name;
+        Name name8;
+        int i = 0;
+        while( name[i] && i < 8 )
+        {
+            name8.str[i] = name[i];
+            ++i;
+        }
+        //const Name* name8 = (Name*)name;
         for( int i = 0; i < _size; ++i )
         {
-            if( name8->hash == _name[i].hash )
+            if( name8.hash == _name[i].hash )
                 return i;
         }
         return -1;
@@ -507,10 +514,11 @@ struct GraphContext
 
         for( int i = 0; i < array::size( _node_types ); ++i )
         {
-            if( _node_types[i].info->_type_deinit )
-            {
-                ( *_node_types[i].info->_type_deinit )( );
-            }
+            _node_types[i].info->_interface->typeDeinit();
+            //if( _node_types[i].info->_interface->typeInit )
+            //{
+            //    ( *_node_types[i].info->_type_deinit )( );
+            //}
 
             _node_types[i].attributes.free();
         }
@@ -561,7 +569,7 @@ struct GraphContext
     {
         for( int i = 0; i < array::size( _node_types ); ++i )
         {
-            if( string::equal( name, _node_types[i].info->_type_name ) )
+            if( string::equal( name, _node_types[i].info->_name ) )
                 return i;
         }
         return -1;
@@ -569,10 +577,10 @@ struct GraphContext
 
     int typeAdd( const NodeTypeInfo* info )
     {
-        int found = typeFind( info->_type_name );
+        int found = typeFind( info->_name );
         if( found != -1 )
         {
-            bxLogError( "Node type already exists '%s'", info->_type_name );
+            bxLogError( "Node type already exists '%s'", info->_name );
             return -1;
         }
 
@@ -582,10 +590,11 @@ struct GraphContext
         type.info = info;
         //type.info._type_name = string::duplicate( nullptr, info._type_name );
 
-        if( info->_type_init )
-        {
-            ( *info->_type_init )( index );
-        }
+        info->_interface->typeInit( index );
+        //if( info->_type_init )
+        //{
+        //    ( *info->_type_init )( index );
+        //}
 
         return index;
     }
@@ -614,7 +623,8 @@ struct GraphContext
     void nodeCreate( id_t id, int typeIndex, const char* nodeName )
     {
         NodeType* type = &_node_types[typeIndex];
-        Node* node = ( *type->info->_creator )( );
+        //Node* node = ( *type->info->_creator )( );
+        Node* node = type->info->_interface->creator();
         SYS_ASSERT( node != nullptr );
 
         SYS_ASSERT( _nodes[id.index] == nullptr );
@@ -624,7 +634,7 @@ struct GraphContext
         _instance_info[id.index] = instance;
         instance->type_index = type->index;
         instance->id = id;
-        instance->type_name = type->info->_type_name;
+        instance->type_name = type->info->_name;
         instance->name = string::duplicate( nullptr, nodeName );
 
         AttributeInstance::startup( &_attributes[id.index], type->attributes );
@@ -637,7 +647,8 @@ struct GraphContext
         AttributeInstance::shutdown( &attrI );
 
         nodeInstanceInfoFree( info );
-        ( *type.info->_destroyer )( node );
+        type.info->_interface->destroyer( node );
+        //( *type.info->_destroyer )( node );
     }
 };
 //////////////////////////////////////////////////////////////////////////
@@ -696,7 +707,8 @@ struct Graph
             id_t id = _id_nodes[i];
             NodeInstanceInfo info = nodeInstanceInfoGet( id );
             NodeType* type = _ctx->typeGet( info.type_index );
-            if( type->info->_tick )
+            if( type->info->_exec_mask & EExecMask::eTICK0 )
+            //if( type->info->_tick )
             {
                 NodeSortKey key;
                 key.depth = 1;
@@ -891,7 +903,8 @@ namespace
                 NodeInstanceInfo info = nodeInstanceInfoGet( id );
                 Node* node = nodeInstanceGet( id );
                 NodeType* type = _ctx->typeGet( info.type_index );
-                ( *type->info->_load )( node, info, scene );
+                type->info->_interface->load( node, info, scene );
+                //( *type->info->_load )( node, info, scene );
 
                 graph->_lock_nodes.lock();
                 array::push_back( graph->_id_nodes, id );
@@ -918,7 +931,8 @@ namespace
                 NodeInstanceInfo* info = _ctx->nodeInstanceInfoGet( ntu.id );
                 Node* node = nodeInstanceGet( ntu.id );
                 NodeType* type = _ctx->typeGet( info->type_index );
-                ( *type->info->_unload )( node, *info, scene );
+                type->info->_interface->unload( node, *info, scene );
+                //( *type->info->_unload )( node, *info, scene );
 
                 info->graph = nullptr;
 
@@ -950,7 +964,8 @@ namespace
             NodeInstanceInfo info = nodeInstanceInfoGet( id );
             Node* node = nodeInstanceGet( id );
             NodeType* type = _ctx->typeGet( info.type_index );
-            ( *type->info->_tick )( node, info, scene );
+            type->info->_interface->tick0( node, info, scene );
+            //( *type->info->_tick )( node, info, scene );
         }
     }
 }
@@ -1327,7 +1342,7 @@ void GraphSceneScriptCallback::addCallback( bxAsciiScript* script )
 {
     for( int i = 0; i < array::size( _ctx->_node_types ); ++i )
     {
-        const char* typeName = _ctx->_node_types[i].info->_type_name;
+        const char* typeName = _ctx->_node_types[i].info->_name;
         bxScene::script_addCallback( script, typeName, this );
     }
     
@@ -1406,61 +1421,63 @@ void graphContextCleanup( Scene* scene )
 #include <gfx/gfx.h>
 namespace bx
 {
-    BX_GRAPH_DEFINE_NODE( Locator );
+    BX_GRAPH_DEFINE_NODE( LocatorNode, LocatorNode::Interface );
     BX_LOCATORNODE_ATTRIBUTES_DEFINE
-    void LocatorNode::_TypeInit( int typeIndex )
+
+    void LocatorNode::Interface::typeInit( int typeIndex )
     {
         BX_LOCATORNODE_ATTRIBUTES_CREATE
     }
-    void LocatorNode::_TypeDeinit()
-    {}
-    Node* LocatorNode::_Creator()
-    {
-        return BX_NEW( bxDefaultAllocator(), LocatorNode );
-    }
-    void LocatorNode::_Destroyer( Node* node )
-    {
-        BX_DELETE( bxDefaultAllocator(), node );
-    }
-    void LocatorNode::_Load( Node* node, NodeInstanceInfo instance, Scene* scene )
+
+    void LocatorNode::Interface::load( Node* node, NodeInstanceInfo instance, Scene* scene )
     {
         const Vector3 pos = nodeAttributeVector3( instance.id, attr_pos );
         const Vector3 rot = nodeAttributeVector3( instance.id, attr_rot );
         const Vector3 scale = nodeAttributeVector3( instance.id, attr_scale );
 
-        self(node)->_pose = appendScale( Matrix4( Matrix3::rotationZYX( rot ), pos ), scale );
+        self( node )->_pose = appendScale( Matrix4( Matrix3::rotationZYX( rot ), pos ), scale );
     }
-    void LocatorNode::_Unload( Node* node, NodeInstanceInfo instance, Scene* scene )
-    {
-    }
-    void LocatorNode::tick( Node* node, NodeInstanceInfo instance, Scene* scene )
-    {
-    }
+
+    //void LocatorNode::_TypeInit( int typeIndex )
+    //{
+    //    BX_LOCATORNODE_ATTRIBUTES_CREATE
+    //}
+    //void LocatorNode::_TypeDeinit()
+    //{}
+    //Node* LocatorNode::_Creator()
+    //{
+    //    return BX_NEW( bxDefaultAllocator(), LocatorNode );
+    //}
+    //void LocatorNode::_Destroyer( Node* node )
+    //{
+    //    BX_DELETE( bxDefaultAllocator(), node );
+    //}
+    //void LocatorNode::_Load( Node* node, NodeInstanceInfo instance, Scene* scene )
+    //{
+    //    const Vector3 pos = nodeAttributeVector3( instance.id, attr_pos );
+    //    const Vector3 rot = nodeAttributeVector3( instance.id, attr_rot );
+    //    const Vector3 scale = nodeAttributeVector3( instance.id, attr_scale );
+
+    //    self( node )->_pose = appendScale( Matrix4( Matrix3::rotationZYX( rot ), pos ), scale );
+    //}
+    //void LocatorNode::_Unload( Node* node, NodeInstanceInfo instance, Scene* scene )
+    //{
+    //}
+    //void LocatorNode::tick( Node* node, NodeInstanceInfo instance, Scene* scene )
+    //{
+    //}
 
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
-    BX_GRAPH_DEFINE_NODE( Mesh );
+    BX_GRAPH_DEFINE_NODE( MeshNode, MeshNode::Interface );
     BX_MESHNODE_ATTRIBUTES_DEFINE
 
-    void MeshNode::_TypeInit( int typeIndex )
+    void MeshNode::Interface::typeInit( int typeIndex )
     {
         BX_MESHNODE_ATTRIBUTES_CREATE
     }
 
-    void MeshNode::_TypeDeinit()
-    {}
-
-    Node* MeshNode::_Creator()
-    {
-        return BX_NEW( bxDefaultAllocator(), MeshNode );
-    }
-
-    void MeshNode::_Destroyer( Node* node )
-    {
-        BX_DELETE( bxDefaultAllocator(), node );
-    }
-
-    void MeshNode::_Load( Node* node, NodeInstanceInfo instance, Scene* scene )
+    void MeshNode::Interface::load( Node* node, NodeInstanceInfo instance, Scene* scene )
     {
         GfxMeshInstance* mi = nullptr;
         gfxMeshInstanceCreate( &mi, gfxContextGet( scene->gfx ) );
@@ -1481,34 +1498,98 @@ namespace bx
         {
             fxI = gfxMaterialFind( "red" );
         }
-               
+
         GfxMeshInstanceData miData;
         miData.renderSourceSet( rsource );
         miData.fxInstanceSet( fxI );
         miData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
         gfxMeshInstanceDataSet( mi, miData );
 
-        const Vector3 pos = nodeAttributeVector3( instance.id, attr_pos);
-        const Vector3 rot = nodeAttributeVector3( instance.id, attr_rot);
+        const Vector3 pos = nodeAttributeVector3( instance.id, attr_pos );
+        const Vector3 rot = nodeAttributeVector3( instance.id, attr_rot );
         const Vector3 scale = nodeAttributeVector3( instance.id, attr_scale );
 
         Matrix4 pose = appendScale( Matrix4( Matrix3::rotationZYX( rot ), pos ), scale );
         gfxMeshInstanceWorldMatrixSet( mi, &pose, 1 );
         gfxSceneMeshInstanceAdd( scene->gfx, mi );
 
-        self(node)->_mesh_instance = mi;
+        self( node )->_mesh_instance = mi;
     }
 
-    void MeshNode::_Unload( Node* node, NodeInstanceInfo instance, Scene* scene )
+    void MeshNode::Interface::unload( Node* node, NodeInstanceInfo instance, Scene* scene )
     {
         auto meshNode = self( node );
         gfxMeshInstanceDestroy( &meshNode->_mesh_instance );
     }
 
-    void MeshNode::tick( Node* node, NodeInstanceInfo instance, Scene* scene )
-    {
-    
-    }
+
+    //void MeshNode::_TypeInit( int typeIndex )
+    //{
+    //    BX_MESHNODE_ATTRIBUTES_CREATE
+    //}
+
+    //void MeshNode::_TypeDeinit()
+    //{}
+
+    //Node* MeshNode::_Creator()
+    //{
+    //    return BX_NEW( bxDefaultAllocator(), MeshNode );
+    //}
+
+    //void MeshNode::_Destroyer( Node* node )
+    //{
+    //    BX_DELETE( bxDefaultAllocator(), node );
+    //}
+
+    //void MeshNode::_Load( Node* node, NodeInstanceInfo instance, Scene* scene )
+    //{
+    //    GfxMeshInstance* mi = nullptr;
+    //    gfxMeshInstanceCreate( &mi, gfxContextGet( scene->gfx ) );
+
+    //    const char* mesh = nodeAttributeString( instance.id, attr_mesh );
+    //    bxGdiRenderSource* rsource = gfxGlobalResourcesGet()->mesh.box;
+    //    if( mesh[0] == ':' )
+    //    {
+    //        if( string::equal( mesh, ":box" ) )
+    //            rsource = gfxGlobalResourcesGet()->mesh.box;
+    //        else if( string::equal( mesh, ":sphere" ) )
+    //            rsource = gfxGlobalResourcesGet()->mesh.sphere;
+    //    }
+
+    //    const char* material = nodeAttributeString( instance.id, attr_material );
+    //    bxGdiShaderFx_Instance* fxI = gfxMaterialFind( material );
+    //    if( !fxI )
+    //    {
+    //        fxI = gfxMaterialFind( "red" );
+    //    }
+    //           
+    //    GfxMeshInstanceData miData;
+    //    miData.renderSourceSet( rsource );
+    //    miData.fxInstanceSet( fxI );
+    //    miData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
+    //    gfxMeshInstanceDataSet( mi, miData );
+
+    //    const Vector3 pos = nodeAttributeVector3( instance.id, attr_pos);
+    //    const Vector3 rot = nodeAttributeVector3( instance.id, attr_rot);
+    //    const Vector3 scale = nodeAttributeVector3( instance.id, attr_scale );
+
+    //    Matrix4 pose = appendScale( Matrix4( Matrix3::rotationZYX( rot ), pos ), scale );
+    //    gfxMeshInstanceWorldMatrixSet( mi, &pose, 1 );
+    //    gfxSceneMeshInstanceAdd( scene->gfx, mi );
+
+    //    self(node)->_mesh_instance = mi;
+    //}
+
+    //void MeshNode::_Unload( Node* node, NodeInstanceInfo instance, Scene* scene )
+    //{
+    //    auto meshNode = self( node );
+    //    gfxMeshInstanceDestroy( &meshNode->_mesh_instance );
+    //}
+
+    //void MeshNode::tick( Node* node, NodeInstanceInfo instance, Scene* scene )
+    //{
+    //
+    //}
 
 
 
