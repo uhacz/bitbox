@@ -13,13 +13,13 @@ struct bxAsciiScript_AttribData
 {
     enum
     {
-        eMAX_STRING_LEN = 255,
-        eMAX_NUMBER_LEN = 64,
+        eMAX_STRING_LEN = 123,
+        eMAX_NUMBER_LEN = 31,
     };
     union
     {
-        i32 inumber[eMAX_NUMBER_LEN];
-        u32 unumber[eMAX_NUMBER_LEN];
+        //i32 inumber[eMAX_NUMBER_LEN];
+        //u32 unumber[eMAX_NUMBER_LEN];
         f32 fnumber[eMAX_NUMBER_LEN];
         char string[eMAX_STRING_LEN + 1];
     };

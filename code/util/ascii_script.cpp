@@ -45,8 +45,9 @@ int bxAsciiScript_AttribData::addNumberi( i32 n )
         return -1;
     }
 
-    inumber[size] = n;
-    numBytes += sizeof( i32 );
+    //inumber[size] = n;
+    fnumber[size] = (f32)n;
+    numBytes += sizeof( f32 );
     return 0;
 }
 
@@ -59,8 +60,9 @@ int bxAsciiScript_AttribData::addNumberu( u32 n )
         return -1;
     }
 
-    unumber[size] = n;
-    numBytes += sizeof( u32 );
+    //unumber[size] = n;
+    fnumber[size] = (f32)n;
+    numBytes += sizeof( f32 );
     return 0;
 }
 int bxAsciiScript_AttribData::setString( const char* str, int len )
@@ -109,7 +111,7 @@ namespace bxScene
                 }
                 else
                 {
-                    ierr = attribData->addNumberu( strtol( attribDataToken, NULL, 0 ) );
+                    ierr = attribData->addNumberi( strtol( attribDataToken, NULL, 0 ) );
                 }
             }
             else

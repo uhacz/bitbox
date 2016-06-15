@@ -394,9 +394,20 @@ struct AttributeInstance
         SYS_ASSERT( _values[index].type == type );
         SYS_ASSERT( type != AttributeType::eSTRING );
 
-        const int stride = AttributeType::_stride[type];
-        u8* dst = _blob + _values[index].offset;
-        memcpy( dst, data, stride );
+        if( type == AttributeType::eINT )
+        {
+            const int datai = *(const int*)data;
+            u8* dst = _blob + _values[index].offset;
+            int* dstI = (int*)dst;
+            dstI[0] = datai;
+        }
+        else
+        {
+            const int stride = AttributeType::_stride[type];
+            u8* dst = _blob + _values[index].offset;
+            memcpy( dst, data, stride );
+        }
+        
     }
     void stringSet( int index, const char* str )
     {
