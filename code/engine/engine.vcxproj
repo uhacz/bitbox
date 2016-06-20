@@ -82,12 +82,17 @@
   <ItemGroup>
     <ClInclude Include="camera_manager.h" />
     <ClInclude Include="engine.h" />
+    <ClInclude Include="engine_nodes.h" />
     <ClInclude Include="engine_nodes_attributes.h" />
+    <ClInclude Include="graph_private.h" />
+    <ClInclude Include="graph_public.h" />
     <ClInclude Include="profiler.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera_manager.cpp" />
     <ClCompile Include="engine.cpp" />
+    <ClCompile Include="engine_nodes.cpp" />
+    <ClCompile Include="graph.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="engine_nodes.cs">

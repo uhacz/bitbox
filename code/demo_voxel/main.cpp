@@ -15,9 +15,11 @@
 //#include <gfx/gfx_camera.h>
 //#include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_gui.h>
+#include <gfx/gfx_debug_draw.h>
 
 #include <engine/engine.h>
-#include "gfx/gfx_debug_draw.h"
+#include <engine/graph_private.h>
+#include <engine/engine_nodes.h>
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
