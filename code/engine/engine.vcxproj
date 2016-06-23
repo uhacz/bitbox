@@ -87,12 +87,14 @@
     <ClInclude Include="graph_private.h" />
     <ClInclude Include="graph_public.h" />
     <ClInclude Include="profiler.h" />
+    <ClInclude Include="scene_graph.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera_manager.cpp" />
     <ClCompile Include="engine.cpp" />
     <ClCompile Include="engine_nodes.cpp" />
     <ClCompile Include="graph.cpp" />
+    <ClCompile Include="scene_graph.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="engine_nodes.cs">

@@ -133,7 +133,15 @@ namespace hashmap
     
         return 0;
     }
-    void erase( hashmap_t& hmap, hashmap_t::cell_t* cell)
+
+    hashmap_t::cell_t* set( hashmap_t& hmap, size_t key, size_t value )
+    {
+        hashmap_t::cell_t* cell = hashmap::insert( hmap, key );
+        cell->value = value;
+        return cell;
+    }
+
+    void erase( hashmap_t& hmap, hashmap_t::cell_t* cell )
     {
         if( !cell )
             return;

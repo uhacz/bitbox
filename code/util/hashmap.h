@@ -7,6 +7,7 @@ namespace hashmap
     hashmap_t::cell_t* lookup( hashmap_t& hmap, size_t key);
     const hashmap_t::cell_t* lookup( const hashmap_t& hmap, size_t key );
     hashmap_t::cell_t* insert( hashmap_t& hmap, size_t key);
+    hashmap_t::cell_t* set( hashmap_t& hmap, size_t key, size_t value );
 
     void erase( hashmap_t& hmap, hashmap_t::cell_t* cell);
     void clear( hashmap_t& hmap );
