@@ -118,3 +118,18 @@ namespace queue
         q.size += n;
     }
 }///
+
+template< class T, class Tlock >
+inline bool pop_from_back_with_lock( T* value, queue_t<T>& q, Tlock& lock )
+{
+    lock.lock();
+    bool e = queue::empty( q );
+    if( !e )
+    {
+        value[0] = queue::back( q );
+        queue::pop_back( q );
+    }
+    lock.unlock();
+    return !e;
+}
+

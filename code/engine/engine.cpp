@@ -6,14 +6,15 @@
 #include <gfx/gfx_gui.h>
 #include <gfx/gfx_debug_draw.h>
 
-#include "graph_private.h"
+#include "graph_context.h"
+#include "graph.h"
 
 namespace bx
 {
 void Engine::startup( Engine* e )
 {
     bxConfig::global_init();
-
+     
     bxWindow* win = bxWindow_get();
     const char* assetDir = bxConfig::global_string( "assetDir" );
     e->resource_manager = bxResourceManager::startup( assetDir );

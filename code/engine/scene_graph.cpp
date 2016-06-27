@@ -60,7 +60,7 @@ namespace bx
 
         new_data.world = chunker.add<Matrix4>( num );
         new_data.local = chunker.add<Pose>( num );
-        new_data.unit = chunker.add<id_t>( num );
+        new_data.node = chunker.add<id_t>( num );
         new_data.parent = chunker.add<TransformInstance>( num );
         new_data.first_child  = chunker.add<TransformInstance>( num );
         new_data.next_sibling = chunker.add<TransformInstance>( num );
@@ -71,7 +71,7 @@ namespace bx
 
         BX_CONTAINER_COPY_DATA( &new_data, &_data, world );
         BX_CONTAINER_COPY_DATA( &new_data, &_data, local );
-        BX_CONTAINER_COPY_DATA( &new_data, &_data, unit );
+        BX_CONTAINER_COPY_DATA( &new_data, &_data, node );
         BX_CONTAINER_COPY_DATA( &new_data, &_data, parent );
         BX_CONTAINER_COPY_DATA( &new_data, &_data, first_child );
         BX_CONTAINER_COPY_DATA( &new_data, &_data, next_sibling );
@@ -80,13 +80,6 @@ namespace bx
 
         _allocator->free( _data.buffer );
         _data = new_data;
-    }
-
-    void SceneGraph::unitDestroyedCallback( id_t id )
-    {
-        TransformInstance ti = get( id );
-        if( isValid( ti ) )
-            destroy( ti );
     }
 
     TransformInstance SceneGraph::create( id_t id, const Matrix4& pose )
@@ -98,7 +91,7 @@ namespace bx
 
         const u32 last = _data.size;
 
-        _data.unit[last] = id;
+        _data.node[last] = id;
         _data.world[last] = pose;
         _data.local[last] = Pose( pose );
         _data.parent[last].i = UINT32_MAX;
@@ -124,10 +117,10 @@ namespace bx
         SYS_ASSERT( i.i < _data.size );
 
         const u32 last = _data.size - 1;
-        const id_t u = _data.unit[i.i];
-        const id_t last_u = _data.unit[last];
+        const id_t u = _data.node[i.i];
+        const id_t last_u = _data.node[last];
 
-        _data.unit[i.i] = _data.unit[last];
+        _data.node[i.i] = _data.node[last];
         _data.world[i.i] = _data.world[last];
         _data.local[i.i] = _data.local[last];
         _data.parent[i.i] = _data.parent[last];
@@ -231,7 +224,7 @@ namespace bx
         return _data.size;
     }
 
-    void SceneGraph::link( TransformInstance child, TransformInstance parent )
+    void SceneGraph::link( TransformInstance parent, TransformInstance child )
     {
         SYS_ASSERT( child.i < _data.size );
         SYS_ASSERT( parent.i < _data.size );
@@ -245,7 +238,7 @@ namespace bx
         }
         else
         {
-            TransformInstance prev = { UINT32_MAX };
+            TransformInstance prev;
             TransformInstance node = _data.first_child[parent.i];
             while( isValid( node ) )
             {
@@ -323,7 +316,7 @@ namespace bx
         {
             if( _data.changed[i] )
             {
-                array::push_back( *units, _data.unit[i] );
+                array::push_back( *units, _data.node[i] );
                 array::push_back( *world_poses, _data.world[i] );
             }
         }

@@ -84,8 +84,10 @@
     <ClInclude Include="engine.h" />
     <ClInclude Include="engine_nodes.h" />
     <ClInclude Include="engine_nodes_attributes.h" />
-    <ClInclude Include="graph_private.h" />
-    <ClInclude Include="graph_public.h" />
+    <ClInclude Include="graph_attributes.h" />
+    <ClInclude Include="graph_context.h" />
+    <ClInclude Include="graph.h" />
+    <ClInclude Include="graph_node.h" />
     <ClInclude Include="profiler.h" />
     <ClInclude Include="scene_graph.h" />
   </ItemGroup>
@@ -94,6 +96,9 @@
     <ClCompile Include="engine.cpp" />
     <ClCompile Include="engine_nodes.cpp" />
     <ClCompile Include="graph.cpp" />
+    <ClCompile Include="graph_attributes.cpp" />
+    <ClCompile Include="graph_context.cpp" />
+    <ClCompile Include="graph_node.cpp" />
     <ClCompile Include="scene_graph.cpp" />
   </ItemGroup>
   <ItemGroup>

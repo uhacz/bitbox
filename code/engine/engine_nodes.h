@@ -1,6 +1,6 @@
 #pragma once
 
-#include "graph_public.h"
+#include "graph_node.h"
 #include "engine_nodes_attributes.h"
 
 namespace bx
@@ -9,14 +9,13 @@ namespace bx
 
     struct LocatorNode : public Node
     {
-        Matrix4 _pose = Matrix4::identity();
-
         struct Interface : public NodeTypeInterface
         {
             BX_GRAPH_NODE_STD_CREATOR_AND_DESTROYER( LocatorNode )
 
             void typeInit( int typeIndex ) override;
             void load( Node* node, NodeInstanceInfo instance, Scene* scene ) override;
+            void unload( Node* node, NodeInstanceInfo instance, Scene* scene ) override;
         };
 
         BX_GRAPH_DECLARE_NODE( LocatorNode, Interface, EExecMask::eLOAD_UNLOAD );

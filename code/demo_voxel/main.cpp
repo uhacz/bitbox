@@ -18,7 +18,8 @@
 #include <gfx/gfx_debug_draw.h>
 
 #include <engine/engine.h>
-#include <engine/graph_private.h>
+#include <engine/graph_context.h>
+#include <engine/graph.h>
 #include <engine/engine_nodes.h>
 
 //////////////////////////////////////////////////////////////////////////

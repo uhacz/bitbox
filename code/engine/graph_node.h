@@ -2,11 +2,12 @@
 
 #include <util/containers.h>
 #include <util/vectormath/vectormath.h>
+#include "scene_graph.h"
 
 namespace bx
 {
     struct Scene;
-
+    struct Graph;
     //////////////////////////////////////////////////////////////////////////
     typedef i32 AttributeIndex;
     struct Node {};
@@ -20,15 +21,43 @@ namespace bx
     };
 
     //////////////////////////////////////////////////////////////////////////
+    AttributeIndex nodeAttributeAddFloat( int typeIndex, const char* name, float defaultValue );
+    AttributeIndex nodeAttributeAddInt( int typeIndex, const char* name, int defaultValue );
+    AttributeIndex nodeAttributeAddFloat3( int typeIndex, const char* name, const float3_t& defaultValue );
+    AttributeIndex nodeAttributeAddString( int typeIndex, const char* name, const char* defaultValue );
+
+    bool nodeAttributeFloat( float* out, id_t id, const char* name );
+    bool nodeAttributeInt( int* out, id_t id, const char* name );
+    bool nodeAttributeVector3( Vector3* out, id_t id, const char* name );
+    bool nodeAttributeString( const char** out, id_t id, const char* name );
+
+    float       nodeAttributeFloat( id_t id, AttributeIndex index );
+    int         nodeAttributeInt( id_t id, AttributeIndex index );
+    Vector3     nodeAttributeVector3( id_t id, AttributeIndex index );
+    const char* nodeAttributeString( id_t id, AttributeIndex index );
+
+    bool nodeAttributeFloatSet( id_t id, const char* name, float value );
+    bool nodeAttributeIntSet( id_t id, const char* name, int value );
+    bool nodeAttributeVector3Set( id_t id, const char* name, const Vector3 value );
+    bool nodeAttributeStringSet( id_t id, const char* name, const char* value );
+
+    void nodeAttributeFloatSet( id_t id, AttributeIndex index, float value );
+    void nodeAttributeIntSet( id_t id, AttributeIndex index, int value );
+    void nodeAttributeVector3Set( id_t id, AttributeIndex index, const Vector3 value );
+    void nodeAttributeStringSet( id_t id, AttributeIndex index, const char* value );
+    //////////////////////////////////////////////////////////////////////////
     struct NodeInstanceInfo
     {
-        i32 type_index;
-        id_t id;
+        i32 _type_index;
+        id_t _id;
 
-        const char* type_name;
-        const char* name;
+        const char* _type_name;
+        const char* _name;
 
-        Graph* graph;
+        Graph* _graph;
+
+        SceneGraph* sceneGraph() const;
+        SceneGraph* sceneGraph();
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -63,32 +92,6 @@ namespace bx
     Node* nodeInstanceGet( id_t id );
 
     //////////////////////////////////////////////////////////////////////////
-    AttributeIndex nodeAttributeAddFloat( int typeIndex, const char* name, float defaultValue );
-    AttributeIndex nodeAttributeAddInt( int typeIndex, const char* name, int defaultValue );
-    AttributeIndex nodeAttributeAddFloat3( int typeIndex, const char* name, const float3_t& defaultValue );
-    AttributeIndex nodeAttributeAddString( int typeIndex, const char* name, const char* defaultValue );
-
-    bool nodeAttributeFloat( float* out, id_t id, const char* name );
-    bool nodeAttributeInt( int* out, id_t id, const char* name );
-    bool nodeAttributeVector3( Vector3* out, id_t id, const char* name );
-    bool nodeAttributeString( const char** out, id_t id, const char* name );
-
-    float       nodeAttributeFloat( id_t id, AttributeIndex index );
-    int         nodeAttributeInt( id_t id, AttributeIndex index );
-    Vector3     nodeAttributeVector3( id_t id, AttributeIndex index );
-    const char* nodeAttributeString( id_t id, AttributeIndex index );
-
-    bool nodeAttributeFloatSet( id_t id, const char* name, float value );
-    bool nodeAttributeIntSet( id_t id, const char* name, int value );
-    bool nodeAttributeVector3Set( id_t id, const char* name, const Vector3 value );
-    bool nodeAttributeStringSet( id_t id, const char* name, const char* value );
-
-    void nodeAttributeFloatSet( id_t id, AttributeIndex index, float value );
-    void nodeAttributeIntSet( id_t id, AttributeIndex index, int value );
-    void nodeAttributeVector3Set( id_t id, AttributeIndex index, const Vector3 value );
-    void nodeAttributeStringSet( id_t id, AttributeIndex index, const char* value );
-
-    //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
 #define BX_GRAPH_DECLARE_NODE( typeName, interfaceName, execMask )\
     static NodeTypeInfo __type_info; \
@@ -112,3 +115,13 @@ namespace bx
     void destroyer( bx::Node* node ) { BX_DELETE( bxDefaultAllocator(), node ); }
 
 }///
+
+
+namespace bx
+{
+    struct NodeUtil
+    {
+        static TransformInstance addToSceneGraph( const NodeInstanceInfo& nodeInfo, const Matrix4& pose );
+        static void removeFromSceneGraph( const NodeInstanceInfo& nodeInfo );
+    };
+}

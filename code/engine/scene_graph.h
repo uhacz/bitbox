@@ -8,7 +8,7 @@ namespace bx
 {
     struct TransformInstance
     { 
-        u32 i; 
+        u32 i = UINT32_MAX; 
     };
 
     struct SceneGraph
@@ -38,7 +38,7 @@ namespace bx
 
         u32 size() const;
 
-        void link( TransformInstance child, TransformInstance parent );
+        void link( TransformInstance parent, TransformInstance child );
         void unlink( TransformInstance child );
 
         void clearChanged();
@@ -53,14 +53,9 @@ namespace bx
         void allocate( u32 num );
         TransformInstance makeInstance( u32 i )
         {
-            TransformInstance ti = { i };
+            TransformInstance ti;
+            ti.i = i;
             return ti;
-        }
-
-        void unitDestroyedCallback( id_t id );
-        static void unitDestroyedCallback( id_t id, void* user_ptr )
-        {
-            ( (SceneGraph*)user_ptr )->unitDestroyedCallback( id );
         }
 
     private:
@@ -83,7 +78,7 @@ namespace bx
 
             Matrix4* world = nullptr;
             Pose* local = nullptr;
-            id_t* unit = nullptr;
+            id_t* node = nullptr;
             TransformInstance* parent = nullptr;
             TransformInstance* first_child = nullptr;
             TransformInstance* next_sibling = nullptr;
