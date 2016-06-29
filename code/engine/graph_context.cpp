@@ -1,6 +1,7 @@
 #include "graph_context.h"
 #include <util/string_util.h>
 #include <util/array.h>
+#include <engine/engine.h>
 #include <string.h>
 
 #include "graph.h"
@@ -44,11 +45,23 @@ namespace bx
         return type;
     }
 
+    void GraphToLoad::set( Graph* g, const char* fn )
+    {
+        graph = g;
+        filename = string::duplicate( filename, fn );
+    }
+
+    void GraphToLoad::release()
+    {
+        string::free_and_null( &filename );
+    }
+
     void GraphContext::startup()
     {
         memset( _nodes, 0x00, sizeof( _nodes ) );
         memset( _instance_info, 0x00, sizeof( _instance_info ) );
         memset( _attributes, 0x00, sizeof( _attributes ) );
+        memset( _graphs, 0x00, sizeof( _graphs ) );
         _alloc_instance_info.startup( sizeof( NodeInstanceInfo ), eMAX_NODES, bxDefaultAllocator(), 8 );
     }
 
@@ -119,8 +132,8 @@ namespace bx
         type.index = index;
         type.info = info;
         //type.info._type_name = string::duplicate( nullptr, info._type_name );
-
-        info->_interface->typeInit( index );
+        NodeTypeBehaviour* behaviour = (NodeTypeBehaviour*)&type.info->_behaviour;
+        info->_interface->typeInit( behaviour, index );
         //if( info->_type_init )
         //{
         //    ( *info->_type_init )( index );
@@ -175,6 +188,67 @@ namespace bx
         //( *type.info->_destroyer )( node );
     }
 
+    Graph* GraphContext::graphAllocate()
+    {
+        if( _graphs_count >= eMAX_GRAPHS )
+        {
+            SYS_ASSERT( false );
+            return nullptr;
+        }
+        
+        int index = -1;
+        {
+            bxScopeBenaphore lock( _lock_graphs_alloc );
+
+            for( int i = 0; i < eMAX_GRAPHS; ++i )
+            {
+                if( _graphs[i] == nullptr )
+                {
+                    index = i;
+                    break;
+                }
+            }
+        }
+
+        if( index == -1 )
+        {
+            SYS_ASSERT( false );
+            return nullptr;
+        }
+
+        Graph* g = BX_NEW( bxDefaultAllocator(), Graph );
+        _graphs[index] = g;
+        _graphs_count += 1;
+        return g;
+    }
+
+    void GraphContext::graphFree( Graph* graph )
+    {
+        if( _graphs_count == 0 )
+        {
+            SYS_ASSERT( false );
+            return;
+        }
+
+        int index = -1;
+        {
+            bxScopeBenaphore lock( _lock_graphs_alloc );
+
+            for( int i = 0; i < eMAX_GRAPHS; ++i )
+            {
+                if( _graphs[i] == graph )
+                {
+                    index = i;
+                    break;
+                }
+            }
+        }
+
+        SYS_ASSERT( index != -1 );
+
+        BX_DELETE0( bxDefaultAllocator(), _graphs[index] );
+    }
+
     void GraphContext::nodesDestroy()
     {
         bool done = false;
@@ -199,12 +273,36 @@ namespace bx
 
     }
 
-    void GraphContext::graphsLoad()
+    void GraphContext::graphsLoad( Engine* engine, Scene* scene )
     {
+        bool done = false;
+        do
+        {
+            GraphToLoad gtl;
+            done = !pop_from_back_with_lock( &gtl, _graphs_to_load, _lock_graphs_to_load );
+            if( !done )
+            {
+                bxAsciiScript sceneScript;
+                engine->_camera_script_callback->addCallback( &sceneScript );
+                engine->_graph_script_callback->addCallback( &sceneScript );
+                engine->_graph_script_callback->_graph = gtl.graph;
 
+                const char* sceneName = gtl.filename;
+                bxFS::File scriptFile = engine->resource_manager->readTextFileSync( sceneName );
+
+                if( scriptFile.ok() )
+                {
+                    bxScene::script_run( &sceneScript, scriptFile.txt );
+                }
+                scriptFile.release();
+                gtl.release();
+
+                gtl.graph->nodesLoad( scene );
+            }
+        } while( !done );
     }
 
-    void GraphContext::graphsUnload()
+    void GraphContext::graphsUnload( Scene* scene )
     {
         bool done = false;
         do
@@ -214,10 +312,8 @@ namespace bx
 
             if( !done )
             {
-                for( int i = 0; i < array::size( gtu.graph->_id_nodes ); ++i )
-                {
-                    graphNodeRemove( gtu.graph->_id_nodes[i], gtu.destroyAfterUnload );
-                }
+                gtu.graph->shutdown( gtu.destroyAfterUnload );
+                gtu.graph->nodesUnload( scene );
                 queue::push_front( _graphs_to_destroy, gtu.graph );
             }
 
@@ -231,11 +327,13 @@ namespace bx
             Graph* g = queue::back( _graphs_to_destroy );
             queue::pop_back( _graphs_to_destroy );
 
-            int found = array::find1( array::begin( _graphs ), array::end( _graphs ), array::OpEqual<Graph*>( g ) );
-            SYS_ASSERT( found != -1 );
-            array::erase( _graphs, found );
+            //int found = array::find1( array::begin( _graphs ), array::end( _graphs ), array::OpEqual<Graph*>( g ) );
+            //SYS_ASSERT( found != -1 );
+            //array::erase( _graphs, found );
 
-            BX_DELETE0( bxDefaultAllocator(), g );
+            graphFree( g );
+
+            //BX_DELETE0( bxDefaultAllocator(), g );
         }
     }
 
@@ -262,50 +360,45 @@ namespace bx
         BX_DELETE0( bxDefaultAllocator(), _ctx );
     }
 
-    void graphContextCleanup( Scene* scene )
+    void graphContextCleanup( Engine* engine, Scene* scene )
     {
-        for( int i = 0; i < array::size( _ctx->_graphs ); ++i )
+        for( int i = 0; i < GraphContext::eMAX_GRAPHS; ++i )
         {
-            Graph* g = _ctx->_graphs[i];
-            graphDestroy( &g, true );
+            Graph* graph = _ctx->_graphs[i];
+            graphDestroy( &graph, true );
         }
 
-        graphContextTick( scene );
+        graphContextTick( engine, scene );
     }
 
-    void graphContextTick( Scene* scene )
+    void graphContextTick( Engine* engine, Scene* scene )
     {
-        _ctx->graphsUnload();
-        
-        _ctx->graphsLock();
-
-        for( int i = 0; i < array::size( graphContext()->_graphs ); ++i )
-        {
-            _ctx->_graphs[i]->nodesLoad( scene );
-            _ctx->_graphs[i]->nodesUnload( scene );
-        }
+        _ctx->graphsUnload( scene );
+        _ctx->graphsLoad( engine, scene );
         _ctx->graphsDestroy();
-
-        _ctx->graphsUnlock();
-
         _ctx->nodesDestroy();
 
         _ctx->nodesLock();
-        _ctx->graphsLock();
-
-        for( int i = 0; i < array::size( graphContext()->_graphs ); ++i )
+        for( int i = 0; i < GraphContext::eMAX_GRAPHS; ++i )
         {
+            if( !_ctx->_graphs[i] )
+                continue;
+
             _ctx->_graphs[i]->tick0( scene );
         }
 
-        for( int i = 0; i < array::size( graphContext()->_graphs ); ++i )
+        for( int i = 0; i < GraphContext::eMAX_GRAPHS; ++i )
         {
+            if( !_ctx->_graphs[i] )
+                continue;
+
             _ctx->_graphs[i]->tick1( scene );
         }
-
-        _ctx->graphsUnlock();
         _ctx->nodesUnlock();
     }
+
+
+
 }////
 
 namespace bx
@@ -378,13 +471,8 @@ namespace bx
 {
     void graphCreate( Graph** graph )
     {
-        Graph* g = BX_NEW( bxDefaultAllocator(), Graph );
+        Graph* g = _ctx->graphAllocate();
         g->startup();
-
-        graphContext()->graphsLock();
-        array::push_back( graphContext()->_graphs, g );
-        graphContext()->graphsUnlock();
-
         graph[0] = g;
     }
     void graphDestroy( Graph** graph, bool destroyNodes )
@@ -410,8 +498,10 @@ namespace bx
         (void)filename;
 
         GraphToLoad gtl;
-        gtl.graph = graph;
-        gtl.filename = string::duplicate( nullptr, filename );
+        gtl.set( graph, filename );
+
+        //gtl.graph = graph;
+        //gtl.filename = string::duplicate( nullptr, filename );
 
         graphContext()->_lock_graphs_to_load.lock();
         queue::push_front( graphContext()->_graphs_to_load, gtl );

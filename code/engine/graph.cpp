@@ -53,7 +53,7 @@ namespace bx
             id_t id = _id_nodes[i];
             NodeInstanceInfo info = nodeInstanceInfoGet( id );
             NodeType* type = graphContext()->typeGet( info._type_index );
-            if( type->info->_exec_mask & execMask )
+            if( type->info->_behaviour.exec_mask & execMask )
             {
                 NodeSortKey key;
                 key.depth = 1;

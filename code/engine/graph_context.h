@@ -11,6 +11,7 @@
 
 namespace bx
 {
+    struct Engine;
     //////////////////////////////////////////////////////////////////////////
     struct NodeType
     {
@@ -31,6 +32,9 @@ namespace bx
     {
         Graph* graph = nullptr;
         char* filename = nullptr;
+
+        void set( Graph* g, const char* fn );
+        void release();
     };
     struct GraphToUnload
     {
@@ -43,6 +47,7 @@ namespace bx
         enum
         {
             eMAX_NODES = 1024 * 8,
+            eMAX_GRAPHS = 32,
         };
         array_t< NodeType >         _node_types;
         id_table_t< eMAX_NODES >    _id_table;
@@ -52,15 +57,18 @@ namespace bx
 
         bxPoolAllocator             _alloc_instance_info;
 
+        Graph*                      _graphs[eMAX_GRAPHS];
+        u32                         _graphs_count = 0;
+
         array_t< NodeToDestroy >    _nodes_to_destroy;
-        array_t< Graph* >           _graphs;
+        //array_t< Graph* >           _graphs;
         queue_t< GraphToLoad >      _graphs_to_load;
         queue_t< GraphToUnload >    _graphs_to_unload;
         queue_t< Graph* >           _graphs_to_destroy;
 
         bxRecursiveBenaphore        _lock_nodes;
         bxRecursiveBenaphore        _lock_instance_info_alloc;
-        bxBenaphore                 _lock_graphs;
+        bxBenaphore                 _lock_graphs_alloc;
         bxBenaphore                 _lock_graphs_to_load;
         bxBenaphore                 _lock_graphs_to_unload;
         bxBenaphore                 _lock_nodes_to_destroy;
@@ -71,8 +79,8 @@ namespace bx
 
         void nodesLock() { _lock_nodes.lock(); }
         void nodesUnlock() { _lock_nodes.unlock(); }
-        void graphsLock() { _lock_graphs.lock(); }
-        void graphsUnlock() { _lock_graphs.unlock(); }
+        //void graphsLock() { _lock_graphs.lock(); }
+        //void graphsUnlock() { _lock_graphs.unlock(); }
 
         //////////////////////////////////////////////////////////////////////////
         NodeInstanceInfo* nodeInstanceInfoAllocate();
@@ -109,8 +117,11 @@ namespace bx
         void nodeDestroy( Node* node, NodeInstanceInfo* info, AttributeInstance* attrI );
         
         //////////////////////////////////////////////////////////////////////////
-        void graphsLoad();
-        void graphsUnload();
+        Graph* graphAllocate();
+        void graphFree( Graph* graph );
+
+        void graphsLoad( Engine* engine, Scene* scene );
+        void graphsUnload( Scene* scene );
         void graphsDestroy();
 
         void nodesDestroy();
@@ -119,8 +130,8 @@ namespace bx
     //////////////////////////////////////////////////////////////////////////
     void graphContextStartup();
     void graphContextShutdown();
-    void graphContextCleanup( Scene* scene );
-    void graphContextTick( Scene* scene );
+    void graphContextCleanup( Engine* engine, Scene* scene );
+    void graphContextTick( Engine* engine, Scene* scene );
     GraphContext* graphContext();
 
     //////////////////////////////////////////////////////////////////////////

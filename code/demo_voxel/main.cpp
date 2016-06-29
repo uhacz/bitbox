@@ -120,19 +120,21 @@ public:
         bx::Graph* graph = nullptr;
         bx::graphCreate( &graph );
 
-        bxAsciiScript sceneScript;
-        _engine._camera_script_callback->addCallback( &sceneScript );
-        _engine._graph_script_callback->addCallback( &sceneScript );
-        _engine._graph_script_callback->_graph = graph;
-
         const char* sceneName = bxConfig::global_string( "scene" );
-        bxFS::File scriptFile = _engine.resource_manager->readTextFileSync( sceneName );
+        bx::graphLoad( graph, sceneName );
 
-        if( scriptFile.ok() )
-        {
-            bxScene::script_run( &sceneScript, scriptFile.txt );
-        }
-        scriptFile.release();
+        //bxAsciiScript sceneScript;
+        //_engine._camera_script_callback->addCallback( &sceneScript );
+        //_engine._graph_script_callback->addCallback( &sceneScript );
+        //_engine._graph_script_callback->_graph = graph;
+
+        //bxFS::File scriptFile = _engine.resource_manager->readTextFileSync( sceneName );
+
+        //if( scriptFile.ok() )
+        //{
+        //    bxScene::script_run( &sceneScript, scriptFile.txt );
+        //}
+        //scriptFile.release();
 
         {
             char const* cameraName = bxConfig::global_string( "camera" );
@@ -167,7 +169,7 @@ public:
         //    _engine.gdiDevice->releaseTexture( &fb.textures[ifb] );
         //}
         bx::octreeDestroy( &octree );
-        bx::graphContextCleanup( &_scene );
+        bx::graphContextCleanup( &_engine, &_scene );
         bx::DevCamera::shutdown( &_dev_camera, &_engine );
         bx::Scene::shutdown( &_scene, &_engine );
         bx::Engine::shutdown( &_engine );
@@ -220,7 +222,7 @@ public:
         }
 
         { /// game update
-            bx::graphContextTick( &_scene );
+            bx::graphContextTick( &_engine, &_scene );
             //octreeDebugDraw( octree );
 
             //const Matrix4 cameraWorld = gfxCameraWorldMatrixGet( camera );

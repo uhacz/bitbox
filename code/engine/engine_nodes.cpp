@@ -9,9 +9,11 @@ namespace bx
     BX_GRAPH_DEFINE_NODE( LocatorNode, LocatorNode::Interface );
     BX_LOCATORNODE_ATTRIBUTES_DEFINE
 
-        void LocatorNode::Interface::typeInit( int typeIndex )
+    void LocatorNode::Interface::typeInit( NodeTypeBehaviour* behaviour, int typeIndex )
     {
-        BX_LOCATORNODE_ATTRIBUTES_CREATE
+        BX_LOCATORNODE_ATTRIBUTES_CREATE;
+        behaviour->exec_mask = EExecMask::eLOAD_UNLOAD;
+        behaviour->is_dag = 1;
     }
 
     void LocatorNode::Interface::load( Node* node, NodeInstanceInfo instance, Scene* scene )
@@ -34,9 +36,11 @@ namespace bx
     BX_GRAPH_DEFINE_NODE( MeshNode, MeshNode::Interface );
     BX_MESHNODE_ATTRIBUTES_DEFINE
 
-    void MeshNode::Interface::typeInit( int typeIndex )
+    void MeshNode::Interface::typeInit( NodeTypeBehaviour* behaviour, int typeIndex )
     {
-        BX_MESHNODE_ATTRIBUTES_CREATE
+        BX_MESHNODE_ATTRIBUTES_CREATE;
+        behaviour->exec_mask = EExecMask::eLOAD_UNLOAD;
+        behaviour->is_dag = 1;
     }
 
     void MeshNode::Interface::load( Node* node, NodeInstanceInfo instance, Scene* scene )

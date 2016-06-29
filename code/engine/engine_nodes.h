@@ -13,12 +13,12 @@ namespace bx
         {
             BX_GRAPH_NODE_STD_CREATOR_AND_DESTROYER( LocatorNode )
 
-            void typeInit( int typeIndex ) override;
+            void typeInit( NodeTypeBehaviour* behaviour, int typeIndex ) override;
             void load( Node* node, NodeInstanceInfo instance, Scene* scene ) override;
             void unload( Node* node, NodeInstanceInfo instance, Scene* scene ) override;
         };
 
-        BX_GRAPH_DECLARE_NODE( LocatorNode, Interface, EExecMask::eLOAD_UNLOAD );
+        BX_GRAPH_DECLARE_NODE( LocatorNode, Interface );
         BX_LOCATORNODE_ATTRIBUTES_DECLARE;
     };
 
@@ -31,12 +31,12 @@ namespace bx
         {
             BX_GRAPH_NODE_STD_CREATOR_AND_DESTROYER( MeshNode )
 
-            void typeInit( int typeIndex ) override;
+            void typeInit( NodeTypeBehaviour* behaviour, int typeIndex ) override;
             void load( Node* node, NodeInstanceInfo instance, Scene* scene )  override;
             void unload( Node* node, NodeInstanceInfo instance, Scene* scene )  override;
         };
 
-        BX_GRAPH_DECLARE_NODE( MeshNode, Interface, EExecMask::eLOAD_UNLOAD );
+        BX_GRAPH_DECLARE_NODE( MeshNode, Interface );
         BX_MESHNODE_ATTRIBUTES_DECLARE;
     };
 

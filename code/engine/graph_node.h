@@ -60,12 +60,18 @@ namespace bx
         SceneGraph* sceneGraph();
     };
 
+    struct NodeTypeBehaviour
+    {
+        u16 exec_mask = 0;
+        u16 is_dag = 0;
+    };
+
     //////////////////////////////////////////////////////////////////////////
     struct NodeTypeInterface
     {
         virtual ~NodeTypeInterface() {}
 
-        virtual void typeInit( int typeIndex ) { (void)typeIndex; }
+        virtual void typeInit( NodeTypeBehaviour* behaviour, int typeIndex ) { (void)typeIndex; }
         virtual void typeDeinit() {}
 
         virtual Node* creator() = 0;
@@ -82,7 +88,7 @@ namespace bx
     {
         NodeTypeInterface* _interface = nullptr;
         const char* _name = nullptr;
-        u32 _exec_mask = 0;
+        NodeTypeBehaviour _behaviour;
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -93,7 +99,7 @@ namespace bx
 
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
-#define BX_GRAPH_DECLARE_NODE( typeName, interfaceName, execMask )\
+#define BX_GRAPH_DECLARE_NODE( typeName, interfaceName )\
     static NodeTypeInfo __type_info; \
     static interfaceName __type_interface; \
     __forceinline static typeName* self( Node* node ) { return (typeName*)node; }\
@@ -102,7 +108,6 @@ namespace bx
         NodeTypeInfo info;\
         info._interface = &__type_interface;\
         info._name = MAKE_STR(typeName);\
-        info._exec_mask = execMask; \
         return info;\
     }
 
