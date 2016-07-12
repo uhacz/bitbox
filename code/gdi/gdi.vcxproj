@@ -81,6 +81,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dx11\DDSTextureLoader.h" />
+    <ClInclude Include="gdi.h" />
     <ClInclude Include="gdi_backend.h" />
     <ClInclude Include="dx11\gdi_backend_dx11.h" />
     <ClInclude Include="dx11\gdi_backend_dx11_startup.h" />

@@ -286,6 +286,7 @@ namespace bx
                 engine->_camera_script_callback->addCallback( &sceneScript );
                 engine->_graph_script_callback->addCallback( &sceneScript );
                 engine->_graph_script_callback->_graph = gtl.graph;
+                engine->_graph_script_callback->_scene = scene;
 
                 const char* sceneName = gtl.filename;
                 bxFS::File scriptFile = engine->resource_manager->readTextFileSync( sceneName );

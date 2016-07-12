@@ -7,10 +7,11 @@
 #include <gfx/gfx.h>
 
 #include <util/ascii_script.h>
+#include <util/vectormath/vectormath.h>
 
 #include "profiler.h"
 #include "camera_manager.h"
-#include <util/vectormath/vectormath.h>
+#include "scene_graph.h"
 
 
 struct bxInput;
@@ -46,6 +47,7 @@ namespace bx
     {
         bx::GfxScene* gfx = nullptr;
         bx::PhxScene* phx = nullptr;
+        SceneGraph* scene_graph = nullptr;
 
         static void startup( Scene* scene, Engine* engine );
         static void shutdown( Scene* scene, Engine* engine );

@@ -56,8 +56,8 @@ namespace bx
 
         Graph* _graph;
 
-        SceneGraph* sceneGraph() const;
-        SceneGraph* sceneGraph();
+        //SceneGraph* sceneGraph() const;
+        //SceneGraph* sceneGraph();
     };
 
     struct NodeTypeBehaviour
@@ -67,9 +67,9 @@ namespace bx
     };
 
     //////////////////////////////////////////////////////////////////////////
-    struct NodeTypeInterface
+    struct INode
     {
-        virtual ~NodeTypeInterface() {}
+        virtual ~INode() {}
 
         virtual void typeInit( NodeTypeBehaviour* behaviour, int typeIndex ) { (void)typeIndex; }
         virtual void typeDeinit() {}
@@ -77,8 +77,24 @@ namespace bx
         virtual Node* creator() = 0;
         virtual void destroyer( Node* node ) = 0;
 
+        virtual void initialize( Node* node, NodeInstanceInfo instance, Scene* scene ) { (void)node; (void)instance; (void)scene; }
+        virtual void deinitialize( Node* node, NodeInstanceInfo instance, Scene* scene ) { (void)node; (void)instance; (void)scene; }
+
+        /// this callback is for child node when linking with parent
+        virtual void onParentLink( NodeInstanceInfo parentInstance, NodeInstanceInfo childInstance, Scene* scene ) { 
+            (void)parentInstance; (void)childInstance; (void)scene; 
+        }
+        /// this callback is for parent node when adding child
+        virtual void onChildLink( NodeInstanceInfo parentInstance, NodeInstanceInfo childInstance, Scene* scene ) {
+            (void)parentInstance; (void)childInstance; (void)scene;
+        }
+        virtual void onUnlink( NodeInstanceInfo childInstance, Scene* scene ) {
+            (void)childInstance; (void)scene;
+        }
+
         virtual void load( Node* node, NodeInstanceInfo instance, Scene* scene ) { (void)node; (void)instance; (void)scene; }
         virtual void unload( Node* node, NodeInstanceInfo instance, Scene* scene ) { (void)node; (void)instance; (void)scene; }
+        
         virtual void tick0( Node* node, NodeInstanceInfo instance, Scene* scene ) { (void)node; (void)instance; (void)scene; }
         virtual void tick1( Node* node, NodeInstanceInfo instance, Scene* scene ) { (void)node; (void)instance; (void)scene; }
     };
@@ -86,7 +102,7 @@ namespace bx
     //////////////////////////////////////////////////////////////////////////
     struct NodeTypeInfo
     {
-        NodeTypeInterface* _interface = nullptr;
+        INode* _interface = nullptr;
         const char* _name = nullptr;
         NodeTypeBehaviour _behaviour;
     };
@@ -121,12 +137,11 @@ namespace bx
 
 }///
 
-
-namespace bx
-{
-    struct NodeUtil
-    {
-        static TransformInstance addToSceneGraph( const NodeInstanceInfo& nodeInfo, const Matrix4& pose );
-        static void removeFromSceneGraph( const NodeInstanceInfo& nodeInfo );
-    };
-}
+//namespace bx
+//{
+//    struct NodeUtil
+//    {
+//        static TransformInstance addToSceneGraph( const NodeInstanceInfo& nodeInfo, const Matrix4& pose );
+//        static void removeFromSceneGraph( const NodeInstanceInfo& nodeInfo );
+//    };
+//}

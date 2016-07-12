@@ -32,3 +32,18 @@ void BX_DELETE( bxAllocator* alloc, T* ptr )
 #define BX_DELETE01( ptr ) { BX_DELETE( bxDefaultAllocator(), ptr ); ptr = 0; }
 
 #define BX_CONTAINER_COPY_DATA( to, from, field ) memcpy( (to)->field, (from)->field, (from)->size * sizeof( *(from)->field ) )
+
+namespace bx{
+namespace memory{
+
+    inline void* alignForward( void *p, u32 align )
+    {
+        uintptr_t pi = uintptr_t( p );
+        const uint32_t mod = pi % align;
+        if( mod )
+        {
+            pi += ( align - mod );
+        }
+        return (void *)pi;
+    }
+}}////

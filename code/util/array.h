@@ -36,6 +36,7 @@ namespace array
     template< typename T > T&       back    ( array_t<T>& arr )       { return arr.data[arr.size-1]; }
     template< typename T > const T& back    ( const array_t<T>& arr ) { return arr.data[arr.size-1]; }
     template< typename T > void     clear   ( array_t<T>& arr )       { arr.size = 0; }
+    template< typename T > void     insert();
 }///
 
 template< typename T > array_t<T>::array_t( bxAllocator* alloc /* = bxDefaultAllocator */ )

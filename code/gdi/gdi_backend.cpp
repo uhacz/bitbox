@@ -84,6 +84,14 @@ namespace bxGdi
         const int offsetInBytes = firstElement * formatByteWidth( buffer.format );
         return ctx->map( buffer.rs, offsetInBytes, mapType );
     }
+
+    unsigned char* bufferMap( bxGdiContextBackend* ctx, bxGdiBuffer buffer, u32 offset, u32 size, int mapType /*= eMAP_WRITE */ )
+    {
+        SYS_ASSERT( ( buffer.bindFlags & eBIND_CONSTANT_BUFFER ) == 0 );
+        SYS_ASSERT( ( offset + size ) * formatByteWidth( buffer.format ) <= (int)buffer.sizeInBytes );
+        return ctx->map( buffer.rs, offset, mapType );
+    }
+
 }///
 
 #include "dx11/gdi_backend_dx11_startup.h"

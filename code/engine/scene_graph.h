@@ -29,11 +29,11 @@ namespace bx
         void setWorldPose( TransformInstance i, const Matrix4& pose );
 
         Vector3 localPosition( TransformInstance i ) const;
-        Quat localRotation( TransformInstance i ) const;
+        Quat    localRotation( TransformInstance i ) const;
         Vector3 localScale( TransformInstance i ) const;
         Matrix4 localPose( TransformInstance i ) const;
         Vector3 worldPosition( TransformInstance i ) const;
-        Quat worldRotation( TransformInstance i ) const;
+        Quat    worldRotation( TransformInstance i ) const;
         Matrix4 worldPose( TransformInstance i ) const;
 
         u32 size() const;

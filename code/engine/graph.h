@@ -32,7 +32,7 @@ namespace bx
 
         std::atomic_uint32_t _flag_recompute;
 
-        SceneGraph _scene_graph;
+        //SceneGraph _scene_graph;
 
         void startup();
         void shutdown( bool destroyNodes );
@@ -54,8 +54,8 @@ namespace bx
     //////////////////////////////////////////////////////////////////////////
     bool graphNodeAdd( Graph* graph, id_t id );
     void graphNodeRemove( id_t id, bool destroyNode = false );
-    void graphNodeLink( id_t parent, id_t child );
-    void graphNodeUnlink( id_t child );
+    void graphNodeLink( id_t parent, id_t child, Scene* scene );
+    void graphNodeUnlink( id_t child, Scene* scene );
         
     //////////////////////////////////////////////////////////////////////////
     struct GraphSceneScriptCallback : public bxAsciiScript_Callback
@@ -66,6 +66,7 @@ namespace bx
         virtual void onCommand( const char* cmdName, const bxAsciiScript_AttribData& args );
 
         Graph* _graph = nullptr;
+        Scene* _scene = nullptr;
         id_t _current_id = makeInvalidHandle<id_t>();
     };
 

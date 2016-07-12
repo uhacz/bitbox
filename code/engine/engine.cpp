@@ -78,10 +78,12 @@ void Scene::startup( Scene* scene, Engine* engine )
 {
     gfxSceneCreate( &scene->gfx, engine->gfx_context );
     phxSceneCreate( &scene->phx, engine->phx_context );
+    scene->scene_graph = BX_NEW( bxDefaultAllocator(), SceneGraph );
 }
 
 void Scene::shutdown( Scene* scene, Engine* engine )
 {
+    BX_DELETE0( bxDefaultAllocator(), scene->scene_graph );
     bx::phxSceneDestroy( &scene->phx );
     bx::gfxSceneDestroy( &scene->gfx );
 }

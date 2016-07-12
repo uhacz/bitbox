@@ -257,7 +257,7 @@ namespace bx
             //g->_flag_recompute = true;
         }
     }
-    void graphNodeLink( id_t parent, id_t child )
+    void graphNodeLink( id_t parent, id_t child, Scene* scene )
     {
         Graph* graphParent = nullptr;
         Graph* graphChild = nullptr;
@@ -276,17 +276,23 @@ namespace bx
         {
             if( graphParent == graphChild )
             {
-                SceneGraph* sg = &graphParent->_scene_graph;
-                TransformInstance parentTi = sg->get( parent );
-                TransformInstance childTi = sg->get( child );
-                if( sg->isValid( parentTi ) && sg->isValid( childTi ) )
-                {
-                    sg->link( parentTi, childTi );
-                }
-                else
-                {
-                    bxLogError( "One of nodes has invalid TransformInstance component" );
-                }
+                INode* iParent = graphContext()->interfaceGet( parent );
+                INode* iChild = graphContext()->interfaceGet( child );
+
+                iParent->onChildLink( *infoParent, *infoChild, scene );
+                iChild->onParentLink( *infoParent, *infoChild, scene );
+
+                //SceneGraph* sg = &graphParent->_scene_graph;
+                //TransformInstance parentTi = sg->get( parent );
+                //TransformInstance childTi = sg->get( child );
+                //if( sg->isValid( parentTi ) && sg->isValid( childTi ) )
+                //{
+                //    sg->link( parentTi, childTi );
+                //}
+                //else
+                //{
+                //    bxLogError( "One of nodes has invalid TransformInstance component" );
+                //}
             }
             else
             {
@@ -299,7 +305,7 @@ namespace bx
         }
     }
 
-    void graphNodeUnlink( id_t child )
+    void graphNodeUnlink( id_t child, Scene* scene )
     {
         Graph* g = nullptr;
 
@@ -313,16 +319,18 @@ namespace bx
 
         if( g )
         {
-            SceneGraph* sg = &g->_scene_graph;
-            TransformInstance childTi = sg->get( child );
-            if (sg->isValid( childTi ) )
-            {
-                sg->unlink( childTi );
-            }
-            else 
-            {
-                bxLogError( "Node has invalid TransformInstance component" );
-            }
+            INode* iface = graphContext()->interfaceGet( child );
+            iface->onUnlink( *info, scene );
+            //SceneGraph* sg = &g->_scene_graph;
+            //TransformInstance childTi = sg->get( child );
+            //if (sg->isValid( childTi ) )
+            //{
+            //    sg->unlink( childTi );
+            //}
+            //else 
+            //{
+            //    bxLogError( "Node has invalid TransformInstance component" );
+            //}
         }
         else
         {
@@ -338,6 +346,8 @@ namespace bx
             const char* typeName = graphContext()->_node_types[i].info->_name;
             bxScene::script_addCallback( script, typeName, this );
         }
+
+        bxScene::script_addCallback( script, "link", this );
 
         _current_id = makeInvalidHandle<id_t>();
     }

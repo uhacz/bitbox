@@ -18,17 +18,22 @@ namespace bx
 
     void LocatorNode::Interface::load( Node* node, NodeInstanceInfo instance, Scene* scene )
     {
+        IDagNode::load( node, instance, scene );
+
         const Vector3 pos = nodeAttributeVector3( instance._id, attr_pos );
         const Vector3 rot = nodeAttributeVector3( instance._id, attr_rot );
         const Vector3 scale = nodeAttributeVector3( instance._id, attr_scale );
         const Matrix4 pose = appendScale( Matrix4( Matrix3::rotationZYX( rot ), pos ), scale );
         
-        NodeUtil::addToSceneGraph( instance, pose );
+        worldMatrixSet( scene->scene_graph, instance._id, pose );
+
+        //NodeUtil::addToSceneGraph( instance, pose );
     }
 
     void LocatorNode::Interface::unload( Node* node, NodeInstanceInfo instance, Scene* scene )
     {
-        NodeUtil::removeFromSceneGraph( instance );
+        IDagNode::unload( node, instance, scene );
+        //NodeUtil::removeFromSceneGraph( instance );
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -45,6 +50,8 @@ namespace bx
 
     void MeshNode::Interface::load( Node* node, NodeInstanceInfo instance, Scene* scene )
     {
+        IDagNode::load( node, instance, scene );
+
         GfxMeshInstance* mi = nullptr;
         gfxMeshInstanceCreate( &mi, gfxContextGet( scene->gfx ) );
 
@@ -78,15 +85,16 @@ namespace bx
         gfxMeshInstanceWorldMatrixSet( mi, &pose, 1 );
         gfxSceneMeshInstanceAdd( scene->gfx, mi );
 
-        NodeUtil::addToSceneGraph( instance, pose );
         self( node )->_mesh_instance = mi;
+
+        worldMatrixSet( scene->scene_graph, instance._id, pose );
     }
 
     void MeshNode::Interface::unload( Node* node, NodeInstanceInfo instance, Scene* scene )
     {
-        NodeUtil::removeFromSceneGraph( instance );
-        
         auto meshNode = self( node );
         gfxMeshInstanceDestroy( &meshNode->_mesh_instance );
+
+        IDagNode::unload( node, instance, scene );
     }
 }////

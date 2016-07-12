@@ -103,6 +103,7 @@
     <ClInclude Include="hashmap.h" />
     <ClInclude Include="id_array.h" />
     <ClInclude Include="id_table.h" />
+    <ClInclude Include="linear_allocator.h" />
     <ClInclude Include="math.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="perlin_noise.h" />
@@ -146,6 +147,7 @@
     <ClCompile Include="filesystem.cpp" />
     <ClCompile Include="hash.cpp" />
     <ClCompile Include="hashmap.cpp" />
+    <ClCompile Include="linear_allocator.cpp" />
     <ClCompile Include="math.cpp" />
     <ClCompile Include="memory.cpp" />
     <ClCompile Include="perlin_noise.cpp" />

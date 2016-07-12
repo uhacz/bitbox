@@ -100,6 +100,12 @@ namespace bx
         {
             return &_node_types[index];
         }
+        INode* interfaceGet( id_t id )
+        {
+            NodeInstanceInfo* i = nodeInstanceInfoGet( id );
+            return typeGet( i->_type_index )->info->_interface;
+        }
+
 
         int typeFind( const char* name );
         int typeAdd( const NodeTypeInfo* info );

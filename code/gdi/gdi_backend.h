@@ -348,6 +348,7 @@ struct bxGdiContextBackend
 namespace bxGdi
 {
     unsigned char* buffer_map( bxGdiContextBackend* ctx, bxGdiBuffer buffer, int firstElement, int numElements, int mapType = eMAP_WRITE );
+    unsigned char* bufferMap( bxGdiContextBackend* ctx, bxGdiBuffer buffer, u32 offset, u32 size, int mapType = eMAP_WRITE );
 }///
 
 

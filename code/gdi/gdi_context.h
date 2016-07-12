@@ -228,53 +228,6 @@ public:
     void drawIndexedInstanced   ( unsigned num_indices, unsigned start_index, unsigned num_instances, unsigned base_vertex );
 };
 
-
-///
-/// not used. 
-class bxGdiDrawCall
-{
-public:
-    void setVertexBuffers( bxGdiVertexBuffer* buffers, int nBuffers );
-    void setIndexBuffer  ( bxGdiIndexBuffer ibuffer );
-    void setShaders      ( bxGdiShader* shaders, int n );
-    void setCbuffers     ( bxGdiBuffer* cbuffers, unsigned startSlot, unsigned n, int stage );
-    void setTextures     ( bxGdiTexture* textures, unsigned startSlot, unsigned n, int stage );
-    void setSamplers     ( bxGdiSamplerDesc* samplers, unsigned startSlot, unsigned n, int stage );
-    void setHwState      ( const bxGdiHwStateDesc& hwState );
-
-    u16 _size;
-};
-
-class bxGdiCommandBuffer
-{
-public:
-    static bxGdiCommandBuffer* create( u32 numBitsPerKey, u32 maxDrawCalls, bxAllocator* allocator );
-    static void release( bxGdiCommandBuffer** cmdBuffer, bxAllocator* allocator );
-
-    bxGdiDrawCall* beginDrawCall();
-    //void submitDrawCall( bxGdiDrawCall* dcall, const void* key, const Matrix4* worldMatrices, int nInstances );
-    void endDrawCall( bxGdiDrawCall** dcall );
-    
-    void sort();
-    void flush( bxGdiContext* ctx );
-
-private:
-    u8* _commandStream;
-    u8* _submitStream;
-    u8* _sortStream;
-
-    u32 _size_commandStream;
-    u32 _size_submitStream;
-    u32 _size_sortStream;
-    u32 _capacity_commandStream;
-    u32 _capacity_submitStream;
-    u32 _capacity_sortStream;
-
-    u8 _stride_sortKey;
-    u8 _flag_activeDrawCall;
-
-};
-
 namespace bxGdi
 {
     inline void context_setViewport( bxGdiContext* ctx, bxGdiTexture texture )
