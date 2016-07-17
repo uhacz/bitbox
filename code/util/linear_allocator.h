@@ -6,6 +6,7 @@ namespace bx
     {
         explicit LinearAllocator( size_t size );
         LinearAllocator( void* start, void* end );
+        ~LinearAllocator();
 
         void* alloc( size_t size, unsigned alignment, unsigned offset = 0 );
         void free();
@@ -14,5 +15,7 @@ namespace bx
         char* _current = nullptr;
         char* _start = nullptr;
         char* _end = nullptr;
+
+        bool _memory_owner = false;
     };
 }////

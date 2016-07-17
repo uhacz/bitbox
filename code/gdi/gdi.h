@@ -2,11 +2,12 @@
 
 #include "gdi_context.h"
 #include <util/linear_allocator.h>
+#include <algorithm>
 
 namespace bx {
 namespace gdi {
 
-    typedef void( *BackendDispatchFunction )( bxGdiContext* ctx, const void* );
+    typedef void( *BackendDispatchFunction )( bxGdiContext*, const void* );
     namespace commands
     {
         struct UploadCBuffer
@@ -29,40 +30,42 @@ namespace gdi {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
             bxGdiHwStateDesc desc;
         };
-        struct SetTextures
+        struct SetTexture
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
-            u32 count;
-            bxGdiTexture textures[1];
+            u16 slot;
+            u16 stage_mask;
+            bxGdiTexture texture;
         };
-        struct SetSamplers
+        struct SetSampler
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
-            u32 count;
-            bxGdiSamplerDesc samplers[1];
+            u16 slot;
+            u16 stage_mask;
+            bxGdiSamplerDesc sampler;
         };
-        struct SetCBuffers
+        struct SetCBuffer
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
-            u32 count;
-            bxGdiBuffer buffers[1];
+            u16 slot;
+            u16 stage_mask;
+            bxGdiBuffer buffer;
         };
-        struct SetBuffers
+        struct SetBufferRO
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
-            u32 count;
-            bxGdiBuffer buffers[1];
+            u16 slot;
+            u16 stage_mask;
+            bxGdiBuffer buffer;
         };
 
         struct Draw
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
-
             u32 vertex_count;
             u32 vertex_start;
-
+            u32 topology;
             u32 vbuffer_count;
-            bxGdiIndexBuffer ibuffer;
             bxGdiVertexBuffer vbuffers[1];
         };
         struct DrawIndexed
@@ -72,7 +75,7 @@ namespace gdi {
             u32 index_count;
             u32 index_start;
             u32 vertex_base;
-
+            u32 topology;
             u32 vbuffer_count;
             bxGdiIndexBuffer ibuffer;
             bxGdiVertexBuffer vbuffers[1];
@@ -84,9 +87,8 @@ namespace gdi {
             u32 vertex_count;
             u32 vertex_start;
             u32 instance_count;
-
+            u32 topology;
             u32 vbuffer_count;
-            bxGdiIndexBuffer ibuffer;
             bxGdiVertexBuffer vbuffers[1];
         };
         struct DrawIndexedInstanced
@@ -97,7 +99,7 @@ namespace gdi {
             u32 index_start;
             u32 instance_count;
             u32 vertex_base;
-
+            u32 topology;
             u32 vbuffer_count;
             bxGdiIndexBuffer ibuffer;
             bxGdiVertexBuffer vbuffers[1];
@@ -105,56 +107,18 @@ namespace gdi {
     }////
     namespace dispatch
     {
-        void _null_( bxGdiContext*, const void* )
-        {
-            //// nothing
-        }
-
-        //////////////////////////////////////////////////////////////////////////
-        void uploadCBuffer( bxGdiContext* ctx, const void* data )
-        {
-            const commands::UploadCBuffer* cmd = ( commands::UploadCBuffer* )data;
-            ctx->backend()->updateCBuffer( cmd->cbuffer, memory );
-        }
-        commands::UploadCBuffer::DISPATCH_FUNCTION = &uploadCBuffer;
-
-        //////////////////////////////////////////////////////////////////////////
-        void uploadBuffer( bxGdiContext* ctx, const void* data )
-        {
-            const commands::UploadBuffer* cmd = ( commands::UploadBuffer* )data;
-            unsigned char* mapped = bxGdi::bufferMap( ctx->backend(), cmd->cbuffer, cmd->offset, cmd->size );
-            memcpy( mapped, cmd->memory, cmd->size );
-            ctx->->backend()->unmap( cmd->cbuffer.rs );
-        }
-        commands::UploadBuffer::DISPATCH_FUNCTION = &uploadBuffer;
-
-        //////////////////////////////////////////////////////////////////////////
-        void setHwState( bxGdiContext* ctx, const void* data )
-        {
-            const commands::SetHwState* cmd = ( commands::SetHwState* )data;
-            ctx->setHwState( cmd->desc );
-        }
-        commands::SetHwState::DISPATCH_FUNCTION = &setHwState;
-
-        //////////////////////////////////////////////////////////////////////////
-        void setTextures( bxGdiContext* ctx, const void* data )
-        {
-            
-        }
-        void setSamplers( bxGdiContext* ctx, const void* data )
-        {}
-        void setCBuffers( bxGdiContext* ctx, const void* data )
-        {}
-        void setBuffers( bxGdiContext* ctx, const void* data )
-        {}
-        void draw( bxGdiContext* ctx, const void* data )
-        {}
-        void drawIndexed( bxGdiContext* ctx, const void* data )
-        {}
-        void drawInstanced( bxGdiContext* ctx, const void* data )
-        {}
-        void drawIndexedInstanced( bxGdiContext* ctx, const void* data )
-        {}
+        void _null_( bxGdiContext*, const void* );
+        void uploadCBuffer( bxGdiContext* ctx, const void* data );
+        void uploadBuffer( bxGdiContext* ctx, const void* data );
+        void setHwState( bxGdiContext* ctx, const void* data );
+        void setTexture( bxGdiContext* ctx, const void* data );
+        void setSampler( bxGdiContext* ctx, const void* data );
+        void setCBuffer( bxGdiContext* ctx, const void* data );
+        void setBufferRO( bxGdiContext* ctx, const void* data );
+        void draw( bxGdiContext* ctx, const void* data );
+        void drawIndexed( bxGdiContext* ctx, const void* data );
+        void drawInstanced( bxGdiContext* ctx, const void* data );
+        void drawIndexedInstanced( bxGdiContext* ctx, const void* data );
     }////
 
     typedef void* CommandPacket;
@@ -226,7 +190,7 @@ namespace gdi {
             return *nextCommandPacket( packet );
         }
 
-        inline const BackendDispatchFunction backendDispatchFunctionLoad( const  CommandPacket packet )
+        inline const BackendDispatchFunction dispatchFunctionLoad( const  CommandPacket packet )
         {
             return *backendDispatchFunction( packet );
         }
@@ -234,6 +198,13 @@ namespace gdi {
         inline const void* commandLoad( const CommandPacket packet )
         {
             return (char*)(packet)+OFFSET_COMMAND;
+        }
+
+        void submit( bxGdiContext* ctx, const CommandPacket packet )
+        {
+            const BackendDispatchFunction function = dispatchFunctionLoad( packet );
+            const void* command = commandLoad( packet );
+            function( ctx, command );
         }
 
     }////
@@ -246,11 +217,12 @@ namespace gdi {
         template< typename U >
         U* commandAdd( Key key, u32 auxMemorySize )
         {
-            CommandPacket packet = command_packet::create<U>( auxMemorySize );
+            CommandPacket packet = command_packet::create<U>( auxMemorySize, &_allocator );
 
             {
                 const u32 index = _size++;
                 SYS_ASSERT( index < _capacity );
+                key.indexSet( index );
                 _keys[index] = key;
                 _data[index] = packet;
             }
@@ -261,11 +233,65 @@ namespace gdi {
             return command_packet::command<U>( packet );
         }
 
-        void sort();
-        void submit();
+        template< typename U, typename V >
+        U* commandAppend( V* command, u32 auxMemorySize )
+        {
+            CommandPacket packet = command_packet::create<U>( auxMemorySize, &_allocator );
+            
+            // append this packet to given one
+            command_packet::nextCommandPacketStore<V>( command, packet );
 
-    private:
+            command_packet::nextCommandPacketStore( packet, nullptr );
+            command_packet::dispatchFunctionStore( packet, U::DISPATCH_FUNCTION );
+            return command_packet::command<U>( packet );
+        }
 
+        void sort()
+        {
+            std::sort( _keys, _keys + _size, std::less<Key>() );
+        }
+        void submit( bxGdiContext* ctx )
+        {
+            for( u32 i = 0; i < _size; ++i )
+            {
+                CommandPacket packet = _data[i];
+                do 
+                {
+                    command_packet::submit( ctx, packet );
+                    packet = command_packet::nextCommandPacketLoad( packet );
+                } while ( packet != nullptr );
+            }
+        }
+
+        static CommandBucket<T>* create( u32 capacity, u32 auxMemoryPool, bxAllocator* allocator  = bxDefaultAllocator() )
+        {
+            u32 memSize = sizeof( CommandBucket<T> );
+            memSize += capacity * ( sizeof( Key ) + sizeof( CommandPacket ) );
+            memSize += capacity * ( sizeof( commands::DrawIndexedInstanced ) );
+            memSize += auxMemoryPool;
+
+            void* mem = BX_MALLOC( allocator, memSize, 4 );
+            memset( mem, 0x00, memSize );
+
+            bxBufferChunker chunker( mem, memSize );
+
+            CommandBucket<T>* bucket = chunker.add< CommandBucket<T> >();
+            bucket->_keys = chunker.add<Key>( capacity );
+            bucket->_data = chunker.add<void>( capacity );
+            void* auxMemStart = chunker.addBlock( auxMemoryPool );
+            void* auxMemEnd = chunker.current;
+            chunker.check();
+
+            bucket->_allocator = bx::LinearAllocator( auxMemStart, auxMemEnd );
+            bucket->_main_allocator = allocator;
+            return bucket;
+        }
+        static void destroy( CommandBucket<T>** bucket )
+        {
+            bxAllocator* allocator = bucket[0]->_main_allocator;
+            BX_FREE0( allocator, bucket[0] );
+        }
+        
     private:
         Key* _keys = nullptr;
         void** _data = nullptr;
@@ -274,6 +300,7 @@ namespace gdi {
         u32 _size = 0;
 
         bx::LinearAllocator _allocator;
+        bxAllocator* _main_allocator = nullptr;
     };
 
 }}////

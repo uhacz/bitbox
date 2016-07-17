@@ -97,6 +97,7 @@
     <ClCompile Include="dx11\DDSTextureLoader.cpp" />
     <ClCompile Include="dx11\gdi_backend_dx11_context.cpp" />
     <ClCompile Include="dx11\gdi_backend_dx11_device.cpp" />
+    <ClCompile Include="gdi.cpp" />
     <ClCompile Include="gdi_backend.cpp" />
     <ClCompile Include="gdi_context.cpp" />
     <ClCompile Include="gdi_render_source.cpp" />

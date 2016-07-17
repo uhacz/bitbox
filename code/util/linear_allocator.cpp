@@ -8,6 +8,7 @@ namespace bx
         _start = (char*)BX_MALLOC( bxDefaultAllocator(), size, sizeof( void* ) );
         _current = _start;
         _end = _start + size;
+        _memory_owner = true;
     }
 
     LinearAllocator::LinearAllocator( void* start, void* end )
@@ -15,6 +16,14 @@ namespace bx
         _start = (char*)start;
         _end = (char*)end;
         _current = _start;
+    }
+
+    LinearAllocator::~LinearAllocator()
+    {
+        if( _memory_owner )
+        {
+            BX_FREE0( bxDefaultAllocator(), _start );
+        }
     }
 
     void* LinearAllocator::alloc( size_t size, unsigned alignment, unsigned offset /*= 0 */ )
