@@ -63,4 +63,57 @@ namespace bx
 
 }///
 
+#include <util/bbox.h>
+#include <util/containers.h>
+
+namespace bx{
+namespace gfx{
+    struct View
+    {
+        
+    };
+
+}}////
+
+
+namespace bx{
+namespace gfx{
+
+struct MeshInstance
+{
+    u32 i;
+};
+
+class MeshComponent
+{
+public:
+
+    MeshInstance create( id_t host, bxGdiRenderSource* rsource, bxGdiShaderFx_Instance* shader, unsigned nInstances );
+    void destroy( MeshInstance mi );
+
+    MeshInstance get( id_t host );
+    bool isValid( MeshInstance mi ) const { return mi.i != UINT32_MAX; }
+
+    void renderMaskSet( MeshInstance mi, u8 mask );
+    void renderLayerSet( MeshInstance mi, u8 layer );
+    void cullDistanceSet( MeshInstance mi, float cullDistance );
+    void localAABBSet( MeshInstance mi, const Vector3 min, const Vector3 max );
+    void worldMatrixSet( MeshInstance mi, unsigned index, const Matrix4& matrix );
+    void worldMatrixSet( MeshInstance mi, unsigned first, unsigned count, const Matrix4* matrices );
+
+    void fillCommandBuckets( bxGdiContext* ctx );
+
+private:
+    struct Data
+    {
+        bxGdiRenderSource* rsource{ nullptr };
+        bxGdiShaderFx_Instance* shader{ nullptr };
+        u8* render_mask{ nullptr };
+        u8* render_layer{ nullptr };
+        f32* cull_distance_sqr{ nullptr };
+        bxAABB* local_aabb{ nullptr };
+    };
+};
+
+}}////
 

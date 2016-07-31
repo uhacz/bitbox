@@ -3,6 +3,8 @@
 #include "gdi_context.h"
 #include <util/linear_allocator.h>
 #include <algorithm>
+#include <util/buffer_utils.h>
+#include <util/vectormath/vectormath.h>
 
 namespace bx {
 namespace gdi {
@@ -210,26 +212,44 @@ namespace gdi {
     }////
 
     template< typename T >
-    struct CommandBucket
+    struct BIT_ALIGNMENT_16 CommandBucket
     {
         typedef T Key;
 
         template< typename U >
-        U* commandAdd( Key key, u32 auxMemorySize )
+        U* commandAdd( Key key, u32 auxMemorySize, const Matrix4* worldMatrix = nullptr )
         {
             CommandPacket packet = command_packet::create<U>( auxMemorySize, &_allocator );
 
+            const u32 index = _size++;
+            SYS_ASSERT( index < _capacity );
+            key.indexSet( index );
+            _keys[index] = key;
+
+            if( worldMatrix )
             {
-                const u32 index = _size++;
-                SYS_ASSERT( index < _capacity );
-                key.indexSet( index );
-                _keys[index] = key;
+                const u32 worldMatrixIndex = _world_matrix_size++;
+                _world_matrix[worldMatrixIndex] = *worldMatrix;
+                _data[index] = worldMatrixPacket;
+
+                CommandPacket worldMatrixPacket = command_packet::create<commands::UploadCBuffer>( sizeof(u32), &_allocator );
+                command_packet::nextCommandPacketStore( worldMatrixPacket, packet );
+                command_packet::dispatchFunctionStore( packet, commands::UploadCBuffer::DISPATCH_FUNCTION );
+
+                commands::UploadCBuffer* uploadCmd = command_packet::command<commands::UploadCBuffer>( worldMatrixPacket );
+                u32* uploadCmdData = command_packet::auxiliaryMemory( uploadCmd );
+                uploadCmdData[0] = worldMatrixIndex;
+                uploadCmd->cbuffer = _world_matrix_index_cbuffer;
+                uploadCmd->memory = (char*)uploadCmdData;
+
+            }
+            else
+            {
                 _data[index] = packet;
             }
 
             command_packet::nextCommandPacketStore( packet, nullptr );
             command_packet::dispatchFunctionStore( packet, U::DISPATCH_FUNCTION );
-
             return command_packet::command<U>( packet );
         }
 
@@ -263,44 +283,65 @@ namespace gdi {
             }
         }
 
-        static CommandBucket<T>* create( u32 capacity, u32 auxMemoryPool, bxAllocator* allocator  = bxDefaultAllocator() )
+        static CommandBucket<T>* create( bxGdiDeviceBackend* device, u32 capacity, u32 auxMemoryPool, bxAllocator* allocator  = bxDefaultAllocator() )
         {
             u32 memSize = sizeof( CommandBucket<T> );
             memSize += capacity * ( sizeof( Key ) + sizeof( CommandPacket ) );
-            memSize += capacity * ( sizeof( commands::DrawIndexedInstanced ) );
+            memSize += capacity * ( sizeof( Matrix4 ) );
             memSize += auxMemoryPool;
 
-            void* mem = BX_MALLOC( allocator, memSize, 4 );
+            void* mem = BX_MALLOC( allocator, memSize, 16 );
             memset( mem, 0x00, memSize );
 
             bxBufferChunker chunker( mem, memSize );
 
             CommandBucket<T>* bucket = chunker.add< CommandBucket<T> >();
+            bucket->_world_matrix = chunker.add<Matrix4>( capacity );
             bucket->_keys = chunker.add<Key>( capacity );
-            bucket->_data = chunker.add<void>( capacity );
+            bucket->_data = chunker.add<void*>( capacity );
             void* auxMemStart = chunker.addBlock( auxMemoryPool );
             void* auxMemEnd = chunker.current;
             chunker.check();
 
+            bucket->_capacity = capacity;
+
             bucket->_allocator = bx::LinearAllocator( auxMemStart, auxMemEnd );
             bucket->_main_allocator = allocator;
+
+            bucket->_world_matrix_buffer = device->createBuffer( capacity, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+            bucket->_world_matrix_it_buffer = device->createBuffer( capacity, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+            bucket->_world_matrix_index_cbuffer = device->createConstantBuffer( 16 );
+            
             return bucket;
         }
-        static void destroy( CommandBucket<T>** bucket )
+        static void destroy( bxGdiDeviceBackend* device, CommandBucket<T>** bucket )
         {
+            if( !bucket[0] )
+                return;
+
+            device->releaseBuffer( &bucket[0]->_world_matrix_index_cbuffer );
+            device->releaseBuffer( &bucket[0]->_world_matrix_it_buffer );
+            device->releaseBuffer( &bucket[0]->_world_matrix_buffer );
+
             bxAllocator* allocator = bucket[0]->_main_allocator;
             BX_FREE0( allocator, bucket[0] );
         }
         
     private:
+        Matrix4* _world_matrix = nullptr;
         Key* _keys = nullptr;
         void** _data = nullptr;
 
         u32 _capacity = 0;
         u32 _size = 0;
+        u32 _world_matrix_size = 0;
 
         bx::LinearAllocator _allocator;
         bxAllocator* _main_allocator = nullptr;
+
+        bxGdiBuffer _world_matrix_buffer;
+        bxGdiBuffer _world_matrix_it_buffer;
+        bxGdiBuffer _world_matrix_index_cbuffer;
     };
 
 }}////
