@@ -6,6 +6,7 @@
 
 #include <engine/engine.h>
 #include <gdi/gdi.h>
+#include "renderer.h"
 
 typedef bx::gdi::CommandBucket<u64> CommandBucket64;
 CommandBucket64* gColorBucket = nullptr;
@@ -17,16 +18,23 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        bx::Engine::startup( &_engine );
-        gColorBucket = CommandBucket64::create( _engine.gdi_device, 1024*8, 1024*1024 );
+        bx::rendererStartup( win );
+        
+        //gColorBucket = CommandBucket64::create( _engine.gdi_device, 1024*8, 1024*1024 );
 
-        const char* assetDir = bxConfig::global_string( "assetDir" );
+
+
+        //const char* assetDir = bxConfig::global_string( "assetDir" );
         return true;
     }
     virtual void shutdown()
     {
-        CommandBucket64::destroy( _engine.gdi_device, &gColorBucket );
-        bx::Engine::shutdown( &_engine );
+        //CommandBucket64::destroy( _engine.gdi_device, &gColorBucket );
+        bxWindow* win = bxWindow_get();
+
+        bx::rendererShutdown();
+
+        //bx::Engine::shutdown( &_engine );
     }
 
     virtual bool update( u64 deltaTimeUS )
@@ -45,7 +53,7 @@ public:
         return true;
     }
 
-    bx::Engine _engine;
+    //bx::Engine _engine;
     u64 _time_us{0};
 };
 
