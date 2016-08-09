@@ -14,20 +14,20 @@
 
 namespace bx
 {
+    void vulkanCheckError( VkResult res );
 
 struct VulkanRenderer;
 
-struct VulkanWindow
+struct VulkanSwapChain
 {
     VkSurfaceKHR             _surface                 = VK_NULL_HANDLE;
-    VkSurfaceCapabilitiesKHR _surface_cap             = {};
     VkSurfaceFormatKHR       _surface_format          = {};
     VkSurfaceCapabilitiesKHR _surface_capabilities    = {};
 
     VkSwapchainKHR           _swapchain               = VK_NULL_HANDLE;
     u32                      _swapchain_image_count   = 2;
-    u32 _surface_size_x = 512;
-    u32 _surface_size_y = 512;
+    u32                      _surface_size_x = 512;
+    u32                      _surface_size_y = 512;
 
     std::vector< VkImage>    _swapchain_images;
     std::vector< VkImageView>_swapchain_image_views;
@@ -54,6 +54,10 @@ struct VulkanRenderer
     VkQueue          _queue    = nullptr;
     u32              _graphics_family_index = 0;
 
+
+    VkPhysicalDeviceMemoryProperties _gpu_memory_properties = {};
+    VkFormat                         _depth_format = VK_FORMAT_UNDEFINED;
+
     std::vector< const char* > _instance_extensions;
     std::vector< const char* > _device_extensions;
 #ifdef BX_VK_DEBUG
@@ -75,9 +79,57 @@ struct VulkanRenderer
     void _DestroyDevice();
 
     void _EnumerateLayers();
+
+    bool _MemoryTypeIndexGet( uint32_t typeBits, VkFlags properties, u32* typeIndex );
+    bool _SupportedDepthFormatGet( VkFormat *depthFormat );
+
+    // propertyFlag is combination of VkMemoryPropertyFlagBits
+    VkDeviceMemory deviceMemoryAllocate( const VkMemoryRequirements& requirments, VkFlags propertyFlag );
+
+    VkCommandPool commandPoolCreate();
+    bool commandBuffersCreate( VkCommandBuffer* buffers, u32 count, VkCommandPool pool, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY );
+    void commandBuffersDestroy( VkCommandBuffer* buffers, u32 count, VkCommandPool pool );
+
 };
 
-void vulkanCheckError( VkResult res );
+struct VulkanSample
+{
+    VkCommandPool _command_pool = VK_NULL_HANDLE;
+    //VkCommandBuffer _setup_cmd_buffer = VK_NULL_HANDLE;
+    // Command buffer for submitting a post present image barrier
+    VkCommandBuffer _post_present_cmd_buffer = VK_NULL_HANDLE;
+    // Command buffer for submitting a pre present image barrier
+    VkCommandBuffer _pre_present_cmd_buffer = VK_NULL_HANDLE;
+
+    VkRenderPass _render_pass = VK_NULL_HANDLE;
+
+    // Command buffers used for rendering
+    std::vector<VkCommandBuffer> _draw_cmd_buffers;
+    // List of available frame buffers (same as number of swap chain images)
+    std::vector<VkFramebuffer> _frame_buffers;
+    u32 _current_framebuffer = 0;
+
+    // Descriptor set pool
+    VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
+    
+    // List of shader modules created (stored for cleanup)
+    std::vector<VkShaderModule> shader_modules;
+    
+    // Pipeline cache object
+    VkPipelineCache _pipeline_cache;
+    
+    struct
+    {
+        VkImage image;
+        VkDeviceMemory mem;
+        VkImageView view;
+    } depthStencil;
+
+    void initialize( VulkanRenderer* renderer, VulkanSwapChain* window );
+    void deinitialize( VulkanRenderer* renderer, VulkanSwapChain* window );
+
+};
+
 
 }///
 

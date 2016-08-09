@@ -6,8 +6,71 @@
 
 namespace bx
 {
+    void vulkanCheckError( VkResult result )
+    {
+        if( result < 0 )
+        {
+            switch( result )
+            {
+            case VK_ERROR_OUT_OF_HOST_MEMORY:
+                printf( "VK_ERROR_OUT_OF_HOST_MEMORY\n" );
+                break;
+            case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+                printf( "VK_ERROR_OUT_OF_DEVICE_MEMORY\n" );
+                break;
+            case VK_ERROR_INITIALIZATION_FAILED:
+                printf( "VK_ERROR_INITIALIZATION_FAILED\n" );
+                break;
+            case VK_ERROR_DEVICE_LOST:
+                printf( "VK_ERROR_DEVICE_LOST\n" );
+                break;
+            case VK_ERROR_MEMORY_MAP_FAILED:
+                printf( "VK_ERROR_MEMORY_MAP_FAILED\n" );
+                break;
+            case VK_ERROR_LAYER_NOT_PRESENT:
+                printf( "VK_ERROR_LAYER_NOT_PRESENT\n" );
+                break;
+            case VK_ERROR_EXTENSION_NOT_PRESENT:
+                printf( "VK_ERROR_EXTENSION_NOT_PRESENT\n" );
+                break;
+            case VK_ERROR_FEATURE_NOT_PRESENT:
+                printf( "VK_ERROR_FEATURE_NOT_PRESENT\n" );
+                break;
+            case VK_ERROR_INCOMPATIBLE_DRIVER:
+                printf( "VK_ERROR_INCOMPATIBLE_DRIVER\n" );
+                break;
+            case VK_ERROR_TOO_MANY_OBJECTS:
+                printf( "VK_ERROR_TOO_MANY_OBJECTS\n" );
+                break;
+            case VK_ERROR_FORMAT_NOT_SUPPORTED:
+                printf( "VK_ERROR_FORMAT_NOT_SUPPORTED\n" );
+                break;
+            case VK_ERROR_SURFACE_LOST_KHR:
+                printf( "VK_ERROR_SURFACE_LOST_KHR\n" );
+                break;
+            case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
+                printf( "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR\n" );
+                break;
+            case VK_SUBOPTIMAL_KHR:
+                printf( "VK_SUBOPTIMAL_KHR\n" );
+                break;
+            case VK_ERROR_OUT_OF_DATE_KHR:
+                printf( "VK_ERROR_OUT_OF_DATE_KHR\n" );
+                break;
+            case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
+                printf( "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR\n" );
+                break;
+            case VK_ERROR_VALIDATION_FAILED_EXT:
+                printf( "VK_ERROR_VALIDATION_FAILED_EXT\n" );
+                break;
+            default:
+                break;
+            }
+            SYS_ASSERT( false && "Vulkan runtime error." );
+        }
+    }
 
-void VulkanWindow::_InitSurface( bxWindow* window, VulkanRenderer* renderer )
+void VulkanSwapChain::_InitSurface( bxWindow* window, VulkanRenderer* renderer )
 {
     VkInstance vkInstance = renderer->_instance;
     VkPhysicalDevice gpu = renderer->_gpu;
@@ -62,13 +125,13 @@ void VulkanWindow::_InitSurface( bxWindow* window, VulkanRenderer* renderer )
     }
 }
 
-void VulkanWindow::_DeinitSurface( VkInstance vkInstance )
+void VulkanSwapChain::_DeinitSurface( VkInstance vkInstance )
 {
     vkDestroySurfaceKHR( vkInstance, _surface, nullptr );
     _surface = VK_NULL_HANDLE;
 }
 
-void VulkanWindow::_InitSwapChain( VulkanRenderer* renderer )
+void VulkanSwapChain::_InitSwapChain( VulkanRenderer* renderer )
 {
     _swapchain_image_count = clamp( _swapchain_image_count, _surface_capabilities.minImageCount, _surface_capabilities.maxImageCount );
     _swapchain_image_count = maxOfPair( 2u, _swapchain_image_count ); // ensure at least double buffering 
@@ -121,13 +184,13 @@ void VulkanWindow::_InitSwapChain( VulkanRenderer* renderer )
     vulkanCheckError( result );
 }
 
-void VulkanWindow::_DeinitSwapChain( VulkanRenderer* renderer )
+void VulkanSwapChain::_DeinitSwapChain( VulkanRenderer* renderer )
 {
     vkDestroySwapchainKHR( renderer->_device, _swapchain, nullptr );
     _swapchain = VK_NULL_HANDLE;
 }
 
-void VulkanWindow::_InitSwapChainImages( VulkanRenderer* renderer )
+void VulkanSwapChain::_InitSwapChainImages( VulkanRenderer* renderer )
 {
     _swapchain_images.resize( _swapchain_image_count );
     _swapchain_image_views.resize( _swapchain_image_count );
@@ -159,7 +222,7 @@ void VulkanWindow::_InitSwapChainImages( VulkanRenderer* renderer )
     }
 }
 
-void VulkanWindow::_DeinitSwapChainImages( VulkanRenderer* renderer )
+void VulkanSwapChain::_DeinitSwapChainImages( VulkanRenderer* renderer )
 {
     for( u32 i = 0; i < _swapchain_image_count; ++i )
     {
@@ -274,6 +337,10 @@ void VulkanRenderer::_CreateDevice()
     
     res = vkCreateDevice( _gpu, &device_info, nullptr, &_device );
     vulkanCheckError( res );
+
+    vkGetPhysicalDeviceMemoryProperties( _gpu, &_gpu_memory_properties );
+    bool bres = _SupportedDepthFormatGet( &_depth_format );
+    SYS_ASSERT( bres );
 }
 
 void VulkanRenderer::_DestroyDevice()
@@ -300,6 +367,87 @@ void VulkanRenderer::_EnumerateLayers()
         device_layer_props.resize( device_layer_count );
         vkEnumerateDeviceLayerProperties( _gpu, &device_layer_count, device_layer_props.data() );
     }
+}
+
+bool VulkanRenderer::_MemoryTypeIndexGet( uint32_t typeBits, VkFlags properties, u32* typeIndex )
+{
+    for( int i = 0; i < VK_MAX_MEMORY_TYPES; i++ )
+    {
+        if( ( typeBits & 1 ) == 1 )
+        {
+            if( ( _gpu_memory_properties.memoryTypes[i].propertyFlags & properties ) == properties )
+            {
+                *typeIndex = i;
+                return true;
+            }
+        }
+        typeBits >>= 1;
+    }
+    return false;
+}
+
+bool VulkanRenderer::_SupportedDepthFormatGet( VkFormat *depthFormat )
+{
+    // Since all depth formats may be optional, we need to find a suitable depth format to use
+    // Start with the highest precision packed format
+    VkFormat depthFormats[] = {
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_D32_SFLOAT,
+        VK_FORMAT_D24_UNORM_S8_UINT,
+        VK_FORMAT_D16_UNORM_S8_UINT,
+        VK_FORMAT_D16_UNORM
+    };
+    const size_t n = sizeof( depthFormats ) / sizeof( *depthFormats );
+    for( size_t i = 0; i < n; ++i )
+    {
+        VkFormatProperties formatProps;
+        vkGetPhysicalDeviceFormatProperties( _gpu, depthFormats[i], &formatProps );
+        // Format must support depth stencil attachment for optimal tiling
+        if( formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT )
+        {
+            *depthFormat = depthFormats[i];
+            return true;
+        }
+    }
+
+    return false;
+}
+
+VkDeviceMemory VulkanRenderer::deviceMemoryAllocate( const VkMemoryRequirements& requirments, VkFlags propertyFlag )
+{
+    VkMemoryAllocateInfo alloc_info = {};
+    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc_info.allocationSize = requirments.size;
+    bool bresult = _MemoryTypeIndexGet( requirments.memoryTypeBits, propertyFlag, &alloc_info.memoryTypeIndex );
+    
+    VkDeviceMemory device_memory = VK_NULL_HANDLE;
+    VkResult result = vkAllocateMemory( _device, &alloc_info, nullptr, &device_memory );
+    vulkanCheckError( result );
+    return device_memory;
+}
+
+VkCommandPool VulkanRenderer::commandPoolCreate()
+{
+    VkCommandPoolCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    create_info.queueFamilyIndex = _graphics_family_index;
+    create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    VkCommandPool command_pool = VK_NULL_HANDLE;
+    VkResult result = vkCreateCommandPool( _device, &create_info, nullptr, &command_pool );
+    vulkanCheckError( result );
+    return command_pool;
+}
+
+bool VulkanRenderer::commandBuffersCreate( VkCommandBuffer* buffers, u32 count, VkCommandPool pool, VkCommandBufferLevel level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY */ )
+{
+    VkCommandBufferAllocateInfo alloc_info = {};
+    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_info.commandPool = pool;
+    alloc_info.level = level;
+    alloc_info.commandBufferCount = count;
+    VkResult result = vkAllocateCommandBuffers( _device, &alloc_info, buffers );
+    vulkanCheckError( result );
+    return ( result == VK_SUCCESS );
 }
 
 #ifdef BX_VK_DEBUG
@@ -377,72 +525,49 @@ void VulkanRenderer::_DeinitDebug()
     fvkDestroyDebugReportCallbackEXT( _instance, _debug_report, nullptr );
     _debug_report = nullptr;
 }
-#endif
 
-void vulkanCheckError( VkResult result )
+void VulkanRenderer::commandBuffersDestroy( VkCommandBuffer* buffers, u32 count, VkCommandPool pool )
 {
-    if( result < 0 )
-    {
-        switch( result )
-        {
-        case VK_ERROR_OUT_OF_HOST_MEMORY:
-            printf( "VK_ERROR_OUT_OF_HOST_MEMORY\n" );
-            break;
-        case VK_ERROR_OUT_OF_DEVICE_MEMORY:
-            printf( "VK_ERROR_OUT_OF_DEVICE_MEMORY\n" );
-            break;
-        case VK_ERROR_INITIALIZATION_FAILED:
-            printf( "VK_ERROR_INITIALIZATION_FAILED\n" );
-            break;
-        case VK_ERROR_DEVICE_LOST:
-            printf( "VK_ERROR_DEVICE_LOST\n" );
-            break;
-        case VK_ERROR_MEMORY_MAP_FAILED:
-            printf( "VK_ERROR_MEMORY_MAP_FAILED\n" );
-            break;
-        case VK_ERROR_LAYER_NOT_PRESENT:
-            printf( "VK_ERROR_LAYER_NOT_PRESENT\n" );
-            break;
-        case VK_ERROR_EXTENSION_NOT_PRESENT:
-            printf( "VK_ERROR_EXTENSION_NOT_PRESENT\n" );
-            break;
-        case VK_ERROR_FEATURE_NOT_PRESENT:
-            printf( "VK_ERROR_FEATURE_NOT_PRESENT\n" );
-            break;
-        case VK_ERROR_INCOMPATIBLE_DRIVER:
-            printf( "VK_ERROR_INCOMPATIBLE_DRIVER\n" );
-            break;
-        case VK_ERROR_TOO_MANY_OBJECTS:
-            printf( "VK_ERROR_TOO_MANY_OBJECTS\n" );
-            break;
-        case VK_ERROR_FORMAT_NOT_SUPPORTED:
-            printf( "VK_ERROR_FORMAT_NOT_SUPPORTED\n" );
-            break;
-        case VK_ERROR_SURFACE_LOST_KHR:
-            printf( "VK_ERROR_SURFACE_LOST_KHR\n" );
-            break;
-        case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
-            printf( "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR\n" );
-            break;
-        case VK_SUBOPTIMAL_KHR:
-            printf( "VK_SUBOPTIMAL_KHR\n" );
-            break;
-        case VK_ERROR_OUT_OF_DATE_KHR:
-            printf( "VK_ERROR_OUT_OF_DATE_KHR\n" );
-            break;
-        case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
-            printf( "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR\n" );
-            break;
-        case VK_ERROR_VALIDATION_FAILED_EXT:
-            printf( "VK_ERROR_VALIDATION_FAILED_EXT\n" );
-            break;
-        default:
-            break;
-        }
-        SYS_ASSERT( false && "Vulkan runtime error." );
-    }
+    vkFreeCommandBuffers( _device, pool, count, buffers );
+    for( u32 i = 0; i < count; ++i )
+        buffers[i] = VK_NULL_HANDLE;
 }
 
+#endif
 
+
+void VulkanSample::initialize( VulkanRenderer* renderer, VulkanSwapChain* window )
+{
+    _command_pool = renderer->commandPoolCreate();
+    bool bres = false;
+    
+    _draw_cmd_buffers.resize( window->_swapchain_image_count );
+    bres = renderer->commandBuffersCreate( _draw_cmd_buffers.data(), window->_swapchain_image_count, _command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY );
+    SYS_ASSERT( bres );
+
+    bres = renderer->commandBuffersCreate( &_pre_present_cmd_buffer, 1, _command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY );
+    SYS_ASSERT( bres );
+    bres = renderer->commandBuffersCreate( &_post_present_cmd_buffer, 1, _command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY );
+    SYS_ASSERT( bres );
+
+    VkCommandBuffer setup_cmd_buffer = VK_NULL_HANDLE;
+    bres = renderer->commandBuffersCreate( &setup_cmd_buffer, 1, _command_pool );
+
+    VkCommandBufferBeginInfo setup_cmd_buffer_begin_info = {};
+    setup_cmd_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    
+
+    renderer->commandBuffersDestroy( &setup_cmd_buffer, 1, _command_pool );
+}
+
+void VulkanSample::deinitialize( VulkanRenderer* renderer, VulkanSwapChain* window )
+{
+    renderer->commandBuffersDestroy( &_post_present_cmd_buffer, 1, _command_pool );
+    renderer->commandBuffersDestroy( &_pre_present_cmd_buffer, 1, _command_pool );
+    renderer->commandBuffersDestroy( _draw_cmd_buffers.data(), (u32)_draw_cmd_buffers.size(), _command_pool );
+
+    vkDestroyCommandPool( renderer->_device, _command_pool, nullptr );
+    renderer->_device = VK_NULL_HANDLE;
+}
 
 }////

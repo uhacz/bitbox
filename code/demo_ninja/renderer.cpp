@@ -5,7 +5,7 @@ namespace bx
 {
 
 static VulkanRenderer g_vk = {};
-static VulkanWindow g_vkwin = {};
+static VulkanSwapChain g_vkwin = {};
 void rendererStartup( bxWindow* window )
 {
 #ifdef BX_VK_DEBUG
