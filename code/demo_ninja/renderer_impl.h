@@ -4,6 +4,7 @@
 
 #define VK_USE_PLATFORM_WIN32_KHR 1
 #include <vulkan/vulkan.h>
+#include "renderer_util.h"
 #include <util/type.h>
 
 #ifdef BX_VK_DEBUG
@@ -14,8 +15,6 @@
 
 namespace bx
 {
-    void vulkanCheckError( VkResult res );
-
 struct VulkanRenderer;
 
 struct VulkanSwapChain
@@ -40,6 +39,9 @@ struct VulkanSwapChain
 
     void _InitSwapChainImages( VulkanRenderer* renderer );
     void _DeinitSwapChainImages( VulkanRenderer* renderer );
+
+    VkResult acquireNextImage( uint32_t *currentBuffer, VkDevice device, VkSemaphore presentCompleteSemaphore );
+    VkResult queuePresent( VkQueue queue, uint32_t currentBuffer, VkSemaphore waitSemaphore );
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -53,10 +55,11 @@ struct VulkanRenderer
     VkPhysicalDevice _gpu      = nullptr;
     VkQueue          _queue    = nullptr;
     u32              _graphics_family_index = 0;
-
-
+    
     VkPhysicalDeviceMemoryProperties _gpu_memory_properties = {};
     VkFormat                         _depth_format = VK_FORMAT_UNDEFINED;
+
+    VkCommandPool    _command_pool = VK_NULL_HANDLE;
 
     std::vector< const char* > _instance_extensions;
     std::vector< const char* > _device_extensions;
@@ -79,17 +82,10 @@ struct VulkanRenderer
     void _DestroyDevice();
 
     void _EnumerateLayers();
-
     bool _MemoryTypeIndexGet( uint32_t typeBits, VkFlags properties, u32* typeIndex );
-    bool _SupportedDepthFormatGet( VkFormat *depthFormat );
 
     // propertyFlag is combination of VkMemoryPropertyFlagBits
     VkDeviceMemory deviceMemoryAllocate( const VkMemoryRequirements& requirments, VkFlags propertyFlag );
-
-    VkCommandPool commandPoolCreate();
-    bool commandBuffersCreate( VkCommandBuffer* buffers, u32 count, VkCommandPool pool, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY );
-    void commandBuffersDestroy( VkCommandBuffer* buffers, u32 count, VkCommandPool pool );
-
 };
 
 struct VulkanSample
@@ -127,7 +123,6 @@ struct VulkanSample
 
     void initialize( VulkanRenderer* renderer, VulkanSwapChain* window );
     void deinitialize( VulkanRenderer* renderer, VulkanSwapChain* window );
-
 };
 
 

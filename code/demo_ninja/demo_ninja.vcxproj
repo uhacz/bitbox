@@ -88,6 +88,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="renderer_impl.cpp" />
+    <ClCompile Include="renderer_util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\anim\anim.vcxproj">
@@ -109,6 +110,7 @@
   <ItemGroup>
     <ClInclude Include="renderer.h" />
     <ClInclude Include="renderer_impl.h" />
+    <ClInclude Include="renderer_util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
