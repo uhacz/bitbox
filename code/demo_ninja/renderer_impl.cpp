@@ -28,16 +28,16 @@ void VulkanSwapChain::_InitSurface( bxWindow* window, VulkanRenderer* renderer )
         SYS_ASSERT( 0 && "WSI not supported" );
     }
 
-    _surface_size_x = window->width;
-    _surface_size_y = window->height;
+    _width = window->width;
+    _height = window->height;
 
     result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR( gpu, _surface, &_surface_capabilities );
     vulkan_util::checkError( result );
 
     if( _surface_capabilities.currentExtent.width < UINT32_MAX )
     {
-        _surface_size_x = _surface_capabilities.currentExtent.width;
-        _surface_size_y = _surface_capabilities.currentExtent.height;
+        _width = _surface_capabilities.currentExtent.width;
+        _height = _surface_capabilities.currentExtent.height;
     }
 
     {
@@ -71,8 +71,8 @@ void VulkanSwapChain::_DeinitSurface( VkInstance vkInstance )
 
 void VulkanSwapChain::_InitSwapChain( VulkanRenderer* renderer )
 {
-    _swapchain_image_count = clamp( _swapchain_image_count, _surface_capabilities.minImageCount, _surface_capabilities.maxImageCount );
-    _swapchain_image_count = maxOfPair( 2u, _swapchain_image_count ); // ensure at least double buffering 
+    _image_count = clamp( _image_count, _surface_capabilities.minImageCount, _surface_capabilities.maxImageCount );
+    _image_count = maxOfPair( 2u, _image_count ); // ensure at least double buffering 
 
     VkResult result = VK_SUCCESS;
 
@@ -99,11 +99,11 @@ void VulkanSwapChain::_InitSwapChain( VulkanRenderer* renderer )
     VkSwapchainCreateInfoKHR swapchain_create_info = {};
     swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     swapchain_create_info.surface = _surface;
-    swapchain_create_info.minImageCount = _swapchain_image_count;
+    swapchain_create_info.minImageCount = _image_count;
     swapchain_create_info.imageFormat = _surface_format.format;
     swapchain_create_info.imageColorSpace = _surface_format.colorSpace;
-    swapchain_create_info.imageExtent.width = _surface_size_x;
-    swapchain_create_info.imageExtent.height = _surface_size_y;
+    swapchain_create_info.imageExtent.width = _width;
+    swapchain_create_info.imageExtent.height = _height;
     swapchain_create_info.imageArrayLayers = 1;
     swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -118,7 +118,7 @@ void VulkanSwapChain::_InitSwapChain( VulkanRenderer* renderer )
     result = vkCreateSwapchainKHR( renderer->_device, &swapchain_create_info, nullptr, &_swapchain );
     vulkan_util::checkError( result );
 
-    result = vkGetSwapchainImagesKHR( renderer->_device, _swapchain, &_swapchain_image_count, nullptr );
+    result = vkGetSwapchainImagesKHR( renderer->_device, _swapchain, &_image_count, nullptr );
     vulkan_util::checkError( result );
 }
 
@@ -128,23 +128,23 @@ void VulkanSwapChain::_DeinitSwapChain( VulkanRenderer* renderer )
     _swapchain = VK_NULL_HANDLE;
 }
 
-void VulkanSwapChain::_InitSwapChainImages( VulkanRenderer* renderer )
+void VulkanSwapChain::_InitSwapChainImages( VulkanRenderer* renderer, VkCommandBuffer setupCmdBuffer )
 {
-    VkCommandBuffer setup_cmd_buffer = vulkan_util::setupCommandBufferCreate( renderer->_device, renderer->_command_pool );
+    //VkCommandBuffer setup_cmd_buffer = vulkan_util::setupCommandBufferCreate( renderer->_device, renderer->_command_pool );
     
-    _swapchain_images.resize( _swapchain_image_count );
-    _swapchain_image_views.resize( _swapchain_image_count );
+    _images.resize( _image_count );
+    _image_views.resize( _image_count );
 
     VkDevice device = renderer->_device;
 
-    auto result = vkGetSwapchainImagesKHR( device, _swapchain, &_swapchain_image_count, _swapchain_images.data() );
+    auto result = vkGetSwapchainImagesKHR( device, _swapchain, &_image_count, _images.data() );
     vulkan_util::checkError( result );
 
-    for( u32 i = 0; i < _swapchain_image_count; ++i )
+    for( u32 i = 0; i < _image_count; ++i )
     {
         VkImageViewCreateInfo view_create_info = {};
         view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        view_create_info.image = _swapchain_images[i];
+        view_create_info.image = _images[i];
         view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         view_create_info.format = _surface_format.format;
         view_create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -157,21 +157,21 @@ void VulkanSwapChain::_InitSwapChainImages( VulkanRenderer* renderer )
         view_create_info.subresourceRange.baseArrayLayer = 0;
         view_create_info.subresourceRange.layerCount = 1;
 
-        vulkan_util::setImageLayout( setup_cmd_buffer, _swapchain_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR );
+        vulkan_util::setImageLayout( setupCmdBuffer, _images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR );
 
-        result = vkCreateImageView( device, &view_create_info, nullptr, &_swapchain_image_views[i] );
+        result = vkCreateImageView( device, &view_create_info, nullptr, &_image_views[i] );
         vulkan_util::checkError( result );
     }
 
-    vulkan_util::setupCommandBufferFlush( &setup_cmd_buffer, renderer->_device, renderer->_queue, renderer->_command_pool );
+    //vulkan_util::setupCommandBufferFlush( &setup_cmd_buffer, renderer->_device, renderer->_queue, renderer->_command_pool );
 }
 
 void VulkanSwapChain::_DeinitSwapChainImages( VulkanRenderer* renderer )
 {
-    for( u32 i = 0; i < _swapchain_image_count; ++i )
+    for( u32 i = 0; i < _image_count; ++i )
     {
-        vkDestroyImageView( renderer->_device, _swapchain_image_views[i], nullptr );
-        _swapchain_image_views[i] = VK_NULL_HANDLE;
+        vkDestroyImageView( renderer->_device, _image_views[i], nullptr );
+        _image_views[i] = VK_NULL_HANDLE;
     }
 }
 
@@ -307,17 +307,13 @@ void VulkanRenderer::_CreateDevice()
     bool bres = vulkan_util::supportedDepthFormatGet( &_depth_format, _gpu );
     SYS_ASSERT( bres );
 
-    _command_pool = vulkan_util::commandPoolCreate( _device, _graphics_family_index );
-
-    vkGetDeviceQueue( _device, _graphics_family_index, 0, &_queue );
+    //_command_pool = vulkan_util::commandPoolCreate( _device, _graphics_family_index );
 }
 
 void VulkanRenderer::_DestroyDevice()
 {
-    _queue = VK_NULL_HANDLE;
-
-    vkDestroyCommandPool( _device, _command_pool, nullptr );
-    _command_pool = VK_NULL_HANDLE;
+    //vkDestroyCommandPool( _device, _command_pool, nullptr );
+    //_command_pool = VK_NULL_HANDLE;
 
     vkDestroyDevice( _device, nullptr );
     _device = nullptr;
@@ -452,33 +448,252 @@ void VulkanRenderer::_DeinitDebug()
 #endif
 
 
-void VulkanSample::initialize( VulkanRenderer* renderer, VulkanSwapChain* window )
+void VulkanSample::initialize( VulkanRenderer* renderer, bxWindow* window )
 {
-    //_command_pool = renderer->commandPoolCreate();
-    //bool bres = false;
-    //
-    //_draw_cmd_buffers.resize( window->_swapchain_image_count );
-    //bres = renderer->commandBuffersCreate( _draw_cmd_buffers.data(), window->_swapchain_image_count, _command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY );
-    //SYS_ASSERT( bres );
+    VkDevice device = renderer->_device;
+    uint32_t queue_family_index = renderer->_graphics_family_index;
 
-    //bres = renderer->commandBuffersCreate( &_pre_present_cmd_buffer, 1, _command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY );
-    //SYS_ASSERT( bres );
-    //bres = renderer->commandBuffersCreate( &_post_present_cmd_buffer, 1, _command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY );
-    //SYS_ASSERT( bres );
+    _command_pool = vulkan_util::commandPoolCreate( device, queue_family_index );
+    vkGetDeviceQueue( device, queue_family_index, 0, &_queue );
 
-    //VkCommandBuffer setup_cmd_buffer = vulkan_util::setupCommandBufferCreate( renderer->_device, renderer->_command_pool );
-    //
-    //vulkan_util::setupCommandBufferFlush( &setup_cmd_buffer, renderer->_device, renderer->_queue, renderer->_command_pool );
+    VkCommandBuffer setup_cmd_buffer = vulkan_util::setupCommandBufferCreate( device, _command_pool );
+
+    _swap_chain._InitSurface( window, renderer );
+    _swap_chain._InitSwapChain( renderer );
+    _swap_chain._InitSwapChainImages( renderer, setup_cmd_buffer );
+
+    _CreateCommandBuffers( renderer );
+    _CreateDepthStencil( renderer, setup_cmd_buffer );
+    _CreateRenderPass( renderer );
+    _CreateFramebuffer( renderer );
+    _CreatePipelineCache( renderer );
+
+    vulkan_util::setupCommandBufferFlush( &setup_cmd_buffer, device, _queue, _command_pool );
 }
 
-void VulkanSample::deinitialize( VulkanRenderer* renderer, VulkanSwapChain* window )
+void VulkanSample::deinitialize( VulkanRenderer* renderer )
 {
+    _DestroyPipelineCache( renderer );
+    _DestroyFramebuffer( renderer );
+    _DestroyRenderPass( renderer );
+    _DestroyDepthStencil( renderer );
+    _DestroyCommandBuffers( renderer );
+    
+    _swap_chain._DeinitSwapChainImages( renderer );
+    _swap_chain._DeinitSwapChain( renderer );
+    _swap_chain._DeinitSurface( renderer->_instance );
+
     //renderer->commandBuffersDestroy( &_post_present_cmd_buffer, 1, _command_pool );
     //renderer->commandBuffersDestroy( &_pre_present_cmd_buffer, 1, _command_pool );
     //renderer->commandBuffersDestroy( _draw_cmd_buffers.data(), (u32)_draw_cmd_buffers.size(), _command_pool );
 
-    //vkDestroyCommandPool( renderer->_device, _command_pool, nullptr );
-    //renderer->_device = VK_NULL_HANDLE;
+    vkDestroyCommandPool( renderer->_device, _command_pool, nullptr );
+    renderer->_device = VK_NULL_HANDLE;
+}
+
+void VulkanSample::_CreateCommandBuffers( VulkanRenderer* renderer )
+{
+    VkDevice device = renderer->_device;
+    vulkan_util::commandBuffersCreate( &_pre_present_cmd_buffer, 1, device, _command_pool );
+    vulkan_util::commandBuffersCreate( &_post_present_cmd_buffer, 1, device, _command_pool );
+    vulkan_util::commandBuffersCreate( &_draw_cmd_buffer, 1, device, _command_pool );
+}
+
+void VulkanSample::_DestroyCommandBuffers( VulkanRenderer* renderer )
+{
+    VkDevice device = renderer->_device;
+    vulkan_util::commandBuffersDestroy( &_draw_cmd_buffer, 1, device, _command_pool );
+    vulkan_util::commandBuffersDestroy( &_post_present_cmd_buffer, 1, device, _command_pool );
+    vulkan_util::commandBuffersDestroy( &_pre_present_cmd_buffer, 1, device, _command_pool );
+}
+
+void VulkanSample::_CreateDepthStencil( VulkanRenderer* renderer, VkCommandBuffer setupCmdBuffer )
+{
+    
+    VkFormat depth_format = renderer->_depth_format;
+
+    VkImageCreateInfo image_create_info = {};
+    image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    image_create_info.pNext = NULL;
+    image_create_info.imageType = VK_IMAGE_TYPE_2D;
+    image_create_info.format = depth_format;
+    image_create_info.extent = { _swap_chain._width, _swap_chain._height, 1 };
+    image_create_info.mipLevels = 1;
+    image_create_info.arrayLayers = 1;
+    image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    image_create_info.flags = 0;
+
+    VkMemoryAllocateInfo mem_alloc_info = {};
+    mem_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    mem_alloc_info.pNext = NULL;
+    mem_alloc_info.allocationSize = 0;
+    mem_alloc_info.memoryTypeIndex = 0;
+
+    VkImageViewCreateInfo view_create_info = {};
+    view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_create_info.pNext = NULL;
+    view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view_create_info.format = depth_format;
+    view_create_info.flags = 0;
+    view_create_info.subresourceRange = {};
+    view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    view_create_info.subresourceRange.baseMipLevel = 0;
+    view_create_info.subresourceRange.levelCount = 1;
+    view_create_info.subresourceRange.baseArrayLayer = 0;
+    view_create_info.subresourceRange.layerCount = 1;
+
+
+    VkDevice device = renderer->_device;
+    VkMemoryRequirements mem_reqs = {};
+    VkResult result = VK_SUCCESS;
+
+    result = vkCreateImage( device, &image_create_info, nullptr, &_depth_stencil.image );
+    vulkan_util::checkError( result );
+
+    vkGetImageMemoryRequirements( device, _depth_stencil.image, &mem_reqs );
+    mem_alloc_info.allocationSize = mem_reqs.size;
+    
+    _depth_stencil.mem = renderer->deviceMemoryAllocate( mem_reqs, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
+    
+    result = vkBindImageMemory( device, _depth_stencil.image, _depth_stencil.mem, 0 );
+    vulkan_util::checkError( result );
+
+    vulkan_util::setImageLayout( setupCmdBuffer, _depth_stencil.image,
+        VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL );
+
+    view_create_info.image = _depth_stencil.image;
+    result = vkCreateImageView( device, &view_create_info, nullptr, &_depth_stencil.view );
+    vulkan_util::checkError( result );
+}
+
+void VulkanSample::_DestroyDepthStencil( VulkanRenderer* renderer )
+{
+    VkDevice device = renderer->_device;
+
+    vkDestroyImageView( device, _depth_stencil.view, nullptr );
+    vkDestroyImage( device, _depth_stencil.image, nullptr );
+    vkFreeMemory( device, _depth_stencil.mem, nullptr );
+    _depth_stencil = {};
+}
+
+void VulkanSample::_CreateRenderPass( VulkanRenderer* renderer )
+{
+    VkAttachmentDescription attachments[2];
+    attachments[0].format = _swap_chain._surface_format.format;
+    attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    attachments[1].format = renderer->_depth_format;
+    attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference color_reference = {};
+    color_reference.attachment = 0;
+    color_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depth_reference = {};
+    depth_reference.attachment = 1;
+    depth_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.flags = 0;
+    subpass.inputAttachmentCount = 0;
+    subpass.pInputAttachments = NULL;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &color_reference;
+    subpass.pResolveAttachments = NULL;
+    subpass.pDepthStencilAttachment = &depth_reference;
+    subpass.preserveAttachmentCount = 0;
+    subpass.pPreserveAttachments = NULL;
+
+    VkRenderPassCreateInfo render_pass_create_info = {};
+    render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    render_pass_create_info.pNext = NULL;
+    render_pass_create_info.attachmentCount = 2;
+    render_pass_create_info.pAttachments = attachments;
+    render_pass_create_info.subpassCount = 1;
+    render_pass_create_info.pSubpasses = &subpass;
+    render_pass_create_info.dependencyCount = 0;
+    render_pass_create_info.pDependencies = NULL;
+
+    VkDevice device = renderer->_device;
+    VkResult result = vkCreateRenderPass( device, &render_pass_create_info, nullptr, &_render_pass );
+    vulkan_util::checkError( result );
+}
+
+void VulkanSample::_DestroyRenderPass( VulkanRenderer* renderer )
+{
+    vkDestroyRenderPass( renderer->_device, _render_pass, nullptr );
+    _render_pass = VK_NULL_HANDLE;
+}
+
+void VulkanSample::_CreateFramebuffer( VulkanRenderer* renderer )
+{
+    VkImageView attachments[2];
+
+    // Depth/Stencil attachment is the same for all frame buffers
+    attachments[1] = _depth_stencil.view;
+
+    VkFramebufferCreateInfo frame_buffer_create_info = {};
+    frame_buffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    frame_buffer_create_info.pNext = NULL;
+    frame_buffer_create_info.renderPass = _render_pass;
+    frame_buffer_create_info.attachmentCount = 2;
+    frame_buffer_create_info.pAttachments = attachments;
+    frame_buffer_create_info.width = _swap_chain._width;
+    frame_buffer_create_info.height = _swap_chain._height;
+    frame_buffer_create_info.layers = 1;
+
+    // Create frame buffers for every swap chain image
+    _framebuffers.resize( _swap_chain._image_count );
+    VkDevice device = renderer->_device;
+    for( size_t i = 0; i < _framebuffers.size(); i++ )
+    {
+        attachments[0] = _swap_chain._image_views[i];
+        VkResult result = vkCreateFramebuffer( device, &frame_buffer_create_info, nullptr, &_framebuffers[i] );
+        vulkan_util::checkError( result );
+    }
+}
+
+void VulkanSample::_DestroyFramebuffer( VulkanRenderer* renderer )
+{
+    VkDevice device = renderer->_device;
+
+    for( VkFramebuffer& fb : _framebuffers )
+    {
+        vkDestroyFramebuffer( device, fb, nullptr );
+        fb = VK_NULL_HANDLE;
+    }
+}
+
+void VulkanSample::_CreatePipelineCache( VulkanRenderer* renderer )
+{
+    VkDevice device = renderer->_device;
+    VkPipelineCacheCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+    VkResult result = vkCreatePipelineCache( device, &create_info, nullptr, &_pipeline_cache );
+    vulkan_util::checkError( result );
+}
+
+void VulkanSample::_DestroyPipelineCache( VulkanRenderer* renderer )
+{
+    VkDevice device = renderer->_device;
+    vkDestroyPipelineCache( device, _pipeline_cache, nullptr );
 }
 
 }////

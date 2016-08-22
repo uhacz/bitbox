@@ -4,9 +4,10 @@ struct bxWindow;
 
 namespace bx
 {
-    void rendererStartup( bxWindow* window );
+    void rendererStartup();
     void rendererShutdown();
 
-
+    void sampleStartup( bxWindow* window );
+    void sampleShutdown();
 }////
 

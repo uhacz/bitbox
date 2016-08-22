@@ -18,7 +18,8 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        bx::rendererStartup( win );
+        bx::rendererStartup();
+        bx::sampleStartup( win );
         
         //gColorBucket = CommandBucket64::create( _engine.gdi_device, 1024*8, 1024*1024 );
 
@@ -31,7 +32,7 @@ public:
     {
         //CommandBucket64::destroy( _engine.gdi_device, &gColorBucket );
         bxWindow* win = bxWindow_get();
-
+        bx::sampleShutdown();
         bx::rendererShutdown();
 
         //bx::Engine::shutdown( &_engine );

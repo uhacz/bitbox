@@ -5,8 +5,8 @@ namespace bx
 {
 
 static VulkanRenderer g_vk = {};
-static VulkanSwapChain g_vkwin = {};
-void rendererStartup( bxWindow* window )
+//static VulkanSwapChain g_vkwin = {};
+void rendererStartup()
 {
 #ifdef BX_VK_DEBUG
     g_vk._SetupDebug();
@@ -20,24 +20,27 @@ void rendererStartup( bxWindow* window )
 #endif
     
     g_vk._CreateDevice();
-
-    g_vkwin._InitSurface( window, &g_vk );
-    g_vkwin._InitSwapChain( &g_vk );
-    g_vkwin._InitSwapChainImages( &g_vk );
     //g_renderer._EnumerateLayers();
 }
 
 void rendererShutdown()
 {
-    g_vkwin._DeinitSwapChainImages( &g_vk );
-    g_vkwin._DeinitSwapChain( &g_vk );
-    g_vkwin._DeinitSurface( g_vk._instance );
-
     g_vk._DestroyDevice();
 #ifdef BX_VK_DEBUG
     g_vk._DeinitDebug();
 #endif
     g_vk._DestroyInstance();
+}
+
+static VulkanSample g_sample = {};
+void sampleStartup( bxWindow* window )
+{
+    g_sample.initialize( &g_vk, window );
+}
+
+void sampleShutdown()
+{
+    g_sample.deinitialize( &g_vk );
 }
 
 }///
