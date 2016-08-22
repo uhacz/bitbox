@@ -308,10 +308,14 @@ void VulkanRenderer::_CreateDevice()
     SYS_ASSERT( bres );
 
     _command_pool = vulkan_util::commandPoolCreate( _device, _graphics_family_index );
+
+    vkGetDeviceQueue( _device, _graphics_family_index, 0, &_queue );
 }
 
 void VulkanRenderer::_DestroyDevice()
 {
+    _queue = VK_NULL_HANDLE;
+
     vkDestroyCommandPool( _device, _command_pool, nullptr );
     _command_pool = VK_NULL_HANDLE;
 

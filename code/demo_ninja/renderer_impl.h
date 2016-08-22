@@ -50,10 +50,10 @@ struct VulkanSwapChain
 //////////////////////////////////////////////////////////////////////////
 struct VulkanRenderer
 {
-    VkInstance       _instance = nullptr;
-    VkDevice         _device   = nullptr;
-    VkPhysicalDevice _gpu      = nullptr;
-    VkQueue          _queue    = nullptr;
+    VkInstance       _instance = VK_NULL_HANDLE;
+    VkDevice         _device   = VK_NULL_HANDLE;
+    VkPhysicalDevice _gpu      = VK_NULL_HANDLE;
+    VkQueue          _queue    = VK_NULL_HANDLE;
     u32              _graphics_family_index = 0;
     
     VkPhysicalDeviceMemoryProperties _gpu_memory_properties = {};
