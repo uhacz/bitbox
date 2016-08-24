@@ -463,6 +463,7 @@ void VulkanSample::initialize( VulkanRenderer* renderer, bxWindow* window )
     _swap_chain._InitSwapChainImages( renderer, setup_cmd_buffer );
 
     _CreateCommandBuffers( renderer );
+    _CreateSemaphores( renderer );
     _CreateDepthStencil( renderer, setup_cmd_buffer );
     _CreateRenderPass( renderer );
     _CreateFramebuffer( renderer );
@@ -477,18 +478,101 @@ void VulkanSample::deinitialize( VulkanRenderer* renderer )
     _DestroyFramebuffer( renderer );
     _DestroyRenderPass( renderer );
     _DestroyDepthStencil( renderer );
+    _DestroySemaphores( renderer );
     _DestroyCommandBuffers( renderer );
     
     _swap_chain._DeinitSwapChainImages( renderer );
     _swap_chain._DeinitSwapChain( renderer );
     _swap_chain._DeinitSurface( renderer->_instance );
 
-    //renderer->commandBuffersDestroy( &_post_present_cmd_buffer, 1, _command_pool );
-    //renderer->commandBuffersDestroy( &_pre_present_cmd_buffer, 1, _command_pool );
-    //renderer->commandBuffersDestroy( _draw_cmd_buffers.data(), (u32)_draw_cmd_buffers.size(), _command_pool );
-
     vkDestroyCommandPool( renderer->_device, _command_pool, nullptr );
     renderer->_device = VK_NULL_HANDLE;
+}
+
+void VulkanSample::submitCommandBuffers( VulkanRenderer* renderer, VkCommandBuffer* cmdBuffers, u32 cmdBuffersCount )
+{
+    VkDevice device = renderer->_device;
+    
+    u32 current_buffer = 0;
+    VkResult result = VK_SUCCESS;
+    // Get next image in the swap chain (back/front buffer)
+    result = _swap_chain.acquireNextImage( &current_buffer, device, _present_complete_semaphore );
+    vulkan_util::checkError( result );
+
+    // Add a post present image memory barrier
+    // This will transform the frame buffer color attachment back
+    // to it's initial layout after it has been presented to the
+    // windowing system
+    VkImageMemoryBarrier postPresentBarrier = {};
+    postPresentBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    postPresentBarrier.pNext = NULL;
+    postPresentBarrier.srcAccessMask = 0;
+    postPresentBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    postPresentBarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    postPresentBarrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    postPresentBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    postPresentBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    postPresentBarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    postPresentBarrier.image = _swap_chain._images[current_buffer];
+
+    // Use dedicated command buffer from example base class for submitting the post present barrier
+    VkCommandBufferBeginInfo cmdBufInfo = {};
+    cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    result = vkBeginCommandBuffer( _post_present_cmd_buffer, &cmdBufInfo );
+    vulkan_util::checkError( result );
+
+    // Put post present barrier into command buffer
+    vkCmdPipelineBarrier(
+        _post_present_cmd_buffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_FLAGS_NONE,
+        0, nullptr,
+        0, nullptr,
+        1, &postPresentBarrier );
+
+    result = vkEndCommandBuffer( _post_present_cmd_buffer );
+    vulkan_util::checkError( result );
+
+    // Submit to the queue
+    VkSubmitInfo submit_info = {};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &_post_present_cmd_buffer;
+
+    result = vkQueueSubmit( _queue, 1, &submit_info, VK_NULL_HANDLE );
+    vulkan_util::checkError( result );
+    result = vkQueueWaitIdle( _queue );
+    vulkan_util::checkError( result );
+
+    VkPipelineStageFlags pipeline_stages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    submit_info = {};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.pWaitDstStageMask = &pipeline_stages;
+    // The wait semaphore ensures that the image is presented 
+    // before we start submitting command buffers again
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = &_present_complete_semaphore;
+    // Submit the currently active command buffer
+    submit_info.commandBufferCount = cmdBuffersCount;
+    submit_info.pCommandBuffers = cmdBuffers;
+    // The signal semaphore is used during queue presentation
+    // to ensure that the image is not rendered before all
+    // commands have been submitted
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &_render_complete_semaphore;
+
+    // Submit to the graphics queue
+    result = vkQueueSubmit( _queue, 1, &submit_info, VK_NULL_HANDLE );
+    vulkan_util::checkError( result );
+
+    // Present the current buffer to the swap chain
+    // We pass the signal semaphore from the submit info
+    // to ensure that the image is not rendered until
+    // all commands have been submitted
+    result = _swap_chain.queuePresent( _queue, current_buffer, _render_complete_semaphore );
+    vulkan_util::checkError( result );
 }
 
 void VulkanSample::_CreateCommandBuffers( VulkanRenderer* renderer )
@@ -505,6 +589,32 @@ void VulkanSample::_DestroyCommandBuffers( VulkanRenderer* renderer )
     vulkan_util::commandBuffersDestroy( &_draw_cmd_buffer, 1, device, _command_pool );
     vulkan_util::commandBuffersDestroy( &_post_present_cmd_buffer, 1, device, _command_pool );
     vulkan_util::commandBuffersDestroy( &_pre_present_cmd_buffer, 1, device, _command_pool );
+}
+
+void VulkanSample::_CreateSemaphores( VulkanRenderer* renderer )
+{
+    VkDevice device = renderer->_device;
+    
+    VkSemaphoreCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    create_info.pNext = nullptr;
+
+    // This semaphore ensures that the image is complete
+    // before starting to submit again
+    VkResult result = vkCreateSemaphore( device, &create_info, nullptr, &_present_complete_semaphore );
+    vulkan_util::checkError( result );
+
+    // This semaphore ensures that all commands submitted
+    // have been finished before submitting the image to the queue
+    result = vkCreateSemaphore( device, &create_info, nullptr, &_render_complete_semaphore );
+    vulkan_util::checkError( result );
+}
+
+void VulkanSample::_DestroySemaphores( VulkanRenderer* renderer )
+{
+    VkDevice device = renderer->_device;
+    vkDestroySemaphore( device, _render_complete_semaphore, nullptr );
+    vkDestroySemaphore( device, _present_complete_semaphore, nullptr );
 }
 
 void VulkanSample::_CreateDepthStencil( VulkanRenderer* renderer, VkCommandBuffer setupCmdBuffer )
@@ -695,5 +805,6 @@ void VulkanSample::_DestroyPipelineCache( VulkanRenderer* renderer )
     VkDevice device = renderer->_device;
     vkDestroyPipelineCache( device, _pipeline_cache, nullptr );
 }
+
 
 }////

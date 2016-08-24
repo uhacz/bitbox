@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.h>
 
+#define VK_FLAGS_NONE 0
+
 namespace bx
 {
     namespace vulkan_util

@@ -102,6 +102,9 @@ struct VulkanSample
     // Command buffer for submitting a pre present image barrier
     VkCommandBuffer _pre_present_cmd_buffer = VK_NULL_HANDLE;
 
+    VkSemaphore _render_complete_semaphore = VK_NULL_HANDLE;
+    VkSemaphore _present_complete_semaphore = VK_NULL_HANDLE;
+
     VkRenderPass _render_pass = VK_NULL_HANDLE;
 
     // Command buffers used for rendering
@@ -130,8 +133,13 @@ struct VulkanSample
     void initialize( VulkanRenderer* renderer, bxWindow* window );
     void deinitialize( VulkanRenderer* renderer );
 
+    void submitCommandBuffers( VulkanRenderer* renderer, VkCommandBuffer* cmdBuffers, u32 cmdBuffersCount );
+    
     void _CreateCommandBuffers( VulkanRenderer* renderer );
     void _DestroyCommandBuffers( VulkanRenderer* renderer );
+    
+    void _CreateSemaphores( VulkanRenderer* renderer );
+    void _DestroySemaphores( VulkanRenderer* renderer );
 
     void _CreateDepthStencil( VulkanRenderer* renderer, VkCommandBuffer setupCmdBuffer );
     void _DestroyDepthStencil( VulkanRenderer* renderer );
@@ -144,6 +152,11 @@ struct VulkanSample
 
     void _CreatePipelineCache( VulkanRenderer* renderer );
     void _DestroyPipelineCache( VulkanRenderer* renderer );
+};
+
+struct VulkanSampleTriangle
+{
+    
 };
 
 
