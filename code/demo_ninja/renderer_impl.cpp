@@ -6,12 +6,164 @@
 
 namespace bx
 {
-
-
-void VulkanSwapChain::_InitSurface( bxWindow* window, VulkanRenderer* renderer )
+//////////////////////////////////////////////////////////////////////////
+#ifdef BX_VK_DEBUG
+VKAPI_ATTR VkBool32 VKAPI_CALL
+    VulkanDebugCallback(
+        VkDebugReportFlagsEXT		flags,
+        VkDebugReportObjectTypeEXT	obj_type,
+        uint64_t					src_obj,
+        size_t						location,
+        int32_t						msg_code,
+        const char *				layer_prefix,
+        const char *				msg,
+        void *						user_data
+        )
 {
-    VkInstance vkInstance = renderer->_instance;
-    VkPhysicalDevice gpu = renderer->_gpu;
+    printf( "VKDBG: " );
+    if( flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT )
+    {
+        printf( "INFO: " );
+    }
+    if( flags & VK_DEBUG_REPORT_WARNING_BIT_EXT )
+    {
+        printf( "WARNING: " );
+    }
+    if( flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT )
+    {
+        printf( "PERFORMANCE: " );
+    }
+    if( flags & VK_DEBUG_REPORT_ERROR_BIT_EXT )
+    {
+        printf( "ERROR: " );
+    }
+    if( flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT )
+    {
+        printf( "DEBUG: " );
+    }
+    printf( "@[%s]: %s\n", layer_prefix, msg );
+    return false;
+}
+//-----------------------------------------------------------------------------
+void VulkanInstance::_SetupDebug()
+{
+    _debug_callback_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
+    _debug_callback_create_info.pfnCallback = VulkanDebugCallback;
+    _debug_callback_create_info.flags =
+        //		VK_DEBUG_REPORT_INFORMATION_BIT_EXT |
+        VK_DEBUG_REPORT_WARNING_BIT_EXT |
+        VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
+        VK_DEBUG_REPORT_ERROR_BIT_EXT |
+        //		VK_DEBUG_REPORT_DEBUG_BIT_EXT |
+        0;
+
+    _instance_layers.push_back( "VK_LAYER_LUNARG_core_validation" );
+    _instance_extensions.push_back( VK_EXT_DEBUG_REPORT_EXTENSION_NAME );
+}
+//-----------------------------------------------------------------------------
+static PFN_vkCreateDebugReportCallbackEXT  fvkCreateDebugReportCallbackEXT = nullptr;
+static PFN_vkDestroyDebugReportCallbackEXT fvkDestroyDebugReportCallbackEXT = nullptr;
+//-----------------------------------------------------------------------------
+void VulkanInstance::_InitDebug()
+{
+    fvkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr( _instance, "vkCreateDebugReportCallbackEXT" );
+    fvkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr( _instance, "vkDestroyDebugReportCallbackEXT" );
+    if( nullptr == fvkCreateDebugReportCallbackEXT || nullptr == fvkDestroyDebugReportCallbackEXT )
+    {
+        SYS_ASSERT( 0 && "Vulkan ERROR: Can't fetch debug function pointers." );
+    }
+
+    auto result = fvkCreateDebugReportCallbackEXT( _instance, &_debug_callback_create_info, nullptr, &_debug_report );
+    vulkan_util::checkError( result );
+}
+//-----------------------------------------------------------------------------
+void VulkanInstance::_DeinitDebug()
+{
+    fvkDestroyDebugReportCallbackEXT( _instance, _debug_report, nullptr );
+    _debug_report = nullptr;
+}
+
+#endif
+//-----------------------------------------------------------------------------
+void VulkanInstance::_SetupExtensions()
+{
+    _instance_extensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
+    _instance_extensions.push_back( VK_KHR_WIN32_SURFACE_EXTENSION_NAME );
+}
+//-----------------------------------------------------------------------------
+void VulkanInstance::_CreateInstance()
+{
+    VkApplicationInfo app_info = {};
+    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.pNext = nullptr;
+    app_info.pApplicationName = "ninja";
+    app_info.applicationVersion = 1;
+    app_info.pEngineName = "bx";
+    app_info.engineVersion = VK_MAKE_VERSION( 1, 0, 0 );
+    app_info.apiVersion = VK_MAKE_VERSION( 1, 0, 3 );
+
+    // initialize the VkInstanceCreateInfo structure
+    VkInstanceCreateInfo inst_info = {};
+    inst_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    inst_info.flags = 0;
+    inst_info.pApplicationInfo = &app_info;
+
+    inst_info.enabledExtensionCount = (u32)_instance_extensions.size();
+    inst_info.ppEnabledExtensionNames = _instance_extensions.data();
+
+    inst_info.enabledLayerCount = (u32)_instance_layers.size();
+    inst_info.ppEnabledLayerNames = _instance_layers.data();
+
+#ifdef BX_VK_DEBUG
+    inst_info.pNext = &_debug_callback_create_info;
+#endif
+
+    auto res = vkCreateInstance( &inst_info, nullptr, &_instance );
+    vulkan_util::checkError( res );
+}
+//-----------------------------------------------------------------------------
+void VulkanInstance::_DestroyInstance()
+{
+    vkDestroyInstance( _instance, nullptr );
+    _instance = nullptr;
+}
+
+//-----------------------------------------------------------------------------
+static VulkanInstance g_instance = {};
+void vulkanInstanceCreate()
+{
+#ifdef BX_VK_DEBUG
+    g_instance._SetupDebug();
+#endif
+
+    g_instance._SetupExtensions();
+    g_instance._CreateInstance();
+
+#ifdef BX_VK_DEBUG
+    g_instance._InitDebug();
+#endif
+}
+//-----------------------------------------------------------------------------
+void vulkanInstanceDestroy()
+{
+#ifdef BX_VK_DEBUG
+    g_instance._DeinitDebug();
+#endif
+    g_instance._DestroyInstance();
+}
+//-----------------------------------------------------------------------------
+VkInstance vulkanInstance()
+{
+    return g_instance._instance;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+
+void VulkanSwapChain::_InitSurface( bxWindow* window, VulkanDevice* vkdev )
+{
+    VkInstance vkInstance = vulkanInstance();
+    VkPhysicalDevice gpu = vkdev->_gpu;
     
     VkWin32SurfaceCreateInfoKHR create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
@@ -21,7 +173,7 @@ void VulkanSwapChain::_InitSurface( bxWindow* window, VulkanRenderer* renderer )
     vulkan_util::checkError( result );
 
     VkBool32 WSI_supported = false;
-    result = vkGetPhysicalDeviceSurfaceSupportKHR( gpu, renderer->_graphics_family_index, _surface, &WSI_supported );
+    result = vkGetPhysicalDeviceSurfaceSupportKHR( gpu, vkdev->_graphics_family_index, _surface, &WSI_supported );
     vulkan_util::checkError( result );
     if( !WSI_supported )
     {
@@ -69,7 +221,7 @@ void VulkanSwapChain::_DeinitSurface( VkInstance vkInstance )
     _surface = VK_NULL_HANDLE;
 }
 
-void VulkanSwapChain::_InitSwapChain( VulkanRenderer* renderer )
+void VulkanSwapChain::_InitSwapChain( VulkanDevice* vkdev )
 {
     _image_count = clamp( _image_count, _surface_capabilities.minImageCount, _surface_capabilities.maxImageCount );
     _image_count = maxOfPair( 2u, _image_count ); // ensure at least double buffering 
@@ -79,11 +231,11 @@ void VulkanSwapChain::_InitSwapChain( VulkanRenderer* renderer )
     VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
     {
         u32 present_mode_count = 0;
-        result = vkGetPhysicalDeviceSurfacePresentModesKHR( renderer->_gpu, _surface, &present_mode_count, nullptr );
+        result = vkGetPhysicalDeviceSurfacePresentModesKHR( vkdev->_gpu, _surface, &present_mode_count, nullptr );
         vulkan_util::checkError( result );
 
         std::vector<VkPresentModeKHR> present_modes( present_mode_count );
-        result = vkGetPhysicalDeviceSurfacePresentModesKHR( renderer->_gpu, _surface, &present_mode_count, present_modes.data() );
+        result = vkGetPhysicalDeviceSurfacePresentModesKHR( vkdev->_gpu, _surface, &present_mode_count, present_modes.data() );
         vulkan_util::checkError( result );
 
         for( auto m : present_modes )
@@ -115,27 +267,27 @@ void VulkanSwapChain::_InitSwapChain( VulkanRenderer* renderer )
     swapchain_create_info.clipped = VK_TRUE;
     swapchain_create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    result = vkCreateSwapchainKHR( renderer->_device, &swapchain_create_info, nullptr, &_swapchain );
+    result = vkCreateSwapchainKHR( vkdev->_device, &swapchain_create_info, nullptr, &_swapchain );
     vulkan_util::checkError( result );
 
-    result = vkGetSwapchainImagesKHR( renderer->_device, _swapchain, &_image_count, nullptr );
+    result = vkGetSwapchainImagesKHR( vkdev->_device, _swapchain, &_image_count, nullptr );
     vulkan_util::checkError( result );
 }
 
-void VulkanSwapChain::_DeinitSwapChain( VulkanRenderer* renderer )
+void VulkanSwapChain::_DeinitSwapChain( VulkanDevice* vkdev )
 {
-    vkDestroySwapchainKHR( renderer->_device, _swapchain, nullptr );
+    vkDestroySwapchainKHR( vkdev->_device, _swapchain, nullptr );
     _swapchain = VK_NULL_HANDLE;
 }
 
-void VulkanSwapChain::_InitSwapChainImages( VulkanRenderer* renderer, VkCommandBuffer setupCmdBuffer )
+void VulkanSwapChain::_InitSwapChainImages( VulkanDevice* vkdev, VkCommandBuffer setupCmdBuffer )
 {
-    //VkCommandBuffer setup_cmd_buffer = vulkan_util::setupCommandBufferCreate( renderer->_device, renderer->_command_pool );
+    //VkCommandBuffer setup_cmd_buffer = vulkan_util::setupCommandBufferCreate( vkdev->_device, renderer->_command_pool );
     
     _images.resize( _image_count );
     _image_views.resize( _image_count );
 
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
 
     auto result = vkGetSwapchainImagesKHR( device, _swapchain, &_image_count, _images.data() );
     vulkan_util::checkError( result );
@@ -163,14 +315,14 @@ void VulkanSwapChain::_InitSwapChainImages( VulkanRenderer* renderer, VkCommandB
         vulkan_util::checkError( result );
     }
 
-    //vulkan_util::setupCommandBufferFlush( &setup_cmd_buffer, renderer->_device, renderer->_queue, renderer->_command_pool );
+    //vulkan_util::setupCommandBufferFlush( &setup_cmd_buffer, vkdev->_device, renderer->_queue, renderer->_command_pool );
 }
 
-void VulkanSwapChain::_DeinitSwapChainImages( VulkanRenderer* renderer )
+void VulkanSwapChain::_DeinitSwapChainImages( VulkanDevice* vkdev )
 {
     for( u32 i = 0; i < _image_count; ++i )
     {
-        vkDestroyImageView( renderer->_device, _image_views[i], nullptr );
+        vkDestroyImageView( vkdev->_device, _image_views[i], nullptr );
         _image_views[i] = VK_NULL_HANDLE;
     }
 }
@@ -200,59 +352,21 @@ VkResult VulkanSwapChain::queuePresent( VkQueue queue, uint32_t currentBuffer, V
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-void VulkanRenderer::_SetupExtensions()
+void VulkanDevice::_SetupExtensions()
 {
-    _instance_extensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
-    _instance_extensions.push_back( VK_KHR_WIN32_SURFACE_EXTENSION_NAME );
     _device_extensions.push_back( VK_KHR_SWAPCHAIN_EXTENSION_NAME );
 }
 
-void VulkanRenderer::_CreateInstance()
+void VulkanDevice::_CreateDevice()
 {
-    VkApplicationInfo app_info = {};
-    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pNext = nullptr;
-    app_info.pApplicationName = "ninja";
-    app_info.applicationVersion = 1;
-    app_info.pEngineName = "bx";
-    app_info.engineVersion = VK_MAKE_VERSION( 1, 0, 0 );
-    app_info.apiVersion = VK_MAKE_VERSION( 1, 0, 3 );
-
-    // initialize the VkInstanceCreateInfo structure
-    VkInstanceCreateInfo inst_info = {};
-    inst_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    inst_info.flags = 0;
-    inst_info.pApplicationInfo = &app_info;
-
-    inst_info.enabledExtensionCount = (u32)_instance_extensions.size();
-    inst_info.ppEnabledExtensionNames = _instance_extensions.data();
-
-    inst_info.enabledLayerCount = (u32)_instance_layers.size();
-    inst_info.ppEnabledLayerNames = _instance_layers.data();
-
-#ifdef BX_VK_DEBUG
-    inst_info.pNext = &_debug_callback_create_info;
-#endif
-
-    auto res = vkCreateInstance( &inst_info, nullptr, &_instance );
-    vulkan_util::checkError( res );
-}
-
-void VulkanRenderer::_DestroyInstance()
-{
-    vkDestroyInstance( _instance, nullptr );
-    _instance = nullptr;
-}
-
-void VulkanRenderer::_CreateDevice()
-{
+    VkInstance instance = vulkanInstance();
     u32 gpu_count = 1;
-    auto res = vkEnumeratePhysicalDevices( _instance, &gpu_count, nullptr );
+    auto res = vkEnumeratePhysicalDevices( instance, &gpu_count, nullptr );
     vulkan_util::checkError( res );
 
     std::vector<VkPhysicalDevice> gpus;
     gpus.resize( gpu_count );
-    res = vkEnumeratePhysicalDevices( _instance, &gpu_count, gpus.data() );
+    res = vkEnumeratePhysicalDevices( instance, &gpu_count, gpus.data() );
     vulkan_util::checkError( res );
     SYS_ASSERT( (gpu_count >= 1) );
     _gpu = gpus[0];
@@ -310,7 +424,7 @@ void VulkanRenderer::_CreateDevice()
     //_command_pool = vulkan_util::commandPoolCreate( _device, _graphics_family_index );
 }
 
-void VulkanRenderer::_DestroyDevice()
+void VulkanDevice::_DestroyDevice()
 {
     //vkDestroyCommandPool( _device, _command_pool, nullptr );
     //_command_pool = VK_NULL_HANDLE;
@@ -320,7 +434,7 @@ void VulkanRenderer::_DestroyDevice()
     _gpu = nullptr;
 }
 
-void VulkanRenderer::_EnumerateLayers()
+void VulkanDevice::_EnumerateLayers()
 {
     u32 instance_layer_count = 0;
     std::vector< VkLayerProperties > instance_layer_props;
@@ -339,7 +453,7 @@ void VulkanRenderer::_EnumerateLayers()
     }
 }
 
-bool VulkanRenderer::_MemoryTypeIndexGet( uint32_t typeBits, VkFlags properties, u32* typeIndex )
+bool VulkanDevice::_MemoryTypeIndexGet( uint32_t typeBits, VkFlags properties, u32* typeIndex )
 {
     for( int i = 0; i < VK_MAX_MEMORY_TYPES; i++ )
     {
@@ -356,7 +470,7 @@ bool VulkanRenderer::_MemoryTypeIndexGet( uint32_t typeBits, VkFlags properties,
     return false;
 }
 
-VkDeviceMemory VulkanRenderer::deviceMemoryAllocate( const VkMemoryRequirements& requirments, VkFlags propertyFlag )
+VkDeviceMemory VulkanDevice::memoryAllocate( const VkMemoryRequirements& requirments, VkFlags propertyFlag )
 {
     VkMemoryAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -369,129 +483,53 @@ VkDeviceMemory VulkanRenderer::deviceMemoryAllocate( const VkMemoryRequirements&
     return device_memory;
 }
 
-#ifdef BX_VK_DEBUG
-VKAPI_ATTR VkBool32 VKAPI_CALL
-VulkanDebugCallback(
-    VkDebugReportFlagsEXT		flags,
-    VkDebugReportObjectTypeEXT	obj_type,
-    uint64_t					src_obj,
-    size_t						location,
-    int32_t						msg_code,
-    const char *				layer_prefix,
-    const char *				msg,
-    void *						user_data
-    )
+
+
+
+void VulkanSampleContext::initialize( VulkanDevice* vkdev, bxWindow* window )
 {
-    printf( "VKDBG: " );
-    if( flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT )
-    {
-        printf( "INFO: " );
-    }
-    if( flags & VK_DEBUG_REPORT_WARNING_BIT_EXT )
-    {
-        printf( "WARNING: " );
-    }
-    if( flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT )
-    {
-        printf( "PERFORMANCE: " );
-    }
-    if( flags & VK_DEBUG_REPORT_ERROR_BIT_EXT )
-    {
-        printf( "ERROR: " );
-    }
-    if( flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT )
-    {
-        printf( "DEBUG: " );
-    }
-    printf( "@[%s]: %s\n", layer_prefix, msg );
-    return false;
-}
-
-void VulkanRenderer::_SetupDebug()
-{
-    _debug_callback_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
-    _debug_callback_create_info.pfnCallback = VulkanDebugCallback;
-    _debug_callback_create_info.flags =
-        //		VK_DEBUG_REPORT_INFORMATION_BIT_EXT |
-        VK_DEBUG_REPORT_WARNING_BIT_EXT |
-        VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
-        VK_DEBUG_REPORT_ERROR_BIT_EXT |
-        //		VK_DEBUG_REPORT_DEBUG_BIT_EXT |
-        0;
-    
-    _instance_layers.push_back( "VK_LAYER_LUNARG_core_validation" );
-    _instance_extensions.push_back( VK_EXT_DEBUG_REPORT_EXTENSION_NAME );
-}
-
-static PFN_vkCreateDebugReportCallbackEXT  fvkCreateDebugReportCallbackEXT = nullptr;
-static PFN_vkDestroyDebugReportCallbackEXT fvkDestroyDebugReportCallbackEXT = nullptr;
-
-void VulkanRenderer::_InitDebug()
-{
-    fvkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr( _instance, "vkCreateDebugReportCallbackEXT" );
-    fvkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr( _instance, "vkDestroyDebugReportCallbackEXT" );
-    if( nullptr == fvkCreateDebugReportCallbackEXT || nullptr == fvkDestroyDebugReportCallbackEXT )
-    {
-        SYS_ASSERT( 0 && "Vulkan ERROR: Can't fetch debug function pointers." );
-    }
-
-    auto result = fvkCreateDebugReportCallbackEXT( _instance, &_debug_callback_create_info, nullptr, &_debug_report );
-    vulkan_util::checkError( result );
-}
-
-void VulkanRenderer::_DeinitDebug()
-{
-    fvkDestroyDebugReportCallbackEXT( _instance, _debug_report, nullptr );
-    _debug_report = nullptr;
-}
-
-#endif
-
-
-void VulkanSample::initialize( VulkanRenderer* renderer, bxWindow* window )
-{
-    VkDevice device = renderer->_device;
-    uint32_t queue_family_index = renderer->_graphics_family_index;
+    VkDevice device = vkdev->_device;
+    uint32_t queue_family_index = vkdev->_graphics_family_index;
 
     _command_pool = vulkan_util::commandPoolCreate( device, queue_family_index );
     vkGetDeviceQueue( device, queue_family_index, 0, &_queue );
 
     VkCommandBuffer setup_cmd_buffer = vulkan_util::setupCommandBufferCreate( device, _command_pool );
 
-    _swap_chain._InitSurface( window, renderer );
-    _swap_chain._InitSwapChain( renderer );
-    _swap_chain._InitSwapChainImages( renderer, setup_cmd_buffer );
+    _swap_chain._InitSurface( window, vkdev );
+    _swap_chain._InitSwapChain( vkdev );
+    _swap_chain._InitSwapChainImages( vkdev, setup_cmd_buffer );
 
-    _CreateCommandBuffers( renderer );
-    _CreateSemaphores( renderer );
-    _CreateDepthStencil( renderer, setup_cmd_buffer );
-    _CreateRenderPass( renderer );
-    _CreateFramebuffer( renderer );
-    _CreatePipelineCache( renderer );
+    _CreateCommandBuffers( vkdev );
+    _CreateSemaphores( vkdev );
+    _CreateDepthStencil( vkdev, setup_cmd_buffer );
+    _CreateRenderPass( vkdev );
+    _CreateFramebuffer( vkdev );
+    _CreatePipelineCache( vkdev );
 
     vulkan_util::setupCommandBufferFlush( &setup_cmd_buffer, device, _queue, _command_pool );
 }
 
-void VulkanSample::deinitialize( VulkanRenderer* renderer )
+void VulkanSampleContext::deinitialize( VulkanDevice* vkdev )
 {
-    _DestroyPipelineCache( renderer );
-    _DestroyFramebuffer( renderer );
-    _DestroyRenderPass( renderer );
-    _DestroyDepthStencil( renderer );
-    _DestroySemaphores( renderer );
-    _DestroyCommandBuffers( renderer );
+    _DestroyPipelineCache( vkdev );
+    _DestroyFramebuffer( vkdev );
+    _DestroyRenderPass( vkdev );
+    _DestroyDepthStencil( vkdev );
+    _DestroySemaphores( vkdev );
+    _DestroyCommandBuffers( vkdev );
     
-    _swap_chain._DeinitSwapChainImages( renderer );
-    _swap_chain._DeinitSwapChain( renderer );
-    _swap_chain._DeinitSurface( renderer->_instance );
+    _swap_chain._DeinitSwapChainImages( vkdev );
+    _swap_chain._DeinitSwapChain( vkdev );
+    _swap_chain._DeinitSurface( vulkanInstance() );
 
-    vkDestroyCommandPool( renderer->_device, _command_pool, nullptr );
-    renderer->_device = VK_NULL_HANDLE;
+    vkDestroyCommandPool( vkdev->_device, _command_pool, nullptr );
+    vkdev->_device = VK_NULL_HANDLE;
 }
 
-void VulkanSample::submitCommandBuffers( VulkanRenderer* renderer, VkCommandBuffer* cmdBuffers, u32 cmdBuffersCount )
+void VulkanSampleContext::submitCommandBuffers( VulkanDevice* vkdev, VkCommandBuffer* cmdBuffers, u32 cmdBuffersCount )
 {
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
     
     u32 current_buffer = 0;
     VkResult result = VK_SUCCESS;
@@ -575,25 +613,23 @@ void VulkanSample::submitCommandBuffers( VulkanRenderer* renderer, VkCommandBuff
     vulkan_util::checkError( result );
 }
 
-void VulkanSample::_CreateCommandBuffers( VulkanRenderer* renderer )
+void VulkanSampleContext::_CreateCommandBuffers( VulkanDevice* vkdev )
 {
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
     vulkan_util::commandBuffersCreate( &_pre_present_cmd_buffer, 1, device, _command_pool );
     vulkan_util::commandBuffersCreate( &_post_present_cmd_buffer, 1, device, _command_pool );
-    vulkan_util::commandBuffersCreate( &_draw_cmd_buffer, 1, device, _command_pool );
 }
 
-void VulkanSample::_DestroyCommandBuffers( VulkanRenderer* renderer )
+void VulkanSampleContext::_DestroyCommandBuffers( VulkanDevice* vkdev )
 {
-    VkDevice device = renderer->_device;
-    vulkan_util::commandBuffersDestroy( &_draw_cmd_buffer, 1, device, _command_pool );
+    VkDevice device = vkdev->_device;
     vulkan_util::commandBuffersDestroy( &_post_present_cmd_buffer, 1, device, _command_pool );
     vulkan_util::commandBuffersDestroy( &_pre_present_cmd_buffer, 1, device, _command_pool );
 }
 
-void VulkanSample::_CreateSemaphores( VulkanRenderer* renderer )
+void VulkanSampleContext::_CreateSemaphores( VulkanDevice* vkdev )
 {
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
     
     VkSemaphoreCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -610,17 +646,17 @@ void VulkanSample::_CreateSemaphores( VulkanRenderer* renderer )
     vulkan_util::checkError( result );
 }
 
-void VulkanSample::_DestroySemaphores( VulkanRenderer* renderer )
+void VulkanSampleContext::_DestroySemaphores( VulkanDevice* vkdev )
 {
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
     vkDestroySemaphore( device, _render_complete_semaphore, nullptr );
     vkDestroySemaphore( device, _present_complete_semaphore, nullptr );
 }
 
-void VulkanSample::_CreateDepthStencil( VulkanRenderer* renderer, VkCommandBuffer setupCmdBuffer )
+void VulkanSampleContext::_CreateDepthStencil( VulkanDevice* vkdev, VkCommandBuffer setupCmdBuffer )
 {
     
-    VkFormat depth_format = renderer->_depth_format;
+    VkFormat depth_format = vkdev->_depth_format;
 
     VkImageCreateInfo image_create_info = {};
     image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -655,7 +691,7 @@ void VulkanSample::_CreateDepthStencil( VulkanRenderer* renderer, VkCommandBuffe
     view_create_info.subresourceRange.layerCount = 1;
 
 
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
     VkMemoryRequirements mem_reqs = {};
     VkResult result = VK_SUCCESS;
 
@@ -665,7 +701,7 @@ void VulkanSample::_CreateDepthStencil( VulkanRenderer* renderer, VkCommandBuffe
     vkGetImageMemoryRequirements( device, _depth_stencil.image, &mem_reqs );
     mem_alloc_info.allocationSize = mem_reqs.size;
     
-    _depth_stencil.mem = renderer->deviceMemoryAllocate( mem_reqs, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
+    _depth_stencil.mem = vkdev->memoryAllocate( mem_reqs, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
     
     result = vkBindImageMemory( device, _depth_stencil.image, _depth_stencil.mem, 0 );
     vulkan_util::checkError( result );
@@ -680,9 +716,9 @@ void VulkanSample::_CreateDepthStencil( VulkanRenderer* renderer, VkCommandBuffe
     vulkan_util::checkError( result );
 }
 
-void VulkanSample::_DestroyDepthStencil( VulkanRenderer* renderer )
+void VulkanSampleContext::_DestroyDepthStencil( VulkanDevice* vkdev )
 {
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
 
     vkDestroyImageView( device, _depth_stencil.view, nullptr );
     vkDestroyImage( device, _depth_stencil.image, nullptr );
@@ -690,7 +726,7 @@ void VulkanSample::_DestroyDepthStencil( VulkanRenderer* renderer )
     _depth_stencil = {};
 }
 
-void VulkanSample::_CreateRenderPass( VulkanRenderer* renderer )
+void VulkanSampleContext::_CreateRenderPass( VulkanDevice* vkdev )
 {
     VkAttachmentDescription attachments[2];
     attachments[0].format = _swap_chain._surface_format.format;
@@ -702,7 +738,7 @@ void VulkanSample::_CreateRenderPass( VulkanRenderer* renderer )
     attachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    attachments[1].format = renderer->_depth_format;
+    attachments[1].format = vkdev->_depth_format;
     attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -741,18 +777,18 @@ void VulkanSample::_CreateRenderPass( VulkanRenderer* renderer )
     render_pass_create_info.dependencyCount = 0;
     render_pass_create_info.pDependencies = NULL;
 
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
     VkResult result = vkCreateRenderPass( device, &render_pass_create_info, nullptr, &_render_pass );
     vulkan_util::checkError( result );
 }
 
-void VulkanSample::_DestroyRenderPass( VulkanRenderer* renderer )
+void VulkanSampleContext::_DestroyRenderPass( VulkanDevice* vkdev )
 {
-    vkDestroyRenderPass( renderer->_device, _render_pass, nullptr );
+    vkDestroyRenderPass( vkdev->_device, _render_pass, nullptr );
     _render_pass = VK_NULL_HANDLE;
 }
 
-void VulkanSample::_CreateFramebuffer( VulkanRenderer* renderer )
+void VulkanSampleContext::_CreateFramebuffer( VulkanDevice* vkdev )
 {
     VkImageView attachments[2];
 
@@ -771,7 +807,7 @@ void VulkanSample::_CreateFramebuffer( VulkanRenderer* renderer )
 
     // Create frame buffers for every swap chain image
     _framebuffers.resize( _swap_chain._image_count );
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
     for( size_t i = 0; i < _framebuffers.size(); i++ )
     {
         attachments[0] = _swap_chain._image_views[i];
@@ -780,9 +816,9 @@ void VulkanSample::_CreateFramebuffer( VulkanRenderer* renderer )
     }
 }
 
-void VulkanSample::_DestroyFramebuffer( VulkanRenderer* renderer )
+void VulkanSampleContext::_DestroyFramebuffer( VulkanDevice* vkdev )
 {
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
 
     for( VkFramebuffer& fb : _framebuffers )
     {
@@ -791,20 +827,244 @@ void VulkanSample::_DestroyFramebuffer( VulkanRenderer* renderer )
     }
 }
 
-void VulkanSample::_CreatePipelineCache( VulkanRenderer* renderer )
+void VulkanSampleContext::_CreatePipelineCache( VulkanDevice* vkdev )
 {
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
     VkPipelineCacheCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
     VkResult result = vkCreatePipelineCache( device, &create_info, nullptr, &_pipeline_cache );
     vulkan_util::checkError( result );
 }
 
-void VulkanSample::_DestroyPipelineCache( VulkanRenderer* renderer )
+void VulkanSampleContext::_DestroyPipelineCache( VulkanDevice* vkdev )
 {
-    VkDevice device = renderer->_device;
+    VkDevice device = vkdev->_device;
     vkDestroyPipelineCache( device, _pipeline_cache, nullptr );
 }
+
+//////////////////////////////////////////////////////////////////////////
+void VulkanSampleTriangle::initialize( VulkanDevice* vkdev, VulkanSampleContext* ctx )
+{
+    _CreateCommandBuffers( vkdev, ctx );
+    _CreateBuffers( vkdev, ctx );
+}
+//-----------------------------------------------------------------------------
+void VulkanSampleTriangle::deinitialize( VulkanDevice* vkdev, VulkanSampleContext* ctx )
+{
+    _DestroyBuffers( vkdev, ctx );
+    _DestroyCommandBuffers( vkdev, ctx );
+}
+//-----------------------------------------------------------------------------
+void VulkanSampleTriangle::_CreateCommandBuffers( VulkanDevice* vkdev, VulkanSampleContext* ctx )
+{
+    _draw_cmd_buffer.resize( ctx->_swap_chain._image_count );
+    vulkan_util::commandBuffersCreate( _draw_cmd_buffer.data(), (u32)_draw_cmd_buffer.size(), vkdev->_device, ctx->_command_pool );
+}
+//-----------------------------------------------------------------------------
+void VulkanSampleTriangle::_DestroyCommandBuffers( VulkanDevice* vkdev, VulkanSampleContext* ctx )
+{
+    vulkan_util::commandBuffersDestroy( _draw_cmd_buffer.data(), (u32)_draw_cmd_buffer.size(), vkdev->_device, ctx->_command_pool );
+    _draw_cmd_buffer.clear();
+}
+//-----------------------------------------------------------------------------
+void VulkanSampleTriangle::_CreateBuffers( VulkanDevice* vkdev, VulkanSampleContext* ctx )
+{
+    _vertex_bind_desc[0].binding = 0;
+    _vertex_bind_desc[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    _vertex_bind_desc[0].stride = sizeof( float3_t );
+
+    _vertex_bind_desc[1].binding = 1;
+    _vertex_bind_desc[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    _vertex_bind_desc[1].stride = sizeof( float3_t );
+
+    _vertex_attrib_desc[0].binding = _vertex_bind_desc[0].binding;
+    _vertex_attrib_desc[0].location = 0;
+    _vertex_attrib_desc[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    _vertex_attrib_desc[0].offset = 0;
+
+    _vertex_attrib_desc[1].binding = _vertex_bind_desc[1].binding;
+    _vertex_attrib_desc[1].location = 0;
+    _vertex_attrib_desc[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    _vertex_attrib_desc[1].offset = 0;
+
+    _vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    _vertex_input_info.pNext = nullptr;
+    _vertex_input_info.vertexBindingDescriptionCount = 2;
+    _vertex_input_info.pVertexBindingDescriptions = _vertex_bind_desc;
+    _vertex_input_info.vertexAttributeDescriptionCount = 2;
+    _vertex_input_info.pVertexAttributeDescriptions = _vertex_attrib_desc;
+
+    const float3_t vertex_pos[] = 
+    {
+        { 1.0f ,  1.0f, 0.0f },
+        { -1.0f,  1.0f, 0.0f },
+        { 0.0f , -1.0f, 0.0f },
+    };
+    const float3_t vertex_color[] =
+    {
+        { 1.0f, 0.0f, 0.0f },
+        { 0.0f, 1.0f, 0.0f },
+        { 0.0f, 0.0f, 1.0f },
+    };
+
+    const u32 indices[] = { 0, 1, 2 };
+
+    const u32 vertex_pos_size = sizeof( vertex_pos );
+    const u32 vertex_col_size = sizeof( vertex_color );
+    const u32 indices_size = sizeof( indices );
+    
+    StagingBuffer staging_buffer = {};
+
+    VkDevice device = vkdev->_device;
+
+    VkMemoryAllocateInfo memAlloc = {};
+    memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    VkMemoryRequirements memReqs = {};
+
+    VkCommandBuffer copy_cmd_buffer = nullptr;
+    bool bres = vulkan_util::commandBuffersCreate( &copy_cmd_buffer, 1, device, ctx->_command_pool );
+    (void)bres;
+    SYS_ASSERT( bres );
+
+    VkBufferCreateInfo buffer_create_info = {};
+    buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_create_info.size = vertex_pos_size + vertex_col_size + indices_size;
+    buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+    VkResult result = vkCreateBuffer( device, &buffer_create_info, nullptr, &staging_buffer.buffer );
+    vulkan_util::checkError( result );
+
+    VkMemoryRequirements mem_reqs = {};
+    vkGetBufferMemoryRequirements( device, staging_buffer.buffer, &mem_reqs );
+    staging_buffer.memory = vkdev->memoryAllocate( mem_reqs, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT );
+    SYS_ASSERT( staging_buffer.memory != VK_NULL_HANDLE );
+
+    u8* mapped_data = nullptr;
+    result = vkMapMemory( device, staging_buffer.memory, 0, mem_reqs.size, 0, (void**)&mapped_data );
+    vulkan_util::checkError( result );
+
+    const size_t offset_pos_src = 0;
+    const size_t offset_col_src = offset_pos_src + vertex_pos_size;
+    const size_t offset_i_src = offset_col_src + vertex_col_size;
+
+    memcpy( mapped_data + offset_pos_src, vertex_pos, vertex_pos_size );
+    memcpy( mapped_data + offset_col_src, vertex_color, vertex_col_size );
+    memcpy( mapped_data + offset_i_src, indices, indices_size );
+    vkUnmapMemory( device, staging_buffer.memory );
+
+    result = vkBindBufferMemory( device, staging_buffer.buffer, staging_buffer.memory, 0 );
+    vulkan_util::checkError( result );
+
+    ///
+    buffer_create_info.size = vertex_pos_size;
+    buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    result = vkCreateBuffer( device, &buffer_create_info, nullptr, &_vertex_buffer_pos );
+    vulkan_util::checkError( result );
+
+    result = vkCreateBuffer( device, &buffer_create_info, nullptr, &_vertex_buffer_col );
+    vulkan_util::checkError( result );
+
+    buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    result = vkCreateBuffer( device, &buffer_create_info, nullptr, &_index_buffer );
+    vulkan_util::checkError( result );
+
+    VkMemoryRequirements mem_reqs_vpos = {};
+    VkMemoryRequirements mem_reqs_vcol = {};
+    VkMemoryRequirements mem_reqs_i = {};
+    vkGetBufferMemoryRequirements( device, _vertex_buffer_pos, &mem_reqs_vpos );
+    vkGetBufferMemoryRequirements( device, _vertex_buffer_col, &mem_reqs_vcol );
+    vkGetBufferMemoryRequirements( device, _index_buffer, &mem_reqs_i );
+
+    mem_reqs.alignment = mem_reqs_vpos.alignment;
+    mem_reqs.size = mem_reqs_vpos.size;
+    mem_reqs.size += TYPE_ALIGN( mem_reqs.size, mem_reqs_vcol.alignment ) + mem_reqs_vcol.size;//mem_reqs_vcol.size + mem_reqs_vcol.alignment;
+    mem_reqs.size += TYPE_ALIGN( mem_reqs.size, mem_reqs_i.alignment ) + mem_reqs_i.size;//mem_reqs_i.size + mem_reqs_i.alignment;
+    SYS_ASSERT( mem_reqs_vcol.memoryTypeBits == mem_reqs_vpos.memoryTypeBits );
+    SYS_ASSERT( mem_reqs_vcol.memoryTypeBits == mem_reqs_i.memoryTypeBits );
+
+    _vertex_and_index_memory = vkdev->memoryAllocate( mem_reqs, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
+    SYS_ASSERT( _vertex_and_index_memory != VK_NULL_HANDLE );
+
+    VkDeviceSize offset_pos = 0;
+    VkDeviceSize offset_col = TYPE_ALIGN(offset_pos + mem_reqs_vpos.size, mem_reqs_vcol.alignment );
+    VkDeviceSize offset_i = TYPE_ALIGN( offset_col + mem_reqs_vcol.size, mem_reqs_i.alignment );
+    
+    result = vkBindBufferMemory( device, _vertex_buffer_pos, _vertex_and_index_memory, offset_pos );
+    vulkan_util::checkError( result );
+    
+    result = vkBindBufferMemory( device, _vertex_buffer_col, _vertex_and_index_memory, offset_col );
+    vulkan_util::checkError( result );
+    
+    result = vkBindBufferMemory( device, _index_buffer, _vertex_and_index_memory, offset_i );
+    vulkan_util::checkError( result );
+
+    VkCommandBufferBeginInfo cmd_buffer_begin_info = {};
+    cmd_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    cmd_buffer_begin_info.pNext = NULL;
+
+    result = vkBeginCommandBuffer( copy_cmd_buffer, &cmd_buffer_begin_info );
+    vulkan_util::checkError( result );
+
+    VkBufferCopy copy_region = {};
+    copy_region.srcOffset = offset_pos_src;
+    copy_region.dstOffset = offset_pos;
+    copy_region.size = vertex_pos_size;
+    vkCmdCopyBuffer( copy_cmd_buffer, staging_buffer.buffer, _vertex_buffer_pos, 1, &copy_region );
+
+    copy_region.srcOffset = offset_col_src;
+    copy_region.dstOffset = offset_col;
+    copy_region.size = vertex_col_size;
+    vkCmdCopyBuffer( copy_cmd_buffer, staging_buffer.buffer, _vertex_buffer_col, 1, &copy_region );
+
+    copy_region.srcOffset = offset_i_src;
+    copy_region.dstOffset = offset_i;
+    copy_region.size = indices_size;
+    vkCmdCopyBuffer( copy_cmd_buffer, staging_buffer.buffer, _index_buffer, 1, &copy_region );
+
+    vkEndCommandBuffer( copy_cmd_buffer );
+
+    // Submit copies to the queue
+    VkSubmitInfo copy_submit_info = {};
+    copy_submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    copy_submit_info.commandBufferCount = 1;
+    copy_submit_info.pCommandBuffers = &copy_cmd_buffer;
+
+    result = vkQueueSubmit( ctx->_queue, 1, &copy_submit_info, VK_NULL_HANDLE );
+    vulkan_util::checkError( result );
+
+    result = vkQueueWaitIdle( ctx->_queue );
+    vulkan_util::checkError( result );
+
+    vkDestroyBuffer( device, staging_buffer.buffer, nullptr );
+    vkFreeMemory( device, staging_buffer.memory, nullptr );
+    vulkan_util::commandBuffersDestroy( &copy_cmd_buffer, 1, device, ctx->_command_pool );
+}
+//-----------------------------------------------------------------------------
+void VulkanSampleTriangle::_DestroyBuffers( VulkanDevice* vkdev, VulkanSampleContext* ctx )
+{
+
+}
+//-----------------------------------------------------------------------------
+void VulkanSampleTriangle::_CreatePipeline( VulkanDevice* vkdev, VulkanSampleContext* ctx )
+{
+
+}
+//-----------------------------------------------------------------------------
+void VulkanSampleTriangle::_DestroyPipeline( VulkanDevice* vkdev, VulkanSampleContext* ctx )
+{
+
+}
+//-----------------------------------------------------------------------------
+void VulkanSampleTriangle::_CreatePipelineLayout( VulkanDevice* vkdev, VulkanSampleContext* ctx )
+{
+
+}
+//-----------------------------------------------------------------------------
+void VulkanSampleTriangle::_DestroyPipelineLayout( VulkanDevice* vkdev, VulkanSampleContext* ctx )
+{
+
+}
+//-----------------------------------------------------------------------------
 
 
 }////
