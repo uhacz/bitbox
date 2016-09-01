@@ -12,7 +12,7 @@
 #include <util/random.h>
 #include <util/time.h>
 #include <stdio.h>
-#include "gfx/gfx_camera.h"
+//#include "gfx/gfx_camera.h"
 
 static const Vector4 spheres[] =
 {

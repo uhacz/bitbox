@@ -7,10 +7,7 @@
 #include "renderer_util.h"
 #include <util/type.h>
 
-#ifdef BX_VK_DEBUG
 #include <vector>
-#endif
-
 #include <system/window.h>
 
 namespace bx
@@ -22,9 +19,8 @@ struct VulkanInstance
     VkInstance       _instance = VK_NULL_HANDLE;
     
     std::vector< const char* > _instance_extensions;
-#ifdef BX_VK_DEBUG
     std::vector< const char* > _instance_layers;
-
+#ifdef BX_VK_DEBUG
     VkDebugReportCallbackEXT	        _debug_report = nullptr;
     VkDebugReportCallbackCreateInfoEXT	_debug_callback_create_info = {};
 

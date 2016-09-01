@@ -143,27 +143,28 @@ public:
         //    bx::gfxSceneMeshInstanceAdd( scene, meshI );
         //}
 
-        const char skelFile[] = "anim/motion_fields/uw_cap6_005.skel";
+        const char skelFile[] = "anim/motion_fields/uw_cap6_005m_s.skel";
         const char* animFiles[] = 
         {
             //"anim/motion_fields/uw_cap6_005.anim",
-            "anim/motion_fields/uw_cap6_005m.anim",
+            "anim/motion_fields/uw_cap6_005m_s.anim",
             //"anim/motion_fields/uw_cap6_023.anim",
-            "anim/motion_fields/uw_cap6_023m.anim",
+            "anim/motion_fields/uw_cap6_023m_s.anim",
             //"anim/motion_fields/uw_cap6_026.anim",
-            "anim/motion_fields/uw_cap6_026m.anim",
+            "anim/motion_fields/uw_cap6_026m_s.anim",
             //"anim/motion_fields/uw_cap6_032.anim",
-            "anim/motion_fields/uw_cap6_032m.anim",
+            "anim/motion_fields/uw_cap6_032m_s.anim",
         };
         const unsigned numAnimFiles = sizeof( animFiles ) / sizeof( *animFiles );
         mf_database.load( skelFile, animFiles, numAnimFiles );
-
+        mf_database.prepare();
         return true;
     }
     virtual void shutdown()
     {
         //bx::gfxSceneDestroy( &scene );
         //bx::gfxCameraDestroy( &camera );
+        mf_database.unprepare();
         mf_database.unload();
 
         gameSceneShutdown( &__scene, &_engine );
@@ -251,6 +252,17 @@ public:
             }
 
             bxGfxDebugDraw::addAxes( appendScale( Matrix4::identity(), Vector3( 5.f ) ) );
+        }
+
+
+        {
+            static u32 motion_state_index = 0;
+            if( bxInput_isKeyPressedOnce( &win->input.kbd, 'N' ) )
+            {
+                motion_state_index += 1;
+            }
+
+            mf_database.debugDrawState( motion_state_index, 0xFF00FFFF, true );
         }
 
         bx::gfxCameraComputeMatrices( camera );

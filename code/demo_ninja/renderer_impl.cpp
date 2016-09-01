@@ -1,6 +1,7 @@
 #include "renderer_impl.h"
 #include <util/debug.h>
 #include <vector>
+#include <array>
 
 #include <util/common.h>
 
@@ -100,7 +101,7 @@ void VulkanInstance::_CreateInstance()
     app_info.applicationVersion = 1;
     app_info.pEngineName = "bx";
     app_info.engineVersion = VK_MAKE_VERSION( 1, 0, 0 );
-    app_info.apiVersion = VK_MAKE_VERSION( 1, 0, 3 );
+    app_info.apiVersion = VK_MAKE_VERSION( 1, 0, 21 );
 
     // initialize the VkInstanceCreateInfo structure
     VkInstanceCreateInfo inst_info = {};
@@ -223,7 +224,7 @@ void VulkanSwapChain::_DeinitSurface( VkInstance vkInstance )
 
 void VulkanSwapChain::_InitSwapChain( VulkanDevice* vkdev )
 {
-    _image_count = clamp( _image_count, _surface_capabilities.minImageCount, _surface_capabilities.maxImageCount );
+    _image_count = clamp( _image_count, _surface_capabilities.minImageCount + 1, _surface_capabilities.maxImageCount );
     _image_count = maxOfPair( 2u, _image_count ); // ensure at least double buffering 
 
     VkResult result = VK_SUCCESS;
@@ -502,18 +503,20 @@ void VulkanSampleContext::initialize( VulkanDevice* vkdev, bxWindow* window )
 
     _CreateCommandBuffers( vkdev );
     _CreateSemaphores( vkdev );
+    
     _CreateDepthStencil( vkdev, setup_cmd_buffer );
-    _CreateRenderPass( vkdev );
-    _CreateFramebuffer( vkdev );
-    _CreatePipelineCache( vkdev );
-
     vulkan_util::setupCommandBufferFlush( &setup_cmd_buffer, device, _queue, _command_pool );
+ 
+    _CreateRenderPass( vkdev );
+    _CreatePipelineCache( vkdev );
+    _CreateFramebuffer( vkdev );
+
 }
 
 void VulkanSampleContext::deinitialize( VulkanDevice* vkdev )
 {
-    _DestroyPipelineCache( vkdev );
     _DestroyFramebuffer( vkdev );
+    _DestroyPipelineCache( vkdev );
     _DestroyRenderPass( vkdev );
     _DestroyDepthStencil( vkdev );
     _DestroySemaphores( vkdev );
@@ -728,7 +731,7 @@ void VulkanSampleContext::_DestroyDepthStencil( VulkanDevice* vkdev )
 
 void VulkanSampleContext::_CreateRenderPass( VulkanDevice* vkdev )
 {
-    VkAttachmentDescription attachments[2];
+    VkAttachmentDescription attachments[2] = {};
     attachments[0].format = _swap_chain._surface_format.format;
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -759,13 +762,35 @@ void VulkanSampleContext::_CreateRenderPass( VulkanDevice* vkdev )
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.flags = 0;
     subpass.inputAttachmentCount = 0;
-    subpass.pInputAttachments = NULL;
+    subpass.pInputAttachments = nullptr;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &color_reference;
-    subpass.pResolveAttachments = NULL;
     subpass.pDepthStencilAttachment = &depth_reference;
+    subpass.pResolveAttachments = nullptr;
     subpass.preserveAttachmentCount = 0;
-    subpass.pPreserveAttachments = NULL;
+    subpass.pPreserveAttachments = nullptr;
+
+    std::array<VkSubpassDependency, 2> dependencies;
+
+    // First dependency at the start of the renderpass
+    // Does the transition from final to initial layout 
+    dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;								// Producer of the dependency 
+    dependencies[0].dstSubpass = 0;													// Consumer is our single subpass that will wait for the execution depdendency
+    dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependencies[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    // Second dependency at the end the renderpass
+    // Does the transition from the initial to the final layout
+    dependencies[1].srcSubpass = 0;													// Producer of the dependency is our single subpass
+    dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;								// Consumer are all commands outside of the renderpass
+    dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependencies[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
     VkRenderPassCreateInfo render_pass_create_info = {};
     render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -774,8 +799,8 @@ void VulkanSampleContext::_CreateRenderPass( VulkanDevice* vkdev )
     render_pass_create_info.pAttachments = attachments;
     render_pass_create_info.subpassCount = 1;
     render_pass_create_info.pSubpasses = &subpass;
-    render_pass_create_info.dependencyCount = 0;
-    render_pass_create_info.pDependencies = NULL;
+    render_pass_create_info.dependencyCount = (u32)dependencies.size();
+    render_pass_create_info.pDependencies = dependencies.data();
 
     VkDevice device = vkdev->_device;
     VkResult result = vkCreateRenderPass( device, &render_pass_create_info, nullptr, &_render_pass );
@@ -790,27 +815,24 @@ void VulkanSampleContext::_DestroyRenderPass( VulkanDevice* vkdev )
 
 void VulkanSampleContext::_CreateFramebuffer( VulkanDevice* vkdev )
 {
-    VkImageView attachments[2];
-
-    // Depth/Stencil attachment is the same for all frame buffers
-    attachments[1] = _depth_stencil.view;
-
-    VkFramebufferCreateInfo frame_buffer_create_info = {};
-    frame_buffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    frame_buffer_create_info.pNext = NULL;
-    frame_buffer_create_info.renderPass = _render_pass;
-    frame_buffer_create_info.attachmentCount = 2;
-    frame_buffer_create_info.pAttachments = attachments;
-    frame_buffer_create_info.width = _swap_chain._width;
-    frame_buffer_create_info.height = _swap_chain._height;
-    frame_buffer_create_info.layers = 1;
-
     // Create frame buffers for every swap chain image
     _framebuffers.resize( _swap_chain._image_count );
     VkDevice device = vkdev->_device;
     for( size_t i = 0; i < _framebuffers.size(); i++ )
     {
+        std::array< VkImageView, 2 > attachments;
         attachments[0] = _swap_chain._image_views[i];
+        attachments[1] = _depth_stencil.view;
+
+        VkFramebufferCreateInfo frame_buffer_create_info = {};
+        frame_buffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        frame_buffer_create_info.renderPass = _render_pass;
+        frame_buffer_create_info.attachmentCount = (u32)attachments.size();
+        frame_buffer_create_info.pAttachments = attachments.data();
+        frame_buffer_create_info.width = _swap_chain._width;
+        frame_buffer_create_info.height = _swap_chain._height;
+        frame_buffer_create_info.layers = 1;
+        
         VkResult result = vkCreateFramebuffer( device, &frame_buffer_create_info, nullptr, &_framebuffers[i] );
         vulkan_util::checkError( result );
     }
