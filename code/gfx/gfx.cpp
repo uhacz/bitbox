@@ -640,8 +640,8 @@ namespace bx
             GfxSortListDepth* depthList = scene->_sListDepth;
 
             //bxChunk colorChunk, depthChunk;
-            bxChunk_create( colorChunk, 1, data.size );
-            bxChunk_create( depthChunk, 1, data.size );
+            bxChunk_create( colorChunk, 1, scene->_instancesCount );
+            bxChunk_create( depthChunk, 1, scene->_instancesCount );
 
             GfxViewFrustum frustum = bx::gfx::viewFrustumExtract( camera->viewProj );
 

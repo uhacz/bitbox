@@ -224,8 +224,9 @@ namespace bx
 
         bx::terrainCreate( &scene->terrain, scene, engine );
         //scene->character = bx::character_new();
-        bx::CharacterController::create( &scene->cct, scene, Matrix4::translation( Vector3(0.f, 5.f, 0.f ) ) );
+        bx::CharacterController::create( &scene->cct, scene, Matrix4::translation( Vector3(0.f, 1.f, 0.f ) ) );
 		bx::charAnimControllerCreate( &scene->canim, scene );
+        bx::charGfxCreate( &scene->cgfx, scene );
 
         //scene->flock = bxGame::flock_new();
 
@@ -235,19 +236,21 @@ namespace bx
 
     void gameSceneShutdown( GameScene* scene, bx::Engine* engine )
     {
-        Scene::shutdown( &scene->scene, engine );
         //bxGame::flock_delete( &scene->flock );
-		bx::charAnimControllerDestroy( &scene->canim );
+        bx::charGfxDestroy( &scene->cgfx, scene );
+        bx::charAnimControllerDestroy( &scene->canim );
 		bx::CharacterController::destroy( &scene->cct, scene );
+        
         //bx::characterDeinit( scene->character, engine->gdiDevice );
         //bx::character_delete( &scene->character );
-
-        bx::terrainDestroy( &scene->terrain, scene, engine );
     
         scene->dblock->cleanUp();
         scene->dblock->manageResources( scene->gfx_scene(), scene->phx_scene() );
+
         bx::designBlockShutdown( &scene->dblock );
-    
+        bx::terrainDestroy( &scene->terrain, scene, engine );
+
+        Scene::shutdown( &scene->scene, engine );
         //bx::phxSceneDestroy( &scene->phxScene );
         //bx::gfxSceneDestroy( &scene->gfxScene );
     }

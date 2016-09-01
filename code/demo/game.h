@@ -89,25 +89,11 @@ namespace bx
     void charAnimDestroy( CharacterAnim** canim, GameScene* scene );
     void charAnimTick( CharacterAnim* canim, const Matrix4& worldPose, float deltaTime );
 	
-}////
-
-
-
-namespace bx
-{
-    struct Engine;
-    struct GraphActor
-    {
-        virtual ~GraphActor() {}
-
-        virtual void load( bx::Engine* engine, GameScene* scene ) {}
-        virtual void unload( bx::Engine* engine, GameScene* scene ) {}
-
-        virtual void parallelTick( GameScene* scene, u64 deltaTimeMS ) {}
-        virtual void serialTick( GameScene* scene, u64 deltaTimeMS ) {}
-    };
-
-
-
+    //////////////////////////////////////////////////////////////////////////
+    struct CharacterGfx;
+    void charGfxCreate( CharacterGfx** cgfx, GameScene* scene );
+    void charGfxDestroy( CharacterGfx** cgfx, GameScene* scene );
+    void charGfxTick( CharacterGfx* cgfx, GameScene* scene );
 
 }////
+

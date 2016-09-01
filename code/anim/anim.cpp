@@ -43,6 +43,8 @@ void contextDeinit( bxAnim_Context** ctx )
 	BX_FREE0( bxDefaultAllocator(), ctx[0] );
 }
 
+
+
 }///
 
 #include <resource_manager/resource_manager.h>
@@ -118,6 +120,12 @@ namespace bxAnimExt
     {
         const u16* parentIndices = TYPE_OFFSET_GET_POINTER( const u16, skel->offsetParentIndices );
         bxAnim::localJointsToWorldJoints( outJoints, inJoints, parentIndices, skel->numJoints, rootJoint );
+    }
+
+    void localJointsToWorldMatrices( Matrix4* outMatrices, const bxAnim_Joint* inJoints, const bxAnim_Skel* skel, const bxAnim_Joint& rootJoint )
+    {
+        const u16* parentIndices = TYPE_OFFSET_GET_POINTER( const u16, skel->offsetParentIndices );
+        bxAnim::localJointsToWorldMatrices4x4( outMatrices, inJoints, parentIndices, skel->numJoints, rootJoint );
     }
 
 }///

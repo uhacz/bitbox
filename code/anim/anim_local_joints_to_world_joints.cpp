@@ -1,7 +1,6 @@
 #include "anim.h"
 #include <util/debug.h>
 
-
 void bxAnim::localJointsToWorldJoints( bxAnim_Joint* outJoints, const bxAnim_Joint* inJoints, const unsigned short* parentIndices, unsigned count, const bxAnim_Joint& rootJoint )
 {
 	SYS_ASSERT( outJoints != inJoints );

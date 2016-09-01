@@ -546,7 +546,7 @@ namespace bx
         GfxSortListShadow* sortList = shd->_sortList;
 
         //bxChunk colorChunk, depthChunk;
-        bxChunk_create( chunk, 1, data.size );
+        bxChunk_create( chunk, 1, scene->_instancesCount );
 
         const Matrix4 viewProj = shd->_lightProj * shd->_lightView;
         GfxViewFrustum frustum = bx::gfx::viewFrustumExtract( viewProj );

@@ -1,4 +1,4 @@
 #pragma once
 
-#define RMT_ENABLED 1
+#define RMT_ENABLED 0
 #include <tools/remotery/Remotery.h>

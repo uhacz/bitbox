@@ -12,13 +12,16 @@
 
 
 #include "scene.h"
+#include "motion_fields.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-static bx::GameScene __scene;
+static bx::GameScene __scene = {};
 
-//static bx::GfxCamera* camera = nullptr;
+static bx::GfxCamera* g_camera = nullptr;
 //static bx::GfxScene* scene = nullptr;
-static bx::gfx::CameraInputContext cameraInputCtx;
+static bx::gfx::CameraInputContext cameraInputCtx = {};
+
+static bx::motion_fields::Data mf_database;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -60,6 +63,7 @@ public:
                 if( camera )
                 {
                     _engine.camera_manager->stack()->push( camera );
+                    g_camera = camera;
                 }
                 //bxGfxCamera_Id id = bxGfx::camera_find( __scene._cameraManager, cameraName );
                 //if ( id.hash != bxGfx::camera_top( __scene._cameraManager ).hash )
@@ -139,14 +143,31 @@ public:
         //    bx::gfxSceneMeshInstanceAdd( scene, meshI );
         //}
 
+        const char skelFile[] = "anim/motion_fields/uw_cap6_005.skel";
+        const char* animFiles[] = 
+        {
+            //"anim/motion_fields/uw_cap6_005.anim",
+            "anim/motion_fields/uw_cap6_005m.anim",
+            //"anim/motion_fields/uw_cap6_023.anim",
+            "anim/motion_fields/uw_cap6_023m.anim",
+            //"anim/motion_fields/uw_cap6_026.anim",
+            "anim/motion_fields/uw_cap6_026m.anim",
+            //"anim/motion_fields/uw_cap6_032.anim",
+            "anim/motion_fields/uw_cap6_032m.anim",
+        };
+        const unsigned numAnimFiles = sizeof( animFiles ) / sizeof( *animFiles );
+        mf_database.load( skelFile, animFiles, numAnimFiles );
+
         return true;
     }
     virtual void shutdown()
     {
         //bx::gfxSceneDestroy( &scene );
         //bx::gfxCameraDestroy( &camera );
-                
+        mf_database.unload();
+
         gameSceneShutdown( &__scene, &_engine );
+        bx::gfxCameraDestroy( &g_camera );
         bx::Engine::shutdown( &_engine );
     }
 
@@ -216,6 +237,7 @@ public:
             //bx::characterTick( __scene.character, _engine.gdiContext->backend(), &__scene, win->input, deltaTime * 2.f );
 			__scene.cct->tick( &__scene, camera, win->input, deltaTime * 2.f );
 			bx::charAnimControllerTick( __scene.canim, &__scene, deltaTimeUS );
+            bx::charGfxTick( __scene.cgfx, &__scene );
 			//bx::charAnimTick( __scene.canim, __scene.cct->worldPoseFoot(), deltaTime );
 			
             if( !useDebugCamera )

@@ -1569,21 +1569,129 @@ namespace bx
         }
         ImGui::End();
 
-		bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
-		const float scale = 0.05f;
-		const i16* parentIndices = TYPE_OFFSET_GET_POINTER( i16, canim->_skel->offsetParentIndices );
-		for( int i = 0; i < canim->_skel->numJoints; ++i )
-		{
-            bxGfxDebugDraw::addSphere( Vector4( worldJoints[i].position, scale ), 0xFF0000FF, 1 );
-			if( parentIndices[i] != -1 )
-			{
-                const bxAnim_Joint& parentJoint = worldJoints[parentIndices[i]];
-                bxGfxDebugDraw::addLine( parentJoint.position, worldJoints[i].position, 0x00FF00FF, 1 );
-			}
-		}
+		//bxAnimExt::localJointsToWorldJoints( worldJoints, localJoints, canim->_skel, rootJoint );
+		//const float scale = 0.05f;
+		//const i16* parentIndices = TYPE_OFFSET_GET_POINTER( i16, canim->_skel->offsetParentIndices );
+		//for( int i = 0; i < canim->_skel->numJoints; ++i )
+		//{
+  //          bxGfxDebugDraw::addSphere( Vector4( worldJoints[i].position, scale ), 0xFF0000FF, 1 );
+		//	if( parentIndices[i] != -1 )
+		//	{
+  //              const bxAnim_Joint& parentJoint = worldJoints[parentIndices[i]];
+  //              bxGfxDebugDraw::addLine( parentJoint.position, worldJoints[i].position, 0x00FF00FF, 1 );
+		//	}
+		//}
 
         canim->_timeUS += deltaTimeUS;
 	}
+
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    struct CharacterGfx
+    {
+        GfxMeshInstance* _mesh_instance = nullptr;
+        Matrix4* _world_matrices = nullptr;
+        u32 _num_instances = 0;
+        f32 _mesh_scale = 0.3f;
+
+        void createMeshInstance( GfxScene* gfxScene, int numInstances )
+        {
+            GfxContext* gfxContext = gfxContextGet( gfxScene );
+            
+            GfxMeshInstance* mi = nullptr;
+            gfxMeshInstanceCreate( &mi, gfxContext, numInstances );
+
+            GfxMeshInstanceData miData = {};
+            miData.renderSourceSet( gfxGlobalResourcesGet()->mesh.sphere );
+            miData.fxInstanceSet( gfxMaterialFind( "grey" ) );
+            miData.locaAABBSet( Vector3(-0.5f), Vector3(0.5f) );
+
+            gfxMeshInstanceDataSet( mi, miData );
+
+            gfxSceneMeshInstanceAdd( gfxScene, mi );
+
+            _mesh_instance = mi;
+        }
+        void destroyMeshInstance()
+        {
+            gfxMeshInstanceDestroy( &_mesh_instance );
+        }
+
+        void allocateMatrices( int numInstances )
+        {
+            _num_instances = numInstances;
+            _world_matrices = (Matrix4*)BX_MALLOC( bxDefaultAllocator(), numInstances * sizeof( Matrix4 ), 16 );
+            for( u32 i = 0; i < _num_instances; ++i )
+            {
+                _world_matrices[i] = Matrix4::identity();
+            }
+        }
+        void deallocateMatrices()
+        {
+            BX_FREE0( bxDefaultAllocator(), _world_matrices );
+            _num_instances = 0;
+        }
+    };
+
+    void charGfxCreate( CharacterGfx** cgfx, GameScene* scene )
+    {
+        CharacterGfx* c = BX_NEW( bxDefaultAllocator(), CharacterGfx );
+        
+        const int numJoints = scene->canim->_skel->numJoints;
+        c->createMeshInstance( scene->gfx_scene(), numJoints );
+        c->allocateMatrices( numJoints );
+
+        cgfx[0] = c;
+    }
+
+    void charGfxDestroy( CharacterGfx** cgfx, GameScene* scene )
+    {
+        if( !cgfx[0] )
+            return;
+
+        cgfx[0]->deallocateMatrices();
+        cgfx[0]->destroyMeshInstance();
+        BX_DELETE0( bxDefaultAllocator(), cgfx[0] );
+    }
+    void charGfxTick( CharacterGfx* cgfx, GameScene* scene )
+    {
+        CharacterAnimController* canim = scene->canim;
+        CharacterControllerImpl* ccImpl = (CharacterControllerImpl*)scene->cct;
+        bxAnim_Joint* localJoints = bxAnim::poseFromStack( canim->_animCtx, 0 );
+        const Matrix4 rootPose = ccImpl->worldPoseFoot();
+        bxAnim_Joint rootJoint = toAnimJoint_noScale( rootPose );
+
+        const float scale = cgfx->_mesh_scale;
+        const Vector3 scaleV3( scale );
+
+        bxAnimExt::localJointsToWorldMatrices( cgfx->_world_matrices, localJoints, canim->_skel, rootJoint );
+        
+        for( u32 i = 0; i < cgfx->_num_instances; ++i )
+        {
+            cgfx->_world_matrices[i] = appendScale( cgfx->_world_matrices[i], scaleV3 );
+        }
+        const i16* parentIndices = TYPE_OFFSET_GET_POINTER( i16, canim->_skel->offsetParentIndices );
+        for( int i = 0; i < canim->_skel->numJoints; ++i )
+        {
+            if( parentIndices[i] != -1 )
+            {
+                //const bxAnim_Joint& parentJoint = [parentIndices[i]];
+                const Vector3 parentPos = cgfx->_world_matrices[parentIndices[i]].getTranslation();
+                const Vector3 pos = cgfx->_world_matrices[i].getTranslation();
+                bxGfxDebugDraw::addLine( parentPos, pos, 0x00FF00FF, 1 );
+            }
+        }
+
+        gfxMeshInstanceWorldMatrixSet( cgfx->_mesh_instance, cgfx->_world_matrices, cgfx->_num_instances );
+
+
+        if( ImGui::Begin( "CharacterGfx" ) )
+        {
+            ImGui::SliderFloat( "scale", &cgfx->_mesh_scale, 0.f, 2.f );
+        }
+        ImGui::End();
+    }
 
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////

@@ -97,11 +97,11 @@ namespace bx
     {
         Vector3 _upVector = Vector3::yAxis();
         Vector3 _prevPlayerPosition = Vector3( -10000.f );
-        f32 _tileSize = 7.53f;
+        f32 _tileSize = 5.f;
         f32 _tileSizeInv = 1.f / _tileSize;
-        i32 _radius = 8;
-        i32 _tileSubdiv = 5;
-        f32 _height = 10.f;
+        i32 _radius = 4;
+        i32 _tileSubdiv = 3;
+        f32 _height = 0.1f;
 
 		struct TileData
 		{
