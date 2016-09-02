@@ -59,6 +59,17 @@ namespace bx
 
 namespace bx
 {
+    struct CharacterInput
+    {
+        f32 analogX = 0.f;
+        f32 analogY = 0.f;
+        f32 jump = 0.f;
+        f32 crouch = 0.f;
+        f32 L2 = 0.f;
+        f32 R2 = 0.f;
+    };
+    void characterInputCollectData( CharacterInput* charInput, const bxInput& sysInput, float deltaTime, float RC = 0.01f );
+
 	struct CharacterController
     {
         static void create( CharacterController** cc, GameScene* scene, const Matrix4& worldPose );

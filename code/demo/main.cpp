@@ -22,6 +22,8 @@ static bx::GfxCamera* g_camera = nullptr;
 static bx::gfx::CameraInputContext cameraInputCtx = {};
 
 static bx::motion_fields::Data mf_database;
+static bx::motion_fields::DynamicState mf_dynamic_state;
+static u32 motion_state_index = UINT32_MAX;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -143,17 +145,19 @@ public:
         //    bx::gfxSceneMeshInstanceAdd( scene, meshI );
         //}
 
-        const char skelFile[] = "anim/motion_fields/uw_cap6_005m_s.skel";
+        //const char skelFile[] = "anim/motion_fields/uw_cap6_005m_s.skel";
+        const char skelFile[] = "anim/motion_fields/run_circles.skel";
         const char* animFiles[] = 
         {
+            "anim/motion_fields/run_circles.anim",
             //"anim/motion_fields/uw_cap6_005.anim",
-            "anim/motion_fields/uw_cap6_005m_s.anim",
+            //"anim/motion_fields/uw_cap6_005m_s.anim",
             //"anim/motion_fields/uw_cap6_023.anim",
-            "anim/motion_fields/uw_cap6_023m_s.anim",
+            //"anim/motion_fields/uw_cap6_023m_s.anim",
             //"anim/motion_fields/uw_cap6_026.anim",
-            "anim/motion_fields/uw_cap6_026m_s.anim",
+            //"anim/motion_fields/uw_cap6_026m_s.anim",
             //"anim/motion_fields/uw_cap6_032.anim",
-            "anim/motion_fields/uw_cap6_032m_s.anim",
+            //"anim/motion_fields/uw_cap6_032m_s.anim",
         };
         const unsigned numAnimFiles = sizeof( animFiles ) / sizeof( *animFiles );
         mf_database.load( skelFile, animFiles, numAnimFiles );
@@ -185,7 +189,7 @@ public:
         }
 
 
-        const bool useDebugCamera = bxInput_isKeyPressed( &win->input.kbd, bxInput::eKEY_CAPSLOCK );
+        const bool useDebugCamera = true; // bxInput_isKeyPressed( &win->input.kbd, bxInput::eKEY_CAPSLOCK );
 
         bxGfxGUI::newFrame( (float)deltaTimeS );
 
@@ -256,13 +260,27 @@ public:
 
 
         {
-            static u32 motion_state_index = 0;
-            if( bxInput_isKeyPressedOnce( &win->input.kbd, 'N' ) )
-            {
-                motion_state_index += 1;
-            }
+            //static u32 motion_state_index = 0;
+            //if( bxInput_isKeyPressedOnce( &win->input.kbd, 'N' ) )
+            //{
+            //    motion_state_index += 1;
+            //}
 
-            mf_database.debugDrawState( motion_state_index, 0xFF00FFFF, true );
+            mf_dynamic_state.tick( win->input, deltaTime );
+            mf_dynamic_state.debugDraw( 0xFF0000FF );
+
+            if( motion_state_index == UINT32_MAX )
+            {
+                motion_state_index = mf_database.findState( mf_dynamic_state._direction, mf_dynamic_state._speed );
+            }
+            else
+            {
+                //motion_state_index = mf_database.findState( mf_dynamic_state._direction, mf_dynamic_state._speed );
+                motion_state_index = mf_database.getMostSimilarState( motion_state_index );
+                //motion_state_index = mf_database.findNextState( motion_state_index, mf_dynamic_state._direction, mf_dynamic_state._speed );
+            }
+            mf_database.debugDrawState( motion_state_index, 0xFF00FFFF, false );
+            
         }
 
         bx::gfxCameraComputeMatrices( camera );

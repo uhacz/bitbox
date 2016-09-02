@@ -479,6 +479,65 @@
 //
 //}///
 
+namespace bx
+{
+    void characterInputCollectData( CharacterInput* charInput, const bxInput& sysInput, float deltaTime, float RC )
+    {
+        float analogX = 0.f;
+        float analogY = 0.f;
+        float jump = 0.f;
+        float crouch = 0.f;
+        float L2 = 0.f;
+        float R2 = 0.f;
+
+        const bxInput_Pad& pad = bxInput_getPad( sysInput );
+        const bxInput_PadState* padState = pad.currentState();
+        if( padState->connected )
+        {
+            analogX = padState->analog.left_X;
+            analogY = padState->analog.left_Y;
+
+            crouch = (f32)bxInput_isPadButtonPressedOnce( pad, bxInput_PadState::eCIRCLE );
+            jump = (f32)bxInput_isPadButtonPressedOnce( pad, bxInput_PadState::eCROSS );
+
+            L2 = padState->analog.L2;
+            R2 = padState->analog.R2;
+        }
+        else
+        {
+            const bxInput_Keyboard* kbd = &sysInput.kbd;
+
+            const int inLeft = bxInput_isKeyPressed( kbd, 'A' );
+            const int inRight = bxInput_isKeyPressed( kbd, 'D' );
+            const int inFwd = bxInput_isKeyPressed( kbd, 'W' );
+            const int inBack = bxInput_isKeyPressed( kbd, 'S' );
+            const int inJump = bxInput_isKeyPressedOnce( kbd, ' ' );
+            const int inCrouch = bxInput_isKeyPressedOnce( kbd, 'Z' );
+            const int inL2 = bxInput_isKeyPressed( kbd, bxInput::eKEY_LSHIFT );
+            const int inR2 = bxInput_isKeyPressed( kbd, 'E' );
+
+            analogX = -(float)inLeft + (float)inRight;
+            analogY = -(float)inBack + (float)inFwd;
+
+            crouch = (f32)inCrouch;
+            jump = (f32)inJump;
+
+            L2 = (float)inL2;
+            R2 = (float)inR2;
+
+            //bxLogInfo( "x: %f, y: %f", charInput->analogX, charInput->jump );
+        }
+
+        charInput->analogX = signalFilter_lowPass( analogX, charInput->analogX, RC, deltaTime );
+        charInput->analogY = signalFilter_lowPass( analogY, charInput->analogY, RC, deltaTime );
+        charInput->jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
+        charInput->crouch = signalFilter_lowPass( crouch, charInput->crouch, RC, deltaTime );
+        charInput->L2 = L2;
+        charInput->R2 = R2;
+    }
+
+}////
+
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -926,6 +985,8 @@ namespace bx
 
 namespace bx
 {
+
+
 	//////////////////////////////////////////////////////////////////////////
 	namespace ECharacterAnimClip
 	{
@@ -982,16 +1043,6 @@ namespace bx
 
     struct CharacterControllerImpl : public CharacterController
     {
-		struct Input
-		{
-			f32 analogX = 0.f;
-			f32 analogY = 0.f;
-			f32 jump = 0.f;
-			f32 crouch = 0.f;
-			f32 L2 = 0.f;
-			f32 R2 = 0.f;
-		};
-
         struct State
         {
             f32 motionForward = 0.f;
@@ -1025,7 +1076,7 @@ namespace bx
         PhxCCT* _cct = nullptr;
         //PhxActor* _actor = nullptr;
 
-		Input _input;
+		CharacterInput _input;
 		f32 _jumpAcc = 0.f;
         f32 _prevJumpValue01 = 0.f;
         f32 _jumpValue01 = 0.f;
@@ -1128,62 +1179,6 @@ namespace bx
             _dstate0.setPose( worldPose );
         }
 
-		void _CollectInputData( const bxInput& sysInput, float deltaTime )
-		{
-			float analogX = 0.f;
-			float analogY = 0.f;
-			float jump = 0.f;
-			float crouch = 0.f;
-			float L2 = 0.f;
-			float R2 = 0.f;
-
-			const bxInput_Pad& pad = bxInput_getPad( sysInput );
-			const bxInput_PadState* padState = pad.currentState();
-			if( padState->connected )
-			{
-				analogX = padState->analog.left_X;
-				analogY = padState->analog.left_Y;
-
-				crouch = (f32)bxInput_isPadButtonPressedOnce( pad, bxInput_PadState::eCIRCLE );
-				jump = (f32)bxInput_isPadButtonPressedOnce( pad, bxInput_PadState::eCROSS );
-
-				L2 = padState->analog.L2;
-				R2 = padState->analog.R2;
-			}
-			else
-			{
-				const bxInput_Keyboard* kbd = &sysInput.kbd;
-
-				const int inLeft = bxInput_isKeyPressed( kbd, 'A' );
-				const int inRight = bxInput_isKeyPressed( kbd, 'D' );
-				const int inFwd = bxInput_isKeyPressed( kbd, 'W' );
-				const int inBack = bxInput_isKeyPressed( kbd, 'S' );
-				const int inJump = bxInput_isKeyPressedOnce( kbd, ' ' );
-				const int inCrouch = bxInput_isKeyPressedOnce( kbd, 'Z' );
-				const int inL2 = bxInput_isKeyPressed( kbd, bxInput::eKEY_LSHIFT );
-				const int inR2 = bxInput_isKeyPressed( kbd, 'E' );
-
-				analogX = -(float)inLeft + (float)inRight;
-				analogY = -(float)inBack + (float)inFwd;
-
-				crouch = (f32)inCrouch;
-				jump = (f32)inJump;
-
-				L2 = (float)inL2;
-				R2 = (float)inR2;
-
-				//bxLogInfo( "x: %f, y: %f", charInput->analogX, charInput->jump );
-			}
-
-			const float RC = 0.01f;
-			_input.analogX = signalFilter_lowPass( analogX, _input.analogX, RC, deltaTime );
-			_input.analogY = signalFilter_lowPass( analogY, _input.analogY, RC, deltaTime );
-			_input.jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
-			_input.crouch = signalFilter_lowPass( crouch, _input.crouch, RC, deltaTime );
-			_input.L2 = L2;
-			_input.R2 = R2;
-		}
-
         //////////////////////////////////////////////////////////////////////////
         static void splitVelocityXZ_Y( Vector3* velXZ, Vector3* velY, const Vector3& vel, const Vector3& upDir )
         {
@@ -1206,7 +1201,7 @@ namespace bx
 
         virtual void tick( GameScene* scene, GfxCamera* camera, const bxInput& input, float deltaTime )
         {
-			_CollectInputData( input, deltaTime );
+            //characterInputCollectData( &_input, input, deltaTime );
 
 			const Matrix4 cameraWorld = bx::gfxCameraWorldMatrixGet( camera );
 			Vector3 inputVector( 0.f );
@@ -1442,6 +1437,7 @@ namespace bx
         BX_DELETE0( bxDefaultAllocator(), cc[0] );
     }
     
+
     //////////////////////////////////////////////////////////////////////////
     ///
 	void charAnimControllerCreate( CharacterAnimController** canim, GameScene* scene )
@@ -1609,7 +1605,7 @@ namespace bx
 
             gfxMeshInstanceDataSet( mi, miData );
 
-            gfxSceneMeshInstanceAdd( gfxScene, mi );
+            //gfxSceneMeshInstanceAdd( gfxScene, mi );
 
             _mesh_instance = mi;
         }
@@ -1671,17 +1667,17 @@ namespace bx
         {
             cgfx->_world_matrices[i] = appendScale( cgfx->_world_matrices[i], scaleV3 );
         }
-        const i16* parentIndices = TYPE_OFFSET_GET_POINTER( i16, canim->_skel->offsetParentIndices );
-        for( int i = 0; i < canim->_skel->numJoints; ++i )
-        {
-            if( parentIndices[i] != -1 )
-            {
-                //const bxAnim_Joint& parentJoint = [parentIndices[i]];
-                const Vector3 parentPos = cgfx->_world_matrices[parentIndices[i]].getTranslation();
-                const Vector3 pos = cgfx->_world_matrices[i].getTranslation();
-                bxGfxDebugDraw::addLine( parentPos, pos, 0x00FF00FF, 1 );
-            }
-        }
+        //const i16* parentIndices = TYPE_OFFSET_GET_POINTER( i16, canim->_skel->offsetParentIndices );
+        //for( int i = 0; i < canim->_skel->numJoints; ++i )
+        //{
+        //    if( parentIndices[i] != -1 )
+        //    {
+        //        //const bxAnim_Joint& parentJoint = [parentIndices[i]];
+        //        const Vector3 parentPos = cgfx->_world_matrices[parentIndices[i]].getTranslation();
+        //        const Vector3 pos = cgfx->_world_matrices[i].getTranslation();
+        //        bxGfxDebugDraw::addLine( parentPos, pos, 0x00FF00FF, 1 );
+        //    }
+        //}
 
         gfxMeshInstanceWorldMatrixSet( cgfx->_mesh_instance, cgfx->_world_matrices, cgfx->_num_instances );
 

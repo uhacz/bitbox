@@ -5,9 +5,14 @@
 #include <xfunctional>
 #include <gfx/gfx_debug_draw.h>
 
+#include <util/common.h>
+
 namespace bx{
 namespace motion_fields
 {
+    static const float EVALUATION_FREQUENCY = 30.f;
+    static const float EVALUATION_TIME_STEP = 1.f / EVALUATION_FREQUENCY;
+
     void _MotionStatePoseAllocate( MotionState::Pose* pose, unsigned numJoints, bxAllocator* allocator )
     {
         if( pose->joints )
@@ -55,14 +60,24 @@ namespace motion_fields
 
     void MotionState::prepare( bxAnim_Clip* clip, float evalTime, float timeStep, const bxAnim_Skel* skel )
     {
+        _clip = clip;
+        _clip_eval_time = evalTime;
+
         _Evaluate( clip, evalTime, timeStep );
         _Transform( skel );
         _Difference();
+        
+        bxAnim::evaluateClip( jointsX(), clip, evalTime );
+        jointsX()[0].position = mulPerElem( jointsX()[0].position, Vector3( 0.f, 1.f, 0.f ) );
+        std::vector< bxAnim_Joint > scratch;
+        scratch.resize( skel->numJoints );
+        const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, skel->offsetParentIndices );
+        bxAnim::localJointsToWorldJoints( scratch.data(), _x.joints, parent_indices, _numJoints, bxAnim_Joint::identity() );
+        memcpy( jointsX(), scratch.data(), skel->numJoints * sizeof( bxAnim_Joint ) );
     }
 
     void MotionState::_Evaluate( bxAnim_Clip* clip, float evalTime, float timeStep )
     {
-        
         bxAnim::evaluateClip( _x.joints, clip, evalTime );
         bxAnim::evaluateClip( _v.joints, clip, evalTime + timeStep );
         bxAnim::evaluateClip( _v1.joints, clip, evalTime + timeStep*2.f );
@@ -132,11 +147,8 @@ namespace motion_fields
 
     void Data::prepare()
     {
-        const float timeStep = 1.f / 30.f;
-        _EvaluateClips( timeStep );
+        _EvaluateClips( EVALUATION_TIME_STEP );
         _ComputeNeighbourhood();
-
-        int a = 0;
     }
 
     void Data::unprepare()
@@ -172,7 +184,8 @@ namespace motion_fields
 
         const MotionState& ms = _states[index];
 
-        const bxAnim_Joint* joints = ms._x.joints;
+        const bxAnim_Joint* joints = ms.jointsX();
+        const bxAnim_Joint* jointsV = ms.jointsV();
         const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _skel->offsetParentIndices );
 
         _debug_joints.resize( _skel->numJoints );
@@ -181,6 +194,8 @@ namespace motion_fields
         const float sph_radius = 0.05f;
         _DebugDrawJoints( joints, parent_indices, _skel->numJoints, color, sph_radius, 1.f );
 
+        bxGfxDebugDraw::addLine( joints->position, joints->position + jointsV->position * 30.f, 0xFFFF00FF, 1 );
+
         if( drawNeighbours )
         {
             const NeighbourIndices& ni = _neighbours[index];
@@ -188,13 +203,79 @@ namespace motion_fields
             for( u32 i = 0; i < eNUM_NEIGHBOURS; ++i )
             {
                 const MotionState& neighbour_state = _states[ni.i[i]];
-                const bxAnim_Joint* neighbour_joints = neighbour_state._x.joints;
+                const bxAnim_Joint* neighbour_joints = neighbour_state.jointsX();
+                const bxAnim_Joint* neighbour_jointsV = neighbour_state.jointsV();
                 //bxAnim::localJointsToWorldJoints( _debug_joints.data(), neighbour_joints, parent_indices, _skel->numJoints, root_joint );
                 //_DebugDrawJoints( _debug_joints.data(), parent_indices, _skel->numJoints, color, sph_radius * weights.v[i], 1.f );
                 _DebugDrawJoints( neighbour_joints, parent_indices, _skel->numJoints, 0x66666666, sph_radius * weights.v[i], 1.f );
+
+
+
+                bxGfxDebugDraw::addLine( neighbour_joints->position, neighbour_joints->position + neighbour_jointsV->position * 30.f, 0xFFFF00FF, 1 );
             }
         }
 
+    }
+
+    float _ComputeGoalFactor( const MotionState& ms, const Vector3 desiredDirection, float desiredSpeed, float sampleFrequency )
+    {
+        const Vector3 ms_vel = ms.jointsV()->position * sampleFrequency;
+        const Vector3 ms_dir = fastRotate( ms.jointsX()->rotation, Vector3::zAxis() );
+
+        const float dir_factor = 1.f - dot( ms_dir, desiredDirection ).getAsFloat();
+        const float spd_factor = length( ms_vel ).getAsFloat() - desiredSpeed;
+        const float goal_factor = ::sqrt( ( dir_factor *dir_factor ) * ( spd_factor * spd_factor ) );
+
+        return goal_factor;
+    }
+
+    u32 Data::findState( const Vector3 desiredDirection, float desiredSpeed )
+    {
+        const float sample_frequency = EVALUATION_FREQUENCY;
+        u32 best_index = UINT32_MAX;
+        float best_factor = FLT_MAX;
+
+        for( size_t i = 0; i < _states.size(); ++i )
+        {
+            const MotionState& ms = _states[i];
+            const float goal_factor = _ComputeGoalFactor( ms, desiredDirection, desiredSpeed, sample_frequency );
+            if( best_factor > goal_factor )
+            {
+                best_index = (u32)i;
+                best_factor = goal_factor;
+            }
+        }
+
+        return best_index;
+    }
+
+    u32 Data::findNextState( u32 currentStateIndex, const Vector3 desiredDirection, float desiredSpeed )
+    {
+        const float sample_frequency = EVALUATION_FREQUENCY;
+        u32 best_index = UINT32_MAX;
+        float best_factor = FLT_MAX;
+
+        const NeighbourIndices& indices = _neighbours[currentStateIndex];
+
+        for( u32 i = 0; i < eNUM_NEIGHBOURS; ++i )
+        {
+            const u32 neighbour_index = indices.i[i];
+            const MotionState& ms = _states[neighbour_index];
+            const float goal_factor = _ComputeGoalFactor( ms, desiredDirection, desiredSpeed, sample_frequency );
+            if( best_factor > goal_factor )
+            {
+                best_index = neighbour_index;
+                best_factor = goal_factor;
+            }
+        }
+
+        return best_index;
+    }
+
+    u32 Data::getMostSimilarState( u32 currentStateIndex )
+    {
+        const NeighbourIndices& indices = _neighbours[currentStateIndex];
+        return indices.i[0];
     }
 
     void Data::_EvaluateClips( float timeStep )
@@ -323,6 +404,36 @@ namespace motion_fields
             _neighbour_similarity.push_back( ns );
             _neighbour_weight.push_back( nw );
         }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void DynamicState::tick( const bxInput& sysInput, float deltaTime )
+    {
+        characterInputCollectData( &_input, sysInput, deltaTime );
+
+        const Vector3 x_input_force = Vector3::xAxis() * _input.analogX;
+        const Vector3 z_input_force = -Vector3::zAxis() * _input.analogY;
+        const Vector3 input_force = x_input_force + z_input_force;
+
+        const float converge_time01 = 0.01f;
+        const float lerp_alpha = 1.f - ::pow( converge_time01, deltaTime );
+
+        const float input_speed = length( normalizeSafe( input_force ) ).getAsFloat();
+        _speed = lerp( lerp_alpha, _speed, input_speed );
+        
+        if( input_speed > FLT_EPSILON )
+        {
+            const Vector3 input_dir = normalize( input_force );
+            _direction = slerp( lerp_alpha, _direction, input_force );
+            _direction = normalize( _direction );
+        }
+    }
+
+    void DynamicState::debugDraw( u32 color )
+    {
+        bxGfxDebugDraw::addLine( _position, _position + _direction, 0x0000FFFF, 1 );
+        bxGfxDebugDraw::addLine( _position, _position + _direction * _speed, color, 1 );
+
     }
 
 }}////
