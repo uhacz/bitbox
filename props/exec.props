@@ -3,7 +3,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>$(BX_ROOT)bin\$(Platform)\</OutDir>
+    <OutDir>$(BX_ROOT)bin\$(Platform)\$(ProjectName)\</OutDir>
     <IntDir>$(BX_ROOT)build\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
