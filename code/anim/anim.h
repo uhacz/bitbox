@@ -33,4 +33,6 @@ namespace bxAnimExt
 
     void localJointsToWorldJoints( bxAnim_Joint* outJoints, const bxAnim_Joint* inJoints, const bxAnim_Skel* skel, const bxAnim_Joint& rootJoint );
     void localJointsToWorldMatrices( Matrix4* outMatrices, const bxAnim_Joint* inJoints, const bxAnim_Skel* skel, const bxAnim_Joint& rootJoint );
+
+    void processBlendTree( bxAnim_Context* ctx, const u16 root_index, const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton );
 }///

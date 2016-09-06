@@ -7,19 +7,19 @@ int main( int argc, char** argv )
 {
     unsigned flags = 0;
 #ifdef ANIM_TOOL_TEST
-    //const char* input_file = "d:/tmp/bitBox/assets/.src/anim/run.bvh";// argv[1];
-    //const char* output_anim = "d:/tmp/bitBox/assets/anim/run.anim"; // ( argc > 2 ) ? argv[2] : 0;
-    //const char* output_skel = "d:/tmp/bitBox/assets/anim/human.skel";
-    const char* input_file =  "d:/dev/code/bitBox/assets/.src/anim/jump1.bvh";// argv[1];
-    const char* output_anim = "d:/dev/code/bitBox/assets/anim/jump.anim"; // ( argc > 2 ) ? argv[2] : 0;
-    const char* output_skel = "d:/dev/code/bitBox/assets/anim/human.skel";
+    const char* input_file = "d:/tmp/bitBox/assets/.src/anim/motion_fields/MaleLocomotion/idle.dae";// argv[1];
+    const char* output_anim = "d:/tmp/bitBox/assets/anim/motion_fields/MaleLocomotion/idle.anim"; // ( argc > 2 ) ? argv[2] : 0;
+    //const char* output_skel = "d:/tmp/bitBox/assets/anim/motion_fields/MaleLocomotion/beta.skel";
+    //const char* input_file =  "d:/dev/code/bitBox/assets/.src/anim/jump1.bvh";// argv[1];
+    //const char* output_anim = "d:/dev/code/bitBox/assets/anim/motion_fields/MaleLocomotion/idle.anim"; // ( argc > 2 ) ? argv[2] : 0;
+    //const char* output_skel = "d:/dev/code/bitBox/assets/anim/motion_fields/MaleLocomotion/beta.skel";
 
     //flags |= animTool::eEXPORT_REMOVE_ROOT_TRANSLATION_X;
     //flags |= animTool::eEXPORT_REMOVE_ROOT_TRANSLATION_Z;
 
     int ires = 0;
     //{
-    //    ires = animTool::exportSkeleton( output_skel, input_file );
+        //ires = animTool::exportSkeleton( output_skel, input_file );
     //}
     {
         ires = animTool::exportAnimation( output_anim, input_file, flags );

@@ -6,6 +6,7 @@
 #include <gfx/gfx_debug_draw.h>
 
 #include <util/common.h>
+#include "util/buffer_utils.h"
 
 namespace bx{
 namespace motion_fields
@@ -32,13 +33,13 @@ namespace motion_fields
     {
         _MotionStatePoseAllocate( &_x, numJoints, allocator );
         _MotionStatePoseAllocate( &_v, numJoints, allocator );
-        _MotionStatePoseAllocate( &_v1, numJoints, allocator );
+        _MotionStatePoseAllocate( &_a, numJoints, allocator );
 
         _numJoints = numJoints;
     }
     void MotionState::deallocate( bxAllocator* allocator )
     {
-        _MotionStatePoseDeallocate( &_v1, allocator );
+        _MotionStatePoseDeallocate( &_a, allocator );
         _MotionStatePoseDeallocate( &_v, allocator );
         _MotionStatePoseDeallocate( &_x, allocator );
     }
@@ -78,9 +79,19 @@ namespace motion_fields
 
     void MotionState::_Evaluate( bxAnim_Clip* clip, float evalTime, float timeStep )
     {
+        const float duration = clip->duration;
+        const float dt = ( duration - evalTime ) / float( eNUM_TRAJECTORY_POINTS - 1 );
+        const Vector4 plane = makePlane( Vector3::yAxis(), Vector3( 0.f ) );
+        for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
+        {
+            const float clipTime = evalTime + dt * i;
+            bxAnim::evaluateClip( _x.joints, clip, clipTime );
+            _trajectory[i] = projectVectorOnPlane( _x.joints[0].position, plane );
+        }
+        
         bxAnim::evaluateClip( _x.joints, clip, evalTime );
         bxAnim::evaluateClip( _v.joints, clip, evalTime + timeStep );
-        bxAnim::evaluateClip( _v1.joints, clip, evalTime + timeStep*2.f );
+        bxAnim::evaluateClip( _a.joints, clip, evalTime + timeStep*2.f );
     }
 
     void MotionState::_Transform( const bxAnim_Skel* skel )
@@ -96,13 +107,13 @@ namespace motion_fields
         bxAnim::localJointsToWorldJoints( scratch.data(), _v.joints, parent_indices, _numJoints, bxAnim_Joint::identity() );
         memcpy( _v.joints, scratch.data(), skel->numJoints * sizeof( bxAnim_Joint ) );
 
-        bxAnim::localJointsToWorldJoints( scratch.data(), _v1.joints, parent_indices, _numJoints, bxAnim_Joint::identity() );
-        memcpy( _v1.joints, scratch.data(), skel->numJoints * sizeof( bxAnim_Joint ) );
+        bxAnim::localJointsToWorldJoints( scratch.data(), _a.joints, parent_indices, _numJoints, bxAnim_Joint::identity() );
+        memcpy( _a.joints, scratch.data(), skel->numJoints * sizeof( bxAnim_Joint ) );
     }
 
     void MotionState::_Difference()
     {
-        _ComputeDifference( _v1.joints, _v1.joints, _v.joints, _numJoints );
+        _ComputeDifference( _a.joints, _a.joints, _v.joints, _numJoints );
         _ComputeDifference( _v.joints, _v.joints, _x.joints, _numJoints );
     }
 
@@ -213,6 +224,11 @@ namespace motion_fields
 
                 bxGfxDebugDraw::addLine( neighbour_joints->position, neighbour_joints->position + neighbour_jointsV->position * 30.f, 0xFFFF00FF, 1 );
             }
+        }
+
+        for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
+        {
+            bxGfxDebugDraw::addSphere( Vector4( ms._trajectory[i], 0.03f ), 0x000066ff, 1 );
         }
 
     }
@@ -419,21 +435,148 @@ namespace motion_fields
         const float lerp_alpha = 1.f - ::pow( converge_time01, deltaTime );
 
         const float input_speed = length( normalizeSafe( input_force ) ).getAsFloat();
-        _speed = lerp( lerp_alpha, _speed, input_speed );
+        _prev_speed01 = _speed01;
+        _speed01 = lerp( lerp_alpha, _speed01, input_speed );
         
+        _prev_direction = _direction;
         if( input_speed > FLT_EPSILON )
         {
             const Vector3 input_dir = normalize( input_force );
             _direction = slerp( lerp_alpha, _direction, input_force );
-            _direction = normalize( _direction );
+            _direction = normalizeSafe( _direction );
         }
+
+        const float prev_spd = _max_speed * _prev_speed01;
+        const float spd = _max_speed * _speed01;
+
+        Vector3 acceleration = _direction*spd - _prev_direction*prev_spd;
+        _velocity = _direction * _speed01;
+
+        float time = 0.f;
+        const float dt = 5.f / (eNUM_TRAJECTORY_POINTS-1);
+        for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
+        {
+            /// s = s0 + v0 * t + a*t2*0.5f
+            _trajectory[i] = _position + _velocity * time + acceleration*( time*time ) * 0.5f;
+            time += dt;
+        }
+
+
     }
 
     void DynamicState::debugDraw( u32 color )
     {
         bxGfxDebugDraw::addLine( _position, _position + _direction, 0x0000FFFF, 1 );
-        bxGfxDebugDraw::addLine( _position, _position + _direction * _speed, color, 1 );
+        bxGfxDebugDraw::addLine( _position, _position + _direction * _speed01, color, 1 );
 
+        for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
+        {
+            bxGfxDebugDraw::addSphere( Vector4( _trajectory[i], 0.03f ), 0x666666ff, 1 );
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void AnimState::prepare( bxAnim_Skel* skel )
+    {
+        _skel = skel;
+
+        const u32 numJoints = skel->numJoints;
+
+        u32 mem_size = 0;
+        //mem_size += numJoints * sizeof( *_anim.local );
+        mem_size += numJoints * sizeof( *_world_joints );
+        void* mem = BX_MALLOC( bxDefaultAllocator(), mem_size, 16 );
+        memset( mem, 0x00, mem_size );
+
+        bxBufferChunker chunker( mem, mem_size );
+        //_anim.local = chunker.add< bxAnim_Joint >( numJoints );
+        _world_joints = chunker.add< bxAnim_Joint >( numJoints );
+        chunker.check();
+
+        _ctx = bxAnim::contextInit( *skel );
+    }
+
+    void AnimState::unprepare()
+    {
+        bxAnim::contextDeinit( &_ctx );
+        BX_FREE( bxDefaultAllocator(), _world_joints );
+        *this = {};
+    }
+
+    void AnimState::tick( float deltaTime )
+    {
+        if( _num_clips == 1 )
+        {
+            bxAnimExt::processBlendTree( _ctx,
+                                       0 | bxAnim::eBLEND_TREE_LEAF,
+                                       nullptr, 0,
+                                       _blend_leaf, 1,
+                                       _skel );
+        }
+        else
+        {
+            const float blend_alpha = minOfPair( 1.f, _blend_time / _blend_duration );
+
+            _blend_branch = bxAnim_BlendBranch(
+                    0 | bxAnim::eBLEND_TREE_LEAF,
+                    1 | bxAnim::eBLEND_TREE_LEAF,
+                    blend_alpha
+                    );
+
+            bxAnimExt::processBlendTree( _ctx,
+                                       0 | bxAnim::eBLEND_TREE_BRANCH,
+                                       &_blend_branch, 1,
+                                       _blend_leaf, 2,
+                                       _skel );
+
+            if( _blend_time > _blend_duration )
+            {
+                _blend_leaf[0] = _blend_leaf[1];
+                _blend_leaf[1] = {};
+                _num_clips = 1;
+            }
+            else
+            {
+                _blend_time += deltaTime;
+            }
+        }
+        // evaluate clips
+        {
+            for( u32 i = 0; i < _num_clips; ++i )
+            {
+                bxAnim_Clip* clip = (bxAnim_Clip*)_blend_leaf[i].anim;
+                _blend_leaf[i].evalTime = ::fmodf( _blend_leaf[i].evalTime + deltaTime, clip->duration );
+            }
+        }
+
+        {
+            bxAnim_Joint* local_joints = bxAnim::poseFromStack( _ctx, 0 );
+
+            bxAnim_Joint root_joint = bxAnim_Joint::identity();
+            local_joints[0].position = mulPerElem( local_joints[0].position, Vector3( 0.f, 1.f, 0.f ) );
+            bxAnimExt::localJointsToWorldJoints( _world_joints, local_joints, _skel, root_joint );
+
+            {
+                const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _skel->offsetParentIndices );
+                _DebugDrawJoints( _world_joints, parent_indices, _skel->numJoints, 0xFF0000FF, 0.05f, 1.f );
+            }
+        }
+    }
+
+    void AnimState::playClip( bxAnim_Clip* clip, float startTime, float blendTime )
+    {
+        if( _num_clips == 0 )
+        {
+            _blend_leaf[0] = bxAnim_BlendLeaf( clip, startTime );
+            _num_clips = 1;
+        }
+        else
+        {
+            _blend_leaf[1] = bxAnim_BlendLeaf( clip, startTime );
+            _num_clips = 2;
+            _blend_duration = blendTime;
+            _blend_time = 0.f;
+        }
     }
 
 }}////

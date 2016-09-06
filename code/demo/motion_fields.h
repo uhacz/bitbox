@@ -9,6 +9,9 @@
 namespace bx{
 namespace motion_fields
 {
+    enum { eNUM_NEIGHBOURS = 15, };
+    enum { eNUM_TRAJECTORY_POINTS = 4, };
+
     struct MotionState
     {
         struct Pose
@@ -18,19 +21,21 @@ namespace motion_fields
 
         Pose _x; // pose
         Pose _v; // velocity
-        Pose _v1; //
+        Pose _a; //
         u32 _numJoints = 0;
+
+        Vector3 _trajectory[eNUM_TRAJECTORY_POINTS];
 
         bxAnim_Clip* _clip = nullptr;
         f32 _clip_eval_time = 0.f;
 
         bxAnim_Joint* jointsX() { return _x.joints; }
         bxAnim_Joint* jointsV() { return _v.joints; }
-        bxAnim_Joint* jointsV1() { return _v1.joints; }
+        bxAnim_Joint* jointsV1() { return _a.joints; }
 
         const bxAnim_Joint* jointsX () const { return _x.joints; }
         const bxAnim_Joint* jointsV () const { return _v.joints; }
-        const bxAnim_Joint* jointsV1() const { return _v1.joints; }
+        const bxAnim_Joint* jointsV1() const { return _a.joints; }
         
         u32 numJoints() const { return _numJoints; }
 
@@ -45,7 +50,7 @@ namespace motion_fields
 
     };
 
-    enum { eNUM_NEIGHBOURS = 15, };
+    
     struct NeighbourIndices
     {
         u32 i[eNUM_NEIGHBOURS];
@@ -84,15 +89,46 @@ namespace motion_fields
 
     struct DynamicState
     {
+        Vector3 _velocity{ 0.f };
         Vector3 _position{ 0.f };
-        Vector3 _direction{ 0.f, 0.f, 1.f };
-        f32 _speed{ 0.f };
 
+        Vector3 _prev_direction{ 0.f, 0.f, 1.f };
+        Vector3 _direction{ 0.f, 0.f, 1.f };
+        f32 _speed01{ 0.f };
+        f32 _prev_speed01{ 0.f };
+        f32 _max_speed{ 5.f };
         CharacterInput _input = {};
 
+        
+        Vector3 _trajectory[eNUM_TRAJECTORY_POINTS];
+        
+
+        //////////////////////////////////////////////////////////////////////////
         void tick( const bxInput& sysInput, float deltaTime );
         void debugDraw( u32 color );
-
     };
+
+    struct AnimState
+    {
+        bxAnim_Context* _ctx = nullptr;
+        bxAnim_Skel* _skel = nullptr; // weak reference to Data::_skel
+        u32 _num_clips = 0;
+        f32 _eval_time = 0.f;
+
+        bxAnim_BlendBranch _blend_branch {};
+        bxAnim_BlendLeaf _blend_leaf[2] = {};
+        f32 _blend_duration = 0.f;
+        f32 _blend_time = 0.f;
+
+        bxAnim_Joint* _world_joints = nullptr;
+
+        //////////////////////////////////////////////////////////////////////////
+        void prepare( bxAnim_Skel* skel );
+        void unprepare();
+        
+        void tick( float deltaTime );
+        void playClip( bxAnim_Clip* clip, float startTime, float blendTime );
+    };
+
 
 }}///

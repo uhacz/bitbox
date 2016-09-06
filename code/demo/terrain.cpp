@@ -101,7 +101,7 @@ namespace bx
         f32 _tileSizeInv = 1.f / _tileSize;
         i32 _radius = 4;
         i32 _tileSubdiv = 3;
-        f32 _height = 0.1f;
+        f32 _height = 0.01f;
 
 		struct TileData
 		{

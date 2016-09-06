@@ -21,9 +21,11 @@ static bx::GfxCamera* g_camera = nullptr;
 //static bx::GfxScene* scene = nullptr;
 static bx::gfx::CameraInputContext cameraInputCtx = {};
 
-static bx::motion_fields::Data mf_database;
-static bx::motion_fields::DynamicState mf_dynamic_state;
+static bx::motion_fields::Data mf_database = {};
+static bx::motion_fields::DynamicState mf_dynamic_state = {};
+static bx::motion_fields::AnimState mf_anim_state = {};
 static u32 motion_state_index = UINT32_MAX;
+static u64 last_time_evaluation_MS = UINT64_MAX;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -146,10 +148,10 @@ public:
         //}
 
         //const char skelFile[] = "anim/motion_fields/uw_cap6_005m_s.skel";
-        const char skelFile[] = "anim/motion_fields/run_circles.skel";
+        const char skelFile[] = "anim/motion_fields/1/T.skel";
         const char* animFiles[] = 
         {
-            "anim/motion_fields/run_circles.anim",
+            //"anim/motion_fields/run_circles.anim",
             //"anim/motion_fields/uw_cap6_005.anim",
             //"anim/motion_fields/uw_cap6_005m_s.anim",
             //"anim/motion_fields/uw_cap6_023.anim",
@@ -158,16 +160,27 @@ public:
             //"anim/motion_fields/uw_cap6_026m_s.anim",
             //"anim/motion_fields/uw_cap6_032.anim",
             //"anim/motion_fields/uw_cap6_032m_s.anim",
+            "anim/motion_fields/1/run.anim",
+            "anim/motion_fields/1/run_turn_left_1.anim",
+            "anim/motion_fields/1/run_turn_left_2.anim",
+            "anim/motion_fields/1/run_turn_right_1.anim",
+            "anim/motion_fields/1/run_turn_right_2.anim",
+            "anim/motion_fields/1/walk.anim",
         };
         const unsigned numAnimFiles = sizeof( animFiles ) / sizeof( *animFiles );
         mf_database.load( skelFile, animFiles, numAnimFiles );
         mf_database.prepare();
+        mf_anim_state.prepare( mf_database._skel );
+
+
+
         return true;
     }
     virtual void shutdown()
     {
         //bx::gfxSceneDestroy( &scene );
         //bx::gfxCameraDestroy( &camera );
+        mf_anim_state.unprepare();
         mf_database.unprepare();
         mf_database.unload();
 
@@ -261,25 +274,49 @@ public:
 
         {
             //static u32 motion_state_index = 0;
-            //if( bxInput_isKeyPressedOnce( &win->input.kbd, 'N' ) )
-            //{
-            //    motion_state_index += 1;
-            //}
+            if( bxInput_isKeyPressedOnce( &win->input.kbd, 'N' ) )
+            {
+                if( motion_state_index == UINT32_MAX )
+                    motion_state_index = 0;
+                else
+                    motion_state_index += 1;
+            }
 
             mf_dynamic_state.tick( win->input, deltaTime );
             mf_dynamic_state.debugDraw( 0xFF0000FF );
+            //if( last_time_evaluation_MS > 200 )
+            //{
+            //    if( motion_state_index == UINT32_MAX )
+            //    {
+            //        motion_state_index = mf_database.findState( mf_dynamic_state._direction, mf_dynamic_state._speed01 );
+            //    
+            //        const bx::motion_fields::MotionState& ms = mf_database._states[motion_state_index];
+            //        mf_anim_state.playClip( ms._clip, ms._clip_eval_time, 0.f );
+            //    }
+            //    else
+            //    {
+            //        //motion_state_index = mf_database.findState( mf_dynamic_state._direction, mf_dynamic_state._speed );
+            //        u32 next_motion_state_index = mf_database.findState( mf_dynamic_state._direction, mf_dynamic_state._speed01 );
+            //        if( next_motion_state_index != motion_state_index )
+            //        {
+            //            motion_state_index = next_motion_state_index;
+            //            const bx::motion_fields::MotionState& ms = mf_database._states[motion_state_index];
+            //            mf_anim_state.playClip( ms._clip, ms._clip_eval_time, 0.2f );
+            //        }
 
-            if( motion_state_index == UINT32_MAX )
-            {
-                motion_state_index = mf_database.findState( mf_dynamic_state._direction, mf_dynamic_state._speed );
-            }
-            else
-            {
-                //motion_state_index = mf_database.findState( mf_dynamic_state._direction, mf_dynamic_state._speed );
-                motion_state_index = mf_database.getMostSimilarState( motion_state_index );
-                //motion_state_index = mf_database.findNextState( motion_state_index, mf_dynamic_state._direction, mf_dynamic_state._speed );
-            }
+            //        //motion_state_index = mf_database.findNextState( motion_state_index, mf_dynamic_state._direction, mf_dynamic_state._speed );
+            //    }
+            //    last_time_evaluation_MS = 0;
+            //}
+            //else
+            //{
+            //    last_time_evaluation_MS += deltaTimeUS / 1000;
+            //}
+            
             mf_database.debugDrawState( motion_state_index, 0xFF00FFFF, false );
+            
+            
+            //mf_anim_state.tick( deltaTime );
             
         }
 
