@@ -1,0 +1,3 @@
+@camera persp
+$pos 0.0 0.0 15.0
+$zFar 1000.0
