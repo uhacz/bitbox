@@ -2,7 +2,7 @@
 
 namespace bxConfig
 {
-    int global_init();
+    int global_init( const char* cfgFilename );
     void global_deinit();
 
     const char* global_string( const char* name );

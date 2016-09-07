@@ -19,7 +19,9 @@ class bxDemoApp : public bxApplication
 public:
     virtual bool startup( int argc, const char** argv )
     {
-        bx::Engine::startup( &_engine );
+        bx::Engine::StartupInfo engine_startup_info;
+        engine_startup_info.cfg_filename = "demo_chaos/global.cfg";
+        bx::Engine::startup( &_engine, engine_startup_info );
         bx::game_scene::startup( &_scene, &_engine );
 
 

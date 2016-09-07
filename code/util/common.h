@@ -25,6 +25,16 @@ inline float saturate( float x )
     return clamp( x, 0.f, 1.f );
 }
 
+inline bool is_equal( f32 f0, f32 f1, const f32 eps = FLT_EPSILON )
+{
+    const f32 diff = ::fabs( f0 - f1 );
+    f0 = ::fabs( f0 );
+    f1 = ::fabs( f1 );
+
+    const f32 largest = ( f1 > f0 ) ? f1 : f0;
+    return ( diff <= largest * eps ) ? true : false;
+}
+
 i32  ifloorf( const float x );
 inline i32 iceil( const i32 x, const i32 y )
 {

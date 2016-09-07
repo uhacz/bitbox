@@ -11,9 +11,9 @@
 
 namespace bx
 {
-void Engine::startup( Engine* e )
+void Engine::startup( Engine* e, const StartupInfo& info )
 {
-    bxConfig::global_init();
+    bxConfig::global_init( info.cfg_filename );
      
     bxWindow* win = bxWindow_get();
     const char* assetDir = bxConfig::global_string( "assetDir" );

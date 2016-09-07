@@ -36,7 +36,12 @@ namespace bx
         GraphSceneScriptCallback*         _graph_script_callback = nullptr;
         CameraManagerSceneScriptCallback* _camera_script_callback = nullptr;
 
-        static void startup( Engine* e );
+        
+        struct StartupInfo
+        {
+            const char* cfg_filename = nullptr;
+        };
+        static void startup( Engine* e, const StartupInfo& info );
         static void shutdown( Engine* e );
     };
     //////////////////////////////////////////////////////////////////////////

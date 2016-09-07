@@ -1,5 +1,6 @@
 @camera persp
-$pos 0.0 0.0 15.0
+$pos 0.0 3.75 7.0
+$rot -0.5 0.0 0.0
 $zFar 1000.0
 
 @MeshNode mesh0

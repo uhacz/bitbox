@@ -17,13 +17,14 @@ static bxConfig_Global* __cfg = 0;
 
 namespace bxConfig
 {
-    int global_init()
+    int global_init( const char* cfgFilename )
     {
         SYS_ASSERT( __cfg == 0 );
         __cfg = BX_NEW( bxDefaultAllocator(), bxConfig_Global );
 
         config_init( __cfg->config() );
-        int ierr = config_read_file( __cfg->config(), "global.cfg" );
+        //int ierr = config_read_file( __cfg->config(), "global.cfg" );
+        int ierr = config_read_file( __cfg->config(), cfgFilename );
         if ( ierr == CONFIG_FALSE )
         {
             BX_DELETE0( bxDefaultAllocator(), __cfg );

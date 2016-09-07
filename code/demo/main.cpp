@@ -21,11 +21,14 @@ static bx::GfxCamera* g_camera = nullptr;
 //static bx::GfxScene* scene = nullptr;
 static bx::gfx::CameraInputContext cameraInputCtx = {};
 
-static bx::motion_fields::Data mf_database = {};
-static bx::motion_fields::DynamicState mf_dynamic_state = {};
-static bx::motion_fields::AnimState mf_anim_state = {};
-static u32 motion_state_index = UINT32_MAX;
-static u64 last_time_evaluation_MS = UINT64_MAX;
+//static bx::motion_fields::Data mf_database = {};
+static bx::motion_fields::DynamicState dynamic_state = {};
+//static bx::motion_fields::AnimState mf_anim_state = {};
+//static u32 motion_state_index = UINT32_MAX;
+//static u64 last_time_evaluation_MS = UINT64_MAX;
+
+static bx::motion_fields::MotionMatching mm = {};
+static u32 pose_index = 305;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -34,7 +37,9 @@ class bxDemoApp : public bxApplication
 public:
     virtual bool startup( int argc, const char** argv )
     {
-        bx::Engine::startup( &_engine );
+        bx::Engine::StartupInfo engine_startup_info;
+        engine_startup_info.cfg_filename = "demo/global.cfg";
+        bx::Engine::startup( &_engine, engine_startup_info );
         gameSceneStartup( &__scene, &_engine );
 
         //bxGame::flock_loadResources( __scene.flock, _engine.gdiDevice, _engine.resourceManager );
@@ -148,7 +153,7 @@ public:
         //}
 
         //const char skelFile[] = "anim/motion_fields/uw_cap6_005m_s.skel";
-        const char skelFile[] = "anim/motion_fields/1/T.skel";
+        const char skelFile[] = "anim/motion_fields/2/T.skel";
         const char* animFiles[] = 
         {
             //"anim/motion_fields/run_circles.anim",
@@ -160,17 +165,33 @@ public:
             //"anim/motion_fields/uw_cap6_026m_s.anim",
             //"anim/motion_fields/uw_cap6_032.anim",
             //"anim/motion_fields/uw_cap6_032m_s.anim",
-            "anim/motion_fields/1/run.anim",
-            "anim/motion_fields/1/run_turn_left_1.anim",
-            "anim/motion_fields/1/run_turn_left_2.anim",
-            "anim/motion_fields/1/run_turn_right_1.anim",
-            "anim/motion_fields/1/run_turn_right_2.anim",
-            "anim/motion_fields/1/walk.anim",
+
+            //"anim/motion_fields/1/idle.anim",
+            //"anim/motion_fields/1/run.anim",
+            //"anim/motion_fields/1/run_turn_left_1.anim",
+            //"anim/motion_fields/1/run_turn_left_2.anim",
+            //"anim/motion_fields/1/run_turn_right_1.anim",
+            //"anim/motion_fields/1/run_turn_right_2.anim",
+            //"anim/motion_fields/1/walk.anim",
+
+            "anim/motion_fields/2/idle.anim",
+            "anim/motion_fields/2/run.anim",
+            "anim/motion_fields/2/walk.anim",
+            "anim/motion_fields/2/left_strafe.anim",
+            "anim/motion_fields/2/left_strafe_walk.anim",
+            "anim/motion_fields/2/left_turn.anim",
+            "anim/motion_fields/2/right_strafe.anim",
+            "anim/motion_fields/2/right_strafe_walk.anim",
+            "anim/motion_fields/2/right_turn.anim",
         };
+        
         const unsigned numAnimFiles = sizeof( animFiles ) / sizeof( *animFiles );
-        mf_database.load( skelFile, animFiles, numAnimFiles );
-        mf_database.prepare();
-        mf_anim_state.prepare( mf_database._skel );
+        //mf_database.load( skelFile, animFiles, numAnimFiles );
+        //mf_database.prepare();
+        //mf_anim_state.prepare( mf_database._skel );
+
+        mm.load( skelFile, animFiles, numAnimFiles );
+        mm.prepare();
 
 
 
@@ -180,9 +201,12 @@ public:
     {
         //bx::gfxSceneDestroy( &scene );
         //bx::gfxCameraDestroy( &camera );
-        mf_anim_state.unprepare();
-        mf_database.unprepare();
-        mf_database.unload();
+        //mf_anim_state.unprepare();
+        //mf_database.unprepare();
+        //mf_database.unload();
+
+        mm.unprepare();
+        mm.unload();
 
         gameSceneShutdown( &__scene, &_engine );
         bx::gfxCameraDestroy( &g_camera );
@@ -274,16 +298,16 @@ public:
 
         {
             //static u32 motion_state_index = 0;
-            if( bxInput_isKeyPressedOnce( &win->input.kbd, 'N' ) )
-            {
-                if( motion_state_index == UINT32_MAX )
-                    motion_state_index = 0;
-                else
-                    motion_state_index += 1;
-            }
-
-            mf_dynamic_state.tick( win->input, deltaTime );
-            mf_dynamic_state.debugDraw( 0xFF0000FF );
+            //if( bxInput_isKeyPressedOnce( &win->input.kbd, 'N' ) )
+            //{
+            //    if( motion_state_index == UINT32_MAX )
+            //        motion_state_index = 0;
+            //    else
+            //        motion_state_index += 1;
+            //}
+            //
+            dynamic_state.tick( win->input, deltaTime );
+            dynamic_state.debugDraw( 0xFF0000FF );
             //if( last_time_evaluation_MS > 200 )
             //{
             //    if( motion_state_index == UINT32_MAX )
@@ -313,9 +337,29 @@ public:
             //    last_time_evaluation_MS += deltaTimeUS / 1000;
             //}
             
-            mf_database.debugDrawState( motion_state_index, 0xFF00FFFF, false );
+            //mf_database.debugDrawState( motion_state_index, 0xFF00FFFF, false );
+
+            //if( bxInput_isKeyPressedOnce( &win->input.kbd, 'N' ) )
+            //{
+            //    pose_index += 1;
+            //}
+            //mm._DebugDrawPose( pose_index, 0x660000FF, Matrix4::identity() );
             
-            
+
+            const Matrix4 input_base = dynamic_state._ComputeBaseMatrix();
+            bx::motion_fields::MotionMatching::Input input = {};
+            dynamic_state.computeLocalTrajectory( input.trajectory, input_base );
+            input.velocity = inverse( input_base.getUpper3x3() ) * ( dynamic_state._velocity * dynamic_state._max_speed );
+            input.base_matrix = input_base;
+            mm.tick( input, deltaTime );
+
+            {
+                const float spd01 = dynamic_state._speed01;
+                const float anim_vel = bx::curve::evaluate_catmullrom( mm._data.velocity_curve, spd01 );
+                dynamic_state._max_speed = anim_vel;
+            }
+
+
             //mf_anim_state.tick( deltaTime );
             
         }

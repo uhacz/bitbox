@@ -103,7 +103,7 @@ out_PS ps_main(in_PS IN)
     float3 diffuseColor = palette( paletteT, colorA, colorB, colorC, colorD ); // float3( 0.f, 1.f, 0.f );
     float3 fresnelColor = palette(IN.noise.x, colorA, colorB, colorC, colorD); //float3(0.1f, 0.2f, 0.3f);
     float3 ambientColor = palette(IN.noise.y, colorA, colorB, colorC, colorD); //float3(0.3f, 0.5f, 0.6f);
-    float diffuseCoeff = 0.6f;
+    float diffuseCoeff = 0.2f;
     float specularCoeff = 0.2f;
     float ambientCoeff = 0.5f;
     float roughnessCoeff = 0.8f;
