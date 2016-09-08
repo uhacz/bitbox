@@ -93,9 +93,12 @@ namespace motion_fields
     {
         struct Pose
         {
+            
             bxAnim_Joint* joints{ nullptr };
             bxAnim_Joint* joints_v{ nullptr };
+            bxAnim_Joint* joints_a{ nullptr };
             Vector3* trajectory{ nullptr }; // eNUM_TRAJECTORY_POINTS length
+
             //const bxAnim_Clip* clip{ nullptr };
 
             u32 clip_index{ UINT32_MAX };
@@ -106,6 +109,7 @@ namespace motion_fields
         {
             const bxAnim_Skel* skel = nullptr;
             std::vector< f32 > bone_lengths;
+            std::vector< std::string> clip_names;
             std::vector< bxAnim_Clip* > clips;
             std::vector< Pose > poses;
 
@@ -140,7 +144,7 @@ namespace motion_fields
             Vector3 trajectory[eNUM_TRAJECTORY_POINTS]; // local space
             Matrix4 base_matrix;
             Vector3 velocity; // local space
-
+            Vector3 acceleration; // local space
         };
 
         struct Debug
@@ -165,6 +169,7 @@ namespace motion_fields
         void prepare();
         void _EvaluateClips( float timeStep );
         void _ComputeBoneLengths();
+        bool currentSpeed( f32* value );
 
         void unprepare();
 
@@ -180,14 +185,18 @@ namespace motion_fields
 
     struct DynamicState
     {
+        Vector3 _acceleration{ 0.f };
         Vector3 _velocity{ 0.f };
         Vector3 _position{ 0.f };
 
+        Vector3 _prev_input_force{ 0.f };
         Vector3 _prev_direction{ 0.f, 0.f, 1.f };
         Vector3 _direction{ 0.f, 0.f, 1.f };
+        f32 _mass{ 0.01f };
         f32 _speed01{ 0.f };
         f32 _prev_speed01{ 0.f };
         f32 _max_speed{ 3.f };
+        f32 _trajectory_integration_time{ 1.f };
         CharacterInput _input = {};
 
         

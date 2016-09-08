@@ -40,7 +40,7 @@ namespace
         u32 col;
     };
 
-    const int MAX_VERTICES = 10000;
+    const int MAX_VERTICES = 100000;
 
     void ImGui_RenderDrawLists( ImDrawList** const cmd_lists, int cmd_lists_count )
     {

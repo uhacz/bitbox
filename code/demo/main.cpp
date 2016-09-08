@@ -13,6 +13,9 @@
 
 #include "scene.h"
 #include "motion_fields.h"
+
+#include <cstdio>
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 static bx::GameScene __scene = {};
@@ -28,7 +31,7 @@ static bx::motion_fields::DynamicState dynamic_state = {};
 //static u64 last_time_evaluation_MS = UINT64_MAX;
 
 static bx::motion_fields::MotionMatching mm = {};
-static u32 pose_index = 305;
+static u32 pose_index = UINT32_MAX;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -175,14 +178,21 @@ public:
             //"anim/motion_fields/1/walk.anim",
 
             "anim/motion_fields/2/idle.anim",
-            "anim/motion_fields/2/run.anim",
             "anim/motion_fields/2/walk.anim",
+            "anim/motion_fields/2/run.anim",
+            //"anim/motion_fields/2/fast_run.anim",
+            "anim/motion_fields/2/run_back.anim",
+            "anim/motion_fields/2/run_to_stop.anim",
+            "anim/motion_fields/2/run_turn_180.anim",
+            "anim/motion_fields/2/run_arc_left.anim",
+            "anim/motion_fields/2/run_arc_right.anim",
+
             "anim/motion_fields/2/left_strafe.anim",
             "anim/motion_fields/2/left_strafe_walk.anim",
-            "anim/motion_fields/2/left_turn.anim",
+            //"anim/motion_fields/2/left_turn.anim",
             "anim/motion_fields/2/right_strafe.anim",
             "anim/motion_fields/2/right_strafe_walk.anim",
-            "anim/motion_fields/2/right_turn.anim",
+            //"anim/motion_fields/2/right_turn.anim",
         };
         
         const unsigned numAnimFiles = sizeof( animFiles ) / sizeof( *animFiles );
@@ -343,22 +353,80 @@ public:
             //{
             //    pose_index += 1;
             //}
-            //mm._DebugDrawPose( pose_index, 0x660000FF, Matrix4::identity() );
+            //
             
 
             const Matrix4 input_base = dynamic_state._ComputeBaseMatrix();
             bx::motion_fields::MotionMatching::Input input = {};
             dynamic_state.computeLocalTrajectory( input.trajectory, input_base );
-            input.velocity = inverse( input_base.getUpper3x3() ) * ( dynamic_state._velocity * dynamic_state._max_speed );
+            input.velocity = inverse( input_base.getUpper3x3() ) * ( dynamic_state._velocity );
+            input.acceleration = inverse( input_base.getUpper3x3() ) * ( dynamic_state._acceleration );
             input.base_matrix = input_base;
             mm.tick( input, deltaTime );
 
             {
+                
                 const float spd01 = dynamic_state._speed01;
-                const float anim_vel = bx::curve::evaluate_catmullrom( mm._data.velocity_curve, spd01 );
+                float anim_vel = bx::curve::evaluate_catmullrom( mm._data.velocity_curve, spd01 );
+                //float anim_vel1 = 0.f;
+                //if( mm.currentSpeed( &anim_vel1 ) )
+                //{
+                //    anim_vel = minOfPair( anim_vel1, anim_vel );
+                //}
                 dynamic_state._max_speed = anim_vel;
+
+
+                if( mm._state.num_clips )
+                {
+                    float clip_duration = mm._data.clips[mm._state.clip_index[0]]->duration;
+                    dynamic_state._trajectory_integration_time = clip_duration;
+                }
             }
 
+
+
+            if( ImGui::Begin( "MotionMatching" ) )
+            {
+                const int PLOT_POINTS = 16;
+                float v[PLOT_POINTS];
+                for( u32 i = 0; i < PLOT_POINTS; ++i )
+                {
+                    float t = (float)i / (float)( PLOT_POINTS - 1 );
+                    v[i] = bx::curve::evaluate_catmullrom( mm._data.velocity_curve, t );
+                }
+                ImGui::PlotLines( "velocity curve", v, PLOT_POINTS, 0, nullptr, 0.f, 1.f );
+                ImGui::SliderFloat( "current velocity", &dynamic_state._speed01, 0.f, 1.f );
+                ImGui::SliderFloat( "max velocity", &dynamic_state._max_speed, 0.f, 1.f );
+
+                if( mm._state.num_clips )
+                {
+                    ImGui::Text( "current clip: %s", mm._data.clip_names[mm._state.clip_index[0]].c_str() );
+                }
+
+                if( ImGui::CollapsingHeader( "Poses" ) )
+                {
+                    for( size_t i = 0; i < mm._data.poses.size(); ++i )
+                    {
+                        const bx::motion_fields::MotionMatching::Pose& pose = mm._data.poses[i];
+                        
+                        char button_name[256] = {};
+                        _snprintf_s( button_name, 256, "%s [%f]", mm._data.clip_names[pose.clip_index].c_str(), pose.clip_start_time );
+                        
+                        if( ImGui::RadioButton( button_name, pose_index == (u32)i ) )
+                        {
+                            pose_index = (u32)i;
+                        }
+                    }
+
+                    if( pose_index != UINT32_MAX )
+                    {
+                        mm._DebugDrawPose( pose_index, 0x0000FFFF, Matrix4::identity() );
+                    }
+                }
+
+
+            }
+            ImGui::End();
 
             //mf_anim_state.tick( deltaTime );
             
