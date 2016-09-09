@@ -11,7 +11,7 @@ namespace bx{
 namespace motion_fields
 {
     enum { eNUM_NEIGHBOURS = 15, };
-    enum { eNUM_TRAJECTORY_POINTS = 4, };
+    enum { eNUM_TRAJECTORY_POINTS = 8, };
 
     struct MotionState
     {
@@ -91,26 +91,40 @@ namespace motion_fields
     //////////////////////////////////////////////////////////////////////////
     struct MotionMatching
     {
-        struct Pose
+        struct PoseParams
         {
+            Vector3 velocity{ 0.f };
+            Vector3 acceleration{ 0.f };
             
-            bxAnim_Joint* joints{ nullptr };
-            bxAnim_Joint* joints_v{ nullptr };
-            bxAnim_Joint* joints_a{ nullptr };
-            Vector3* trajectory{ nullptr }; // eNUM_TRAJECTORY_POINTS length
-
-            //const bxAnim_Clip* clip{ nullptr };
-
             u32 clip_index{ UINT32_MAX };
             f32 clip_start_time{ 0.f };
+            u32 __padding[2] {};
+        };
+        struct Pose
+        {
+            bxAnim_Joint* joints{ nullptr };
+            //bxAnim_Joint* joints_v{ nullptr };
+            //bxAnim_Joint* joints_a{ nullptr };
+            Vector3* trajectory{ nullptr }; // eNUM_TRAJECTORY_POINTS length
+            PoseParams params{};
         };
         
+        struct AnimClipInfo
+        {
+            u32 is_loop{ 0 };
+
+            AnimClipInfo( u32 isLoop )
+                : is_loop( isLoop )
+            {}
+        };
+
         struct Data
         {
             const bxAnim_Skel* skel = nullptr;
             std::vector< f32 > bone_lengths;
             std::vector< std::string> clip_names;
             std::vector< bxAnim_Clip* > clips;
+            std::vector< AnimClipInfo > clip_infos;
             std::vector< Pose > poses;
 
             bx::Curve1D velocity_curve;
@@ -141,10 +155,10 @@ namespace motion_fields
         
         struct Input
         {
-            Vector3 trajectory[eNUM_TRAJECTORY_POINTS]; // local space
+            Vector3 trajectory[eNUM_TRAJECTORY_POINTS];
             Matrix4 base_matrix;
-            Vector3 velocity; // local space
-            Vector3 acceleration; // local space
+            Vector3 velocity;
+            Vector3 acceleration;
         };
 
         struct Debug
@@ -157,13 +171,13 @@ namespace motion_fields
         //-------------------------------------------------------------------
         static void poseAllocate( Pose* pose, u32 numJoints, bxAllocator* allocator );
         static void poseFree( Pose* pose, bxAllocator* allocator );
-        static void posePrepare( Pose* pose, const bxAnim_Skel* skel, const bxAnim_Clip* clip, float evalTime );
+        static void posePrepare( Pose* pose, const bxAnim_Skel* skel, const bxAnim_Clip* clip, u32 frameNo, const AnimClipInfo& clipInfo );
         //-------------------------------------------------------------------
         static void stateAllocate( State* state, u32 numJoints, bxAllocator* allocator );
         static void stateFree( State* state, bxAllocator* allocator );
-
+        
         //-------------------------------------------------------------------
-        void load( const char* skelFile, const char** animFiles, unsigned numAnimFiles );
+        void load( const char* skelFile, const char** animFiles, const AnimClipInfo* animInfo, unsigned numAnimFiles );
         void unload();
 
         void prepare();
@@ -174,6 +188,7 @@ namespace motion_fields
         void unprepare();
 
         void tick( const Input& input, float deltaTime );
+        void _TickAnimations( float deltaTime );
         //-------------------------------------------------------------------
         
 
@@ -205,10 +220,12 @@ namespace motion_fields
         //////////////////////////////////////////////////////////////////////////
         void tick( const bxInput& sysInput, float deltaTime );
         void computeLocalTrajectory( Vector3 localTrajectory[eNUM_TRAJECTORY_POINTS], const Matrix4& base );
-        Matrix4 _ComputeBaseMatrix();
+        Matrix4 _ComputeBaseMatrix() const;
 
         void debugDraw( u32 color );
     };
+    void motionMatchingCollectInput( MotionMatching::Input* input, const DynamicState& dstate );
+
 
     struct AnimState
     {

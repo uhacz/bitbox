@@ -511,7 +511,7 @@ namespace bx
             const int inRight = bxInput_isKeyPressed( kbd, 'D' );
             const int inFwd = bxInput_isKeyPressed( kbd, 'W' );
             const int inBack = bxInput_isKeyPressed( kbd, 'S' );
-            const int inJump = bxInput_isKeyPressedOnce( kbd, ' ' );
+            const int inJump = bxInput_isKeyPressed( kbd, ' ' );
             const int inCrouch = bxInput_isKeyPressedOnce( kbd, 'Z' );
             const int inL2 = bxInput_isKeyPressed( kbd, bxInput::eKEY_LSHIFT );
             const int inR2 = bxInput_isKeyPressed( kbd, 'E' );
@@ -530,7 +530,8 @@ namespace bx
 
         charInput->analogX = signalFilter_lowPass( analogX, charInput->analogX, RC, deltaTime );
         charInput->analogY = signalFilter_lowPass( analogY, charInput->analogY, RC, deltaTime );
-        charInput->jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
+        charInput->jump = signalFilter_lowPass( jump, charInput->jump, RC, deltaTime );
+        charInput->jump = minOfPair( 1.f, charInput->jump );
         charInput->crouch = signalFilter_lowPass( crouch, charInput->crouch, RC, deltaTime );
         charInput->L2 = L2;
         charInput->R2 = R2;

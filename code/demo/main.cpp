@@ -156,7 +156,7 @@ public:
         //}
 
         //const char skelFile[] = "anim/motion_fields/uw_cap6_005m_s.skel";
-        const char skelFile[] = "anim/motion_fields/2/T.skel";
+        const char skelFile[] = "anim/motion_fields/2/skeleton.skel";
         const char* animFiles[] = 
         {
             //"anim/motion_fields/run_circles.anim",
@@ -177,30 +177,41 @@ public:
             //"anim/motion_fields/1/run_turn_right_2.anim",
             //"anim/motion_fields/1/walk.anim",
 
+            "anim/motion_fields/2/walking0.anim",
+            "anim/motion_fields/2/walking1.anim",
+            "anim/motion_fields/2/running.anim",
+            "anim/motion_fields/2/walking_left_turn.anim",
+            "anim/motion_fields/2/walking_right_turn.anim",
+            "anim/motion_fields/2/running_left_turn.anim",
+            "anim/motion_fields/2/running_right_turn.anim",
+            "anim/motion_fields/2/running_jump.anim",
+            "anim/motion_fields/2/walking_180_turn.anim",
+            "anim/motion_fields/2/walking_start.anim",
             "anim/motion_fields/2/idle.anim",
-            "anim/motion_fields/2/walk.anim",
-            "anim/motion_fields/2/run.anim",
-            //"anim/motion_fields/2/fast_run.anim",
-            "anim/motion_fields/2/run_back.anim",
-            "anim/motion_fields/2/run_to_stop.anim",
-            "anim/motion_fields/2/run_turn_180.anim",
-            "anim/motion_fields/2/run_arc_left.anim",
-            "anim/motion_fields/2/run_arc_right.anim",
-
-            "anim/motion_fields/2/left_strafe.anim",
-            "anim/motion_fields/2/left_strafe_walk.anim",
-            //"anim/motion_fields/2/left_turn.anim",
-            "anim/motion_fields/2/right_strafe.anim",
-            "anim/motion_fields/2/right_strafe_walk.anim",
-            //"anim/motion_fields/2/right_turn.anim",
         };
         
+        const bx::motion_fields::MotionMatching::AnimClipInfo anim_info[] =
+        {
+            { 1 },
+            { 1 },
+            { 1 },
+            { 0 },
+            { 0 },
+            { 0 },
+            { 0 },
+            { 0 },
+            { 0 },
+            { 0 },
+            { 1 },
+        };
+
         const unsigned numAnimFiles = sizeof( animFiles ) / sizeof( *animFiles );
+        SYS_ASSERT( numAnimFiles == ( sizeof( anim_info) / sizeof(*anim_info) ) );
         //mf_database.load( skelFile, animFiles, numAnimFiles );
         //mf_database.prepare();
         //mf_anim_state.prepare( mf_database._skel );
 
-        mm.load( skelFile, animFiles, numAnimFiles );
+        mm.load( skelFile, animFiles, anim_info, numAnimFiles );
         mm.prepare();
 
 
@@ -302,7 +313,7 @@ public:
                 __scene.cameraController.follow( camera, characterPos, characterUp, characterDPos, deltaTime, cameraInputCtx.anyMovement() );
             }
 
-            bxGfxDebugDraw::addAxes( appendScale( Matrix4::identity(), Vector3( 5.f ) ) );
+            //bxGfxDebugDraw::addAxes( appendScale( Matrix4::identity(), Vector3( 5.f ) ) );
         }
 
 
@@ -355,13 +366,15 @@ public:
             //}
             //
             
-
-            const Matrix4 input_base = dynamic_state._ComputeBaseMatrix();
             bx::motion_fields::MotionMatching::Input input = {};
-            dynamic_state.computeLocalTrajectory( input.trajectory, input_base );
-            input.velocity = inverse( input_base.getUpper3x3() ) * ( dynamic_state._velocity );
-            input.acceleration = inverse( input_base.getUpper3x3() ) * ( dynamic_state._acceleration );
-            input.base_matrix = input_base;
+            bx::motion_fields::motionMatchingCollectInput( &input, dynamic_state );
+
+            //const Matrix4 input_base = dynamic_state._ComputeBaseMatrix();
+            //
+            //dynamic_state.computeLocalTrajectory( input.trajectory, input_base );
+            //input.velocity = inverse( input_base.getUpper3x3() ) * ( dynamic_state._velocity );
+            //input.acceleration = inverse( input_base.getUpper3x3() ) * ( dynamic_state._acceleration );
+            //input.base_matrix = input_base;
             mm.tick( input, deltaTime );
 
             {
@@ -410,7 +423,7 @@ public:
                         const bx::motion_fields::MotionMatching::Pose& pose = mm._data.poses[i];
                         
                         char button_name[256] = {};
-                        _snprintf_s( button_name, 256, "%s [%f]", mm._data.clip_names[pose.clip_index].c_str(), pose.clip_start_time );
+                        _snprintf_s( button_name, 256, "%s [%f]", mm._data.clip_names[pose.params.clip_index].c_str(), pose.params.clip_start_time );
                         
                         if( ImGui::RadioButton( button_name, pose_index == (u32)i ) )
                         {

@@ -14,8 +14,8 @@ void evaluateBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim
 void evaluateCommandList( bxAnim_Context* ctx,  const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton );
 void blendJointsLinear( bxAnim_Joint* out_joints, const bxAnim_Joint* left_joints, const bxAnim_Joint* right_joints, float blend_factor, unsigned short num_joints);
 
-void evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 eval_time );
-void evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frame_integer, f32 frame_fraction );
+void evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 eval_time, u32 beginJoint = UINT32_MAX, u32 endJoint = UINT32_MAX );
+void evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frame_integer, f32 frame_fraction, u32 beginJoint = UINT32_MAX, u32 endJoint = UINT32_MAX );
 
 void localJointsToWorldMatrices4x4( Matrix4* out_matrices, const bxAnim_Joint* in_joints, const unsigned short* parent_indices, unsigned count, const bxAnim_Joint& root_joint );
 void localJointsToWorldJoints( bxAnim_Joint* out_joints, const bxAnim_Joint* in_joints, const unsigned short* parent_indices, unsigned count, const bxAnim_Joint& root_joint );

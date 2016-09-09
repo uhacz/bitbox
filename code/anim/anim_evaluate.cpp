@@ -1,6 +1,6 @@
 #include "anim.h"
 
-void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 evalTime )
+void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 evalTime, u32 beginJoint, u32 endJoint )
 {
 	f32 frame = evalTime * anim->sampleFrequency;
 	if( frame < 0.f )
@@ -9,10 +9,10 @@ void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f3
 	u32 frameInteger = (u32)frame;
 	f32 frameFraction = frame - (f32)frameInteger;
 
-	evaluateClip( out_joints, anim, frameInteger, frameFraction );
+	evaluateClip( out_joints, anim, frameInteger, frameFraction, beginJoint, endJoint );
 }
 
-void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frameInteger, f32 frameFraction )
+void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frameInteger, f32 frameFraction, u32 beginJoint, u32 endJoint )
 {
 	const u16 numJoints    = anim->numJoints;
 	const u32 currentFrame = ( frameInteger ) % anim->numFrames;
@@ -30,9 +30,10 @@ void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u3
 	const Vector3* frame1_translations  = translations + nextFrame * numJoints;
 	const Vector3* frame1_scales        = scales + nextFrame * numJoints;
 
-	u16 i = 0;
-
-	const floatInVec alpha( frameFraction );
+    u16 i = ( beginJoint == UINT32_MAX ) ? 0 : beginJoint;
+    endJoint = ( endJoint == UINT32_MAX ) ? numJoints : endJoint+1;
+	
+    const floatInVec alpha( frameFraction );
 	do 
 	{
 		const Quat& q0 = frame0_rotations[i];
@@ -42,7 +43,7 @@ void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u3
 
 		out_joints[i].rotation = q;
 
-	} while ( ++i < numJoints );
+	} while ( ++i < endJoint );
 
 	i = 0;
 	do 
@@ -54,7 +55,7 @@ void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u3
 
 		out_joints[i].position = t;
 
-	} while ( ++i < numJoints );
+    } while( ++i < endJoint );
 
 	i = 0;
 	do 
@@ -66,5 +67,5 @@ void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u3
 
 		out_joints[i].scale = s;
 
-	} while ( ++i < numJoints );
+    } while( ++i < endJoint );
 }
