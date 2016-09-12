@@ -98,7 +98,7 @@ namespace motion_fields
             
             u32 clip_index{ UINT32_MAX };
             f32 clip_start_time{ 0.f };
-            u32 __padding[2] {};
+            u32 __padding[2];
         };
         struct Pose
         {
@@ -127,6 +127,8 @@ namespace motion_fields
             std::vector< AnimClipInfo > clip_infos;
             std::vector< Pose > poses;
 
+            std::vector< i16 > match_joints_indices;
+
             bx::Curve1D velocity_curve;
 
         } _data;
@@ -143,6 +145,9 @@ namespace motion_fields
             f32 clip_eval_time[eMAX_CLIPS]; // = { 0.f };
             u32 num_clips = 0;
             
+            u32 pose_index = UINT32_MAX;
+            f32 last_match_time_s = 0.1f;
+
             void* _memory_handle = nullptr;
             bxAnim_Joint* joint_world = nullptr;
 
@@ -159,6 +164,7 @@ namespace motion_fields
             Matrix4 base_matrix;
             Vector3 velocity;
             Vector3 acceleration;
+            f32 speed01 = 0.f;
         };
 
         struct Debug

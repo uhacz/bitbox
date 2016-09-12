@@ -426,35 +426,39 @@ namespace motion_fields
     //////////////////////////////////////////////////////////////////////////
     void DynamicState::tick( const bxInput& sysInput, float deltaTime )
     {
-        characterInputCollectData( &_input, sysInput, deltaTime, 0.1f );
+        characterInputCollectData( &_input, sysInput, deltaTime, 0.02f );
         
         const Vector3 x_input_force = Vector3::xAxis() * _input.analogX;
         const Vector3 z_input_force = -Vector3::zAxis() * _input.analogY;
-        //const Vector3 y_input_force = Vector3::yAxis() * ( ( _input.jump > 0.1f ) ? _input.jump*10.f : -1.8f );
-        Vector3 input_force = x_input_force + z_input_force; // +y_input_force;
+        //const Vector3 y_input_force = Vector3::yAxis() * ( ( _input.jump > 0.1f ) ? _input.jump*100.f : -9.8f );
+        Vector3 input_force = x_input_force + z_input_force;// +y_input_force;
 
-        const float converge_time01 = 0.01f;
+        const float converge_time01 = 0.0001f;
         const float lerp_alpha = 1.f - ::pow( converge_time01, deltaTime );
 
         const float input_speed = minOfPair( 1.f, length( input_force ).getAsFloat() );
         input_force = normalizeSafe( input_force ) * input_speed;
         _prev_speed01 = _speed01;
-        _speed01 = lerp( lerp_alpha, _speed01, input_speed );
+        _speed01 = input_speed; // lerp( lerp_alpha, _speed01, input_speed );
+        //_speed01 *= _speed01;
         //
         _prev_direction = _direction;
-        if( input_speed > FLT_EPSILON )
+        if( input_speed * input_speed > FLT_EPSILON )
         {
             const Vector3 input_dir = normalize( input_force );
+            //_direction = input_dir;
             _direction = slerp( lerp_alpha, _direction, input_force );
             _direction = normalizeSafe( _direction );
         }
 
-
-        const float spd = ( _speed01 < 0.01f ) ? 0: _max_speed; // *_speed01;
-        _acceleration = ( _direction - _prev_direction ) * spd;
-        _velocity = _direction * spd;
-        _position += _velocity * deltaTime;
+        const float delta_time_inv = ( deltaTime > 0.f ) ? 1.f / deltaTime : 0.f;
+        const float spd = ( _speed01 < 0.1f ) ? 0 : _max_speed; // *_speed01;
         
+        //_acceleration = ( _direction - _prev_direction ) * spd  * delta_time_inv;
+        Vector3 prev_vel = _velocity;
+        _velocity = _direction * spd;
+        _acceleration = ( _velocity - prev_vel ) * delta_time_inv;
+        _position += _velocity * deltaTime;
 
         //////////////////////////////////////////////////////////////////////////
         //mothahack
@@ -463,55 +467,22 @@ namespace motion_fields
             _position.setY( 0.f );
         }
         //////////////////////////////////////////////////////////////////////////
-        //const float prev_spd = _max_speed * _prev_speed01;
-        //const float spd = _max_speed * _speed01;
-
         
-        //Vector3 acceleration = ( _direction - _prev_direction ) * spd;
-        //_acceleration = ( input_force - _prev_input_force );
-        //_velocity = _direction * _speed01;
-        const float delta_time_inv = ( deltaTime > 0.f ) ? 1.f / deltaTime : 0.f;
         const float dt = _trajectory_integration_time / ( eNUM_TRAJECTORY_POINTS - 1 );
         float time = dt;
         _trajectory[0] = _position;
+        const Vector4 plane = makePlane( _direction, _position );
+        const Vector3 trajectory_acc = projectVectorOnPlane( _acceleration, plane );
         for( u32 i = 1; i < eNUM_TRAJECTORY_POINTS; ++i )
         {
             /// s = s0 + v0 * t + a*t2*0.5f
-            //_trajectory[i] = _position + (_direction * _max_speed ) * time + acceleration * ( time*time );
-            //_trajectory[i] = _position + input_force*time + acceleration*time*time*0.5f;
-            _trajectory[i] = _position + _velocity * time + _acceleration*delta_time_inv*time*time * 0.5f;
-            //_trajectory[i] = _position + normalizeSafe( input_force ) * time; // +input_force*( time*time ) * 0.5f;
+            _trajectory[i] = _position + _velocity * time + trajectory_acc*time*time * 0.5f;
+            checkFloat( _trajectory[i].getX().getAsFloat() );
             time += dt;
         }
 
         const float dt_inv = ( deltaTime > 0 ) ? 1.f / deltaTime : 0.f;
-        bxGfxDebugDraw::addLine( _trajectory[eNUM_TRAJECTORY_POINTS - 1], _trajectory[eNUM_TRAJECTORY_POINTS - 1] + _acceleration * dt_inv, 0xFFFFFFFF, 1 );
-
-        //_position += (_direction * _max_speed ) * deltaTime;
-        //_prev_input_force = input_force;
-
-        //_acceleration = input_force / _mass;
-        //_velocity += _acceleration * deltaTime;
-
-        //const float spd = length( _velocity ).getAsFloat();
-        //const float velScaler = ( _max_speed > 0.f ) ? _max_speed / spd : 0.f;
-        //_velocity *= ::pow( 1.f - 0.99f, deltaTime );
-        //_velocity *= ( spd > _max_speed ) ? velScaler : 1.f;
-        //_position += _velocity * deltaTime;
-
-        //float trajectory_time = 0.f;
-        //const float trajectory_dt = 1.f / (eNUM_TRAJECTORY_POINTS-1);
-        //for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
-        //{
-        //    _trajectory[i] = _position + _velocity * trajectory_time + _acceleration * ( trajectory_time*trajectory_time )*0.5f;
-        //    trajectory_time += trajectory_dt;
-        //}
-
-        //_speed01 = linearstep( 0.f, _max_speed, length( _velocity ).getAsFloat() );
-        //if( _speed01 > 0.f )
-        //{
-        //    _direction = normalize( _velocity );
-        //}
+        bxGfxDebugDraw::addLine( _trajectory[eNUM_TRAJECTORY_POINTS - 1], _trajectory[eNUM_TRAJECTORY_POINTS - 1] + _acceleration, 0xFFFFFFFF, 1 );
     }
     void DynamicState::computeLocalTrajectory( Vector3 localTrajectory[eNUM_TRAJECTORY_POINTS], const Matrix4& base )
     {
@@ -524,26 +495,20 @@ namespace motion_fields
 
     Matrix4 DynamicState::_ComputeBaseMatrix() const
     {
-        Vector3 y = Vector3::yAxis();
-        Vector3 x = normalize( cross( y, _direction ) );
-        Vector3 z = normalize( cross( x, y ) );
-        Matrix3 rotation = Matrix3( x, y, z );
+        if( lengthSqr( _direction ).getAsFloat() > FLT_EPSILON )
+        {
+            Vector3 y = Vector3::yAxis();
+            Vector3 x = normalize( cross( y, _direction ) );
+            Vector3 z = normalize( cross( x, y ) );
+            Matrix3 rotation = Matrix3( x, y, z );
 
-        //const floatInVec d = dot( _acceleration, x );
-        //Matrix3 tilt_rotation = Matrix3::rotationZ( -d );
-        //rotation *= tilt_rotation;
-
-
-        return Matrix4( rotation, _position );
+            //const floatInVec d = dot( _acceleration, x );
+            //Matrix3 tilt_rotation = Matrix3::rotationZ( -d );
+            //rotation *= tilt_rotation;
+            return Matrix4( rotation, _position );
+        }
+        return Matrix4::identity();
     }
-
-
-
-
-
-
-
-
 
     //////////////////////////////////////////////////////////////////////////
     void MotionMatching::poseAllocate( Pose* pose, u32 numJoints, bxAllocator* allocator )
@@ -746,7 +711,7 @@ namespace motion_fields
 
         PoseParams& params = pose->params;
         params.velocity = v1;
-        params.acceleration = v1 - v0;
+        params.acceleration = (v1 - v0) * clip->sampleFrequency;
         
         //joints_scratch[0].position = mulPerElem( joints_scratch[0].position, Vector3( 0.f, 1.f, 0.f ) );
     }
@@ -821,6 +786,43 @@ namespace motion_fields
 
         stateAllocate( &_state, _data.skel->numJoints, _allocator );
         _state.anim_ctx = bxAnim::contextInit( *_data.skel );
+
+
+        const char* match_joints_names[] = 
+        {
+            "Hips",
+            "Spine1",
+            "Spine2",
+            "Neck",
+            "Neck1",
+            "Head",
+            
+            "LeftArm",
+            "LeftForeArm",
+            "LeftHand",
+
+            "RightArm",
+            "RightForeArm",
+            "RightHand",
+
+            "LeftUpLeg",
+            "LeftLeg",
+            "LeftToeBase",
+
+            "RightUpLeg",
+            "RightLeg",
+            "RightToeBase",
+        };
+        const u32 num_match_joints_names = sizeof( match_joints_names ) / sizeof( *match_joints_names );
+
+        _data.match_joints_indices.resize( num_match_joints_names, -1 );
+
+        for( u32 i = 0; i < num_match_joints_names; ++i )
+        {
+            _data.match_joints_indices[i] = bxAnim::getJointByName( _data.skel, match_joints_names[i] );
+        }
+
+
     }
     void MotionMatching::_EvaluateClips( float timeStep )
     {
@@ -901,25 +903,28 @@ namespace motion_fields
 
     bool MotionMatching::currentSpeed( f32* value )
     {
-        if( _state.num_clips == 0 )
+        if( _state.pose_index  == UINT32_MAX )
         {
             return false;
         }
 
-        if( _state.num_clips == 1 )
-        {
-            const Pose& pose = _data.poses[_state.clip_index[0]];
-            value[0] = length( pose.params.velocity ).getAsFloat();
-        }
-        else
-        {
-            const Pose& poseA = _data.poses[_state.clip_index[0]];
-            const Pose& poseB = _data.poses[_state.clip_index[1]];
-            const float blend_alpha = _state._blend_time / _state._blend_duration;
-            const float velA = length( poseA.params.velocity ).getAsFloat();
-            const float velB = length( poseB.params.velocity ).getAsFloat();
-            value[0] = lerp( blend_alpha, velA, velB );
-        }
+        const Pose& pose = _data.poses[_state.pose_index];
+        value[0] = length( pose.params.velocity ).getAsFloat();
+
+        //if( _state.num_clips == 1 )
+        //{
+        //    const Pose& pose = _data.poses[_state.clip_index[0]];
+        //    value[0] = length( pose.params.velocity ).getAsFloat();
+        //}
+        //else
+        //{
+        //    const Pose& poseA = _data.poses[_state.clip_index[0]];
+        //    const Pose& poseB = _data.poses[_state.clip_index[1]];
+        //    const float blend_alpha = _state._blend_time / _state._blend_duration;
+        //    const float velA = length( poseA.params.velocity ).getAsFloat();
+        //    const float velB = length( poseB.params.velocity ).getAsFloat();
+        //    value[0] = lerp( blend_alpha, velA, velB );
+        //}
 
         return true;
     }
@@ -939,7 +944,7 @@ namespace motion_fields
     }
 
 
-    float _ComputePoseCost( const bxAnim_Joint* aJoints, const bxAnim_Joint* bJoints, const float* betha, u32 numJoints )
+    float _ComputePoseCost( const bxAnim_Joint* aJoints, const bxAnim_Joint* bJoints, const float* betha, u32 numJoints, const i16* jointIndices, u32 numJointIndices )
     {
         //const float vr = lengthSqr( aJoints[0].position - bJoints[0].position ).getAsFloat() * betha[0];
         //const float q0 = lengthSqr( rotate( aJoints[0].rotation, u ) - rotate( bJoints[0].rotation, u ) ).getAsFloat() * betha[0];
@@ -961,34 +966,46 @@ namespace motion_fields
         //}
         float result = 0.f;
 
-        for( u32 i = 0; i < numJoints; ++i )
-        {
-            const Vector3 a = aJoints[i].position;
-            const Vector3 b = bJoints[i].position;
-            result += length( a - b ).getAsFloat();
+        const Vector3 u = normalize( Vector3( 0.23742528f, -0.546734f, 0.7695485349f ) );
 
-            const Quat qa = aJoints[i].rotation;
-            const Quat qb = bJoints[i].rotation;
-            const float d = 1.f - dot( qa, qb ).getAsFloat();
-            result += d;
+        const float vr = lengthSqr( aJoints[0].position - bJoints[0].position ).getAsFloat() * betha[0];
+        const float q0 = lengthSqr( rotate( aJoints[0].rotation, u ) - rotate( bJoints[0].rotation, u ) ).getAsFloat() * betha[0];
+
+        //for( u32 i = 0; i < numJoints; ++i )
+        for( u32 i = 1; i < numJointIndices; ++i )
+        {
+            const i16 index = jointIndices[i];
+            //const Vector3 a = aJoints[index].position;
+            //const Vector3 b = bJoints[index].position;
+            //result += betha[index] * lengthSqr( a - b ).getAsFloat();
+
+            const Quat qa = aJoints[index].rotation;
+            const Quat qb = bJoints[index].rotation;
+            const Vector3 qav = rotate( qa, u );
+            const Vector3 qbv = rotate( qb, u );
+            result += betha[index] * lengthSqr( qav - qbv ).getAsFloat();
+            //const float d = 1.f - dot( qa, qb ).getAsFloat();
+            //result += d;
         }
 
-        //const float result = ::sqrt( vr + q0 + pi );
-        return ( result );
+        result = ::sqrt( vr + q0 + result );
+        //const float denom = 1.f; // / ( numJointIndices );
+        return ( result );// *denom;
     }
     float _ComputeTrajectoryCost( const Vector3* trajectoryA, const Vector3* trajectoryB, u32 n )
     {
-        float cost = 0;
+        const float denom = 1.f;// / n;
+        float cost0 = 0;
         for( u32 i = 0; i < n; ++i )
         {
             const Vector3 a = trajectoryA[i];
             const Vector3 b = trajectoryB[i];
 
-            cost += lengthSqr( a - b ).getAsFloat();
+            cost0 += lengthSqr( a - b ).getAsFloat();
         }
 
-        cost = ::sqrt( cost );
-
+        cost0 = ::sqrt( cost0 ) * denom;
+        float cost1 = 0.f;
         for( u32 i = 1; i < n; ++i )
         {
             const Vector3 a0 = trajectoryA[i-1];
@@ -1000,14 +1017,15 @@ namespace motion_fields
             const Vector3 aV = normalizeSafe( a1 - a0 );
             const Vector3 bV = normalizeSafe( b1 - b0 );
 
-            cost += 1.f - dot( aV, bV ).getAsFloat();
+            cost1 += 1.f - dot( aV, bV ).getAsFloat();
         }
-        return cost;
+        cost1 *= denom;
+        return cost0 + cost1;
     }
     inline float _ComputeVelocityCost( const Vector3 vA, const Vector3 vB )
     {
         floatInVec cost = length( vA - vB );
-        cost += oneVec - dot( normalizeSafe( vA ), normalizeSafe( vB ) );
+        //cost += oneVec - dot( normalizeSafe( vA ), normalizeSafe( vB ) );
         return cost.getAsFloat();
     }
 
@@ -1020,6 +1038,8 @@ namespace motion_fields
         //    curr_clip = _data.clips[_state.clip_index];
         //}
 
+        const float desired_anim_speed = bx::curve::evaluate_catmullrom( _data.velocity_curve, input.speed01 );
+
         const Matrix4 to_local_space = inverse( input.base_matrix );
         Vector3 local_trajectory[eNUM_TRAJECTORY_POINTS];
         for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
@@ -1028,7 +1048,7 @@ namespace motion_fields
         }
         const Vector3 local_velocity = to_local_space.getUpper3x3() * input.velocity;
         const Vector3 local_acceleration = to_local_space.getUpper3x3() * input.acceleration;
-
+        const Vector3 desired_anim_velocity = normalizeSafe( local_velocity ) * desired_anim_speed;
 
         const u32 num_joints = _data.skel->numJoints;
 
@@ -1041,103 +1061,99 @@ namespace motion_fields
             curr_local_joints[0].position = mulPerElem( curr_local_joints[0].position, Vector3( 0.f, 1.f, 0.f ) );
         }
 
-        if( curr_local_joints && _state.num_clips == 1)
+        if( _state.last_match_time_s >= 0.1f )
         {
-            bxAnim_Joint* tmp_joints = _state.joint_world;
-            float change_cost = FLT_MAX;
-            u32 change_index = UINT32_MAX;
-
-            const bool is_current_anim_looped = _data.clip_infos[_state.clip_index[0]].is_loop == 1;
-
-            for( size_t i = 0; i < _data.poses.size(); ++i )
+            _state.last_match_time_s = 0.f;
+            if( curr_local_joints && _state.num_clips == 1)
             {
-                const Pose pose = _data.poses[i];
+                bxAnim_Joint* tmp_joints = _state.joint_world;
+                float change_cost = FLT_MAX;
+                u32 change_index = UINT32_MAX;
 
-                const AnimClipInfo& clip_info = _data.clip_infos[pose.params.clip_index];
-                const bool is_pose_clip_looped = clip_info.is_loop == 1;
-                //_ComputeDifference( tmp_joints, curr_local_joints, pose.joints, num_joints );
-                const float pose_cost = _ComputePoseCost( curr_local_joints, pose.joints, _data.bone_lengths.data(), num_joints );
-                const float trajectory_cost = _ComputeTrajectoryCost( local_trajectory, pose.trajectory, eNUM_TRAJECTORY_POINTS );
-                const Vector3 pose_velocity = pose.params.velocity;
-                const Vector3 pose_acceleration = pose.params.acceleration;
+                const bool is_current_anim_looped = _data.clip_infos[_state.clip_index[0]].is_loop == 1;
 
-                const float velocity_cost = _ComputeVelocityCost( local_velocity, pose_velocity );
-                const float acceleration_cost = length( local_acceleration - pose_acceleration ).getAsFloat();
-
-                float basis_cost = 0.f;
+                for( size_t i = 0; i < _data.poses.size(); ++i )
                 {
-                    const Matrix3 world_m3 = input.base_matrix.getUpper3x3();
-                    Matrix3 m3 = world_m3 * Matrix3( pose.joints[0].rotation );
-                    basis_cost += 1.f - dot( m3.getCol0(), world_m3.getCol0() ).getAsFloat();
-                    basis_cost += 1.f - dot( m3.getCol1(), world_m3.getCol1() ).getAsFloat();
-                    basis_cost += 1.f - dot( m3.getCol2(), world_m3.getCol2() ).getAsFloat();
+                    const Pose pose = _data.poses[i];
+
+                    const AnimClipInfo& clip_info = _data.clip_infos[pose.params.clip_index];
+                    const bool is_pose_clip_looped = clip_info.is_loop == 1;
+                    const float pose_cost = _ComputePoseCost( curr_local_joints, pose.joints, _data.bone_lengths.data(), num_joints, _data.match_joints_indices.data(), (u32)_data.match_joints_indices.size() );
+                    const float trajectory_cost = _ComputeTrajectoryCost( local_trajectory, pose.trajectory, eNUM_TRAJECTORY_POINTS );
+                    const Vector3 pose_velocity = pose.params.velocity;
+                    const Vector3 pose_acceleration = pose.params.acceleration;
+
+                    const float velocity_cost = _ComputeVelocityCost( desired_anim_velocity, pose_velocity );
+                    const float acceleration_cost = length( local_acceleration - pose_acceleration ).getAsFloat();
+                    const float loop_cost = ( !is_current_anim_looped && !is_pose_clip_looped ) ? 10.f : 1.f;
+
+                    const float current_cost = pose_cost; // +basis_cost;
+                    float future_cost = trajectory_cost + velocity_cost;// +acceleration_cost;
+                    const float cost = ( current_cost + future_cost );// *loop_cost;
+                    
+                    if( change_cost > cost )
+                    {
+                        change_cost = cost;
+                        change_index = (u32)i;
+                    }
                 }
 
-                const float loop_cost = ( !is_current_anim_looped && !is_pose_clip_looped ) ? 10.f : 1.f;
+                const Pose& winner_pose = _data.poses[change_index];
 
-                const float current_cost = pose_cost + basis_cost;
-                const float future_cost = ( trajectory_cost + velocity_cost + acceleration_cost );
-                const float cost = (current_cost + future_cost) * loop_cost;
-                //const float cost = trajectory_cost;
+                const bool winner_is_at_the_same_location = _state.clip_index[0] == winner_pose.params.clip_index && ::abs( _state.clip_eval_time[0] - winner_pose.params.clip_start_time ) < 0.2f;
 
-                if( change_cost > cost )
+                _state.pose_index = change_index;
+
+                if( !winner_is_at_the_same_location )
                 {
-                    change_cost = cost;
-                    change_index = (u32)i;
+                    //if( _state.num_clips == 1 )
+                    {
+                        _state.clip_index[1] = winner_pose.params.clip_index;
+                        _state.clip_eval_time[1] = winner_pose.params.clip_start_time;
+                        _state.num_clips = 2;
+                        _state._blend_duration = 0.25f;
+                        _state._blend_time = 0.f;
+                    }
+                    //else
+                    //{
+                    //    
+                    //}
+                }
+
+
+                for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
+                {
+                    bxGfxDebugDraw::addSphere( Vector4( mulAsVec4( input.base_matrix, winner_pose.trajectory[i] ), 0.03f ), 0xffffffff, 1 );
                 }
             }
-
-            const Pose& winner_pose = _data.poses[change_index];
-
-            const bool winner_is_at_the_same_location = _state.clip_index[0] == winner_pose.params.clip_index; // &&
-                //::abs( _state.clip_eval_time - winner_pose.clip_start_time ) < 0.2f;
-
-            if( !winner_is_at_the_same_location )
+            else if( _state.num_clips == 0 )
             {
-                //if( _state.num_clips == 1 )
+                float change_cost = FLT_MAX;
+                u32 change_index = UINT32_MAX;
+                for( size_t i = 0; i < _data.poses.size(); ++i )
                 {
-                    _state.clip_index[1] = winner_pose.params.clip_index;
-                    _state.clip_eval_time[1] = winner_pose.params.clip_start_time;
-                    _state.num_clips = 2;
-                    _state._blend_duration = 0.2f;
-                    _state._blend_time = 0.f;
+                    const Pose pose = _data.poses[i];
+                    const float cost = _ComputeTrajectoryCost( input.trajectory, pose.trajectory, eNUM_TRAJECTORY_POINTS );;
+                    if( change_cost > cost )
+                    {
+                        change_cost = cost;
+                        change_index = (u32)i;
+                    }
                 }
-                //else
-                //{
-                //    
-                //}
-            }
 
-
-            for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
-            {
-                bxGfxDebugDraw::addSphere( Vector4( mulAsVec4( input.base_matrix, winner_pose.trajectory[i] ), 0.03f ), 0xffffffff, 1 );
-            }
-        }
-        else if( _state.num_clips == 0 )
-        {
-            float change_cost = FLT_MAX;
-            u32 change_index = UINT32_MAX;
-            for( size_t i = 0; i < _data.poses.size(); ++i )
-            {
-                const Pose pose = _data.poses[i];
-                const float cost = _ComputeTrajectoryCost( input.trajectory, pose.trajectory, eNUM_TRAJECTORY_POINTS );;
-                if( change_cost > cost )
-                {
-                    change_cost = cost;
-                    change_index = (u32)i;
-                }
-            }
-
-            const Pose& winner_pose = _data.poses[change_index];
-            _state.clip_index[0] = winner_pose.params.clip_index;
-            _state.clip_eval_time[0] = winner_pose.params.clip_start_time;
-            _state.num_clips = 1;
-
+                const Pose& winner_pose = _data.poses[change_index];
+                _state.clip_index[0] = winner_pose.params.clip_index;
+                _state.clip_eval_time[0] = winner_pose.params.clip_start_time;
+                _state.num_clips = 1;
+                _state.pose_index = change_index;
 
             
+            }
         }
-        
+        else
+        {
+            _state.last_match_time_s += deltaTime;
+        }
         if( curr_local_joints )
         {
             bxAnim_Joint root = toAnimJoint_noScale( input.base_matrix );
@@ -1155,14 +1171,18 @@ namespace motion_fields
             float eval_time = _state.clip_eval_time[0];
             bxAnim_BlendLeaf leaf( clip, eval_time );
             bxAnimExt::processBlendTree( _state.anim_ctx, 0 | bxAnim::eBLEND_TREE_LEAF, nullptr, 0, &leaf, 1, _data.skel );
+
+            //eval_time = _state.clip_eval_time[0] + deltaTime;
+            //_state.clip_eval_time[0] = ::fmodf( eval_time, clip->duration );
         }
         else
         {
+            const float blend_alpha = minOfPair( 1.f, _state._blend_time / _state._blend_duration );
             bxAnim_Clip* clipA = _data.clips[_state.clip_index[0]];
-            float eval_timeA = _state.clip_eval_time[0];
+            const float eval_timeA = _state.clip_eval_time[0];
 
             bxAnim_Clip* clipB = _data.clips[_state.clip_index[1]];
-            float eval_timeB = _state.clip_eval_time[1];
+            const float eval_timeB = _state.clip_eval_time[1];
 
             bxAnim_BlendLeaf leaves[2] =
             {
@@ -1170,7 +1190,6 @@ namespace motion_fields
                 bxAnim_BlendLeaf( clipB, eval_timeB ),
             };
 
-            const float blend_alpha = minOfPair( 1.f, _state._blend_time / _state._blend_duration );
 
             bxAnim_BlendBranch branch(
                 0 | bxAnim::eBLEND_TREE_LEAF,
@@ -1190,6 +1209,13 @@ namespace motion_fields
             else
             {
                 _state._blend_time += deltaTime;
+                //const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
+                //const float delta_phase = deltaTime / clip_duration;
+
+                //const float phaseA = ::fmodf( ( eval_timeA / clipA->duration ) + delta_phase, 1.f );
+                //const float phaseB = ::fmodf( ( eval_timeB / clipB->duration ) + delta_phase, 1.f );
+                //_state.clip_eval_time[0] = phaseA * clipA->duration;
+                //_state.clip_eval_time[1] = phaseB * clipA->duration;
             }
         }
 
@@ -1240,6 +1266,7 @@ namespace motion_fields
         input->velocity = dstate._velocity;
         input->acceleration = dstate._acceleration;
         input->base_matrix = dstate._ComputeBaseMatrix();
+        input->speed01 = dstate._speed01;
     }
 
     void DynamicState::debugDraw( u32 color )

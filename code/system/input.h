@@ -173,3 +173,10 @@ inline bool bxInput_isPadButtonPressedOnce( const bxInput_Pad& input, u16 button
 
 	return !prev && curr;
 }
+
+inline bool bxInput_isPadButtonPressed( const bxInput_Pad& input, u16 button_mask )
+{
+    const bxInput_PadState& curr_state = input.state[input.currentStateIndex];
+    const u16 curr = curr_state.digital.buttons & button_mask;
+    return curr != 0;
+}

@@ -185,24 +185,30 @@ public:
             "anim/motion_fields/2/running_left_turn.anim",
             "anim/motion_fields/2/running_right_turn.anim",
             "anim/motion_fields/2/running_jump.anim",
-            "anim/motion_fields/2/walking_180_turn.anim",
+            "anim/motion_fields/2/running_stop.anim",
+            //"anim/motion_fields/2/running_back.anim",
+            //"anim/motion_fields/2/walking_180_turn.anim",
             "anim/motion_fields/2/walking_start.anim",
+            "anim/motion_fields/2/walking_back.anim",
             "anim/motion_fields/2/idle.anim",
         };
         
         const bx::motion_fields::MotionMatching::AnimClipInfo anim_info[] =
         {
-            { 1 },
-            { 1 },
-            { 1 },
-            { 0 },
-            { 0 },
-            { 0 },
-            { 0 },
-            { 0 },
-            { 0 },
-            { 0 },
-            { 1 },
+            { 1 },  //"anim/motion_fields/2/walking0.anim",
+            { 1 },  //"anim/motion_fields/2/walking1.anim",
+            { 1 },  //"anim/motion_fields/2/running.anim",
+            { 0 },  //"anim/motion_fields/2/walking_left_turn.anim",
+            { 0 },  //"anim/motion_fields/2/walking_right_turn.anim",
+            { 0 },  //"anim/motion_fields/2/running_left_turn.anim",
+            { 0 },  //"anim/motion_fields/2/running_right_turn.anim",
+            { 0 },  //"anim/motion_fields/2/running_jump.anim",
+            { 0 },  //"anim/motion_fields/2/running_stop.anim",
+            //{ 1 },  //"anim/motion_fields/2/running_back.anim",
+            //{ 0 },  //"anim/motion_fields/2/walking_180_turn.anim",
+            { 0 },  //"anim/motion_fields/2/walking_start.anim",
+            { 1 },  //"anim/motion_fields/2/walking_back.anim",
+            { 1 },  //"anim/motion_fields/2/idle.anim",
         };
 
         const unsigned numAnimFiles = sizeof( animFiles ) / sizeof( *animFiles );
@@ -381,11 +387,15 @@ public:
                 
                 const float spd01 = dynamic_state._speed01;
                 float anim_vel = bx::curve::evaluate_catmullrom( mm._data.velocity_curve, spd01 );
-                //float anim_vel1 = 0.f;
-                //if( mm.currentSpeed( &anim_vel1 ) )
-                //{
-                //    anim_vel = minOfPair( anim_vel1, anim_vel );
-                //}
+                if( spd01 > 0.1f )
+                {
+                    float anim_vel1 = 0.f;
+                    if( mm.currentSpeed( &anim_vel1 ) )
+                    {
+                        //anim_vel = lerp( spd01, anim_vel, anim_vel1 );
+                        anim_vel = anim_vel1;
+                    }
+                }
                 dynamic_state._max_speed = anim_vel;
 
 

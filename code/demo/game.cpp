@@ -497,8 +497,8 @@ namespace bx
             analogX = padState->analog.left_X;
             analogY = padState->analog.left_Y;
 
-            crouch = (f32)bxInput_isPadButtonPressedOnce( pad, bxInput_PadState::eCIRCLE );
-            jump = (f32)bxInput_isPadButtonPressedOnce( pad, bxInput_PadState::eCROSS );
+            crouch = (f32)bxInput_isPadButtonPressed( pad, bxInput_PadState::eCIRCLE );
+            jump = (f32)bxInput_isPadButtonPressed( pad, bxInput_PadState::eCROSS );
 
             L2 = padState->analog.L2;
             R2 = padState->analog.R2;
@@ -512,7 +512,7 @@ namespace bx
             const int inFwd = bxInput_isKeyPressed( kbd, 'W' );
             const int inBack = bxInput_isKeyPressed( kbd, 'S' );
             const int inJump = bxInput_isKeyPressed( kbd, ' ' );
-            const int inCrouch = bxInput_isKeyPressedOnce( kbd, 'Z' );
+            const int inCrouch = bxInput_isKeyPressed( kbd, 'Z' );
             const int inL2 = bxInput_isKeyPressed( kbd, bxInput::eKEY_LSHIFT );
             const int inR2 = bxInput_isKeyPressed( kbd, 'E' );
 
