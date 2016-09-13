@@ -91,10 +91,18 @@ namespace motion_fields
     //////////////////////////////////////////////////////////////////////////
     struct MotionMatching
     {
+        enum EMatchJoint : i16
+        { 
+            eMATCH_JOINT_HIPS = 0,
+            eMATCH_JOINT_LEFT_FOOT,
+            eMATCH_JOINT_RIGHT_FOOT,
+            _eMATCH_JOINT_COUNT_,
+        };
+
         struct PoseParams
         {
-            Vector3 velocity{ 0.f };
-            Vector3 acceleration{ 0.f };
+            //Vector3 velocity{ 0.f };
+            //Vector3 acceleration{ 0.f };
             
             u32 clip_index{ UINT32_MAX };
             f32 clip_start_time{ 0.f };
@@ -102,20 +110,42 @@ namespace motion_fields
         };
         struct Pose
         {
-            bxAnim_Joint* joints{ nullptr };
+            //bxAnim_Joint* joints{ nullptr };
+            Vector3 pos[_eMATCH_JOINT_COUNT_];
+            Vector3 vel[_eMATCH_JOINT_COUNT_];
+
+            //Vector3 pos_hips{ 0.f };
+            //Vector3 pos_left_foot{ 0.f };
+            //Vector3 pos_right_foot{ 0.f };
+            //
+            //Vector3 vel_hips{ 0.f };
+            //Vector3 vel_left_foot{ 0.f };
+            //Vector3 vel_right_foot{ 0.f };
+
+            Vector3 trajectory[eNUM_TRAJECTORY_POINTS];
+
             //bxAnim_Joint* joints_v{ nullptr };
             //bxAnim_Joint* joints_a{ nullptr };
-            Vector3* trajectory{ nullptr }; // eNUM_TRAJECTORY_POINTS length
+            //Vector3* trajectory{ nullptr }; // eNUM_TRAJECTORY_POINTS length
             PoseParams params{};
         };
         
         struct AnimClipInfo
         {
             u32 is_loop{ 0 };
-
+            
             AnimClipInfo( u32 isLoop )
                 : is_loop( isLoop )
             {}
+        };
+
+        struct PosePrepareInfo
+        {
+            const bxAnim_Skel* skel = nullptr;
+            const bxAnim_Clip* clip = nullptr;
+            
+            const i16* joint_indices = nullptr; // [_eMATCH_JOINT_COUNT_];
+            u32 frameNo = 0;
         };
 
         struct Data
@@ -151,6 +181,9 @@ namespace motion_fields
             void* _memory_handle = nullptr;
             bxAnim_Joint* joint_world = nullptr;
 
+            Curve3D _trajectory_curve0;
+            Curve3D _trajectory_curve1;
+
             State()
             {
                 memset( clip_index, 0xff, sizeof( clip_index ) );
@@ -170,6 +203,7 @@ namespace motion_fields
         struct Debug
         {
             std::vector< bxAnim_Joint > joints;
+            std::vector< u32 > pose_indices;
         } _debug;
 
         bxAllocator* _allocator = nullptr;
@@ -177,7 +211,8 @@ namespace motion_fields
         //-------------------------------------------------------------------
         static void poseAllocate( Pose* pose, u32 numJoints, bxAllocator* allocator );
         static void poseFree( Pose* pose, bxAllocator* allocator );
-        static void posePrepare( Pose* pose, const bxAnim_Skel* skel, const bxAnim_Clip* clip, u32 frameNo, const AnimClipInfo& clipInfo );
+        //static void posePrepare( Pose* pose, const bxAnim_Skel* skel, const bxAnim_Clip* clip, u32 frameNo, const AnimClipInfo& clipInfo );
+        static void posePrepare( Pose* pose, const PosePrepareInfo& info );
         //-------------------------------------------------------------------
         static void stateAllocate( State* state, u32 numJoints, bxAllocator* allocator );
         static void stateFree( State* state, bxAllocator* allocator );
@@ -217,9 +252,10 @@ namespace motion_fields
         f32 _speed01{ 0.f };
         f32 _prev_speed01{ 0.f };
         f32 _max_speed{ 3.f };
-        f32 _trajectory_integration_time{ 1.f };
+        f32 _trajectory_integration_time{ 2.f };
         CharacterInput _input = {};
 
+        
         
         Vector3 _trajectory[eNUM_TRAJECTORY_POINTS];
         

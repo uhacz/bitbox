@@ -43,8 +43,6 @@ void contextDeinit( bxAnim_Context** ctx )
 	BX_FREE0( bxDefaultAllocator(), ctx[0] );
 }
 
-
-
 }///
 
 #include <resource_manager/resource_manager.h>

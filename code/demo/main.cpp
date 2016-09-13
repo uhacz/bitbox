@@ -15,6 +15,7 @@
 #include "motion_fields.h"
 
 #include <cstdio>
+#include "util/signal_filter.h"
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -157,6 +158,9 @@ public:
 
         //const char skelFile[] = "anim/motion_fields/uw_cap6_005m_s.skel";
         const char skelFile[] = "anim/motion_fields/2/skeleton.skel";
+        //const char skelFile[] = "anim/motion_fields/run_circles.skel";
+
+
         const char* animFiles[] = 
         {
             //"anim/motion_fields/run_circles.anim",
@@ -184,7 +188,7 @@ public:
             "anim/motion_fields/2/walking_right_turn.anim",
             "anim/motion_fields/2/running_left_turn.anim",
             "anim/motion_fields/2/running_right_turn.anim",
-            "anim/motion_fields/2/running_jump.anim",
+            //"anim/motion_fields/2/running_jump.anim",
             "anim/motion_fields/2/running_stop.anim",
             //"anim/motion_fields/2/running_back.anim",
             //"anim/motion_fields/2/walking_180_turn.anim",
@@ -202,7 +206,7 @@ public:
             { 0 },  //"anim/motion_fields/2/walking_right_turn.anim",
             { 0 },  //"anim/motion_fields/2/running_left_turn.anim",
             { 0 },  //"anim/motion_fields/2/running_right_turn.anim",
-            { 0 },  //"anim/motion_fields/2/running_jump.anim",
+            //{ 0 },  //"anim/motion_fields/2/running_jump.anim",
             { 0 },  //"anim/motion_fields/2/running_stop.anim",
             //{ 1 },  //"anim/motion_fields/2/running_back.anim",
             //{ 0 },  //"anim/motion_fields/2/walking_180_turn.anim",
@@ -387,23 +391,23 @@ public:
                 
                 const float spd01 = dynamic_state._speed01;
                 float anim_vel = bx::curve::evaluate_catmullrom( mm._data.velocity_curve, spd01 );
-                if( spd01 > 0.1f )
-                {
-                    float anim_vel1 = 0.f;
-                    if( mm.currentSpeed( &anim_vel1 ) )
-                    {
-                        //anim_vel = lerp( spd01, anim_vel, anim_vel1 );
-                        anim_vel = anim_vel1;
-                    }
-                }
-                dynamic_state._max_speed = anim_vel;
+                //if( spd01 > 0.1f )
+                //{
+                //    float anim_vel1 = 0.f;
+                //    if( mm.currentSpeed( &anim_vel1 ) )
+                //    {
+                //        //anim_vel = lerp( spd01, anim_vel, anim_vel1 );
+                //        anim_vel = anim_vel1;
+                //    }
+                //}
+                dynamic_state._max_speed = signalFilter_lowPass( anim_vel, dynamic_state._max_speed, 0.1f, deltaTime );
 
 
-                if( mm._state.num_clips )
-                {
-                    float clip_duration = mm._data.clips[mm._state.clip_index[0]]->duration;
-                    dynamic_state._trajectory_integration_time = clip_duration;
-                }
+                //if( mm._state.num_clips )
+                //{
+                //    float clip_duration = mm._data.clips[mm._state.clip_index[0]]->duration;
+                //    dynamic_state._trajectory_integration_time = clip_duration;
+                //}
             }
 
 

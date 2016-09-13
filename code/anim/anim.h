@@ -17,6 +17,10 @@ void blendJointsLinear( bxAnim_Joint* out_joints, const bxAnim_Joint* left_joint
 void evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 eval_time, u32 beginJoint = UINT32_MAX, u32 endJoint = UINT32_MAX );
 void evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frame_integer, f32 frame_fraction, u32 beginJoint = UINT32_MAX, u32 endJoint = UINT32_MAX );
 
+void evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 eval_time, const i16* indices, u32 numIndices );
+void evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frame_integer, f32 frame_fraction, const i16* indices, u32 numIndices );
+
+
 void localJointsToWorldMatrices4x4( Matrix4* out_matrices, const bxAnim_Joint* in_joints, const unsigned short* parent_indices, unsigned count, const bxAnim_Joint& root_joint );
 void localJointsToWorldJoints( bxAnim_Joint* out_joints, const bxAnim_Joint* in_joints, const unsigned short* parent_indices, unsigned count, const bxAnim_Joint& root_joint );
 
