@@ -9,6 +9,16 @@
 #define PI_HALF 1.57079632679489661923f
 #define PI_INV 0.31830988618379067154f
 
+inline int bitcount( unsigned int n )
+{
+    /* works for 32-bit numbers only    */
+    /* fix last line for 64-bit numbers */
+
+    unsigned int tmp;
+    tmp = n - ( ( n >> 1 ) & 033333333333 ) - ( ( n >> 2 ) & 011111111111 );
+    return ( ( tmp + ( tmp >> 3 ) ) & 030707070707 ) % 63;
+}
+
 template<typename Type>
 inline Type minOfPair( const Type& a, const Type& b ) {	return ( a < b ) ? a : b; }
 
