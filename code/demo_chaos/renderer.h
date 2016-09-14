@@ -10,6 +10,7 @@ namespace gfx{
     typedef struct RenderPassImpl* RenderPass;
     typedef struct RenderSubPassImpl* RenderSubPass;
     typedef struct ResourceDescriptorImpl* ResourceDescriptor;
+    typedef struct VertexBufferImpl* VertexBuffer;
 
     struct ShaderBinary
     {
@@ -17,13 +18,15 @@ namespace gfx{
         size_t size = 0;
     };
 
+    typedef bxGdiVertexStreamBlock VertexStreamDesc;
+
     struct PipelineDesc
     {
         u32 num_stages = 0;
         u32 num_vertex_stream_descs = 0;
         
         const ShaderBinary* shaders_butecode = nullptr;
-        const bxGdiVertexStreamDesc* vertex_stream_descs = nullptr;
+        const VertexStreamDesc* vertex_stream_descs = nullptr;
 
         bxGdiHwStateDesc hw_state_desc = {};
         bxGdi::ETopology topology = bxGdi::eTRIANGLES;
@@ -36,23 +39,21 @@ namespace gfx{
         u16 width = 0;
         u16 height = 0;
         const bxGdiFormat* color_texture_formats = nullptr;
-        bxGdiFormat depth_texture_format = {}
+        bxGdiFormat depth_texture_format = {};
     };
     
-    struct RenderSubPassDest
+    struct RenderSubPassDesc
     {
         u32 num_color_textures = 0;
         u32 has_depth_texture = 0;
         u8* color_texture_indices = nullptr;
-
         RenderPass render_pass;
-        Pipeline pipeline;
     };
 
     struct ResourceBinding
     {
-        u16 slot;
-        u16 stage;
+        u16 slot = 0;
+        u16 stage = 0;
     };
 
     struct ResourceLayout
@@ -68,9 +69,16 @@ namespace gfx{
         ResourceBinding* samplers_binding = nullptr;
         ResourceBinding* cbuffers_binding = nullptr;
         ResourceBinding* buffers_ro_binding = nullptr;
-        ResourceBinding* buffers_rq_binding = nullptr;
+        ResourceBinding* buffers_rw_binding = nullptr;
     };
 
+    struct VertexBufferDesc
+    {
+        u32 num_streams = 0;
+        u32 has_indices = 0;
+        const VertexBufferDesc* streams_desc = nullptr;
+        const bxGdi::EDataType index_type = bxGdi::eTYPE_UNKNOWN;
+    };
 
 
     bool createPipeline( Pipeline* pipeline, bxGdiDeviceBackend* dev, const PipelineDesc& desc );
@@ -79,11 +87,24 @@ namespace gfx{
     bool createRenderPass( RenderPass* renderPass, bxGdiDeviceBackend* dev, const RenderPassDesc& desc );
     void destroyRenderPass( RenderPass* renderPass, bxGdiDeviceBackend* dev );
 
-    bool createRenderSubPass( RenderSubPass* subPass, const RenderSubPassDest& desc );
+    bool createRenderSubPass( RenderSubPass* subPass, const RenderSubPassDesc& desc );
     void destroyRenderSubPass( RenderSubPass* subPass );
 
     bool createResourceDescriptor( ResourceDescriptor* rdesc, const ResourceLayout& layout );
     void destroyResourceDescriptor( ResourceDescriptor* rdesc );
+    bool setTexture( ResourceDescriptor rdesc, bxGdiTexture texture, u16 slot, bxGdi::EStage stage );
+    bool setSampler( ResourceDescriptor rdesc, bxGdiSampler sampler, u16 slot, bxGdi::EStage stage );
+    bool setCBuffer( ResourceDescriptor rdesc, bxGdiBuffer buffer, u16 slot, bxGdi::EStage stage );
+    bool setBufferRO( ResourceDescriptor rdesc, bxGdiBuffer buffer, u16 slot, bxGdi::EStage stage );
+    bool setBufferRW( ResourceDescriptor rdesc, bxGdiBuffer buffer, u16 slot, bxGdi::EStage stage );
 
+    bool createVertexBuffer( VertexBuffer* vbuffer, bxGdiDeviceBackend* dev, const VertexBufferDesc& desc );
+    void destroyVertexBuffer( VertexBuffer* vbuffer, bxGdiDeviceBackend* dev );
+
+    struct RenderBucket
+    {
+        RenderPass _render_pass;
+
+    };
 }}///
 

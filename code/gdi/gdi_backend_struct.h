@@ -16,6 +16,10 @@ namespace bxGdi
 
 union bxGdiVertexStreamBlock
 {
+    bxGdiVertexStreamBlock(): hash(0) {}
+    bxGdiVertexStreamBlock( bxGdi::EVertexSlot sl, bxGdi::EDataType t, int ne, int nrm = 0 )
+        : slot( sl ), dataType(t), typeNorm(nrm), numElements(ne) {}
+
     u16 hash;
     struct
     {
