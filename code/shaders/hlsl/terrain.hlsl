@@ -7,8 +7,8 @@ passes:
         hwstate =
         {
             depth_test = 1;
-            depth_write = 0;
-            //fill_mode = "WIREFRAME";
+            depth_write = 1;
+            fill_mode = "WIREFRAME";
             //color_mask = "";
         };
     };

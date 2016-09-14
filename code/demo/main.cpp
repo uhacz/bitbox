@@ -158,6 +158,7 @@ public:
 
         //const char skelFile[] = "anim/motion_fields/uw_cap6_005m_s.skel";
         const char skelFile[] = "anim/motion_fields/2/skeleton.skel";
+        //const char skelFile[] = "anim/motion_fields/1/T.skel";
         //const char skelFile[] = "anim/motion_fields/run_circles.skel";
 
 
@@ -181,6 +182,7 @@ public:
             //"anim/motion_fields/1/run_turn_right_2.anim",
             //"anim/motion_fields/1/walk.anim",
 
+            "anim/motion_fields/2/idle.anim",
             "anim/motion_fields/2/walking0.anim",
             "anim/motion_fields/2/walking1.anim",
             "anim/motion_fields/2/running.anim",
@@ -194,11 +196,20 @@ public:
             //"anim/motion_fields/2/walking_180_turn.anim",
             "anim/motion_fields/2/walking_start.anim",
             "anim/motion_fields/2/walking_back.anim",
-            "anim/motion_fields/2/idle.anim",
         };
         
         const bx::motion_fields::MotionMatching::AnimClipInfo anim_info[] =
         {
+            //{1}, //"anim/motion_fields/1/idle.anim",
+            //{1}, //"anim/motion_fields/1/run.anim",
+            //{0}, //"anim/motion_fields/1/run_turn_left_1.anim",
+            //{0}, //"anim/motion_fields/1/run_turn_left_2.anim",
+            //{0}, //"anim/motion_fields/1/run_turn_right_1.anim",
+            //{0}, //"anim/motion_fields/1/run_turn_right_2.anim",
+            //{1}, //"anim/motion_fields/1/walk.anim",
+
+
+            { 1 },  //"anim/motion_fields/2/idle.anim",
             { 1 },  //"anim/motion_fields/2/walking0.anim",
             { 1 },  //"anim/motion_fields/2/walking1.anim",
             { 1 },  //"anim/motion_fields/2/running.anim",
@@ -212,7 +223,6 @@ public:
             //{ 0 },  //"anim/motion_fields/2/walking_180_turn.anim",
             { 0 },  //"anim/motion_fields/2/walking_start.anim",
             { 1 },  //"anim/motion_fields/2/walking_back.anim",
-            { 1 },  //"anim/motion_fields/2/idle.anim",
         };
 
         const unsigned numAnimFiles = sizeof( animFiles ) / sizeof( *animFiles );

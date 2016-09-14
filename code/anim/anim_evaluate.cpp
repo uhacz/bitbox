@@ -138,7 +138,7 @@ void bxAnim::evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* a
 
         const Quat q = slerp( alpha, q0, q1 );
 
-        out_joints[i].rotation = q;
+        out_joints[ii].rotation = q;
     }
 
     for( u32 ii = 0; ii < numIndices; ++ii )
@@ -150,7 +150,7 @@ void bxAnim::evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* a
 
         const Vector3 t = lerp( alpha, t0, t1 );
 
-        out_joints[i].position = t;
+        out_joints[ii].position = t;
     }
 
     for( u32 ii = 0; ii < numIndices; ++ii )
@@ -162,7 +162,7 @@ void bxAnim::evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* a
 
         const Vector3 s = lerp( alpha, s0, s1 );
 
-        out_joints[i].scale = s;
+        out_joints[ii].scale = s;
     }
 
 

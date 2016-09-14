@@ -11,7 +11,7 @@ namespace bx{
 namespace motion_fields
 {
     enum { eNUM_NEIGHBOURS = 15, };
-    enum { eNUM_TRAJECTORY_POINTS = 8, };
+    enum { eNUM_TRAJECTORY_POINTS = 4, };
 
     struct MotionState
     {
@@ -113,7 +113,7 @@ namespace motion_fields
             //bxAnim_Joint* joints{ nullptr };
             Vector3 pos[_eMATCH_JOINT_COUNT_];
             Vector3 vel[_eMATCH_JOINT_COUNT_];
-
+            
             //Vector3 pos_hips{ 0.f };
             //Vector3 pos_left_foot{ 0.f };
             //Vector3 pos_right_foot{ 0.f };
@@ -146,6 +146,10 @@ namespace motion_fields
             
             const i16* joint_indices = nullptr; // [_eMATCH_JOINT_COUNT_];
             u32 frameNo = 0;
+
+            Vector3* trajectory_root_pos = nullptr; // array [ numFrames ]
+            Vector3* trajectory_root_vel = nullptr; // array [ numFrames ]
+
         };
 
         struct Data
@@ -174,6 +178,7 @@ namespace motion_fields
             u32 clip_index[eMAX_CLIPS]; // = { UINT32_MAX };
             f32 clip_eval_time[eMAX_CLIPS]; // = { 0.f };
             u32 num_clips = 0;
+            u32 clip_evaluated = 0;
             
             u32 pose_index = UINT32_MAX;
             f32 last_match_time_s = 0.1f;
@@ -183,7 +188,7 @@ namespace motion_fields
 
             Curve3D _trajectory_curve0;
             Curve3D _trajectory_curve1;
-
+            
             State()
             {
                 memset( clip_index, 0xff, sizeof( clip_index ) );
@@ -252,7 +257,7 @@ namespace motion_fields
         f32 _speed01{ 0.f };
         f32 _prev_speed01{ 0.f };
         f32 _max_speed{ 3.f };
-        f32 _trajectory_integration_time{ 2.f };
+        f32 _trajectory_integration_time{ 1.f };
         CharacterInput _input = {};
 
         
