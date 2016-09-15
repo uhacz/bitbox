@@ -806,6 +806,40 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
         return iLay;
     }
+    virtual bxGdiInputLayout createInputLayout( const bxGdiVertexStreamBlock* blocks, int nblocks, bxGdiShader vertexShader )
+    {
+        SYS_ASSERT( vertexShader.stage == bxGdi::eSTAGE_VERTEX );
+
+        const int MAX_IEDESCS = bxGdi::cMAX_VERTEX_BUFFERS;
+        SYS_ASSERT( nblocks < MAX_IEDESCS );
+
+        D3D11_INPUT_ELEMENT_DESC d3d_iedescs[MAX_IEDESCS];
+        for( int iblock = 0; iblock < nblocks; ++iblock )
+        {
+            const bxGdiVertexStreamBlock block = blocks[iblock];
+
+            D3D11_INPUT_ELEMENT_DESC& d3d_desc = d3d_iedescs[iblock];
+
+            d3d_desc.SemanticName = bxGdi::slotName[block.slot];
+            d3d_desc.SemanticIndex = bxGdi::slotSemanticIndex[block.slot];
+            d3d_desc.Format = bxGdi::to_DXGI_FORMAT( block.dataType, block.numElements, block.typeNorm );
+            d3d_desc.InputSlot = iblock;
+            d3d_desc.AlignedByteOffset = 0;
+            d3d_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+            d3d_desc.InstanceDataStepRate = 0;
+        }
+
+        ID3D11InputLayout *dxLayout = 0;
+        ID3DBlob* signatureBlob = (ID3DBlob*)vertexShader.dx.inputSignature;
+        HRESULT hres = _device->CreateInputLayout( d3d_iedescs, nblocks, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), &dxLayout );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+
+        bxGdiInputLayout iLay;
+        iLay.dx.lay = dxLayout;
+
+        return iLay;
+    }
+
     virtual bxGdiBlendState createBlendState( bxGdiHwStateDesc::Blend state )
     {
         D3D11_BLEND_DESC bdesc;

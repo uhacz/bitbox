@@ -10,8 +10,10 @@
 #include <gfx/gfx_debug_draw.h>
 #include <gfx/gfx_gui.h>
 
+#include <gdi/gdi_shader.h>
 #include "scene.h"
-
+#include "renderer.h"
+#include "resource_manager/resource_manager.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 class bxDemoApp : public bxApplication
@@ -49,6 +51,27 @@ public:
                 }
             }
         }
+
+
+        bxGdiShaderFx* shader_module = bxGdi::shaderFx_createFromFile( _engine.gdi_device, _engine.resource_manager, "sky" );
+
+        const bxGdiVertexStreamBlock stream_descs[2] =
+        {
+            { bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 4 },
+            { bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 },
+        };
+
+        bx::gfx::PipelineDesc pipeline_desc = {};
+        pipeline_desc.shaders[0] = shader_module->vertexShader( 0 );
+        pipeline_desc.shaders[1] = shader_module->pixelShader( 0 );
+        pipeline_desc.num_vertex_stream_descs = 2;
+        pipeline_desc.vertex_stream_descs = stream_descs;
+
+        bx::gfx::Pipeline pipeline = bx::gfx::createPipeline( _engine.gdi_device, pipeline_desc );
+        bx::gfx::destroyPipeline( &pipeline, _engine.gdi_device );
+
+        bxGdi::shaderFx_release( _engine.gdi_device, _engine.resource_manager, &shader_module );
+
         return true;
     }
     virtual void shutdown()

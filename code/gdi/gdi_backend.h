@@ -281,6 +281,7 @@ struct bxGdiDeviceBackend
     virtual bxGdiSampler createSampler( const bxGdiSamplerDesc& desc ) = 0;
     
     virtual bxGdiInputLayout createInputLayout( const bxGdiVertexStreamDesc* descs, int ndescs, bxGdiShader vertex_shader ) = 0;
+    virtual bxGdiInputLayout createInputLayout( const bxGdiVertexStreamBlock* blocks, int nblocks, bxGdiShader vertex_shader ) = 0;
     virtual bxGdiBlendState  createBlendState( bxGdiHwStateDesc::Blend blend ) = 0;
     virtual bxGdiDepthState  createDepthState( bxGdiHwStateDesc::Depth depth ) = 0;
     virtual bxGdiRasterState createRasterState( bxGdiHwStateDesc::Raster raster ) = 0;

@@ -94,6 +94,9 @@ struct bxGdiShaderFx
 
     bxGdiShaderFx();
     ~bxGdiShaderFx();
+
+    bxGdiShader vertexShader( unsigned passNo ) { return _passes[passNo].progs[bxGdi::eSTAGE_VERTEX]; }
+    bxGdiShader pixelShader( unsigned passNo ) { return _passes[passNo].progs[bxGdi::eSTAGE_PIXEL]; }
 };
 
 struct bxGdiShaderFx_Instance

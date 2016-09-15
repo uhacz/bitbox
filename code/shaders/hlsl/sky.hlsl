@@ -19,7 +19,6 @@ passes:
 
 #define in_PS out_VS_screenquad
 
-#ifdef skyPreetham
 float saturatedDot( in float3 a, in float3 b )
 {
     return saturate( dot( a, b ) );
@@ -150,4 +149,3 @@ PS_OUT ps_main( in_PS IN )
     //return float4(skyLuminance * 0.05f, 1.0);
 }
 
-#endif
