@@ -93,6 +93,7 @@
     <ClCompile Include="game_character_camera.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="motion_fields.cpp" />
+    <ClCompile Include="motion_matching.cpp" />
     <ClCompile Include="physics.cpp" />
     <ClCompile Include="physics_pbd.cpp" />
     <ClCompile Include="scene.cpp" />
@@ -137,6 +138,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ai.h" />
+    <ClInclude Include="motion_matching.h" />
     <ClInclude Include="design_block.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="game.h" />

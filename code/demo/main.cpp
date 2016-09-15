@@ -12,7 +12,7 @@
 
 
 #include "scene.h"
-#include "motion_fields.h"
+#include "motion_matching.h"
 
 #include <cstdio>
 #include "util/signal_filter.h"
@@ -22,17 +22,11 @@
 static bx::GameScene __scene = {};
 
 static bx::GfxCamera* g_camera = nullptr;
-//static bx::GfxScene* scene = nullptr;
 static bx::gfx::CameraInputContext cameraInputCtx = {};
-
-//static bx::motion_fields::Data mf_database = {};
-static bx::motion_fields::DynamicState dynamic_state = {};
-//static bx::motion_fields::AnimState mf_anim_state = {};
-//static u32 motion_state_index = UINT32_MAX;
-//static u64 last_time_evaluation_MS = UINT64_MAX;
-
-static bx::motion_fields::MotionMatching mm = {};
+static bx::motion_matching::DynamicState dynamic_state = {};
+static bx::motion_matching::Context mm = {};
 static u32 pose_index = UINT32_MAX;
+
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -78,83 +72,8 @@ public:
                     _engine.camera_manager->stack()->push( camera );
                     g_camera = camera;
                 }
-                //bxGfxCamera_Id id = bxGfx::camera_find( __scene._cameraManager, cameraName );
-                //if ( id.hash != bxGfx::camera_top( __scene._cameraManager ).hash )
-                //{
-                //    bxGfx::camera_push( __scene._cameraManager, id );
-                //}
             }
         }
-
-        //bx::gfxCameraCreate( &camera, __scene.gfx );
-        //bx::gfxSceneCreate( &scene, __scene.gfx );
-
-        //bx::gfxCameraWorldMatrixSet( camera, Matrix4( Matrix3::identity(), Vector3( 0.f, 0.f, 15.f ) ) );
-
-        //bx::GfxGlobalResources* gr = bx::gfxGlobalResourcesGet();
-        //bxGdiShaderFx_Instance* matFx[] =
-        //{
-        //    bx::gfxMaterialFind( "white" ),
-        //    bx::gfxMaterialFind( "red" ),
-        //    bx::gfxMaterialFind( "grey" ),
-        //    bx::gfxMaterialFind( "green" ),
-        //    bx::gfxMaterialFind( "blue" ),
-        //    bx::gfxMaterialFind( "red" ),
-        //};
-        //const int N_MAT = sizeof( matFx ) / sizeof( *matFx );
-        //bxGdiRenderSource* rsource[] = 
-        //{
-        //    gr->mesh.sphere,
-        //    gr->mesh.box,
-        //};
-        //const int N_MESH = sizeof( rsource ) / sizeof( *rsource );
-        //
-        //const int N = 5;
-        //const float N_HALF = (float)N * 0.5f;
-        //int counter = 0;
-        //for( int iz = 0; iz < N; ++iz )
-        //{
-        //    const float z = -N_HALF + (float)iz * 1.2f;
-        //    for( int iy = 0; iy < N; ++iy )
-        //    {
-        //        const float y = -N_HALF + (float)iy * 1.2f;
-        //        for( int ix = 0; ix < N; ++ix, ++counter )
-        //        {
-        //            const float x = -N_HALF + (float)ix * 1.2f;
-        //            const Vector3 pos( x, y, z );
-
-        //            bx::GfxMeshInstanceData meshData;
-        //            meshData.renderSourceSet( rsource[ counter % N_MESH ] );
-        //            meshData.fxInstanceSet( matFx[ counter % N_MAT ] );
-        //            meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
-
-        //            bx::GfxMeshInstance* meshI = nullptr;
-        //            bx::gfxMeshInstanceCreate( &meshI, __scene.gfx );
-
-        //            bx::gfxMeshInstanceDataSet( meshI, meshData );
-        //            bx::gfxMeshInstanceWorldMatrixSet( meshI, &Matrix4::translation( pos ), 1 );
-
-        //            bx::gfxSceneMeshInstanceAdd( scene, meshI );
-        //        }
-        //    }
-        //}
-
-        //{
-        //    bx::GfxMeshInstanceData meshData;
-        //    meshData.renderSourceSet( rsource[0] );
-        //    meshData.fxInstanceSet( matFx[1] );
-        //    meshData.locaAABBSet( Vector3( -0.5f ), Vector3( 0.5f ) );
-
-        //    bx::GfxMeshInstance* meshI = nullptr;
-        //    bx::gfxMeshInstanceCreate( &meshI, __scene.gfx );
-
-        //    bx::gfxMeshInstanceDataSet( meshI, meshData );
-
-        //    Matrix4 pose = Matrix4::translation( Vector3( 0.f, -3.f, 0.f ) );
-        //    pose = appendScale( pose, Vector3( 20.f, 1.f, 20.f ) );
-        //    bx::gfxMeshInstanceWorldMatrixSet( meshI, &pose, 1 );
-        //    bx::gfxSceneMeshInstanceAdd( scene, meshI );
-        //}
 
         //const char skelFile[] = "anim/motion_fields/uw_cap6_005m_s.skel";
         const char skelFile[] = "anim/motion_fields/2/skeleton.skel";
@@ -162,90 +81,46 @@ public:
         //const char skelFile[] = "anim/motion_fields/run_circles.skel";
 
 
-        const char* animFiles[] = 
+        const bx::motion_matching::AnimClipInfo animFiles[] = 
         {
-            //"anim/motion_fields/run_circles.anim",
-            //"anim/motion_fields/uw_cap6_005.anim",
-            //"anim/motion_fields/uw_cap6_005m_s.anim",
-            //"anim/motion_fields/uw_cap6_023.anim",
-            //"anim/motion_fields/uw_cap6_023m_s.anim",
-            //"anim/motion_fields/uw_cap6_026.anim",
-            //"anim/motion_fields/uw_cap6_026m_s.anim",
-            //"anim/motion_fields/uw_cap6_032.anim",
-            //"anim/motion_fields/uw_cap6_032m_s.anim",
+            //{ "anim/motion_fields/1/idle.anim"            ,1 }, 
+            //{ "anim/motion_fields/1/run.anim"             ,1 }, 
+            //{ "anim/motion_fields/1/run_turn_left_1.anim" ,0 }, 
+            //{ "anim/motion_fields/1/run_turn_left_2.anim" ,0 }, 
+            //{ "anim/motion_fields/1/run_turn_right_1.anim",0 }, 
+            //{ "anim/motion_fields/1/run_turn_right_2.anim",0 }, 
+            //{ "anim/motion_fields/1/walk.anim"            ,1 }, 
 
-            //"anim/motion_fields/1/idle.anim",
-            //"anim/motion_fields/1/run.anim",
-            //"anim/motion_fields/1/run_turn_left_1.anim",
-            //"anim/motion_fields/1/run_turn_left_2.anim",
-            //"anim/motion_fields/1/run_turn_right_1.anim",
-            //"anim/motion_fields/1/run_turn_right_2.anim",
-            //"anim/motion_fields/1/walk.anim",
-
-            "anim/motion_fields/2/idle.anim",
-            "anim/motion_fields/2/walking0.anim",
-            "anim/motion_fields/2/walking1.anim",
-            "anim/motion_fields/2/running.anim",
-            "anim/motion_fields/2/walking_left_turn.anim",
-            "anim/motion_fields/2/walking_right_turn.anim",
-            "anim/motion_fields/2/running_left_turn.anim",
-            "anim/motion_fields/2/running_right_turn.anim",
-            //"anim/motion_fields/2/running_jump.anim",
-            "anim/motion_fields/2/running_stop.anim",
-            //"anim/motion_fields/2/running_back.anim",
-            //"anim/motion_fields/2/walking_180_turn.anim",
-            "anim/motion_fields/2/walking_start.anim",
-            "anim/motion_fields/2/walking_back.anim",
+            { "anim/motion_fields/2/idle.anim"              , 1 },
+            { "anim/motion_fields/2/walking0.anim"          , 1 },
+            { "anim/motion_fields/2/walking1.anim"          , 1 },
+            { "anim/motion_fields/2/running.anim"           , 1 },
+            { "anim/motion_fields/2/walking_left_turn.anim" , 0 },
+            { "anim/motion_fields/2/walking_right_turn.anim", 0 },
+            { "anim/motion_fields/2/running_left_turn.anim" , 0 },
+            { "anim/motion_fields/2/running_right_turn.anim", 0 },
+            //{ "anim/motion_fields/2/running_jump.anim"      , 0 },
+            { "anim/motion_fields/2/running_stop.anim"      , 0 },
+            //{ "anim/motion_fields/2/running_back.anim"      , 1 },
+            { "anim/motion_fields/2/walking_180_turn.anim"  , 0 },
+            { "anim/motion_fields/2/walking_start.anim"     , 0 },
+            { "anim/motion_fields/2/walking_back.anim"      , 1 },
         };
         
-        const bx::motion_fields::MotionMatching::AnimClipInfo anim_info[] =
-        {
-            //{1}, //"anim/motion_fields/1/idle.anim",
-            //{1}, //"anim/motion_fields/1/run.anim",
-            //{0}, //"anim/motion_fields/1/run_turn_left_1.anim",
-            //{0}, //"anim/motion_fields/1/run_turn_left_2.anim",
-            //{0}, //"anim/motion_fields/1/run_turn_right_1.anim",
-            //{0}, //"anim/motion_fields/1/run_turn_right_2.anim",
-            //{1}, //"anim/motion_fields/1/walk.anim",
-
-
-            { 1 },  //"anim/motion_fields/2/idle.anim",
-            { 1 },  //"anim/motion_fields/2/walking0.anim",
-            { 1 },  //"anim/motion_fields/2/walking1.anim",
-            { 1 },  //"anim/motion_fields/2/running.anim",
-            { 0 },  //"anim/motion_fields/2/walking_left_turn.anim",
-            { 0 },  //"anim/motion_fields/2/walking_right_turn.anim",
-            { 0 },  //"anim/motion_fields/2/running_left_turn.anim",
-            { 0 },  //"anim/motion_fields/2/running_right_turn.anim",
-            //{ 0 },  //"anim/motion_fields/2/running_jump.anim",
-            { 0 },  //"anim/motion_fields/2/running_stop.anim",
-            //{ 1 },  //"anim/motion_fields/2/running_back.anim",
-            //{ 0 },  //"anim/motion_fields/2/walking_180_turn.anim",
-            { 0 },  //"anim/motion_fields/2/walking_start.anim",
-            { 1 },  //"anim/motion_fields/2/walking_back.anim",
-        };
-
         const unsigned numAnimFiles = sizeof( animFiles ) / sizeof( *animFiles );
-        SYS_ASSERT( numAnimFiles == ( sizeof( anim_info) / sizeof(*anim_info) ) );
-        //mf_database.load( skelFile, animFiles, numAnimFiles );
-        //mf_database.prepare();
-        //mf_anim_state.prepare( mf_database._skel );
+        mm.load( skelFile, animFiles, numAnimFiles );
 
-        mm.load( skelFile, animFiles, anim_info, numAnimFiles );
-        mm.prepare();
-
-
+        
+        bx::motion_matching::ContextPrepareInfo ctx_prepare_info{};
+        ctx_prepare_info.matching_joint_names[0] = "Hips";
+        ctx_prepare_info.matching_joint_names[1] = "LeftToeBase";
+        ctx_prepare_info.matching_joint_names[2] = "RightToeBase";
+        mm.prepare( ctx_prepare_info );
 
         return true;
     }
     virtual void shutdown()
     {
-        //bx::gfxSceneDestroy( &scene );
-        //bx::gfxCameraDestroy( &camera );
-        //mf_anim_state.unprepare();
-        //mf_database.unprepare();
-        //mf_database.unload();
-
         mm.unprepare();
         mm.unload();
 
@@ -338,80 +213,28 @@ public:
 
 
         {
-            //static u32 motion_state_index = 0;
-            //if( bxInput_isKeyPressedOnce( &win->input.kbd, 'N' ) )
-            //{
-            //    if( motion_state_index == UINT32_MAX )
-            //        motion_state_index = 0;
-            //    else
-            //        motion_state_index += 1;
-            //}
-            //
             dynamic_state.tick( win->input, deltaTime );
             dynamic_state.debugDraw( 0xFF0000FF );
-            //if( last_time_evaluation_MS > 200 )
-            //{
-            //    if( motion_state_index == UINT32_MAX )
-            //    {
-            //        motion_state_index = mf_database.findState( mf_dynamic_state._direction, mf_dynamic_state._speed01 );
-            //    
-            //        const bx::motion_fields::MotionState& ms = mf_database._states[motion_state_index];
-            //        mf_anim_state.playClip( ms._clip, ms._clip_eval_time, 0.f );
-            //    }
-            //    else
-            //    {
-            //        //motion_state_index = mf_database.findState( mf_dynamic_state._direction, mf_dynamic_state._speed );
-            //        u32 next_motion_state_index = mf_database.findState( mf_dynamic_state._direction, mf_dynamic_state._speed01 );
-            //        if( next_motion_state_index != motion_state_index )
-            //        {
-            //            motion_state_index = next_motion_state_index;
-            //            const bx::motion_fields::MotionState& ms = mf_database._states[motion_state_index];
-            //            mf_anim_state.playClip( ms._clip, ms._clip_eval_time, 0.2f );
-            //        }
-
-            //        //motion_state_index = mf_database.findNextState( motion_state_index, mf_dynamic_state._direction, mf_dynamic_state._speed );
-            //    }
-            //    last_time_evaluation_MS = 0;
-            //}
-            //else
-            //{
-            //    last_time_evaluation_MS += deltaTimeUS / 1000;
-            //}
             
-            //mf_database.debugDrawState( motion_state_index, 0xFF00FFFF, false );
+            bx::motion_matching::Input input = {};
+            bx::motion_matching::motionMatchingCollectInput( &input, dynamic_state );
 
-            //if( bxInput_isKeyPressedOnce( &win->input.kbd, 'N' ) )
-            //{
-            //    pose_index += 1;
-            //}
-            //
-            
-            bx::motion_fields::MotionMatching::Input input = {};
-            bx::motion_fields::motionMatchingCollectInput( &input, dynamic_state );
-
-            //const Matrix4 input_base = dynamic_state._ComputeBaseMatrix();
-            //
-            //dynamic_state.computeLocalTrajectory( input.trajectory, input_base );
-            //input.velocity = inverse( input_base.getUpper3x3() ) * ( dynamic_state._velocity );
-            //input.acceleration = inverse( input_base.getUpper3x3() ) * ( dynamic_state._acceleration );
-            //input.base_matrix = input_base;
             mm.tick( input, deltaTime );
 
             {
                 
                 const float spd01 = dynamic_state._speed01;
                 float anim_vel = bx::curve::evaluate_catmullrom( mm._data.velocity_curve, spd01 );
-                //if( spd01 > 0.1f )
-                //{
-                //    float anim_vel1 = 0.f;
-                //    if( mm.currentSpeed( &anim_vel1 ) )
-                //    {
-                //        //anim_vel = lerp( spd01, anim_vel, anim_vel1 );
-                //        anim_vel = anim_vel1;
-                //    }
-                //}
+                if( spd01 > 0.1f )
+                {
+                    float anim_vel1 = 0.f;
+                    if( mm.currentSpeed( &anim_vel1 ) )
+                    {
+                        //anim_vel = lerp( spd01, anim_vel, anim_vel1 );
+                        anim_vel = anim_vel1;
+                    }
+                }
                 dynamic_state._max_speed = signalFilter_lowPass( anim_vel, dynamic_state._max_speed, 0.1f, deltaTime );
-
 
                 //if( mm._state.num_clips )
                 //{
@@ -437,17 +260,17 @@ public:
 
                 if( mm._state.num_clips )
                 {
-                    ImGui::Text( "current clip: %s", mm._data.clip_names[mm._state.clip_index[0]].c_str() );
+                    ImGui::Text( "current clip: %s", mm._data.clip_infos[mm._state.clip_index[0]].name.c_str() );
                 }
 
                 if( ImGui::CollapsingHeader( "Poses" ) )
                 {
                     for( size_t i = 0; i < mm._data.poses.size(); ++i )
                     {
-                        const bx::motion_fields::MotionMatching::Pose& pose = mm._data.poses[i];
+                        const bx::motion_matching::Pose& pose = mm._data.poses[i];
                         
                         char button_name[256] = {};
-                        _snprintf_s( button_name, 256, "%s [%f]", mm._data.clip_names[pose.params.clip_index].c_str(), pose.params.clip_start_time );
+                        _snprintf_s( button_name, 256, "%s [%f]", mm._data.clip_infos[pose.params.clip_index].name.c_str(), pose.params.clip_start_time );
                         
                         if( ImGui::RadioButton( button_name, pose_index == (u32)i ) )
                         {
@@ -464,9 +287,6 @@ public:
 
             }
             ImGui::End();
-
-            //mf_anim_state.tick( deltaTime );
-            
         }
 
         bx::gfxCameraComputeMatrices( camera );

@@ -146,10 +146,6 @@ namespace motion_fields
             
             const i16* joint_indices = nullptr; // [_eMATCH_JOINT_COUNT_];
             u32 frameNo = 0;
-
-            Vector3* trajectory_root_pos = nullptr; // array [ numFrames ]
-            Vector3* trajectory_root_vel = nullptr; // array [ numFrames ]
-
         };
 
         struct Data
@@ -185,9 +181,6 @@ namespace motion_fields
 
             void* _memory_handle = nullptr;
             bxAnim_Joint* joint_world = nullptr;
-
-            Curve3D _trajectory_curve0;
-            Curve3D _trajectory_curve1;
             
             State()
             {
