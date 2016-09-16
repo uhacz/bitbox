@@ -6,6 +6,7 @@
 namespace bx{
 namespace gfx{
 
+#define BX_GFX_NULL_HANDLE nullptr
     typedef struct PipelineImpl* Pipeline;
     typedef struct RenderPassImpl* RenderPass;
     typedef struct RenderSubPassImpl* RenderSubPass;

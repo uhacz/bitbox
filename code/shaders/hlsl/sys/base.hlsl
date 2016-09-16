@@ -5,6 +5,13 @@
 #include <sys/vertex_transform.hlsl>
 #include <sys/material.hlsl>
 
+//////////////////////////////////////////////////////////////////////////
+// system bindings:
+// - b0 : frame data
+// - b1 : instance offset
+// - t0 : instance data (world matrices)
+// - t1 : instance data (worldIT matrices)
+
 ////
 shared cbuffer LighningData : register( b2 )
 {

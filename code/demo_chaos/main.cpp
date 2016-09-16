@@ -52,30 +52,43 @@ public:
             }
         }
 
+        const bxGdiFormat texture_formats[] =
+        {
+            { bxGdi::eTYPE_FLOAT, 4 },
+        };
+        bx::gfx::RenderPassDesc render_pass_desc = {};
+        render_pass_desc.num_color_textures = 1;
+        render_pass_desc.color_texture_formats = texture_formats;
+        render_pass_desc.depth_texture_type = bxGdi::eTYPE_DEPTH32F;
+        render_pass_desc.width = 1920;
+        render_pass_desc.height = 1080;
 
-        bxGdiShaderFx* shader_module = bxGdi::shaderFx_createFromFile( _engine.gdi_device, _engine.resource_manager, "sky" );
+        _render_pass = bx::gfx::createRenderPass( _engine.gdi_device, render_pass_desc );
+
+
+        _native_shader_module = bxGdi::shaderFx_createFromFile( _engine.gdi_device, _engine.resource_manager, "native2" );
 
         const bxGdiVertexStreamBlock stream_descs[2] =
         {
-            { bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 4 },
-            { bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 },
+            { bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 },
+            { bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3 },
         };
 
         bx::gfx::PipelineDesc pipeline_desc = {};
-        pipeline_desc.shaders[0] = shader_module->vertexShader( 0 );
-        pipeline_desc.shaders[1] = shader_module->pixelShader( 0 );
+        pipeline_desc.shaders[0] = _native_shader_module->vertexShader( 0 );
+        pipeline_desc.shaders[1] = _native_shader_module->pixelShader( 0 );
         pipeline_desc.num_vertex_stream_descs = 2;
         pipeline_desc.vertex_stream_descs = stream_descs;
-
-        bx::gfx::Pipeline pipeline = bx::gfx::createPipeline( _engine.gdi_device, pipeline_desc );
-        bx::gfx::destroyPipeline( &pipeline, _engine.gdi_device );
-
-        bxGdi::shaderFx_release( _engine.gdi_device, _engine.resource_manager, &shader_module );
+        _native_pos_nrm_solid = bx::gfx::createPipeline( _engine.gdi_device, pipeline_desc );
 
         return true;
     }
     virtual void shutdown()
     {
+        bx::gfx::destroyPipeline( &_native_pos_nrm_solid, _engine.gdi_device );
+        bxGdi::shaderFx_release( _engine.gdi_device, _engine.resource_manager, &_native_shader_module );
+        bx::gfx::destroyRenderPass( &_render_pass, _engine.gdi_device );
+
         bx::game_scene::shutdown( &_scene, &_engine );
         bx::gfxCameraDestroy( &_camera );
         bx::Engine::shutdown( &_engine );
@@ -175,6 +188,10 @@ public:
     bx::GameScene _scene;
     bx::GfxCamera* _camera = nullptr;
     bx::gfx::CameraInputContext _cameraInputCtx = {};
+
+    bx::gfx::RenderPass _render_pass = BX_GFX_NULL_HANDLE;
+    bx::gfx::Pipeline _native_pos_nrm_solid = BX_GFX_NULL_HANDLE;
+    bxGdiShaderFx* _native_shader_module = nullptr;
 };
 
 int main( int argc, const char* argv[] )
