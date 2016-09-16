@@ -26,13 +26,22 @@ struct PoseParams
     f32 clip_start_time{ 0.f };
     u32 __padding[2];
 };
+
+struct ClipTrajectory
+{
+    Vector3 pos[eNUM_TRAJECTORY_POINTS];
+    Vector3 vel[eNUM_TRAJECTORY_POINTS - 1];
+    Vector3 acc[eNUM_TRAJECTORY_POINTS - 2];
+};
+
 struct Pose
 {
     Vector3 pos[_eMATCH_JOINT_COUNT_];
+    Quat    rot[_eMATCH_JOINT_COUNT_];
     Vector3 vel[_eMATCH_JOINT_COUNT_];
+    ClipTrajectory trajectory;
     PoseParams params{};
 };
-    
     
 struct AnimClipInfo
 {
@@ -43,12 +52,7 @@ struct AnimClipInfo
         : name( n ), is_loop( isLoop )
     {}
 };
-struct ClipTrajectory
-{
-    Vector3 pos[eNUM_TRAJECTORY_POINTS];
-    Vector3 vel[eNUM_TRAJECTORY_POINTS - 1];
-    Vector3 acc[eNUM_TRAJECTORY_POINTS - 2];
-};
+
 
 struct PosePrepareInfo
 {
@@ -57,9 +61,7 @@ struct PosePrepareInfo
 
     const i16* joint_indices = nullptr; // [_eMATCH_JOINT_COUNT_];
     u32 frameNo = 0;
-
-    Vector3* trajectory_root_pos = nullptr; // array [ numFrames ]
-    Vector3* trajectory_root_vel = nullptr; // array [ numFrames ]
+    bool is_loop = false;
 };
 
 struct Data
@@ -67,7 +69,7 @@ struct Data
     const bxAnim_Skel* skel = nullptr;
     std::vector< bxAnim_Clip* > clips;
     std::vector< AnimClipInfo > clip_infos;
-    std::vector< ClipTrajectory > clip_trajectiories;
+    //std::vector< ClipTrajectory > clip_trajectiories;
     std::vector< Pose > poses;
     std::vector< i16 > match_joints_indices;
     bx::Curve1D velocity_curve;
@@ -84,8 +86,7 @@ struct State
     u32 clip_index[eMAX_CLIPS]; // = { UINT32_MAX };
     f32 clip_eval_time[eMAX_CLIPS]; // = { 0.f };
     u32 num_clips = 0;
-    u32 clip_evaluated = 0;
-
+    f32 anim_delta_time_scaler = 1.f;
     u32 pose_index = UINT32_MAX;
 
     void* _memory_handle = nullptr;
@@ -98,6 +99,7 @@ struct Input
 {
     Vector3 trajectory[eNUM_TRAJECTORY_POINTS];
     Matrix4 base_matrix;
+    Matrix4 base_matrix_aligned;
     Vector3 velocity;
     Vector3 acceleration;
     f32 speed01;
@@ -105,7 +107,8 @@ struct Input
 
 struct Debug
 {
-    std::vector< bxAnim_Joint > joints;
+    std::vector< bxAnim_Joint > joints0;
+    std::vector< bxAnim_Joint > joints1;
     std::vector< u32 > pose_indices;
 };
 
@@ -117,7 +120,7 @@ void posePrepare( Pose* pose, const PosePrepareInfo& info );
 void stateAllocate( State* state, u32 numJoints, bxAllocator* allocator );
 void stateFree( State* state, bxAllocator* allocator );
 //-------------------------------------------------------------------
-void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float trajectoryDuration );
+void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float trajectoryStartTime, float trajectoryDuration );
     
     
 struct ContextPrepareInfo
@@ -172,13 +175,14 @@ struct DynamicState
     f32 _prev_speed01{ 0.f };
     f32 _max_speed{ 3.f };
     f32 _trajectory_integration_time{ 1.f };
+    f32 _last_delta_time = 0.f;
     CharacterInput _input = {};
 
     Vector3 _trajectory[eNUM_TRAJECTORY_POINTS];
 
     //////////////////////////////////////////////////////////////////////////
     void tick( const bxInput& sysInput, float deltaTime );
-    Matrix4 computeBaseMatrix() const;
+    Matrix4 computeBaseMatrix( bool includeTilt = false ) const;
     void debugDraw( u32 color );
 };
 void motionMatchingCollectInput( Input* input, const DynamicState& dstate );

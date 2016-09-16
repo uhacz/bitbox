@@ -93,7 +93,7 @@ public:
 
             { "anim/motion_fields/2/idle.anim"              , 1 },
             { "anim/motion_fields/2/walking0.anim"          , 1 },
-            { "anim/motion_fields/2/walking1.anim"          , 1 },
+            //{ "anim/motion_fields/2/walking1.anim"          , 1 },
             { "anim/motion_fields/2/running.anim"           , 1 },
             { "anim/motion_fields/2/walking_left_turn.anim" , 0 },
             { "anim/motion_fields/2/walking_right_turn.anim", 0 },
@@ -225,16 +225,16 @@ public:
                 
                 const float spd01 = dynamic_state._speed01;
                 float anim_vel = bx::curve::evaluate_catmullrom( mm._data.velocity_curve, spd01 );
-                if( spd01 > 0.1f )
-                {
-                    float anim_vel1 = 0.f;
-                    if( mm.currentSpeed( &anim_vel1 ) )
-                    {
-                        //anim_vel = lerp( spd01, anim_vel, anim_vel1 );
-                        anim_vel = anim_vel1;
-                    }
-                }
-                dynamic_state._max_speed = signalFilter_lowPass( anim_vel, dynamic_state._max_speed, 0.1f, deltaTime );
+                //if( spd01 > 0.1f )
+                //{
+                //    float anim_vel1 = 0.f;
+                //    if( mm.currentSpeed( &anim_vel1 ) )
+                //    {
+                //        //anim_vel = lerp( spd01, anim_vel, anim_vel1 );
+                //        anim_vel = anim_vel1;
+                //    }
+                //}
+                dynamic_state._max_speed = signalFilter_lowPass( anim_vel, dynamic_state._max_speed, 0.01f, deltaTime );
 
                 //if( mm._state.num_clips )
                 //{

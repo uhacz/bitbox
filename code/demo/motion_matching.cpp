@@ -7,6 +7,7 @@
 
 #include <util/common.h>
 #include <util/buffer_utils.h>
+#include "util/signal_filter.h"
 
 namespace bx{
 namespace motion_matching{
@@ -52,27 +53,50 @@ namespace utils
         floatInVec result( 0.f );
         for( u32 i = 0; i < n; ++i )
         {
-            result += oneVec - dot( normalizeSafe( dir0[i] ), normalizeSafe( dir1[i] ) );
-        }
-
-        return result.getAsFloat();
-    }
-
-    float computeVelocityCost( const Vector3* vel0, const Vector3* vel1, u32 numPos )
-    {
-        floatInVec result( 0 );
-        for( u32 i = 0; i < numPos; ++i )
-        {
-            result += lengthSqr( vel0[i] - vel1[i] );
+            result += lengthSqr( normalizeSafe( dir0[i] ) - normalizeSafe( dir1[i] ) );
         }
 
         return ::sqrt( result.getAsFloat() );
+    }
+
+    float computeVelocityCost( const Vector3* vel0, const Vector3* vel1, u32 numPos, float deltaTime )
+    {
+        floatInVec result( 0 );
+        const floatInVec dt( deltaTime );
+        for( u32 i = 0; i < numPos; ++i )
+        {
+            result += length( vel0[i] - vel1[i] ) * dt;
+        }
+
+        return ( result.getAsFloat() );
     }
     inline float computeVelocityCost( const Vector3 vA, const Vector3 vB )
     {
         floatInVec cost = length( vA - vB );
         //cost += oneVec - dot( normalizeSafe( vA ), normalizeSafe( vB ) );
         return cost.getAsFloat();
+    }
+
+    Matrix3 computeBaseMatrix3( const Vector3 direction, const Vector3 acc, const Vector3 upReference )
+    {
+        if( lengthSqr( direction ).getAsFloat() > FLT_EPSILON )
+        {
+            Vector3 y = upReference;
+            Vector3 x = normalize( cross( y, direction ) );
+            Vector3 z = normalize( cross( x, y ) );
+            Matrix3 rotation = Matrix3( x, y, z );
+
+            floatInVec d = dot( acc, x );
+            Matrix3 tilt_rotation = Matrix3::rotationZ( -d );
+            rotation *= tilt_rotation;
+
+            d = dot( acc, z );
+            tilt_rotation = Matrix3::rotationX( d );
+            rotation *= tilt_rotation;
+
+            return rotation;
+        }
+        return Matrix3::identity();
     }
 }///
 
@@ -142,16 +166,21 @@ void posePrepare( Pose* pose, const PosePrepareInfo& info )
         if( frameNo == lastFrame )
         {
             pose->pos[i] = v1;
+            pose->rot[i] = j1[i].rotation;
         }
         else
         {
             pose->pos[i] = v0;
+            pose->rot[i] = j0[i].rotation;
         }
 
+        
         pose->vel[i] = ( v1 - v0 ) * clip->sampleFrequency;
     }
         
-        
+    const float frameTime = ( info.is_loop ) ? (float)frameNo / clip->sampleFrequency : 0.f;
+    const float duration = ( info.is_loop ) ? 1.f : clip->duration;
+    computeClipTrajectory( &pose->trajectory, clip, frameTime, duration );
 }
 //-------------------------------------------------------------------
 void stateAllocate( State* state, u32 numJoints, bxAllocator* allocator )
@@ -174,7 +203,7 @@ void stateFree( State* state, bxAllocator* allocator )
     state[0] = {};
 }
 
-void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float trajectoryDuration )
+void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float trajectoryStartTime, float trajectoryDuration )
 {
     const Vector4 plane = makePlane( Vector3::yAxis(), Vector3( 0.f ) );
     bxAnim_Joint root_joint;
@@ -185,7 +214,7 @@ void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float t
     bxAnim_Joint trajectory_joint;
     const float duration = trajectoryDuration;
     const float dt = ( duration ) / (float)( eNUM_TRAJECTORY_POINTS - 1 );
-    const float start_time = 0.f;
+    const float start_time = trajectoryStartTime;
 
     Vector3 extrapolation_dpos( 0.f );
     bool end_clip_reached = false;
@@ -290,7 +319,7 @@ void Context::prepare_evaluateClips()
     const bxAnim_Skel* skel = _data.skel;
     std::vector< float > velocity;
 
-    _data.clip_trajectiories.resize( _data.clips.size() );
+    //_data.clip_trajectiories.resize( _data.clips.size() );
 
     for( size_t i = 0; i < _data.clips.size(); ++i )
     {
@@ -309,6 +338,7 @@ void Context::prepare_evaluateClips()
             pose_prepare_info.skel = skel;
             pose_prepare_info.frameNo = frame_no;
             pose_prepare_info.joint_indices = _data.match_joints_indices.data();
+            pose_prepare_info.is_loop = _data.clip_infos[i].is_loop != 0;
 
             poseAllocate( &pose, _data.skel->numJoints, _allocator );
             posePrepare( &pose, pose_prepare_info );
@@ -325,8 +355,8 @@ void Context::prepare_evaluateClips()
             ++frame_no;
         }
         
-        ClipTrajectory& clipTrajectory = _data.clip_trajectiories[i];
-        computeClipTrajectory( &clipTrajectory, clip, 1.f );
+        //ClipTrajectory& clipTrajectory = _data.clip_trajectiories[i];
+        //computeClipTrajectory( &clipTrajectory, clip, 1.f );
     }
 
         
@@ -357,8 +387,10 @@ void Context::tick( const Input& input, float deltaTime )
 {
     const float delta_time_inv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
     const float desired_anim_speed = bx::curve::evaluate_catmullrom( _data.velocity_curve, input.speed01 );
+    const float desired_anim_speed_inv = ( desired_anim_speed > FLT_EPSILON ) ? 1.f / desired_anim_speed : 0.f;
 
-    const Matrix4 to_local_space = inverse( input.base_matrix );
+
+    const Matrix4 to_local_space = inverse( input.base_matrix_aligned );
     Vector3 local_trajectory[eNUM_TRAJECTORY_POINTS];
     for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
     {
@@ -372,6 +404,8 @@ void Context::tick( const Input& input, float deltaTime )
     Vector3 local_trajectory_a[eNUM_TRAJECTORY_POINTS - 2];
     utils::computeTrajectoryDerivatives( local_trajectory_v, local_trajectory_a, local_trajectory, delta_time_inv );
 
+    const Matrix3 desired_future_rotation = utils::computeBaseMatrix3( normalizeSafe( local_trajectory_v[2] ), local_trajectory_a[1] * deltaTime*deltaTime, Vector3::yAxis() );
+    bxGfxDebugDraw::addAxes( input.base_matrix_aligned * Matrix4( desired_future_rotation, local_trajectory[3] ) );
     const u32 num_joints = _data.skel->numJoints;
 
     bxAnim_Joint* curr_local_joints = nullptr;
@@ -383,23 +417,36 @@ void Context::tick( const Input& input, float deltaTime )
     memset( prev_matching_pos, 0x00, sizeof( prev_matching_pos ) );
     memset( curr_matching_pos, 0x00, sizeof( curr_matching_pos ) );
     memset( curr_matching_vel, 0x00, sizeof( curr_matching_vel ) );
+    
+    const float acceleration_value = length( input.acceleration ).getAsFloat();
 
     if( _state.num_clips )
     {
         bxAnim_Joint* tmp_joints = _state.joint_world;
 
-        if( _state.clip_evaluated )
+        bxAnim_Joint* prev_local_joints = bxAnim::poseFromStack( _state.anim_ctx, 0 );
+        bxAnimExt::localJointsToWorldJoints( tmp_joints, prev_local_joints, _data.skel, bxAnim_Joint::identity() );
+        for( u32 i = 0; i < _data.match_joints_indices.size(); ++i )
         {
-            bxAnim_Joint* prev_local_joints = bxAnim::poseFromStack( _state.anim_ctx, 0 );
-            bxAnimExt::localJointsToWorldJoints( tmp_joints, prev_local_joints, _data.skel, bxAnim_Joint::identity() );
-            for( u32 i = 0; i < _data.match_joints_indices.size(); ++i )
-            {
-                i16 index = _data.match_joints_indices[i];
-                prev_matching_pos[i] = tmp_joints[index].position;
-            }
+            i16 index = _data.match_joints_indices[i];
+            prev_matching_pos[i] = tmp_joints[index].position;
         }
 
-        tick_animations( deltaTime );
+        //float anim_speed = 0.f;
+        //float anim_scaler = 1.f;
+        //if( acceleration_value > 0.1f )
+        //{
+        //    if( currentSpeed( &anim_speed ) )
+        //    {
+        //        if( anim_speed > FLT_EPSILON )
+        //        {
+        //            anim_scaler = desired_anim_speed / anim_speed;
+        //        }
+        //    }
+        //}
+        //_state.anim_delta_time_scaler = signalFilter_lowPass( anim_scaler, _state.anim_delta_time_scaler, 0.1f, deltaTime );
+        const float anim_delta_time = deltaTime; // *_state.anim_delta_time_scaler;
+        tick_animations( anim_delta_time );
         curr_local_joints = bxAnim::poseFromStack( _state.anim_ctx, 0 );
         curr_local_joints[0].position = mulPerElem( curr_local_joints[0].position, Vector3( 0.f, 1.f, 0.f ) );
 
@@ -409,14 +456,11 @@ void Context::tick( const Input& input, float deltaTime )
         {
             i16 index = _data.match_joints_indices[i];
             curr_matching_pos[i] = curr_local_joints[index].position;
-            curr_matching_vel[i] = ( curr_local_joints[index].position - prev_matching_pos[i] ) * delta_time_inv;
+            curr_matching_vel[i] = local_velocity + ( curr_local_joints[index].position - prev_matching_pos[i] ) * delta_time_inv;
 
         }
-
-        _state.clip_evaluated = 1;
     }
 
-    const float acceleration_value = length( input.acceleration ).getAsFloat();
         
     _debug.pose_indices.clear();
 
@@ -436,31 +480,41 @@ void Context::tick( const Input& input, float deltaTime )
             const bxAnim_Clip* clip = _data.clips[pose.params.clip_index];
             const bool is_pose_clip_looped = clip_info.is_loop == 1;
 
-            const ClipTrajectory& pose_trajectory = _data.clip_trajectiories[pose.params.clip_index];
+            const ClipTrajectory& pose_trajectory = pose.trajectory; // .clip_trajectiories[pose.params.clip_index];
 
+
+            const float pose_position_cost = utils::computePositionCost( pose.pos+1, curr_matching_pos+1, _eMATCH_JOINT_COUNT_-1 );
+            const float pose_velocity_cost = utils::computeVelocityCost( pose.vel+1, curr_matching_vel+1, _eMATCH_JOINT_COUNT_-1, deltaTime );
+
+            const float velocity_cost = utils::computeVelocityCost( desired_anim_velocity, pose.vel[0] ) * deltaTime;// *desired_anim_speed_inv;
+            
             const float trajectory_position_cost = utils::computePositionCost( local_trajectory, pose_trajectory.pos, eNUM_TRAJECTORY_POINTS );
-            float trajectory_direction_cost = utils::computeDirectionCost( local_trajectory_v, pose_trajectory.vel, eNUM_TRAJECTORY_POINTS - 1 );
-            trajectory_direction_cost += utils::computeDirectionCost( local_trajectory_a, pose_trajectory.acc, eNUM_TRAJECTORY_POINTS - 2 );
+            //float trajectory_direction_cost = utils::computeDirectionCost( local_trajectory_v, pose_trajectory.vel, eNUM_TRAJECTORY_POINTS - 1 );
+            //trajectory_direction_cost += utils::computeDirectionCost( local_trajectory_a, pose_trajectory.acc, eNUM_TRAJECTORY_POINTS - 2 );
+            //const float trajectory_direction_cost = 1.f - dot( normalizeSafe( local_trajectory_v[2] ), normalizeSafe( pose_trajectory.vel[2] ) ).getAsFloat();
+            const float trajectory_velocity_cost = utils::computeVelocityCost( local_trajectory_v, pose_trajectory.vel, eNUM_TRAJECTORY_POINTS - 1, deltaTime );
+            const float trajectory_acceleration_cost = utils::computeVelocityCost( local_trajectory_a, pose_trajectory.acc, eNUM_TRAJECTORY_POINTS - 2, deltaTime*deltaTime );
 
-            const float pose_position_cost = utils::computePositionCost( pose.pos, curr_matching_pos, _eMATCH_JOINT_COUNT_ );
-            const float pose_velocity_cost = utils::computeVelocityCost( pose.vel, curr_matching_vel, _eMATCH_JOINT_COUNT_ );
-            const float velocity_cost = utils::computeVelocityCost( desired_anim_velocity, pose.vel[0] );
-
-            const float trajectory_velocity_cost = utils::computeVelocityCost( local_trajectory_v, pose_trajectory.vel, eNUM_TRAJECTORY_POINTS - 1 );
-            const float trajectory_acceleration_cost = utils::computeVelocityCost( local_trajectory_a, pose_trajectory.acc, eNUM_TRAJECTORY_POINTS - 2 );
-
-            const float loop_cost = ( !is_current_anim_looped && _state.clip_index[0] == pose.params.clip_index ) ? 10.f : 0.f;
+            //const float tmp = 1.f / (float)( eNUM_TRAJECTORY_POINTS - 1 );
+            //const Matrix3 pose_future_rotation = utils::computeBaseMatrix3( normalizeSafe( pose_trajectory.vel[2] ), pose_trajectory.acc[1] * tmp, Vector3::yAxis() );
+            //float future_rotation_cost = 0;
+            //future_rotation_cost += 1.f - dot( pose_future_rotation.getCol0(), desired_future_rotation.getCol0() ).getAsFloat();
+            //future_rotation_cost += 1.f - dot( pose_future_rotation.getCol1(), desired_future_rotation.getCol1() ).getAsFloat();
+            //future_rotation_cost += 1.f - dot( pose_future_rotation.getCol2(), desired_future_rotation.getCol2() ).getAsFloat();
+            
+            //const float loop_cost = ( !is_pose_clip_looped ) ? 1.f : 0.f;
 
             float cost = 0.f;
             cost += pose_position_cost;
             cost += pose_velocity_cost;
+            
             cost += velocity_cost;
-
             cost += trajectory_position_cost;
-            cost += trajectory_direction_cost;
+            //cost += trajectory_direction_cost;
             cost += trajectory_velocity_cost;
             cost += trajectory_acceleration_cost;
-            cost += loop_cost;
+            //cost += future_rotation_cost;
+            //cost += loop_cost;
 
             if( change_cost > cost )
             {
@@ -472,7 +526,7 @@ void Context::tick( const Input& input, float deltaTime )
 
         const Pose& winner_pose = _data.poses[change_index];
 
-        const bool winner_is_at_the_same_location = ( _state.clip_index[0] == winner_pose.params.clip_index ); // && ::abs( _state.clip_eval_time[0] - winner_pose.params.clip_start_time ) < 0.2f;
+        const bool winner_is_at_the_same_location = ( _state.clip_index[0] == winner_pose.params.clip_index );// && ::abs( _state.clip_eval_time[0] - winner_pose.params.clip_start_time ) < 0.2f;
 
         _state.pose_index = change_index;
 
@@ -484,7 +538,7 @@ void Context::tick( const Input& input, float deltaTime )
 
 
         {
-            const ClipTrajectory& pose_trajectory = _data.clip_trajectiories[winner_pose.params.clip_index];
+            const ClipTrajectory& pose_trajectory = winner_pose.trajectory;
             for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
             {
                 bxGfxDebugDraw::addSphere( Vector4( mulAsVec4( input.base_matrix, pose_trajectory.pos[i] ), 0.03f ), 0xffffffff, 1 );
@@ -497,11 +551,12 @@ void Context::tick( const Input& input, float deltaTime )
         const Pose& winner_pose = _data.poses[change_index];
         tick_playClip( winner_pose.params.clip_index, winner_pose.params.clip_start_time, 0.25f );
         _state.pose_index = change_index;
+        tick_animations( deltaTime );
     }
 
     if( curr_local_joints )
     {
-        bxAnim_Joint root = toAnimJoint_noScale( input.base_matrix );
+        bxAnim_Joint root = toAnimJoint_noScale( input.base_matrix_aligned );
         bxAnimExt::localJointsToWorldJoints( _state.joint_world, curr_local_joints, _data.skel, root );
         const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _data.skel->offsetParentIndices );
         utils::debugDrawJoints( _state.joint_world, parent_indices, num_joints, 0xffffffFF, 0.025f, 1.f );
@@ -607,9 +662,9 @@ void Context::_DebugDrawPose( u32 poseIndex, u32 color, const Matrix4& base )
     const Pose& pose = _data.poses[poseIndex];
 
     const bxAnim_Joint root_joint = toAnimJoint_noScale( base );
-    //const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _data.skel->offsetParentIndices );
+    
 
-    const ClipTrajectory& pose_trajectory = _data.clip_trajectiories[pose.params.clip_index];
+    const ClipTrajectory& pose_trajectory = pose.trajectory;
 
     for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
     {
@@ -626,6 +681,17 @@ void Context::_DebugDrawPose( u32 poseIndex, u32 color, const Matrix4& base )
         bxGfxDebugDraw::addLine( p, v, 0x0000FFFF, 1 );
         //bxGfxDebugDraw::addLine( p, a, 0xFFFF00FF, 1 );
     }
+
+    _debug.joints0.resize( _data.skel->numJoints );
+    _debug.joints1.resize( _data.skel->numJoints );
+    
+    const bxAnim_Clip* clip = _data.clips[pose.params.clip_index];
+    const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _data.skel->offsetParentIndices );
+    bxAnim::evaluateClip( _debug.joints0.data(), clip, pose.params.clip_start_time );
+    _debug.joints0[0].position = mulPerElem( _debug.joints0[0].position, Vector3( 0.f, 1.f, 0.f ) );
+    bxAnimExt::localJointsToWorldJoints( _debug.joints1.data(), _debug.joints0.data(), _data.skel, root_joint );
+    utils::debugDrawJoints( _debug.joints1.data(), parent_indices, _data.skel->numJoints, 0x333333ff, 0.01f, 1.f );
+
 }
 }}///
 
@@ -645,7 +711,7 @@ void DynamicState::tick( const bxInput& sysInput, float deltaTime )
     const float converge_time01 = 0.0001f;
     const float lerp_alpha = 1.f - ::pow( converge_time01, deltaTime );
 
-    const float max_input_speed = lerp( _input.R2, 0.5f, 1.f );
+    const float max_input_speed = lerp( _input.R2, 0.6f, 1.f );
 
     const float input_speed = minOfPair( max_input_speed, length( input_force ).getAsFloat() );
     input_force = normalizeSafe( input_force ) * input_speed;
@@ -703,25 +769,14 @@ void DynamicState::tick( const bxInput& sysInput, float deltaTime )
     //    //checkFloat( _trajectory[i].getX().getAsFloat() );
     //    time += dt;
     //}
-
+    _last_delta_time = deltaTime;
 }
 
-Matrix4 DynamicState::computeBaseMatrix() const
+Matrix4 DynamicState::computeBaseMatrix( bool includeTilt ) const
 {
-    if( lengthSqr( _direction ).getAsFloat() > FLT_EPSILON )
-    {
-        Vector3 y = Vector3::yAxis();
-        Vector3 x = normalize( cross( y, _direction ) );
-        Vector3 z = normalize( cross( x, y ) );
-        Matrix3 rotation = Matrix3( x, y, z );
-
-        //const floatInVec d = dot( _acceleration, x );
-        //Matrix3 tilt_rotation = Matrix3::rotationZ( -d );
-        //rotation *= tilt_rotation;
-
-        return Matrix4( rotation, _position );
-    }
-    return Matrix4::identity();
+    const Vector3 acc = ( includeTilt ) ? _acceleration * _last_delta_time : Vector3( 0.f );
+    Matrix3 rotation = utils::computeBaseMatrix3( _direction, acc, Vector3::yAxis() );
+    return Matrix4( rotation, _position );
 }
 
 void DynamicState::debugDraw( u32 color )
@@ -735,7 +790,9 @@ void DynamicState::debugDraw( u32 color )
     }
 
     const Matrix4 base = computeBaseMatrix();
-    bxGfxDebugDraw::addAxes( base );
+    const Matrix4 base_with_tilt = computeBaseMatrix( true );
+    //bxGfxDebugDraw::addAxes( base );
+    bxGfxDebugDraw::addAxes( base_with_tilt );
 }
 
 void motionMatchingCollectInput( Input* input, const DynamicState& dstate )
@@ -745,7 +802,8 @@ void motionMatchingCollectInput( Input* input, const DynamicState& dstate )
 
     input->velocity = dstate._velocity;
     input->acceleration = dstate._acceleration;
-    input->base_matrix = dstate.computeBaseMatrix();
+    input->base_matrix = dstate.computeBaseMatrix( true );
+    input->base_matrix_aligned = dstate.computeBaseMatrix( false );
     input->speed01 = dstate._speed01;
 }
 
