@@ -287,6 +287,7 @@ namespace bxGdi
     static const u32 cMAX_CBUFFERS = 6;
     static const u32 cMAX_TEXTURES = 8;
     static const u32 cMAX_RESOURCES_RO = 8;
+    static const u32 cMAX_RESOURCES_RW = 6;
     static const u32 cMAX_SAMPLERS = 8;
     static const u32 cMAX_VERTEX_BUFFERS = 6;
     static const u32 cMAX_SHADER_MACRO = 32;

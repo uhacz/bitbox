@@ -81,10 +81,37 @@ public:
         pipeline_desc.vertex_stream_descs = stream_descs;
         _native_pos_nrm_solid = bx::gfx::createPipeline( _engine.gdi_device, pipeline_desc );
 
+        {
+            bx::gfx::ResourceBinding bindings[] = 
+            {
+                { bx::gfx::eRESOURCE_TYPE_UNIFORM, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL, 0 }, // frame data
+                { bx::gfx::eRESOURCE_TYPE_UNIFORM, bxGdi::eSTAGE_MASK_VERTEX, 1 }, // instance offset
+                { bx::gfx::eRESOURCE_TYPE_BUFFER_RO, bxGdi::eSTAGE_MASK_VERTEX, 1 }, // instance data
+                { bx::gfx::eRESOURCE_TYPE_BUFFER_RO, bxGdi::eSTAGE_MASK_VERTEX, 2 }, // instance data
+                { bx::gfx::eRESOURCE_TYPE_UNIFORM, bxGdi::eSTAGE_MASK_PIXEL, 3 }, // material data
+            };
+            bx::gfx::ResourceLayout layout = {};
+            layout.bindings = bindings;
+            layout.num_bindings = 1;
+            _frame_data_rdesc = bx::gfx::createResourceDescriptor( layout );
+
+            layout.bindings = &bindings[1];
+            layout.num_bindings = 3;
+            _instance_data_rdesc = bx::gfx::createResourceDescriptor( layout );
+
+            layout.bindings = &bindings[4];
+            layout.num_bindings = 1;
+            _material_data_rdesc = bx::gfx::createResourceDescriptor( layout );
+        }
+
         return true;
     }
     virtual void shutdown()
     {
+        bx::gfx::destroyResourceDescriptor( &_material_data_rdesc );
+        bx::gfx::destroyResourceDescriptor( &_instance_data_rdesc );
+        bx::gfx::destroyResourceDescriptor( &_frame_data_rdesc );
+
         bx::gfx::destroyPipeline( &_native_pos_nrm_solid, _engine.gdi_device );
         bxGdi::shaderFx_release( _engine.gdi_device, _engine.resource_manager, &_native_shader_module );
         bx::gfx::destroyRenderPass( &_render_pass, _engine.gdi_device );
@@ -191,6 +218,10 @@ public:
 
     bx::gfx::RenderPass _render_pass = BX_GFX_NULL_HANDLE;
     bx::gfx::Pipeline _native_pos_nrm_solid = BX_GFX_NULL_HANDLE;
+    bx::gfx::ResourceDescriptor _frame_data_rdesc = BX_GFX_NULL_HANDLE;
+    bx::gfx::ResourceDescriptor _instance_data_rdesc = BX_GFX_NULL_HANDLE;
+    bx::gfx::ResourceDescriptor _material_data_rdesc = BX_GFX_NULL_HANDLE;
+
     bxGdiShaderFx* _native_shader_module = nullptr;
 };
 

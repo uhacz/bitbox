@@ -9,11 +9,14 @@
 // system bindings:
 // - b0 : frame data
 // - b1 : instance offset
+// - b3 : material data
 // - t0 : instance data (world matrices)
 // - t1 : instance data (worldIT matrices)
+// - t2 : lightning data 
+// - t3 : lightning indices 
 
 ////
-shared cbuffer LighningData : register( b2 )
+shared cbuffer LightningData : register( b2 )
 {
     uint2 _numTilesXY;
     uint  _numTiles;

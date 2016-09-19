@@ -39,6 +39,11 @@ struct out_PS
 #include <sys/brdf.hlsl>
 #include <sys/lights.hlsl>
 
+shared cbuffer MaterialData : register(b3)
+{
+    MATERIAL_VARIABLES;
+};
+
 in_PS vs_main( in_VS IN )
 {
     in_PS OUT = (in_PS)0;
