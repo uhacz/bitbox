@@ -76,6 +76,33 @@ namespace utils
         //cost += oneVec - dot( normalizeSafe( vA ), normalizeSafe( vB ) );
         return cost.getAsFloat();
     }
+    void rebuildTrajectory( Vector3* dstPoints, const Vector3* srcPoints, Curve3D& tmpCurve )
+    {
+        curve::clear( tmpCurve );
+        float lengths[eNUM_TRAJECTORY_POINTS - 1] = {};
+        float trajectory_length = 0.f;
+        for( u32 j = 1; j < eNUM_TRAJECTORY_POINTS; ++j )
+        {
+            lengths[j - 1] = length( srcPoints[j] - srcPoints[j - 1] ).getAsFloat();
+            trajectory_length += lengths[j - 1];
+        }
+
+        const float trajectory_length_inv = ( trajectory_length > FLT_EPSILON ) ? 1.f / trajectory_length : 0.f;
+        float current_length = 0.f;
+        for( u32 j = 0; j < eNUM_TRAJECTORY_POINTS; ++j )
+        {
+            if( j > 0 )
+            {
+                current_length += lengths[j-1];
+            }
+            float t = current_length * trajectory_length_inv;
+            curve::push_back( tmpCurve, srcPoints[j], t );
+        }
+        for( u32 j = 0; j < eNUM_TRAJECTORY_POINTS; ++j )
+        {
+            dstPoints[j] = curve::evaluate_catmullrom( tmpCurve, (float)j / (float)( eNUM_TRAJECTORY_POINTS - 1 ) );
+        }
+    }
 
     Matrix3 computeBaseMatrix3( const Vector3 direction, const Vector3 acc, const Vector3 upReference )
     {
@@ -98,6 +125,28 @@ namespace utils
         }
         return Matrix3::identity();
     }
+
+
+    inline float triangleArea( const Vector3 a, const Vector3 b, const Vector3 c ) 
+    {
+        return length( cross( a - b, a - c ) ).getAsFloat() * 0.5f;
+    }
+    float computeTrajectoryCost( const Vector3 pointsA[eNUM_TRAJECTORY_POINTS], const Vector3 pointsB[eNUM_TRAJECTORY_POINTS] )
+    {
+        float cost = 0.f;
+        for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS-1; ++i )
+        {
+            const Vector3 a = pointsA[i];
+            const Vector3 b = pointsB[i];
+            const Vector3 c = pointsB[i+1];a
+            const Vector3 d = pointsA[i+1];
+
+            cost += triangleArea( a, b, c );
+            cost += triangleArea( a, c, d );
+        }
+        return cost;
+    }
+
 }///
 
 State::State()
@@ -230,6 +279,8 @@ void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float t
         }
         else
         {
+            trajectory_time = ::fmodf( trajectory_time, 1.f );
+
             bxAnim_Joint last_joint, prev_last_joint;
             bxAnim::evaluateClip( &last_joint, clip, clip->numFrames - 1, 0.f, 0, 0 );
             bxAnim::evaluateClip( &prev_last_joint, clip, clip->numFrames - 2, 0.f, 0, 0 );
@@ -312,6 +363,9 @@ void Context::prepare( const ContextPrepareInfo& info )
         
     stateAllocate( &_state, _data.skel->numJoints, _allocator );
     _state.anim_ctx = bxAnim::contextInit( *_data.skel );
+
+    curve::allocate( _state.input_trajectory_curve, eNUM_TRAJECTORY_POINTS );
+    curve::allocate( _state.candidate_trajectory_curve, eNUM_TRAJECTORY_POINTS );
 }
 
 void Context::prepare_evaluateClips()
@@ -371,6 +425,8 @@ void Context::prepare_evaluateClips()
 
 void Context::unprepare()
 {
+    curve::deallocate( _state.candidate_trajectory_curve );
+    curve::deallocate( _state.input_trajectory_curve );
     bxAnim::contextDeinit( &_state.anim_ctx );
 
     stateFree( &_state, _allocator );
@@ -400,6 +456,8 @@ void Context::tick( const Input& input, float deltaTime )
     const Vector3 local_acceleration = to_local_space.getUpper3x3() * input.acceleration;
     const Vector3 desired_anim_velocity = normalizeSafe( local_velocity ) * desired_anim_speed;
 
+    //utils::rebuildTrajectory( local_trajectory, local_trajectory, _state.input_trajectory_curve );
+
     Vector3 local_trajectory_v[eNUM_TRAJECTORY_POINTS - 1];
     Vector3 local_trajectory_a[eNUM_TRAJECTORY_POINTS - 2];
     utils::computeTrajectoryDerivatives( local_trajectory_v, local_trajectory_a, local_trajectory, delta_time_inv );
@@ -418,13 +476,12 @@ void Context::tick( const Input& input, float deltaTime )
     memset( curr_matching_pos, 0x00, sizeof( curr_matching_pos ) );
     memset( curr_matching_vel, 0x00, sizeof( curr_matching_vel ) );
     
-    const float acceleration_value = length( input.acceleration ).getAsFloat();
-
     if( _state.num_clips )
     {
         bxAnim_Joint* tmp_joints = _state.joint_world;
 
         bxAnim_Joint* prev_local_joints = bxAnim::poseFromStack( _state.anim_ctx, 0 );
+        prev_local_joints[0].position = mulPerElem( prev_local_joints[0].position, Vector3( 0.f, 1.f, 0.f ) );
         bxAnimExt::localJointsToWorldJoints( tmp_joints, prev_local_joints, _data.skel, bxAnim_Joint::identity() );
         for( u32 i = 0; i < _data.match_joints_indices.size(); ++i )
         {
@@ -445,6 +502,7 @@ void Context::tick( const Input& input, float deltaTime )
         //    }
         //}
         //_state.anim_delta_time_scaler = signalFilter_lowPass( anim_scaler, _state.anim_delta_time_scaler, 0.1f, deltaTime );
+
         const float anim_delta_time = deltaTime; // *_state.anim_delta_time_scaler;
         tick_animations( anim_delta_time );
         curr_local_joints = bxAnim::poseFromStack( _state.anim_ctx, 0 );
@@ -472,50 +530,48 @@ void Context::tick( const Input& input, float deltaTime )
 
         const bool is_current_anim_looped = _data.clip_infos[_state.clip_index[0]].is_loop == 1;
 
+        bxAnim_Clip* current_clip = _data.clips[_state.clip_index[0]];
+        const float current_phase = ::fmodf( ( _state.clip_eval_time[0] ) / current_clip->duration, 1.f );
+        const float current_delta_phase = deltaTime / current_clip->duration;
+
         for( size_t i = 0; i < _data.poses.size(); ++i )
         {
             const Pose& pose = _data.poses[i];
+            if( i == _state.pose_index )
+                continue;
 
             const AnimClipInfo& clip_info = _data.clip_infos[pose.params.clip_index];
             const bxAnim_Clip* clip = _data.clips[pose.params.clip_index];
             const bool is_pose_clip_looped = clip_info.is_loop == 1;
 
             const ClipTrajectory& pose_trajectory = pose.trajectory; // .clip_trajectiories[pose.params.clip_index];
+            //Vector3 pose_trajectory_pos[eNUM_TRAJECTORY_POINTS];
+            //utils::rebuildTrajectory( pose_trajectory_pos, pose_trajectory.pos, _state.candidate_trajectory_curve );
 
-
-            const float pose_position_cost = utils::computePositionCost( pose.pos+1, curr_matching_pos+1, _eMATCH_JOINT_COUNT_-1 );
+            const float pose_position_cost = utils::computePositionCost( pose.pos, curr_matching_pos, _eMATCH_JOINT_COUNT_ );
             const float pose_velocity_cost = utils::computeVelocityCost( pose.vel+1, curr_matching_vel+1, _eMATCH_JOINT_COUNT_-1, deltaTime );
 
-            const float velocity_cost = utils::computeVelocityCost( desired_anim_velocity, pose.vel[0] ) * deltaTime;// *desired_anim_speed_inv;
-            
-            const float trajectory_position_cost = utils::computePositionCost( local_trajectory, pose_trajectory.pos, eNUM_TRAJECTORY_POINTS );
-            //float trajectory_direction_cost = utils::computeDirectionCost( local_trajectory_v, pose_trajectory.vel, eNUM_TRAJECTORY_POINTS - 1 );
-            //trajectory_direction_cost += utils::computeDirectionCost( local_trajectory_a, pose_trajectory.acc, eNUM_TRAJECTORY_POINTS - 2 );
-            //const float trajectory_direction_cost = 1.f - dot( normalizeSafe( local_trajectory_v[2] ), normalizeSafe( pose_trajectory.vel[2] ) ).getAsFloat();
+            const float velocity_cost = utils::computeVelocityCost( desired_anim_velocity, pose.vel[0] );// *desired_anim_speed_inv;
+            //const float trajectory_position_cost = utils::computePositionCost( local_trajectory, pose_trajectory_pos, eNUM_TRAJECTORY_POINTS );
+            const float trajectory_position_cost = utils::computeTrajectoryCost( local_trajectory, pose_trajectory.pos );
             const float trajectory_velocity_cost = utils::computeVelocityCost( local_trajectory_v, pose_trajectory.vel, eNUM_TRAJECTORY_POINTS - 1, deltaTime );
             const float trajectory_acceleration_cost = utils::computeVelocityCost( local_trajectory_a, pose_trajectory.acc, eNUM_TRAJECTORY_POINTS - 2, deltaTime*deltaTime );
 
-            //const float tmp = 1.f / (float)( eNUM_TRAJECTORY_POINTS - 1 );
-            //const Matrix3 pose_future_rotation = utils::computeBaseMatrix3( normalizeSafe( pose_trajectory.vel[2] ), pose_trajectory.acc[1] * tmp, Vector3::yAxis() );
-            //float future_rotation_cost = 0;
-            //future_rotation_cost += 1.f - dot( pose_future_rotation.getCol0(), desired_future_rotation.getCol0() ).getAsFloat();
-            //future_rotation_cost += 1.f - dot( pose_future_rotation.getCol1(), desired_future_rotation.getCol1() ).getAsFloat();
-            //future_rotation_cost += 1.f - dot( pose_future_rotation.getCol2(), desired_future_rotation.getCol2() ).getAsFloat();
-            
-            //const float loop_cost = ( !is_pose_clip_looped ) ? 1.f : 0.f;
+            const float clip_delta_time = 1.f / clip->sampleFrequency;
+            const float pose_phase = pose.params.clip_start_time / clip->duration;
+            float phase_cost = ::abs( pose_phase - (current_phase + current_delta_phase) );
 
             float cost = 0.f;
+            if( pose.params.clip_index == _state.clip_index[0] )
+                cost += phase_cost;
             cost += pose_position_cost;
             cost += pose_velocity_cost;
             
             cost += velocity_cost;
             cost += trajectory_position_cost;
-            //cost += trajectory_direction_cost;
-            cost += trajectory_velocity_cost;
-            cost += trajectory_acceleration_cost;
-            //cost += future_rotation_cost;
-            //cost += loop_cost;
-
+            //cost += trajectory_velocity_cost;
+            //cost += trajectory_acceleration_cost;
+            checkFloat( cost );
             if( change_cost > cost )
             {
                 change_cost = cost;
@@ -526,7 +582,7 @@ void Context::tick( const Input& input, float deltaTime )
 
         const Pose& winner_pose = _data.poses[change_index];
 
-        const bool winner_is_at_the_same_location = ( _state.clip_index[0] == winner_pose.params.clip_index );// && ::abs( _state.clip_eval_time[0] - winner_pose.params.clip_start_time ) < 0.2f;
+        const bool winner_is_at_the_same_location = ( _state.clip_index[0] == winner_pose.params.clip_index ) && ::abs( _state.clip_eval_time[0] - winner_pose.params.clip_start_time ) < 0.2f;
 
         _state.pose_index = change_index;
 
@@ -560,6 +616,8 @@ void Context::tick( const Input& input, float deltaTime )
         bxAnimExt::localJointsToWorldJoints( _state.joint_world, curr_local_joints, _data.skel, root );
         const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _data.skel->offsetParentIndices );
         utils::debugDrawJoints( _state.joint_world, parent_indices, num_joints, 0xffffffFF, 0.025f, 1.f );
+
+        bxGfxDebugDraw::addLine( _state.joint_world[0].position, _state.joint_world[0].position + input.raw_input, 0xFF00FF00, 1 );
     }
 }
 
@@ -770,6 +828,7 @@ void DynamicState::tick( const bxInput& sysInput, float deltaTime )
     //    time += dt;
     //}
     _last_delta_time = deltaTime;
+    _prev_input_force = input_force;
 }
 
 Matrix4 DynamicState::computeBaseMatrix( bool includeTilt ) const
@@ -805,6 +864,7 @@ void motionMatchingCollectInput( Input* input, const DynamicState& dstate )
     input->base_matrix = dstate.computeBaseMatrix( true );
     input->base_matrix_aligned = dstate.computeBaseMatrix( false );
     input->speed01 = dstate._speed01;
+    input->raw_input = dstate._prev_input_force;
 }
 
 }}////

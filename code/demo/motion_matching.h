@@ -92,6 +92,9 @@ struct State
     void* _memory_handle = nullptr;
     bxAnim_Joint* joint_world = nullptr;
 
+    Curve3D input_trajectory_curve;
+    Curve3D candidate_trajectory_curve;
+
     State();
 };
 
@@ -102,6 +105,7 @@ struct Input
     Matrix4 base_matrix_aligned;
     Vector3 velocity;
     Vector3 acceleration;
+    Vector3 raw_input;
     f32 speed01;
 };
 
