@@ -359,3 +359,183 @@ namespace bxGdi
     void backendShutdown( bxGdiDeviceBackend** dev );
    
 }///
+
+
+namespace bx{
+namespace gdi{
+
+    struct Resource
+    {
+        union
+        {
+            uptr id = 0;
+            ID3D11Resource*  resource;
+            ID3D11Texture1D* texture1D;
+            ID3D11Texture2D* texture2D;
+            ID3D11Texture3D* texture3D;
+            ID3D11Buffer*    buffer;
+        };
+    };
+
+    struct ResourceRO : Resource
+    {
+        ID3D11ShaderResourceView* viewSH = nullptr;
+    };
+    struct ResourceRW : ResourceRO
+    {
+        ID3D11UnorderedAccessView* viewUA = nullptr;
+    };
+
+    typedef bxGdiVertexStreamBlock VertexBufferDesc;
+
+    struct VertexBuffer : Resource
+    {
+        VertexBufferDesc desc = {};
+        u32 numElements = 0;
+    };
+    struct IndexBuffer : Resource
+    {
+        u32 dataType = 0;
+        u32 numElements = 0;
+    };
+
+    struct BufferRO : ResourceRO
+    {
+        u32 sizeInBytes;
+        bxGdiFormat format;
+    };
+    struct BufferRW : ResourceRW
+    {
+        u32 sizeInBytes;
+        bxGdiFormat format;
+    };
+
+    struct Texture : ResourceRO
+    {
+        i16 width = 0;
+        i16 height = 0;
+        i16 depth = 0;
+        bxGdiFormat format = {};
+    };
+
+    struct RenderTarget : Texture
+    {
+        ID3D11RenderTargetView* viewRT = nullptr;
+        ID3D11DepthStencilView* viewDS = nullptr;
+    };
+
+    struct Shader
+    {
+        union
+        {
+            uptr id;
+            struct
+            {
+                union
+                {
+                    ID3D11DeviceChild*      object;
+                    ID3D11VertexShader*     vertex;
+                    ID3D11PixelShader*      pixel;
+                    ID3D11ComputeShader*    compute;
+                };
+                void* inputSignature;
+            } dx;
+        };
+
+        i16 stage;
+        u16 vertexInputMask;
+
+        Shader()
+            : id( 0 )
+            , stage( -1 )
+            , vertexInputMask( 0 )
+        {}
+    };
+
+    union InputLayout
+    {
+        uptr id = 0;
+        ID3D11InputLayout* layout;
+    };
+    union BlendState
+    {
+        uptr id = 0;
+        ID3D11BlendState* state;
+    };
+    union DepthState
+    {
+        uptr id = 0;
+        ID3D11DepthStencilState* state;
+    };
+    union RasterState
+    {
+        uptr id = 0;
+        ID3D11RasterizerState* state;
+    };
+
+    union Sampler
+    {
+        uptr id = 0;
+        ID3D11SamplerState* state;
+    };
+
+    struct Rect
+    {
+        i32 left, top, right, bottom;
+
+        Rect() {}
+        Rect( int l, int t, int r, int b )
+            : left( l ), top( t ), right( r ), bottom( b )
+        {}
+    };
+
+void startupDX11();
+void shutdownDX11();
+
+namespace create
+{
+    VertexBuffer createVertexBuffer( const VertexBufferDesc& desc, u32 numElements, const void* data = 0 );
+    IndexBuffer  createIndexBuffer( int dataType, u32 numElements, const void* data = 0 );
+    BufferRO createConstantBuffer( u32 sizeInBytes );
+    BufferRW createBufferRW( int numElements, bxGdiFormat format, unsigned bindFlags, unsigned cpuAccessFlag, unsigned gpuAccessFlag );
+
+
+    Shader createShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdi::ShaderReflection* reflection = 0 );
+    Shader createShader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdi::ShaderReflection* reflection = 0 );
+
+    Texture createTexture( const void* dataBlob, size_t dataBlobSize ;
+    Texture createTexture1D( int w, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data ) = 0;
+    Texture createTexture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data ) = 0;
+    Texture createTexture2Ddepth( int w, int h, int mips, bxGdi::EDataType dataType, unsigned bindFlags ) = 0;
+    Texture createTexture3D() = 0;
+    Texture createTextureCube() = 0;
+    Sampler createSampler( const bxGdiSamplerDesc& desc ) = 0;
+
+    InputLayout createInputLayout( const bxGdiVertexStreamDesc* descs, int ndescs, bxGdiShader vertex_shader ) = 0;
+    InputLayout createInputLayout( const bxGdiVertexStreamBlock* blocks, int nblocks, bxGdiShader vertex_shader ) = 0;
+    BlendState  createBlendState( bxGdiHwStateDesc::Blend blend ) = 0;
+    DepthState  createDepthState( bxGdiHwStateDesc::Depth depth ) = 0;
+    RasterState createRasterState( bxGdiHwStateDesc::Raster raster ) = 0;
+
+
+}///
+
+namespace release
+{
+    void VertexBuffer( VertexBuffer* id ) = 0;
+    void IndexBuffer( bxGdiIndexBuffer* id ) = 0;
+    void InputLayout( bxGdiInputLayout * id ) = 0;
+    void Buffer( bxGdiBuffer* id ) = 0;
+    void Shader( bxGdiShader* id ) = 0;
+    void Texture( bxGdiTexture* id ) = 0;
+    void Sampler( bxGdiSampler* id ) = 0;
+    void BlendState( bxGdiBlendState  * id ) = 0;
+    void DepthState( bxGdiDepthState  * id ) = 0;
+    void RasterState( bxGdiRasterState * id ) = 0;
+}///
+
+namespace bind
+{}///
+
+}}///
+
