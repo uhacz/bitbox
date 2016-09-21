@@ -79,15 +79,25 @@ struct State
 {
     bxAnim_Context* anim_ctx = nullptr;
 
-    f32 _blend_duration = 0.f;
-    f32 _blend_time = 0.f;
+    enum { eMAX_CLIPS = 4, };
+    struct ClipInfo
+    {
+        u32 clip_index = UINT32_MAX;
+        f32 eval_time = 0.f;
+    };
+    struct BlendInfo
+    {
+        f32 duration = 0.f;
+        f32 time = 0.f;
+    };
 
-    enum { eMAX_CLIPS = 2, };
-    u32 clip_index[eMAX_CLIPS]; // = { UINT32_MAX };
-    f32 clip_eval_time[eMAX_CLIPS]; // = { 0.f };
+    ClipInfo clip_info[eMAX_CLIPS];
+    BlendInfo blend_info[eMAX_CLIPS - 1];
     u32 num_clips = 0;
+    
     f32 anim_delta_time_scaler = 1.f;
     u32 pose_index = UINT32_MAX;
+
 
     void* _memory_handle = nullptr;
     bxAnim_Joint* joint_world = nullptr;
@@ -155,7 +165,7 @@ struct Context
     void tick_playClip( u32 clipIndex, float startTime, float blendTime );
 
     bool currentSpeed( f32* value );
-
+    bool currentPose( Matrix4* pose );
     //-------------------------------------------------------------------
     void _DebugDrawPose( u32 poseIndex, u32 color, const Matrix4& base );
 };
@@ -167,6 +177,13 @@ namespace motion_matching{
 
 struct DynamicState
 {
+    struct Input
+    {
+        Matrix4 anim_pose = Matrix4::identity();
+        float anim_velocity = -1.f;
+        u32 data_valid = 0;
+    };
+
     Vector3 _acceleration{ 0.f };
     Vector3 _velocity{ 0.f };
     Vector3 _position{ 0.f };
@@ -185,7 +202,7 @@ struct DynamicState
     Vector3 _trajectory[eNUM_TRAJECTORY_POINTS];
 
     //////////////////////////////////////////////////////////////////////////
-    void tick( const bxInput& sysInput, float deltaTime );
+    void tick( const bxInput& sysInput, const Input& input, float deltaTime );
     Matrix4 computeBaseMatrix( bool includeTilt = false ) const;
     void debugDraw( u32 color );
 };

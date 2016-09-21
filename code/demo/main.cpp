@@ -213,18 +213,15 @@ public:
 
 
         {
-            dynamic_state.tick( win->input, deltaTime );
-            dynamic_state.debugDraw( 0xFF0000FF );
-            
-            bx::motion_matching::Input input = {};
-            bx::motion_matching::motionMatchingCollectInput( &input, dynamic_state );
-
-            mm.tick( input, deltaTime );
-
+            bx::motion_matching::DynamicState::Input dynamic_state_input = {};
             {
-                
+
                 const float spd01 = dynamic_state._speed01;
                 float anim_vel = bx::curve::evaluate_catmullrom( mm._data.velocity_curve, spd01 );
+                if( mm.currentPose( &dynamic_state_input.anim_pose ) && mm.currentSpeed( &dynamic_state_input.anim_velocity ) )
+                {
+                    dynamic_state_input.data_valid = 1;
+                }
                 //if( spd01 > 0.1f )
                 //{
                 //    float anim_vel1 = 0.f;
@@ -242,8 +239,14 @@ public:
                 //    dynamic_state._trajectory_integration_time = clip_duration;
                 //}
             }
+            
+            dynamic_state.tick( win->input, dynamic_state_input, deltaTime );
+            dynamic_state.debugDraw( 0xFF0000FF );
+            
+            bx::motion_matching::Input input = {};
+            bx::motion_matching::motionMatchingCollectInput( &input, dynamic_state );
 
-
+            mm.tick( input, deltaTime );
 
             if( ImGui::Begin( "MotionMatching" ) )
             {
