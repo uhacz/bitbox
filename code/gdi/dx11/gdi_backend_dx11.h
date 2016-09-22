@@ -217,3 +217,18 @@ namespace bxGdi
         return counter;
     }
 }//
+
+namespace bx{
+namespace gdi{
+
+struct CommandQueue
+{
+    IDXGISwapChain*		 _swapChain = nullptr;
+    ID3D11DeviceContext* _context = nullptr;
+
+    ID3D11RenderTargetView* _mainFramebuffer = nullptr;
+    u32 _mainFramebufferWidth = 0;
+    u32 _mainFramebufferHeight = 0;
+};
+
+}}///

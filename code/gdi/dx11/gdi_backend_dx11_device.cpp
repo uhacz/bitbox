@@ -1065,3 +1065,97 @@ namespace bxGdi
         return 0;
     }
 }///
+
+namespace bx{
+namespace gdi{
+ID3D11Device* g_device = nullptr;
+
+void startupDX11( CommandQueue** cmd, uptr hWnd, int winWidth, int winHeight, int fullScreen )
+{
+    DXGI_SWAP_CHAIN_DESC sd;
+    ZeroMemory( &sd, sizeof( sd ) );
+    sd.BufferCount = 1;
+    sd.BufferDesc.Width = winWidth;
+    sd.BufferDesc.Height = winHeight;
+    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    sd.BufferDesc.RefreshRate.Numerator = 60;
+    sd.BufferDesc.RefreshRate.Denominator = 1;
+    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    sd.OutputWindow = (HWND)hWnd;
+    sd.SampleDesc.Count = 1;
+    sd.SampleDesc.Quality = 0;
+    sd.Windowed = ( fullScreen ) ? FALSE : TRUE;
+    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    //sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+    UINT flags = 0;//D3D11_CREATE_DEVICE_SINGLETHREADED;
+#ifdef _DEBUG
+    flags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+    IDXGISwapChain* dx11SwapChain = 0;
+    ID3D11Device* dx11Dev = 0;
+    ID3D11DeviceContext* dx11Ctx = 0;
+
+
+    HRESULT hres = D3D11CreateDeviceAndSwapChain(
+        NULL,
+        D3D_DRIVER_TYPE_HARDWARE,
+        NULL,
+        flags,
+        NULL,
+        0,
+        D3D11_SDK_VERSION,
+        &sd,
+        &dx11SwapChain,
+        &dx11Dev,
+        NULL,
+        &dx11Ctx );
+
+    if( FAILED( hres ) )
+    {
+        SYS_NOT_IMPLEMENTED;
+    }
+
+    g_device = dx11Dev;
+
+    CommandQueue* cmd_queue = BX_NEW( bxDefaultAllocator(), CommandQueue );
+    cmd_queue->_context = dx11Ctx;
+    cmd_queue->_swapChain = dx11SwapChain;
+
+    ID3D11Texture2D* backBuffer = NULL;
+    hres = dx11SwapChain->GetBuffer( 0, __uuidof( ID3D11Texture2D ), (LPVOID*)&backBuffer );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    ID3D11RenderTargetView* viewRT = 0;
+    hres = dx11Dev->CreateRenderTargetView( backBuffer, NULL, &viewRT );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+    cmd_queue->_mainFramebuffer = viewRT;
+
+    D3D11_TEXTURE2D_DESC bbdesc;
+    backBuffer->GetDesc( &bbdesc );
+    cmd_queue->_mainFramebufferWidth = bbdesc.Width;
+    cmd_queue->_mainFramebufferHeight = bbdesc.Height;
+
+    backBuffer->Release();
+}
+void shutdownDX11( CommandQueue** cmd )
+{
+    CommandQueue* cmd_queue = cmd[0];
+
+    cmd_queue->_mainFramebuffer->Release();
+    cmd_queue->_context->Release();
+    cmd_queue->_swapChain->Release();
+    
+    BX_DELETE0( bxDefaultAllocator(), cmd[0] );
+    
+    g_device->Release();
+    g_device = nullptr;
+}
+
+namespace create
+{
+    
+}///
+
+}}///
