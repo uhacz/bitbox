@@ -46,7 +46,7 @@ struct BIT_ALIGNMENT_16 bxAnim_BlendBranch
 
 struct BIT_ALIGNMENT_16 bxAnim_BlendLeaf
 {
-	inline bxAnim_BlendLeaf( bxAnim_Clip* clip, f32 time )
+	inline bxAnim_BlendLeaf( const bxAnim_Clip* clip, f32 time )
 		: anim( (uptr)clip ), evalTime( time )
 	{}
 	inline bxAnim_BlendLeaf()

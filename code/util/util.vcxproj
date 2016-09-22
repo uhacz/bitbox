@@ -114,6 +114,7 @@
     <ClInclude Include="queue.h" />
     <ClInclude Include="random.h" />
     <ClInclude Include="range_splitter.h" />
+    <ClInclude Include="ring_buffer.h" />
     <ClInclude Include="signal_filter.h" />
     <ClInclude Include="string_util.h" />
     <ClInclude Include="tag.h" />
@@ -155,6 +156,7 @@
     <ClCompile Include="perlin_noise.cpp" />
     <ClCompile Include="poly\poly_shape.cpp" />
     <ClCompile Include="pool_allocator.cpp" />
+    <ClCompile Include="ring_buffer.cpp" />
     <ClCompile Include="string_util.cpp" />
     <ClCompile Include="tag.cpp" />
     <ClCompile Include="thread\mutex.cpp" />

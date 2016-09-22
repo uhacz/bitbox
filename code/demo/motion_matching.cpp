@@ -10,6 +10,486 @@
 #include "util/signal_filter.h"
 
 namespace bx{
+namespace anim{
+
+void CascadePlayer::prepare( const bxAnim_Skel* skel, bxAllocator* allcator /*= nullptr */ )
+{
+    _skel = skel;
+    _ctx = bxAnim::contextInit( *skel );
+
+}
+
+void CascadePlayer::unprepare( bxAllocator* allocator /*= nullptr */ )
+{
+    bxAnim::contextDeinit( &_ctx );
+    _skel = nullptr;
+}
+
+namespace
+{
+    static void makeLeaf( CascadePlayer::Node* node, const bxAnim_Clip* clip, float startTime, u64 userData )
+    {
+        *node = {};
+        node->clip = clip;
+        node->clip_eval_time = startTime;
+        node->clip_user_data = userData;
+    }
+    static void makeBranch( CascadePlayer::Node* node, u32 nextNodeIndex, float blendDuration )
+    {
+        node->next = nextNodeIndex;
+        node->blend_time = 0.f;
+        node->blend_duration = blendDuration;
+    }
+}
+
+bool CascadePlayer::play( const bxAnim_Clip* clip, float startTime, float blendDuration, u64 userData, bool replaceLastIfFull )
+{
+    u32 node_index = _AllocateNode();
+    if( node_index == UINT32_MAX )
+    {
+        if( replaceLastIfFull )
+        {
+            node_index = _root_node_index;
+            while( _nodes[node_index].next != UINT32_MAX )
+                node_index = _nodes[node_index].next;
+        }
+        else
+        {
+            bxLogError( "Cannot allocate node" );
+            return false;
+        }
+    }
+
+    if( _root_node_index == UINT32_MAX )
+    {
+        _root_node_index = node_index;
+        _nodes[node_index] = {};
+
+        Node& node = _nodes[node_index];
+        makeLeaf( &node, clip, startTime, userData );
+    }
+    else
+    {
+        u32 last_node = _root_node_index;
+        if( _nodes[last_node].next != UINT32_MAX )
+        {
+            last_node = _nodes[last_node].next;
+        }
+
+        if( last_node == node_index ) // when replaceLastIfFull == true and there is no space for new nodes
+        {
+            Node& node = _nodes[node_index];
+            makeLeaf( &node, clip, startTime, userData );
+        }
+        else
+        {
+            Node& prev_node = _nodes[last_node];
+            makeBranch( &prev_node, node_index, blendDuration );
+        
+            Node& node = _nodes[node_index];
+            makeLeaf( &node, clip, startTime, userData );
+        }
+    }
+    return true;
+}
+
+void CascadePlayer::tick( float deltaTime )
+{
+    if( _root_node_index == UINT32_MAX ) 
+    {
+        // no animations to play
+        return;
+    }
+
+    _Tick_processBlendTree();
+    _Tick_updateTime( deltaTime );    
+}
+
+bool CascadePlayer::userData( u64* dst, u32 depth )
+{
+    u32 index = _root_node_index;
+    while( index != UINT32_MAX )
+    {
+        const Node& node = _nodes[index];
+        
+        if( depth == 0 )
+        {
+            dst[0] = node.clip_user_data;
+            return true;
+        }
+        depth -= 1;
+        index = node.next;
+    }
+
+    return false;
+}
+
+void CascadePlayer::_Tick_processBlendTree()
+{
+    if( _nodes[_root_node_index].isLeaf() )
+    {
+        const Node& node = _nodes[_root_node_index];
+        bxAnim_BlendLeaf leaf( node.clip, node.clip_eval_time );
+
+        bxAnimExt::processBlendTree( _ctx,
+                                     0 | bxAnim::eBLEND_TREE_LEAF,
+                                     nullptr, 0,
+                                     &leaf, 1,
+                                     _skel );
+    }
+    else
+    {
+        bxAnim_BlendLeaf leaves[eMAX_NODES] = {};
+        bxAnim_BlendBranch branches[eMAX_NODES] = {};
+
+        u32 num_leaves = 0;
+        u32 num_branches = 0;
+
+        u32 node_index = _root_node_index;
+        while( node_index != UINT32_MAX )
+        {
+            SYS_ASSERT( num_leaves < eMAX_NODES );
+            SYS_ASSERT( num_branches < eMAX_NODES );
+
+            const Node& node = _nodes[node_index];
+
+            const u32 leaf_index = num_leaves++;
+            bxAnim_BlendLeaf* leaf = &leaves[leaf_index];
+            leaf[0] = bxAnim_BlendLeaf( node.clip, node.clip_eval_time );
+
+            if( node.isLeaf() )
+            {
+                SYS_ASSERT( node.next == UINT32_MAX );
+                SYS_ASSERT( num_branches > 0 );
+
+                const u32 last_branch = num_branches - 1;
+                bxAnim_BlendBranch* branch = &branches[last_branch];
+
+                branch->right = leaf_index | bxAnim::eBLEND_TREE_LEAF;
+            }
+            else
+            {
+                bxAnim_BlendBranch* last_branch = nullptr;
+                if( node_index != _root_node_index )
+                {
+                    const u32 last_branch_index = num_branches - 1;
+                    last_branch = &branches[last_branch_index];
+                    
+                }
+
+                const u32 branch_index = num_branches++;
+                if( last_branch )
+                {
+                    last_branch->right = branch_index | bxAnim::eBLEND_TREE_BRANCH;
+                }
+
+                const float blend_alpha = minOfPair( 1.f, node.blend_time / node.blend_duration );
+                bxAnim_BlendBranch* branch = &branches[branch_index];
+                branch[0] = bxAnim_BlendBranch( leaf_index | bxAnim::eBLEND_TREE_LEAF, 0, blend_alpha );
+            }
+
+            node_index = node.next;
+        }
+
+        bxAnimExt::processBlendTree( _ctx,
+                                     0 | bxAnim::eBLEND_TREE_BRANCH,
+                                     branches, num_branches,
+                                     leaves, num_leaves,
+                                     _skel );
+
+
+    }
+}
+
+namespace
+{
+    static inline void updateNodeClip( CascadePlayer::Node* node, float deltaTime )
+    {
+        node->clip_eval_time = ::fmodf( node->clip_eval_time + deltaTime, node->clip->duration );
+    }
+}
+
+void CascadePlayer::_Tick_updateTime( float deltaTime )
+{
+    
+    
+    
+    if( _root_node_index != UINT32_MAX && _nodes[_root_node_index].isLeaf() )
+    {
+        Node* node = &_nodes[_root_node_index];
+        updateNodeClip( node, deltaTime );
+    }
+    else
+    {
+        const u32 node_index = _root_node_index;
+        Node* node = &_nodes[node_index];
+        
+        const u32 next_node_index = node->next;
+        Node* next_node = &_nodes[next_node_index];
+
+        if( node->blend_time > node->blend_duration )
+        {
+            node[0] = *next_node;
+            next_node[0] = {};
+            updateNodeClip( node, deltaTime );
+        }
+        else
+        {
+            
+            if( next_node->isLeaf() )
+            {
+                const bxAnim_Clip* clipA = node->clip;
+                const bxAnim_Clip* clipB = next_node->clip;
+                
+                const float blend_alpha = minOfPair( 1.f, node->blend_time / node->blend_duration );
+                const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
+                const float delta_phase = deltaTime / clip_duration;
+                
+                float phaseA = node->clip_eval_time / clipA->duration; //::fmodf( ( ) + delta_phase, 1.f );
+                float phaseB = next_node->clip_eval_time / clipB->duration; //::fmodf( ( ) + delta_phase, 1.f );
+                phaseA = ::fmodf( phaseA + delta_phase, 1.f );
+                phaseB = ::fmodf( phaseB + delta_phase, 1.f );
+                
+                node->clip_eval_time = phaseA * clipA->duration;
+                next_node->clip_eval_time = phaseB * clipB->duration;
+            }
+            else
+            {
+                updateNodeClip( node, deltaTime );
+                //updateNodeClip( next_node, deltaTime );
+                
+                //u32 next_next_node_index = next_node->next;
+                //while( next_next_node_index != UINT32_MAX )
+                //{
+                //    Node* next_next_node = &_nodes[next_next_node_index];
+                //    updateNodeClip( next_next_node, deltaTime );
+
+                //    next_next_node_index = next_next_node->next;
+                //}
+            }
+
+            node->blend_time += deltaTime;
+        }
+
+        //while( node_index != UINT32_MAX )
+        //{
+        //    Node* node = &_nodes[node_index];
+
+        //    node->clip_eval_time = ::fmodf( node->clip_eval_time + deltaTime, node->clip->duration );
+        //    if( !node->isLeaf() )
+        //    {
+        //        if( node->blend_time > node->blend_duration )
+        //        {
+        //            Node* next_node = &_nodes[node->next];
+
+        //            node[0] = *next_node;
+        //            next_node[0] = {};
+
+        //            //node->clip_eval_time = ::fmodf( node->clip_eval_time + deltaTime, node->clip->duration );
+        //        }
+        //        else
+        //        {
+        //            node->blend_time += deltaTime;
+        //            //Node* next_node = &_nodes[node->next];
+        //            //if( next_node->isLeaf() )
+        //            //{
+        //            //    const bxAnim_Clip* clipA = node->clip;
+        //            //    const bxAnim_Clip* clipB = next_node->clip;
+        //            //    
+        //            //    const float blend_alpha = minOfPair( 1.f, node->blend_time / node->blend_duration );
+        //            //    const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
+        //            //    const float delta_phase = deltaTime / clip_duration;
+        //            //    
+        //            //    float phaseA = node->clip_eval_time / clipA->duration; //::fmodf( ( ) + delta_phase, 1.f );
+        //            //    float phaseB = next_node->clip_eval_time / clipB->duration; //::fmodf( ( ) + delta_phase, 1.f );
+        //            //    phaseA = ::fmodf( phaseA + delta_phase, 1.f );
+        //            //    phaseB = ::fmodf( phaseB + delta_phase, 1.f );
+        //            //    
+        //            //    node->clip_eval_time = phaseA * clipA->duration;
+        //            //    next_node->clip_eval_time = phaseB * clipB->duration;
+        //            //}
+        //            //else
+        //            //{
+        //            //    node->clip_eval_time = ::fmodf( node->clip_eval_time + deltaTime, node->clip->duration );
+        //            //}
+        //        }
+        //    }
+        //    node_index = node->next;
+        //}
+    }
+}
+
+u32 CascadePlayer::_AllocateNode()
+{
+    u32 index = UINT32_MAX;
+    for( u32 i = 0; i < eMAX_NODES; ++i )
+    {
+        if( _nodes[i].isEmpty() )
+        {
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+
+void SimplePlayer::prepare( const bxAnim_Skel* skel, bxAllocator* allcator /*= nullptr */ )
+{
+    _skel = skel;
+    _ctx = bxAnim::contextInit( *skel );
+}
+
+
+void SimplePlayer::unprepare( bxAllocator* allocator /*= nullptr */ )
+{
+    bxAnim::contextDeinit( &_ctx );
+    _skel = nullptr;
+}
+
+void SimplePlayer::play( const bxAnim_Clip* clip, float startTime, float blendTime, u64 userData )
+{
+    if( _num_clips == 2 )
+        return;
+
+    if( _num_clips == 0 )
+    {
+        Clip& c0 = _clips[0];
+        c0.clip = clip;
+        c0.eval_time = startTime;
+        c0.user_data = userData;
+        _num_clips = 1;
+    }
+    else
+    {
+        Clip& c1 = _clips[1];
+        c1.clip = clip;
+        c1.eval_time = startTime;
+        c1.user_data = userData;
+        _num_clips = 2;
+    }
+
+    _blend_time = 0.f;
+    _blend_duration = blendTime;
+
+}
+
+void SimplePlayer::tick( float deltaTime )
+{
+    _Tick_processBlendTree();
+    _Tick_updateTime( deltaTime );
+}
+
+void SimplePlayer::_Tick_processBlendTree()
+{
+    if( _num_clips == 0 )
+    {
+        return;
+    }
+    else if( _num_clips == 1 )
+    {
+        const Clip& c = _clips[0];
+
+        bxAnim_BlendLeaf leaf( c.clip, c.eval_time );
+        bxAnimExt::processBlendTree( _ctx,
+                                     0 | bxAnim::eBLEND_TREE_LEAF,
+                                     nullptr, 0,
+                                     &leaf, 1,
+                                     _skel );
+    }
+    else
+    {
+        const Clip& c0 = _clips[0];
+        const Clip& c1 = _clips[1];
+
+        bxAnim_BlendLeaf leaves[2] =
+        {
+            { c0.clip, c0.eval_time },
+            { c1.clip, c1.eval_time },
+        };
+
+        const float blend_alpha = minOfPair( 1.f, _blend_time / _blend_duration );
+        bxAnim_BlendBranch branch( 0 | bxAnim::eBLEND_TREE_LEAF, 1 | bxAnim::eBLEND_TREE_LEAF, blend_alpha );
+
+        bxAnimExt::processBlendTree( _ctx,
+                                     0 | bxAnim::eBLEND_TREE_BRANCH,
+                                     &branch, 1,
+                                     leaves, 2,
+                                     _skel );
+    }
+}
+
+void SimplePlayer::_Tick_updateTime( float deltaTime )
+{
+    if( _num_clips == 0 )
+    {
+ 
+    }
+    else if( _num_clips == 1 )
+    {
+        _clips[0].updateTime( deltaTime );
+    }
+    else
+    {
+        Clip& c0 = _clips[0];
+        Clip& c1 = _clips[1];
+        //c0.updateTime( deltaTime );
+        //c1.updateTime( deltaTime );
+
+        const bxAnim_Clip* clipA = c0.clip;
+        const bxAnim_Clip* clipB = c1.clip;
+
+        const float blend_alpha = minOfPair( 1.f, _blend_time / _blend_duration );
+        const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
+        const float delta_phase = deltaTime / clip_duration;
+
+        float phaseA = c0.phase();
+        float phaseB = c1.phase();
+        phaseA = ::fmodf( phaseA + delta_phase, 1.f );
+        phaseB = ::fmodf( phaseB + delta_phase, 1.f );
+
+        c0.eval_time = phaseA * clipA->duration;
+        c1.eval_time = phaseB * clipB->duration;
+
+        if( _blend_time > _blend_duration )
+        {
+            _clips[0] = _clips[1];
+            _clips[1] = {};
+            _num_clips = 1;
+        }
+        else
+        {
+            _blend_time += deltaTime;
+        }
+    }
+}
+
+bool SimplePlayer::userData( u64* dst, u32 depth )
+{
+    if( _num_clips == 0 )
+        return false;
+
+    dst[0] = _clips[0].user_data;
+    return true;
+}
+
+bool SimplePlayer::evalTime( f32* dst, u32 depth )
+{
+    if( _num_clips == 0 )
+    {
+        return false;
+    }
+
+    dst[0] = _clips[0].eval_time;
+    return true;
+}
+
+}}////
+
+
+namespace bx{
 namespace motion_matching{
 
 namespace utils
@@ -212,9 +692,9 @@ namespace utils
 
 State::State()
 {
-    memset( clip_index, 0xff, sizeof( clip_index ) );
-    memset( clip_eval_time, 0x00, sizeof( clip_eval_time ) );
-    memset( anim_blend, 0x00, sizeof( anim_blend ) );
+    //memset( clip_index, 0xff, sizeof( clip_index ) );
+    //memset( clip_eval_time, 0x00, sizeof( clip_eval_time ) );
+    //memset( anim_blend, 0x00, sizeof( anim_blend ) );
 }
 
 void poseAllocate( Pose* pose, u32 numJoints, bxAllocator* allocator )
@@ -289,8 +769,8 @@ void posePrepare( Pose* pose, const PosePrepareInfo& info )
         pose->vel[i] = ( v1 - v0 ) * clip->sampleFrequency;
     }
         
-    const float frameTime = ( info.is_loop ) ? (float)frameNo / clip->sampleFrequency : 0.f;
-    const float duration  = ( info.is_loop ) ? 1.f : clip->duration;
+    const float frameTime = 0.f; // ( info.is_loop ) ? (float)frameNo / clip->sampleFrequency : 0.f;
+    const float duration = clip->duration; // ( info.is_loop ) ? 1.f : clip->duration;
     computeClipTrajectory( &pose->trajectory, clip, frameTime, duration );
 }
 //-------------------------------------------------------------------
@@ -425,7 +905,7 @@ void Context::prepare( const ContextPrepareInfo& info )
     prepare_evaluateClips();
         
     stateAllocate( &_state, _data.skel->numJoints, _allocator );
-    _state.anim_ctx = bxAnim::contextInit( *_data.skel );
+    _anim_player.prepare( _data.skel, _allocator );
 
     curve::allocate( _state.input_trajectory_curve, eNUM_TRAJECTORY_POINTS );
     curve::allocate( _state.candidate_trajectory_curve, eNUM_TRAJECTORY_POINTS );
@@ -490,7 +970,8 @@ void Context::unprepare()
 {
     curve::deallocate( _state.candidate_trajectory_curve );
     curve::deallocate( _state.input_trajectory_curve );
-    bxAnim::contextDeinit( &_state.anim_ctx );
+
+    _anim_player.unprepare( _allocator );
 
     stateFree( &_state, _allocator );
 
@@ -539,12 +1020,13 @@ void Context::tick( const Input& input, float deltaTime )
     memset( curr_matching_pos, 0x00, sizeof( curr_matching_pos ) );
     memset( curr_matching_vel, 0x00, sizeof( curr_matching_vel ) );
     
-    if( _state.num_clips )
+    //if( _state.num_clips )
+    if( !_anim_player.empty() )
     {
         const Vector4 yplane = makePlane( Vector3::yAxis(), Vector3( 0.f ) );
         
         bxAnim_Joint* tmp_joints = _state.joint_world;
-        bxAnim_Joint* prev_local_joints = bxAnim::poseFromStack( _state.anim_ctx, 0 );
+        bxAnim_Joint* prev_local_joints = _anim_player.localJoints(); // bxAnim::poseFromStack( _state.anim_ctx, 0 );
         prev_local_joints[0].position = mulPerElem( prev_local_joints[0].position, Vector3( 0.f, 1.f, 0.f ) );
         
         bxAnimExt::localJointsToWorldJoints( tmp_joints, prev_local_joints, _data.skel, bxAnim_Joint::identity() );
@@ -571,8 +1053,9 @@ void Context::tick( const Input& input, float deltaTime )
         //_state.anim_delta_time_scaler = signalFilter_lowPass( anim_scaler, _state.anim_delta_time_scaler, 0.1f, deltaTime );
 
         const float anim_delta_time = deltaTime; // *_state.anim_delta_time_scaler;
-        tick_animations( anim_delta_time );
-        curr_local_joints = bxAnim::poseFromStack( _state.anim_ctx, 0 );
+        _anim_player.tick( anim_delta_time );
+        //tick_animations( anim_delta_time );
+        curr_local_joints = _anim_player.localJoints(); // ::poseFromStack( _state.anim_ctx, 0 );
         curr_local_joints[0].position = mulPerElem( curr_local_joints[0].position, Vector3( 0.f, 1.f, 0.f ) );
         bxAnimExt::localJointsToWorldJoints( tmp_joints, curr_local_joints, _data.skel, bxAnim_Joint::identity() );
         root_displacement_xz = projectVectorOnPlane( tmp_joints[0].position, yplane );
@@ -582,9 +1065,10 @@ void Context::tick( const Input& input, float deltaTime )
             i16 index = _data.match_joints_indices[i];
             const Vector3 pos = tmp_joints[index].position - root_displacement_xz;
             curr_matching_pos[i] = pos;
-            curr_matching_vel[i] = local_velocity + ( pos - prev_matching_pos[i] ) * delta_time_inv;
+            curr_matching_vel[i] = ( pos - prev_matching_pos[i] ) * delta_time_inv;
 
-            //bxGfxDebugDraw::addSphere( Vector4( curr_matching_pos[i], 0.01f ), 0xFF0000FF, 1 );
+            bxGfxDebugDraw::addSphere( Vector4( curr_matching_pos[i], 0.01f ), 0xFF0000FF, 1 );
+            bxGfxDebugDraw::addLine( pos, pos + curr_matching_vel[i], 0x0000FFFF, 1 );
 
         }
     }
@@ -592,17 +1076,20 @@ void Context::tick( const Input& input, float deltaTime )
         
     _debug.pose_indices.clear();
 
-    if( curr_local_joints && _state.num_clips == 1 )
+    if( curr_local_joints )
     {
         bxAnim_Joint* tmp_joints = _state.joint_world;
         float change_cost = FLT_MAX;
         u32 change_index = UINT32_MAX;
 
-        const bool is_current_anim_looped = _data.clip_infos[_state.clip_index[0]].is_loop == 1;
+        //const bool is_current_anim_looped = _data.clip_infos[_state.clip_index[0]].is_loop == 1;
 
-        bxAnim_Clip* current_clip = _data.clips[_state.clip_index[0]];
-        const float current_phase = ::fmodf( ( _state.clip_eval_time[0] ) / current_clip->duration, 1.f );
-        const float current_delta_phase = deltaTime / current_clip->duration;
+        //u64 root_clip_index = UINT64_MAX;
+        //bool root_stil_playing = _anim_player.userData( &root_clip_index, 0 );
+
+        //bxAnim_Clip* current_clip = _data.clips[_state.clip_index[0]];
+        //const float current_phase = ::fmodf( ( _state.clip_eval_time[0] ) / current_clip->duration, 1.f );
+        //const float current_delta_phase = deltaTime / current_clip->duration;
 
         for( size_t i = 0; i < _data.poses.size(); ++i )
         {
@@ -615,12 +1102,13 @@ void Context::tick( const Input& input, float deltaTime )
             const bool is_pose_clip_looped = clip_info.is_loop == 1;
 
             const ClipTrajectory& pose_trajectory = pose.trajectory; // .clip_trajectiories[pose.params.clip_index];
+            
             //Vector3 pose_trajectory_pos[eNUM_TRAJECTORY_POINTS];
             //utils::rebuildTrajectory( pose_trajectory_pos, pose_trajectory.pos, _state.candidate_trajectory_curve );
 
             const float pose_position_cost = utils::computePositionCost( pose.pos, curr_matching_pos, _eMATCH_JOINT_COUNT_ );
             const float pose_velocity_cost = utils::computeVelocityCost( pose.vel+1, curr_matching_vel+1, _eMATCH_JOINT_COUNT_-1, deltaTime );
-
+            
             const float velocity_cost = utils::computeVelocityCost( desired_anim_velocity, pose.vel[0] );// *desired_anim_speed_inv;
             //const float trajectory_position_cost = utils::computePositionCost( local_trajectory, pose_trajectory_pos, eNUM_TRAJECTORY_POINTS );
             const float trajectory_position_cost = utils::computeTrajectoryCost( local_trajectory, pose_trajectory.pos );
@@ -629,12 +1117,12 @@ void Context::tick( const Input& input, float deltaTime )
 
             float cost = 0.f;
             cost += pose_position_cost;
-            //cost += pose_velocity_cost;
+            cost += pose_velocity_cost;
             
             cost += velocity_cost;
             cost += trajectory_position_cost;
             cost += trajectory_velocity_cost;
-            //cost += trajectory_acceleration_cost;
+            cost += trajectory_acceleration_cost;
             checkFloat( cost );
 
             if( change_cost > cost )
@@ -647,32 +1135,50 @@ void Context::tick( const Input& input, float deltaTime )
 
         const Pose& winner_pose = _data.poses[change_index];
 
-        const bool winner_is_at_the_same_location = ( _state.clip_index[0] == winner_pose.params.clip_index ); // && ::abs( _state.clip_eval_time[0] - winner_pose.params.clip_start_time ) < 0.2f;
+        u64 current_clip_index = UINT64_MAX;
+        bool valid = _anim_player.userData( &current_clip_index, 0 );
+        SYS_ASSERT( valid );
+        
+        float curret_clip_time = 0.f;
+        valid = _anim_player.evalTime( &curret_clip_time, 0 );
+        SYS_ASSERT( valid );
+
+        const bool winner_is_at_the_same_location = ( (u32)current_clip_index == winner_pose.params.clip_index ) && ::abs( curret_clip_time - winner_pose.params.clip_start_time ) < 0.2f;
 
         _state.pose_index = change_index;
 
         if( !winner_is_at_the_same_location )
         {
-            tick_playClip( winner_pose.params.clip_index, winner_pose.params.clip_start_time, 0.25f );
+            bxAnim_Clip* clip = _data.clips[winner_pose.params.clip_index];
+            _anim_player.play( clip, winner_pose.params.clip_start_time, 0.25f, winner_pose.params.clip_index );
             _state.pose_index = change_index;
         }
 
 
-        {
-            const ClipTrajectory& pose_trajectory = winner_pose.trajectory;
-            for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
-            {
-                bxGfxDebugDraw::addSphere( Vector4( mulAsVec4( input.base_matrix, pose_trajectory.pos[i] ), 0.03f ), 0xffffffff, 1 );
-            }
-        }
+        //{
+        //    const ClipTrajectory& pose_trajectory = winner_pose.trajectory;
+        //    for( u32 i = 0; i < eNUM_TRAJECTORY_POINTS; ++i )
+        //    {
+        //        bxGfxDebugDraw::addSphere( Vector4( mulAsVec4( input.base_matrix, pose_trajectory.pos[i] ), 0.03f ), 0xffffffff, 1 );
+        //    }
+
+        //    for( u32 j = 0; j < _eMATCH_JOINT_COUNT_; ++j )
+        //    {
+        //        const Vector3 pos = winner_pose.pos[j];
+        //        const Vector3 vel = winner_pose.vel[j];
+        //        bxGfxDebugDraw::addSphere( Vector4( pos, 0.02f ), 0x00FF00FF, 1 );
+        //        bxGfxDebugDraw::addLine( pos, pos + vel, 0x00FFFFFF, 1 );
+        //    }
+        //}
     }
-    else if( _state.num_clips == 0 )
+    else if( _anim_player.empty() )
     {
         const u32 change_index = 0;
         const Pose& winner_pose = _data.poses[change_index];
-        tick_playClip( winner_pose.params.clip_index, winner_pose.params.clip_start_time, 0.25f );
+        bxAnim_Clip* clip = _data.clips[winner_pose.params.clip_index];
+        _anim_player.play( clip, winner_pose.params.clip_start_time, 0.25f, winner_pose.params.clip_index );
+        _anim_player.tick( deltaTime );
         _state.pose_index = change_index;
-        tick_animations( deltaTime );
     }
 
     if( curr_local_joints )
@@ -700,165 +1206,6 @@ void Context::tick( const Input& input, float deltaTime )
     }
 }
 
-void Context::tick_animations( float deltaTime )
-{
-    if( !_state.num_clips )
-        return;
-    
-    if( _state.num_clips == 1 )
-    {
-        const State::ClipInfo& clip_info_0 = _state.clip_info[0];
-        const State::BlendInfo& blend_info = _state.blend_info[0];
-
-        bxAnim_Clip* clipA = _data.clips[clip_info_0.clip_index];
-        const float eval_timeA = clip_info_0.eval_time;
-
-        bxAnim_BlendLeaf leaf( clipA, eval_timeA );
-        bxAnimExt::processBlendTree( _state.anim_ctx, 0 | bxAnim::eBLEND_TREE_LEAF, nullptr, 0, &leaf, 1, _data.skel );
-
-        _state.clip_info[0].eval_time = ::fmodf( eval_timeA + deltaTime, clipA->duration );
-    }
-    else
-    {
-        bxAnim_BlendLeaf leaves[State::eMAX_CLIPS] = {};
-        bxAnim_BlendBranch branches[State::eMAX_CLIPS - 1] = {};
-        
-        for( u32 iclip = 0; iclip < _state.num_clips - 1; ++iclip )
-        {
-            State::ClipInfo& clip_info_0 = _state.clip_info[iclip];
-            State::ClipInfo& clip_info_1 = _state.clip_info[iclip + 1];
-
-            bxAnim_Clip* clipA = _data.clips[clip_info_0.clip_index];
-            bxAnim_Clip* clipB = _data.clips[clip_info_1.clip_index];
-
-            const float eval_timeA = clip_info_0.eval_time;
-            const float eval_timeB = clip_info_1.eval_time;
-
-            State::BlendInfo& blend_info = _state.blend_info[iclip];
-            const float blend_alpha = minOfPair( 1.f, blend_info.time / blend_info.duration );
-
-            bxAnim_BlendLeaf* leaf0 = &leaves[iclip];
-            bxAnim_BlendBranch* branch = &branches[iclip];
-
-            leaf0[0] = bxAnim_BlendLeaf( clipA, eval_timeA );
-
-            const bool last_branch = iclip >= _state.num_clips - 2;
-
-            //if( iclip < _state.num_clips - 2 )
-            if( !last_branch )
-            {
-                branch[0] = bxAnim_BlendBranch( iclip | bxAnim::eBLEND_TREE_LEAF, iclip | bxAnim::eBLEND_TREE_BRANCH, blend_alpha );
-            }
-            else
-            {
-                bxAnim_BlendLeaf* leaf1 = &leaves[iclip+1];
-                leaf1[0] = bxAnim_BlendLeaf( clipB, eval_timeB );
-
-                branch[0] = bxAnim_BlendBranch( iclip | bxAnim::eBLEND_TREE_LEAF, iclip + 1 | bxAnim::eBLEND_TREE_LEAF, blend_alpha );
-            }
-
-            blend_info.time += deltaTime;
-            if( !last_branch )
-            {
-                clip_info_0.eval_time = ::fmodf( clip_info_0.eval_time + deltaTime, clipA->duration );
-            }
-            else
-            {
-                const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
-                const float delta_phase = deltaTime / clip_duration;
-
-                float phaseA = eval_timeA / clipA->duration; //::fmodf( ( ) + delta_phase, 1.f );
-                float phaseB = eval_timeB / clipB->duration; //::fmodf( ( ) + delta_phase, 1.f );
-                phaseA = ::fmodf( phaseA + delta_phase, 1.f );
-                phaseB = ::fmodf( phaseB + delta_phase, 1.f );
-
-                clip_info_0.eval_time[0] = phaseA * clipA->duration;
-                clip_info_1.eval_time[1] = phaseB * clipB->duration;
-            }
-        }
-
-        //const float blend_alpha = minOfPair( 1.f, _state._blend_time / _state._blend_duration );
-        //bxAnim_Clip* clipA = _data.clips[_state.clip_index[0]];
-        //const float eval_timeA = _state.clip_eval_time[0];
-
-        //bxAnim_Clip* clipB = _data.clips[_state.clip_index[1]];
-        //const float eval_timeB = _state.clip_eval_time[1];
-
-        //bxAnim_BlendLeaf leaves[2] =
-        //{
-        //    bxAnim_BlendLeaf( clipA, eval_timeA ),
-        //    bxAnim_BlendLeaf( clipB, eval_timeB ),
-        //};
-
-
-        //bxAnim_BlendBranch branch(
-        //    0 | bxAnim::eBLEND_TREE_LEAF,
-        //    1 | bxAnim::eBLEND_TREE_LEAF,
-        //    blend_alpha
-        //    );
-        bxAnimExt::processBlendTree( _state.anim_ctx, 0 | bxAnim::eBLEND_TREE_BRANCH,
-                                     branches, _state.num_clips-1, leaves, _state.num_clips,
-                                     _data.skel );
-
-        //for( u32 iblend = 0; iblend < _state.num_clips - 1; )
-        //{
-        //    const State::BlendInfo& blend_info = _state.blend_info[iblend];
-        //    if( blend_info.time > blend_info.duration )
-        //    {
-        //        
-        //    }
-        //}
-
-        //if( _state._blend_time > _state._blend_duration )
-        //{
-        //    _state.clip_index[0] = _state.clip_index[1];
-        //    _state.clip_eval_time[0] = _state.clip_eval_time[1];
-        //    _state.num_clips = 1;
-        //}
-        //else
-        //{
-        //    _state._blend_time += deltaTime;
-        //    const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
-        //    const float delta_phase = deltaTime / clip_duration;
-
-        //    float phaseA = eval_timeA / clipA->duration; //::fmodf( ( ) + delta_phase, 1.f );
-        //    float phaseB = eval_timeB / clipB->duration; //::fmodf( ( ) + delta_phase, 1.f );
-        //    phaseA = ::fmodf( phaseA + delta_phase, 1.f );
-        //    phaseB = ::fmodf( phaseB + delta_phase, 1.f );
-
-        //    _state.clip_eval_time[0] = phaseA * clipA->duration;
-        //    _state.clip_eval_time[1] = phaseB * clipB->duration;
-        //}
-    }
-}
-
-void Context::tick_playClip( u32 clipIndex, float startTime, float blendTime )
-{
-    if( _state.num_clips == 0 )
-    {
-        State::ClipInfo& cinfo = _state.clip_info[0];
-        cinfo.clip_index = clipIndex;
-        cinfo.eval_time = startTime;
-        _state.num_clips = 1;
-    }
-    else
-    {
-        if( _state.num_clips < State::eMAX_CLIPS )
-        {
-            u32 index = _state.num_clips++;
-            State::ClipInfo& cinfo = _state.clip_info[index];
-            cinfo.clip_index = clipIndex;
-            cinfo.eval_time = startTime;
-            //_state.num_clips = 2;
-            
-            SYS_ASSERT( index > 0 );
-            State::BlendInfo& blend = _state.blend_info[index - 1];
-            blend.duration = blendTime;
-            blend.time = 0.f;
-        }
-    }
-}
-
 bool Context::currentSpeed( f32* value )
 {
     if( _state.pose_index == UINT32_MAX )
@@ -874,7 +1221,7 @@ bool Context::currentSpeed( f32* value )
 
 bool Context::currentPose( Matrix4* pose )
 {
-    if( _state.num_clips == 0 )
+    if( _anim_player.empty() )
         return false;
 
     pose[0] = Matrix4( _state.joint_world[0].rotation, _state.joint_world[0].position );
@@ -921,6 +1268,8 @@ void Context::_DebugDrawPose( u32 poseIndex, u32 color, const Matrix4& base )
 
 }
 }}///
+
+
 
 
 namespace bx{

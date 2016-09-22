@@ -261,9 +261,17 @@ public:
                 ImGui::SliderFloat( "current velocity", &dynamic_state._speed01, 0.f, 1.f );
                 ImGui::SliderFloat( "max velocity", &dynamic_state._max_speed, 0.f, 1.f );
 
-                if( mm._state.num_clips )
+                if( mm._anim_player._num_clips )
                 {
-                    ImGui::Text( "current clip: %s", mm._data.clip_infos[mm._state.clip_index[0]].name.c_str() );
+                    u64 clip_index = UINT64_MAX;
+                    if( mm._anim_player.userData( &clip_index, 0 ) )
+                    {
+                        ImGui::Text( "current clip: %s", mm._data.clip_infos[clip_index].name.c_str() );
+                        
+                        const bx::anim::SimplePlayer::Clip& c = mm._anim_player._clips[0];
+                        float eval_time = c.eval_time;
+                        ImGui::SliderFloat( "current clip time", &eval_time, 0.f, c.clip->duration );
+                    }
                 }
 
                 if( ImGui::CollapsingHeader( "Poses" ) )
