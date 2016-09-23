@@ -21,12 +21,14 @@ namespace bx
     struct GraphSceneScriptCallback;
     struct Engine
     {
+        bxResourceManager*    resource_manager = nullptr;
+
         bxGdiDeviceBackend*   gdi_device = nullptr;
         bxGdiContext*         gdi_context = nullptr;
-        bxResourceManager*    resource_manager = nullptr;
-        CameraManager*        camera_manager = nullptr;
 
+        CameraManager*        camera_manager = nullptr;
         GfxContext*       gfx_context = nullptr;
+
         PhxContext*       phx_context = nullptr;
         
         //// tool for profiling
@@ -40,6 +42,10 @@ namespace bx
         struct StartupInfo
         {
             const char* cfg_filename = nullptr;
+            bool start_gdi = true;
+            bool start_gfx = true;
+            bool start_physics = true;
+            bool start_graph = true;
         };
         static void startup( Engine* e, const StartupInfo& info );
         static void shutdown( Engine* e );

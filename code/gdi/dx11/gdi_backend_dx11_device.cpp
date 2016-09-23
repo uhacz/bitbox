@@ -1069,8 +1069,9 @@ namespace bxGdi
 namespace bx{
 namespace gdi{
 ID3D11Device* g_device = nullptr;
+CommandQueue* g_cmd_queue = nullptr;
 
-void startupDX11( CommandQueue** cmd, uptr hWnd, int winWidth, int winHeight, int fullScreen )
+void startupDX11( uptr hWnd, int winWidth, int winHeight, int fullScreen )
 {
     DXGI_SWAP_CHAIN_DESC sd;
     ZeroMemory( &sd, sizeof( sd ) );
@@ -1120,6 +1121,8 @@ void startupDX11( CommandQueue** cmd, uptr hWnd, int winWidth, int winHeight, in
     g_device = dx11Dev;
 
     CommandQueue* cmd_queue = BX_NEW( bxDefaultAllocator(), CommandQueue );
+    g_cmd_queue = cmd_queue;
+
     cmd_queue->_context = dx11Ctx;
     cmd_queue->_swapChain = dx11SwapChain;
 
@@ -1139,23 +1142,584 @@ void startupDX11( CommandQueue** cmd, uptr hWnd, int winWidth, int winHeight, in
 
     backBuffer->Release();
 }
-void shutdownDX11( CommandQueue** cmd )
+void shutdownDX11()
 {
-    CommandQueue* cmd_queue = cmd[0];
-
-    cmd_queue->_mainFramebuffer->Release();
-    cmd_queue->_context->Release();
-    cmd_queue->_swapChain->Release();
+    g_cmd_queue->_mainFramebuffer->Release();
+    g_cmd_queue->_context->Release();
+    g_cmd_queue->_swapChain->Release();
     
-    BX_DELETE0( bxDefaultAllocator(), cmd[0] );
+    BX_DELETE0( bxDefaultAllocator(), g_cmd_queue );
     
     g_device->Release();
     g_device = nullptr;
 }
 
+namespace frame
+{
+    void begin( CommandQueue** cmdQueue )
+    {
+        cmdQueue[0] = g_cmd_queue;
+    }
+    void end( CommandQueue** cmdQueue )
+    {
+        SYS_ASSERT( cmdQueue[0] == g_cmd_queue );
+        cmdQueue[0] = nullptr;
+    }
+}////
+
 namespace create
 {
-    
+
+VertexBuffer vertexBuffer( const VertexBufferDesc& desc, u32 numElements, const void* data )
+{
+    const u32 stride = bxGdi::blockStride( desc );
+    //const u32 num_descs = desc.count;
+
+    D3D11_BUFFER_DESC bdesc;
+    memset( &bdesc, 0, sizeof( bdesc ) );
+    bdesc.ByteWidth = numElements * stride;
+    bdesc.Usage = ( data ) ? D3D11_USAGE_IMMUTABLE : D3D11_USAGE_DYNAMIC;
+    bdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    bdesc.CPUAccessFlags = ( data ) ? 0 : D3D11_CPU_ACCESS_WRITE;
+
+    D3D11_SUBRESOURCE_DATA resource_data;
+    resource_data.pSysMem = data;
+    resource_data.SysMemPitch = 0;
+    resource_data.SysMemSlicePitch = 0;
+
+    D3D11_SUBRESOURCE_DATA* resource_data_pointer = ( data ) ? &resource_data : 0;
+
+    ID3D11Buffer* buffer = 0;
+    HRESULT hres = g_device->CreateBuffer( &bdesc, resource_data_pointer, &buffer );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    VertexBuffer vBuffer;
+    vBuffer.buffer = buffer;
+    vBuffer.numElements = numElements;
+    vBuffer.desc = desc;
+    return vBuffer;
+}
+IndexBuffer  indexBuffer( int dataType, u32 numElements, const void* data )
+{
+    const DXGI_FORMAT d11_data_type = bxGdi::to_DXGI_FORMAT( dataType, 1 );
+    const u32 stride = bxGdi::typeStride[dataType];
+    const u32 sizeInBytes = numElements * stride;
+
+    D3D11_BUFFER_DESC bdesc;
+    memset( &bdesc, 0, sizeof( bdesc ) );
+    bdesc.ByteWidth = sizeInBytes;
+    bdesc.Usage = ( data ) ? D3D11_USAGE_IMMUTABLE : D3D11_USAGE_DYNAMIC;
+    bdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    bdesc.CPUAccessFlags = ( data ) ? 0 : D3D11_CPU_ACCESS_WRITE;
+
+    D3D11_SUBRESOURCE_DATA resourceData;
+    resourceData.pSysMem = data;
+    resourceData.SysMemPitch = 0;
+    resourceData.SysMemSlicePitch = 0;
+
+    D3D11_SUBRESOURCE_DATA* resourceDataPointer = ( data ) ? &resourceData : 0;
+
+    ID3D11Buffer* buffer = 0;
+    HRESULT hres = g_device->CreateBuffer( &bdesc, resourceDataPointer, &buffer );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    IndexBuffer iBuffer;
+    iBuffer.buffer = buffer;
+    iBuffer.dataType = dataType;
+    iBuffer.numElements = numElements;
+
+    return iBuffer;
+}
+ConstantBuffer constantBuffer( u32 sizeInBytes )
+{
+    D3D11_BUFFER_DESC bdesc;
+    memset( &bdesc, 0, sizeof( bdesc ) );
+    bdesc.ByteWidth = TYPE_ALIGN( sizeInBytes, 16 );
+    bdesc.Usage = D3D11_USAGE_DEFAULT;
+    bdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    bdesc.CPUAccessFlags = 0;
+
+    ID3D11Buffer* buffer = 0;
+    HRESULT hres = g_device->CreateBuffer( &bdesc, 0, &buffer );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    ConstantBuffer b;
+    b.buffer = buffer;
+    b.size_in_bytes = sizeInBytes;
+    return b;
+}
+BufferRO bufferRO( int numElements, bxGdiFormat format, unsigned cpuAccessFlag, unsigned gpuAccessFlag )
+{
+    const u32 dxBindFlags = D3D11_BIND_SHADER_RESOURCE;
+    const u32 dxCpuAccessFlag = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuAccessFlag );
+
+    D3D11_USAGE dxUsage = D3D11_USAGE_DEFAULT;
+    if( gpuAccessFlag == bxGdi::eGPU_READ && ( cpuAccessFlag & bxGdi::eCPU_WRITE ) )
+    {
+        dxUsage = D3D11_USAGE_DYNAMIC;
+    }
+
+    const u32 formatByteWidth = bxGdi::formatByteWidth( format );
+    D3D11_BUFFER_DESC bdesc;
+    memset( &bdesc, 0, sizeof( bdesc ) );
+    bdesc.ByteWidth = numElements * formatByteWidth;
+    bdesc.Usage = dxUsage;
+    bdesc.BindFlags = dxBindFlags;
+    bdesc.CPUAccessFlags = dxCpuAccessFlag;
+
+    ID3D11Buffer* buffer = 0;
+    HRESULT hres = g_device->CreateBuffer( &bdesc, 0, &buffer );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    ID3D11ShaderResourceView* viewSH = 0;
+
+    //if( dxBindFlags & D3D11_BIND_SHADER_RESOURCE )
+    {
+        const DXGI_FORMAT dxFormat = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
+        const int formatByteWidth = bxGdi::formatByteWidth( format );
+        SYS_ASSERT( formatByteWidth > 0 );
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+        memset( &srvdesc, 0, sizeof( srvdesc ) );
+        srvdesc.Format = dxFormat;
+        srvdesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
+        srvdesc.BufferEx.FirstElement = 0;
+        srvdesc.BufferEx.NumElements = numElements;
+        srvdesc.BufferEx.Flags = 0;
+        hres = g_device->CreateShaderResourceView( buffer, &srvdesc, &viewSH );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    BufferRO b;
+    b.buffer = buffer;
+    b.viewSH = viewSH;
+    b.sizeInBytes = bdesc.ByteWidth;
+    b.format = format;
+    return b;
+}
+
+Shader shader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdi::ShaderReflection* reflection )
+{
+    SYS_ASSERT( stage < bxGdi::eSTAGE_COUNT );
+    const char* shaderModel[bxGdi::eSTAGE_COUNT] =
+    {
+        "vs_4_0",
+        "ps_4_0",
+        //"gs_4_0",
+        //"hs_5_0",
+        //"ds_5_0",
+        "cs_5_0"
+    };
+
+    D3D_SHADER_MACRO* ptr_macro_defs = 0;
+    D3D_SHADER_MACRO macro_defs_array[bxGdi::cMAX_SHADER_MACRO + 1];
+    memset( macro_defs_array, 0, sizeof( macro_defs_array ) );
+
+    if( shaderMacro )
+    {
+        const int n_macro = bxGdi::to_D3D_SHADER_MACRO_array( macro_defs_array, bxGdi::cMAX_SHADER_MACRO + 1, shaderMacro );
+        ptr_macro_defs = macro_defs_array;
+    }
+
+    ID3DBlob* code_blob = 0;
+    ID3DBlob* error_blob = 0;
+    HRESULT hr = D3DCompile(
+        shaderSource,
+        strlen( shaderSource ),
+        0,
+        ptr_macro_defs,
+        0,
+        entryPoint,
+        shaderModel[stage],
+        0,
+        0,
+        &code_blob,
+        &error_blob
+        );
+
+    if( !SUCCEEDED( hr ) )
+    {
+        const char* error_string = (const char*)error_blob->GetBufferPointer();
+
+        bxLogError( "Compile shader error:\n%s", error_string );
+        error_blob->Release();
+        SYS_ASSERT( false && "Shader compiler failed" );
+    }
+
+    Shader sh = create::shader( stage, code_blob->GetBufferPointer(), code_blob->GetBufferSize(), reflection );
+    code_blob->Release();
+
+    return sh;
+}
+Shader shader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdi::ShaderReflection* reflection )
+{
+    Shader sh = {};
+
+    ID3DBlob* inputSignature = 0;
+
+    HRESULT hres;
+    switch( stage )
+    {
+    case bxGdi::eSTAGE_VERTEX:
+        hres = g_device->CreateVertexShader( codeBlob, codeBlobSizee, 0, &sh.vertex );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+        hres = D3DGetInputSignatureBlob( codeBlob, codeBlobSizee, &inputSignature );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+        break;
+    case bxGdi::eSTAGE_PIXEL:
+        hres = g_device->CreatePixelShader( codeBlob, codeBlobSizee, 0, &sh.pixel );
+        break;
+    case bxGdi::eSTAGE_COMPUTE:
+        hres = g_device->CreateComputeShader( codeBlob, codeBlobSizee, 0, &sh.compute );
+        break;
+    default:
+        SYS_NOT_IMPLEMENTED;
+        break;
+    }
+
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    if( reflection )
+    {
+        bxGdi::_FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
+        if( stage == bxGdi::eSTAGE_VERTEX )
+        {
+            sh.vertexInputMask = reflection->input_mask;
+        }
+    }
+
+    sh.inputSignature = (void*)inputSignature;
+    sh.stage = stage;
+
+    return sh;
+}
+TextureRO texture( const void* dataBlob, size_t dataBlobSize )
+{
+    ID3D11Resource* resource = 0;
+    ID3D11ShaderResourceView* srv = 0;
+    //HRESULT hres = D3DX11CreateTextureFromMemory( device::get(dev), data_blob, data_blob_size, 0, 0, &resource, 0 );
+
+    HRESULT hres = DirectX::CreateDDSTextureFromMemory( g_device, (const u8*)dataBlob, dataBlobSize, &resource, &srv );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    ID3D11Texture2D* tex2D = (ID3D11Texture2D*)resource;
+    D3D11_TEXTURE2D_DESC desc = {};
+    tex2D->GetDesc( &desc );
+
+    TextureRO tex;
+
+    tex.resource = resource;
+    tex.viewSH = srv;
+
+    tex.width = (u16)desc.Width;
+    tex.height = (u16)desc.Height;
+    tex.depth = 0;
+    return tex;
+}
+TextureRW texture1D( int w, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
+{
+    const DXGI_FORMAT dx_format = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
+    const u32 dx_bind_flags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
+    const u32 dx_cpua_flags = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
+
+    D3D11_TEXTURE1D_DESC desc;
+    memset( &desc, 0, sizeof( desc ) );
+    desc.Width = w;
+    desc.MipLevels = mips;
+    desc.ArraySize = 1;
+    desc.Format = dx_format;
+
+    //desc.SampleDesc.Count = 1;
+    //desc.SampleDesc.Quality = 0;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = dx_bind_flags;
+    desc.CPUAccessFlags = dx_cpua_flags;
+
+    if( desc.MipLevels > 1 )
+    {
+        desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+    }
+    D3D11_SUBRESOURCE_DATA* subResourcePtr = 0;
+    D3D11_SUBRESOURCE_DATA subResource;
+    memset( &subResource, 0, sizeof( D3D11_SUBRESOURCE_DATA ) );
+    if( data )
+    {
+        subResource.pSysMem = data;
+        subResource.SysMemPitch = w * bxGdi::formatByteWidth( format );
+        subResource.SysMemSlicePitch = 0;
+        subResourcePtr = &subResource;
+    }
+
+    ID3D11Texture1D* tex1D = 0;
+    HRESULT hres = g_device->CreateTexture1D( &desc, subResourcePtr, &tex1D );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    ID3D11ShaderResourceView* view_sh = 0;
+    ID3D11RenderTargetView* view_rt = 0;
+    ID3D11UnorderedAccessView* view_ua = 0;
+
+    ID3D11RenderTargetView** rtv_mips = 0;
+
+    if( dx_bind_flags & D3D11_BIND_SHADER_RESOURCE )
+    {
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+        memset( &srvdesc, 0, sizeof( srvdesc ) );
+        srvdesc.Format = dx_format;
+        srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
+        srvdesc.Texture1D.MostDetailedMip = 0;
+        srvdesc.Texture1D.MipLevels = desc.MipLevels;
+        hres = g_device->CreateShaderResourceView( tex1D, &srvdesc, &view_sh );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    if( dx_bind_flags & D3D11_BIND_RENDER_TARGET )
+    {
+        D3D11_RENDER_TARGET_VIEW_DESC rtvdesc;
+        memset( &rtvdesc, 0, sizeof( rtvdesc ) );
+        rtvdesc.Format = dx_format;
+        rtvdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1D;
+        rtvdesc.Texture1D.MipSlice = 0;
+        hres = g_device->CreateRenderTargetView( tex1D, &rtvdesc, &view_rt );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    if( dx_bind_flags & D3D11_BIND_DEPTH_STENCIL )
+    {
+        bxLogError( "Depth stencil binding is not supported without depth texture format" );
+    }
+
+    if( dx_bind_flags & D3D11_BIND_UNORDERED_ACCESS )
+    {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uavdesc;
+        memset( &uavdesc, 0, sizeof( uavdesc ) );
+        uavdesc.Format = dx_format;
+        uavdesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+        uavdesc.Texture1D.MipSlice = 0;
+        hres = g_device->CreateUnorderedAccessView( tex1D, &uavdesc, &view_ua );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    TextureRW tex;
+    tex.texture1D = tex1D;
+    tex.viewSH = view_sh;
+    tex.viewUA = view_ua;
+    tex.viewRT = view_rt;
+    tex.width = w;
+    tex.height = 0;
+    tex.depth = 0;
+    tex.format = format;
+    return tex;
+}
+TextureRW texture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
+{
+    const DXGI_FORMAT dx_format = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
+    const u32 dx_bind_flags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
+    const u32 dx_cpua_flags = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
+
+    D3D11_TEXTURE2D_DESC desc;
+    memset( &desc, 0, sizeof( desc ) );
+    desc.Width = w;
+    desc.Height = h;
+    desc.MipLevels = mips;
+    desc.ArraySize = 1;
+    desc.Format = dx_format;
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = dx_bind_flags;
+    desc.CPUAccessFlags = dx_cpua_flags;
+
+    if( desc.MipLevels > 1 )
+    {
+        desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+    }
+
+    D3D11_SUBRESOURCE_DATA* subResourcePtr = 0;
+    D3D11_SUBRESOURCE_DATA subResource;
+    memset( &subResource, 0, sizeof( D3D11_SUBRESOURCE_DATA ) );
+    if( data )
+    {
+        subResource.pSysMem = data;
+        subResource.SysMemPitch = w * bxGdi::formatByteWidth( format );
+        subResource.SysMemSlicePitch = 0;
+        subResourcePtr = &subResource;
+    }
+
+    ID3D11Texture2D* tex2D = 0;
+    HRESULT hres = g_device->CreateTexture2D( &desc, subResourcePtr, &tex2D );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    ID3D11ShaderResourceView* view_sh = 0;
+    ID3D11RenderTargetView* view_rt = 0;
+    ID3D11UnorderedAccessView* view_ua = 0;
+
+    ID3D11RenderTargetView** rtv_mips = 0;
+
+    if( dx_bind_flags & D3D11_BIND_SHADER_RESOURCE )
+    {
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+        memset( &srvdesc, 0, sizeof( srvdesc ) );
+        srvdesc.Format = dx_format;
+        srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvdesc.Texture2D.MostDetailedMip = 0;
+        srvdesc.Texture2D.MipLevels = desc.MipLevels;
+        hres = g_device->CreateShaderResourceView( tex2D, &srvdesc, &view_sh );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    if( dx_bind_flags & D3D11_BIND_RENDER_TARGET )
+    {
+        D3D11_RENDER_TARGET_VIEW_DESC rtvdesc;
+        memset( &rtvdesc, 0, sizeof( rtvdesc ) );
+        rtvdesc.Format = dx_format;
+        rtvdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+        rtvdesc.Texture2D.MipSlice = 0;
+        hres = g_device->CreateRenderTargetView( tex2D, &rtvdesc, &view_rt );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    if( dx_bind_flags & D3D11_BIND_DEPTH_STENCIL )
+    {
+        bxLogError( "Depth stencil binding is not supported without depth texture format" );
+    }
+
+    if( dx_bind_flags & D3D11_BIND_UNORDERED_ACCESS )
+    {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uavdesc;
+        memset( &uavdesc, 0, sizeof( uavdesc ) );
+        uavdesc.Format = dx_format;
+        uavdesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+        uavdesc.Texture2D.MipSlice = 0;
+        hres = g_device->CreateUnorderedAccessView( tex2D, &uavdesc, &view_ua );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    TextureRW tex;
+    tex.texture2D = tex2D;
+    tex.viewSH = view_sh;
+    tex.viewUA = view_ua;
+    tex.viewRT = view_rt;
+    tex.width = w;
+    tex.height = h;
+    tex.depth = 0;
+    tex.format = format;
+    return tex;
+}
+TextureDepth texture2Ddepth( int w, int h, int mips, bxGdi::EDataType dataType, unsigned bindFlags )
+{
+    const DXGI_FORMAT dx_format = bxGdi::to_DXGI_FORMAT( dataType, 1 );
+    const u32 dx_bind_flags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
+
+    SYS_ASSERT( bxGdi::isDepthFormat( dx_format ) );
+
+    DXGI_FORMAT srv_format;
+    DXGI_FORMAT tex_format;
+    switch( dx_format )
+    {
+    case DXGI_FORMAT_D16_UNORM:
+        tex_format = DXGI_FORMAT_R16_TYPELESS;
+        srv_format = DXGI_FORMAT_R16_UNORM;
+        break;
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+        tex_format = DXGI_FORMAT_R24G8_TYPELESS;
+        srv_format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+        break;
+    case DXGI_FORMAT_D32_FLOAT:
+        tex_format = DXGI_FORMAT_R32_TYPELESS;
+        srv_format = DXGI_FORMAT_R32_FLOAT;
+        break;
+    default:
+        SYS_ASSERT( false );
+        break;
+    }
+
+    D3D11_TEXTURE2D_DESC desc;
+    memset( &desc, 0, sizeof( desc ) );
+    desc.Width = w;
+    desc.Height = h;
+    desc.MipLevels = mips;
+    desc.ArraySize = 1;
+    desc.Format = tex_format;
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = dx_bind_flags;
+    desc.CPUAccessFlags = 0;
+
+    ID3D11Texture2D* tex2d = 0;
+    HRESULT hres = g_device->CreateTexture2D( &desc, 0, &tex2d );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    ID3D11ShaderResourceView* view_sh = 0;
+    ID3D11DepthStencilView* view_ds = 0;
+
+    if( dx_bind_flags & D3D11_BIND_SHADER_RESOURCE )
+    {
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+        memset( &srvdesc, 0, sizeof( srvdesc ) );
+        srvdesc.Format = srv_format;
+        srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvdesc.Texture2D.MostDetailedMip = 0;
+        srvdesc.Texture2D.MipLevels = mips;
+        hres = g_device->CreateShaderResourceView( tex2d, &srvdesc, &view_sh );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    if( dx_bind_flags & D3D11_BIND_DEPTH_STENCIL )
+    {
+        D3D11_DEPTH_STENCIL_VIEW_DESC dsvdesc;
+        memset( &dsvdesc, 0, sizeof( dsvdesc ) );
+        dsvdesc.Format = dx_format;
+        dsvdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+        dsvdesc.Texture2D.MipSlice = 0;
+        hres = g_device->CreateDepthStencilView( tex2d, &dsvdesc, &view_ds );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    TextureDepth tex = {};
+    tex.texture2D = tex2d;
+    tex.viewDS = view_ds;
+    tex.viewSH = view_sh;
+    tex.width = w;
+    tex.height = h;
+    tex.depth = 0;
+    tex.format = bxGdiFormat( dataType, 1 );
+
+    return tex;
+}
+Sampler sampler( const SamplerDesc& desc )
+{
+    D3D11_SAMPLER_DESC dxDesc;
+    dxDesc.Filter = ( desc.depthCmpMode == bxGdi::eDEPTH_CMP_NONE ) ? bxGdi::filters[desc.filter] : bxGdi::comparisionFilters[desc.filter];
+    dxDesc.ComparisonFunc = bxGdi::comparision[desc.depthCmpMode];
+
+    dxDesc.AddressU = bxGdi::addressMode[desc.addressU];
+    dxDesc.AddressV = bxGdi::addressMode[desc.addressV];
+    dxDesc.AddressW = bxGdi::addressMode[desc.addressT];
+
+    dxDesc.MaxAnisotropy = ( bxGdi::hasAniso( ( bxGdi::ESamplerFilter )desc.filter ) ) ? desc.aniso : 1;
+
+    {
+        dxDesc.BorderColor[0] = 0.f;
+        dxDesc.BorderColor[1] = 0.f;
+        dxDesc.BorderColor[2] = 0.f;
+        dxDesc.BorderColor[3] = 0.f;
+    }
+    dxDesc.MipLODBias = 0.f;
+    dxDesc.MinLOD = 0;
+    dxDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    //desc.MaxLOD = ( SamplerFilter::has_mipmaps((SamplerFilter::Enum)state.filter) ) ? D3D11_FLOAT32_MAX : 0;
+
+    ID3D11SamplerState* dxState = 0;
+    HRESULT hres = g_device->CreateSamplerState( &dxDesc, &dxState );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    Sampler result;
+    result.state = dxState;
+    return result;
+}
+
+
 }///
 
 }}///

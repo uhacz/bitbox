@@ -88,12 +88,12 @@ namespace gfx{
     };
 
 
-    Pipeline createPipeline( bxGdiDeviceBackend* dev, const PipelineDesc& desc, bxAllocator* allocator = nullptr );
+    Pipeline createPipeline( const PipelineDesc& desc, bxAllocator* allocator = nullptr );
     void destroyPipeline( Pipeline* pipeline, bxGdiDeviceBackend* dev, bxAllocator* allocator = nullptr );
     void bindPipeline( bxGdiContextBackend* ctx, Pipeline pipeline );
 
-    RenderPass createRenderPass( bxGdiDeviceBackend* dev, const RenderPassDesc& desc, bxAllocator* allocator = nullptr );
-    void destroyRenderPass( RenderPass* renderPass, bxGdiDeviceBackend* dev, bxAllocator* allocator = nullptr );
+    RenderPass createRenderPass( const RenderPassDesc& desc, bxAllocator* allocator = nullptr );
+    void destroyRenderPass( RenderPass* renderPass, bxAllocator* allocator = nullptr );
 
     RenderSubPass createRenderSubPass( const RenderSubPassDesc& desc, bxAllocator* allocator = nullptr );
     void destroyRenderSubPass( RenderSubPass* subPass, bxAllocator* allocator = nullptr );

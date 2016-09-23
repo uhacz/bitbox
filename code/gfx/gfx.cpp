@@ -218,6 +218,9 @@ namespace bx
 
     void gfxContextShutdown( GfxContext** gfx, bxGdiDeviceBackend* dev )
     {
+        if( !gfx[0] )
+            return;
+
         bxResourceManager* resourceManager = bx::resourceManagerGet();
 
         GfxContext* g = gfx[0];

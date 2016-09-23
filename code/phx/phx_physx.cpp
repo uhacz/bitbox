@@ -155,6 +155,8 @@ physx_start_up_error:
 void phxContextShutdown( PhxContext** phx )
 {
     PhxContext* p = phx[0];
+    if( !p )
+        return;
 
     const int n_scenes = p->physics->getNbScenes();
     if ( n_scenes )

@@ -70,7 +70,7 @@ struct BIT_ALIGNMENT_16 ResourceDescriptorImpl
 };
 
 //
-Pipeline createPipeline( bxGdiDeviceBackend* dev, const PipelineDesc& desc, bxAllocator* allocator )
+Pipeline createPipeline( const PipelineDesc& desc, bxAllocator* allocator )
 {
     PipelineImpl* impl = (PipelineImpl*)BX_NEW( utils::getAllocator( allocator ), PipelineImpl );
 

@@ -174,6 +174,9 @@ namespace bx
 
     void cameraManagerShutdown( CameraManager** cm )
     {
+        if( !cm[0] )
+            return;
+
         CameraManagerImpl* impl = implGet( cm[0] );
         impl->_Clear();
         BX_DELETE( bxDefaultAllocator(), impl );

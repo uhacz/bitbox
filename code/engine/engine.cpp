@@ -18,28 +18,39 @@ void Engine::startup( Engine* e, const StartupInfo& info )
     bxWindow* win = bxWindow_get();
     const char* assetDir = bxConfig::global_string( "assetDir" );
     e->resource_manager = bxResourceManager::startup( assetDir );
-    bxGdi::backendStartup( &e->gdi_device, (uptr)win->hwnd, win->width, win->height, win->full_screen );
+    
+    if( info.start_gdi )
+    {
+        bxGdi::backendStartup( &e->gdi_device, (uptr)win->hwnd, win->width, win->height, win->full_screen );
+        e->gdi_context = BX_NEW( bxDefaultAllocator(), bxGdiContext );
+        e->gdi_context->_Startup( e->gdi_device );
+        bxGfxDebugDraw::_Startup( e->gdi_device );
+        bxGfxGUI::_Startup( e->gdi_device, win );
+    }
 
-    cameraManagerStartup( &e->camera_manager, e->gfx_context );
+    if( info.start_gfx )
+    {
+        gfxContextStartup( &e->gfx_context, e->gdi_device );
+        cameraManagerStartup( &e->camera_manager, e->gfx_context );
 
-    e->gdi_context = BX_NEW( bxDefaultAllocator(), bxGdiContext );
-    e->gdi_context->_Startup( e->gdi_device );
+        e->_camera_script_callback = BX_NEW( bxDefaultAllocator(), CameraManagerSceneScriptCallback );
+        e->_camera_script_callback->_gfx = e->gfx_context;
+        e->_camera_script_callback->_menago = e->camera_manager;
+        e->_camera_script_callback->_current = nullptr;
+    }
 
-    bxGfxGUI::_Startup( e->gdi_device, win );
-    bxGfxDebugDraw::_Startup( e->gdi_device );
+    
+    if( info.start_physics )
+    {
+        phxContextStartup( &e->phx_context, 4 );
+    }
 
-    gfxContextStartup( &e->gfx_context, e->gdi_device );
-    phxContextStartup( &e->phx_context, 4 );
+    if( info.start_graph )
+    {
+        graphContextStartup();
+        e->_graph_script_callback = BX_NEW( bxDefaultAllocator(), GraphSceneScriptCallback );
+    }
 
-    e->_camera_script_callback = BX_NEW( bxDefaultAllocator(), CameraManagerSceneScriptCallback );
-    e->_camera_script_callback->_gfx = e->gfx_context;
-    e->_camera_script_callback->_menago = e->camera_manager;
-    e->_camera_script_callback->_current = nullptr;
- 
-    e->_graph_script_callback = BX_NEW( bxDefaultAllocator(), GraphSceneScriptCallback );
-
-
-    graphContextStartup();
 
     rmt_CreateGlobalInstance( &e->_remotery );
 }
@@ -61,10 +72,17 @@ void Engine::shutdown( Engine* e )
     bxGfxDebugDraw::_Shutdown( e->gdi_device );
     bxGfxGUI::_Shutdown( e->gdi_device, bxWindow_get() );
 
-    e->gdi_context->_Shutdown();
-    BX_DELETE0( bxDefaultAllocator(), e->gdi_context );
+    if( e->gdi_context )
+    {
+        e->gdi_context->_Shutdown();
+        BX_DELETE0( bxDefaultAllocator(), e->gdi_context );
+    }
 
-    bxGdi::backendShutdown( &e->gdi_device );
+    if( e->gdi_device )
+    {
+        bxGdi::backendShutdown( &e->gdi_device );
+    }
+
     bxResourceManager::shutdown( &e->resource_manager );
     
     bxConfig::global_deinit();

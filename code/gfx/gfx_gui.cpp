@@ -205,6 +205,9 @@ void bxGfxGUI::_Startup( bxGdiDeviceBackend* dev, bxWindow* win )
 
 void bxGfxGUI::_Shutdown( bxGdiDeviceBackend* dev, bxWindow* win )
 {
+    if( !__gui )
+        return;
+
     __gui->_Shutdown( dev, win );
     BX_DELETE0( bxDefaultAllocator(), __gui );
 }
