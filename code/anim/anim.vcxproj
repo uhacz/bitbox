@@ -85,12 +85,14 @@
     <ClCompile Include="anim_evaluate.cpp" />
     <ClCompile Include="anim_local_joints_to_world_joints.cpp" />
     <ClCompile Include="anim_local_joints_to_world_matrices4x4.cpp" />
+    <ClCompile Include="anim_player.cpp" />
     <ClCompile Include="anim_process_blend_tree.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="anim.h" />
     <ClInclude Include="anim_common.h" />
     <ClInclude Include="anim_joint_transform.h" />
+    <ClInclude Include="anim_player.h" />
     <ClInclude Include="anim_struct.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -1719,7 +1719,205 @@ Sampler sampler( const SamplerDesc& desc )
     return result;
 }
 
+InputLayout inputLayout( const VertexBufferDesc* blocks, int nblocks, Shader vertexShader )
+{
+    SYS_ASSERT( vertexShader.stage == bxGdi::eSTAGE_VERTEX );
 
+    const int MAX_IEDESCS = bxGdi::cMAX_VERTEX_BUFFERS;
+    SYS_ASSERT( nblocks < MAX_IEDESCS );
+
+    D3D11_INPUT_ELEMENT_DESC d3d_iedescs[MAX_IEDESCS];
+    for( int iblock = 0; iblock < nblocks; ++iblock )
+    {
+        const bxGdiVertexStreamBlock block = blocks[iblock];
+
+        D3D11_INPUT_ELEMENT_DESC& d3d_desc = d3d_iedescs[iblock];
+
+        d3d_desc.SemanticName = bxGdi::slotName[block.slot];
+        d3d_desc.SemanticIndex = bxGdi::slotSemanticIndex[block.slot];
+        d3d_desc.Format = bxGdi::to_DXGI_FORMAT( block.dataType, block.numElements, block.typeNorm );
+        d3d_desc.InputSlot = iblock;
+        d3d_desc.AlignedByteOffset = 0;
+        d3d_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+        d3d_desc.InstanceDataStepRate = 0;
+    }
+
+    ID3D11InputLayout *dxLayout = 0;
+    ID3DBlob* signatureBlob = (ID3DBlob*)vertexShader.inputSignature;
+    HRESULT hres = g_device->CreateInputLayout( d3d_iedescs, nblocks, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), &dxLayout );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    InputLayout iLay;
+    iLay.layout = dxLayout;
+    return iLay;
+}
+BlendState  blendState( bxGdiHwStateDesc::Blend state )
+{
+    D3D11_BLEND_DESC bdesc;
+    memset( &bdesc, 0, sizeof( bdesc ) );
+
+    bdesc.AlphaToCoverageEnable = FALSE;
+    bdesc.IndependentBlendEnable = FALSE;
+    bdesc.RenderTarget[0].BlendEnable = state.enable;
+    bdesc.RenderTarget[0].SrcBlend = bxGdi::blendFactor[state.srcFactor];
+    bdesc.RenderTarget[0].DestBlend = bxGdi::blendFactor[state.dstFactor];
+    bdesc.RenderTarget[0].BlendOp = bxGdi::blendEquation[state.equation];
+    bdesc.RenderTarget[0].SrcBlendAlpha = bxGdi::blendFactor[state.srcFactorAlpha];
+    bdesc.RenderTarget[0].DestBlendAlpha = bxGdi::blendFactor[state.dstFactorAlpha];
+    bdesc.RenderTarget[0].BlendOpAlpha = bxGdi::blendEquation[state.equation];
+
+    u8 mask = 0;
+    mask |= ( state.color_mask & bxGdi::eCOLOR_MASK_RED ) ? D3D11_COLOR_WRITE_ENABLE_RED : 0;
+    mask |= ( state.color_mask & bxGdi::eCOLOR_MASK_GREEN ) ? D3D11_COLOR_WRITE_ENABLE_GREEN : 0;
+    mask |= ( state.color_mask & bxGdi::eCOLOR_MASK_BLUE ) ? D3D11_COLOR_WRITE_ENABLE_BLUE : 0;
+    mask |= ( state.color_mask & bxGdi::eCOLOR_MASK_ALPHA ) ? D3D11_COLOR_WRITE_ENABLE_ALPHA : 0;
+
+    bdesc.RenderTarget[0].RenderTargetWriteMask = mask;
+
+    ID3D11BlendState* dx_state = 0;
+    HRESULT hres = g_device->CreateBlendState( &bdesc, &dx_state );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    BlendState result;
+    result.state = dx_state;
+    return result;
+}
+DepthState  depthState( bxGdiHwStateDesc::Depth state )
+{
+    D3D11_DEPTH_STENCIL_DESC dsdesc;
+    memset( &dsdesc, 0, sizeof( dsdesc ) );
+
+    dsdesc.DepthEnable = state.test;
+    dsdesc.DepthWriteMask = ( state.write ) ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+    dsdesc.DepthFunc = bxGdi::depthCmpFunc[state.function];
+
+    dsdesc.StencilEnable = FALSE;
+    dsdesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+    dsdesc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+
+    dsdesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+    dsdesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+    dsdesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+    dsdesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+
+    dsdesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+    dsdesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+    dsdesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+    dsdesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+
+    ID3D11DepthStencilState* dx_state = 0;
+    HRESULT hres = g_device->CreateDepthStencilState( &dsdesc, &dx_state );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    DepthState result;
+    result.state = dx_state;
+    return result;
+}
+RasterState rasterState( bxGdiHwStateDesc::Raster state )
+{
+    D3D11_RASTERIZER_DESC rdesc;
+    memset( &rdesc, 0, sizeof( rdesc ) );
+
+    rdesc.FillMode = bxGdi::fillMode[state.fillMode];
+    rdesc.CullMode = bxGdi::cullMode[state.cullMode];
+    rdesc.FrontCounterClockwise = TRUE;
+    rdesc.DepthBias = 0;
+    rdesc.SlopeScaledDepthBias = 0.f;
+    rdesc.DepthBiasClamp = 0.f;
+    rdesc.DepthClipEnable = TRUE;
+    rdesc.ScissorEnable = state.scissor;
+    rdesc.MultisampleEnable = FALSE;
+    rdesc.AntialiasedLineEnable = state.antialiasedLine;
+
+    ID3D11RasterizerState* dx_state = 0;
+    HRESULT hres = g_device->CreateRasterizerState( &rdesc, &dx_state );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    RasterState result;
+    result.state = dx_state;
+    return result;
+}
+
+}///
+
+namespace release
+{
+    template< class T >
+    void releaseSafe( T*& obj )
+    {
+        if( obj )
+        {
+            obj->Release();
+            obj = nullptr;
+        }
+    }
+    
+    void vertexBuffer( VertexBuffer* id )
+    {
+        releaseSafe( id->buffer );
+    }
+    void indexBuffer( IndexBuffer* id )
+    {
+        releaseSafe( id->buffer );
+    }
+    void inputLayout( InputLayout * id )
+    {
+        releaseSafe( id->layout );
+    }
+    void constantBuffer( ConstantBuffer* id )
+    {
+        releaseSafe( id->buffer );
+    }
+    void bufferRO( BufferRO* id )
+    {
+        releaseSafe( id->buffer );
+    }
+    void shader( Shader* id )
+    {
+        releaseSafe( id->object );
+
+        if( id->inputSignature )
+        {
+            ID3DBlob* blob = (ID3DBlob*)id->inputSignature;
+            blob->Release();
+            id->inputSignature = 0;
+        }
+    }
+    void texture( TextureRO* id )
+    {
+        releaseSafe( id->viewSH );
+        releaseSafe( id->resource );
+    }
+    void texture( TextureRW* id )
+    {
+        releaseSafe( id->viewSH );
+        releaseSafe( id->viewRT );
+        releaseSafe( id->viewUA );
+        releaseSafe( id->resource );
+    }
+    void texture( TextureDepth* id )
+    {
+        releaseSafe( id->viewDS );
+        releaseSafe( id->viewSH );
+        releaseSafe( id->viewUA );
+        releaseSafe( id->resource );
+    }
+    void sampler( Sampler* id )
+    {
+        releaseSafe( id->state );
+    }
+    void blendState( BlendState* id )
+    {
+        releaseSafe( id->state );
+    }
+    void depthState( DepthState* id )
+    {
+        releaseSafe( id->state );
+    }
+    void rasterState( RasterState * id )
+    {
+        releaseSafe( id->state );
+    }
 }///
 
 }}///

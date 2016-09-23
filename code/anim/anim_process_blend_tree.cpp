@@ -83,7 +83,7 @@ static void traverseBlendTree( bxAnim_Cmd* cmdArray, u8* cmdArraySize, u16 curre
 
 namespace bxAnim{
 
-void evaluateBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton )
+void evaluateBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves )
 {
 	const u16 is_root_branch = root_index & bxAnim::eBLEND_TREE_BRANCH;
     const u16 is_root_leaf = root_index & bxAnim::eBLEND_TREE_LEAF;
@@ -112,7 +112,7 @@ void evaluateBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim
 	ctx->cmdArraySize = cmd_array_size;
 }
 
-void evaluateCommandList( bxAnim_Context* ctx,  const bxAnim_BlendBranch* blendBranches, unsigned int numBranches, const bxAnim_BlendLeaf* blendLeaves, unsigned int numLeaves, const bxAnim_Skel* skeleton )
+void evaluateCommandList( bxAnim_Context* ctx,  const bxAnim_BlendBranch* blendBranches, unsigned int numBranches, const bxAnim_BlendLeaf* blendLeaves, unsigned int numLeaves )
 {
     const bxAnim_Cmd* cmdList = ctx->cmdArray;
     u8 counter = 0;
@@ -147,7 +147,7 @@ void evaluateCommandList( bxAnim_Context* ctx,  const bxAnim_BlendBranch* blendB
                 //poseStackPush( ctx );
 				bxAnim_Joint* outJoints = poseFromStack( ctx, 1 );
 
-				blendJointsLinear( outJoints, leftJoints, rightJoints, cmdList->branch->alpha, skeleton->numJoints );
+				blendJointsLinear( outJoints, leftJoints, rightJoints, cmdList->branch->alpha, ctx->numJoints );
                 
                 poseStackPop( ctx );
 				break;
@@ -160,7 +160,7 @@ void evaluateCommandList( bxAnim_Context* ctx,  const bxAnim_BlendBranch* blendB
 				poseStackPush( ctx );
 				bxAnim_Joint* outJoints = poseFromStack( ctx, 0 );
 
-				blendJointsLinear( outJoints, leftJoints, rightJoints, cmdList->branch->alpha, skeleton->numJoints );
+                blendJointsLinear( outJoints, leftJoints, rightJoints, cmdList->branch->alpha, ctx->numJoints );
 				break;
 			}
 		}

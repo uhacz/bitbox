@@ -1509,11 +1509,11 @@ namespace bx
                                    , ECharacterAnimBranch::eROOT | bxAnim::eBLEND_TREE_BRANCH
                                    , btree._branch, ECharacterAnimBranch::eCOUNT
                                    , btree._leaf, ECharacterAnimLeaf::eCOUNT
-                                   , canim->_skel );
+                                    );
         bxAnim::evaluateCommandList( canim->_animCtx
                                      , btree._branch, ECharacterAnimBranch::eCOUNT
                                      , btree._leaf, ECharacterAnimLeaf::eCOUNT
-                                     , canim->_skel );
+                                      );
 
         const Matrix4 rootPose = ccImpl->worldPoseFoot();
         bxAnim_Joint rootJoint = toAnimJoint_noScale( rootPose );

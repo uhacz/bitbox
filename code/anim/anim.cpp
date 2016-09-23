@@ -34,7 +34,7 @@ bxAnim_Context* contextInit( const bxAnim_Skel& skel )
 	ctx->cmdArray = (bxAnim_Cmd*)current_pointer;
 	current_pointer += sizeof(bxAnim_Cmd) * bxAnim_Context::eCMD_ARRAY_SIZE;
 	SYS_ASSERT( (iptr)current_pointer == (iptr)( memory + memSize ) );
-
+    ctx->numJoints = skel.numJoints;
 	return ctx;
 }
 
@@ -126,10 +126,10 @@ namespace bxAnimExt
         bxAnim::localJointsToWorldMatrices4x4( outMatrices, inJoints, parentIndices, skel->numJoints, rootJoint );
     }
 
-    void processBlendTree( bxAnim_Context* ctx, const u16 root_index, const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves, const bxAnim_Skel* skeleton )
+    void processBlendTree( bxAnim_Context* ctx, const u16 root_index, const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves )
     {
-        bxAnim::evaluateBlendTree( ctx, root_index, blend_branches, num_branches, blend_leaves, num_leaves, skeleton );
-        bxAnim::evaluateCommandList( ctx, blend_branches, num_branches, blend_leaves, num_leaves, skeleton );
+        bxAnim::evaluateBlendTree( ctx, root_index, blend_branches, num_branches, blend_leaves, num_leaves );
+        bxAnim::evaluateCommandList( ctx, blend_branches, num_branches, blend_leaves, num_leaves );
     }
 
 }///

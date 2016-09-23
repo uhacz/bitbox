@@ -1521,7 +1521,7 @@ namespace motion_fields
             bxAnim_Clip* clip = _data.clips[_state.clip_index[0]];
             float eval_time = _state.clip_eval_time[0];
             bxAnim_BlendLeaf leaf( clip, eval_time );
-            bxAnimExt::processBlendTree( _state.anim_ctx, 0 | bxAnim::eBLEND_TREE_LEAF, nullptr, 0, &leaf, 1, _data.skel );
+            bxAnimExt::processBlendTree( _state.anim_ctx, 0 | bxAnim::eBLEND_TREE_LEAF, nullptr, 0, &leaf, 1 );
 
             eval_time = _state.clip_eval_time[0] + deltaTime;
             _state.clip_eval_time[0] = ::fmodf( eval_time, clip->duration );
@@ -1547,9 +1547,7 @@ namespace motion_fields
                 1 | bxAnim::eBLEND_TREE_LEAF,
                 blend_alpha
                 );
-            bxAnimExt::processBlendTree( _state.anim_ctx, 0 | bxAnim::eBLEND_TREE_BRANCH,
-                                         &branch, 1, leaves, 2,
-                                         _data.skel );
+            bxAnimExt::processBlendTree( _state.anim_ctx, 0 | bxAnim::eBLEND_TREE_BRANCH, &branch, 1, leaves, 2 );
 
             if( _state._blend_time > _state._blend_duration )
             {
@@ -1673,27 +1671,15 @@ namespace motion_fields
     {
         if( _num_clips == 1 )
         {
-            bxAnimExt::processBlendTree( _ctx,
-                                       0 | bxAnim::eBLEND_TREE_LEAF,
-                                       nullptr, 0,
-                                       _blend_leaf, 1,
-                                       _skel );
+            bxAnimExt::processBlendTree( _ctx, 0 | bxAnim::eBLEND_TREE_LEAF, nullptr, 0, _blend_leaf, 1 );
         }
         else
         {
             const float blend_alpha = minOfPair( 1.f, _blend_time / _blend_duration );
 
-            _blend_branch = bxAnim_BlendBranch(
-                    0 | bxAnim::eBLEND_TREE_LEAF,
-                    1 | bxAnim::eBLEND_TREE_LEAF,
-                    blend_alpha
-                    );
+            _blend_branch = bxAnim_BlendBranch( 0 | bxAnim::eBLEND_TREE_LEAF, 1 | bxAnim::eBLEND_TREE_LEAF, blend_alpha );
 
-            bxAnimExt::processBlendTree( _ctx,
-                                       0 | bxAnim::eBLEND_TREE_BRANCH,
-                                       &_blend_branch, 1,
-                                       _blend_leaf, 2,
-                                       _skel );
+            bxAnimExt::processBlendTree( _ctx, 0 | bxAnim::eBLEND_TREE_BRANCH,&_blend_branch, 1, _blend_leaf, 2 );
 
             if( _blend_time > _blend_duration )
             {

@@ -81,11 +81,12 @@ struct BIT_ALIGNMENT_16 bxAnim_Context
 
 	bxAnim_Joint* poseCache[ePOSE_CACHE_SIZE];
 	bxAnim_Joint* poseStack[ePOSE_STACK_SIZE];
-	bxAnim_Cmd* cmdArray;
-	u8 poseCacheIndex;
-	u8 poseStackIndex;
-	u8 cmdArraySize;
+	bxAnim_Cmd* cmdArray = nullptr;
+	u8 poseCacheIndex = 0;
+	u8 poseStackIndex = 0;
+	u8 cmdArraySize = 0;
 	u8 __pad0[1];
+    u16 numJoints = 0;
 };
 
 namespace bxAnim

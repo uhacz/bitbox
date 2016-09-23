@@ -5,119 +5,12 @@
 #include <util/ring_buffer.h>
 #include <anim/anim_joint_transform.h>
 #include <anim/anim_struct.h>
+#include <anim/anim_player.h>
+
 #include <vector>
 #include <string>
+
 #include "game.h"
-#include "util/queue.h"
-
-namespace bx{
-namespace anim{
-    
-struct CascadePlayer
-{
-    enum { 
-        eMAX_NODES = 2,
-    };
-
-    struct Node
-    {
-        const bxAnim_Clip* clip = nullptr;
-        
-        /// for leaf
-        u64 clip_user_data = 0;
-        f32 clip_eval_time = 0.f;
-        
-        /// for branch
-        u32 next = UINT32_MAX;
-        f32 blend_time = 0.f;
-        f32 blend_duration = 0.f;
-
-        bool isLeaf() const { return next == UINT32_MAX; }
-        bool isEmpty() const { return clip == nullptr; }
-    };
-
-    bxAnim_Context* _ctx = nullptr;
-    const bxAnim_Skel* _skel = nullptr; /// weak reference
-    Node _nodes[eMAX_NODES];
-    u32 _root_node_index = UINT32_MAX;
-
-    void prepare( const bxAnim_Skel* skel, bxAllocator* allcator = nullptr );
-    void unprepare( bxAllocator* allocator = nullptr );
-
-    bool play( const bxAnim_Clip* clip, float startTime, float blendTime, u64 userData, bool replaceLastIfFull );
-    void tick( float deltaTime );
-
-    bool empty() const { return _root_node_index == UINT32_MAX; }
-    const bxAnim_Joint* localJoints() const { return bxAnim::poseFromStack( _ctx, 0 ); }
-    bxAnim_Joint*       localJoints()       { return bxAnim::poseFromStack( _ctx, 0 ); }
-    bool userData( u64* dst, u32 depth );
-
-private:
-    void _Tick_processBlendTree();
-    void _Tick_updateTime( float deltaTime );
-
-    u32 _AllocateNode();
-};
-
-struct SimplePlayer
-{
-    enum {
-        eMAX_NODES = 1,
-    };
-
-    struct Clip
-    {
-        const bxAnim_Clip* clip = nullptr;
-        u64 user_data = 0;
-        f32 eval_time = 0.f;
-
-        void updateTime( float deltaTime )
-        {
-            eval_time = ::fmodf( eval_time + deltaTime, clip->duration );
-        }
-        float phase() const { return eval_time / clip->duration; }
-    };
-
-    //struct PlayRequest
-    //{
-    //    Clip clip;
-    //    f32 blend_duration = 0.f;
-    //};
-    
-    bxAnim_Context* _ctx = nullptr;
-    const bxAnim_Skel* _skel = nullptr; /// weak reference
-
-    //PlayRequest _requests[eMAX_NODES];
-    //queue_t< PlayRequest > _requests;
-    Clip _clips[2];
-
-    //RingArray< PlayRequest > _request_ring;
-
-    f32 _blend_time = 0.f;
-    f32 _blend_duration = 0.f;
-    
-    u32 _num_clips = 0;
-
-    void prepare( const bxAnim_Skel* skel, bxAllocator* allcator = nullptr );
-    void unprepare( bxAllocator* allocator = nullptr );
-
-    void play( const bxAnim_Clip* clip, float startTime, float blendTime, u64 userData );
-    void tick( float deltaTime );
-private:
-    void _Tick_processBlendTree();
-    void _Tick_updateTime( float deltaTime );
-
-public:
-    bool empty() const { return _num_clips == 0; }
-    const bxAnim_Joint* localJoints() const { return bxAnim::poseFromStack( _ctx, 0 ); }
-    bxAnim_Joint*       localJoints()       { return bxAnim::poseFromStack( _ctx, 0 ); }
-    bool userData( u64* dst, u32 depth );
-    bool evalTime( f32* dst, u32 depth );
-
-
-};
-
-}}///
 
 namespace bx{
 namespace motion_matching{
@@ -148,9 +41,9 @@ struct ClipTrajectory
 struct Pose
 {
     Vector3 pos[_eMATCH_JOINT_COUNT_];
-    Quat    rot[_eMATCH_JOINT_COUNT_];
+    //Quat    rot[_eMATCH_JOINT_COUNT_];
     Vector3 vel[_eMATCH_JOINT_COUNT_];
-    ClipTrajectory trajectory;
+    //ClipTrajectory trajectory;
     PoseParams params{};
 };
     
@@ -180,7 +73,7 @@ struct Data
     const bxAnim_Skel* skel = nullptr;
     std::vector< bxAnim_Clip* > clips;
     std::vector< AnimClipInfo > clip_infos;
-    //std::vector< ClipTrajectory > clip_trajectiories;
+    std::vector< ClipTrajectory > clip_trajectiories;
     std::vector< Pose > poses;
     std::vector< i16 > match_joints_indices;
     bx::Curve1D velocity_curve;
@@ -188,28 +81,12 @@ struct Data
 
 struct State
 {
-    //bxAnim_Context* anim_ctx = nullptr;
-    //enum { eMAX_CLIPS = 4, };
-    //struct ClipInfo
-    //{
-    //    u32 clip_index = UINT32_MAX;
-    //    f32 eval_time = 0.f;
-    //};
-    //struct BlendInfo
-    //{
-    //    f32 duration = 0.f;
-    //    f32 time = 0.f;
-    //};
-
-    //ClipInfo clip_info[eMAX_CLIPS];
-    //BlendInfo blend_info[eMAX_CLIPS - 1];
-    //u32 num_clips = 0;
-    //
     f32 anim_delta_time_scaler = 1.f;
     u32 pose_index = UINT32_MAX;
 
     void* _memory_handle = nullptr;
     bxAnim_Joint* joint_world = nullptr;
+    bxAnim_Joint* scratch_joints = nullptr;
 
     Curve3D input_trajectory_curve;
     Curve3D candidate_trajectory_curve;
@@ -271,8 +148,6 @@ struct Context
 
     //-------------------------------------------------------------------
     void tick( const Input& input, float deltaTime );
-    //void tick_animations( float deltaTime );
-    //void tick_playClip( u32 clipIndex, float startTime, float blendTime );
 
     bool currentSpeed( f32* value );
     bool currentPose( Matrix4* pose );
