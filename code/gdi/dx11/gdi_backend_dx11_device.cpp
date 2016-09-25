@@ -1616,10 +1616,10 @@ TextureRW texture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFl
     tex.format = format;
     return tex;
 }
-TextureDepth texture2Ddepth( int w, int h, int mips, bx::gdi::EDataType dataType, unsigned bindFlags )
+TextureDepth texture2Ddepth( int w, int h, int mips, bx::gdi::EDataType dataType )
 {
     const DXGI_FORMAT dx_format = bx::gdi::to_DXGI_FORMAT( dataType, 1 );
-    const u32 dx_bind_flags = bx::gdi::to_D3D11_BIND_FLAG( bindFlags );
+    const u32 dx_bind_flags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE; // bx::gdi::to_D3D11_BIND_FLAG( bindFlags );
 
     SYS_ASSERT( bx::gdi::isDepthFormat( dx_format ) );
 

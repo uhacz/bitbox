@@ -23,13 +23,13 @@ namespace gfx{
 
     struct PipelineDesc
     {
-        bxGdiShader shaders[ bxGdi::eDRAW_STAGES_COUNT ] = {};
+        gdi::Shader shaders[ gdi::eDRAW_STAGES_COUNT ] = {};
 
         u32 num_vertex_stream_descs = 0;
         const VertexStreamDesc* vertex_stream_descs = nullptr;
 
-        bxGdiHwStateDesc hw_state_desc = {};
-        bxGdi::ETopology topology = bxGdi::eTRIANGLES;
+        gdi::HardwareStateDesc hw_state_desc = {};
+        gdi::ETopology topology = gdi::eTRIANGLES;
     };
     
     struct RenderPassDesc
@@ -40,7 +40,7 @@ namespace gfx{
         u16 height = 0;
         
         const bxGdiFormat* color_texture_formats = nullptr;
-        bxGdi::EDataType depth_texture_type = bxGdi::eTYPE_UNKNOWN;
+        gdi::EDataType depth_texture_type = gdi::eTYPE_UNKNOWN;
     };
     
     struct RenderSubPassDesc
@@ -70,11 +70,12 @@ namespace gfx{
     {
         EResourceType type = _eRESOURCE_TYPE_COUNT_;
         u8 stage_mask = 0;
-        u16 slot = 0;
+        u8 first_slot = 0;
+        u8 count = 0;
 
         ResourceBinding() {}
-        ResourceBinding( EResourceType t, u8 sm, u8 sl )
-            : type( t ), stage_mask( sm ), slot( sl ) {}
+        ResourceBinding( EResourceType t, u8 sm, u8 sl, u8 cnt )
+            : type( t ), stage_mask( sm ), first_slot( sl ), count( cnt ) {}
     };
 
     struct ResourceLayout
@@ -89,32 +90,37 @@ namespace gfx{
         u32 has_indices = 0;
         u32 num_vertices = 0;
         u32 num_indices = 0;
-        const bxGdi::EDataType index_type = bxGdi::eTYPE_UNKNOWN;
-        const VertexBufferDesc* streams_desc = nullptr;
+        const gdi::EDataType index_type = gdi::eTYPE_UNKNOWN;
+        const gdi::VertexBufferDesc* streams_desc = nullptr;
     };
 
     Pipeline createPipeline( const PipelineDesc& desc, bxAllocator* allocator = nullptr );
-    void destroyPipeline( Pipeline* pipeline, bxGdiDeviceBackend* dev, bxAllocator* allocator = nullptr );
-    void bindPipeline( bxGdiContextBackend* ctx, Pipeline pipeline );
+    void destroyPipeline( Pipeline* pipeline, bxAllocator* allocator = nullptr );
+    void bindPipeline( gdi::CommandQueue* cmdq, Pipeline pipeline );
 
     RenderPass createRenderPass( const RenderPassDesc& desc, bxAllocator* allocator = nullptr );
     void destroyRenderPass( RenderPass* renderPass, bxAllocator* allocator = nullptr );
 
     RenderSubPass createRenderSubPass( const RenderSubPassDesc& desc, bxAllocator* allocator = nullptr );
     void destroyRenderSubPass( RenderSubPass* subPass, bxAllocator* allocator = nullptr );
-    void bindRenderSubPass( bxGdiContextBackend* ctx, RenderSubPass subPass );
+    void bindRenderSubPass( gdi::CommandQueue* cmdq, RenderSubPass subPass );
 
     ResourceDescriptor createResourceDescriptor( const ResourceLayout& layout, bxAllocator* allocator = nullptr );
     void destroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocator = nullptr );
-    bool setTexture   ( ResourceDescriptor rdesc, bxGdiTexture texture, bxGdi::EStage stage, u16 slot );
-    bool setSampler   ( ResourceDescriptor rdesc, bxGdiSampler sampler, bxGdi::EStage stage, u16 slot );
-    bool setCBuffer   ( ResourceDescriptor rdesc, bxGdiBuffer buffer  , bxGdi::EStage stage, u16 slot );
-    bool setBufferRO  ( ResourceDescriptor rdesc, bxGdiBuffer buffer  , bxGdi::EStage stage, u16 slot );
-    bool setBufferRW  ( ResourceDescriptor rdesc, bxGdiBuffer buffer  , bxGdi::EStage stage, u16 slot );
-    void bindResources( bxGdiContextBackend* ctx, ResourceDescriptor rdesc );
+    bool setResourceRO( ResourceDescriptor rdesc, const gdi::ResourceRO* resource, gdi::EStage stage, u16 slot );
+    bool setResourceRW( ResourceDescriptor rdesc, const gdi::ResourceRW* resource, gdi::EStage stage, u16 slot );
+    bool setConstantBuffer( ResourceDescriptor rdesc, const gdi::ConstantBuffer cbuffer, gdi::EStage stage, u16 slot );
+    bool setSampler( ResourceDescriptor rdesc, const gdi::Sampler sampler, gdi::EStage stage, u16 slot );
 
-    bool createVertexBuffer( VertexBuffer* vbuffer, bxGdiDeviceBackend* dev, const VertexBufferDesc& desc, bxAllocator* allocator = nullptr );
-    void destroyVertexBuffer( VertexBuffer* vbuffer, bxGdiDeviceBackend* dev, bxAllocator* allocator = nullptr );
+    //bool setTexture   ( ResourceDescriptor rdesc, bxGdiTexture texture, bxGdi::EStage stage, u16 slot );
+    //bool setSampler   ( ResourceDescriptor rdesc, bxGdiSampler sampler, bxGdi::EStage stage, u16 slot );
+    //bool setCBuffer   ( ResourceDescriptor rdesc, bxGdiBuffer buffer  , bxGdi::EStage stage, u16 slot );
+    //bool setBufferRO  ( ResourceDescriptor rdesc, bxGdiBuffer buffer  , bxGdi::EStage stage, u16 slot );
+    //bool setBufferRW  ( ResourceDescriptor rdesc, bxGdiBuffer buffer  , bxGdi::EStage stage, u16 slot );
+    void bindResources( gdi::CommandQueue* cmdq, ResourceDescriptor rdesc );
+
+    bool createVertexBuffer( VertexBuffer* vbuffer, const VertexBufferDesc& desc, bxAllocator* allocator = nullptr );
+    void destroyVertexBuffer( VertexBuffer* vbuffer, bxAllocator* allocator = nullptr );
     
 
     struct RenderBucket

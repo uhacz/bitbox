@@ -367,7 +367,7 @@ namespace create
     TextureRO    texture       ( const void* dataBlob, size_t dataBlobSize );
     TextureRW    texture1D     ( int w, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data );
     TextureRW    texture2D     ( int w, int h, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data );
-    TextureDepth texture2Ddepth( int w, int h, int mips, bx::gdi::EDataType dataType, unsigned bindFlags );
+    TextureDepth texture2Ddepth( int w, int h, int mips, bx::gdi::EDataType dataType );
     Sampler      sampler       ( const SamplerDesc& desc );
 
     InputLayout inputLayout( const VertexBufferDesc* blocks, int nblocks, Shader vertex_shader );
