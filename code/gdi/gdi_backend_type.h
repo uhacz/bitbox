@@ -2,8 +2,9 @@
 
 #include <util/type.h>
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
     enum EStage
     {
         eSTAGE_VERTEX = 0,
@@ -293,4 +294,5 @@ namespace bxGdi
     static const u32 cMAX_SHADER_MACRO = 32;
 
     struct ShaderReflection;
-}///
+
+}}///

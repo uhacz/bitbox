@@ -1,11 +1,11 @@
 #include "gdi_context.h"
 #include "gdi_backend.h"
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
     ///
     ///
-    inline void inputLayout_create( InputLayout* il, bxGdiVertexStreamDesc* descs, int nDescs )
+    inline void inputLayout_create( InputLayoutHash* il, bxGdiVertexStreamDesc* descs, int nDescs )
     {
         il->hash._0 = 0; il->hash._1 = 0; il->hash._2 = 0; il->hash._3 = 0;
         for ( int i = 0; i < nDescs; ++i )
@@ -24,14 +24,14 @@ namespace bxGdi
             }
         }
     }
-    inline bool operator == (const InputLayout& iLay0, const InputLayout& iLay1)
+    inline bool operator == (const InputLayoutHash& iLay0, const InputLayoutHash& iLay1)
     {
         return iLay0.hash._0 == iLay1.hash._0 &&
             iLay0.hash._1 == iLay1.hash._1 &&
             iLay0.hash._2 == iLay1.hash._2 &&
             iLay0.hash._3 == iLay1.hash._3;
     }
-    inline bool operator != (const InputLayout& iLay0, const InputLayout& iLay1)
+    inline bool operator != (const InputLayoutHash& iLay0, const InputLayoutHash& iLay1)
     {
         return !(iLay0 == iLay1);
     }
@@ -169,7 +169,7 @@ struct ContextPriv
             for( int i = 0; i < cMAX_VERTEX_BUFFERS; ++i )
             {
                 const bxGdiVertexBuffer vstream = pending._vstreams[i];
-                const unsigned stream_slot_mask = (vstream.id) ? bxGdi::streamSlotMask( vstream.desc ) : 0;
+                const unsigned stream_slot_mask = (vstream.id) ? bx::gdi::streamSlotMask( vstream.desc ) : 0;
                 const unsigned bit = sinfo.activeVertexSlotMask & stream_slot_mask;
                 vbuffers[i] = (bit) ? vstream : bxGdiVertexBuffer();
             }
@@ -202,8 +202,8 @@ struct ContextPriv
                 counter += blockCount > 0;
             }
 
-            InputLayout inputLayout;
-            memset( &inputLayout, 0, sizeof(InputLayout) );
+            InputLayoutHash inputLayout;
+            memset( &inputLayout, 0, sizeof( InputLayoutHash ) );
             inputLayout_create( &inputLayout, descs, counter );
 
             if( inputLayout != current._inputLayout )
@@ -221,7 +221,7 @@ struct ContextPriv
                 if ( found == -1 )
                 {
                     SYS_ASSERT( ctx->_numInLayouts < eMAX_INPUT_LAYOUTS );
-                    bxGdiInputLayout inputLayoutValue = ctx->_dev->createInputLayout( descs, counter, pending._shaders[bxGdi::eSTAGE_VERTEX] );
+                    bxGdiInputLayout inputLayoutValue = ctx->_dev->createInputLayout( descs, counter, pending._shaders[bx::gdi::eSTAGE_VERTEX] );
                     found = ctx->_numInLayouts++;
                     ctx->_inLayoytsKey[found] = inputLayout;
                     ctx->_inLayoutsValue[found] = inputLayoutValue;
@@ -352,7 +352,8 @@ struct ContextPriv
         ctx->current = ctx->pending;
     }
 };
-}///
+}}///
+
 
 void bxGdiContext::_Startup(bxGdiDeviceBackend* dev)
 {
@@ -427,7 +428,7 @@ void bxGdiContext::setViewport(const bxGdiViewport& vp)
 
 void bxGdiContext::setVertexBuffers(bxGdiVertexBuffer* vbuffers, unsigned n)
 {
-    SYS_ASSERT( n <= bxGdi::cMAX_VERTEX_BUFFERS );
+    SYS_ASSERT( n <= bx::gdi::cMAX_VERTEX_BUFFERS );
 
     memset( pending._vstreams, 0, sizeof( pending._vstreams ) );
     memcpy( pending._vstreams, vbuffers, n * sizeof(*vbuffers) );
@@ -442,7 +443,7 @@ void bxGdiContext::setIndexBuffer(bxGdiIndexBuffer ibuffer)
 
 void bxGdiContext::setShaders(bxGdiShader* shaders, int n, unsigned vertex_input_mask)
 {
-    SYS_ASSERT( n < bxGdi::eSTAGE_COUNT );
+    SYS_ASSERT( n < bx::gdi::eSTAGE_COUNT );
     memset( pending._shaders, 0, sizeof( pending._shaders ) );
     memcpy( pending._shaders, shaders, n * sizeof(*shaders) );
     pending._vertexInputMask = vertex_input_mask;
@@ -450,14 +451,14 @@ void bxGdiContext::setShaders(bxGdiShader* shaders, int n, unsigned vertex_input
 
 void bxGdiContext::setCbuffers(bxGdiBuffer* cbuffers, unsigned start_slot, unsigned n, int stage)
 {
-    SYS_ASSERT( start_slot + n <= bxGdi::cMAX_CBUFFERS );
+    SYS_ASSERT( start_slot + n <= bx::gdi::cMAX_CBUFFERS );
     bxGdiBuffer* begin = &pending._cbuffers[stage][start_slot];
     memcpy( begin, cbuffers, n * sizeof(*cbuffers) );
 }
 
 void bxGdiContext::setBuffersRO(bxGdiBuffer* cbuffers, unsigned start_slot, unsigned n, int stage)
 {
-    SYS_ASSERT( start_slot + n <= bxGdi::cMAX_RESOURCES_RO );
+    SYS_ASSERT( start_slot + n <= bx::gdi::cMAX_RESOURCES_RO );
     bxGdiResource* resources = &pending._resourcesRO[stage][start_slot];
 
     for ( u32 islot = 0; islot < n; ++islot )
@@ -466,7 +467,7 @@ void bxGdiContext::setBuffersRO(bxGdiBuffer* cbuffers, unsigned start_slot, unsi
 
 void bxGdiContext::setTextures(bxGdiTexture* textures, unsigned start_slot, unsigned n, int stage)
 {
-    SYS_ASSERT( start_slot + n <= bxGdi::cMAX_RESOURCES_RO );
+    SYS_ASSERT( start_slot + n <= bx::gdi::cMAX_RESOURCES_RO );
     bxGdiResource* resources = &pending._resourcesRO[stage][start_slot];
 
     for ( u32 islot = 0; islot < n; ++islot )
@@ -477,15 +478,15 @@ void bxGdiContext::setTextures(bxGdiTexture* textures, unsigned start_slot, unsi
 
 void bxGdiContext::setSamplers(bxGdiSamplerDesc* samplers, unsigned start_slot, unsigned n, int stage)
 {
-    SYS_ASSERT( start_slot + n <= bxGdi::cMAX_SAMPLERS );
+    SYS_ASSERT( start_slot + n <= bx::gdi::cMAX_SAMPLERS );
     bxGdiSamplerDesc* begin = &pending._samplers[stage][start_slot];
     memcpy( begin, samplers, n * sizeof(*samplers) );
 }
 
 void bxGdiContext::setCbuffer(bxGdiBuffer cbuffer, int slot, unsigned stage_mask)
 {
-    SYS_ASSERT( slot < bxGdi::cMAX_CBUFFERS );
-    for( int istage = 0; istage < bxGdi::eSTAGE_COUNT; ++istage )
+    SYS_ASSERT( slot < bx::gdi::cMAX_CBUFFERS );
+    for( int istage = 0; istage < bx::gdi::eSTAGE_COUNT; ++istage )
     {
         const u32 currentStageMask = BIT_OFFSET( istage );
         if( stage_mask & currentStageMask )
@@ -497,8 +498,8 @@ void bxGdiContext::setCbuffer(bxGdiBuffer cbuffer, int slot, unsigned stage_mask
 
 void bxGdiContext::setBufferRO(bxGdiBuffer cbuffer, int slot, unsigned stage_mask)
 {
-    SYS_ASSERT( slot < bxGdi::cMAX_RESOURCES_RO );
-    for ( int istage = 0; istage < bxGdi::eSTAGE_COUNT; ++istage )
+    SYS_ASSERT( slot < bx::gdi::cMAX_RESOURCES_RO );
+    for ( int istage = 0; istage < bx::gdi::eSTAGE_COUNT; ++istage )
     {
         const u32 currentStageMask = BIT_OFFSET( istage );
         if ( stage_mask & currentStageMask )
@@ -510,8 +511,8 @@ void bxGdiContext::setBufferRO(bxGdiBuffer cbuffer, int slot, unsigned stage_mas
 
 void bxGdiContext::setTexture(bxGdiTexture texture, int slot, unsigned stage_mask)
 {
-    SYS_ASSERT( slot < bxGdi::cMAX_RESOURCES_RO );
-    for( int istage = 0; istage < bxGdi::eSTAGE_COUNT; ++istage )
+    SYS_ASSERT( slot < bx::gdi::cMAX_RESOURCES_RO );
+    for( int istage = 0; istage < bx::gdi::eSTAGE_COUNT; ++istage )
     {
         const u32 currentStageMask = BIT_OFFSET( istage );
         if( stage_mask & currentStageMask )
@@ -523,8 +524,8 @@ void bxGdiContext::setTexture(bxGdiTexture texture, int slot, unsigned stage_mas
 
 void bxGdiContext::setSampler(const bxGdiSamplerDesc& sampler, int slot, unsigned stage_mask)
 {
-    SYS_ASSERT( slot < bxGdi::cMAX_SAMPLERS );
-    for( int istage = 0; istage < bxGdi::eSTAGE_COUNT; ++istage )
+    SYS_ASSERT( slot < bx::gdi::cMAX_SAMPLERS );
+    for( int istage = 0; istage < bx::gdi::eSTAGE_COUNT; ++istage )
     {
         const u32 currentStageMask = BIT_OFFSET( istage );
         if( stage_mask & currentStageMask )
@@ -567,7 +568,7 @@ void bxGdiContext::changeToMainFramebuffer()
 
 void bxGdiContext::changeRenderTargets(bxGdiTexture* color_rts, unsigned n_rt, bxGdiTexture depth_rt)
 {
-    SYS_ASSERT( n_rt <= bxGdi::cMAX_RENDER_TARGETS );
+    SYS_ASSERT( n_rt <= bx::gdi::cMAX_RENDER_TARGETS );
     memset( pending._colorRT, 0, sizeof(pending._colorRT) );
 
     memcpy( pending._colorRT, color_rts, n_rt * sizeof(*color_rts) );
@@ -591,30 +592,30 @@ void bxGdiContext::clearBuffers(float r, float g, float b, float a, float d, int
 
 void bxGdiContext::submitState()
 {
-    bxGdi::ContextPriv::_PrepareDraw( this );
+    bx::gdi::ContextPriv::_PrepareDraw( this );
 }
 
 void bxGdiContext::draw( unsigned num_vertices, unsigned start_index )
 {
-    bxGdi::ContextPriv::_PrepareDraw( this );
+    bx::gdi::ContextPriv::_PrepareDraw( this );
     _ctx->draw( num_vertices, start_index );
 }
 
 void bxGdiContext::drawIndexed(unsigned num_indices, unsigned start_index, unsigned base_vertex)
 {
-    bxGdi::ContextPriv::_PrepareDraw( this );
+    bx::gdi::ContextPriv::_PrepareDraw( this );
     _ctx->drawIndexed( num_indices, start_index, base_vertex );
 }
 
 void bxGdiContext::drawInstanced(unsigned num_vertices, unsigned start_index, unsigned num_instances)
 {
-    bxGdi::ContextPriv::_PrepareDraw( this );
+    bx::gdi::ContextPriv::_PrepareDraw( this );
     _ctx->drawInstanced( num_vertices, start_index, num_instances );
 }
 
 void bxGdiContext::drawIndexedInstanced(unsigned num_indices, unsigned start_index, unsigned num_instances, unsigned base_vertex)
 {
-    bxGdi::ContextPriv::_PrepareDraw( this );
+    bx::gdi::ContextPriv::_PrepareDraw( this );
     _ctx->drawIndexedInstanced( num_indices, start_index, num_instances, base_vertex );
 }
 

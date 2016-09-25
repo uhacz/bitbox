@@ -171,19 +171,19 @@ namespace bx
 
         const int fbWidth = 1920;
         const int fbHeight = 1080;
-        g->_framebuffer[eFB_COLOR0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        g->_framebuffer[eFB_ALBEDO] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        g->_framebuffer[eFB_SAO] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        g->_framebuffer[eFB_SHADOW] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        g->_framebuffer[eFB_DEPTH] = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+        g->_framebuffer[eFB_COLOR0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( gdi::eTYPE_FLOAT, 4 ), gdi::eBIND_RENDER_TARGET | gdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_ALBEDO] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( gdi::eTYPE_FLOAT, 4 ), gdi::eBIND_RENDER_TARGET | gdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_SAO] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( gdi::eTYPE_FLOAT, 1 ), gdi::eBIND_RENDER_TARGET | gdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_SHADOW] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( gdi::eTYPE_FLOAT, 1 ), gdi::eBIND_RENDER_TARGET | gdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_DEPTH] = dev->createTexture2Ddepth( fbWidth, fbHeight, 1, gdi::eTYPE_DEPTH32F, gdi::eBIND_DEPTH_STENCIL | gdi::eBIND_SHADER_RESOURCE );
 
-        g->_framebuffer[eFB_TEMP0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        g->_framebuffer[eFB_TEMP1] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_TEMP0] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( gdi::eTYPE_FLOAT, 4 ), gdi::eBIND_RENDER_TARGET | gdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        g->_framebuffer[eFB_TEMP1] = dev->createTexture2D( fbWidth, fbHeight, 1, bxGdiFormat( gdi::eTYPE_FLOAT, 4 ), gdi::eBIND_RENDER_TARGET | gdi::eBIND_SHADER_RESOURCE, 0, 0 );
 
         {
-            g->_fxISky = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "sky" );
-            g->_fxISao = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "sao" );
-            g->_fxIShadow = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "shadow" );
+            g->_fxISky = gdi::shaderFx_createWithInstance( dev, resourceManager, "sky" );
+            g->_fxISao = gdi::shaderFx_createWithInstance( dev, resourceManager, "sao" );
+            g->_fxIShadow = gdi::shaderFx_createWithInstance( dev, resourceManager, "shadow" );
         }
 
         {
@@ -253,9 +253,9 @@ namespace bx
         }
 
         {
-            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &g->_fxIShadow );
-            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &g->_fxISao );
-            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &g->_fxISky );
+            gdi::shaderFx_releaseWithInstance( dev, resourceManager, &g->_fxIShadow );
+            gdi::shaderFx_releaseWithInstance( dev, resourceManager, &g->_fxISao );
+            gdi::shaderFx_releaseWithInstance( dev, resourceManager, &g->_fxISky );
         }
 
         for ( int i = 0; i < eFB_COUNT; ++i )
@@ -293,8 +293,8 @@ namespace bx
                     }
                 }
 
-                bxGdi::sortList_delete( &scene->_sListColor );
-                bxGdi::sortList_delete( &scene->_sListDepth );
+                gdi::sortList_delete( &scene->_sListColor );
+                gdi::sortList_delete( &scene->_sListDepth );
 
                 gfxSceneDataFree( &scene->_data );
                 BX_DELETE0( gfx->_allocScene, scene );
@@ -363,9 +363,9 @@ namespace bx
     void gfxSubmitFullScreenQuad( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, const char* passName )
     {
         GfxGlobalResources* gr = gfxGlobalResourcesGet();
-        bxGdi::renderSource_enable( ctx, gr->mesh.fullScreenQuad );
-        bxGdi::shaderFx_enable( ctx, fxI, passName );
-        ctx->setTopology( bxGdi::eTRIANGLES );
+        gdi::renderSource_enable( ctx, gr->mesh.fullScreenQuad );
+        gdi::shaderFx_enable( ctx, fxI, passName );
+        ctx->setTopology( gdi::eTRIANGLES );
         ctx->draw( gr->mesh.fullScreenQuad->vertexBuffers->numElements, 0 );
     }
 
@@ -373,7 +373,7 @@ namespace bx
     {
         GfxGlobalResources* gr = gfxGlobalResourcesGet();
         ctx->changeRenderTargets( (bxGdiTexture*)&outputTexture, 1 );
-        bxGdi::context_setViewport( ctx, outputTexture );
+        gdi::context_setViewport( ctx, outputTexture );
         gfxSubmitFullScreenQuad( ctx, gr->fx.texUtils, "copy_rgba" );
     }
 
@@ -391,7 +391,7 @@ namespace bx
         GfxGlobalResources* gr = gfxGlobalResourcesGet();
         bxGdiShaderFx_Instance* fxI = gr->fx.texUtils;
         fxI->setTexture( "gtexture", colorTexture );
-        fxI->setSampler( "gsampler", bxGdiSamplerDesc( bxGdi::eFILTER_BILINEAR ) );
+        fxI->setSampler( "gsampler", bxGdiSamplerDesc( gdi::eFILTER_BILINEAR ) );
 
         gfxSubmitFullScreenQuad( ctx, fxI, "copy_rgba" );
     }
@@ -633,10 +633,10 @@ namespace bx
 
             if ( !scene->_sListColor || scene->_sListColor->capacity < scene->_instancesCount )
             {
-                bxGdi::sortList_delete( &scene->_sListColor );
-                bxGdi::sortList_delete( &scene->_sListDepth );
-                bxGdi::sortList_new( &scene->_sListColor, scene->_instancesCount, bxDefaultAllocator() );
-                bxGdi::sortList_new( &scene->_sListDepth, scene->_instancesCount, bxDefaultAllocator() );
+                gdi::sortList_delete( &scene->_sListColor );
+                gdi::sortList_delete( &scene->_sListDepth );
+                gdi::sortList_new( &scene->_sListColor, scene->_instancesCount, bxDefaultAllocator() );
+                gdi::sortList_new( &scene->_sListDepth, scene->_instancesCount, bxDefaultAllocator() );
             }
 
             GfxSortListColor* colorList = scene->_sListColor;
@@ -688,15 +688,15 @@ namespace bx
                     colorSortItem.index = iitem;
                     depthSortItem.index = iitem;
 
-                    bxGdi::sortList_chunkAdd( colorList, colorChunk, colorSortItem );
-                    bxGdi::sortList_chunkAdd( depthList, depthChunk, depthSortItem );
+                    gdi::sortList_chunkAdd( colorList, colorChunk, colorSortItem );
+                    gdi::sortList_chunkAdd( depthList, depthChunk, depthSortItem );
                 }
             }
             scene->_aabb = sceneAABB;
 
 
-            bxGdi::sortList_sortLess( colorList, *colorChunk );
-            bxGdi::sortList_sortLess( depthList, *depthChunk );
+            gdi::sortList_sortLess( colorList, *colorChunk );
+            gdi::sortList_sortLess( depthList, *depthChunk );
         }
 
 
@@ -716,11 +716,11 @@ namespace bx
                 u32 instanceCount = view._instanceOffsetArray[i + 1] - instanceOffset;
                 gdi->backend()->updateCBuffer( view._instanceOffsetBuffer, &instanceOffset );
 
-                bxGdi::renderSource_enable( gdi, rsource );
-                bxGdi::shaderFx_enable( gdi, fxI, 0 );
+                gdi::renderSource_enable( gdi, rsource );
+                gdi::shaderFx_enable( gdi, fxI, 0 );
 
-                bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
-                bxGdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
+                bxGdiRenderSurface surf = gdi::renderSource_surface( rsource, gdi::eTRIANGLES );
+                gdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
             }
         }
         void sortListDepthSubmit( bxGdiContext* gdi, const GfxView& view, const GfxScene* scene, const GfxSortListDepth* sList, int begin, int end )
@@ -737,10 +737,10 @@ namespace bx
                 u32 instanceCount = view._instanceOffsetArray[i + 1] - instanceOffset;
                 gdi->backend()->updateCBuffer( view._instanceOffsetBuffer, &instanceOffset );
 
-                bxGdi::renderSource_enable( gdi, rsource );
+                gdi::renderSource_enable( gdi, rsource );
 
-                bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
-                bxGdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
+                bxGdiRenderSurface surf = gdi::renderSource_surface( rsource, gdi::eTRIANGLES );
+                gdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
             }
         }
     }///
@@ -827,7 +827,7 @@ namespace bx
             if( nMeshes )
             {
                 bxGdiShaderFx_Instance* fxI = gfxGlobalResourcesGet()->fx.utils;
-                bxGdi::shaderFx_enable( gdi, fxI, "zPrepassDepthOnly" );
+                gdi::shaderFx_enable( gdi, fxI, "zPrepassDepthOnly" );
                 sortListDepthSubmit( gdi, view, scene, depthList, depthChunk.begin, depthChunk.current );
             }
             else
@@ -892,9 +892,9 @@ namespace bx
         {
             gfxViewUploadInstanceData( gdi, &view, scene->_data, colorList, colorChunk.begin, colorChunk.current );
 
-            gdi->setTexture( ctx->_framebuffer[eFB_SAO], eRS_TEXTURE_SAO, bxGdi::eSTAGE_MASK_PIXEL );
-            gdi->setTexture( ctx->_framebuffer[eFB_SHADOW], eRS_TEXTURE_SHADOW, bxGdi::eSTAGE_MASK_PIXEL );
-            gdi->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ), eRS_TEXTURE_SAO, bxGdi::eSTAGE_MASK_PIXEL );
+            gdi->setTexture( ctx->_framebuffer[eFB_SAO], eRS_TEXTURE_SAO, gdi::eSTAGE_MASK_PIXEL );
+            gdi->setTexture( ctx->_framebuffer[eFB_SHADOW], eRS_TEXTURE_SHADOW, gdi::eSTAGE_MASK_PIXEL );
+            gdi->setSampler( bxGdiSamplerDesc( gdi::eFILTER_NEAREST ), eRS_TEXTURE_SAO, gdi::eSTAGE_MASK_PIXEL );
 
             gdi->changeRenderTargets( &ctx->_framebuffer[eFB_COLOR0], 1, ctx->_framebuffer[eFB_DEPTH] );
             //gdi->clearBuffers( 0.f, 0.f, 0.f, 1.f, 0.f, 1, 0 );
@@ -917,8 +917,8 @@ namespace bx
         //    bxGdiShaderFx_Instance* fxI = ctx->_fxISao;
         //    fxI->setTexture( "texAlbedo", albedoTex );
         //    fxI->setTexture( "texNoise", noiseTex );
-        //    fxI->setSampler( "samplerAlbedo", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
-        //    fxI->setSampler( "samplerNoise", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+        //    fxI->setSampler( "samplerAlbedo", bxGdiSamplerDesc( gdi::eFILTER_NEAREST ) );
+        //    fxI->setSampler( "samplerNoise", bxGdiSamplerDesc( gdi::eFILTER_NEAREST ) );
         //    gfxSubmitFullScreenQuad( gdi, fxI, "ambientTransfer" );
 
         //}

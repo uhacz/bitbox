@@ -518,15 +518,15 @@ void initShapeMesh( Character* ch, bxGdiDeviceBackend* dev, bx::GfxScene* gfxSce
     const int nPoints = body.particleCount();
 
     bxGdiVertexStreamDesc sdesc;
-    sdesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
-    sdesc.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
+    sdesc.addBlock( gdi::eSLOT_POSITION, gdi::eTYPE_FLOAT, 3 );
+    sdesc.addBlock( gdi::eSLOT_NORMAL, gdi::eTYPE_FLOAT, 3, 1 );
 
     bxGdiVertexBuffer vbuffer = dev->createVertexBuffer( sdesc, nPoints );
-    bxGdiIndexBuffer ibuffer = dev->createIndexBuffer( bxGdi::eTYPE_USHORT, ch->shapeMeshData.nIndices, ch->shapeMeshData.indices );
+    bxGdiIndexBuffer ibuffer = dev->createIndexBuffer( gdi::eTYPE_USHORT, ch->shapeMeshData.nIndices, ch->shapeMeshData.indices );
 
-    bxGdiRenderSource* rsource = bxGdi::renderSource_new( 1 );
-    bxGdi::renderSource_setVertexBuffer( rsource, vbuffer, 0 );
-    bxGdi::renderSource_setIndexBuffer( rsource, ibuffer );
+    bxGdiRenderSource* rsource = gdi::renderSource_new( 1 );
+    gdi::renderSource_setVertexBuffer( rsource, vbuffer, 0 );
+    gdi::renderSource_setIndexBuffer( rsource, ibuffer );
 
     bx::GfxMeshInstance* meshInstance = nullptr;
     bx::gfxMeshInstanceCreate( &meshInstance, bx::gfxContextGet( gfxScene ) );
@@ -549,7 +549,7 @@ void deinitShapeMesh( Character* ch, bxGdiDeviceBackend* dev )
     bxGdiRenderSource* rsource = bx::gfxMeshInstanceRenderSourceGet( ch->meshInstance );
     bx::gfxMeshInstanceDestroy( &ch->meshInstance );
 
-    bxGdi::renderSource_releaseAndFree( dev, &rsource );
+    gdi::renderSource_releaseAndFree( dev, &rsource );
 
     //bxGfx::worldMeshRemoveAndRelease( &ch->shapeMeshI );
 }
@@ -877,8 +877,8 @@ namespace bx
 		if( doIteration )
 		{
 			bxGdiRenderSource* rsource = bx::gfxMeshInstanceRenderSourceGet( character->meshInstance );
-			const bxGdiVertexBuffer& vbuffer = bxGdi::renderSourceVertexBuffer( rsource, 0 );
-			MeshVertex* vertices = (MeshVertex*)ctx->mapVertices( vbuffer, 0, vbuffer.numElements, bxGdi::eMAP_WRITE );
+			const bxGdiVertexBuffer& vbuffer = gdi::renderSourceVertexBuffer( rsource, 0 );
+			MeshVertex* vertices = (MeshVertex*)ctx->mapVertices( vbuffer, 0, vbuffer.numElements, gdi::eMAP_WRITE );
 			CharacterInternal::updateMesh( vertices, character->particles.pos0, character->particles.size, character->shapeMeshData.indices, character->shapeMeshData.nIndices );
 			ctx->unmapVertices( vbuffer );
 

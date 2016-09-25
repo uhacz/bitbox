@@ -4,8 +4,9 @@
 #include <d3d11.h>
 #include "../gdi_backend.h"
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
     static const D3D11_FILL_MODE fillMode[] = 
     {
         D3D11_FILL_SOLID,
@@ -216,7 +217,7 @@ namespace bxGdi
         }
         return counter;
     }
-}//
+}}///
 
 namespace bx{
 namespace gdi{
@@ -229,6 +230,8 @@ struct CommandQueue
     ID3D11RenderTargetView* _mainFramebuffer = nullptr;
     u32 _mainFramebufferWidth = 0;
     u32 _mainFramebufferHeight = 0;
+
+    ID3D11DeviceContext* dx11() { return _context; }
 };
 
 }}///

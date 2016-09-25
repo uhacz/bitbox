@@ -11,6 +11,8 @@
 #include <util/view_frustum.h>
 #include <util/camera.h>
 
+using namespace bx;
+
 struct BIT_ALIGNMENT_16 bxGfxDebugDraw_Shpere
 {
     Vector4 pos_radius;
@@ -78,26 +80,26 @@ namespace bxGfxDebugDraw
 
         __dd->cbuffer_instances = dev->createConstantBuffer( sizeof( bxGfxDebugDraw_InstanceBuffer ) );
 
-        __dd->fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "debug" );
+        __dd->fxI = gdi::shaderFx_createWithInstance( dev, resourceManager, "debug" );
         SYS_ASSERT( __dd->fxI != 0 );
 
         bxPolyShape polyShape;
         bxPolyShape_createBox( &polyShape, 1 );
-        __dd->rSource_box = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
+        __dd->rSource_box = gdi::renderSource_createFromPolyShape( dev, polyShape );
         bxPolyShape_deallocateShape( &polyShape );
 
         bxPolyShape_createShpere( &polyShape, 3 );
-        __dd->rSource_sphere = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
+        __dd->rSource_sphere = gdi::renderSource_createFromPolyShape( dev, polyShape );
         bxPolyShape_deallocateShape( &polyShape );
         
         {
             bxGdiVertexStreamDesc vsDesc;
-            vsDesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 4 );
+            vsDesc.addBlock( gdi::eSLOT_POSITION, gdi::eTYPE_FLOAT, 4 );
 
             bxGdiVertexBuffer vBuffer = dev->createVertexBuffer( vsDesc, bxGfxDebugDrawContext::eMAX_LINES * 2, 0 );
 
-            __dd->rSource_lines = bxGdi::renderSource_new( 1 );
-            bxGdi::renderSource_setVertexBuffer( __dd->rSource_lines, vBuffer, 0 );
+            __dd->rSource_lines = gdi::renderSource_new( 1 );
+            gdi::renderSource_setVertexBuffer( __dd->rSource_lines, vBuffer, 0 );
 
         }
 
@@ -113,10 +115,10 @@ namespace bxGfxDebugDraw
         
         bxResourceManager* resourceManager = bx::resourceManagerGet();
 
-        bxGdi::renderSource_releaseAndFree( dev, &__dd->rSource_lines );
-        bxGdi::renderSource_releaseAndFree( dev, &__dd->rSource_box );
-        bxGdi::renderSource_releaseAndFree( dev, &__dd->rSource_sphere );
-        bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &__dd->fxI );
+        gdi::renderSource_releaseAndFree( dev, &__dd->rSource_lines );
+        gdi::renderSource_releaseAndFree( dev, &__dd->rSource_box );
+        gdi::renderSource_releaseAndFree( dev, &__dd->rSource_sphere );
+        gdi::shaderFx_releaseWithInstance( dev, resourceManager, &__dd->fxI );
         dev->releaseBuffer( &__dd->cbuffer_instances );
 
         BX_DELETE0( bxDefaultAllocator(), __dd );
@@ -184,7 +186,7 @@ namespace bxGfxDebugDraw
         bxScopeBenaphore lock( __dd->lock );
         
         //bxGdiHwStateDesc hwState;
-        //hwState.raster.fillMode = bxGdi::eFILL_WIREFRAME;
+        //hwState.raster.fillMode = gdi::eFILL_WIREFRAME;
 
 		const Matrix4 projDx11 = bx::gfx::cameraMatrixProjectionDx11( proj );
 		const Matrix4 viewProj = projDx11 * view;
@@ -194,7 +196,7 @@ namespace bxGfxDebugDraw
         //__dd->fxI->setHwState( 1, hwState );
 
         //ctx->clear();
-        ctx->setCbuffer( __dd->cbuffer_instances, 1, bxGdi::eSTAGE_MASK_VERTEX );
+        ctx->setCbuffer( __dd->cbuffer_instances, 1, gdi::eSTAGE_MASK_VERTEX );
         
         const int nSpheres = array::size( __dd->spheres );
         const int nBoxes = array::size( __dd->boxes );
@@ -203,11 +205,11 @@ namespace bxGfxDebugDraw
         {
             bxGfxDebugDraw_InstanceBuffer ibuffer;
 
-            bxGdi::shaderFx_enable( ctx, __dd->fxI, "object" );
+            gdi::shaderFx_enable( ctx, __dd->fxI, "object" );
             if( nSpheres )
             {
-                const bxGdiRenderSurface surf = bxGdi::renderSource_surface( __dd->rSource_sphere, bxGdi::eTRIANGLES );
-                bxGdi::renderSource_enable( ctx, __dd->rSource_sphere );
+                const bxGdiRenderSurface surf = gdi::renderSource_surface( __dd->rSource_sphere, gdi::eTRIANGLES );
+                gdi::renderSource_enable( ctx, __dd->rSource_sphere );
                 bxRangeSplitter splitter = bxRangeSplitter::splitByGrab( nSpheres, bxGfxDebugDraw_InstanceBuffer::eMAX_INSTANCES );
                 while( splitter.elementsLeft() )
                 {
@@ -222,13 +224,13 @@ namespace bxGfxDebugDraw
 
                     ctx->backend()->updateCBuffer( __dd->cbuffer_instances, &ibuffer );
 
-                    bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, grab );
+                    gdi::renderSurface_drawIndexedInstanced( ctx, surf, grab );
                 }
             }
             if( nBoxes )
             {
-                const bxGdiRenderSurface surf = bxGdi::renderSource_surface( __dd->rSource_box, bxGdi::eTRIANGLES );
-                bxGdi::renderSource_enable( ctx, __dd->rSource_box );
+                const bxGdiRenderSurface surf = gdi::renderSource_surface( __dd->rSource_box, gdi::eTRIANGLES );
+                gdi::renderSource_enable( ctx, __dd->rSource_box );
                 bxRangeSplitter splitter = bxRangeSplitter::splitByGrab( nBoxes, bxGfxDebugDraw_InstanceBuffer::eMAX_INSTANCES );
                 while ( splitter.elementsLeft() )
                 {
@@ -242,7 +244,7 @@ namespace bxGfxDebugDraw
                     }
 
                     ctx->backend()->updateCBuffer( __dd->cbuffer_instances, &ibuffer );
-                    bxGdi::renderSurface_drawIndexedInstanced( ctx, surf, grab );
+                    gdi::renderSurface_drawIndexedInstanced( ctx, surf, grab );
                 }
 
             }
@@ -252,9 +254,9 @@ namespace bxGfxDebugDraw
         const int nLines = array::size( __dd->lines );
         if( nLines )
         {
-            bxGdi::shaderFx_enable( ctx, __dd->fxI, "lines" );
+            gdi::shaderFx_enable( ctx, __dd->fxI, "lines" );
             bxGdiVertexBuffer lineVBuffer = __dd->rSource_lines->vertexBuffers[0];
-            bxGdi::renderSource_enable( ctx, __dd->rSource_lines );
+            gdi::renderSource_enable( ctx, __dd->rSource_lines );
 
             bxRangeSplitter splitter = bxRangeSplitter::splitByGrab( nLines, bxGfxDebugDrawContext::eMAX_LINES );
             while ( splitter.elementsLeft() )
@@ -262,7 +264,7 @@ namespace bxGfxDebugDraw
                 const int offset = splitter.grabbedElements;
                 const int grab = splitter.nextGrab();
 
-                Vector4* lineBuffer = (Vector4*)ctx->backend()->mapVertices( lineVBuffer, 0, grab*2, bxGdi::eMAP_WRITE );
+                Vector4* lineBuffer = (Vector4*)ctx->backend()->mapVertices( lineVBuffer, 0, grab*2, gdi::eMAP_WRITE );
 
                 for ( int iobj = 0; iobj < grab; ++iobj )
                 {
@@ -276,8 +278,8 @@ namespace bxGfxDebugDraw
 
                 ctx->backend()->unmapVertices( lineVBuffer );
 
-                bxGdiRenderSurface surf( bxGdi::eLINES, 0, grab * 2 );
-                bxGdi::renderSurface_draw( ctx, surf );
+                bxGdiRenderSurface surf( gdi::eLINES, 0, grab * 2 );
+                gdi::renderSurface_draw( ctx, surf );
             }
         }
 

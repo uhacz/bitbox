@@ -27,8 +27,9 @@ bxGdiShaderFx_Instance::~bxGdiShaderFx_Instance()
     SYS_ASSERT( _textures == 0 );
 }
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
     int shaderFx_findPass( const bxGdiShaderFx* fx, const char* passName )
     {
         const u32 passHashedName = simple_hash( passName );
@@ -71,7 +72,7 @@ namespace bxGdi
         const u32 seed = 0xBAADF00D;
         return murmur3_hash32( &pass, sizeof( bxGdiShaderPass ), seed );
     }
-}
+}}///
 
 void bxGdiShaderFx_Instance::setTexture( const char* name, bxGdiTexture tex )
 {
@@ -81,13 +82,13 @@ void bxGdiShaderFx_Instance::setTexture( const char* name, bxGdiTexture tex )
     const u32 hashedName = simple_hash( name );
     do
     {
-        const bxGdiShaderFx::TextureDesc* param = bxGdi::shaderFx_findTexture( fx, hashedName, index );
+        const bxGdiShaderFx::TextureDesc* param = bx::gdi::shaderFx_findTexture( fx, hashedName, index );
         if( !param )
             break;
 
         SYS_ASSERT( param->passIndex < 31 );
         
-        _flag_texturesDirty |= ( !bxGdi::texture_equal( _textures[param->index], tex ) ) << param->passIndex;
+        _flag_texturesDirty |= ( !bx::gdi::texture_equal( _textures[param->index], tex ) ) << param->passIndex;
         _textures[param->index] = tex;
 
         index = param->index + 1;
@@ -101,7 +102,7 @@ void bxGdiShaderFx_Instance::setSampler( const char* name, const bxGdiSamplerDes
     const u32 hashedName = simple_hash( name );
     do
     {
-        const bxGdiShaderFx::SamplerDesc* param = bxGdi::shaderFx_findSampler( fx, hashedName, index );
+        const bxGdiShaderFx::SamplerDesc* param = bx::gdi::shaderFx_findSampler( fx, hashedName, index );
         if( !param )
             break;
 
@@ -113,7 +114,7 @@ void bxGdiShaderFx_Instance::setSampler( const char* name, const bxGdiSamplerDes
 void bxGdiShaderFx_Instance::setUniform( const char* name, const void* data, unsigned size )
 {
     const u32 hashedName = simple_hash( name );
-    const bxGdiShaderFx::UniformDesc* desc = bxGdi::shaderFx_findUniform( _fx, hashedName );
+    const bxGdiShaderFx::UniformDesc* desc = bx::gdi::shaderFx_findUniform( _fx, hashedName );
     if( !desc )
         return;
 
@@ -151,14 +152,14 @@ u32 bxGdiShaderFx_Instance::sortHash(int passIndex)
     {
         _flag_texturesDirty &= ~(passMask);
 
-        const u32 passHash = bxGdi::shaderPass_computeHash( _fx->_passes[passIndex] );
+        const u32 passHash = bx::gdi::shaderPass_computeHash( _fx->_passes[passIndex] );
 
         const bxGdiShaderFx::TextureDesc* textureDescs = _fx->_textures;
         const int numTextures = _fx->_numTextures;
 
         u32 textureHash = 0;
 
-        bxGdiTexture textures[bxGdi::cMAX_TEXTURES];
+        bxGdiTexture textures[bx::gdi::cMAX_TEXTURES];
         memset( textures, 0x00, sizeof( textures ) );
 
         for( u8 itexture = 0; itexture < _fx->_numTextures; ++itexture )
@@ -177,13 +178,14 @@ u32 bxGdiShaderFx_Instance::sortHash(int passIndex)
     return _sortHash[passIndex];
 }
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
     int _ShaderFx_initParams( bxGdiShaderFx* fx, const ShaderReflection& reflection, const char* materialCBufferName )
     {
         SYS_ASSERT( fx->_hashedNames == 0 );
 
-        const int MAX_BUFFERS = bxGdi::cMAX_CBUFFERS;
+        const int MAX_BUFFERS = bx::gdi::cMAX_CBUFFERS;
         const u32 cbufferHashedName = simple_hash( materialCBufferName );
         
         u32 validBufferIndices[MAX_BUFFERS];
@@ -390,7 +392,7 @@ namespace bxGdi
             ShaderReflection local_reflection;
 
     	    fx->_passHashedNames[ipass] = simple_hash( cpass.name );
-    	    for( int j = 0; j < bxGdi::eDRAW_STAGES_COUNT; ++j )
+    	    for( int j = 0; j < bx::gdi::eDRAW_STAGES_COUNT; ++j )
     	    {
     		    if( !cpass.entry_points[j] )
                 {
@@ -399,7 +401,7 @@ namespace bxGdi
                 }
 
                 char shaderBinFilename[256] = {0};
-                sprintf_s( shaderBinFilename, "shader/%s/bin/%s.%s.%s", shaderApi, fileNameWithoutExt, cpass.name, bxGdi::stageName[j] );
+                sprintf_s( shaderBinFilename, "shader/%s/bin/%s.%s.%s", shaderApi, fileNameWithoutExt, cpass.name, bx::gdi::stageName[j] );
 
                 bxFS::File codeFile = resourceManager->readFileSync( shaderBinFilename );
                 SYS_ASSERT( codeFile.ok() );
@@ -409,7 +411,7 @@ namespace bxGdi
 
                 pass.progs[j] = id_shader;
 
-                //if( j == bxGdi::eSTAGE_VERTEX )
+                //if( j == bx::gdi::eSTAGE_VERTEX )
                 //{
                 //    pass.vertexInputMask = local_reflection.input_mask;
                 //}
@@ -477,7 +479,7 @@ namespace bxGdi
             for ( int ipass = 0; ipass < fx->_numPasses; ++ipass )
             {
                 bxGdiShaderPass& pass = fx->_passes[ipass];
-                for ( int istage = 0; istage < bxGdi::eDRAW_STAGES_COUNT; ++istage )
+                for ( int istage = 0; istage < bx::gdi::eDRAW_STAGES_COUNT; ++istage )
                 {
                     dev->releaseShader( &pass.progs[istage] );
                 }
@@ -603,7 +605,7 @@ namespace bxGdi
 
     void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, int passIndex )
     {
-        ctx->setShaders( (bxGdiShader*)fxI->programs( passIndex ), bxGdi::eDRAW_STAGES_COUNT, fxI->vertexInputMask( passIndex ) );
+        ctx->setShaders( (bxGdiShader*)fxI->programs( passIndex ), bx::gdi::eDRAW_STAGES_COUNT, fxI->vertexInputMask( passIndex ) );
         ctx->setHwState( fxI->hwState( passIndex ) );
 
         {
@@ -640,7 +642,4 @@ namespace bxGdi
         }
      
     }
-
-
-
-}///
+}}///

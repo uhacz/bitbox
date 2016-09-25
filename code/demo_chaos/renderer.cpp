@@ -14,18 +14,18 @@ namespace utils
 
 struct PipelineImpl
 {
-    bxGdiBlendState blend_state = {};
-    bxGdiDepthState depth_state = {};
-    bxGdiRasterState raster_state = {};
-    bxGdiInputLayout input_layout{};
+    gdi::BlendState blend_state = {};
+    gdi::DepthState depth_state = {};
+    gdi::RasterState raster_state = {};
+    gdi::InputLayout input_layout{};
     bxGdi::ETopology topology = bxGdi::eTRIANGLES;
-    bxGdiShader      shaders[bxGdi::eDRAW_STAGES_COUNT] = {};
+    gdi::Shader      shaders[bxGdi::eDRAW_STAGES_COUNT] = {};
 };
 
 struct RenderPassImpl
 {
-    bxGdiTexture color_textures[bxGdi::cMAX_RENDER_TARGETS] = {};
-    bxGdiTexture depth_texture;
+    gdi::TextureRW color_textures[bxGdi::cMAX_RENDER_TARGETS] = {};
+    gdi::TextureDepth depth_texture;
     u16 num_color_textures = 0;
 };
 
@@ -44,27 +44,35 @@ struct BIT_ALIGNMENT_16 ResourceDescriptorImpl
         u16 stage = 0xffff;
         u16 slot = 0xffff;
     };
-    struct Resource
+    
+    struct ResourceRO
     {
         Binding binding;
-        bxGdiResource resource;
+        gdi::ResourceRO resource;
     };
+    
+    struct ResourceRW
+    {
+        Binding binding;
+        gdi::ResourceRW resource;
+    };
+    
+    struct ConstantBuffer
+    {
+        Binding binding;
+        gdi::ConstantBuffer buffer;
+    };
+
     struct Sampler
     {
         Binding binding;
-        bxGdiSampler sampler;
+        bx::gdi::Sampler sampler;
     };
-    struct Buffer
-    {
-        Binding binding;
-        bxGdiBuffer buffer;
-    };
-
-    Resource* textures = nullptr;
-    Sampler*  samplers = nullptr;
-    Buffer*   cbuffers = nullptr;
-    Resource* buffers_ro = nullptr;
-    Resource* buffers_rw = nullptr;
+    
+    ResourceRO* ro = nullptr;
+    ResourceRW* rw = nullptr;
+    ConstantBuffer* cb = nullptr;
+    Sampler* sampl = nullptr;
 
     u8 count[_eRESOURCE_TYPE_COUNT_] = {};
 };
@@ -79,10 +87,10 @@ Pipeline createPipeline( const PipelineDesc& desc, bxAllocator* allocator )
         impl->shaders[i] = desc.shaders[i];
     }
 
-    impl->input_layout = dev->createInputLayout( desc.vertex_stream_descs, desc.num_vertex_stream_descs, desc.shaders[bxGdi::eSTAGE_VERTEX] );
-    impl->blend_state = dev->createBlendState( desc.hw_state_desc.blend );
-    impl->depth_state = dev->createDepthState( desc.hw_state_desc.depth );
-    impl->raster_state = dev->createRasterState( desc.hw_state_desc.raster );
+    impl->input_layout = gdi::create::inputLayout( desc.vertex_stream_descs, desc.num_vertex_stream_descs, desc.shaders[bxGdi::eSTAGE_VERTEX] );
+    impl->blend_state  = gdi::create::blendState( desc.hw_state_desc.blend );
+    impl->depth_state  = gdi::create::depthState( desc.hw_state_desc.depth );
+    impl->raster_state = gdi::create::rasterState( desc.hw_state_desc.raster );
     impl->topology = desc.topology;
 
     return impl;

@@ -5,8 +5,9 @@
 
 #include <memory.h>
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
     struct ClearColorData
     {
         float rgbad[5];
@@ -60,7 +61,7 @@ namespace bxGdi
         };
     };
 
-    union InputLayout
+    union InputLayoutHash
     {
         struct
         {
@@ -75,7 +76,7 @@ namespace bxGdi
     
     struct StateData
     {
-        InputLayout         _inputLayout;
+        InputLayoutHash     _inputLayout;
         bxGdiVertexBuffer   _vstreams[cMAX_VERTEX_BUFFERS];
         bxGdiIndexBuffer    _istream;
 
@@ -149,7 +150,7 @@ namespace bxGdi
     };
 
     struct ContextPriv;
-}///
+}}///
 
 
 struct bxGdiContext
@@ -160,11 +161,11 @@ private:
     bxGdiDeviceBackend* _dev;
     bxGdiContextBackend* _ctx;
 
-    bxGdi::StateData current;
-    bxGdi::StateData pending;
+    bx::gdi::StateData current;
+    bx::gdi::StateData pending;
 
-    bxGdi::InputLayout _inLayoytsKey[bxGdi::eMAX_INPUT_LAYOUTS];
-    bxGdiInputLayout _inLayoutsValue[bxGdi::eMAX_INPUT_LAYOUTS];
+    bx::gdi::InputLayoutHash _inLayoytsKey[bx::gdi::eMAX_INPUT_LAYOUTS];
+    bxGdiInputLayout _inLayoutsValue[bx::gdi::eMAX_INPUT_LAYOUTS];
 
     hashmap_t _map_blendState;
     hashmap_t _map_depthState;
@@ -173,7 +174,7 @@ private:
 
     i32 _numInLayouts;
     
-    friend struct bxGdi::ContextPriv;
+    friend struct bx::gdi::ContextPriv;
 public:
     /// 
     ///
@@ -228,12 +229,10 @@ public:
     void drawIndexedInstanced   ( unsigned num_indices, unsigned start_index, unsigned num_instances, unsigned base_vertex );
 };
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
     inline void context_setViewport( bxGdiContext* ctx, bxGdiTexture texture )
     {
         ctx->setViewport( bxGdiViewport( 0, 0, texture.width, texture.height ) );
     }
-}///
-
-
+}}///

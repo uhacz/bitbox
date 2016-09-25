@@ -2,8 +2,8 @@
 #include "gdi_context.h"
 #include <util/hash.h>
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
     int renderSource_memorySizeCompute( int numStreams )
     {
         int memSize = 0;
@@ -60,7 +60,7 @@ namespace bxGdi
         const int nVertices = shape.nvertices();
         const int nIndices = shape.ntriangles() * 3;
 
-        bxGdi::VertexNUV* nrmUV = (bxGdi::VertexNUV*)BX_MALLOC( bxDefaultAllocator(), shape.nvertices() * sizeof( bxGdi::VertexNUV ), 4 );
+        bx::gdi::VertexNUV* nrmUV = (bx::gdi::VertexNUV*)BX_MALLOC( bxDefaultAllocator(), shape.nvertices() * sizeof( bx::gdi::VertexNUV ), 4 );
         const float* pos = shape.positions;
         const u32* indices = shape.indices;
 
@@ -68,7 +68,7 @@ namespace bxGdi
         {
             const float* nrm = shape.normal( ivertex );
             const float* uv = shape.texcoord( ivertex );
-            bxGdi::VertexNUV* dst = nrmUV + ivertex;
+            bx::gdi::VertexNUV* dst = nrmUV + ivertex;
             dst->nrm[0] = nrm[0];
             dst->nrm[1] = nrm[1];
             dst->nrm[2] = nrm[2];
@@ -77,15 +77,15 @@ namespace bxGdi
         }
 
         bxGdiVertexStreamDesc vsDescP;
-        vsDescP.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
+        vsDescP.addBlock( bx::gdi::eSLOT_POSITION, bx::gdi::eTYPE_FLOAT, 3 );
 
         bxGdiVertexStreamDesc vsDescNUV;
-        vsDescNUV.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3 );
-        vsDescNUV.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 );
+        vsDescNUV.addBlock( bx::gdi::eSLOT_NORMAL, bx::gdi::eTYPE_FLOAT, 3 );
+        vsDescNUV.addBlock( bx::gdi::eSLOT_TEXCOORD0, bx::gdi::eTYPE_FLOAT, 2 );
 
         bxGdiVertexBuffer vBufferP = dev->createVertexBuffer( vsDescP, nVertices, pos );
         bxGdiVertexBuffer vBufferNUV = dev->createVertexBuffer( vsDescNUV, nVertices, nrmUV );
-        bxGdiIndexBuffer iBuffer = dev->createIndexBuffer( bxGdi::eTYPE_UINT, nIndices, indices );
+        bxGdiIndexBuffer iBuffer = dev->createIndexBuffer( bx::gdi::eTYPE_UINT, nIndices, indices );
 
         bxGdiRenderSource* rsource = renderSource_new( 2 );
         renderSource_setVertexBuffer( rsource, vBufferP, 0 );
@@ -143,4 +143,5 @@ namespace bxGdi
         ctx->drawIndexedInstanced( surf.count, surf.begin, numInstances, baseVertex );
     }
 
-}///
+}}///
+

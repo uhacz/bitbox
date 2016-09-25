@@ -34,8 +34,9 @@ struct bxGdiRenderSource
     {}
 };
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
     int renderSource_memorySizeCompute( int numStreams );
     bxGdiRenderSource* renderSource_new( int numStreams, bxAllocator* allocator = bxDefaultAllocator() );
     void renderSource_free( bxGdiRenderSource** rsource, bxAllocator* allocator = bxDefaultAllocator() );
@@ -72,6 +73,5 @@ namespace bxGdi
         surf.count = ( rsource->indexBuffer.id ) ? rsource->indexBuffer.numElements : rsource->vertexBuffers[0].numElements;
         return surf;
     }
-
-}///
+}}///
 

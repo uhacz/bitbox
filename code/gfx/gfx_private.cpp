@@ -230,8 +230,8 @@ namespace bx
     {
         view->_viewParamsBuffer = dev->createConstantBuffer( sizeof( GfxViewFrameParams ) );
         const int numElements = maxInstances * 3; /// 3 * row
-        view->_instanceWorldBuffer = dev->createBuffer( numElements, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
-        view->_instanceWorldITBuffer = dev->createBuffer( numElements, bxGdiFormat( bxGdi::eTYPE_FLOAT, 3 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+        view->_instanceWorldBuffer = dev->createBuffer( numElements, bxGdiFormat( gdi::eTYPE_FLOAT, 4 ), gdi::eBIND_SHADER_RESOURCE, gdi::eCPU_WRITE, gdi::eGPU_READ );
+        view->_instanceWorldITBuffer = dev->createBuffer( numElements, bxGdiFormat( gdi::eTYPE_FLOAT, 3 ), gdi::eBIND_SHADER_RESOURCE, gdi::eCPU_WRITE, gdi::eGPU_READ );
         view->_instanceOffsetBuffer = dev->createConstantBuffer( sizeof( u32 ) );
         view->_maxInstances = maxInstances;
     }
@@ -253,10 +253,10 @@ namespace bx
     }
     void gfxViewEnable( bxGdiContext* gdi, const GfxView* view )
     {
-        gdi->setBufferRO( view->_instanceWorldBuffer, eRS_BUFFER_INSTANCE_WORLD, bxGdi::eSTAGE_MASK_VERTEX );
-        gdi->setBufferRO( view->_instanceWorldITBuffer, eRS_BUFFER_INSTANCE_WORLD_IT, bxGdi::eSTAGE_MASK_VERTEX );
-        gdi->setCbuffer( view->_viewParamsBuffer, eRS_CBUFFER_VIEW_PARAMS, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL );
-        gdi->setCbuffer( view->_instanceOffsetBuffer, eRS_CBUFFER_INSTANCE_OFFSET, bxGdi::eSTAGE_MASK_VERTEX );
+        gdi->setBufferRO( view->_instanceWorldBuffer, eRS_BUFFER_INSTANCE_WORLD, gdi::eSTAGE_MASK_VERTEX );
+        gdi->setBufferRO( view->_instanceWorldITBuffer, eRS_BUFFER_INSTANCE_WORLD_IT, gdi::eSTAGE_MASK_VERTEX );
+        gdi->setCbuffer( view->_viewParamsBuffer, eRS_CBUFFER_VIEW_PARAMS, gdi::eSTAGE_MASK_VERTEX | gdi::eSTAGE_MASK_PIXEL );
+        gdi->setCbuffer( view->_instanceOffsetBuffer, eRS_CBUFFER_INSTANCE_OFFSET, gdi::eSTAGE_MASK_VERTEX );
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -298,7 +298,7 @@ namespace bx
 
     void gfxLightsEnable( bxGdiContext* gdi, const GfxLights* lights )
     {
-        gdi->setCbuffer( lights->_lightnigParamsBuffer, eRS_CBUFFER_LIGHTS, bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setCbuffer( lights->_lightnigParamsBuffer, eRS_CBUFFER_LIGHTS, gdi::eSTAGE_MASK_PIXEL );
     }
     void gfxSunLightCreate( GfxSunLight** sunLight, GfxContext* ctx )
     {
@@ -352,7 +352,7 @@ namespace bx
         
         GfxMaterialManager* mm = BX_NEW( bxDefaultAllocator(), GfxMaterialManager );
 
-        bxGdiShaderFx* nativeFx = bxGdi::shaderFx_createFromFile( dev, resourceManager, nativeShaderName );
+        bxGdiShaderFx* nativeFx = gdi::shaderFx_createFromFile( dev, resourceManager, nativeShaderName );
         SYS_ASSERT( nativeFx != nullptr );
         mm->_nativeFx = nativeFx;
 
@@ -418,11 +418,11 @@ namespace bx
         while ( it.next() )
         {
             bxGdiShaderFx_Instance* fxI = (bxGdiShaderFx_Instance*)it->value;
-            bxGdi::shaderFx_releaseInstance( dev, resourceManager, &fxI );
+            gdi::shaderFx_releaseInstance( dev, resourceManager, &fxI );
         }
         hashmap::clear( mm->_map );
 
-        bxGdi::shaderFx_release( dev, resourceManager, &mm->_nativeFx );
+        gdi::shaderFx_release( dev, resourceManager, &mm->_nativeFx );
 
         BX_DELETE0( bxDefaultAllocator(), materialManager[0] );
     }
@@ -445,7 +445,7 @@ namespace bx
         const u64 key = gfxMaterialManagerCreateNameHash( name );
         SYS_ASSERT( hashmap::lookup( materialManager->_map, key ) == 0 );
 
-        bxGdiShaderFx_Instance* fxI = bxGdi::shaderFx_createInstance( dev, resourceManager, materialManager->_nativeFx );
+        bxGdiShaderFx_Instance* fxI = gdi::shaderFx_createInstance( dev, resourceManager, materialManager->_nativeFx );
         SYS_ASSERT( fxI != 0 );
 
         setMaterialParams( fxI, params );
@@ -469,13 +469,13 @@ namespace bx
 
     void gfxShadowCreate( GfxShadow* shd, bxGdiDeviceBackend* dev, int shadowMapSize )
     {
-        shd->_texDepth = dev->createTexture2Ddepth( shadowMapSize, shadowMapSize, 1, bxGdi::eTYPE_DEPTH32F, bxGdi::eBIND_DEPTH_STENCIL | bxGdi::eBIND_SHADER_RESOURCE );
+        shd->_texDepth = dev->createTexture2Ddepth( shadowMapSize, shadowMapSize, 1, gdi::eTYPE_DEPTH32F, gdi::eBIND_DEPTH_STENCIL | gdi::eBIND_SHADER_RESOURCE );
     }
 
     void gfxShadowDestroy( GfxShadow* shd, bxGdiDeviceBackend* dev )
     {
         dev->releaseTexture( &shd->_texDepth );
-        bxGdi::sortList_delete( &shd->_sortList );
+        gdi::sortList_delete( &shd->_sortList );
     }
 
     Matrix3 computeBasis1( const Vector3& dir )
@@ -539,8 +539,8 @@ namespace bx
 
         if ( !shd->_sortList || shd->_sortList->capacity < scene->_instancesCount )
         {
-            bxGdi::sortList_delete( &shd->_sortList );
-            bxGdi::sortList_new( &shd->_sortList, scene->_instancesCount, bxDefaultAllocator() );
+            gdi::sortList_delete( &shd->_sortList );
+            gdi::sortList_new( &shd->_sortList, scene->_instancesCount, bxDefaultAllocator() );
         }
 
         GfxSortListShadow* sortList = shd->_sortList;
@@ -574,10 +574,10 @@ namespace bx
                 sortItem.key.depth = depth16;
                 sortItem.index = iitem;
                 
-                bxGdi::sortList_chunkAdd( sortList, chunk, sortItem );
+                gdi::sortList_chunkAdd( sortList, chunk, sortItem );
             }
         }
-        bxGdi::sortList_sortLess( sortList, *chunk );
+        gdi::sortList_sortLess( sortList, *chunk );
     }
 
     void gfxShadowSortListSubmit( bxGdiContext* gdi, const GfxView& view, const GfxScene::Data& data, const GfxSortListShadow* sList, int begin, int end )
@@ -593,10 +593,10 @@ namespace bx
             u32 instanceCount = view._instanceOffsetArray[i + 1] - instanceOffset;
             gdi->backend()->updateCBuffer( view._instanceOffsetBuffer, &instanceOffset );
 
-            bxGdi::renderSource_enable( gdi, rsource );
+            gdi::renderSource_enable( gdi, rsource );
 
-            bxGdiRenderSurface surf = bxGdi::renderSource_surface( rsource, bxGdi::eTRIANGLES );
-            bxGdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
+            bxGdiRenderSurface surf = gdi::renderSource_surface( rsource, gdi::eTRIANGLES );
+            gdi::renderSurface_drawIndexedInstanced( gdi, surf, instanceCount );
         }
     }
 
@@ -638,7 +638,7 @@ namespace bx
         bxGdiShaderFx_Instance* fxI = ctx->_fxIShadow;
         fxI->setUniform( "lightViewProj", proj * shd->_lightView );
         fxI->setUniform( "lightDirectionWS", lightDirection );
-        bxGdi::shaderFx_enable( gdi, fxI, "shadowDepthPass" );
+        gdi::shaderFx_enable( gdi, fxI, "shadowDepthPass" );
         
         gfxShadowSortListSubmit( gdi, *view, scene->_data, shd->_sortList, chunk.begin, chunk.current );
     }
@@ -657,8 +657,8 @@ namespace bx
         fxI->setUniform( "shadowMapSize", float2_t( (float)shd->_texDepth.width, (float)shd->_texDepth.height ) );
         fxI->setTexture( "shadowMap", shd->_texDepth );
         fxI->setTexture( "sceneDepthTex", sceneHwDepth );
-        fxI->setSampler( "sampl", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP ) );
-        fxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_LEQUAL ) );
+        fxI->setSampler( "sampl", bxGdiSamplerDesc( gdi::eFILTER_NEAREST, gdi::eADDRESS_CLAMP ) );
+        fxI->setSampler( "samplShadowMap", bxGdiSamplerDesc( gdi::eFILTER_NEAREST, gdi::eADDRESS_CLAMP, gdi::eDEPTH_CMP_LEQUAL ) );
 
         gdi->changeRenderTargets( &output, 1 );
         gdi->clearBuffers( 1.f, 1.f, 1.f, 1.f, 0.f, 1, 0 );
@@ -677,11 +677,11 @@ namespace bx
 
     void gfxToneMapCreate( GfxToneMap* tm, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
     {
-        tm->fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "tone_mapping" );
+        tm->fxI = gdi::shaderFx_createWithInstance( dev, resourceManager, "tone_mapping" );
         const int lumiTexSize = 1024;
-        tm->adaptedLuminance[0] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        tm->adaptedLuminance[1] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
-        tm->initialLuminance = dev->createTexture2D( lumiTexSize, lumiTexSize, 1, bxGdiFormat( bxGdi::eTYPE_FLOAT, 1 ), bxGdi::eBIND_RENDER_TARGET | bxGdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        tm->adaptedLuminance[0] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( gdi::eTYPE_FLOAT, 1 ), gdi::eBIND_RENDER_TARGET | gdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        tm->adaptedLuminance[1] = dev->createTexture2D( lumiTexSize, lumiTexSize, 11, bxGdiFormat( gdi::eTYPE_FLOAT, 1 ), gdi::eBIND_RENDER_TARGET | gdi::eBIND_SHADER_RESOURCE, 0, 0 );
+        tm->initialLuminance = dev->createTexture2D( lumiTexSize, lumiTexSize, 1, bxGdiFormat( gdi::eTYPE_FLOAT, 1 ), gdi::eBIND_RENDER_TARGET | gdi::eBIND_SHADER_RESOURCE, 0, 0 );
     }
 
     void gfxToneMapDestroy( GfxToneMap* tm, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
@@ -690,7 +690,7 @@ namespace bx
         dev->releaseTexture( &tm->adaptedLuminance[1] );
         dev->releaseTexture( &tm->adaptedLuminance[0] );
 
-        bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &tm->fxI );
+        gdi::shaderFx_releaseWithInstance( dev, resourceManager, &tm->fxI );
     }
 
     void gfxToneMapDraw( GfxCommandQueue* cmdq, GfxToneMap* tm, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime )
@@ -708,21 +708,21 @@ namespace bx
         fxI->setUniform( "camera_iso", tm->camera_iso );
         fxI->setUniform( "useAutoExposure", tm->useAutoExposure );
 
-        gdi->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 0, bxGdi::eSTAGE_MASK_PIXEL );
-        gdi->setSampler( bxGdiSamplerDesc( bxGdi::eFILTER_LINEAR, bxGdi::eADDRESS_CLAMP, bxGdi::eDEPTH_CMP_NONE, 1 ), 1, bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setSampler( bxGdiSamplerDesc( gdi::eFILTER_NEAREST, gdi::eADDRESS_CLAMP, gdi::eDEPTH_CMP_NONE, 1 ), 0, gdi::eSTAGE_MASK_PIXEL );
+        gdi->setSampler( bxGdiSamplerDesc( gdi::eFILTER_LINEAR, gdi::eADDRESS_CLAMP, gdi::eDEPTH_CMP_NONE, 1 ), 1, gdi::eSTAGE_MASK_PIXEL );
 
         //
         //
         gdi->changeRenderTargets( &tm->initialLuminance, 1, bxGdiTexture() );
         gdi->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
-        gdi->setTexture( inTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setTexture( inTexture, 0, gdi::eSTAGE_MASK_PIXEL );
         gfxSubmitFullScreenQuad( gdi, fxI, "luminance_map" );
 
         //
         //
         gdi->changeRenderTargets( &tm->adaptedLuminance[tm->currentLuminanceTexture], 1, bxGdiTexture() );
-        gdi->setTexture( tm->adaptedLuminance[!tm->currentLuminanceTexture], 0, bxGdi::eSTAGE_MASK_PIXEL );
-        gdi->setTexture( tm->initialLuminance, 1, bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setTexture( tm->adaptedLuminance[!tm->currentLuminanceTexture], 0, gdi::eSTAGE_MASK_PIXEL );
+        gdi->setTexture( tm->initialLuminance, 1, gdi::eSTAGE_MASK_PIXEL );
         gfxSubmitFullScreenQuad( gdi, fxI, "adapt_luminance" );
         gdi->backend()->generateMipmaps( tm->adaptedLuminance[tm->currentLuminanceTexture] );
 
@@ -731,15 +731,15 @@ namespace bx
         gdi->changeRenderTargets( &outTexture, 1, bxGdiTexture() );
         gdi->clearBuffers( 0.f, 0.f, 0.f, 0.f, 0.f, 1, 0 );
 
-        gdi->setTexture( inTexture, 0, bxGdi::eSTAGE_MASK_PIXEL );
-        gdi->setTexture( tm->adaptedLuminance[tm->currentLuminanceTexture], 1, bxGdi::eSTAGE_MASK_PIXEL );
+        gdi->setTexture( inTexture, 0, gdi::eSTAGE_MASK_PIXEL );
+        gdi->setTexture( tm->adaptedLuminance[tm->currentLuminanceTexture], 1, gdi::eSTAGE_MASK_PIXEL );
 
         gfxSubmitFullScreenQuad( gdi, fxI, "composite" );
 
         tm->currentLuminanceTexture = !tm->currentLuminanceTexture;
 
-        gdi->setTexture( bxGdiTexture(), 0, bxGdi::eSTAGE_PIXEL );
-        gdi->setTexture( bxGdiTexture(), 1, bxGdi::eSTAGE_PIXEL );
+        gdi->setTexture( bxGdiTexture(), 0, gdi::eSTAGE_PIXEL );
+        gdi->setTexture( bxGdiTexture(), 1, gdi::eSTAGE_PIXEL );
     }
 
 
@@ -771,8 +771,8 @@ namespace bx
         GfxGlobalResources* gr = BX_NEW( bxDefaultAllocator(), GfxGlobalResources );
         memset( gr, 0x00, sizeof( GfxGlobalResources ) );
         {
-            gr->fx.utils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "utils" );
-            gr->fx.texUtils = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "texutils" );
+            gr->fx.utils = gdi::shaderFx_createWithInstance( dev, resourceManager, "utils" );
+            gr->fx.texUtils = gdi::shaderFx_createWithInstance( dev, resourceManager, "texutils" );
         }
 
         {//// fullScreenQuad
@@ -787,21 +787,21 @@ namespace bx
                 -1.f, 1.f, 0.f, 0.f, 1.f,
             };
             bxGdiVertexStreamDesc vsDesc;
-            vsDesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
-            vsDesc.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 );
+            vsDesc.addBlock( gdi::eSLOT_POSITION, gdi::eTYPE_FLOAT, 3 );
+            vsDesc.addBlock( gdi::eSLOT_TEXCOORD0, gdi::eTYPE_FLOAT, 2 );
             bxGdiVertexBuffer vBuffer = dev->createVertexBuffer( vsDesc, 6, vertices );
 
-            gr->mesh.fullScreenQuad = bxGdi::renderSource_new( 1 );
-            bxGdi::renderSource_setVertexBuffer( gr->mesh.fullScreenQuad, vBuffer, 0 );
+            gr->mesh.fullScreenQuad = gdi::renderSource_new( 1 );
+            gdi::renderSource_setVertexBuffer( gr->mesh.fullScreenQuad, vBuffer, 0 );
         }
         {//// poly shapes
             bxPolyShape polyShape;
             bxPolyShape_createBox( &polyShape, 1 );
-            gr->mesh.box = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
+            gr->mesh.box = gdi::renderSource_createFromPolyShape( dev, polyShape );
             bxPolyShape_deallocateShape( &polyShape );
 
             bxPolyShape_createShpere( &polyShape, 8 );
-            gr->mesh.sphere = bxGdi::renderSource_createFromPolyShape( dev, polyShape );
+            gr->mesh.sphere = gdi::renderSource_createFromPolyShape( dev, polyShape );
             bxPolyShape_deallocateShape( &polyShape );
         }
 
@@ -821,13 +821,13 @@ namespace bx
         }
 
         {
-            bxGdi::renderSource_releaseAndFree( dev, &gr->mesh.sphere );
-            bxGdi::renderSource_releaseAndFree( dev, &gr->mesh.box );
-            bxGdi::renderSource_releaseAndFree( dev, &gr->mesh.fullScreenQuad );
+            gdi::renderSource_releaseAndFree( dev, &gr->mesh.sphere );
+            gdi::renderSource_releaseAndFree( dev, &gr->mesh.box );
+            gdi::renderSource_releaseAndFree( dev, &gr->mesh.fullScreenQuad );
         }
         {
-            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.texUtils );
-            bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.utils );
+            gdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.texUtils );
+            gdi::shaderFx_releaseWithInstance( dev, resourceManager, &gr->fx.utils );
         }
 
         BX_DELETE0( bxDefaultAllocator(), globalResources[0] );

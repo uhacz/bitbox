@@ -21,7 +21,7 @@ void Engine::startup( Engine* e, const StartupInfo& info )
     
     if( info.start_gdi )
     {
-        bxGdi::backendStartup( &e->gdi_device, (uptr)win->hwnd, win->width, win->height, win->full_screen );
+        gdi::backendStartup( &e->gdi_device, (uptr)win->hwnd, win->width, win->height, win->full_screen );
         e->gdi_context = BX_NEW( bxDefaultAllocator(), bxGdiContext );
         e->gdi_context->_Startup( e->gdi_device );
         bxGfxDebugDraw::_Startup( e->gdi_device );
@@ -80,7 +80,7 @@ void Engine::shutdown( Engine* e )
 
     if( e->gdi_device )
     {
-        bxGdi::backendShutdown( &e->gdi_device );
+        gdi::backendShutdown( &e->gdi_device );
     }
 
     bxResourceManager::shutdown( &e->resource_manager );

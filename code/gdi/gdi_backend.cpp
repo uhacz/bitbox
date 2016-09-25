@@ -7,7 +7,7 @@ bxGdiVertexStreamDesc::bxGdiVertexStreamDesc()
     count = 0;
     memset( blocks, 0, sizeof( blocks ) );
 }
-bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::addBlock( bxGdi::EVertexSlot slot, bxGdi::EDataType type, int numElements, int norm )
+bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::addBlock( bx::gdi::EVertexSlot slot, bx::gdi::EDataType type, int numElements, int norm )
 {
     if( count >= eMAX_BLOCKS )
     {
@@ -26,8 +26,9 @@ bxGdiVertexStreamDesc& bxGdiVertexStreamDesc::addBlock( bxGdi::EVertexSlot slot,
     return *this;
 }
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
     EDataType typeFromName( const char* name )
     {
         for( int itype = 0; itype < eTYPE_COUNT; ++itype )
@@ -70,25 +71,24 @@ namespace bxGdi
         }
         return mask;
     }
-
-
-}///
+    
+}}///
 
 namespace bxGdi
 {
     unsigned char* buffer_map( bxGdiContextBackend* ctx, bxGdiBuffer buffer, int firstElement, int numElements, int mapType )
     {
-        SYS_ASSERT( (buffer.bindFlags & eBIND_CONSTANT_BUFFER) == 0 );
-        SYS_ASSERT( ( firstElement + numElements ) * formatByteWidth(buffer.format) <= (int)buffer.sizeInBytes );
+        SYS_ASSERT( (buffer.bindFlags & bx::gdi::eBIND_CONSTANT_BUFFER) == 0 );
+        SYS_ASSERT( ( firstElement + numElements ) * bx::gdi::formatByteWidth(buffer.format) <= (int)buffer.sizeInBytes );
 
-        const int offsetInBytes = firstElement * formatByteWidth( buffer.format );
+        const int offsetInBytes = firstElement * bx::gdi::formatByteWidth( buffer.format );
         return ctx->map( buffer.rs, offsetInBytes, mapType );
     }
 
     unsigned char* bufferMap( bxGdiContextBackend* ctx, bxGdiBuffer buffer, u32 offset, u32 size, int mapType /*= eMAP_WRITE */ )
     {
-        SYS_ASSERT( ( buffer.bindFlags & eBIND_CONSTANT_BUFFER ) == 0 );
-        SYS_ASSERT( ( offset + size ) * formatByteWidth( buffer.format ) <= (int)buffer.sizeInBytes );
+        SYS_ASSERT( ( buffer.bindFlags & bx::gdi::eBIND_CONSTANT_BUFFER ) == 0 );
+        SYS_ASSERT( ( offset + size ) * bx::gdi::formatByteWidth( buffer.format ) <= (int)buffer.sizeInBytes );
         return ctx->map( buffer.rs, offset, mapType );
     }
 
@@ -96,8 +96,9 @@ namespace bxGdi
 
 #include "dx11/gdi_backend_dx11_startup.h"
 #include <util/memory.h>
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
     int backendStartup( bxGdiDeviceBackend** dev, uptr hWnd, int winWidth, int winHeight, int fullScreen )
     {
         return startup_dx11( dev, hWnd, winWidth, winHeight, fullScreen );
@@ -110,13 +111,14 @@ namespace bxGdi
 
     EVertexSlot vertexSlotFromString( const char* n )
     {
-        for( int i = 0; i < eSLOT_COUNT; ++i )
+        for( int i = 0; i < bx::gdi::eSLOT_COUNT; ++i )
         {
-            if( !strcmp( n, slotName[i] ) )
-                return (EVertexSlot)i;
+            if( !strcmp( n, bx::gdi::slotName[i] ) )
+                return ( bx::gdi::EVertexSlot)i;
         }
 
-        return eSLOT_COUNT;
+        return bx::gdi::eSLOT_COUNT;
     }
 
-}///
+}}///
+

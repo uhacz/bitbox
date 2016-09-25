@@ -13,8 +13,9 @@ struct bxGdiSortList
 	bxAllocator* allocator;
 };
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
 	template< typename Titem >
 	void sortList_new( bxGdiSortList<Titem>** slist, int capacity, bxAllocator* allocator )
 	{
@@ -104,6 +105,6 @@ namespace bxGdi
         std::sort( slist->items + chunk.begin, slist->items + chunk.current, std::less<Titem>() );
     }
 
-}
+}}///
 
 

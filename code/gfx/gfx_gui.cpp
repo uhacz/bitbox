@@ -12,6 +12,8 @@
 #include <util/hash.h>
 #include <resource_manager/resource_manager.h>
 
+using namespace bx;
+
 struct bxGfxGUI_Impl
 {
     bxGdiRenderSource* _rsource;
@@ -56,7 +58,7 @@ namespace
 
         bxGdiContextBackend* gdiBackend = __gdiCtx->backend();
 
-        Vertex* mappedVertices = (Vertex*)gdiBackend->mapVertices( __gui->_rsource->vertexBuffers[0], 0, (int)total_vtx_count, bxGdi::eMAP_WRITE );
+        Vertex* mappedVertices = (Vertex*)gdiBackend->mapVertices( __gui->_rsource->vertexBuffers[0], 0, (int)total_vtx_count, gdi::eMAP_WRITE );
 
         for ( int n = 0; n < cmd_lists_count; n++ )
         {
@@ -90,9 +92,9 @@ namespace
         __gui->_fxI->setUniform( "projMatrix", mvp );
         
         __gdiCtx->setViewport( bxGdiViewport( 0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y ) );
-        __gdiCtx->setTopology( bxGdi::eTRIANGLES );
-        bxGdi::renderSource_enable( __gdiCtx, __gui->_rsource );
-        bxGdi::shaderFx_enable( __gdiCtx, __gui->_fxI, "imgui" );
+        __gdiCtx->setTopology( gdi::eTRIANGLES );
+        gdi::renderSource_enable( __gdiCtx, __gui->_rsource );
+        gdi::shaderFx_enable( __gdiCtx, __gui->_fxI, "imgui" );
         
         // Render command lists
         int vtx_offset = 0;
@@ -152,7 +154,7 @@ namespace
         void* tex_data = stbi_load_from_memory( (const unsigned char*)png_data, (int)png_size, &tex_x, &tex_y, &tex_comp, 0 );
         SYS_ASSERT( tex_data != NULL );
 
-        fontTexture[0] = dev->createTexture2D( tex_x, tex_y, 1, bxGdiFormat( bxGdi::eTYPE_UBYTE, 4, 1, 0 ), bxGdi::eBIND_SHADER_RESOURCE, 0, tex_data );
+        fontTexture[0] = dev->createTexture2D( tex_x, tex_y, 1, bxGdiFormat( gdi::eTYPE_UBYTE, 4, 1, 0 ), gdi::eBIND_SHADER_RESOURCE, 0, tex_data );
         SYS_ASSERT( fontTexture->id != 0 );
     }
     int ImGui_WinMsgHandler( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam )
@@ -216,23 +218,23 @@ void bxGfxGUI_Impl::_Startup( bxGdiDeviceBackend* dev, bxWindow* win )
 {
     bxResourceManager* resourceManager = bx::resourceManagerGet();
 
-    _rsource = bxGdi::renderSource_new( 1 );
+    _rsource = gdi::renderSource_new( 1 );
     bxGdiVertexStreamDesc vsDesc;
-    vsDesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 2 );
-    vsDesc.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 );
-    vsDesc.addBlock( bxGdi::eSLOT_COLOR0, bxGdi::eTYPE_UBYTE, 4, 1 );
+    vsDesc.addBlock( gdi::eSLOT_POSITION, gdi::eTYPE_FLOAT, 2 );
+    vsDesc.addBlock( gdi::eSLOT_TEXCOORD0, gdi::eTYPE_FLOAT, 2 );
+    vsDesc.addBlock( gdi::eSLOT_COLOR0, gdi::eTYPE_UBYTE, 4, 1 );
 
     bxGdiVertexBuffer vbuffer = dev->createVertexBuffer( vsDesc, MAX_VERTICES );
-    bxGdi::renderSource_setVertexBuffer( _rsource, vbuffer, 0 );
+    gdi::renderSource_setVertexBuffer( _rsource, vbuffer, 0 );
 
-    _fxI = bxGdi::shaderFx_createWithInstance( dev, resourceManager, "gui" );
+    _fxI = gdi::shaderFx_createWithInstance( dev, resourceManager, "gui" );
     SYS_ASSERT( _fxI != 0 );
 
     _cbuffer = dev->createConstantBuffer( sizeof( Matrix4 ) );
 
     ImGui_init( &_fontTexture, win->hwnd, dev );
     _fxI->setTexture( "texture0", _fontTexture );
-    _fxI->setSampler( "sampler0", bxGdiSamplerDesc( bxGdi::eFILTER_NEAREST ) );
+    _fxI->setSampler( "sampler0", bxGdiSamplerDesc( gdi::eFILTER_NEAREST ) );
     bxWindow_addWinMsgCallback( win, ImGui_WinMsgHandler );
 }
 
@@ -243,8 +245,8 @@ void bxGfxGUI_Impl::_Shutdown( bxGdiDeviceBackend* dev, bxWindow* win )
     bxResourceManager* resourceManager = bx::resourceManagerGet();
     dev->releaseTexture( &_fontTexture );
     dev->releaseBuffer( &_cbuffer );
-    bxGdi::shaderFx_releaseWithInstance( dev, resourceManager, &_fxI );
-    bxGdi::renderSource_releaseAndFree( dev, &_rsource );
+    gdi::shaderFx_releaseWithInstance( dev, resourceManager, &_fxI );
+    gdi::renderSource_releaseAndFree( dev, &_rsource );
 
     ImGui::Shutdown();
 }

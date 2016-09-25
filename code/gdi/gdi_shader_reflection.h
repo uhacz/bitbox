@@ -3,8 +3,8 @@
 #include <util/type.h>
 #include <util/vector.h>
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
 
 struct ShaderVariableDesc
 {
@@ -78,4 +78,5 @@ struct ShaderReflection
     };
 };
 
-}//
+}}//
+

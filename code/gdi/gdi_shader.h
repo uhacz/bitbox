@@ -5,14 +5,14 @@
 
 struct bxGdiShaderPass
 {
-    bxGdiShader progs[bxGdi::eDRAW_STAGES_COUNT];
+    bxGdiShader progs[bx::gdi::eDRAW_STAGES_COUNT];
     bxGdiHwStateDesc hwState;
 };
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
     u32 shaderPass_computeHash( const bxGdiShaderPass& pass );
-}
+}}///
 
 struct bxGdiShaderFx
 {
@@ -95,8 +95,8 @@ struct bxGdiShaderFx
     bxGdiShaderFx();
     ~bxGdiShaderFx();
 
-    bxGdiShader vertexShader( unsigned passNo ) { return _passes[passNo].progs[bxGdi::eSTAGE_VERTEX]; }
-    bxGdiShader pixelShader( unsigned passNo ) { return _passes[passNo].progs[bxGdi::eSTAGE_PIXEL]; }
+    bxGdiShader vertexShader( unsigned passNo ) { return _passes[passNo].progs[bx::gdi::eSTAGE_VERTEX]; }
+    bxGdiShader pixelShader( unsigned passNo ) { return _passes[passNo].progs[bx::gdi::eSTAGE_PIXEL]; }
 };
 
 struct bxGdiShaderFx_Instance
@@ -134,7 +134,7 @@ struct bxGdiShaderFx_Instance
 
     ///
     ///
-    u16                vertexInputMask( int passIndex ) const { return _fx->_passes[passIndex].progs[bxGdi::eSTAGE_VERTEX].vertexInputMask; }
+    u16                vertexInputMask( int passIndex ) const { return _fx->_passes[passIndex].progs[bx::gdi::eSTAGE_VERTEX].vertexInputMask; }
     const bxGdiShader* programs       ( int passIndex ) const { return _fx->_passes[passIndex].progs;  }
     
     void uploadCBuffers( bxGdiContextBackend* ctx );
@@ -175,8 +175,9 @@ public:
 class bxResourceManager;
 struct bxGdiContext;
 class bxGdiDrawCall;
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
     int  _ShaderFx_initParams( bxGdiShaderFx* fx, const ShaderReflection& reflection, const char* materialCBufferName = "MaterialData" );
     void _ShaderFx_deinitParams( bxGdiShaderFx* fx );
     
@@ -198,4 +199,4 @@ namespace bxGdi
     void shaderFx_enable( bxGdiContext* ctx, bxGdiShaderFx_Instance* fxI, int passIndex );
     void shaderFx_enable( bxGdiDrawCall* dcall, bxGdiShaderFx_Instance, const char* passName );
     void shaderFx_enable( bxGdiDrawCall* dcall, bxGdiShaderFx_Instance, int passIndex );
-}///
+}}///

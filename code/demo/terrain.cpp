@@ -198,7 +198,7 @@ namespace bx
         SYS_ASSERT( (uptr)iPtr == (uptr)( indices + numIndices ) );
         SYS_ASSERT( vertexOffset == numVertices );
 
-        ibuffer[0] = dev->createIndexBuffer( bxGdi::eTYPE_USHORT, numIndices, indices );
+        ibuffer[0] = dev->createIndexBuffer( gdi::eTYPE_USHORT, numIndices, indices );
 
         BX_FREE0( bxDefaultAllocator(), indices );
     }
@@ -213,13 +213,13 @@ namespace bx
         const Vector3 localAABBMax(  terr->_tileSize * 0.5f );
 
         bxGdiVertexStreamDesc vstream0;
-        vstream0.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3, 0 );
+        vstream0.addBlock( gdi::eSLOT_POSITION, gdi::eTYPE_FLOAT, 3, 0 );
 		
 		bxGdiVertexStreamDesc vstream1;
-		vstream1.addBlock( bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3, 1 );
+		vstream1.addBlock( gdi::eSLOT_NORMAL, gdi::eTYPE_FLOAT, 3, 1 );
 
 		bxGdiVertexStreamDesc vstream2;
-		vstream2.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 4, 0 );
+		vstream2.addBlock( gdi::eSLOT_TEXCOORD0, gdi::eTYPE_FLOAT, 4, 0 );
         
         SYS_ASSERT( subdiv > 0 );
         const int numQuads = _ComputeNumQuads( subdiv );
@@ -233,10 +233,10 @@ namespace bx
             bxGdiVertexBuffer vbuffer0 = dev->createVertexBuffer( vstream0, numVertices, nullptr );
 			bxGdiVertexBuffer vbuffer1 = dev->createVertexBuffer( vstream1, numVertices, nullptr );
 			bxGdiVertexBuffer vbuffer2 = dev->createVertexBuffer( vstream2, numVertices, nullptr );
-            bxGdi::renderSource_setVertexBuffer( rsource, vbuffer0, 0 );
-			bxGdi::renderSource_setVertexBuffer( rsource, vbuffer1, 1 );
-			bxGdi::renderSource_setVertexBuffer( rsource, vbuffer2, 2 );
-            bxGdi::renderSource_setIndexBuffer( rsource, terr->_tileIndicesBuffer );
+            gdi::renderSource_setVertexBuffer( rsource, vbuffer0, 0 );
+			gdi::renderSource_setVertexBuffer( rsource, vbuffer1, 1 );
+			gdi::renderSource_setVertexBuffer( rsource, vbuffer2, 2 );
+            gdi::renderSource_setIndexBuffer( rsource, terr->_tileIndicesBuffer );
             
             bx::GfxMeshInstance* meshInstance = nullptr;
             bx::gfxMeshInstanceCreate( &meshInstance, gfx );
@@ -260,8 +260,8 @@ namespace bx
             bx::gfxMeshInstanceDestroy( &terr->_meshInstances[i] );
 
             bxGdiRenderSource* rsource = terr->_renderSources[i];
-            bxGdi::renderSource_setIndexBuffer( rsource, bxGdiIndexBuffer() );
-            bxGdi::renderSource_release( dev, rsource );
+            gdi::renderSource_setIndexBuffer( rsource, bxGdiIndexBuffer() );
+            gdi::renderSource_release( dev, rsource );
         }
 
         dev->releaseIndexBuffer( &terr->_tileIndicesBuffer );
@@ -304,9 +304,9 @@ namespace bx
 		const bxGdiVertexBuffer& tileVbuffer1 = terr->_renderSources[tileIndex]->vertexBuffers[1];
 		const bxGdiVertexBuffer& tileVbuffer2 = terr->_renderSources[tileIndex]->vertexBuffers[2];
 
-		TerrainVertexPos* verticesPos = (TerrainVertexPos*)gdi->mapVertices( tileVbuffer0, 0, tileVbuffer0.numElements, bxGdi::eMAP_WRITE );
-		TerrainVertexNrm* verticesNrm = (TerrainVertexNrm*)gdi->mapVertices( tileVbuffer1, 0, tileVbuffer1.numElements, bxGdi::eMAP_WRITE );
-		TerrainVertexDrv* verticesDrv = (TerrainVertexDrv*)gdi->mapVertices( tileVbuffer2, 0, tileVbuffer2.numElements, bxGdi::eMAP_WRITE );
+		TerrainVertexPos* verticesPos = (TerrainVertexPos*)gdi->mapVertices( tileVbuffer0, 0, tileVbuffer0.numElements, gdi::eMAP_WRITE );
+		TerrainVertexNrm* verticesNrm = (TerrainVertexNrm*)gdi->mapVertices( tileVbuffer1, 0, tileVbuffer1.numElements, gdi::eMAP_WRITE );
+		TerrainVertexDrv* verticesDrv = (TerrainVertexDrv*)gdi->mapVertices( tileVbuffer2, 0, tileVbuffer2.numElements, gdi::eMAP_WRITE );
 		__m128* vtxPtr128 = (__m128*)verticesPos;
 		__m128* nrmPtr128 = (__m128*)verticesNrm;
 		__m128* drvPtr128 = (__m128*)verticesDrv;
@@ -465,7 +465,7 @@ namespace bx
         const int numSamplesInRow = numQuadsInRow + 1;
         const int numSamplesInCell = numSamplesInRow * numSamplesInRow;
         
-        const int renderSourceMemorySize = bxGdi::renderSource_memorySizeCompute( TerrainConst::NUM_STREAMS_PER_RENDER_SOURCE );
+        const int renderSourceMemorySize = gdi::renderSource_memorySizeCompute( TerrainConst::NUM_STREAMS_PER_RENDER_SOURCE );
         struct RenderSourceMemory { u8 mem[TerrainConst::NUM_STREAMS_PER_RENDER_SOURCE]; };
 
         int memSize = 0;
@@ -501,7 +501,7 @@ namespace bx
         _TerrainCreatePhysics( t, gameScene->phx_scene() );
 
 		{
-			bxGdiShaderFx_Instance* fxI = bxGdi::shaderFx_createWithInstance( engine->gdi_device, engine->resource_manager, "terrain" );
+			bxGdiShaderFx_Instance* fxI = gdi::shaderFx_createWithInstance( engine->gdi_device, engine->resource_manager, "terrain" );
 			t->_shaderFx = fxI;
 		}
 		const int SUBDIV = t->_tileSubdiv;
@@ -530,7 +530,7 @@ namespace bx
         if ( !terr[0] )
             return;
 
-		bxGdi::shaderFx_releaseWithInstance( engine->gdi_device, engine->resource_manager, &terr[0]->_shaderFx );
+		gdi::shaderFx_releaseWithInstance( engine->gdi_device, engine->resource_manager, &terr[0]->_shaderFx );
         _TerrainMeshDestroy( terr[0], engine->gdi_device );
         _TerrainDestroyPhysics( terr[0], gameScene->phx_scene() );
         BX_FREE0( bxDefaultAllocator(), terr[0]->_memoryHandle );

@@ -53,11 +53,17 @@ namespace gfx{
 
     enum EResourceType : u8
     {
-        eRESOURCE_TYPE_TEXTURE,
-        eRESOURCE_TYPE_SAMPLER,
+        //eRESOURCE_TYPE_TEXTURE,
+        //eRESOURCE_TYPE_SAMPLER,
+        //eRESOURCE_TYPE_UNIFORM,
+        //eRESOURCE_TYPE_BUFFER_RO,
+        //eRESOURCE_TYPE_BUFFER_RW,
+        //_eRESOURCE_TYPE_COUNT_,
+
+        eRESOURCE_TYPE_READ_ONLY,
+        eRESOURCE_TYPE_READ_WRITE,
         eRESOURCE_TYPE_UNIFORM,
-        eRESOURCE_TYPE_BUFFER_RO,
-        eRESOURCE_TYPE_BUFFER_RW,
+        eRESOURCE_TYPE_SAMPLER,
         _eRESOURCE_TYPE_COUNT_,
     };
     struct ResourceBinding
@@ -86,7 +92,6 @@ namespace gfx{
         const bxGdi::EDataType index_type = bxGdi::eTYPE_UNKNOWN;
         const VertexBufferDesc* streams_desc = nullptr;
     };
-
 
     Pipeline createPipeline( const PipelineDesc& desc, bxAllocator* allocator = nullptr );
     void destroyPipeline( Pipeline* pipeline, bxGdiDeviceBackend* dev, bxAllocator* allocator = nullptr );

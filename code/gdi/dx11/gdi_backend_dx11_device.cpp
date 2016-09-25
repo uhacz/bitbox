@@ -11,9 +11,10 @@
 
 #include "gdi_backend_dx11_startup.h"
 
-namespace bxGdi
-{
-    void _FetchShaderReflection( bxGdi::ShaderReflection* out, const void* code_blob, size_t code_blob_size, int stage )
+namespace bx{
+namespace gdi{
+
+    void _FetchShaderReflection( bx::gdi::ShaderReflection* out, const void* code_blob, size_t code_blob_size, int stage )
     {
         ID3D11ShaderReflection* reflector = NULL;
         D3DReflect( code_blob, code_blob_size, IID_ID3D11ShaderReflection, (void**)&reflector );
@@ -68,7 +69,7 @@ namespace bxGdi
                 vdesc.hashed_name = simple_hash( sv_desc.Name );
                 vdesc.offset = sv_desc.StartOffset;
                 vdesc.size = sv_desc.Size;
-                vdesc.type = bxGdi::findBaseType( typeDesc.Name );
+                vdesc.type = bx::gdi::findBaseType( typeDesc.Name );
             }
         }
 
@@ -154,7 +155,7 @@ namespace bxGdi
         reflector->Release();
     }
 
-}///
+}}///
 struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 {
     
@@ -170,18 +171,18 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         //    const bxGdiVertexStreamBlock& block = desc.blocks[i];
         //    D3D11_INPUT_ELEMENT_DESC& d11_desc = descs[i];
 
-        //    d11_desc.SemanticName = bxGdi::slotName[block.slot];
-        //    d11_desc.SemanticIndex = bxGdi::slotSemanticIndex[block.slot];
-        //    d11_desc.Format = bxGdi::to_DXGI_FORMAT( block.dataType, block.numElements );
+        //    d11_desc.SemanticName = bx::gdi::slotName[block.slot];
+        //    d11_desc.SemanticIndex = bx::gdi::slotSemanticIndex[block.slot];
+        //    d11_desc.Format = bx::gdi::to_DXGI_FORMAT( block.dataType, block.numElements );
         //    d11_desc.InputSlot = block.slot;
         //    d11_desc.AlignedByteOffset = stream_stride;
         //    d11_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
         //    d11_desc.InstanceDataStepRate = 0;
 
-        //    stream_stride += bxGdi::blockStride( block );//vertex_stream_block_stride( desc, i );
+        //    stream_stride += bx::gdi::blockStride( block );//vertex_stream_block_stride( desc, i );
         //}
 
-        const u32 stride = bxGdi::streamStride( desc );
+        const u32 stride = bx::gdi::streamStride( desc );
         const u32 num_descs = desc.count;
 
         D3D11_BUFFER_DESC bdesc;
@@ -210,8 +211,8 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     }
     virtual bxGdiIndexBuffer createIndexBuffer( int dataType, u32 numElements, const void* data )
     {
-        const DXGI_FORMAT d11_data_type = bxGdi::to_DXGI_FORMAT( dataType, 1 );
-        const u32 stride = bxGdi::typeStride[ dataType ];
+        const DXGI_FORMAT d11_data_type = bx::gdi::to_DXGI_FORMAT( dataType, 1 );
+        const u32 stride = bx::gdi::typeStride[ dataType ];
         const u32 sizeInBytes = numElements * stride;
 
         D3D11_BUFFER_DESC bdesc;
@@ -255,24 +256,24 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         bxGdiBuffer b;
         b.dx11Buffer = buffer;
         b.sizeInBytes = sizeInBytes;
-        b.bindFlags = bxGdi::eBIND_CONSTANT_BUFFER;
-        b.format = bxGdiFormat( bxGdi::eTYPE_UBYTE, sizeInBytes );
+        b.bindFlags = bx::gdi::eBIND_CONSTANT_BUFFER;
+        b.format = bxGdiFormat( bx::gdi::eTYPE_UBYTE, sizeInBytes );
 
         return b;
     }
 
     virtual bxGdiBuffer createBuffer( int numElements, bxGdiFormat format, unsigned bindFlags, unsigned cpuAccessFlag, unsigned gpuAccessFlag )
     {
-        const u32 dxBindFlags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
-        const u32 dxCpuAccessFlag = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuAccessFlag );
+        const u32 dxBindFlags = bx::gdi::to_D3D11_BIND_FLAG( bindFlags );
+        const u32 dxCpuAccessFlag = bx::gdi::to_D3D11_CPU_ACCESS_FLAG( cpuAccessFlag );
 
         D3D11_USAGE dxUsage = D3D11_USAGE_DEFAULT;
-        if ( gpuAccessFlag == bxGdi::eGPU_READ && ( cpuAccessFlag & bxGdi::eCPU_WRITE ) )
+        if ( gpuAccessFlag == bx::gdi::eGPU_READ && ( cpuAccessFlag & bx::gdi::eCPU_WRITE ) )
         {
             dxUsage = D3D11_USAGE_DYNAMIC;
         }
         
-        const u32 formatByteWidth = bxGdi::formatByteWidth( format );
+        const u32 formatByteWidth = bx::gdi::formatByteWidth( format );
         D3D11_BUFFER_DESC bdesc;
         memset( &bdesc, 0, sizeof( bdesc ) );
         bdesc.ByteWidth = numElements * formatByteWidth;
@@ -288,8 +289,8 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
         if ( dxBindFlags & D3D11_BIND_SHADER_RESOURCE )
         {
-            const DXGI_FORMAT dxFormat = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
-            const int formatByteWidth = bxGdi::formatByteWidth( format );
+            const DXGI_FORMAT dxFormat = bx::gdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
+            const int formatByteWidth = bx::gdi::formatByteWidth( format );
             SYS_ASSERT( formatByteWidth > 0 );
 
             D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
@@ -318,10 +319,10 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         return b;
     }
     
-    virtual bxGdiShader createShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdi::ShaderReflection* reflection = 0)
+    virtual bxGdiShader createShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bx::gdi::ShaderReflection* reflection = 0)
     {
-        SYS_ASSERT( stage < bxGdi::eSTAGE_COUNT );
-        const char* shaderModel[bxGdi::eSTAGE_COUNT] = 
+        SYS_ASSERT( stage < bx::gdi::eSTAGE_COUNT );
+        const char* shaderModel[bx::gdi::eSTAGE_COUNT] = 
         {
             "vs_4_0",
             "ps_4_0",
@@ -332,12 +333,12 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         };
     
         D3D_SHADER_MACRO* ptr_macro_defs = 0;
-        D3D_SHADER_MACRO macro_defs_array[bxGdi::cMAX_SHADER_MACRO+1];
+        D3D_SHADER_MACRO macro_defs_array[bx::gdi::cMAX_SHADER_MACRO+1];
         memset( macro_defs_array, 0, sizeof(macro_defs_array) );
 
         if( shaderMacro )
         {
-            const int n_macro = bxGdi::to_D3D_SHADER_MACRO_array( macro_defs_array, bxGdi::cMAX_SHADER_MACRO+1, shaderMacro );
+            const int n_macro = bx::gdi::to_D3D_SHADER_MACRO_array( macro_defs_array, bx::gdi::cMAX_SHADER_MACRO+1, shaderMacro );
             ptr_macro_defs = macro_defs_array;
         }
 
@@ -371,7 +372,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         return shader;
 
     }
-    virtual bxGdiShader createShader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdi::ShaderReflection* reflection = 0  )
+    virtual bxGdiShader createShader( int stage, const void* codeBlob, size_t codeBlobSizee, bx::gdi::ShaderReflection* reflection = 0  )
     {
         bxGdiShader shader;    
     
@@ -380,13 +381,13 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         HRESULT hres;
         switch ( stage )
         {
-        case bxGdi::eSTAGE_VERTEX:
+        case bx::gdi::eSTAGE_VERTEX:
             hres = _device->CreateVertexShader( codeBlob, codeBlobSizee, 0, &shader.dx.vertex );
             SYS_ASSERT( SUCCEEDED( hres ) );
             hres = D3DGetInputSignatureBlob( codeBlob, codeBlobSizee, &inputSignature );
             SYS_ASSERT( SUCCEEDED( hres ) );
             break;
-        case bxGdi::eSTAGE_PIXEL:
+        case bx::gdi::eSTAGE_PIXEL:
             hres = _device->CreatePixelShader( codeBlob, codeBlobSizee, 0, &shader.dx.pixel );
             break;
         //case Pipeline::eSTAGE_GEOMETRY:
@@ -398,7 +399,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         //case Pipeline::eSTAGE_DOMAIN:
         //    hres = device::get(dev)->CreateDomainShader( codeBlob, codeBlobSizee, 0, &tmp_shader.domain );
         //    break;
-        case bxGdi::eSTAGE_COMPUTE:
+        case bx::gdi::eSTAGE_COMPUTE:
             hres = _device->CreateComputeShader( codeBlob, codeBlobSizee, 0, &shader.dx.compute );
             break;
         default:
@@ -410,8 +411,8 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
         if( reflection )
         {
-            bxGdi::_FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
-            if( stage == bxGdi::eSTAGE_VERTEX )
+            bx::gdi::_FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
+            if( stage == bx::gdi::eSTAGE_VERTEX )
             {
                 shader.vertexInputMask = reflection->input_mask;
             }
@@ -451,9 +452,9 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
     virtual bxGdiTexture createTexture1D( int w, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
     {
-        const DXGI_FORMAT dx_format = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
-        const u32 dx_bind_flags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
-        const u32 dx_cpua_flags = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
+        const DXGI_FORMAT dx_format = bx::gdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
+        const u32 dx_bind_flags = bx::gdi::to_D3D11_BIND_FLAG( bindFlags );
+        const u32 dx_cpua_flags = bx::gdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
     
         D3D11_TEXTURE1D_DESC desc;
         memset( &desc, 0, sizeof( desc ) );
@@ -478,7 +479,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         if( data )
         {
             subResource.pSysMem = data;
-            subResource.SysMemPitch = w * bxGdi::formatByteWidth( format );
+            subResource.SysMemPitch = w * bx::gdi::formatByteWidth( format );
             subResource.SysMemSlicePitch = 0;
             subResourcePtr = &subResource;
         }
@@ -546,9 +547,9 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     }
     virtual bxGdiTexture createTexture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
     {
-        const DXGI_FORMAT dx_format = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
-        const u32 dx_bind_flags     = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
-        const u32 dx_cpua_flags     = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
+        const DXGI_FORMAT dx_format = bx::gdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
+        const u32 dx_bind_flags     = bx::gdi::to_D3D11_BIND_FLAG( bindFlags );
+        const u32 dx_cpua_flags     = bx::gdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
 
         D3D11_TEXTURE2D_DESC desc;
         memset( &desc, 0, sizeof(desc) );
@@ -574,7 +575,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         if( data )
         {
             subResource.pSysMem = data;
-            subResource.SysMemPitch = w * bxGdi::formatByteWidth( format );
+            subResource.SysMemPitch = w * bx::gdi::formatByteWidth( format );
             subResource.SysMemSlicePitch = 0;
             subResourcePtr = &subResource;
         }
@@ -640,12 +641,12 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         tex.format = format;
         return tex;
     }
-    virtual bxGdiTexture createTexture2Ddepth( int w, int h, int mips, bxGdi::EDataType dataType, unsigned bindFlags )
+    virtual bxGdiTexture createTexture2Ddepth( int w, int h, int mips, bx::gdi::EDataType dataType, unsigned bindFlags )
     {
-        const DXGI_FORMAT dx_format = bxGdi::to_DXGI_FORMAT( dataType, 1 );
-        const u32 dx_bind_flags     = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
+        const DXGI_FORMAT dx_format = bx::gdi::to_DXGI_FORMAT( dataType, 1 );
+        const u32 dx_bind_flags     = bx::gdi::to_D3D11_BIND_FLAG( bindFlags );
 
-        SYS_ASSERT( bxGdi::isDepthFormat( dx_format ) );
+        SYS_ASSERT( bx::gdi::isDepthFormat( dx_format ) );
     
         DXGI_FORMAT srv_format;
         DXGI_FORMAT tex_format;
@@ -738,14 +739,14 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     virtual bxGdiSampler createSampler( const bxGdiSamplerDesc& desc )
     {
         D3D11_SAMPLER_DESC dxDesc;
-        dxDesc.Filter = ( desc.depthCmpMode == bxGdi::eDEPTH_CMP_NONE ) ? bxGdi::filters[desc.filter] : bxGdi::comparisionFilters[desc.filter];
-        dxDesc.ComparisonFunc = bxGdi::comparision[desc.depthCmpMode];
+        dxDesc.Filter = ( desc.depthCmpMode == bx::gdi::eDEPTH_CMP_NONE ) ? bx::gdi::filters[desc.filter] : bx::gdi::comparisionFilters[desc.filter];
+        dxDesc.ComparisonFunc = bx::gdi::comparision[desc.depthCmpMode];
 
-        dxDesc.AddressU = bxGdi::addressMode[desc.addressU];
-        dxDesc.AddressV = bxGdi::addressMode[desc.addressV];
-        dxDesc.AddressW = bxGdi::addressMode[desc.addressT];
+        dxDesc.AddressU = bx::gdi::addressMode[desc.addressU];
+        dxDesc.AddressV = bx::gdi::addressMode[desc.addressV];
+        dxDesc.AddressW = bx::gdi::addressMode[desc.addressT];
 
-        dxDesc.MaxAnisotropy = ( bxGdi::hasAniso((bxGdi::ESamplerFilter)desc.filter) ) ? desc.aniso: 1;
+        dxDesc.MaxAnisotropy = ( bx::gdi::hasAniso((bx::gdi::ESamplerFilter)desc.filter) ) ? desc.aniso: 1;
 
         {
             dxDesc.BorderColor[0] = 0.f;
@@ -769,9 +770,9 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     
     virtual bxGdiInputLayout createInputLayout( const bxGdiVertexStreamDesc* descs, int ndescs, bxGdiShader vertexShader )
     {
-        SYS_ASSERT( vertexShader.stage == bxGdi::eSTAGE_VERTEX );
+        SYS_ASSERT( vertexShader.stage == bx::gdi::eSTAGE_VERTEX );
 
-        const int MAX_IEDESCS = bxGdi::cMAX_VERTEX_BUFFERS;
+        const int MAX_IEDESCS = bx::gdi::cMAX_VERTEX_BUFFERS;
         D3D11_INPUT_ELEMENT_DESC d3d_iedescs[MAX_IEDESCS];
         int num_d3d_iedescs = 0;
         for( int idesc = 0; idesc < ndescs; ++idesc )
@@ -785,14 +786,14 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
                 bxGdiVertexStreamBlock block = desc.blocks[iblock];
                 D3D11_INPUT_ELEMENT_DESC& d3d_desc = d3d_iedescs[num_d3d_iedescs++];
 
-                d3d_desc.SemanticName = bxGdi::slotName[block.slot];
-                d3d_desc.SemanticIndex = bxGdi::slotSemanticIndex[block.slot];
-                d3d_desc.Format = bxGdi::to_DXGI_FORMAT( block.dataType, block.numElements, block.typeNorm );
+                d3d_desc.SemanticName = bx::gdi::slotName[block.slot];
+                d3d_desc.SemanticIndex = bx::gdi::slotSemanticIndex[block.slot];
+                d3d_desc.Format = bx::gdi::to_DXGI_FORMAT( block.dataType, block.numElements, block.typeNorm );
                 d3d_desc.InputSlot = idesc;
                 d3d_desc.AlignedByteOffset = offset;
                 d3d_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
                 d3d_desc.InstanceDataStepRate = 0;
-                offset += bxGdi::blockStride( desc.blocks[iblock] );
+                offset += bx::gdi::blockStride( desc.blocks[iblock] );
             }
         }
 
@@ -808,9 +809,9 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     }
     virtual bxGdiInputLayout createInputLayout( const bxGdiVertexStreamBlock* blocks, int nblocks, bxGdiShader vertexShader )
     {
-        SYS_ASSERT( vertexShader.stage == bxGdi::eSTAGE_VERTEX );
+        SYS_ASSERT( vertexShader.stage == bx::gdi::eSTAGE_VERTEX );
 
-        const int MAX_IEDESCS = bxGdi::cMAX_VERTEX_BUFFERS;
+        const int MAX_IEDESCS = bx::gdi::cMAX_VERTEX_BUFFERS;
         SYS_ASSERT( nblocks < MAX_IEDESCS );
 
         D3D11_INPUT_ELEMENT_DESC d3d_iedescs[MAX_IEDESCS];
@@ -820,9 +821,9 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
             D3D11_INPUT_ELEMENT_DESC& d3d_desc = d3d_iedescs[iblock];
 
-            d3d_desc.SemanticName = bxGdi::slotName[block.slot];
-            d3d_desc.SemanticIndex = bxGdi::slotSemanticIndex[block.slot];
-            d3d_desc.Format = bxGdi::to_DXGI_FORMAT( block.dataType, block.numElements, block.typeNorm );
+            d3d_desc.SemanticName = bx::gdi::slotName[block.slot];
+            d3d_desc.SemanticIndex = bx::gdi::slotSemanticIndex[block.slot];
+            d3d_desc.Format = bx::gdi::to_DXGI_FORMAT( block.dataType, block.numElements, block.typeNorm );
             d3d_desc.InputSlot = iblock;
             d3d_desc.AlignedByteOffset = 0;
             d3d_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
@@ -848,18 +849,18 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         bdesc.AlphaToCoverageEnable = FALSE;
         bdesc.IndependentBlendEnable = FALSE;
         bdesc.RenderTarget[0].BlendEnable = state.enable;
-        bdesc.RenderTarget[0].SrcBlend  = bxGdi::blendFactor[state.srcFactor];
-        bdesc.RenderTarget[0].DestBlend = bxGdi::blendFactor[state.dstFactor];
-        bdesc.RenderTarget[0].BlendOp   = bxGdi::blendEquation[state.equation];
-        bdesc.RenderTarget[0].SrcBlendAlpha  = bxGdi::blendFactor[state.srcFactorAlpha];
-        bdesc.RenderTarget[0].DestBlendAlpha = bxGdi::blendFactor[state.dstFactorAlpha];
-        bdesc.RenderTarget[0].BlendOpAlpha   = bxGdi::blendEquation[state.equation];
+        bdesc.RenderTarget[0].SrcBlend  = bx::gdi::blendFactor[state.srcFactor];
+        bdesc.RenderTarget[0].DestBlend = bx::gdi::blendFactor[state.dstFactor];
+        bdesc.RenderTarget[0].BlendOp   = bx::gdi::blendEquation[state.equation];
+        bdesc.RenderTarget[0].SrcBlendAlpha  = bx::gdi::blendFactor[state.srcFactorAlpha];
+        bdesc.RenderTarget[0].DestBlendAlpha = bx::gdi::blendFactor[state.dstFactorAlpha];
+        bdesc.RenderTarget[0].BlendOpAlpha   = bx::gdi::blendEquation[state.equation];
 
         u8 mask = 0;
-        mask |= (state.color_mask & bxGdi::eCOLOR_MASK_RED)	    ? D3D11_COLOR_WRITE_ENABLE_RED : 0;
-        mask |= (state.color_mask & bxGdi::eCOLOR_MASK_GREEN)	? D3D11_COLOR_WRITE_ENABLE_GREEN : 0;
-        mask |= (state.color_mask & bxGdi::eCOLOR_MASK_BLUE)	? D3D11_COLOR_WRITE_ENABLE_BLUE : 0;
-        mask |= (state.color_mask & bxGdi::eCOLOR_MASK_ALPHA)	? D3D11_COLOR_WRITE_ENABLE_ALPHA : 0;
+        mask |= (state.color_mask & bx::gdi::eCOLOR_MASK_RED)	    ? D3D11_COLOR_WRITE_ENABLE_RED : 0;
+        mask |= (state.color_mask & bx::gdi::eCOLOR_MASK_GREEN)	? D3D11_COLOR_WRITE_ENABLE_GREEN : 0;
+        mask |= (state.color_mask & bx::gdi::eCOLOR_MASK_BLUE)	? D3D11_COLOR_WRITE_ENABLE_BLUE : 0;
+        mask |= (state.color_mask & bx::gdi::eCOLOR_MASK_ALPHA)	? D3D11_COLOR_WRITE_ENABLE_ALPHA : 0;
 
         bdesc.RenderTarget[0].RenderTargetWriteMask = mask;
 
@@ -878,7 +879,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
         dsdesc.DepthEnable = state.test;
         dsdesc.DepthWriteMask = ( state.write ) ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-        dsdesc.DepthFunc = bxGdi::depthCmpFunc[state.function];
+        dsdesc.DepthFunc = bx::gdi::depthCmpFunc[state.function];
 
         dsdesc.StencilEnable = FALSE;
         dsdesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
@@ -907,8 +908,8 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
         D3D11_RASTERIZER_DESC rdesc;
         memset( &rdesc, 0, sizeof(rdesc) );
 
-        rdesc.FillMode = bxGdi::fillMode[state.fillMode];
-        rdesc.CullMode = bxGdi::cullMode[state.cullMode];
+        rdesc.FillMode = bx::gdi::fillMode[state.fillMode];
+        rdesc.CullMode = bx::gdi::cullMode[state.cullMode];
         rdesc.FrontCounterClockwise = TRUE;
         rdesc.DepthBias = 0;
         rdesc.SlopeScaledDepthBias = 0.f;
@@ -1003,8 +1004,9 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
     ID3D11Device* _device;
 };
 
-namespace bxGdi
-{
+namespace bx{
+namespace gdi{
+
     bxGdiDeviceBackend* newDeveice_dx11( ID3D11Device* deviceDx11 )
     {
         bxGdiDeviceBackend_dx11* dev = BX_NEW( bxDefaultAllocator(), bxGdiDeviceBackend_dx11 );
@@ -1064,13 +1066,13 @@ namespace bxGdi
 
         return 0;
     }
-}///
+}}///
 
 namespace bx{
 namespace gdi{
+
 ID3D11Device* g_device = nullptr;
 CommandQueue* g_cmd_queue = nullptr;
-
 void startupDX11( uptr hWnd, int winWidth, int winHeight, int fullScreen )
 {
     DXGI_SWAP_CHAIN_DESC sd;
@@ -1154,6 +1156,15 @@ void shutdownDX11()
     g_device = nullptr;
 }
 
+void startup( uptr hWnd, int winWidth, int winHeight, int fullScreen )
+{
+    startupDX11( hWnd, winWidth, winHeight, fullScreen );
+}
+void shutdown()
+{
+    shutdownDX11();
+}
+
 namespace frame
 {
     void begin( CommandQueue** cmdQueue )
@@ -1172,7 +1183,7 @@ namespace create
 
 VertexBuffer vertexBuffer( const VertexBufferDesc& desc, u32 numElements, const void* data )
 {
-    const u32 stride = bxGdi::blockStride( desc );
+    const u32 stride = bx::gdi::blockStride( desc );
     //const u32 num_descs = desc.count;
 
     D3D11_BUFFER_DESC bdesc;
@@ -1201,8 +1212,8 @@ VertexBuffer vertexBuffer( const VertexBufferDesc& desc, u32 numElements, const 
 }
 IndexBuffer  indexBuffer( int dataType, u32 numElements, const void* data )
 {
-    const DXGI_FORMAT d11_data_type = bxGdi::to_DXGI_FORMAT( dataType, 1 );
-    const u32 stride = bxGdi::typeStride[dataType];
+    const DXGI_FORMAT d11_data_type = bx::gdi::to_DXGI_FORMAT( dataType, 1 );
+    const u32 stride = bx::gdi::typeStride[dataType];
     const u32 sizeInBytes = numElements * stride;
 
     D3D11_BUFFER_DESC bdesc;
@@ -1251,15 +1262,15 @@ ConstantBuffer constantBuffer( u32 sizeInBytes )
 BufferRO bufferRO( int numElements, bxGdiFormat format, unsigned cpuAccessFlag, unsigned gpuAccessFlag )
 {
     const u32 dxBindFlags = D3D11_BIND_SHADER_RESOURCE;
-    const u32 dxCpuAccessFlag = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuAccessFlag );
+    const u32 dxCpuAccessFlag = bx::gdi::to_D3D11_CPU_ACCESS_FLAG( cpuAccessFlag );
 
     D3D11_USAGE dxUsage = D3D11_USAGE_DEFAULT;
-    if( gpuAccessFlag == bxGdi::eGPU_READ && ( cpuAccessFlag & bxGdi::eCPU_WRITE ) )
+    if( gpuAccessFlag == bx::gdi::eGPU_READ && ( cpuAccessFlag & bx::gdi::eCPU_WRITE ) )
     {
         dxUsage = D3D11_USAGE_DYNAMIC;
     }
 
-    const u32 formatByteWidth = bxGdi::formatByteWidth( format );
+    const u32 formatByteWidth = bx::gdi::formatByteWidth( format );
     D3D11_BUFFER_DESC bdesc;
     memset( &bdesc, 0, sizeof( bdesc ) );
     bdesc.ByteWidth = numElements * formatByteWidth;
@@ -1275,8 +1286,8 @@ BufferRO bufferRO( int numElements, bxGdiFormat format, unsigned cpuAccessFlag, 
 
     //if( dxBindFlags & D3D11_BIND_SHADER_RESOURCE )
     {
-        const DXGI_FORMAT dxFormat = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
-        const int formatByteWidth = bxGdi::formatByteWidth( format );
+        const DXGI_FORMAT dxFormat = bx::gdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
+        const int formatByteWidth = bx::gdi::formatByteWidth( format );
         SYS_ASSERT( formatByteWidth > 0 );
 
         D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
@@ -1298,10 +1309,10 @@ BufferRO bufferRO( int numElements, bxGdiFormat format, unsigned cpuAccessFlag, 
     return b;
 }
 
-Shader shader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bxGdi::ShaderReflection* reflection )
+Shader shader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, bx::gdi::ShaderReflection* reflection )
 {
-    SYS_ASSERT( stage < bxGdi::eSTAGE_COUNT );
-    const char* shaderModel[bxGdi::eSTAGE_COUNT] =
+    SYS_ASSERT( stage < bx::gdi::eSTAGE_COUNT );
+    const char* shaderModel[bx::gdi::eSTAGE_COUNT] =
     {
         "vs_4_0",
         "ps_4_0",
@@ -1312,12 +1323,12 @@ Shader shader( int stage, const char* shaderSource, const char* entryPoint, cons
     };
 
     D3D_SHADER_MACRO* ptr_macro_defs = 0;
-    D3D_SHADER_MACRO macro_defs_array[bxGdi::cMAX_SHADER_MACRO + 1];
+    D3D_SHADER_MACRO macro_defs_array[bx::gdi::cMAX_SHADER_MACRO + 1];
     memset( macro_defs_array, 0, sizeof( macro_defs_array ) );
 
     if( shaderMacro )
     {
-        const int n_macro = bxGdi::to_D3D_SHADER_MACRO_array( macro_defs_array, bxGdi::cMAX_SHADER_MACRO + 1, shaderMacro );
+        const int n_macro = bx::gdi::to_D3D_SHADER_MACRO_array( macro_defs_array, bx::gdi::cMAX_SHADER_MACRO + 1, shaderMacro );
         ptr_macro_defs = macro_defs_array;
     }
 
@@ -1351,7 +1362,7 @@ Shader shader( int stage, const char* shaderSource, const char* entryPoint, cons
 
     return sh;
 }
-Shader shader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdi::ShaderReflection* reflection )
+Shader shader( int stage, const void* codeBlob, size_t codeBlobSizee, bx::gdi::ShaderReflection* reflection )
 {
     Shader sh = {};
 
@@ -1360,16 +1371,16 @@ Shader shader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdi::Sha
     HRESULT hres;
     switch( stage )
     {
-    case bxGdi::eSTAGE_VERTEX:
+    case bx::gdi::eSTAGE_VERTEX:
         hres = g_device->CreateVertexShader( codeBlob, codeBlobSizee, 0, &sh.vertex );
         SYS_ASSERT( SUCCEEDED( hres ) );
         hres = D3DGetInputSignatureBlob( codeBlob, codeBlobSizee, &inputSignature );
         SYS_ASSERT( SUCCEEDED( hres ) );
         break;
-    case bxGdi::eSTAGE_PIXEL:
+    case bx::gdi::eSTAGE_PIXEL:
         hres = g_device->CreatePixelShader( codeBlob, codeBlobSizee, 0, &sh.pixel );
         break;
-    case bxGdi::eSTAGE_COMPUTE:
+    case bx::gdi::eSTAGE_COMPUTE:
         hres = g_device->CreateComputeShader( codeBlob, codeBlobSizee, 0, &sh.compute );
         break;
     default:
@@ -1381,8 +1392,8 @@ Shader shader( int stage, const void* codeBlob, size_t codeBlobSizee, bxGdi::Sha
 
     if( reflection )
     {
-        bxGdi::_FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
-        if( stage == bxGdi::eSTAGE_VERTEX )
+        bx::gdi::_FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
+        if( stage == bx::gdi::eSTAGE_VERTEX )
         {
             sh.vertexInputMask = reflection->input_mask;
         }
@@ -1418,9 +1429,9 @@ TextureRO texture( const void* dataBlob, size_t dataBlobSize )
 }
 TextureRW texture1D( int w, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
 {
-    const DXGI_FORMAT dx_format = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
-    const u32 dx_bind_flags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
-    const u32 dx_cpua_flags = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
+    const DXGI_FORMAT dx_format = bx::gdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
+    const u32 dx_bind_flags = bx::gdi::to_D3D11_BIND_FLAG( bindFlags );
+    const u32 dx_cpua_flags = bx::gdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
 
     D3D11_TEXTURE1D_DESC desc;
     memset( &desc, 0, sizeof( desc ) );
@@ -1445,7 +1456,7 @@ TextureRW texture1D( int w, int mips, bxGdiFormat format, unsigned bindFlags, un
     if( data )
     {
         subResource.pSysMem = data;
-        subResource.SysMemPitch = w * bxGdi::formatByteWidth( format );
+        subResource.SysMemPitch = w * bx::gdi::formatByteWidth( format );
         subResource.SysMemSlicePitch = 0;
         subResourcePtr = &subResource;
     }
@@ -1512,9 +1523,9 @@ TextureRW texture1D( int w, int mips, bxGdiFormat format, unsigned bindFlags, un
 }
 TextureRW texture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
 {
-    const DXGI_FORMAT dx_format = bxGdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
-    const u32 dx_bind_flags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
-    const u32 dx_cpua_flags = bxGdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
+    const DXGI_FORMAT dx_format = bx::gdi::to_DXGI_FORMAT( format.type, format.numElements, format.normalized, format.srgb );
+    const u32 dx_bind_flags = bx::gdi::to_D3D11_BIND_FLAG( bindFlags );
+    const u32 dx_cpua_flags = bx::gdi::to_D3D11_CPU_ACCESS_FLAG( cpuaFlags );
 
     D3D11_TEXTURE2D_DESC desc;
     memset( &desc, 0, sizeof( desc ) );
@@ -1540,7 +1551,7 @@ TextureRW texture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFl
     if( data )
     {
         subResource.pSysMem = data;
-        subResource.SysMemPitch = w * bxGdi::formatByteWidth( format );
+        subResource.SysMemPitch = w * bx::gdi::formatByteWidth( format );
         subResource.SysMemSlicePitch = 0;
         subResourcePtr = &subResource;
     }
@@ -1605,12 +1616,12 @@ TextureRW texture2D( int w, int h, int mips, bxGdiFormat format, unsigned bindFl
     tex.format = format;
     return tex;
 }
-TextureDepth texture2Ddepth( int w, int h, int mips, bxGdi::EDataType dataType, unsigned bindFlags )
+TextureDepth texture2Ddepth( int w, int h, int mips, bx::gdi::EDataType dataType, unsigned bindFlags )
 {
-    const DXGI_FORMAT dx_format = bxGdi::to_DXGI_FORMAT( dataType, 1 );
-    const u32 dx_bind_flags = bxGdi::to_D3D11_BIND_FLAG( bindFlags );
+    const DXGI_FORMAT dx_format = bx::gdi::to_DXGI_FORMAT( dataType, 1 );
+    const u32 dx_bind_flags = bx::gdi::to_D3D11_BIND_FLAG( bindFlags );
 
-    SYS_ASSERT( bxGdi::isDepthFormat( dx_format ) );
+    SYS_ASSERT( bx::gdi::isDepthFormat( dx_format ) );
 
     DXGI_FORMAT srv_format;
     DXGI_FORMAT tex_format;
@@ -1690,14 +1701,14 @@ TextureDepth texture2Ddepth( int w, int h, int mips, bxGdi::EDataType dataType, 
 Sampler sampler( const SamplerDesc& desc )
 {
     D3D11_SAMPLER_DESC dxDesc;
-    dxDesc.Filter = ( desc.depthCmpMode == bxGdi::eDEPTH_CMP_NONE ) ? bxGdi::filters[desc.filter] : bxGdi::comparisionFilters[desc.filter];
-    dxDesc.ComparisonFunc = bxGdi::comparision[desc.depthCmpMode];
+    dxDesc.Filter = ( desc.depthCmpMode == bx::gdi::eDEPTH_CMP_NONE ) ? bx::gdi::filters[desc.filter] : bx::gdi::comparisionFilters[desc.filter];
+    dxDesc.ComparisonFunc = bx::gdi::comparision[desc.depthCmpMode];
 
-    dxDesc.AddressU = bxGdi::addressMode[desc.addressU];
-    dxDesc.AddressV = bxGdi::addressMode[desc.addressV];
-    dxDesc.AddressW = bxGdi::addressMode[desc.addressT];
+    dxDesc.AddressU = bx::gdi::addressMode[desc.addressU];
+    dxDesc.AddressV = bx::gdi::addressMode[desc.addressV];
+    dxDesc.AddressW = bx::gdi::addressMode[desc.addressT];
 
-    dxDesc.MaxAnisotropy = ( bxGdi::hasAniso( ( bxGdi::ESamplerFilter )desc.filter ) ) ? desc.aniso : 1;
+    dxDesc.MaxAnisotropy = ( bx::gdi::hasAniso( ( bx::gdi::ESamplerFilter )desc.filter ) ) ? desc.aniso : 1;
 
     {
         dxDesc.BorderColor[0] = 0.f;
@@ -1721,9 +1732,9 @@ Sampler sampler( const SamplerDesc& desc )
 
 InputLayout inputLayout( const VertexBufferDesc* blocks, int nblocks, Shader vertexShader )
 {
-    SYS_ASSERT( vertexShader.stage == bxGdi::eSTAGE_VERTEX );
+    SYS_ASSERT( vertexShader.stage == bx::gdi::eSTAGE_VERTEX );
 
-    const int MAX_IEDESCS = bxGdi::cMAX_VERTEX_BUFFERS;
+    const int MAX_IEDESCS = bx::gdi::cMAX_VERTEX_BUFFERS;
     SYS_ASSERT( nblocks < MAX_IEDESCS );
 
     D3D11_INPUT_ELEMENT_DESC d3d_iedescs[MAX_IEDESCS];
@@ -1733,9 +1744,9 @@ InputLayout inputLayout( const VertexBufferDesc* blocks, int nblocks, Shader ver
 
         D3D11_INPUT_ELEMENT_DESC& d3d_desc = d3d_iedescs[iblock];
 
-        d3d_desc.SemanticName = bxGdi::slotName[block.slot];
-        d3d_desc.SemanticIndex = bxGdi::slotSemanticIndex[block.slot];
-        d3d_desc.Format = bxGdi::to_DXGI_FORMAT( block.dataType, block.numElements, block.typeNorm );
+        d3d_desc.SemanticName = bx::gdi::slotName[block.slot];
+        d3d_desc.SemanticIndex = bx::gdi::slotSemanticIndex[block.slot];
+        d3d_desc.Format = bx::gdi::to_DXGI_FORMAT( block.dataType, block.numElements, block.typeNorm );
         d3d_desc.InputSlot = iblock;
         d3d_desc.AlignedByteOffset = 0;
         d3d_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
@@ -1759,18 +1770,18 @@ BlendState  blendState( bxGdiHwStateDesc::Blend state )
     bdesc.AlphaToCoverageEnable = FALSE;
     bdesc.IndependentBlendEnable = FALSE;
     bdesc.RenderTarget[0].BlendEnable = state.enable;
-    bdesc.RenderTarget[0].SrcBlend = bxGdi::blendFactor[state.srcFactor];
-    bdesc.RenderTarget[0].DestBlend = bxGdi::blendFactor[state.dstFactor];
-    bdesc.RenderTarget[0].BlendOp = bxGdi::blendEquation[state.equation];
-    bdesc.RenderTarget[0].SrcBlendAlpha = bxGdi::blendFactor[state.srcFactorAlpha];
-    bdesc.RenderTarget[0].DestBlendAlpha = bxGdi::blendFactor[state.dstFactorAlpha];
-    bdesc.RenderTarget[0].BlendOpAlpha = bxGdi::blendEquation[state.equation];
+    bdesc.RenderTarget[0].SrcBlend = bx::gdi::blendFactor[state.srcFactor];
+    bdesc.RenderTarget[0].DestBlend = bx::gdi::blendFactor[state.dstFactor];
+    bdesc.RenderTarget[0].BlendOp = bx::gdi::blendEquation[state.equation];
+    bdesc.RenderTarget[0].SrcBlendAlpha = bx::gdi::blendFactor[state.srcFactorAlpha];
+    bdesc.RenderTarget[0].DestBlendAlpha = bx::gdi::blendFactor[state.dstFactorAlpha];
+    bdesc.RenderTarget[0].BlendOpAlpha = bx::gdi::blendEquation[state.equation];
 
     u8 mask = 0;
-    mask |= ( state.color_mask & bxGdi::eCOLOR_MASK_RED ) ? D3D11_COLOR_WRITE_ENABLE_RED : 0;
-    mask |= ( state.color_mask & bxGdi::eCOLOR_MASK_GREEN ) ? D3D11_COLOR_WRITE_ENABLE_GREEN : 0;
-    mask |= ( state.color_mask & bxGdi::eCOLOR_MASK_BLUE ) ? D3D11_COLOR_WRITE_ENABLE_BLUE : 0;
-    mask |= ( state.color_mask & bxGdi::eCOLOR_MASK_ALPHA ) ? D3D11_COLOR_WRITE_ENABLE_ALPHA : 0;
+    mask |= ( state.color_mask & bx::gdi::eCOLOR_MASK_RED ) ? D3D11_COLOR_WRITE_ENABLE_RED : 0;
+    mask |= ( state.color_mask & bx::gdi::eCOLOR_MASK_GREEN ) ? D3D11_COLOR_WRITE_ENABLE_GREEN : 0;
+    mask |= ( state.color_mask & bx::gdi::eCOLOR_MASK_BLUE ) ? D3D11_COLOR_WRITE_ENABLE_BLUE : 0;
+    mask |= ( state.color_mask & bx::gdi::eCOLOR_MASK_ALPHA ) ? D3D11_COLOR_WRITE_ENABLE_ALPHA : 0;
 
     bdesc.RenderTarget[0].RenderTargetWriteMask = mask;
 
@@ -1789,7 +1800,7 @@ DepthState  depthState( bxGdiHwStateDesc::Depth state )
 
     dsdesc.DepthEnable = state.test;
     dsdesc.DepthWriteMask = ( state.write ) ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-    dsdesc.DepthFunc = bxGdi::depthCmpFunc[state.function];
+    dsdesc.DepthFunc = bx::gdi::depthCmpFunc[state.function];
 
     dsdesc.StencilEnable = FALSE;
     dsdesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
@@ -1818,8 +1829,8 @@ RasterState rasterState( bxGdiHwStateDesc::Raster state )
     D3D11_RASTERIZER_DESC rdesc;
     memset( &rdesc, 0, sizeof( rdesc ) );
 
-    rdesc.FillMode = bxGdi::fillMode[state.fillMode];
-    rdesc.CullMode = bxGdi::cullMode[state.cullMode];
+    rdesc.FillMode = bx::gdi::fillMode[state.fillMode];
+    rdesc.CullMode = bx::gdi::cullMode[state.cullMode];
     rdesc.FrontCounterClockwise = TRUE;
     rdesc.DepthBias = 0;
     rdesc.SlopeScaledDepthBias = 0.f;
@@ -1842,82 +1853,82 @@ RasterState rasterState( bxGdiHwStateDesc::Raster state )
 
 namespace release
 {
-    template< class T >
-    void releaseSafe( T*& obj )
+template< class T >
+void releaseSafe( T*& obj )
+{
+    if( obj )
     {
-        if( obj )
-        {
-            obj->Release();
-            obj = nullptr;
-        }
+        obj->Release();
+        obj = nullptr;
     }
+}
     
-    void vertexBuffer( VertexBuffer* id )
-    {
-        releaseSafe( id->buffer );
-    }
-    void indexBuffer( IndexBuffer* id )
-    {
-        releaseSafe( id->buffer );
-    }
-    void inputLayout( InputLayout * id )
-    {
-        releaseSafe( id->layout );
-    }
-    void constantBuffer( ConstantBuffer* id )
-    {
-        releaseSafe( id->buffer );
-    }
-    void bufferRO( BufferRO* id )
-    {
-        releaseSafe( id->buffer );
-    }
-    void shader( Shader* id )
-    {
-        releaseSafe( id->object );
+void vertexBuffer( VertexBuffer* id )
+{
+    releaseSafe( id->buffer );
+}
+void indexBuffer( IndexBuffer* id )
+{
+    releaseSafe( id->buffer );
+}
+void inputLayout( InputLayout * id )
+{
+    releaseSafe( id->layout );
+}
+void constantBuffer( ConstantBuffer* id )
+{
+    releaseSafe( id->buffer );
+}
+void bufferRO( BufferRO* id )
+{
+    releaseSafe( id->buffer );
+}
+void shader( Shader* id )
+{
+    releaseSafe( id->object );
 
-        if( id->inputSignature )
-        {
-            ID3DBlob* blob = (ID3DBlob*)id->inputSignature;
-            blob->Release();
-            id->inputSignature = 0;
-        }
-    }
-    void texture( TextureRO* id )
+    if( id->inputSignature )
     {
-        releaseSafe( id->viewSH );
-        releaseSafe( id->resource );
+        ID3DBlob* blob = (ID3DBlob*)id->inputSignature;
+        blob->Release();
+        id->inputSignature = 0;
     }
-    void texture( TextureRW* id )
-    {
-        releaseSafe( id->viewSH );
-        releaseSafe( id->viewRT );
-        releaseSafe( id->viewUA );
-        releaseSafe( id->resource );
-    }
-    void texture( TextureDepth* id )
-    {
-        releaseSafe( id->viewDS );
-        releaseSafe( id->viewSH );
-        releaseSafe( id->viewUA );
-        releaseSafe( id->resource );
-    }
-    void sampler( Sampler* id )
-    {
-        releaseSafe( id->state );
-    }
-    void blendState( BlendState* id )
-    {
-        releaseSafe( id->state );
-    }
-    void depthState( DepthState* id )
-    {
-        releaseSafe( id->state );
-    }
-    void rasterState( RasterState * id )
-    {
-        releaseSafe( id->state );
-    }
+}
+void texture( TextureRO* id )
+{
+    releaseSafe( id->viewSH );
+    releaseSafe( id->resource );
+}
+void texture( TextureRW* id )
+{
+    releaseSafe( id->viewSH );
+    releaseSafe( id->viewRT );
+    releaseSafe( id->viewUA );
+    releaseSafe( id->resource );
+}
+void texture( TextureDepth* id )
+{
+    releaseSafe( id->viewDS );
+    releaseSafe( id->viewSH );
+    releaseSafe( id->viewUA );
+    releaseSafe( id->resource );
+}
+void sampler( Sampler* id )
+{
+    releaseSafe( id->state );
+}
+void blendState( BlendState* id )
+{
+    releaseSafe( id->state );
+}
+void depthState( DepthState* id )
+{
+    releaseSafe( id->state );
+}
+void rasterState( RasterState * id )
+{
+    releaseSafe( id->state );
+}
 }///
 
 }}///
