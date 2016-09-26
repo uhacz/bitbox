@@ -38,12 +38,13 @@ struct ClipTrajectory
     Vector3 acc[eNUM_TRAJECTORY_POINTS - 2];
 };
 
-struct Pose
+struct BIT_ALIGNMENT_16 Pose
 {
     Vector3 pos[_eMATCH_JOINT_COUNT_];
-    //Quat    rot[_eMATCH_JOINT_COUNT_];
     Vector3 vel[_eMATCH_JOINT_COUNT_];
-    //ClipTrajectory trajectory;
+    Vector3 local_velocity{ 0.f };
+    ClipTrajectory trajectory;
+    u32 flags[_eMATCH_JOINT_COUNT_];
     PoseParams params{};
 };
     
@@ -73,7 +74,7 @@ struct Data
     const bxAnim_Skel* skel = nullptr;
     std::vector< bxAnim_Clip* > clips;
     std::vector< AnimClipInfo > clip_infos;
-    std::vector< ClipTrajectory > clip_trajectiories;
+    //std::vector< ClipTrajectory > clip_trajectiories;
     std::vector< Pose > poses;
     std::vector< i16 > match_joints_indices;
     bx::Curve1D velocity_curve;
@@ -97,12 +98,22 @@ struct State
 struct Input
 {
     Vector3 trajectory[eNUM_TRAJECTORY_POINTS];
+    
     Matrix4 base_matrix;
     Matrix4 base_matrix_aligned;
+    
     Vector3 velocity;
     Vector3 acceleration;
     Vector3 raw_input;
+
     f32 speed01;
+    f32 trajectory_integration_time;
+};
+struct Output
+{
+    bxAnim_Clip* clip = nullptr;
+    f32 start_time = 0.f;
+    f32 blend_time = 0.f;
 };
 
 struct Debug
@@ -181,11 +192,11 @@ struct DynamicState
     f32 _speed01{ 0.f };
     f32 _prev_speed01{ 0.f };
     f32 _max_speed{ 3.f };
-    f32 _trajectory_integration_time{ 1.f };
+    f32 _trajectory_integration_time{ 1.0f };
     f32 _last_delta_time = 0.f;
     CharacterInput _input = {};
 
-    Vector3 _trajectory[eNUM_TRAJECTORY_POINTS];
+    Vector3 _trajectory_pos[eNUM_TRAJECTORY_POINTS];
 
     //////////////////////////////////////////////////////////////////////////
     void tick( const bxInput& sysInput, const Input& input, float deltaTime );

@@ -101,7 +101,7 @@ public:
             { "anim/motion_fields/2/running_right_turn.anim", 0 },
             //{ "anim/motion_fields/2/running_jump.anim"      , 0 },
             { "anim/motion_fields/2/running_stop.anim"      , 0 },
-            { "anim/motion_fields/2/running_back.anim"      , 1 },
+            //{ "anim/motion_fields/2/running_back.anim"      , 1 },
             { "anim/motion_fields/2/walking_180_turn.anim"  , 0 },
             { "anim/motion_fields/2/walking_start.anim"     , 0 },
             { "anim/motion_fields/2/walking_back.anim"      , 1 },
