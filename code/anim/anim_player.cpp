@@ -445,20 +445,23 @@ void SimplePlayer::_Tick_updateTime( float deltaTime )
         Clip& c0 = _clips[0];
         Clip& c1 = _clips[1];
         
-        const bxAnim_Clip* clipA = c0.clip;
-        const bxAnim_Clip* clipB = c1.clip;
+        _ClipUpdateTime( &_clips[0], deltaTime );
+        _ClipUpdateTime( &_clips[1], deltaTime );
 
-        const float blend_alpha = minOfPair( 1.f, _blend_time / _blend_duration );
-        const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
-        const float delta_phase = deltaTime / clip_duration;
+        //const bxAnim_Clip* clipA = c0.clip;
+        //const bxAnim_Clip* clipB = c1.clip;
 
-        float phaseA = _ClipPhase( c0 );
-        float phaseB = _ClipPhase( c1 );
-        phaseA = ::fmodf( phaseA + delta_phase, 1.f );
-        phaseB = ::fmodf( phaseB + delta_phase, 1.f );
+        //const float blend_alpha = minOfPair( 1.f, _blend_time / _blend_duration );
+        //const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
+        //const float delta_phase = deltaTime / clip_duration;
 
-        c0.eval_time = phaseA * clipA->duration;
-        c1.eval_time = phaseB * clipB->duration;
+        //float phaseA = _ClipPhase( c0 );
+        //float phaseB = _ClipPhase( c1 );
+        //phaseA = ::fmodf( phaseA + delta_phase, 1.f );
+        //phaseB = ::fmodf( phaseB + delta_phase, 1.f );
+
+        //c0.eval_time = phaseA * clipA->duration;
+        //c1.eval_time = phaseB * clipB->duration;
 
         if( _blend_time > _blend_duration )
         {

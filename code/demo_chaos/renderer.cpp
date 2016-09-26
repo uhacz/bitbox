@@ -216,18 +216,12 @@ void bindRenderSubPass( gdi::CommandQueue* cmdq, RenderSubPass subPass )
 
 namespace
 {
-    //void _SetBinding( ResourceDescriptorImpl::Binding* binding, u8 stage, u16 slot )
-    //{
-    //    binding->slot = slot;
-    //    binding->stage = stage;
-    //}
-
     static const u32 _resource_size[_eRESOURCE_TYPE_COUNT_] =
     {
-        sizeof( gdi::ResourceRO ), //eRESOURCE_TYPE_READ_ONLY,
-        sizeof( gdi::ResourceRW ), //eRESOURCE_TYPE_READ_WRITE,
+        sizeof( gdi::ResourceRO ),     //eRESOURCE_TYPE_READ_ONLY,
+        sizeof( gdi::ResourceRW ),     //eRESOURCE_TYPE_READ_WRITE,
         sizeof( gdi::ConstantBuffer ), //eRESOURCE_TYPE_UNIFORM,
-        sizeof( gdi::Sampler ), //eRESOURCE_TYPE_SAMPLER,
+        sizeof( gdi::Sampler ),        //eRESOURCE_TYPE_SAMPLER,
     };
 }///
 ResourceDescriptor createResourceDescriptor( const ResourceLayout& layout, bxAllocator* allocator /*= nullptr */ )
@@ -271,111 +265,6 @@ ResourceDescriptor createResourceDescriptor( const ResourceLayout& layout, bxAll
     data_chunker.check();
 
     return impl;
-
-    //ResourceDescriptorImpl::Binding textures[bxGdi::eSTAGE_COUNT * bxGdi::cMAX_TEXTURES] = {};
-    //ResourceDescriptorImpl::Binding cbuffers[bxGdi::eSTAGE_COUNT * bxGdi::cMAX_CBUFFERS] = {};
-    //ResourceDescriptorImpl::Binding buffers_ro[bxGdi::eSTAGE_COUNT * bxGdi::cMAX_RESOURCES_RO] = {};
-    //ResourceDescriptorImpl::Binding buffers_rw[bxGdi::eSTAGE_COUNT *bxGdi::cMAX_RESOURCES_RW] = {};
-    //ResourceDescriptorImpl::Binding samplers[bxGdi::eSTAGE_COUNT * bxGdi::cMAX_SAMPLERS] = {};
-
-    //u8 num_bindings[_eRESOURCE_TYPE_COUNT_] = {};
-
-    //for( u32 i = 0; i < layout.num_bindings; ++i )
-    //{
-    //    const ResourceBinding& binding = layout.bindings[i];
-    //    for( u8 istage = 0; istage < bxGdi::eSTAGE_COUNT; ++istage )
-    //    {
-    //        const u8 current_stage_mask = BIT_OFFSET( istage );
-    //        if( (current_stage_mask & binding.stage_mask) == 0 )
-    //            continue;
-
-    //        const u8 index = num_bindings[binding.type]++;
-
-    //        switch( binding.type )
-    //        {
-    //        case eRESOURCE_TYPE_TEXTURE:
-    //            {
-    //                _SetBinding( &textures[index], istage, binding.slot );
-    //            }break;
-    //        case eRESOURCE_TYPE_SAMPLER:
-    //            {
-    //                _SetBinding( &samplers[index], istage, binding.slot );
-    //            }break;
-    //        case eRESOURCE_TYPE_UNIFORM:
-    //            {
-    //                _SetBinding( &cbuffers[index], istage, binding.slot );
-    //            }break;
-    //        case eRESOURCE_TYPE_BUFFER_RO:
-    //            {
-    //                _SetBinding( &buffers_ro[index], istage, binding.slot );
-    //            }break;
-    //        case eRESOURCE_TYPE_BUFFER_RW:
-    //            {
-    //                _SetBinding( &buffers_rw[index], istage, binding.slot );
-    //            }break;
-    //        }
-    //    }
-    //}
-
-    //const u32 resource_binding_memory_size[_eRESOURCE_TYPE_COUNT_] =
-    //{
-    //    sizeof( ResourceDescriptorImpl::Resource ), //eRESOURCE_TYPE_TEXTURE,
-    //    sizeof( ResourceDescriptorImpl::Sampler ), //eRESOURCE_TYPE_SAMPLER,
-    //    sizeof( ResourceDescriptorImpl::Buffer ), //eRESOURCE_TYPE_UNIFORM,
-    //    sizeof( ResourceDescriptorImpl::Resource ), //eRESOURCE_TYPE_BUFFER_RO,
-    //    sizeof( ResourceDescriptorImpl::Resource ), //eRESOURCE_TYPE_BUFFER_RW,
-    //};
-
-    //u32 mem_size = sizeof( ResourceDescriptorImpl );
-    //for( u32 i = 0; i < _eRESOURCE_TYPE_COUNT_; ++i )
-    //{
-    //    mem_size += resource_binding_memory_size[i] * num_bindings[i];
-    //}
-
-    //void* mem = BX_MALLOC( utils::getAllocator( allocator ), mem_size, 16 );
-    //memset( mem, 0x00, mem_size );
-
-    //bxBufferChunker chunker( mem, mem_size );
-
-    //ResourceDescriptorImpl* impl = chunker.add< ResourceDescriptorImpl >();
-    //new( impl ) ResourceDescriptorImpl();
-
-    //if( num_bindings[eRESOURCE_TYPE_TEXTURE] )
-    //{
-    //    impl->textures = chunker.add< ResourceDescriptorImpl::Resource>( num_bindings[eRESOURCE_TYPE_TEXTURE] );
-    //    for( u8 i = 0; i < num_bindings[eRESOURCE_TYPE_TEXTURE]; ++i )
-    //        impl->textures[i].binding = textures[i];
-    //}
-    //if( num_bindings[eRESOURCE_TYPE_SAMPLER] )
-    //{
-    //    impl->samplers = chunker.add< ResourceDescriptorImpl::Sampler>( num_bindings[eRESOURCE_TYPE_SAMPLER] );
-    //    for( u8 i = 0; i < num_bindings[eRESOURCE_TYPE_SAMPLER]; ++i )
-    //        impl->samplers[i].binding = samplers[i];
-    //}
-    //if( num_bindings[eRESOURCE_TYPE_UNIFORM] )
-    //{
-    //    impl->cbuffers = chunker.add< ResourceDescriptorImpl::Buffer>( num_bindings[eRESOURCE_TYPE_UNIFORM] );
-    //    for( u8 i = 0; i < num_bindings[eRESOURCE_TYPE_UNIFORM]; ++i )
-    //        impl->cbuffers[i].binding = cbuffers[i];
-    //}
-    //if( num_bindings[eRESOURCE_TYPE_BUFFER_RO] )
-    //{
-    //    impl->buffers_ro = chunker.add< ResourceDescriptorImpl::Resource>( num_bindings[eRESOURCE_TYPE_BUFFER_RO] );
-    //    for( u8 i = 0; i < num_bindings[eRESOURCE_TYPE_BUFFER_RO]; ++i )
-    //        impl->buffers_ro[i].binding = buffers_ro[i];
-    //}
-    //if( num_bindings[eRESOURCE_TYPE_BUFFER_RW] )
-    //{
-    //    impl->buffers_rw = chunker.add< ResourceDescriptorImpl::Resource>( num_bindings[eRESOURCE_TYPE_BUFFER_RW] );
-    //    for( u8 i = 0; i < num_bindings[eRESOURCE_TYPE_BUFFER_RW]; ++i )
-    //        impl->buffers_rw[i].binding = buffers_rw[i];
-    //}
-    //chunker.check();
-
-    //for( u32 i = 0; i < _eRESOURCE_TYPE_COUNT_; ++i )
-    //    impl->count[i] = num_bindings[i];
-
-    //return impl;
 }
 
 void destroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocator /*= nullptr */ )
@@ -383,21 +272,112 @@ void destroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocato
     BX_DELETE0( utils::getAllocator( allocator ), rdesc[0] );
 }
 
-bool setResourceRO( ResourceDescriptor rdesc, const gdi::ResourceRO* resource, gdi::EStage stage, u16 slot )
+namespace
 {
+    const ResourceDescriptorImpl::Desc* _FindResourceDesc( const ResourceDescriptorImpl* impl, EResourceType type,  u8 stageMask, u8 slot )
+    {
+        for( u32 i = 0; i < impl->count; ++i )
+        {
+            const ResourceDescriptorImpl::Desc* desc = &impl->descs[i];
+            if( desc->binding.type == type && desc->binding.stage_mask == stageMask )
+            {
+                const u16 begin_slot = desc->binding.first_slot;
+                const u16 end_slot = begin_slot + desc->binding.count;
+                const bool slot_in_range = slot >= begin_slot && slot < end_slot;
+                if( slot_in_range )
+                {
+                    return desc;
+                }
+            }
+        }
+
+        bxLogWarning( "Resource not found in descriptor" );
+        return nullptr;
+    }
+    
+    template< class T >
+    void _SetResource( ResourceDescriptorImpl* impl, const ResourceDescriptorImpl::Desc* desc, const T* resourcePtr, u8 slot )
+    {
+        T* ro = (T*)( impl->data + desc->offset );
+        const int local_slot = (int)slot - (int)desc->binding.first_slot;
+        SYS_ASSERT( local_slot >= 0 && local_slot < desc->binding.count );
+        ro[local_slot] = *resourcePtr;
+    }
+}
+bool setResourceRO( ResourceDescriptor rdesc, const gdi::ResourceRO* resource, u8 stageMask, u8 slot )
+{
+    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, eRESOURCE_TYPE_READ_ONLY, stageMask, slot );
+    if( !desc )
+        return false;
+
+    _SetResource( rdesc, desc, resource, slot );
+    return true;
+}
+bool setResourceRW( ResourceDescriptor rdesc, const gdi::ResourceRW* resource, u8 stageMask, u8 slot )
+{
+    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, eRESOURCE_TYPE_READ_WRITE, stageMask, slot );
+    if( !desc )
+        return false;
+
+    _SetResource( rdesc, desc, resource, slot );
+    return true;
+}
+bool setConstantBuffer( ResourceDescriptor rdesc, const gdi::ConstantBuffer cbuffer, u8 stageMask, u8 slot )
+{
+    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, eRESOURCE_TYPE_UNIFORM, stageMask, slot );
+    if( !desc )
+        return false;
+
+    const gdi::ConstantBuffer* resource = &cbuffer;
+    _SetResource( rdesc, desc, resource, slot );
+    return true;
+}
+bool setSampler( ResourceDescriptor rdesc, const gdi::Sampler sampler, u8 stageMask, u8 slot )
+{
+    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, eRESOURCE_TYPE_SAMPLER, stageMask, slot );
+    if( !desc )
+        return false;
+    
+    const gdi::Sampler* resource = &sampler;
+    _SetResource( rdesc, desc, resource, slot );
+    return true;
 
 }
-bool setResourceRW( ResourceDescriptor rdesc, const gdi::ResourceRW* resource, gdi::EStage stage, u16 slot )
-{
 
-}
-bool setConstantBuffer( ResourceDescriptor rdesc, const gdi::ConstantBuffer cbuffer, gdi::EStage stage, u16 slot )
+void bindResources( gdi::CommandQueue* cmdq, ResourceDescriptor rdesc )
 {
+    const u32 n = rdesc->count;
+    for( u32 i = 0; i < n; ++i )
+    {
+        const ResourceDescriptorImpl::Desc desc = rdesc->descs[i];
+        const ResourceBinding binding = desc.binding;
 
-}
-bool setSampler( ResourceDescriptor rdesc, const gdi::Sampler sampler, gdi::EStage stage, u16 slot )
-{
-
+        const u8* data_begin = rdesc->data + desc.offset;
+        if( binding.type == eRESOURCE_TYPE_READ_ONLY )
+        {
+            gdi::ResourceRO* ro = ( gdi::ResourceRO* )data_begin;
+            gdi::set::resourcesRO( cmdq, ro, binding.first_slot, binding.count, binding.stage_mask );
+        }
+        else if( binding.type == eRESOURCE_TYPE_READ_WRITE )
+        {
+            gdi::ResourceRW* rw = ( gdi::ResourceRW* )data_begin;
+            gdi::set::resourcesRW( cmdq, rw, binding.first_slot, binding.count, binding.stage_mask );
+        }
+        else if( binding.type == eRESOURCE_TYPE_UNIFORM )
+        {
+            gdi::ConstantBuffer* cb = ( gdi::ConstantBuffer* )data_begin;
+            gdi::set::cbuffers( cmdq, cb, binding.first_slot, binding.count, binding.stage_mask );
+        }
+        else if( binding.type == eRESOURCE_TYPE_SAMPLER )
+        {
+            gdi::Sampler* sampl = ( gdi::Sampler* )data_begin;
+            gdi::set::samplers( cmdq, sampl, binding.first_slot, binding.count, binding.stage_mask );
+        }
+        else
+        {
+            SYS_ASSERT( false );
+        }
+    }
 }
 
 //bool setTexture( ResourceDescriptor rdesc, bxGdiTexture texture, bxGdi::EStage stage, u16 slot )

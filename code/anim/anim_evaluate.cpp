@@ -56,22 +56,6 @@ void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f3
 
 void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frameInteger, f32 frameFraction, u32 beginJoint, u32 endJoint )
 {
-	//const u16 numJoints    = anim->numJoints;
-	//const u32 currentFrame = ( frameInteger ) % anim->numFrames;
-	//const u32 nextFrame    = ( frameInteger + 1 ) % anim->numFrames;
-
-	//const Quat*    rotations    = TYPE_OFFSET_GET_POINTER( const Quat, anim->offsetRotationData );
-	//const Vector3* translations = TYPE_OFFSET_GET_POINTER( const Vector3, anim->offsetTranslationData );
-	//const Vector3* scales       = TYPE_OFFSET_GET_POINTER( const Vector3, anim->offsetScaleData );
-
-	//const Quat*    frame0_rotations    = rotations + currentFrame * numJoints;
-	//const Vector3* frame0_translations = translations + currentFrame * numJoints;
-	//const Vector3* frame0_scales       = scales + currentFrame * numJoints;
-
-	//const Quat*    frame1_rotations     = rotations + nextFrame * numJoints;
-	//const Vector3* frame1_translations  = translations + nextFrame * numJoints;
-	//const Vector3* frame1_scales        = scales + nextFrame * numJoints;
-
     const FrameInfo frame( anim, frameInteger );
 
     u16 i = ( beginJoint == UINT32_MAX ) ? 0 : beginJoint;

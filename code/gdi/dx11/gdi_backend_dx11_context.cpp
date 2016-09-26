@@ -634,6 +634,33 @@ void resourcesRO( CommandQueue* cmdq, ResourceRO* resources, unsigned startSlot,
     if( stageMask & bx::gdi::eSTAGE_MASK_COMPUTE )
         cmdq->dx11()->CSSetShaderResources( startSlot, n, views );
 }
+void resourcesRW( CommandQueue* cmdq, ResourceRW* resources, unsigned startSlot, unsigned n, unsigned stageMask )
+{
+    const int SLOT_COUNT = bx::gdi::cMAX_RESOURCES_RW;
+    SYS_ASSERT( n <= SLOT_COUNT );
+
+    ID3D11UnorderedAccessView* views[SLOT_COUNT];
+    UINT initial_count[SLOT_COUNT] = {};
+
+    memset( views, 0, sizeof( views ) );
+
+    if( resources )
+    {
+        for( unsigned i = 0; i < n; ++i )
+        {
+            views[i] = resources[i].viewUA;
+        }
+    }
+
+    if( stageMask & gdi::eSTAGE_MASK_VERTEX || stageMask & gdi::eSTAGE_MASK_PIXEL )
+    {
+        bxLogError( "ResourceRW can be set only in compute stage" );
+    }
+
+    if( stageMask & gdi::eSTAGE_COMPUTE )
+        cmdq->dx11()->CSSetUnorderedAccessViews( startSlot, n, views, initial_count );
+}
+
 void samplers( CommandQueue* cmdq, Sampler* samplers, unsigned startSlot, unsigned n, unsigned stageMask )
 {
     const int SLOT_COUNT = bx::gdi::cMAX_SAMPLERS;

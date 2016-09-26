@@ -60,24 +60,24 @@ public:
 
         const bxGdiFormat texture_formats[] =
         {
-            { bxGdi::eTYPE_FLOAT, 4 },
+            { bx::gdi::eTYPE_FLOAT, 4 },
         };
         bx::gfx::RenderPassDesc render_pass_desc = {};
         render_pass_desc.num_color_textures = 1;
         render_pass_desc.color_texture_formats = texture_formats;
-        render_pass_desc.depth_texture_type = bxGdi::eTYPE_DEPTH32F;
+        render_pass_desc.depth_texture_type = bx::gdi::eTYPE_DEPTH32F;
         render_pass_desc.width = 1920;
         render_pass_desc.height = 1080;
 
-        _render_pass = bx::gfx::createRenderPass( _engine.gdi_device, render_pass_desc );
+        _render_pass = bx::gfx::createRenderPass( render_pass_desc );
 
 
-        _native_shader_module = bxGdi::shaderFx_createFromFile( _engine.gdi_device, _engine.resource_manager, "native2" );
+        _native_shader_module = bx::gdi::shaderFx_createFromFile( _engine.gdi_device, _engine.resource_manager, "native2" );
 
         const bxGdiVertexStreamBlock stream_descs[2] =
         {
-            { bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 },
-            { bxGdi::eSLOT_NORMAL, bxGdi::eTYPE_FLOAT, 3 },
+            { bx::gdi::eSLOT_POSITION, bx::gdi::eTYPE_FLOAT, 3 },
+            { bx::gdi::eSLOT_NORMAL, bx::gdi::eTYPE_FLOAT, 3 },
         };
 
         bx::gfx::PipelineDesc pipeline_desc = {};
@@ -85,16 +85,15 @@ public:
         pipeline_desc.shaders[1] = _native_shader_module->pixelShader( 0 );
         pipeline_desc.num_vertex_stream_descs = 2;
         pipeline_desc.vertex_stream_descs = stream_descs;
-        _native_pos_nrm_solid = bx::gfx::createPipeline( _engine.gdi_device, pipeline_desc );
+        _pipeline_native_pos_nrm_solid = bx::gfx::createPipeline( pipeline_desc );
 
         {
             bx::gfx::ResourceBinding bindings[] = 
             {
-                { bx::gfx::eRESOURCE_TYPE_UNIFORM, bxGdi::eSTAGE_MASK_VERTEX | bxGdi::eSTAGE_MASK_PIXEL, 0 }, // frame data
-                { bx::gfx::eRESOURCE_TYPE_UNIFORM, bxGdi::eSTAGE_MASK_VERTEX, 1 }, // instance offset
-                { bx::gfx::eRESOURCE_TYPE_BUFFER_RO, bxGdi::eSTAGE_MASK_VERTEX, 1 }, // instance data
-                { bx::gfx::eRESOURCE_TYPE_BUFFER_RO, bxGdi::eSTAGE_MASK_VERTEX, 2 }, // instance data
-                { bx::gfx::eRESOURCE_TYPE_UNIFORM, bxGdi::eSTAGE_MASK_PIXEL, 3 }, // material data
+                { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_VERTEX | bx::gdi::eSTAGE_MASK_PIXEL, 0, 1 }, // frame data
+                { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_VERTEX, 1, 1 }, // instance offset
+                { bx::gfx::eRESOURCE_TYPE_READ_ONLY, bx::gdi::eSTAGE_MASK_VERTEX, 1, 2 }, // instance data
+                { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_PIXEL, 3, 1 }, // material data
             };
             bx::gfx::ResourceLayout layout = {};
             layout.bindings = bindings;
@@ -118,8 +117,8 @@ public:
         bx::gfx::destroyResourceDescriptor( &_instance_data_rdesc );
         bx::gfx::destroyResourceDescriptor( &_frame_data_rdesc );
 
-        bx::gfx::destroyPipeline( &_native_pos_nrm_solid, _engine.gdi_device );
-        bxGdi::shaderFx_release( _engine.gdi_device, _engine.resource_manager, &_native_shader_module );
+        bx::gfx::destroyPipeline( &_pipeline_native_pos_nrm_solid, _engine.gdi_device );
+        bx::gdi::shaderFx_release( _engine.gdi_device, _engine.resource_manager, &_native_shader_module );
         bx::gfx::destroyRenderPass( &_render_pass, _engine.gdi_device );
 
         //bx::game_scene::shutdown( &_scene, &_engine );
@@ -223,7 +222,8 @@ public:
     //bx::gfx::CameraInputContext _cameraInputCtx = {};
 
     bx::gfx::RenderPass _render_pass = BX_GFX_NULL_HANDLE;
-    bx::gfx::Pipeline _native_pos_nrm_solid = BX_GFX_NULL_HANDLE;
+    bx::gfx::Pipeline _pipeline_native_pos_nrm_solid = BX_GFX_NULL_HANDLE;
+    bx::gfx::Pipeline _pipeline_screenquad = BX_GFX_NULL_HANDLE;
     bx::gfx::ResourceDescriptor _frame_data_rdesc = BX_GFX_NULL_HANDLE;
     bx::gfx::ResourceDescriptor _instance_data_rdesc = BX_GFX_NULL_HANDLE;
     bx::gfx::ResourceDescriptor _material_data_rdesc = BX_GFX_NULL_HANDLE;

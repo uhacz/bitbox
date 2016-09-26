@@ -107,25 +107,13 @@ namespace gfx{
 
     ResourceDescriptor createResourceDescriptor( const ResourceLayout& layout, bxAllocator* allocator = nullptr );
     void destroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocator = nullptr );
-    bool setResourceRO( ResourceDescriptor rdesc, const gdi::ResourceRO* resource, gdi::EStage stage, u16 slot );
-    bool setResourceRW( ResourceDescriptor rdesc, const gdi::ResourceRW* resource, gdi::EStage stage, u16 slot );
-    bool setConstantBuffer( ResourceDescriptor rdesc, const gdi::ConstantBuffer cbuffer, gdi::EStage stage, u16 slot );
+    bool setResourceRO( ResourceDescriptor rdesc, const gdi::ResourceRO* resource, u8 stageMask, u8 slot );
+    bool setResourceRW( ResourceDescriptor rdesc, const gdi::ResourceRW* resource, u8 stageMask, u8 slot );
+    bool setConstantBuffer( ResourceDescriptor rdesc, const gdi::ConstantBuffer cbuffer, u8 stageMask, u8 slot );
     bool setSampler( ResourceDescriptor rdesc, const gdi::Sampler sampler, gdi::EStage stage, u16 slot );
-
-    //bool setTexture   ( ResourceDescriptor rdesc, bxGdiTexture texture, bxGdi::EStage stage, u16 slot );
-    //bool setSampler   ( ResourceDescriptor rdesc, bxGdiSampler sampler, bxGdi::EStage stage, u16 slot );
-    //bool setCBuffer   ( ResourceDescriptor rdesc, bxGdiBuffer buffer  , bxGdi::EStage stage, u16 slot );
-    //bool setBufferRO  ( ResourceDescriptor rdesc, bxGdiBuffer buffer  , bxGdi::EStage stage, u16 slot );
-    //bool setBufferRW  ( ResourceDescriptor rdesc, bxGdiBuffer buffer  , bxGdi::EStage stage, u16 slot );
     void bindResources( gdi::CommandQueue* cmdq, ResourceDescriptor rdesc );
 
     bool createVertexBuffer( VertexBuffer* vbuffer, const VertexBufferDesc& desc, bxAllocator* allocator = nullptr );
     void destroyVertexBuffer( VertexBuffer* vbuffer, bxAllocator* allocator = nullptr );
-    
 
-    struct RenderBucket
-    {
-        RenderPass _render_pass;
-    };
 }}///
-
