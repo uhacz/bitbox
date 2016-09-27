@@ -5,7 +5,7 @@
 #include <util/tag.h>
 #include <util/filesystem.h>
 
-#include <anim/anim_struct.h>
+#include <anim/anim.h>
 //#include <vectormath/vectormath.h>
 
 #include <iostream>
@@ -243,7 +243,9 @@ u32 animTag()
 ////
 bool exportSkeleton( const char* out_filename, const Skeleton& in_skeleton )
 {
-	const u32 num_joints = (u32)in_skeleton.jointNames.size();
+    static_assert( sizeof( Joint ) == sizeof( bxAnim_Joint ), "joint size mismatch" );
+
+    const u32 num_joints = (u32)in_skeleton.jointNames.size();
 	const u32 parent_indices_size = num_joints * sizeof( u16 );
 	const u32 base_pose_size = num_joints * sizeof( Joint );
 	const u32 joint_name_hashes_size = num_joints * sizeof( u32 );
@@ -269,7 +271,13 @@ bool exportSkeleton( const char* out_filename, const Skeleton& in_skeleton )
     out_skeleton->offsetParentIndices = TYPE_POINTER_GET_OFFSET( &out_skeleton->offsetParentIndices, parent_indices_address );
     out_skeleton->offsetJointNames = TYPE_POINTER_GET_OFFSET( &out_skeleton->offsetJointNames, joint_name_hashes_address );
 
-	memcpy( base_pose_address, &in_skeleton.basePose[0], base_pose_size );
+    std::vector< bxAnim_Joint > world_bind_pose;
+    world_bind_pose.resize( num_joints );
+    const bxAnim_Joint* local_bind_pose = (bxAnim_Joint*)in_skeleton.basePose.data();
+    const u16* parent_indices = in_skeleton.parentIndices.data();
+    bxAnim::localJointsToWorldJoints( world_bind_pose.data(), local_bind_pose, parent_indices, num_joints, bxAnim_Joint::identity() );
+
+	memcpy( base_pose_address, world_bind_pose.data(), base_pose_size );
 	memcpy( parent_indices_address, &in_skeleton.parentIndices[0], parent_indices_size );
 	memcpy( joint_name_hashes_address, &in_skeleton.jointNames[0], joint_name_hashes_size );
 

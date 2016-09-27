@@ -33,5 +33,4 @@ void bxAnim::localJointsToWorldJoints( bxAnim_Joint* outJoints, const bxAnim_Joi
 		outJoints[i] = world;
 
 	} while ( ++i < count );
-		
 }

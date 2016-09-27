@@ -11,23 +11,23 @@ namespace gfx{
     typedef struct RenderPassImpl* RenderPass;
     typedef struct RenderSubPassImpl* RenderSubPass;
     typedef struct ResourceDescriptorImpl* ResourceDescriptor;
-    typedef struct VertexBufferImpl* VertexBuffer;
+    typedef struct RenderSourceImpl* RenderSource;
 
-    struct ShaderBinary
+    struct ShaderResource
     {
-        void* code = nullptr;
-        size_t size = 0;
     };
 
-    typedef bxGdiVertexStreamBlock VertexStreamDesc;
+
+    struct VertexLayout
+    {
+        gdi::VertexBufferDesc descs[gdi::cMAX_VERTEX_BUFFERS] = {};
+        u32 count = 0;
+    };
 
     struct PipelineDesc
     {
         gdi::Shader shaders[ gdi::eDRAW_STAGES_COUNT ] = {};
-
-        u32 num_vertex_stream_descs = 0;
-        const VertexStreamDesc* vertex_stream_descs = nullptr;
-
+        VertexLayout vertex_layout = {};
         gdi::HardwareStateDesc hw_state_desc = {};
         gdi::ETopology topology = gdi::eTRIANGLES;
     };
@@ -53,13 +53,6 @@ namespace gfx{
 
     enum EResourceType : u8
     {
-        //eRESOURCE_TYPE_TEXTURE,
-        //eRESOURCE_TYPE_SAMPLER,
-        //eRESOURCE_TYPE_UNIFORM,
-        //eRESOURCE_TYPE_BUFFER_RO,
-        //eRESOURCE_TYPE_BUFFER_RW,
-        //_eRESOURCE_TYPE_COUNT_,
-
         eRESOURCE_TYPE_READ_ONLY,
         eRESOURCE_TYPE_READ_WRITE,
         eRESOURCE_TYPE_UNIFORM,
@@ -84,14 +77,16 @@ namespace gfx{
         u32 num_bindings = 0;
     };
 
-    struct VertexBufferDesc
+    struct RenderSourceDesc
     {
         u32 num_streams = 0;
-        u32 has_indices = 0;
         u32 num_vertices = 0;
         u32 num_indices = 0;
+        VertexLayout vertex_layout = {};
         const gdi::EDataType index_type = gdi::eTYPE_UNKNOWN;
-        const gdi::VertexBufferDesc* streams_desc = nullptr;
+        
+        const void* vertex_data[gdi::cMAX_VERTEX_BUFFERS] = {};
+        const void* index_data = nullptr;
     };
 
     Pipeline createPipeline( const PipelineDesc& desc, bxAllocator* allocator = nullptr );
@@ -113,7 +108,7 @@ namespace gfx{
     bool setSampler( ResourceDescriptor rdesc, const gdi::Sampler sampler, gdi::EStage stage, u16 slot );
     void bindResources( gdi::CommandQueue* cmdq, ResourceDescriptor rdesc );
 
-    bool createVertexBuffer( VertexBuffer* vbuffer, const VertexBufferDesc& desc, bxAllocator* allocator = nullptr );
-    void destroyVertexBuffer( VertexBuffer* vbuffer, bxAllocator* allocator = nullptr );
+    RenderSource createRenderSource( const RenderSourceDesc& desc, bxAllocator* allocator = nullptr );
+    void destroyRenderSource( RenderSource* rsource, bxAllocator* allocator = nullptr );
 
 }}///

@@ -12,6 +12,8 @@ namespace utils
     }
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 struct PipelineImpl
 {
     gdi::BlendState blend_state = {};
@@ -21,66 +23,6 @@ struct PipelineImpl
     gdi::ETopology topology = gdi::eTRIANGLES;
     gdi::Shader      shaders[gdi::eDRAW_STAGES_COUNT] = {};
 };
-
-struct RenderPassImpl
-{
-    gdi::TextureRW color_textures[gdi::cMAX_RENDER_TARGETS] = {};
-    gdi::TextureDepth depth_texture;
-    u16 num_color_textures = 0;
-};
-
-struct RenderSubPassImpl
-{
-    u8 color_texture_indices[gdi::cMAX_RENDER_TARGETS] = {};
-    u16 num_color_textures = 0;
-    u16 has_depth_texture = 0;
-    RenderPass render_pass = nullptr;
-};
-
-struct BIT_ALIGNMENT_16 ResourceDescriptorImpl
-{
-    struct Desc
-    {
-        ResourceBinding binding;
-        u32 offset = UINT32_MAX;
-    };
-    
-    //struct ResourceRO
-    //{
-    //    Binding binding;
-    //    gdi::ResourceRO resource;
-    //};
-    //
-    //struct ResourceRW
-    //{
-    //    Binding binding;
-    //    gdi::ResourceRW resource;
-    //};
-    //
-    //struct ConstantBuffer
-    //{
-    //    Binding binding;
-    //    gdi::ConstantBuffer buffer;
-    //};
-
-    //struct Sampler
-    //{
-    //    Binding binding;
-    //    bx::gdi::Sampler sampler;
-    //};
-    
-    Desc* descs = nullptr;
-    u8* data = nullptr;
-    
-    u32 count = 0;
-    //ResourceRO* ro = nullptr;
-    //ResourceRW* rw = nullptr;
-    //ConstantBuffer* cb = nullptr;
-    //Sampler* sampl = nullptr;
-    //u8 count[_eRESOURCE_TYPE_COUNT_] = {};
-};
-
-//
 Pipeline createPipeline( const PipelineDesc& desc, bxAllocator* allocator )
 {
     PipelineImpl* impl = (PipelineImpl*)BX_NEW( utils::getAllocator( allocator ), PipelineImpl );
@@ -91,8 +33,8 @@ Pipeline createPipeline( const PipelineDesc& desc, bxAllocator* allocator )
     }
 
     impl->input_layout = gdi::create::inputLayout( desc.vertex_stream_descs, desc.num_vertex_stream_descs, desc.shaders[gdi::eSTAGE_VERTEX] );
-    impl->blend_state  = gdi::create::blendState( desc.hw_state_desc.blend );
-    impl->depth_state  = gdi::create::depthState( desc.hw_state_desc.depth );
+    impl->blend_state = gdi::create::blendState( desc.hw_state_desc.blend );
+    impl->depth_state = gdi::create::depthState( desc.hw_state_desc.depth );
     impl->raster_state = gdi::create::rasterState( desc.hw_state_desc.raster );
     impl->topology = desc.topology;
 
@@ -116,7 +58,7 @@ void destroyPipeline( Pipeline* pipeline, bxAllocator* allocator /*= nullptr */ 
         impl->shaders[i] = {};
     }
 
-    BX_DELETE( utils::getAllocator(allocator), impl );
+    BX_DELETE( utils::getAllocator( allocator ), impl );
 
     pipeline[0] = nullptr;
 }
@@ -124,13 +66,20 @@ void destroyPipeline( Pipeline* pipeline, bxAllocator* allocator /*= nullptr */ 
 void bindPipeline( gdi::CommandQueue* cmdq, Pipeline pipeline )
 {
     gdi::set::shaderPrograms( cmdq, pipeline->shaders, gdi::eDRAW_STAGES_COUNT );
-    gdi::set::inputLayout   ( cmdq, pipeline->input_layout );
-    gdi::set::blendState    ( cmdq, pipeline->blend_state );
-    gdi::set::depthState    ( cmdq, pipeline->depth_state );
-    gdi::set::rasterState   ( cmdq, pipeline->raster_state );
-    gdi::set::topology      ( cmdq, pipeline->topology );
+    gdi::set::inputLayout( cmdq, pipeline->input_layout );
+    gdi::set::blendState( cmdq, pipeline->blend_state );
+    gdi::set::depthState( cmdq, pipeline->depth_state );
+    gdi::set::rasterState( cmdq, pipeline->raster_state );
+    gdi::set::topology( cmdq, pipeline->topology );
 }
-
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct RenderPassImpl
+{
+    gdi::TextureRW color_textures[gdi::cMAX_RENDER_TARGETS] = {};
+    gdi::TextureDepth depth_texture;
+    u16 num_color_textures = 0;
+};
 RenderPass createRenderPass( const RenderPassDesc& desc, bxAllocator* allocator /*= nullptr */ )
 {
     RenderPassImpl* impl = BX_NEW( utils::getAllocator( allocator ), RenderPassImpl );
@@ -169,12 +118,21 @@ void destroyRenderPass( RenderPass* renderPass, bxGdiDeviceBackend* dev, bxAlloc
     renderPass[0] = nullptr;
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct RenderSubPassImpl
+{
+    u8 color_texture_indices[gdi::cMAX_RENDER_TARGETS] = {};
+    u16 num_color_textures = 0;
+    u16 has_depth_texture = 0;
+    RenderPass render_pass = nullptr;
+};
 RenderSubPass createRenderSubPass( const RenderSubPassDesc & desc, bxAllocator * allocator )
 {
     SYS_ASSERT( desc.render_pass != nullptr );
 
     RenderSubPassImpl* impl = BX_NEW( utils::getAllocator( allocator ), RenderSubPassImpl );
-        
+
     for( u32 i = 0; i < desc.num_color_textures; ++i )
     {
         SYS_ASSERT( desc.color_texture_indices[i] < desc.render_pass->num_color_textures );
@@ -209,11 +167,23 @@ void bindRenderSubPass( gdi::CommandQueue* cmdq, RenderSubPass subPass )
     {
         depth = subPass->render_pass->depth_texture;
     }
-        
+
     gdi::set::changeRenderTargets( cmdq, color, subPass->num_color_textures, depth );
 }
 
-
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct BIT_ALIGNMENT_16 ResourceDescriptorImpl
+{
+    struct Desc
+    {
+        ResourceBinding binding;
+        u32 offset = UINT32_MAX;
+    };
+    Desc* descs = nullptr;
+    u8* data = nullptr;
+    u32 count = 0;
+};
 namespace
 {
     static const u32 _resource_size[_eRESOURCE_TYPE_COUNT_] =
@@ -274,7 +244,7 @@ void destroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocato
 
 namespace
 {
-    const ResourceDescriptorImpl::Desc* _FindResourceDesc( const ResourceDescriptorImpl* impl, EResourceType type,  u8 stageMask, u8 slot )
+    const ResourceDescriptorImpl::Desc* _FindResourceDesc( const ResourceDescriptorImpl* impl, EResourceType type, u8 stageMask, u8 slot )
     {
         for( u32 i = 0; i < impl->count; ++i )
         {
@@ -294,7 +264,7 @@ namespace
         bxLogWarning( "Resource not found in descriptor" );
         return nullptr;
     }
-    
+
     template< class T >
     void _SetResource( ResourceDescriptorImpl* impl, const ResourceDescriptorImpl::Desc* desc, const T* resourcePtr, u8 slot )
     {
@@ -337,7 +307,7 @@ bool setSampler( ResourceDescriptor rdesc, const gdi::Sampler sampler, u8 stageM
     const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, eRESOURCE_TYPE_SAMPLER, stageMask, slot );
     if( !desc )
         return false;
-    
+
     const gdi::Sampler* resource = &sampler;
     _SetResource( rdesc, desc, resource, slot );
     return true;
@@ -380,97 +350,54 @@ void bindResources( gdi::CommandQueue* cmdq, ResourceDescriptor rdesc )
     }
 }
 
-//bool setTexture( ResourceDescriptor rdesc, bxGdiTexture texture, bxGdi::EStage stage, u16 slot )
-//{
-//    for( u8 i = 0; i < rdesc->count[eRESOURCE_TYPE_TEXTURE]; ++i )
-//    {
-//        ResourceDescriptorImpl::Resource& t = rdesc->textures[i];
-//        if( t.binding.slot == slot && t.binding.stage == stage )
-//        {
-//            t.resource = texture.rs;
-//            return true;
-//        }
-//    }
-//
-//    bxLogWarning( "texture at %d:%d not found in descriptor", stage, slot );
-//    return false;
-//}
-//
-//bool setSampler( ResourceDescriptor rdesc, bxGdiSampler sampler, bxGdi::EStage stage, u16 slot )
-//{
-//    for( u8 i = 0; i < rdesc->count[eRESOURCE_TYPE_SAMPLER]; ++i )
-//    {
-//        ResourceDescriptorImpl::Sampler& s = rdesc->samplers[i];
-//        if( s.binding.slot == slot && s.binding.stage == stage )
-//        {
-//            s.sampler = sampler;
-//            return true;
-//        }
-//    }
-//
-//    bxLogWarning( "sampler at %d:%d not found in descriptor", stage, slot );
-//    return false;
-//}
-//
-//bool setCBuffer( ResourceDescriptor rdesc, bxGdiBuffer buffer, bxGdi::EStage stage, u16 slot )
-//{
-//    for( u8 i = 0; i < rdesc->count[eRESOURCE_TYPE_UNIFORM]; ++i )
-//    {
-//        ResourceDescriptorImpl::Buffer& b = rdesc->cbuffers[i];
-//        if( b.binding.slot == slot && b.binding.stage == stage )
-//        {
-//            b.buffer = buffer;
-//            return true;
-//        }
-//    }
-//
-//    bxLogWarning( "Constant buffer at %d:%d not found in descriptor", stage, slot );
-//    return false;
-//}
-//
-//bool setBufferRO( ResourceDescriptor rdesc, bxGdiBuffer buffer, bxGdi::EStage stage, u16 slot )
-//{
-//    for( u8 i = 0; i < rdesc->count[eRESOURCE_TYPE_BUFFER_RO]; ++i )
-//    {
-//        ResourceDescriptorImpl::Resource& b = rdesc->buffers_ro[i];
-//        if( b.binding.slot == slot && b.binding.stage == stage )
-//        {
-//            b.resource = buffer.rs;
-//            return true;
-//        }
-//    }
-//
-//    bxLogWarning( "read-only buffer at %d:%d not found in descriptor", stage, slot );
-//    return false;
-//}
-//
-//bool setBufferRW( ResourceDescriptor rdesc, bxGdiBuffer buffer, bxGdi::EStage stage, u16 slot )
-//{
-//    for( u8 i = 0; i < rdesc->count[eRESOURCE_TYPE_BUFFER_RW]; ++i )
-//    {
-//        ResourceDescriptorImpl::Resource& b = rdesc->buffers_rw[i];
-//        if( b.binding.slot == slot && b.binding.stage == stage )
-//        {
-//            b.resource = buffer.rs;
-//            return true;
-//        }
-//    }
-//
-//    bxLogWarning( "read-write buffer at %d:%d not found in descriptor", stage, slot );
-//    return false;
-//}
-//
-//void bindResources( bxGdiContextBackend* ctx, ResourceDescriptor rdesc )
-//{
-//    if( rdesc->count[eRESOURCE_TYPE_TEXTURE] )
-//    {
-//        bxGdiResource resources[bxGdi::cMAX_RESOURCES_RO] = {};
-//        for( u32 i = 0; i < rdesc->count[eRESOURCE_TYPE_TEXTURE]; ++i )
-//        {
-//            const ResourceDescriptorImpl::Resource& r = rdesc->textures[i];
-//            resources[r.binding.slot] = r.resource;
-//        }
-//    }
-//}
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct RenderSourceImpl
+{
+    u32 num_vertex_buffers = 0;
+    gdi::IndexBuffer index_buffer;
+    gdi::VertexBuffer vertex_buffers[1];
+};
+
+RenderSource createRenderSource( const RenderSourceDesc& desc, bxAllocator* allocator /*= nullptr */ )
+{
+    u32 mem_size = sizeof( RenderSourceImpl );
+    mem_size += ( desc.num_streams - 1 )  * sizeof( gdi::VertexBuffer );
+
+    void* mem = BX_MALLOC( utils::getAllocator( allocator ), mem_size, ALIGNOF( RenderSourceImpl ) );
+    memset( mem, 0x00, mem_size );
+
+    RenderSourceImpl* impl = (RenderSourceImpl*)mem;
+    impl->num_vertex_buffers = desc.num_streams;
+
+    for( u32 i = 0; i < desc.num_streams; ++i )
+    {
+        const void* data = ( desc.streams_data ) ? desc.streams_data[i] : nullptr;
+        impl->vertex_buffers[i] = gdi::create::vertexBuffer( desc.streams_desc[i], desc.num_vertices, data );
+    }
+
+    if( desc.index_type != gdi::eTYPE_UNKNOWN )
+    {
+        impl->index_buffer = gdi::create::indexBuffer( desc.index_type, desc.num_indices, desc.index_data );
+    }
+
+    return impl;    
+}
+
+void destroyRenderSource( RenderSource* rsource, bxAllocator* allocator /*= nullptr */ )
+{
+    if( !rsource[0] )
+        return;
+
+    RenderSourceImpl* impl = rsource[0];
+
+    gdi::release::indexBuffer( &impl->index_buffer );
+    for( u32 i = 0; i < impl->num_vertex_buffers; ++i )
+    {
+        gdi::release::vertexBuffer( &impl->vertex_buffers[i] );
+    }
+
+    BX_FREE0( utils::getAllocator( allocator ), rsource[0] );
+}
 
 }}///

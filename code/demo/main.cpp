@@ -113,8 +113,8 @@ public:
         
         bx::motion_matching::ContextPrepareInfo ctx_prepare_info{};
         ctx_prepare_info.matching_joint_names[0] = "Hips";
-        ctx_prepare_info.matching_joint_names[1] = "LeftToeBase";
-        ctx_prepare_info.matching_joint_names[2] = "RightToeBase";
+        ctx_prepare_info.matching_joint_names[1] = "LeftFoot";
+        ctx_prepare_info.matching_joint_names[2] = "RightFoot";
         mm.prepare( ctx_prepare_info );
 
         return true;

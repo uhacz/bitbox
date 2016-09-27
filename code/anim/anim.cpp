@@ -125,7 +125,7 @@ namespace bxAnimExt
         const u16* parentIndices = TYPE_OFFSET_GET_POINTER( const u16, skel->offsetParentIndices );
         bxAnim::localJointsToWorldMatrices4x4( outMatrices, inJoints, parentIndices, skel->numJoints, rootJoint );
     }
-
+    
     void processBlendTree( bxAnim_Context* ctx, const u16 root_index, const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves )
     {
         bxAnim::evaluateBlendTree( ctx, root_index, blend_branches, num_branches, blend_leaves, num_leaves );

@@ -13,6 +13,26 @@
 #include "game.h"
 
 namespace bx{
+namespace anim{
+
+struct IKNode3
+{
+    i16 idx_begin = -1;
+    i16 idx_middle = -1;
+    i16 idx_end = -1;
+    i16 idx_padding__ = -1;
+
+    float len_begin_2_mid = 0.f;
+    float len_mid_2_end = 0.f;
+    float chain_length = 0.f;
+};
+
+void ikNodeInit( IKNode3* node, const bxAnim_Skel* skel, const char* jointNames[3] );
+void ikNodeSolve( bxAnim_Joint* localJoints, const IKNode3& node, const Matrix4* animMatrices, const i16* parentIndices, const Vector3& goalPosition, float strength, bool debugDraw = false );
+
+}}///
+
+namespace bx{
 namespace motion_matching{
 
 enum { eNUM_TRAJECTORY_POINTS = 4, };
@@ -88,6 +108,7 @@ struct State
     void* _memory_handle = nullptr;
     bxAnim_Joint* joint_world = nullptr;
     bxAnim_Joint* scratch_joints = nullptr;
+    Matrix4* matrix_world = nullptr;
 
     Curve3D input_trajectory_curve;
     Curve3D candidate_trajectory_curve;
@@ -132,7 +153,14 @@ void stateAllocate( State* state, u32 numJoints, bxAllocator* allocator );
 void stateFree( State* state, bxAllocator* allocator );
 //-------------------------------------------------------------------
 void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float trajectoryStartTime, float trajectoryDuration );
-    
+
+struct FootPlace
+{
+    Vector3 _world_pos{ 0.f };
+    u32 _flag = 0;
+    void place( const Vector3 candidateWorldPos, u32 onGroundFlag, float speed, float glueRC, float deltaTime );
+    bool isOnGround() const { return _flag != 0; }
+};
     
 struct ContextPrepareInfo
 {
@@ -145,6 +173,14 @@ struct Context
     State _state;
     Debug _debug;
     anim::SimplePlayer _anim_player;
+    
+    anim::IKNode3 _left_foot_ik = {};
+    anim::IKNode3 _right_foot_ik = {};
+    f32 _left_foot_ik_strength = 0.f;
+    f32 _right_foot_ik_strength = 0.f;
+
+    FootPlace _left_foot_place = {};
+    FootPlace _right_foot_place = {};
 
     bxAllocator* _allocator = nullptr;
 
@@ -159,6 +195,7 @@ struct Context
 
     //-------------------------------------------------------------------
     void tick( const Input& input, float deltaTime );
+    void tick_updateFootPlace( FootPlace* fp, EMatchJoint joint, const Matrix4 baseMatrix, float glueRC, float deltaTime );
 
     bool currentSpeed( f32* value );
     bool currentPose( Matrix4* pose );
@@ -204,6 +241,7 @@ struct DynamicState
     void debugDraw( u32 color );
 };
 void motionMatchingCollectInput( Input* input, const DynamicState& dstate );
-
 }}////
+
+
 

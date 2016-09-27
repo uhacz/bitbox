@@ -29,6 +29,22 @@ namespace utils
             }
         }
     }
+    void debugDrawMatrices( const Matrix4* matrices, const u16* parentIndices, u32 numMatrices, u32 color, float radius )
+    {
+        for( u32 i = 0; i < numMatrices; ++i )
+        {
+            Vector4 sph( matrices[i].getTranslation(), radius );
+            //bxGfxDebugDraw::addSphere( sph, color, 1 );
+            bxGfxDebugDraw::addAxes( appendScale( matrices[i], Vector3(radius) ) );
+
+            const u16 parent_idx = parentIndices[i];
+            if( parent_idx != 0xFFFF )
+            {
+                const Vector3 parent_pos = matrices[parent_idx].getTranslation();
+                bxGfxDebugDraw::addLine( parent_pos, sph.getXYZ(), color, 1 );
+            }
+        }
+    }
 
     void computeTrajectoryDerivatives( Vector3 v[eNUM_TRAJECTORY_POINTS - 1], Vector3 a[eNUM_TRAJECTORY_POINTS - 2], const Vector3 x[eNUM_TRAJECTORY_POINTS], float deltaTimeInv )
     {
@@ -287,7 +303,7 @@ void posePrepare( Pose* pose, const PosePrepareInfo& info )
 void stateAllocate( State* state, u32 numJoints, bxAllocator* allocator )
 {
     u32 mem_size = 0;
-    mem_size = numJoints * ( sizeof( *state->scratch_joints) + sizeof( *state->joint_world ) );
+    mem_size = numJoints * ( sizeof( *state->scratch_joints) + sizeof( *state->joint_world ) + sizeof( *state->matrix_world ) );
 
     state->_memory_handle = BX_MALLOC( allocator, mem_size, 16 );
     memset( state->_memory_handle, 0x00, mem_size );
@@ -295,6 +311,8 @@ void stateAllocate( State* state, u32 numJoints, bxAllocator* allocator )
     bxBufferChunker chunker( state->_memory_handle, mem_size );
     state->joint_world = chunker.add< bxAnim_Joint >( numJoints );
     state->scratch_joints = chunker.add< bxAnim_Joint >( numJoints );
+    state->matrix_world = chunker.add< Matrix4 >( numJoints );
+
     chunker.check();
 }
 
@@ -419,6 +437,23 @@ void Context::prepare( const ContextPrepareInfo& info )
 
     curve::allocate( _state.input_trajectory_curve, eNUM_TRAJECTORY_POINTS );
     curve::allocate( _state.candidate_trajectory_curve, eNUM_TRAJECTORY_POINTS );
+
+    const char* left_ik_joint_names[3] =
+    {
+        "LeftUpLeg",
+        "LeftLeg",
+        "LeftFoot",
+    };
+
+    const char* right_ik_joint_names[3] = 
+    {
+        "RightUpLeg",
+        "RightLeg",
+        "RightFoot",
+    };
+
+    anim::ikNodeInit( &_left_foot_ik, _data.skel, left_ik_joint_names );
+    anim::ikNodeInit( &_right_foot_ik, _data.skel, right_ik_joint_names );
 }
 
 void Context::prepare_evaluateClips()
@@ -673,16 +708,7 @@ void Context::tick( const Input& input, float deltaTime )
                 //bxGfxDebugDraw::addLine( pose_trajectory_pos[i], pose_trajectory_pos[i] + pose_trajectory_vel[i], 0xFFFF00FF, 1 );
             }
 
-            for( u32 i = 0; i < _eMATCH_JOINT_COUNT_; ++i )
-            {
-                if( winner_pose.flags[i] )
-                {
-                    Vector3 p = mulAsVec4( input.base_matrix_aligned, winner_pose.pos[i] );
-                    bxGfxDebugDraw::addSphere( Vector4( p, 0.1f ), 0xFF0000FF, 1 );
-                }
-            }
-
-        //    for( u32 j = 0; j < _eMATCH_JOINT_COUNT_; ++j )
+            //    for( u32 j = 0; j < _eMATCH_JOINT_COUNT_; ++j )
         //    {
         //        const Vector3 pos = winner_pose.pos[j];
         //        const Vector3 vel = winner_pose.vel[j];
@@ -701,29 +727,98 @@ void Context::tick( const Input& input, float deltaTime )
         _state.pose_index = change_index;
     }
 
+
+    const bxAnim_Joint root = toAnimJoint_noScale( input.base_matrix_aligned );
+    const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _data.skel->offsetParentIndices );
     if( curr_local_joints )
     {
-        bxAnim_Joint root = toAnimJoint_noScale( input.base_matrix_aligned );
+        bxAnimExt::localJointsToWorldMatrices( _state.matrix_world, curr_local_joints, _data.skel, root );
+        bxAnimExt::localJointsToWorldJoints( _state.joint_world, curr_local_joints, _data.skel, root );
+        utils::debugDrawMatrices( _state.matrix_world, parent_indices, num_joints, 0x666666FF, 0.015f );
+    }
+
+    {
+        const Pose& winner_pose = _data.poses[_state.pose_index];
+        const u32 left_foot_curr_flag = winner_pose.flags[eMATCH_JOINT_LEFT_FOOT];
+        const u32 right_foot_curr_flag = winner_pose.flags[eMATCH_JOINT_RIGHT_FOOT];
+        const float glue_RC = 0.025f;
+
+        tick_updateFootPlace( &_left_foot_place, eMATCH_JOINT_LEFT_FOOT, input.base_matrix_aligned, glue_RC, deltaTime );
+        tick_updateFootPlace( &_right_foot_place, eMATCH_JOINT_RIGHT_FOOT, input.base_matrix_aligned, glue_RC, deltaTime );
+    }
+
+    if( curr_local_joints )
+    {
+        if( _left_foot_place.isOnGround() )
+            _left_foot_ik_strength += deltaTime * 10.f;
+        else
+            _left_foot_ik_strength -= deltaTime * 10.f;
+        _left_foot_ik_strength = clamp( _left_foot_ik_strength, 0.f, 1.f );
+
+        const i16* parent_indices = TYPE_OFFSET_GET_POINTER( i16, _data.skel->offsetParentIndices );
+        anim::ikNodeSolve( curr_local_joints, _left_foot_ik, _state.matrix_world, parent_indices, _left_foot_place._world_pos, _left_foot_ik_strength, true );
+    }
+
+
+    if( curr_local_joints )
+    {
+        
         bxAnimExt::localJointsToWorldJoints( _state.joint_world, curr_local_joints, _data.skel, root );
         const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _data.skel->offsetParentIndices );
         utils::debugDrawJoints( _state.joint_world, parent_indices, num_joints, 0xffffffFF, 0.025f, 1.f );
 
-        //bxGfxDebugDraw::addLine( _state.joint_world[0].position, _state.joint_world[0].position + input.raw_input, 0xFF00FF00, 1 );
-        //bxGfxDebugDraw::addAxes( Matrix4( _state.joint_world[0].rotation, _state.joint_world[0].position ) );
-
-        //if( _state.pose_index != UINT32_MAX )
-        //{
-        //    _DebugDrawPose( _state.pose_index, 0xFF0000FF, input.base_matrix_aligned );
-        //}
-
-        //for( u32 index : _debug.pose_indices )
-        //{
-        //    u32 color = ( index == _state.pose_index ) ? 0xFF0000FF : 0x222222FF;
-        //    _DebugDrawPose( index, color, input.base_matrix_aligned );
-        //}
+        {
+            //const bxAnim_Joint* bind_pose = TYPE_OFFSET_GET_POINTER( bxAnim_Joint, _data.skel->offsetBasePose );
+            //bxAnimExt::localJointsToWorldJoints( _state.scratch_joints, bind_pose, _data.skel, bxAnim_Joint::identity() );
+            //utils::debugDrawJoints( bind_pose, parent_indices, num_joints, 0xffffffFF, 0.025f, 1.f );
+        }
 
     }
 }
+
+void Context::tick_updateFootPlace( FootPlace* fp, EMatchJoint joint, const Matrix4 baseMatrix, float glueRC, float deltaTime )
+{
+    const Pose& winner_pose = _data.poses[_state.pose_index];
+    const u32 curr_flag = winner_pose.flags[joint];
+    
+    const Vector3 local_velocity = winner_pose.vel[joint];
+    const float local_speed = length( local_velocity ).getAsFloat();
+
+    if( !fp->isOnGround() && curr_flag )
+    {
+        const Vector3 pose_pos = mulAsVec4( baseMatrix, winner_pose.pos[joint] );
+        fp->place( pose_pos, curr_flag, local_speed, glueRC, deltaTime );
+    }
+    else if( !curr_flag )
+    {
+        const i16 index = _data.match_joints_indices[joint];
+        const Vector3 anim_pos = _state.joint_world[index].position;
+        fp->place( anim_pos, curr_flag, local_speed, glueRC, deltaTime );
+    }
+
+    //_left_foor_prev_flag = left_foot_curr_flag;
+
+    bxGfxDebugDraw::addSphere( Vector4( fp->_world_pos, 0.1f ), 0xFF0000FF, 1 );
+}
+
+void FootPlace::place( const Vector3 candidateWorldPos, u32 onGroundFlag, float speed, float glueRC, float deltaTime )
+{
+    const float delta_time_inv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
+    const Vector3 vec = candidateWorldPos - _world_pos;
+    const float distance = length( vec ).getAsFloat();
+    if( distance * delta_time_inv > speed )
+    {
+        _world_pos = signalFilter_lowPass( candidateWorldPos, _world_pos, glueRC, deltaTime );
+    }
+    else
+    {
+        _world_pos = candidateWorldPos;
+    }
+
+    _flag = onGroundFlag;
+}
+
+
 
 bool Context::currentSpeed( f32* value )
 {
@@ -919,3 +1014,164 @@ void motionMatchingCollectInput( Input* input, const DynamicState& dstate )
 
 }}////
 
+
+namespace bx{
+namespace anim{
+
+inline boolInVec computeAxisAndAngle( Vector3* outAxis, floatInVec* outAngle, const Vector3& vA, const Vector3& vB, const floatInVec& kSqrLengthThreshold )
+{
+    /// axis between vA and vB
+    Vector3 axis = cross( vA, vB );
+
+    floatInVec axisSqlen = lengthSqr( axis );
+    boolInVec axisValid = axisSqlen >= kSqrLengthThreshold;
+
+    axisSqlen = sqrtf4( axisSqlen.get128() );
+    axis /= axisSqlen;
+
+    axisSqlen *= oneVec / ( lengthSqr( vA ) * lengthSqr( vB ) );
+    axisSqlen = minf4( axisSqlen, oneVec );
+
+    floatInVec angle( asinf( axisSqlen.getAsFloat() ) );
+
+    // check for extreme angles
+    angle = select( angle, piVec - angle, dot( vA, vB ) < zeroVec );
+
+    outAxis[0] = axis;
+    outAngle[0] = angle;
+
+    return axisValid;
+}
+inline Quat ikComputeDeltaRot( const Vector3& p, const Vector3& e, const Vector3& g, float strength, const float* angleLimit, const Vector3* hingeAxis = nullptr )
+{
+    const floatInVec kSqrLengthThreshold = floatInVec( 1e-10f );
+
+    Vector3 u = ( e - p );
+    Vector3 v = ( g - p );
+    if( hingeAxis )
+    {
+        const Vector4 plane = makePlane( *hingeAxis, Vector3( 0.f ) );
+        u = projectVectorOnPlane( u, plane );
+        v = projectVectorOnPlane( v, plane );
+    }
+    u = normalizeSafe( u );
+    v = normalizeSafe( v );
+
+    floatInVec angleInVec;
+    Vector3 axis;
+    const boolInVec valid = computeAxisAndAngle( &axis, &angleInVec, u, v, kSqrLengthThreshold );
+
+    float angle = angleInVec.getAsFloat();
+    if( angleLimit )
+    {
+        angle = clamp( angle, angleLimit[0], angleLimit[1] );
+    }
+    angle *= strength;
+    axis = ( hingeAxis ) ? *hingeAxis : axis;
+    Quat drot = select( Quat::identity(), Quat::rotation( angle, axis ), valid );
+    return drot;
+}
+
+void ikNodeInit( IKNode3* node, const bxAnim_Skel* skel, const char* jointNames[3] )
+{
+    node->idx_begin = bxAnim::getJointByName( skel, jointNames[0] );
+    node->idx_middle = bxAnim::getJointByName( skel, jointNames[1] );
+    node->idx_end = bxAnim::getJointByName( skel, jointNames[2] );
+    SYS_ASSERT( node->idx_begin != -1 );
+    SYS_ASSERT( node->idx_middle != -1 );
+    SYS_ASSERT( node->idx_end != -1 );
+    
+    const bxAnim_Joint* bind_pose = TYPE_OFFSET_GET_POINTER( bxAnim_Joint, skel->offsetBasePose );
+
+    const Vector3& begin_pos = bind_pose[node->idx_begin].position;
+    const Vector3& mid_pos = bind_pose[node->idx_middle].position;
+    const Vector3& end_pos = bind_pose[node->idx_end].position;
+    
+    node->len_begin_2_mid = length( mid_pos - begin_pos ).getAsFloat();
+    node->len_mid_2_end = length( end_pos - mid_pos ).getAsFloat();
+    node->chain_length = node->len_begin_2_mid + node->len_mid_2_end;
+}
+
+void ikNodeSolve( bxAnim_Joint* localJoints, const IKNode3& node, const Matrix4* animMatrices, const i16* parentIndices, const Vector3& goalPosition, float strength, bool debugDraw )
+{
+    const Matrix4& beginPose = animMatrices[node.idx_begin];
+    const Matrix4& midPose = animMatrices[node.idx_middle];
+    const Matrix4& endPose = animMatrices[node.idx_end];
+
+    const Vector3 beginPos = beginPose.getTranslation();
+    //Quat beginRot = Quat( beginPose.getUpper3x3() );
+
+    Vector3 midPos = midPose.getTranslation();
+    //Quat midRot = Quat( midPose.getUpper3x3() );
+
+    Vector3 endPos = endPose.getTranslation();
+    floatInVec midToBeginLen = length( midPos - beginPos );
+    floatInVec endToMidLen = length( midPos - endPos );
+    //Quat endRot = Quat( endPose.getUpper3x3() );
+
+    for( int i = 0; i < 8; ++i )
+    {
+        {
+            //float limit[2] = { -PI * 0.75f, 0.9f };
+            //const Vector3 hingeAxis = midPose.getCol1().getXYZ();
+            Quat drot = ikComputeDeltaRot( midPos, endPos, goalPosition, 1.f, nullptr, nullptr );
+            endPos = midPos + fastRotate( drot, endPos - midPos );
+        }
+        {
+            //float limit[2] = { -PI / 2.f, PI / 4.f };
+            Quat drot = ikComputeDeltaRot( beginPos, endPos, goalPosition, 1.f, nullptr );
+
+            midPos = beginPos + normalize( fastRotate( drot, midPos - beginPos ) ) * midToBeginLen;
+            endPos = midPos + normalize( endPos - midPos ) * endToMidLen;
+        }
+
+            if( lengthSqr( endPos - goalPosition ).getAsFloat() < 0.001f )
+                break;
+    }
+
+    {
+        const bxAnim_Joint& joint = localJoints[node.idx_middle];
+        const Matrix4 beginPoseInv = inverse( beginPose );
+        const Vector3 posLocal0 = joint.position;
+        const Vector3 posLocal1 = mulAsVec4( beginPoseInv, midPos );
+        const Quat drot = ikComputeDeltaRot( Vector3( 0.f ), posLocal0, posLocal1, strength, nullptr );
+        localJoints[node.idx_begin].rotation *= drot;
+    }
+
+    /// recompute new midPose
+    Matrix4 newMidPose;
+    {
+        Matrix4 parent = Matrix4::identity();
+        if( parentIndices[node.idx_begin] != -1 )
+            parent = animMatrices[parentIndices[node.idx_begin]];
+        for( int i = node.idx_begin; i < node.idx_middle; ++i )
+        {
+            const bxAnim_Joint& localJoint = localJoints[i];
+            parent *= appendScale( Matrix4( localJoint.rotation, localJoint.position ), localJoint.scale );
+        }
+
+        const bxAnim_Joint& midJoint = localJoints[node.idx_middle];
+        newMidPose = parent * appendScale( Matrix4( midJoint.rotation, midJoint.position ), midJoint.scale );
+    }
+
+    {
+        const bxAnim_Joint& joint = localJoints[node.idx_end];
+        const Matrix4 newMidPoseInv = inverse( newMidPose );
+        const Vector3 p1 = mulAsVec4( newMidPoseInv, endPos );
+        Quat drot = ikComputeDeltaRot( Vector3( 0.f ), joint.position, p1, strength, nullptr );
+        localJoints[node.idx_middle].rotation *= drot;
+    }
+
+    if( debugDraw )
+    {
+        const float dbgSphRadius = 0.015f;
+        bxGfxDebugDraw::addSphere( Vector4( beginPos, dbgSphRadius ), 0xFF00FF00, true );
+        bxGfxDebugDraw::addSphere( Vector4( midPos, dbgSphRadius ), 0xFF00FF00, true );
+        bxGfxDebugDraw::addSphere( Vector4( endPos, dbgSphRadius ), 0xFF00FF00, true );
+        bxGfxDebugDraw::addLine( beginPos, midPos, 0xFF00FF00, true );
+        bxGfxDebugDraw::addLine( midPos, endPos, 0xFF00FF00, true );
+        bxGfxDebugDraw::addSphere( Vector4( goalPosition, dbgSphRadius ), 0xFF0000FF, true );
+    }
+}
+
+}}///
