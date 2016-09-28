@@ -100,6 +100,7 @@ public:
 
     bool userData( u64* dst, u32 depth );
     bool evalTime( f32* dst, u32 depth );
+    bool blendAlpha( f32* dst );
 };
 
 }}///

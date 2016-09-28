@@ -77,7 +77,10 @@ struct AnimClipInfo
         : name( n ), is_loop( isLoop )
     {}
 };
-
+struct AnimFootPlaceInfo
+{
+    Curve1D foot_curve;
+};
 
 struct PosePrepareInfo
 {
@@ -94,6 +97,7 @@ struct Data
     const bxAnim_Skel* skel = nullptr;
     std::vector< bxAnim_Clip* > clips;
     std::vector< AnimClipInfo > clip_infos;
+    std::vector< AnimFootPlaceInfo > clip_foot_place_info;
     //std::vector< ClipTrajectory > clip_trajectiories;
     std::vector< Pose > poses;
     std::vector< i16 > match_joints_indices;

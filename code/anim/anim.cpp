@@ -35,6 +35,16 @@ bxAnim_Context* contextInit( const bxAnim_Skel& skel )
 	current_pointer += sizeof(bxAnim_Cmd) * bxAnim_Context::eCMD_ARRAY_SIZE;
 	SYS_ASSERT( (iptr)current_pointer == (iptr)( memory + memSize ) );
     ctx->numJoints = skel.numJoints;
+
+    for( u32 i = 0; i < bxAnim_Context::ePOSE_STACK_SIZE; ++i )
+    {
+        bxAnim_Joint* joints = ctx->poseStack[i];
+        for( u32 j = 0; j < skel.numJoints; ++j )
+        {
+            joints[j] = bxAnim_Joint::identity();
+        }
+    }
+
 	return ctx;
 }
 

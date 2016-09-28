@@ -241,7 +241,7 @@ public:
             }
             
             dynamic_state.tick( win->input, dynamic_state_input, deltaTime );
-            dynamic_state.debugDraw( 0xFF0000FF );
+            //dynamic_state.debugDraw( 0xFF0000FF );
             
             bx::motion_matching::Input input = {};
             bx::motion_matching::motionMatchingCollectInput( &input, dynamic_state );
@@ -292,6 +292,17 @@ public:
                     if( pose_index != UINT32_MAX )
                     {
                         mm._DebugDrawPose( pose_index, 0x0000FFFF, Matrix4::identity() );
+
+                        const u32 clip_index = mm._data.poses[pose_index].params.clip_index;
+
+                        const int PLOT_POINTS = 32;
+                        float v[PLOT_POINTS];
+                        for( u32 i = 0; i < PLOT_POINTS; ++i )
+                        {
+                            float t = (float)i / (float)( PLOT_POINTS - 1 );
+                            v[i] = bx::curve::evaluate_catmullrom( mm._data.clip_foot_place_info[clip_index].foot_curve, t );
+                        }
+                        ImGui::PlotLines( "foot curve", v, PLOT_POINTS, 0, nullptr, -1.f, 1.f );
                     }
                 }
 

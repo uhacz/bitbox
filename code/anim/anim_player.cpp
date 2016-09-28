@@ -343,6 +343,7 @@ void SimplePlayer::prepare( const bxAnim_Skel* skel, bxAllocator* allcator /*= n
 {
     _ctx = bxAnim::contextInit( *skel );
     _prev_joints = (bxAnim_Joint*)BX_MALLOC( allcator, skel->numJoints * sizeof( bxAnim_Joint ), 16 );
+    
     for( u32 i = 0; i < skel->numJoints; ++i )
     {
         _prev_joints[i] = bxAnim_Joint::identity();
@@ -481,19 +482,31 @@ bool SimplePlayer::userData( u64* dst, u32 depth )
     if( _num_clips == 0 )
         return false;
 
-    dst[0] = _clips[0].user_data;
+    if( depth >= _num_clips )
+        return false;
+
+    dst[0] = _clips[depth].user_data;
     return true;
 }
 
 bool SimplePlayer::evalTime( f32* dst, u32 depth )
 {
     if( _num_clips == 0 )
-    {
         return false;
-    }
 
-    dst[0] = _clips[0].eval_time;
+    if( depth >= _num_clips )
+        return false;
+
+    dst[0] = _clips[depth].eval_time;
     return true;
+}
+
+bool SimplePlayer::blendAlpha( f32* dst )
+{
+    if( _num_clips != 2 )
+        return false;
+
+    return _blend_time / _blend_duration;
 }
 
 const bxAnim_Joint* SimplePlayer::localJoints() const
