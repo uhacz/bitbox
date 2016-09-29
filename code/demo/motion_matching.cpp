@@ -8,6 +8,7 @@
 #include <util/common.h>
 #include <util/buffer_utils.h>
 #include "util/signal_filter.h"
+#include "gfx/gui/imgui/imgui.h"
 
 namespace bx{
 namespace motion_matching{
@@ -657,6 +658,7 @@ void Context::tick( const Input& input, float deltaTime )
 
         
     _debug.pose_indices.clear();
+    bool pose_changed = false;
     if( curr_local_joints )
     {
         //bxAnim_Joint* tmp_joints = _state.joint_world;
@@ -719,6 +721,7 @@ void Context::tick( const Input& input, float deltaTime )
             bxAnim_Clip* clip = _data.clips[winner_pose.params.clip_index];
             _anim_player.play( clip, winner_pose.params.clip_start_time, 0.25f, winner_pose.params.clip_index );
             _state.pose_index = change_index;
+            pose_changed = true;
         }
 
         //{
@@ -749,6 +752,7 @@ void Context::tick( const Input& input, float deltaTime )
         _anim_player.play( clip, winner_pose.params.clip_start_time, 0.25f, winner_pose.params.clip_index );
         //_anim_player.tick( deltaTime );
         _state.pose_index = change_index;
+        pose_changed = true;
     }
 
     const float anim_delta_time = deltaTime; // *_state.anim_delta_time_scaler;
@@ -756,9 +760,8 @@ void Context::tick( const Input& input, float deltaTime )
     curr_local_joints = _anim_player.localJoints();
     curr_local_joints[0].position = utils::removeRootMotion( curr_local_joints[0].position );
 
-
-
-    const bxAnim_Joint root = toAnimJoint_noScale( input.base_matrix_aligned );
+    const Matrix4 root_matrix = /*Matrix4::translation( pivot ) * */input.base_matrix_aligned;
+    const bxAnim_Joint root = toAnimJoint_noScale( root_matrix );
     const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _data.skel->offsetParentIndices );
     if( curr_local_joints )
     {
@@ -767,39 +770,138 @@ void Context::tick( const Input& input, float deltaTime )
         //utils::debugDrawMatrices( _state.matrix_world, parent_indices, num_joints, 0x666666FF, 0.015f );
     }
 
+    u64 current_clip_index = 0;
+    Vector3 pivot( 0.f );
+    if( _anim_player.userData( &current_clip_index, 0 ) )
     {
-        const Pose& winner_pose = _data.poses[_state.pose_index];
-        const u32 left_foot_curr_flag = winner_pose.flags[eMATCH_JOINT_LEFT_FOOT];
-        const u32 right_foot_curr_flag = winner_pose.flags[eMATCH_JOINT_RIGHT_FOOT];
-        const float glue_RC = 0.075f;
+        //float foot_raw = 0.f;
+        //if( _anim_player._num_clips == 1 )
+//         {
+//             const AnimFootPlaceInfo& foot_info = _data.clip_foot_place_info[current_clip_index];
+//             float eval_time = 0.f;
+//             _anim_player.evalTime( &eval_time, 0 );
+//             const float eval_phase = eval_time / _data.clips[current_clip_index]->duration;
+//             foot_raw = curve::evaluate_catmullrom( foot_info.foot_curve, eval_phase );
+//         }
+        //else if( _anim_player._num_clips == 2 )
+        //{
+        //    float foot_value[2] = { 0.f, 0.f };
+        //    for( u32 i = 0; i < 2; ++i )
+        //    {
+        //        u64 clip_index = 0;
+        //        f32 eval_time = 0.f;
+        //        _anim_player.userData( &clip_index, i );
+        //        _anim_player.evalTime( &eval_time, i );
 
-        tick_updateFootPlace( &_left_foot_place, eMATCH_JOINT_LEFT_FOOT, input.base_matrix_aligned, glue_RC, deltaTime );
-        tick_updateFootPlace( &_right_foot_place, eMATCH_JOINT_RIGHT_FOOT, input.base_matrix_aligned, glue_RC, deltaTime );
+        //        const float eval_phase = eval_time / _data.clips[clip_index]->duration;
+
+        //        const AnimFootPlaceInfo& foot_info = _data.clip_foot_place_info[clip_index];
+        //        foot_value[i] = curve::evaluate_catmullrom( foot_info.foot_curve, eval_phase );
+        //    }
+
+        //    float blend_alpha;
+        //    _anim_player.blendAlpha( &blend_alpha );
+        //    foot_raw = lerp( blend_alpha, foot_value[0], foot_value[1] );
+        //}
+
+        //{
+        //    const float turn = ::abs( dot( normalizeSafe( local_acceleration * delta_time_sqr ), Vector3::xAxis() ).getAsFloat() );
+        //    const float foot = curve::evaluate_catmullrom( foot_info.foot_curve, eval_phase );
+        //    const float converge = 0.002f;
+        //    const float t = 1.f - ::pow( converge, deltaTime );
+        //    _state.foot_value = lerp( t, _state.foot_value, foot );
+        //    _state.turn_value = lerp( t, _state.turn_value, turn );
+        //    foot_raw = foot;
+        //}
+        
+        
+
+        //foot_raw = -(float)pose.flags[eMATCH_JOINT_RIGHT_FOOT];
+        
+        //const Vector3 rfoot_pos = _state.joint_world[_data.match_joints_indices[eMATCH_JOINT_RIGHT_FOOT]].position;
+        //
+        //if( !_state.right_foot_lock && foot_raw < -0.9f && _state.right_foot_blend_alpha <= 0.f )
+        //{
+        //    _state.right_foot_lock = 1;
+        //    _state.right_foot_pos = rfoot_pos;
+        //    _state.right_foot_blend_alpha = 1.f;
+        //}
+        //else if( _state.right_foot_lock && foot_raw > -0.5f )
+        //{
+        //    _state.right_foot_lock = 0;
+        //    
+        //}
+        //
+        //Vector3 right_foot_pos = lerp( _state.right_foot_blend_alpha, rfoot_pos, _state.right_foot_pos );
+        //
+        //if( !_state.right_foot_lock )
+        //{
+        //    const float delta = deltaTime * 5.f; // 0.2s
+        //    _state.right_foot_blend_alpha = maxOfPair( _state.right_foot_blend_alpha - delta, 0.f );
+        //}
+        //bxGfxDebugDraw::addSphere( Vector4( right_foot_pos, 0.1f ), 0xFFFF00FF, 1 );
+        //if( ImGui::Begin( "FootDebug" ) )
+        //{
+        //    ImGui::Text( "foot_raw %f", foot_raw );
+        //    ImGui::Text( "blend alpha %f", _state.right_foot_blend_alpha );
+        //}
+        //ImGui::End();
+
+        //Vector3 lfoot_pos = scratch_joints[_data.match_joints_indices[eMATCH_JOINT_LEFT_FOOT]].position;
+        //
+
+        //float fa = _state.foot_value;
+        //fa = fa*fa*fa;
+        ////fa = fa*fa*fa;
+        //float foot01 = ( fa ) * 0.5f + 0.5f;
+
+        //const Vector4 up_plane = makePlane( input.base_matrix_aligned.getCol1().getXYZ(), input.base_matrix_aligned.getTranslation() );
+        //const Vector4 front_plane = makePlane( input.base_matrix_aligned.getCol2().getXYZ(), input.base_matrix_aligned.getTranslation() );
+        //pivot = lerp( foot01, rfoot_pos, lfoot_pos );
+        //pivot = projectVectorOnPlane( pivot, up_plane );
+        //pivot = projectVectorOnPlane( pivot, front_plane );
+
+        //float sa = _state.turn_value;
+        //sa = sa*sa*sa;
+        //pivot *= sa;
+
+        //bxGfxDebugDraw::addSphere( Vector4( mulAsVec4( input.base_matrix_aligned, pivot ), 0.1f ), 0xFFFF00FF, 1 );
+
+
+        //pivot = mulAsVec4( to_local_space, pivot );
     }
 
     if( curr_local_joints )
     {
-        struct UpdateStrength
+        const Vector3 rfoot_pos = _state.joint_world[_data.match_joints_indices[eMATCH_JOINT_RIGHT_FOOT]].position;
+        const Vector3 lfoot_pos = _state.joint_world[_data.match_joints_indices[eMATCH_JOINT_LEFT_FOOT]].position;
+
+        if( pose_changed )
         {
-            static float compute( float inputValue, bool isOnGround, float deltaTime )
-            {
-                float outputValue = inputValue;
-                if( isOnGround )
-                    outputValue += deltaTime;
-                else
-                    outputValue -= deltaTime;
-                
-                outputValue = clamp( outputValue, 0.f, 1.f );
-                return outputValue;
-            }
-        };
+            _state.lfoot_lock.unlock();
+            _state.rfoot_lock.unlock();
+        }
+        else
+        {
+            const Pose& pose = _data.poses[_state.pose_index];
+            const float rfoot_value = (float)pose.flags[eMATCH_JOINT_RIGHT_FOOT];
+            const float lfoot_value = (float)pose.flags[eMATCH_JOINT_LEFT_FOOT];
+            _state.lfoot_lock.tryLock( lfoot_value, lfoot_pos );
+            _state.rfoot_lock.tryLock( rfoot_value, rfoot_pos );
+        }
         
-        _left_foot_ik_strength = UpdateStrength::compute( _left_foot_ik_strength, _left_foot_place.isOnGround(), deltaTime * 5.f );
-        _right_foot_ik_strength = UpdateStrength::compute( _right_foot_ik_strength, _right_foot_place.isOnGround(), deltaTime * 5.f );
+
+        const Vector3 lfoot_pos_final = lerp( _state.lfoot_lock.unlockAlpha(), lfoot_pos, _state.lfoot_lock._pos );
+        const Vector3 rfoot_pos_final = lerp( _state.rfoot_lock.unlockAlpha(), rfoot_pos, _state.rfoot_lock._pos );
+        //bxGfxDebugDraw::addSphere( Vector4( lfoot_pos_final, 0.05f ), 0xFFFF0FFF, 1 );
+        //bxGfxDebugDraw::addSphere( Vector4( rfoot_pos_final, 0.05f ), 0xFFFF0FFF, 1 );
+
+        _state.lfoot_lock.tryBlendout( deltaTime );
+        _state.rfoot_lock.tryBlendout( deltaTime );
 
         const i16* parent_indices = TYPE_OFFSET_GET_POINTER( i16, _data.skel->offsetParentIndices );
-        //anim::ikNodeSolve( curr_local_joints, _left_foot_ik, _state.matrix_world, parent_indices, _left_foot_place._world_pos, _left_foot_ik_strength, false );
-        //anim::ikNodeSolve( curr_local_joints, _right_foot_ik, _state.matrix_world, parent_indices, _right_foot_place._world_pos, _right_foot_ik_strength, false );
+        anim::ikNodeSolve( curr_local_joints, _left_foot_ik, _state.matrix_world, parent_indices, _state.lfoot_lock._pos, _state.lfoot_lock.unlockAlpha(), false );
+        anim::ikNodeSolve( curr_local_joints, _right_foot_ik, _state.matrix_world, parent_indices, _state.rfoot_lock._pos, _state.rfoot_lock.unlockAlpha(), false );
     }
 
 
@@ -819,135 +921,34 @@ void Context::tick( const Input& input, float deltaTime )
     }
 }
 
-void Context::tick_updateFootPlace( FootPlace* fp, EMatchJoint joint, const Matrix4 baseMatrix, float glueRC, float deltaTime )
+void FootLock::tryLock( float foot_value, const Vector3 anim_world_pos )
 {
-    const Pose& winner_pose = _data.poses[_state.pose_index];
-    //const AnimFootPlaceInfo& place_info = _data.clip_foot_place_info[winner_pose.params.clip_index];
-
-    //const u32 curr_flag = winner_pose.flags[joint];
-    //float anim_time = 0.f;
-    //_anim_player.evalTime( &anim_time, 0 );
-    //const float anim_phase = anim_time / _data.clips[winner_pose.params.clip_index]->duration;
-    //
-    //const Curve1D& foot_curve = ( joint == eMATCH_JOINT_LEFT_FOOT ) ? place_info.left_curve : place_info.right_curve;
-    //const float foot_alpha = curve::evaluate_catmullrom( foot_curve, anim_phase );
-
-    //const Vector3 local_velocity = winner_pose.vel[joint];
-    //const float local_speed = length( local_velocity ).getAsFloat();
-
-    //const i16 index = _data.match_joints_indices[joint];
-    //const Vector3 anim_pos = _state.joint_world[index].position;
-    //const Vector3 pose_pos = mulAsVec4( baseMatrix, winner_pose.pos[joint] );
-
-    //if( !fp->isOnGround() )
-    //{
-    //    fp->_world_pos = lerp( foot_alpha, anim_pos, pose_pos );
-    //    if( foot_alpha >= 1.f )
-    //    {
-    //        fp->_flag = 1;
-    //    }
-    //    //fp->place( pose_pos, curr_flag, local_speed, glueRC, deltaTime );
-    //}
-    //else //if( !curr_flag )
-    //{
-    //    fp->_world_pos = lerp( foot_alpha, anim_pos, fp->_world_pos );
-
-    //    if( foot_alpha <= 0.f )
-    //    {
-    //        fp->_flag = 0;
-    //    }
-
-    //    //fp->place( anim_pos, curr_flag, local_speed, glueRC, deltaTime );
-    //}
-
-    //_left_foor_prev_flag = left_foot_curr_flag;
-    
-
-    //float foot_alpha = 0.f;
-
-    //if( _anim_player._num_clips == 1 )
-    //{
-    //    u64 clip_index = 0;
-    //    _anim_player.userData( &clip_index, 0 );
-
-    //    const AnimFootPlaceInfo& place_info = _data.clip_foot_place_info[clip_index];
-    //    float anim_time = 0.f;
-    //    _anim_player.evalTime( &anim_time, 0 );
-    //    const float anim_phase = anim_time / _data.clips[clip_index]->duration;
-
-    //    const Curve1D& foot_curve = place_info.foot_curve;
-    //    foot_alpha = curve::evaluate_catmullrom( foot_curve, anim_phase );
-    //}
-    //else if( _anim_player._num_clips == 2 )
-    //{
-    //    u64 clip_index0 = 0;
-    //    u64 clip_index1 = 0;
-    //    _anim_player.userData( &clip_index0, 0 );
-    //    _anim_player.userData( &clip_index1, 1 );
-    //    
-    //    const AnimFootPlaceInfo& place_info0 = _data.clip_foot_place_info[clip_index0];
-    //    const AnimFootPlaceInfo& place_info1 = _data.clip_foot_place_info[clip_index1];
-
-    //    const Curve1D& foot_curve0 = ( joint == eMATCH_JOINT_LEFT_FOOT ) ? place_info0.left_curve : place_info0.right_curve;
-    //    const Curve1D& foot_curve1 = ( joint == eMATCH_JOINT_LEFT_FOOT ) ? place_info1.left_curve : place_info1.right_curve;
-
-    //    float anim_time0 = 0.f;
-    //    float anim_time1 = 0.f;
-    //    _anim_player.evalTime( &anim_time0, 0 );
-    //    _anim_player.evalTime( &anim_time1, 1 );
-    //    const float anim_phase0 = anim_time0 / _data.clips[clip_index0]->duration;
-    //    const float anim_phase1 = anim_time1 / _data.clips[clip_index1]->duration;
-    //    
-    //    const float foot_alpha0 = curve::evaluate_catmullrom( foot_curve0, anim_phase0 );
-    //    const float foot_alpha1 = curve::evaluate_catmullrom( foot_curve1, anim_phase1 );
-    //    float blend_alpha = 0.f;
-    //    _anim_player.blendAlpha( &blend_alpha );
-    //    foot_alpha = lerp( blend_alpha, foot_alpha0, foot_alpha1 );
-    //}
-
-    //const i16 index = _data.match_joints_indices[joint];
-    //const Vector3 anim_pos = _state.joint_world[index].position;
-    //const Vector3 pose_pos = mulAsVec4( baseMatrix, winner_pose.pos[joint] );
-    //if( !fp->isOnGround() )
-    //{
-    //    fp->_world_pos = lerp( foot_alpha, anim_pos, pose_pos );
-    //    fp->_flag = foot_alpha >= 1.f;
-    //}
-    //else
-    //{
-    //    fp->_world_pos = lerp( foot_alpha, anim_pos, fp->_world_pos );
-    //    fp->_flag = foot_alpha > 0.f;
-    //}
-
-    //bxGfxDebugDraw::addSphere( Vector4( fp->_world_pos, 0.1f ), 0xFF0000FF, 1 );
-}
-
-void FootPlace::place( const Vector3 candidateWorldPos, u32 onGroundFlag, float speed, float glueRC, float deltaTime )
-{
-    const float delta_time_inv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
-    const Vector3 vec = candidateWorldPos - _world_pos;
-    const float distance = length( vec ).getAsFloat();
-    if( distance * delta_time_inv > speed )
+    if( !_lock_flag && foot_value > 0.9f && _unlock_alpha <= 0.f )
     {
-        _world_pos = signalFilter_lowPass( candidateWorldPos, _world_pos, glueRC, deltaTime );
+        _lock_flag = 1;
+        _pos = anim_world_pos;
+        _unlock_alpha = 1.f;
     }
-    else
+    else if( _lock_flag && foot_value < 0.5f )
     {
-        _world_pos = candidateWorldPos;
-    }
-
-    if( onGroundFlag )
-    {
-        if( _flag < 1 )
-            _flag += 1;
-    }
-    else if( _flag > 0 )
-    {
-        _flag -= 1;
+        _lock_flag = 0;
     }
 }
 
+void FootLock::tryBlendout( float deltaTime )
+{
+    if( !_lock_flag )
+    {
+        const float delta = deltaTime * 5.f; // 0.2s
+        _unlock_alpha = maxOfPair( _unlock_alpha - delta, 0.f );
+    }
+}
 
+void FootLock::unlock( float duration )
+{
+    _unlock_duration = duration;
+    _lock_flag = 0;
+}
 
 bool Context::currentSpeed( f32* value )
 {
@@ -1016,6 +1017,8 @@ void Context::_DebugDrawPose( u32 poseIndex, u32 color, const Matrix4& base )
     utils::debugDrawJoints( _debug.joints1.data(), parent_indices, _data.skel->numJoints, 0x333333ff, 0.01f, 1.f );
 
 }
+
+
 }}///
 
 
@@ -1227,29 +1230,33 @@ void ikNodeSolve( bxAnim_Joint* localJoints, const IKNode3& node, const Matrix4*
     const Matrix4& midPose = animMatrices[node.idx_middle];
     const Matrix4& endPose = animMatrices[node.idx_end];
 
+    const Vector3 world_axis = beginPose.getUpper3x3() * node.local_axis;
+    const Vector4 plane = makePlane( world_axis, beginPose.getTranslation() );
+
     const Vector3 beginPos = beginPose.getTranslation();
     const floatInVec midToBeginLen = floatInVec( node.len_begin_2_mid );// length( midPos - beginPos );
     const floatInVec endToMidLen = floatInVec( node.len_mid_2_end ); // length( midPos - endPos );
 
     Vector3 midPos = midPose.getTranslation();
     Vector3 endPos = endPose.getTranslation();
+    const Vector3 goal = projectPointOnPlane( goalPosition, plane );
     for( int i = 0; i < 8; ++i )
     {
         {
             //float limit[2] = { 0.f, PI /2 };
             //const Vector3 hingeAxis = midPose.getCol1().getXYZ();
-            Quat drot = ikComputeDeltaRot( midPos, endPos, goalPosition, 1.f, nullptr, nullptr );
+            Quat drot = ikComputeDeltaRot( midPos, endPos, goal, 1.f, nullptr, nullptr );
             endPos = midPos + fastRotate( drot, endPos - midPos );
         }
         {
             //float limit[2] = { -PI / 2.f, PI / 4.f };
-            Quat drot = ikComputeDeltaRot( beginPos, endPos, goalPosition, 1.f, nullptr, nullptr );
+            Quat drot = ikComputeDeltaRot( beginPos, endPos, goal, 1.f, nullptr, nullptr );
 
             midPos = beginPos + normalize( fastRotate( drot, midPos - beginPos ) ) * midToBeginLen;
             endPos = midPos + normalize( endPos - midPos ) * endToMidLen;
         }
 
-            if( lengthSqr( endPos - goalPosition ).getAsFloat() < 0.001f )
+        if( lengthSqr( endPos - goal ).getAsFloat() < 0.001f )
                 break;
     }
 
@@ -1300,7 +1307,7 @@ void ikNodeSolve( bxAnim_Joint* localJoints, const IKNode3& node, const Matrix4*
         bxGfxDebugDraw::addLine( midPos, endPos, 0xFF00FF00, true );
         
         
-        bxGfxDebugDraw::addSphere( Vector4( goalPosition, dbgSphRadius ), 0xFF0000FF, true );
+        bxGfxDebugDraw::addSphere( Vector4( goal, dbgSphRadius ), 0xFF0000FF, true );
     }
 }
 

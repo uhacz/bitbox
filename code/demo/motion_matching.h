@@ -17,6 +17,7 @@ namespace anim{
 
 struct IKNode3
 {
+    Vector3 local_axis{ 1.f, 0.f, 0.f };
     i16 idx_begin = -1;
     i16 idx_middle = -1;
     i16 idx_end = -1;
@@ -102,12 +103,31 @@ struct Data
     std::vector< Pose > poses;
     std::vector< i16 > match_joints_indices;
     bx::Curve1D velocity_curve;
+
+    i16 matchIndexToJointIndex( EMatchJoint m ) { return match_joints_indices[m]; }
+};
+
+struct FootLock
+{
+    EMatchJoint _match_index = eMATCH_JOINT_LEFT_FOOT;
+    Vector3 _pos{ 0.f };
+    u32 _lock_flag = 0;
+    f32 _unlock_alpha = 0.f;
+    f32 _unlock_time = 0.f;
+    f32 _unlock_duration = 0.2f;
+
+    void tryLock( float foot_value, const Vector3 anim_world_pos );
+    void tryBlendout( float deltaTime );
+    void unlock( float duration );
+    float unlockAlpha() const { return _unlock_alpha; }
 };
 
 struct State
 {
     f32 anim_delta_time_scaler = 1.f;
     u32 pose_index = UINT32_MAX;
+    FootLock lfoot_lock;
+    FootLock rfoot_lock;
 
     void* _memory_handle = nullptr;
     bxAnim_Joint* joint_world = nullptr;
@@ -157,14 +177,6 @@ void stateAllocate( State* state, u32 numJoints, bxAllocator* allocator );
 void stateFree( State* state, bxAllocator* allocator );
 //-------------------------------------------------------------------
 void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float trajectoryStartTime, float trajectoryDuration );
-
-struct FootPlace
-{
-    Vector3 _world_pos{ 0.f };
-    u32 _flag = 0;
-    void place( const Vector3 candidateWorldPos, u32 onGroundFlag, float speed, float glueRC, float deltaTime );
-    bool isOnGround() const { return _flag != 0; }
-};
     
 struct ContextPrepareInfo
 {
@@ -183,9 +195,6 @@ struct Context
     f32 _left_foot_ik_strength = 0.f;
     f32 _right_foot_ik_strength = 0.f;
 
-    FootPlace _left_foot_place = {};
-    FootPlace _right_foot_place = {};
-
     bxAllocator* _allocator = nullptr;
 
     //-------------------------------------------------------------------
@@ -199,7 +208,6 @@ struct Context
 
     //-------------------------------------------------------------------
     void tick( const Input& input, float deltaTime );
-    void tick_updateFootPlace( FootPlace* fp, EMatchJoint joint, const Matrix4 baseMatrix, float glueRC, float deltaTime );
 
     bool currentSpeed( f32* value );
     bool currentPose( Matrix4* pose );
