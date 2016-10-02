@@ -6,7 +6,10 @@
 #include <util/thread/mutex.h>
 #include <util/debug.h>
 
-bxResourceID bxResourceManager::createResourceID( const char* path )
+namespace bx
+{
+
+ResourceID ResourceManager::createResourceID( const char* path )
 {
 	const size_t NAME_SIZE = 256;
 	const size_t TYPE_SIZE = 32;
@@ -28,13 +31,13 @@ bxResourceID bxResourceManager::createResourceID( const char* path )
 	return (u64(name_hash) << 32) | u64(type_hash);
 }
 
-struct bxResource
+struct Resource
 {
-	bxResource()
+	Resource()
 		: data(0)
 		, referenceCounter(0) 
 	{}
-	bxResource( uptr d )
+	Resource( uptr d )
 		: data(d)
 		, referenceCounter(1)
 	{}
@@ -42,7 +45,7 @@ struct bxResource
 	i32 referenceCounter;
 };
 
-class bxResourceManagerImpl : public bxResourceManager
+class bxResourceManagerImpl : public ResourceManager
 {
 public:
 	typedef hashmap_t ResourceMap;
@@ -84,18 +87,18 @@ public:
         _fs.absolutePath( &path, relativePath );
         return path;
     }
-    virtual void insert( bxResourceID id, uptr data )
+    virtual void insert( ResourceID id, uptr data )
 	{
 		_mapLock.lock();
 		SYS_ASSERT( !hashmap::lookup( _map, id ) );
         
-        bxResource* res = BX_NEW( bxDefaultAllocator(), bxResource, data );
+        Resource* res = BX_NEW( bxDefaultAllocator(), Resource, data );
 
         hashmap::insert( _map, id )->value = (size_t)res;
 		
         _mapLock.unlock();
 	}
-	virtual uptr lookup( bxResourceID id )
+	virtual uptr lookup( ResourceID id )
 	{
 		uptr result = 0;
 		_mapLock.lock();
@@ -103,7 +106,7 @@ public:
         hashmap_t::cell_t* cell = hashmap::lookup( _map, id );
         if ( cell )
         {
-            bxResource* res = (bxResource*)cell->value;
+            Resource* res = (Resource*)cell->value;
             result = res->data;
         }
 
@@ -111,16 +114,16 @@ public:
 
 		return result;
 	}
-    virtual bxResourceID find( uptr data )
+    virtual ResourceID find( uptr data )
     {
-        bxResourceID result = 0;
+        ResourceID result = 0;
 		_mapLock.lock();
 
         hashmap::iterator it( _map );
 
         while( it.next() )
         {
-            bxResource* res = (bxResource*)it->value;
+            Resource* res = (Resource*)it->value;
             if( res->data == data )
             {
                 result = it->key;
@@ -131,12 +134,12 @@ public:
 
 		return result;
     }
-    virtual int referenceAdd( bxResourceID id )
+    virtual int referenceAdd( ResourceID id )
 	{
 		_mapLock.lock();
         hashmap_t::cell_t* cell = hashmap::lookup( _map, id );
         SYS_ASSERT( cell != 0 );
-        bxResource* resource = (bxResource*)cell->value;
+        Resource* resource = (Resource*)cell->value;
 		if (resource->data)
 		{
 			++resource->referenceCounter;
@@ -146,12 +149,12 @@ public:
         return resource->referenceCounter;
 	
 	}
-	virtual int referenceRemove( bxResourceID id )
+	virtual int referenceRemove( ResourceID id )
 	{
 		_mapLock.lock();
 		hashmap_t::cell_t* cell = hashmap::lookup( _map, id );
         SYS_ASSERT( cell != 0 );
-        bxResource* resource = (bxResource*)cell->value;
+        Resource* resource = (Resource*)cell->value;
 
 		if (resource->data)
 		{
@@ -168,9 +171,9 @@ public:
 	}
 };
 
-static bxResourceManager* __resourceManager = nullptr;
+static ResourceManager* __resourceManager = nullptr;
 
-bxResourceManager* bxResourceManager::startup( const char* root )
+ResourceManager* ResourceManager::startup( const char* root )
 {
 	bxResourceManagerImpl* impl= BX_NEW( bxDefaultAllocator(), bxResourceManagerImpl );
 	impl->startup( root );
@@ -178,7 +181,7 @@ bxResourceManager* bxResourceManager::startup( const char* root )
     __resourceManager = impl;
 	return impl;
 }
-void bxResourceManager::shutdown( bxResourceManager** resourceManager )
+void ResourceManager::shutdown( ResourceManager** resourceManager )
 {
 	bxResourceManagerImpl* impl = (bxResourceManagerImpl*)resourceManager[0];
 	impl->shutdown();
@@ -188,9 +191,9 @@ void bxResourceManager::shutdown( bxResourceManager** resourceManager )
 
     resourceManager[0] = nullptr;
 }
+}///
 
-
-extern bxResourceManager* bx::resourceManagerGet()
+extern bx::ResourceManager* bx::getResourceManager()
 {
     return __resourceManager;
 }

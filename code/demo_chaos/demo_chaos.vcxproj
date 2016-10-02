@@ -87,6 +87,8 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="renderer.cpp" />
+    <ClCompile Include="renderer_camera.cpp" />
+    <ClCompile Include="renderer_scene.cpp" />
     <ClCompile Include="scene.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -120,6 +122,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="renderer.h" />
+    <ClInclude Include="renderer_camera.h" />
+    <ClInclude Include="renderer_scene.h" />
+    <ClInclude Include="renderer_type.h" />
     <ClInclude Include="scene.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

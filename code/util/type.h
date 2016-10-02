@@ -7,6 +7,10 @@
 #pragma warning( disable: 4512 )
 #endif
 
+#ifdef _MSC_VER
+#pragma warning( disable: 4351 )
+#endif
+
 typedef int8_t i8;
 typedef uint8_t u8;
 

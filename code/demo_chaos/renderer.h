@@ -2,21 +2,14 @@
 
 #include <gdi/gdi_shader.h>
 #include <gdi/gdi_backend.h>
+#include "renderer_type.h"
 
 namespace bx{
 namespace gfx{
 
-#define BX_GFX_NULL_HANDLE nullptr
-    typedef struct PipelineImpl* Pipeline;
-    typedef struct RenderPassImpl* RenderPass;
-    typedef struct RenderSubPassImpl* RenderSubPass;
-    typedef struct ResourceDescriptorImpl* ResourceDescriptor;
-    typedef struct RenderSourceImpl* RenderSource;
-
     struct ShaderResource
     {
     };
-
 
     struct VertexLayout
     {
@@ -77,16 +70,24 @@ namespace gfx{
         u32 num_bindings = 0;
     };
 
+    struct RenderSourceRange
+    {
+        u32 begin = 0;
+        u32 count = 0;
+    };
+
     struct RenderSourceDesc
     {
-        u32 num_streams = 0;
         u32 num_vertices = 0;
         u32 num_indices = 0;
+        u32 num_draw_ranges = 0;
         VertexLayout vertex_layout = {};
         const gdi::EDataType index_type = gdi::eTYPE_UNKNOWN;
         
         const void* vertex_data[gdi::cMAX_VERTEX_BUFFERS] = {};
         const void* index_data = nullptr;
+
+        const RenderSourceRange* draw_ranges = nullptr;
     };
 
     Pipeline createPipeline( const PipelineDesc& desc, bxAllocator* allocator = nullptr );
@@ -105,10 +106,45 @@ namespace gfx{
     bool setResourceRO( ResourceDescriptor rdesc, const gdi::ResourceRO* resource, u8 stageMask, u8 slot );
     bool setResourceRW( ResourceDescriptor rdesc, const gdi::ResourceRW* resource, u8 stageMask, u8 slot );
     bool setConstantBuffer( ResourceDescriptor rdesc, const gdi::ConstantBuffer cbuffer, u8 stageMask, u8 slot );
-    bool setSampler( ResourceDescriptor rdesc, const gdi::Sampler sampler, gdi::EStage stage, u16 slot );
+    bool setSampler( ResourceDescriptor rdesc, const gdi::Sampler sampler, u8 stageMask, u8 slot );
     void bindResources( gdi::CommandQueue* cmdq, ResourceDescriptor rdesc );
 
     RenderSource createRenderSource( const RenderSourceDesc& desc, bxAllocator* allocator = nullptr );
     void destroyRenderSource( RenderSource* rsource, bxAllocator* allocator = nullptr );
+    u32 getNVertexBuffers( RenderSource rsource );
+    u32 getNVertices( RenderSource rsource );
+    u32 getNIndices( RenderSource rsource );
+    u32 getNRanges( RenderSource rsource );
+    gdi::VertexBuffer getVertexBuffer( RenderSource rsource, u32 index );
+    gdi::IndexBuffer getIndexBuffer( RenderSource rsource );
+    RenderSourceRange getRange( RenderSource rsource, u32 index );
 
+}}///
+
+#include "renderer_camera.h"
+
+namespace bx{
+namespace gfx{
+    
+
+    namespace renderer
+    {
+        void startup();
+        void shutdown();
+
+        Material createMaterial( const char* name, Pipeline pipeline, ResourceDescriptor resourceDesc );
+        Material findMaterial( const char* name );
+
+        void addSharedRenderSource( const char* name, RenderSource rsource );
+        RenderSource findSharedRenderSource( const char* name );
+
+        Scene createScene( const char* name );
+        void destroyScene();
+        void drawScene( Scene scene, const Camera& camera );
+
+        MeshInstance createMeshInstance( Scene scene, unsigned numInstances, const char* name = nullptr );
+        void destroyMeshInstance( Scene scene, const MeshInstance mi );
+        void setRenderSource( MeshInstance mi, RenderSource rsource );
+        void setMaterial( MeshInstance mi, Material m );
+    }///
 }}///

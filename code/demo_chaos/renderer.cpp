@@ -32,7 +32,7 @@ Pipeline createPipeline( const PipelineDesc& desc, bxAllocator* allocator )
         impl->shaders[i] = desc.shaders[i];
     }
 
-    impl->input_layout = gdi::create::inputLayout( desc.vertex_stream_descs, desc.num_vertex_stream_descs, desc.shaders[gdi::eSTAGE_VERTEX] );
+    impl->input_layout = gdi::create::inputLayout( desc.vertex_layout.descs, desc.vertex_layout.count, desc.shaders[gdi::eSTAGE_VERTEX] );
     impl->blend_state = gdi::create::blendState( desc.hw_state_desc.blend );
     impl->depth_state = gdi::create::depthState( desc.hw_state_desc.depth );
     impl->raster_state = gdi::create::rasterState( desc.hw_state_desc.raster );
@@ -354,31 +354,54 @@ void bindResources( gdi::CommandQueue* cmdq, ResourceDescriptor rdesc )
 //////////////////////////////////////////////////////////////////////////
 struct RenderSourceImpl
 {
-    u32 num_vertex_buffers = 0;
+    u16 num_vertex_buffers = 0;
+    u16 num_draw_ranges = 0;
     gdi::IndexBuffer index_buffer;
-    gdi::VertexBuffer vertex_buffers[1];
+    gdi::VertexBuffer* vertex_buffers = nullptr;
+    RenderSourceRange* draw_ranges = nullptr;
 };
 
 RenderSource createRenderSource( const RenderSourceDesc& desc, bxAllocator* allocator /*= nullptr */ )
 {
+    const u32 num_streams = desc.vertex_layout.count;
+    const u32 num_draw_ranges = maxOfPair( 1u, desc.num_draw_ranges );
+
     u32 mem_size = sizeof( RenderSourceImpl );
-    mem_size += ( desc.num_streams - 1 )  * sizeof( gdi::VertexBuffer );
+    mem_size += ( num_streams )  * sizeof( gdi::VertexBuffer );
+    mem_size += num_draw_ranges * sizeof( RenderSourceRange );
 
     void* mem = BX_MALLOC( utils::getAllocator( allocator ), mem_size, ALIGNOF( RenderSourceImpl ) );
     memset( mem, 0x00, mem_size );
 
-    RenderSourceImpl* impl = (RenderSourceImpl*)mem;
-    impl->num_vertex_buffers = desc.num_streams;
+    bxBufferChunker chunker( mem, mem_size );
+    RenderSourceImpl* impl = chunker.add< RenderSourceImpl >();
+    impl->vertex_buffers = chunker.add< gdi::VertexBuffer >( num_streams );
+    impl->draw_ranges = chunker.add< RenderSourceRange >( num_draw_ranges );
+    chunker.check();
+    
+    impl->num_vertex_buffers = num_streams;
+    impl->num_draw_ranges = num_draw_ranges;
 
-    for( u32 i = 0; i < desc.num_streams; ++i )
+    for( u32 i = 0; i < num_streams; ++i )
     {
-        const void* data = ( desc.streams_data ) ? desc.streams_data[i] : nullptr;
-        impl->vertex_buffers[i] = gdi::create::vertexBuffer( desc.streams_desc[i], desc.num_vertices, data );
+        const void* data = desc.vertex_data[i];
+        impl->vertex_buffers[i] = gdi::create::vertexBuffer( desc.vertex_layout.descs[i], desc.num_vertices, data );
     }
 
+    RenderSourceRange& default_range = impl->draw_ranges[0];
     if( desc.index_type != gdi::eTYPE_UNKNOWN )
     {
         impl->index_buffer = gdi::create::indexBuffer( desc.index_type, desc.num_indices, desc.index_data );
+        default_range.count = desc.num_indices;
+    }
+    else
+    {
+        default_range.count = desc.num_vertices;
+    }
+
+    for( u32 i = 1; i < num_draw_ranges; ++i )
+    {
+        impl->draw_ranges[i] = desc.draw_ranges[i - 1];
     }
 
     return impl;    
@@ -399,5 +422,140 @@ void destroyRenderSource( RenderSource* rsource, bxAllocator* allocator /*= null
 
     BX_FREE0( utils::getAllocator( allocator ), rsource[0] );
 }
+
+u32 getNVertexBuffers( RenderSource rsource )
+{
+    return rsource->num_vertex_buffers;
+}
+u32 getNVertices( RenderSource rsource )
+{
+    return rsource->vertex_buffers[0].numElements;
+}
+u32 getNIndices( RenderSource rsource )
+{
+    return rsource->index_buffer.numElements;
+}
+u32 getNRanges( RenderSource rsource )
+{
+    return rsource->num_draw_ranges;
+}
+gdi::VertexBuffer getVertexBuffer( RenderSource rsource, u32 index )
+{
+    SYS_ASSERT( index < rsource->num_vertex_buffers );
+    return rsource->vertex_buffers[index];
+}
+gdi::IndexBuffer getIndexBuffer( RenderSource rsource )
+{
+    return rsource->index_buffer;
+}
+RenderSourceRange getRange( RenderSource rsource, u32 index )
+{
+    SYS_ASSERT( index < rsource->num_draw_ranges );
+    return rsource->draw_ranges[index];
+}
+
+}}///
+
+#include <util/array.h>
+#include <util/string_util.h>
+namespace bx{
+namespace gfx{
+
+
+
+//////////////////////////////////////////////////////////////////////////
+struct GBuffer
+{
+
+};
+
+struct MaterialContainer
+{
+    enum { eMAX_COUNT = 128, };
+    id_table_t< eMAX_COUNT > _id_to_index;
+    id_t                    _index_to_id[eMAX_COUNT];
+    Pipeline                _pipelines[eMAX_COUNT];
+    ResourceDescriptor      _rdescs[eMAX_COUNT];
+    const char*             _names[eMAX_COUNT];
+};
+
+struct SharedMeshContainer
+{
+    struct Entry
+    {
+        const char* name = nullptr;
+        RenderSource rsource = BX_GFX_NULL_HANDLE;
+    };
+    array_t< Entry > _entries;
+
+    u32 add( const char* name, RenderSource rs )
+    {
+        u32 index = find( name );
+        if( index != UINT32_MAX )
+            return index;
+
+        Entry e;
+        e.name = string::duplicate( nullptr, name );
+        e.rsource = rs;
+        return array::push_back( _entries, e );
+    }
+    void remove( u32 index )
+    {
+        SYS_ASSERT( index < array::sizeu( _entries ) );
+
+        Entry& e = _entries[index];
+        string::free( (char*)e.name );
+
+        array::erase( _entries, index );
+    }
+    u32 find( const char* name )
+    {
+        for( u32 i = 0; i < array::sizeu( _entries ); ++i )
+        {
+            if( string::equal( name, _entries[i].name ) )
+                return i;
+        }
+        return UINT32_MAX;
+    }
+};
+
+
+namespace renderer
+{
+    static SharedMeshContainer g_mesh_container = {};
+    static MaterialContainer g_material_container = {};
+    
+//////////////////////////////////////////////////////////////////////////
+void startup()
+{
+
+}
+
+void shutdown()
+{
+
+}
+
+Material createMaterial( const char* name, Pipeline pipeline, ResourceDescriptor resourceDesc )
+{
+
+}
+
+Material findMaterial( const char* name )
+{
+
+}
+
+void addSharedRenderSource( const char* name, RenderSource rsource )
+{
+
+}
+
+RenderSource findSharedRenderSource( const char* name )
+{
+
+}
+
+}///
 
 }}///

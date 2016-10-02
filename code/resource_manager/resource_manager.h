@@ -3,32 +3,34 @@
 #include <util/filesystem.h>
 #include <util/type.h>
 
+namespace bx
+{
+typedef u64 ResourceID;
 
-typedef u64 bxResourceID;
-
-class bxResourceManager
+class ResourceManager
 {
 public:
-    static bxResourceManager* startup( const char* root );
-	static void shutdown( bxResourceManager** resourceManager );
+    static ResourceManager* startup( const char* root );
+	static void shutdown( ResourceManager** resourceManager );
     
-    virtual ~bxResourceManager() {}
+    virtual ~ResourceManager() {}
 
 	virtual bxFS::File readFileSync( const char* relativePath ) = 0;
     virtual bxFS::File readTextFileSync( const char* relativePath ) = 0;
     virtual bxFS::Path absolutePath( const char* relativePath ) = 0;
 
-    virtual void       insert( bxResourceID id, uptr data ) = 0;
-	virtual uptr       lookup( bxResourceID id ) = 0;
-    virtual bxResourceID find( uptr data ) = 0;
+    virtual void       insert( ResourceID id, uptr data ) = 0;
+	virtual uptr       lookup( ResourceID id ) = 0;
+    virtual ResourceID find( uptr data ) = 0;
 
-    virtual int   referenceAdd( bxResourceID id ) = 0;
-	virtual int   referenceRemove( bxResourceID id ) = 0;
+    virtual int   referenceAdd( ResourceID id ) = 0;
+	virtual int   referenceRemove( ResourceID id ) = 0;
 
-    static bxResourceID createResourceID( const char* path );
+    static ResourceID createResourceID( const char* path );
 };
+}///
 
 namespace bx
 {
-    extern bxResourceManager* resourceManagerGet();
+    extern ResourceManager* getResourceManager();
 }///

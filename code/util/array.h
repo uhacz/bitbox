@@ -29,6 +29,7 @@ namespace array
     template< typename T > const T* end     ( const array_t<T>& arr ) { return arr.data + arr.size; }
     template< typename T > int      capacity( const array_t<T>& arr ) { return arr.capacity; }
     template< typename T > int      size    ( const array_t<T>& arr ) { return arr.size; }
+    template< typename T > u32      sizeu   ( const array_t<T>& arr ) { return arr.size; }
     template< typename T > bool     empty   ( const array_t<T>& arr ) { return arr.size == 0; }
     template< typename T > bool     any     ( const array_t<T>& arr ) { return arr.size != 0; }
     template< typename T > T&       front   ( array_t<T>& arr )       { return arr.data[0]; }
