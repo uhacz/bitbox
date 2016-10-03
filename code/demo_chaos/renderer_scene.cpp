@@ -1,13 +1,69 @@
 #include "renderer_scene.h"
+#include <util/debug.h>
 #include <util/id_array.h>
 #include <util/string_util.h>
-#include <util/debug.h>
+#include <util/queue.h>
 
 namespace bx{ namespace gfx{
 
+union MeshInstanceHandle
+{
+    enum
+    {
+        eINDEX_BITS = 24,
+        eGENERATION_BITS = 8,
+    };
+
+    u32 hash = 0;
+    struct
+    {
+        u32 index : eINDEX_BITS;
+        u32 generation : eGENERATION_BITS;
+    };
+};
+struct MeshInstanceHandleManager
+{
+    enum
+    {
+        eMINIMUM_FREE_INDICES = 1024,
+    };
+
+    queue_t<u32> _free_indices;
+    
+    array_t<u8> _generation;
+    array_t<Scene> _scene;
+    array_t<u32> _data_index;
+
+    MeshInstanceHandle acquire()
+    {
+        u32 idx;
+        if( queue::size( _free_indices ) > eMINIMUM_FREE_INDICES )
+        {
+            idx = queue::front( _free_indices );
+            queue::pop_front( _free_indices );
+        }
+        else
+        {
+            idx = array::push_back( _generation, u8( 1 ) );
+            SYS_ASSERT( idx < ( 1 << bxEntity_Id::eINDEX_BITS ) );
+        }
+
+        MeshInstanceHandle h;
+        h.generation = _generation[idx];
+        h.index = idx;
+        return h;
+    }
+    void release( MeshInstanceHandle* h )
+    {
+    
+    }
+};
+
+
 static inline MeshInstance makeMeshInstance( id_t id )
 {
-    MeshInstance mi = { id.hash };
+    MeshInstance mi = {};
+    mi.i = id.hash;
     return mi;
 }
 static inline MeshInstance makeInvalidMeshInstance()

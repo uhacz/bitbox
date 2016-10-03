@@ -38,7 +38,8 @@ struct SceneImpl
     void setMaterial( MeshInstance mi, Material m );
     void setMatrices( MeshInstance mi, const Matrix4* matrices, u32 count );
 
-private: void _SetToDefaults( u32 index );
+private: 
+    void _SetToDefaults( u32 index );
 
 };
 }}///
