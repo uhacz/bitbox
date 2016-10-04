@@ -17,29 +17,35 @@ union MeshInstanceMatrix
 //////////////////////////////////////////////////////////////////////////
 struct SceneImpl
 {
-    static const u32 cMAX_INSTANCES = 1024;
-    id_array_t< cMAX_INSTANCES > _id;
-
-    char*               _names[cMAX_INSTANCES] = {};
-    MeshInstance        _mesh_instance[cMAX_INSTANCES] = {};
-    MeshInstanceMatrix  _matrices[cMAX_INSTANCES] = {};
-    RenderSource        _render_sources[cMAX_INSTANCES] = {};
-    Material            _materials[cMAX_INSTANCES] = {};
-    u32                 _num_instances[cMAX_INSTANCES] = {};
-
     void prepare();
     void unprepare();
 
     MeshInstance add( const char* name, u32 numInstances );
-    void remove( MeshInstance mi );
+    void remove( MeshInstance* mi );
     MeshInstance find( const char* name );
 
     void setRenderSource( MeshInstance mi, RenderSource rs );
     void setMaterial( MeshInstance mi, Material m );
-    void setMatrices( MeshInstance mi, const Matrix4* matrices, u32 count );
+    void setMatrices( MeshInstance mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
 
 private: 
     void _SetToDefaults( u32 index );
+    void _AllocateData( u32 newSize, bxAllocator* allocator );
+    u32 _GetIndex( MeshInstance mi );
+private:
+    struct Data
+    {
+        void*                _memory_handle = nullptr;
+        MeshInstanceMatrix*  matrices = nullptr;
+        RenderSource*        render_sources = nullptr;
+        Material*            materials = nullptr;
+        u32*                 num_instances = nullptr;
+        MeshInstance*        mesh_instance = nullptr;
+        char**               names = nullptr;
 
+        u32                  size = 0;
+        u32                  capacity = 0;
+    }_data;
 };
+
 }}///
