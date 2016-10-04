@@ -30,9 +30,9 @@ struct MeshInstanceHandleManager
 
     queue_t<u32> _free_indices;
     
-    array_t<u8> _generation;
-    array_t<Scene> _scene;
-    array_t<u32> _data_index;
+    array_t<u8>     _generation;
+    array_t<Scene>  _scene;
+    array_t<u32>    _data_index;
 
     MeshInstanceHandle acquire()
     {
@@ -55,7 +55,13 @@ struct MeshInstanceHandleManager
     }
     void release( MeshInstanceHandle* h )
     {
-    
+        u32 idx = h->index;
+        h->hash = 0;
+
+        ++_generation[idx];
+        _scene[idx] = nullptr;
+        _data_index[idx] = UINT32_MAX;
+        queue::push_back( _free_indices, idx );
     }
 };
 
