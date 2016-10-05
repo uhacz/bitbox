@@ -125,25 +125,25 @@ namespace gfx{
 
 namespace bx{
 namespace gfx{
-    
 
     namespace renderer
     {
         void startup();
         void shutdown();
 
-        Material createMaterial( const char* name, Pipeline pipeline, ResourceDescriptor resourceDesc );
+        Material createMaterial( const char* name, const PipelineDesc& pipelineDesc, const ResourceLayout& resourceLayout );
+        void destroyMaterial( Material* m );
         Material findMaterial( const char* name );
 
         void addSharedRenderSource( const char* name, RenderSource rsource );
         RenderSource findSharedRenderSource( const char* name );
 
         Scene createScene( const char* name );
-        void destroyScene();
+        void destroyScene( Scene* scene );
         void drawScene( Scene scene, const Camera& camera );
 
         MeshInstance createMeshInstance( Scene scene, unsigned numInstances, const char* name = nullptr );
-        void destroyMeshInstance( Scene scene, const MeshInstance mi );
+        void destroyMeshInstance( MeshInstance* mi );
         void setRenderSource( MeshInstance mi, RenderSource rsource );
         void setMaterial( MeshInstance mi, Material m );
     }///

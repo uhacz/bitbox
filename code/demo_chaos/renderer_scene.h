@@ -17,7 +17,7 @@ union MeshInstanceMatrix
 //////////////////////////////////////////////////////////////////////////
 struct SceneImpl
 {
-    void prepare();
+    void prepare( const char* name, bxAllocator* allocator );
     void unprepare();
 
     MeshInstance add( const char* name, u32 numInstances );
@@ -32,6 +32,7 @@ private:
     void _SetToDefaults( u32 index );
     void _AllocateData( u32 newSize, bxAllocator* allocator );
     u32 _GetIndex( MeshInstance mi );
+
 private:
     struct Data
     {
@@ -46,6 +47,10 @@ private:
         u32                  size = 0;
         u32                  capacity = 0;
     }_data;
+
+    const char* _name = nullptr;
+    bxAllocator* _allocator = nullptr;
+
 };
 
 }}///

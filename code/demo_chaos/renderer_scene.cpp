@@ -5,6 +5,8 @@
 #include <util/queue.h>
 #include "util/buffer_utils.h"
 
+#include "renderer.h"
+
 namespace bx{ namespace gfx{
 
     static inline MeshInstance makeMeshInstance( u32 hash )
@@ -123,11 +125,15 @@ Matrix4* getMatrixPtr( MeshInstanceMatrix& m, u32 numInstances )
     return ( numInstances == 1 ) ? (Matrix4*)m._single : m._multi;
 }
 
-void SceneImpl::prepare()
+void SceneImpl::prepare( const char* name, bxAllocator* allocator )
 {
+    _name = string::duplicate( nullptr, name );
+    _allocator = ( allocator ) ? allocator : bxDefaultAllocator();
 }
 void SceneImpl::unprepare()
 {
+    _allocator = nullptr;
+    string::free_and_null( (char**)_name );
 }
 
 MeshInstance SceneImpl::add( const char* name, u32 numInstances )
@@ -298,5 +304,39 @@ u32 SceneImpl::_GetIndex( MeshInstance mi )
     return index;
 }
 
+}}///
+
+namespace bx{ namespace gfx{
+namespace renderer
+{
+    void drawScene( Scene scene, const Camera& camera )
+    {
+
+    }
+
+    MeshInstance createMeshInstance( Scene scene, unsigned numInstances, const char* name /*= nullptr */ )
+    {
+        return scene->add( name, numInstances );
+    }
+
+    void destroyMeshInstance( MeshInstance* mi )
+    {
+        if( !g_handle.alive( *mi ) )
+            return;
+
+        Scene scene = g_handle.getScene( *mi );
+        scene->remove( mi );
+    }
+
+    void setRenderSource( MeshInstance mi, RenderSource rsource )
+    {
+        Scene scene = g_handle.getScene( mi );
+        scene->setRenderSource( mi, rsource );
+    }
+    void setMaterial( MeshInstance mi, Material m )
+    {
+        Scene scene = g_handle.getScene( mi );
+        scene->setMaterial( mi, m );
+    }
 }
-}///
+}}///
