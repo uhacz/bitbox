@@ -234,4 +234,6 @@ struct CommandQueue
     ID3D11DeviceContext* dx11() { return _context; }
 };
 
+void dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, size_t code_blob_size, int stage );
+
 }}///

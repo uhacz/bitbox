@@ -462,7 +462,11 @@ RenderSourceRange getRange( RenderSource rsource, u32 index )
 #include <util/string_util.h>
 namespace bx{
 namespace gfx{
+    static const ResourceBinding g_material_bindings[] = 
+    {
+        { eRESOURCE_TYPE_UNIFORM, gdi::eSTAGE_MASK_PIXEL, 3, 1 },
 
+    };
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -476,7 +480,7 @@ struct MaterialContainer
     enum { eMAX_COUNT = 128, };
     id_table_t< eMAX_COUNT > _id_to_index;
     id_t                    _index_to_id[eMAX_COUNT] = {};
-    Pipeline                _pipelines[eMAX_COUNT] = {};
+    //Pipeline                _pipelines[eMAX_COUNT] = {};
     ResourceDescriptor      _rdescs[eMAX_COUNT] = {};
     const char*             _names[eMAX_COUNT] = {};
 
@@ -619,11 +623,11 @@ void shutdown()
 
 }
 
-Material createMaterial( const char* name, const PipelineDesc& pipelineDesc, const ResourceLayout& resourceLayout )
+Material createMaterial( const char* name, const MaterialDesc& desc )
 {
-    Pipeline pipeline = createPipeline( pipelineDesc, nullptr );
-    ResourceDescriptor resourceDesc = createResourceDescriptor( resourceLayout, nullptr );
-    return g_material_container.add( name, pipeline, resourceDesc );
+    //Pipeline pipeline = createPipeline( pipelineDesc, nullptr );
+    //ResourceDescriptor resourceDesc = createResourceDescriptor( resourceLayout, nullptr );
+    //return g_material_container.add( name, pipeline, resourceDesc );
 }
 
 void destroyMaterial( Material* m )
@@ -631,12 +635,12 @@ void destroyMaterial( Material* m )
     if( !g_material_container.alive( *m ) )
         return;
 
-    Pipeline pipeline = g_material_container.getPipeline( *m );
-    ResourceDescriptor rdesc = g_material_container.getResourceDesc( *m );
+    //Pipeline pipeline = g_material_container.getPipeline( *m );
+    //ResourceDescriptor rdesc = g_material_container.getResourceDesc( *m );
     g_material_container.remove( m );
 
-    destroyResourceDescriptor( &rdesc, nullptr );
-    destroyPipeline( &pipeline, nullptr );
+    //destroyResourceDescriptor( &rdesc, nullptr );
+    //destroyPipeline( &pipeline, nullptr );
 }
 
 Material findMaterial( const char* name )

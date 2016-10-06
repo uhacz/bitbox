@@ -14,7 +14,7 @@ namespace gfx{
     struct PipelineDesc
     {
         gdi::Shader shaders[ gdi::eDRAW_STAGES_COUNT ] = {};
-        VertexLayout vertex_layout = {};
+        gdi::VertexLayout vertex_layout = {};
         gdi::HardwareStateDesc hw_state_desc = {};
         gdi::ETopology topology = gdi::eTRIANGLES;
     };
@@ -64,18 +64,18 @@ namespace gfx{
         u32 num_bindings = 0;
     };
 
+
     struct RenderSourceRange
     {
         u32 begin = 0;
         u32 count = 0;
     };
-
     struct RenderSourceDesc
     {
         u32 num_vertices = 0;
         u32 num_indices = 0;
         u32 num_draw_ranges = 0;
-        VertexLayout vertex_layout = {};
+        gdi::VertexLayout vertex_layout = {};
         const gdi::EDataType index_type = gdi::eTYPE_UNKNOWN;
         
         const void* vertex_data[gdi::cMAX_VERTEX_BUFFERS] = {};
@@ -120,12 +120,25 @@ namespace gfx{
 namespace bx{
 namespace gfx{
 
+    struct MaterialDesc
+    {
+        float3_t diffuse_color = {0.5f, 0.5f, 0.5f};
+        f32 diffuse = 0.1f;
+        f32 specular = 0.5f;
+        f32 roughness = 0.5f;
+        f32 metallic = 0.f;
+
+        gdi::TextureRO diffuse_tex;
+        gdi::TextureRO specular_tex;
+        gdi::TextureRO roughness_tex;
+        gdi::TextureRO metallic_tex;
+    };
     namespace renderer
     {
         void startup();
         void shutdown();
 
-        Material createMaterial( const char* name, const PipelineDesc& pipelineDesc, const ResourceLayout& resourceLayout );
+        Material createMaterial( const char* name, const MaterialDesc& desc );
         void destroyMaterial( Material* m );
         Material findMaterial( const char* name );
 

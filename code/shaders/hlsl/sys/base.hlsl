@@ -15,6 +15,9 @@
 // - t2 : lightning data 
 // - t3 : lightning indices 
 
+// - t4-t7 : material textures -> forward
+// - t2-t5 : material textures -> deffered
+
 ////
 shared cbuffer LightningData : register( b2 )
 {

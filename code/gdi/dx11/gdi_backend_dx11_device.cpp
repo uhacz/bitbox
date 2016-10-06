@@ -14,7 +14,7 @@
 namespace bx{
 namespace gdi{
 
-    void _FetchShaderReflection( bx::gdi::ShaderReflection* out, const void* code_blob, size_t code_blob_size, int stage )
+    void dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, size_t code_blob_size, int stage )
     {
         ID3D11ShaderReflection* reflector = NULL;
         D3DReflect( code_blob, code_blob_size, IID_ID3D11ShaderReflection, (void**)&reflector );
@@ -411,7 +411,7 @@ struct bxGdiDeviceBackend_dx11 : public bxGdiDeviceBackend
 
         if( reflection )
         {
-            bx::gdi::_FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
+            bx::gdi::dx11FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
             if( stage == bx::gdi::eSTAGE_VERTEX )
             {
                 shader.vertexInputMask = reflection->input_mask;
@@ -1392,7 +1392,7 @@ Shader shader( int stage, const void* codeBlob, size_t codeBlobSizee, bx::gdi::S
 
     if( reflection )
     {
-        bx::gdi::_FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
+        bx::gdi::dx11FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
         if( stage == bx::gdi::eSTAGE_VERTEX )
         {
             sh.vertexInputMask = reflection->input_mask;
