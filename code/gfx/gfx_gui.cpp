@@ -216,7 +216,7 @@ void bxGfxGUI::_Shutdown( bxGdiDeviceBackend* dev, bxWindow* win )
 
 void bxGfxGUI_Impl::_Startup( bxGdiDeviceBackend* dev, bxWindow* win )
 {
-    bxResourceManager* resourceManager = bx::resourceManagerGet();
+    ResourceManager* resourceManager = bx::getResourceManager();
 
     _rsource = gdi::renderSource_new( 1 );
     bxGdiVertexStreamDesc vsDesc;
@@ -242,7 +242,7 @@ void bxGfxGUI_Impl::_Shutdown( bxGdiDeviceBackend* dev, bxWindow* win )
 {
     bxWindow_removeWinMsgCallback( win, ImGui_WinMsgHandler );
 
-    bxResourceManager* resourceManager = bx::resourceManagerGet();
+    ResourceManager* resourceManager = bx::getResourceManager();
     dev->releaseTexture( &_fontTexture );
     dev->releaseBuffer( &_cbuffer );
     gdi::shaderFx_releaseWithInstance( dev, resourceManager, &_fxI );

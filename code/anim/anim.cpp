@@ -58,9 +58,9 @@ void contextDeinit( bxAnim_Context** ctx )
 #include <resource_manager/resource_manager.h>
 namespace bxAnimExt
 {
-    static uptr _LoadResource( bxResourceManager* resourceManager, const char* relativePath )
+    static uptr _LoadResource( bx::ResourceManager* resourceManager, const char* relativePath )
     {
-        bxResourceID resourceId = bxResourceManager::createResourceID( relativePath );
+        bx::ResourceID resourceId = bx::ResourceManager::createResourceID( relativePath );
         uptr resourceData = resourceManager->lookup( resourceId );
         if ( resourceData )
         {
@@ -77,9 +77,9 @@ namespace bxAnimExt
         }
         return resourceData;
     }
-    static void _UnloadResource( bxResourceManager* resourceManager, uptr resourceData )
+    static void _UnloadResource( bx::ResourceManager* resourceManager, uptr resourceData )
     {
-        bxResourceID resourceId = resourceManager->find( resourceData );
+        bx::ResourceID resourceId = resourceManager->find( resourceData );
         if ( !resourceId )
         {
             bxLogError( "resource not found!" );
@@ -94,19 +94,19 @@ namespace bxAnimExt
         }
     }
 
-    bxAnim_Skel* loadSkelFromFile( bxResourceManager* resourceManager, const char* relativePath )
+    bxAnim_Skel* loadSkelFromFile( bx::ResourceManager* resourceManager, const char* relativePath )
     {
         uptr resourceData = _LoadResource( resourceManager, relativePath );
         return (bxAnim_Skel*)resourceData;
     }
 
-    bxAnim_Clip* loadAnimFromFile( bxResourceManager* resourceManager, const char* relativePath )
+    bxAnim_Clip* loadAnimFromFile( bx::ResourceManager* resourceManager, const char* relativePath )
     {
         uptr resourceData = _LoadResource( resourceManager, relativePath );
         return (bxAnim_Clip*)resourceData;
     }
 
-    void unloadSkelFromFile( bxResourceManager* resourceManager, bxAnim_Skel** skel )
+    void unloadSkelFromFile( bx::ResourceManager* resourceManager, bxAnim_Skel** skel )
     {
         if ( !skel[0] )
             return;
@@ -115,7 +115,7 @@ namespace bxAnimExt
         skel[0] = 0;
     }
 
-    void unloadAnimFromFile( bxResourceManager* resourceManager, bxAnim_Clip** clip )
+    void unloadAnimFromFile( bx::ResourceManager* resourceManager, bxAnim_Clip** clip )
     {
         if( !clip[0] )
             return;

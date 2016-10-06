@@ -386,7 +386,7 @@ void Context::load( const char* skelFile, const AnimClipInfo* animInfo, unsigned
         _allocator = bxDefaultAllocator();
     }
 
-    bxResourceManager* resource_manager = resourceManagerGet();
+    ResourceManager* resource_manager = getResourceManager();
 
     _data.skel = bxAnimExt::loadSkelFromFile( resource_manager, skelFile );
     SYS_ASSERT( _data.skel != nullptr );
@@ -408,7 +408,7 @@ void Context::load( const char* skelFile, const AnimClipInfo* animInfo, unsigned
 
 void Context::unload()
 {
-    bxResourceManager* resource_manager = resourceManagerGet();
+    ResourceManager* resource_manager = getResourceManager();
     while( !_data.clips.empty() )
     {
         bxAnim_Clip* c = _data.clips.back();
@@ -878,8 +878,8 @@ void Context::tick( const Input& input, float deltaTime )
 
         if( pose_changed )
         {
-            _state.lfoot_lock.unlock();
-            _state.rfoot_lock.unlock();
+            _state.lfoot_lock.unlock( 0.1f );
+            _state.rfoot_lock.unlock( 0.1f );
         }
         else
         {

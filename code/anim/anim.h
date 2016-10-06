@@ -27,14 +27,17 @@ void localJointToWorldJoint( bxAnim_Joint* out_joints, const bxAnim_Joint* in_jo
 
 }///
 
-class bxResourceManager;
+namespace bx
+{
+    class ResourceManager;
+}///
 namespace bxAnimExt
 {
-    bxAnim_Skel* loadSkelFromFile( bxResourceManager* resourceManager, const char* relativePath );
-    bxAnim_Clip* loadAnimFromFile( bxResourceManager* resourceManager, const char* relativePath );
+    bxAnim_Skel* loadSkelFromFile( bx::ResourceManager* resourceManager, const char* relativePath );
+    bxAnim_Clip* loadAnimFromFile( bx::ResourceManager* resourceManager, const char* relativePath );
 
-    void unloadSkelFromFile( bxResourceManager* resourceManager, bxAnim_Skel** skel );
-    void unloadAnimFromFile( bxResourceManager* resourceManager, bxAnim_Clip** clip );
+    void unloadSkelFromFile( bx::ResourceManager* resourceManager, bxAnim_Skel** skel );
+    void unloadAnimFromFile( bx::ResourceManager* resourceManager, bxAnim_Clip** clip );
 
     void localJointsToWorldJoints( bxAnim_Joint* outJoints, const bxAnim_Joint* inJoints, const bxAnim_Skel* skel, const bxAnim_Joint& rootJoint );
     void localJointsToWorldMatrices( Matrix4* outMatrices, const bxAnim_Joint* inJoints, const bxAnim_Skel* skel, const bxAnim_Joint& rootJoint );

@@ -11,12 +11,6 @@ namespace gfx{
     {
     };
 
-    struct VertexLayout
-    {
-        gdi::VertexBufferDesc descs[gdi::cMAX_VERTEX_BUFFERS] = {};
-        u32 count = 0;
-    };
-
     struct PipelineDesc
     {
         gdi::Shader shaders[ gdi::eDRAW_STAGES_COUNT ] = {};

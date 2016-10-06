@@ -125,7 +125,7 @@ namespace motion_fields
             _allocator = bxDefaultAllocator();
         }
 
-        bxResourceManager* resource_manager = resourceManagerGet();
+        ResourceManager* resource_manager = getResourceManager();
 
         _skel = bxAnimExt::loadSkelFromFile( resource_manager, skelFile );
         SYS_ASSERT( _skel != nullptr );
@@ -145,7 +145,7 @@ namespace motion_fields
 
     void Data::unload()
     {
-        bxResourceManager* resource_manager = resourceManagerGet();
+        ResourceManager* resource_manager = getResourceManager();
         while( !_clips.empty() )
         {
             bxAnim_Clip* c = _clips.back();
@@ -909,7 +909,7 @@ namespace motion_fields
             _allocator = bxDefaultAllocator();
         }
 
-        bxResourceManager* resource_manager = resourceManagerGet();
+        ResourceManager* resource_manager = getResourceManager();
 
         _data.skel = bxAnimExt::loadSkelFromFile( resource_manager, skelFile );
         SYS_ASSERT( _data.skel != nullptr );
@@ -931,7 +931,7 @@ namespace motion_fields
 
     void MotionMatching::unload()
     {
-        bxResourceManager* resource_manager = resourceManagerGet();
+        ResourceManager* resource_manager = getResourceManager();
         while( !_data.clips.empty() )
         {
             bxAnim_Clip* c = _data.clips.back();

@@ -160,7 +160,7 @@ namespace bx
     //
     void gfxContextStartup( GfxContext** gfx, bxGdiDeviceBackend* dev )
     {
-        bxResourceManager* resourceManager = bx::resourceManagerGet();
+        ResourceManager* resourceManager = bx::getResourceManager();
         GfxContext* g = BX_NEW( bxDefaultAllocator(), GfxContext );
 
         gfxViewCreate( &g->_cmdQueue._view, dev, 1024 * 4 );
@@ -221,7 +221,7 @@ namespace bx
         if( !gfx[0] )
             return;
 
-        bxResourceManager* resourceManager = bx::resourceManagerGet();
+        ResourceManager* resourceManager = bx::getResourceManager();
 
         GfxContext* g = gfx[0];
         gfxSunLightDestroy( &g->_sunLight );
@@ -271,7 +271,7 @@ namespace bx
 
     void gfxContextTick( GfxContext* gfx, bxGdiDeviceBackend* dev )
     {
-        bxResourceManager* resourceManager = bx::resourceManagerGet();
+        ResourceManager* resourceManager = bx::getResourceManager();
 
         gfx->_lockActorsToRelease.lock();
 
@@ -396,7 +396,7 @@ namespace bx
         gfxSubmitFullScreenQuad( ctx, fxI, "copy_rgba" );
     }
 
-    int gfxLoadTextureFromFile( bxGdiTexture* tex, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* filename )
+    int gfxLoadTextureFromFile( bxGdiTexture* tex, bxGdiDeviceBackend* dev, ResourceManager* resourceManager, const char* filename )
     {
         int ierr = 0;
         bxFS::File file = resourceManager->readFileSync( filename );

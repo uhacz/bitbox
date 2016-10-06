@@ -337,9 +337,9 @@ namespace bx
 
         bxGdiShaderFx* _nativeFx;
     };
-    void gfxMaterialManagerStartup( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* nativeShaderName = "native1" );
-    void gfxMaterialManagerShutdown( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    bxGdiShaderFx_Instance* gfxMaterialManagerCreateMaterial( GfxMaterialManager* materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* name, const GfxMaterialManager::Material& params );
+    void gfxMaterialManagerStartup( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, ResourceManager* resourceManager, const char* nativeShaderName = "native1" );
+    void gfxMaterialManagerShutdown( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, ResourceManager* resourceManager );
+    bxGdiShaderFx_Instance* gfxMaterialManagerCreateMaterial( GfxMaterialManager* materialManager, bxGdiDeviceBackend* dev, ResourceManager* resourceManager, const char* name, const GfxMaterialManager::Material& params );
     inline u64 gfxMaterialManagerCreateNameHash( const char* name )
     {
         const u32 hashedName0 = simple_hash( name );
@@ -403,8 +403,8 @@ namespace bx
         
         GfxToneMap();
     };
-    void gfxToneMapCreate( GfxToneMap* tm, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void gfxToneMapDestroy( GfxToneMap* tm, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void gfxToneMapCreate( GfxToneMap* tm, bxGdiDeviceBackend* dev, ResourceManager* resourceManager );
+    void gfxToneMapDestroy( GfxToneMap* tm, bxGdiDeviceBackend* dev, ResourceManager* resourceManager );
     void gfxToneMapDraw( GfxCommandQueue* cmdq, GfxToneMap* tm, bxGdiTexture outTexture, bxGdiTexture inTexture, float deltaTime );
 
 
@@ -474,8 +474,8 @@ namespace bx
         bxScopeBenaphore lock( ctx->_lockActorsToRelease );
         array::push_back( ctx->_actorsToRelease, actor );
     }
-    void gfxGlobalResourcesStartup ( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
-    void gfxGlobalResourcesShutdown( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
+    void gfxGlobalResourcesStartup ( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, ResourceManager* resourceManager );
+    void gfxGlobalResourcesShutdown( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, ResourceManager* resourceManager );
 }///
 
 

@@ -328,7 +328,7 @@ namespace gdi{
         fx->_numUniforms = 0;
     }
 
-    bxGdiShaderFx* shaderFx_createFromFile( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator )
+    bxGdiShaderFx* shaderFx_createFromFile( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator )
     {
         const char* shaderApiExt[] = 
         {
@@ -340,7 +340,7 @@ namespace gdi{
         char fullFilename[256] = {0};
         sprintf_s( fullFilename, "shader/%s/%s.%s", shaderApi, fileNameWithoutExt, shaderApi );
 
-        bxResourceID resourceId = bxResourceManager::createResourceID( fullFilename );
+        ResourceID resourceId = ResourceManager::createResourceID( fullFilename );
         uptr dataPointer = resourceManager->lookup( resourceId );
         if( dataPointer )
         {
@@ -460,7 +460,7 @@ namespace gdi{
 
         return fx;
     }
-    void shaderFx_release( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx** fxPtr, bxAllocator* allocator )
+    void shaderFx_release( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, bxGdiShaderFx** fxPtr, bxAllocator* allocator )
     {
         if( !fxPtr[0] )
         {
@@ -469,7 +469,7 @@ namespace gdi{
 
 
         bxGdiShaderFx* fx = fxPtr[0];
-        bxResourceID resourceId = resourceManager->find( uptr( fx ) );
+        ResourceID resourceId = resourceManager->find( uptr( fx ) );
         SYS_ASSERT( resourceId != 0 );
         int instancesLeft = resourceManager->referenceRemove( resourceId );
         if( instancesLeft == 0 )
@@ -501,7 +501,7 @@ namespace gdi{
         return size;
     }
     
-    bxGdiShaderFx_Instance* shaderFx_createInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx* fx, bxAllocator* allocator )
+    bxGdiShaderFx_Instance* shaderFx_createInstance( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, bxGdiShaderFx* fx, bxAllocator* allocator )
     {
         const int cbuffersSize = _ShaderFx_calculateBufferMemorySize( fx );
 
@@ -542,14 +542,14 @@ namespace gdi{
         ++fx->_numInstances;
 
         {
-            bxResourceID resourceId = resourceManager->find( uptr( fx ) );
+            ResourceID resourceId = resourceManager->find( uptr( fx ) );
             SYS_ASSERT( resourceId != 0 );
             resourceManager->referenceAdd( resourceId );
         }
 
         return fxInstance;
     }
-    void shaderFx_releaseInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstancePtr, bxAllocator* allocator )
+    void shaderFx_releaseInstance( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstancePtr, bxAllocator* allocator )
     {
         if( !fxInstancePtr[0] )
             return;
@@ -559,7 +559,7 @@ namespace gdi{
         SYS_ASSERT( fx->_numInstances > 0 );
         --fx->_numInstances;
         {
-            bxResourceID resourceId = resourceManager->find( uptr( fx ) );
+            ResourceID resourceId = resourceManager->find( uptr( fx ) );
             SYS_ASSERT( resourceId != 0 );
             resourceManager->referenceRemove( resourceId );
         }
@@ -573,7 +573,7 @@ namespace gdi{
         fxInstancePtr[0] = 0;
     }
 
-    bxGdiShaderFx_Instance* shaderFx_createWithInstance(bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator)
+    bxGdiShaderFx_Instance* shaderFx_createWithInstance(bxGdiDeviceBackend* dev, ResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator)
     {
         bxGdiShaderFx* fx = shaderFx_createFromFile( dev, resourceManager, fileNameWithoutExt, allocator );
         if ( !fx )
@@ -582,7 +582,7 @@ namespace gdi{
         return shaderFx_createInstance( dev, resourceManager, fx, allocator );
     }
 
-    void shaderFx_releaseWithInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator )
+    void shaderFx_releaseWithInstance( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator )
     {
         if( !fxInstance[0] )
             return;
@@ -642,4 +642,18 @@ namespace gdi{
         }
      
     }
+}}///
+
+
+namespace bx{ namespace gdi{
+
+struct ShaderModule
+{
+      
+};
+namespace shader_module
+{
+
+}
+
 }}///

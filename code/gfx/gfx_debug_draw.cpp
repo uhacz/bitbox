@@ -74,7 +74,7 @@ namespace bxGfxDebugDraw
 
     void _Startup( bxGdiDeviceBackend* dev )
     {
-        bxResourceManager* resourceManager = bx::resourceManagerGet();
+        ResourceManager* resourceManager = bx::getResourceManager();
 
         __dd = BX_NEW( bxDefaultAllocator(), bxGfxDebugDrawContext );
 
@@ -113,7 +113,7 @@ namespace bxGfxDebugDraw
         if( !__dd )
             return;
         
-        bxResourceManager* resourceManager = bx::resourceManagerGet();
+        ResourceManager* resourceManager = bx::getResourceManager();
 
         gdi::renderSource_releaseAndFree( dev, &__dd->rSource_lines );
         gdi::renderSource_releaseAndFree( dev, &__dd->rSource_box );

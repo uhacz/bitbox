@@ -21,7 +21,7 @@ namespace bx
     struct GraphSceneScriptCallback;
     struct Engine
     {
-        bxResourceManager*    resource_manager = nullptr;
+        ResourceManager*      resource_manager = nullptr;
 
         bxGdiDeviceBackend*   gdi_device = nullptr;
         bxGdiContext*         gdi_context = nullptr;

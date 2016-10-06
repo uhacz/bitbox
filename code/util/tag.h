@@ -2,6 +2,7 @@
 #include "type.h"
 
 #define BX_UTIL_TAG32( a,b,c,d ) u32( a << 0 | b << 8| c << 16 | d << 24 )
+#define BX_UTIL_MAKE_VERSION( major, minor, patch ) u32( ('V' << 24) | (major << 16) | (minor << 8) | (patch) )
 
 struct bxTag32
 {

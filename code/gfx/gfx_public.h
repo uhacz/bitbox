@@ -8,10 +8,10 @@ struct bxGdiRenderSource;
 struct bxGdiShaderFx_Instance;
 struct bxGdiContext;
 struct bxGdiTexture;
-class bxResourceManager;
 
 namespace bx
 {
+    class ResourceManager;
     struct GfxContext;
     struct GfxCommandQueue;
 
@@ -83,5 +83,5 @@ namespace bx
     void gfxRasterizeFramebuffer( bxGdiContext* ctx, const bxGdiTexture& colorFB, float cameraAspect );
     
     //// returns error code ( 0: OK, -1: error )
-    int gfxLoadTextureFromFile( bxGdiTexture* tex, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* filename );
+    int gfxLoadTextureFromFile( bxGdiTexture* tex, bxGdiDeviceBackend* dev, ResourceManager* resourceManager, const char* filename );
 }///

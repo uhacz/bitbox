@@ -346,7 +346,7 @@ namespace bx
 
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
-    void gfxMaterialManagerStartup( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* nativeShaderName /*= "native1" */ )
+    void gfxMaterialManagerStartup( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, ResourceManager* resourceManager, const char* nativeShaderName /*= "native1" */ )
     {
         SYS_ASSERT( GfxContext::_materialManager == 0 );
         
@@ -409,7 +409,7 @@ namespace bx
         materialManager[0] = mm;
     }
 
-    void gfxMaterialManagerShutdown( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    void gfxMaterialManagerShutdown( GfxMaterialManager** materialManager, bxGdiDeviceBackend* dev, ResourceManager* resourceManager )
     {
         GfxMaterialManager* mm = materialManager[0];
         SYS_ASSERT( mm != nullptr );
@@ -440,7 +440,7 @@ namespace bx
         }
     }
 
-    bxGdiShaderFx_Instance* gfxMaterialManagerCreateMaterial( GfxMaterialManager* materialManager, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* name, const GfxMaterialManager::Material& params )
+    bxGdiShaderFx_Instance* gfxMaterialManagerCreateMaterial( GfxMaterialManager* materialManager, bxGdiDeviceBackend* dev, ResourceManager* resourceManager, const char* name, const GfxMaterialManager::Material& params )
     {
         const u64 key = gfxMaterialManagerCreateNameHash( name );
         SYS_ASSERT( hashmap::lookup( materialManager->_map, key ) == 0 );
@@ -675,7 +675,7 @@ namespace bx
         , fxI( nullptr )
     {}
 
-    void gfxToneMapCreate( GfxToneMap* tm, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    void gfxToneMapCreate( GfxToneMap* tm, bxGdiDeviceBackend* dev, ResourceManager* resourceManager )
     {
         tm->fxI = gdi::shaderFx_createWithInstance( dev, resourceManager, "tone_mapping" );
         const int lumiTexSize = 1024;
@@ -684,7 +684,7 @@ namespace bx
         tm->initialLuminance = dev->createTexture2D( lumiTexSize, lumiTexSize, 1, bxGdiFormat( gdi::eTYPE_FLOAT, 1 ), gdi::eBIND_RENDER_TARGET | gdi::eBIND_SHADER_RESOURCE, 0, 0 );
     }
 
-    void gfxToneMapDestroy( GfxToneMap* tm, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    void gfxToneMapDestroy( GfxToneMap* tm, bxGdiDeviceBackend* dev, ResourceManager* resourceManager )
     {
         dev->releaseTexture( &tm->initialLuminance );
         dev->releaseTexture( &tm->adaptedLuminance[1] );
@@ -766,7 +766,7 @@ namespace bx
         int a = 0;
     }
 
-    void gfxGlobalResourcesStartup( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    void gfxGlobalResourcesStartup( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, ResourceManager* resourceManager )
     {
         GfxGlobalResources* gr = BX_NEW( bxDefaultAllocator(), GfxGlobalResources );
         memset( gr, 0x00, sizeof( GfxGlobalResources ) );
@@ -812,7 +812,7 @@ namespace bx
         globalResources[0] = gr;
 
     }
-    void gfxGlobalResourcesShutdown( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager )
+    void gfxGlobalResourcesShutdown( GfxGlobalResources** globalResources, bxGdiDeviceBackend* dev, ResourceManager* resourceManager )
     {
         GfxGlobalResources* gr = globalResources[0];
 

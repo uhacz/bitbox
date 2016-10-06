@@ -360,7 +360,11 @@ struct Rect
     {}
 };
 
-
+struct VertexLayout
+{
+    VertexBufferDesc descs[cMAX_VERTEX_BUFFERS] = {};
+    u32 count = 0;
+};
 
 typedef bxGdiSamplerDesc SamplerDesc;
 typedef bxGdiHwStateDesc HardwareStateDesc;

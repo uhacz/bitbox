@@ -172,22 +172,23 @@ public:
 };
 
 
-class bxResourceManager;
+
 struct bxGdiContext;
 class bxGdiDrawCall;
 namespace bx{
+    class ResourceManager;
 namespace gdi{
 
     int  _ShaderFx_initParams( bxGdiShaderFx* fx, const ShaderReflection& reflection, const char* materialCBufferName = "MaterialData" );
     void _ShaderFx_deinitParams( bxGdiShaderFx* fx );
     
-    bxGdiShaderFx* shaderFx_createFromFile( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator = bxDefaultAllocator() );
-    bxGdiShaderFx_Instance* shaderFx_createInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx* fx, bxAllocator* allocator = bxDefaultAllocator() );
-    void shaderFx_release( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx** fx, bxAllocator* allocator = bxDefaultAllocator() );
-    void shaderFx_releaseInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator = bxDefaultAllocator() );
+    bxGdiShaderFx* shaderFx_createFromFile( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator = bxDefaultAllocator() );
+    bxGdiShaderFx_Instance* shaderFx_createInstance( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, bxGdiShaderFx* fx, bxAllocator* allocator = bxDefaultAllocator() );
+    void shaderFx_release( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, bxGdiShaderFx** fx, bxAllocator* allocator = bxDefaultAllocator() );
+    void shaderFx_releaseInstance( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator = bxDefaultAllocator() );
 
-    bxGdiShaderFx_Instance* shaderFx_createWithInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator = bxDefaultAllocator() );
-    void shaderFx_releaseWithInstance( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator = bxDefaultAllocator() );
+    bxGdiShaderFx_Instance* shaderFx_createWithInstance( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, const char* fileNameWithoutExt, bxAllocator* allocator = bxDefaultAllocator() );
+    void shaderFx_releaseWithInstance( bxGdiDeviceBackend* dev, ResourceManager* resourceManager, bxGdiShaderFx_Instance** fxInstance, bxAllocator* allocator = bxDefaultAllocator() );
     
     int shaderFx_findPass( const bxGdiShaderFx* fx, const char* passName );
     const bxGdiShaderFx::TextureDesc* shaderFx_findTexture( const bxGdiShaderFx* fx, u32 hashedName, int startIndex );
@@ -200,3 +201,62 @@ namespace gdi{
     void shaderFx_enable( bxGdiDrawCall* dcall, bxGdiShaderFx_Instance, const char* passName );
     void shaderFx_enable( bxGdiDrawCall* dcall, bxGdiShaderFx_Instance, int passIndex );
 }}///
+
+
+#include <util/tag.h>
+
+namespace bx{ namespace gdi{
+
+
+namespace shader_module
+{
+    struct FileHeader
+    {
+        struct Pass
+        {
+            u32 hashed_name = 0;
+            HardwareStateDesc hw_state_desc = {};
+            VertexLayout vertex_layout = {};
+            u32 offset_vertex_shader = 0;
+            u32 offset_pixel_shader = 0;
+            u32 offset_compute_shader = 0;
+        };
+
+        u32 tag = bxTag32( "SMDL" );
+        u32 version = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
+        u32 num_passes = 0;
+        Pass passes[1];
+    };
+
+    FileHeader* load( const char* filename, bxAllocator* allocator );
+    void unload( FileHeader** header );
+}///
+
+struct ShaderModule;
+namespace shader_module
+{
+    ShaderModule* create( const FileHeader* header, const char* passName );
+    void destroy( ShaderModule* shaderModule );
+}///
+
+
+
+
+
+}}///
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
