@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gdi/gdi_backend.h>
+#include <gdi/gdi_shader_reflection.h>
 #include <util/array.h>
 #include <util/vector.h>
 #include <string>
@@ -40,10 +41,13 @@ namespace fxTool
         };
 
         std::string name;
-        bx::gdi::HardwareStateDesc hwstate;
+        bx::gdi::HardwareStateDesc hwstate = {};
+        bx::gdi::VertexLayout vertex_layout = {};
 
         Blob bytecode[bx::gdi::eDRAW_STAGES_COUNT];
         Blob disassembly[bx::gdi::eDRAW_STAGES_COUNT];
+
+        bx::gdi::ShaderReflection reflection;
     };
 
     struct FxSourceDesc

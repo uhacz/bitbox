@@ -1,11 +1,14 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.40629.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fx_compiler", "code\tools\fx_compiler\fx_compiler.vcxproj", "{18B49F0B-C441-4267-94E1-1E71E803B040}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fx_tool", "code\tools\fx_tool\fx_tool.vcxproj", "{8A5B2272-CA65-488F-A3F6-E02F63DA9DA2}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D} = {6C37BB51-ECAB-42A3-8EB3-30E45503B92D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "util", "code\util\util.vcxproj", "{C72DED4C-E82A-4E26-B7A8-715F4747CCEC}"
 EndProject
@@ -22,6 +25,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SettingsCompilerAttributes", "code\tools\settings_compiler_attributes\SettingsCompilerAttributes.csproj", "{C61F717F-FF92-4D36-930E-1F49C198CBEE}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "anim", "code\anim\anim.vcxproj", "{5A1545E2-B111-442D-880C-8C86869270B4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "bx", "bx", "{3879DA65-DC66-4EFF-87E6-E9109C007B84}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gdi", "code\gdi\gdi.vcxproj", "{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -135,8 +142,23 @@ Global
 		{5A1545E2-B111-442D-880C-8C86869270B4}.Release|Mixed Platforms.Build.0 = Release|x64
 		{5A1545E2-B111-442D-880C-8C86869270B4}.Release|x64.ActiveCfg = Release|x64
 		{5A1545E2-B111-442D-880C-8C86869270B4}.Release|x64.Build.0 = Release|x64
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Debug|Mixed Platforms.ActiveCfg = Debug|x64
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Debug|Mixed Platforms.Build.0 = Debug|x64
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Debug|x64.ActiveCfg = Debug|x64
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Debug|x64.Build.0 = Debug|x64
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Release|Any CPU.ActiveCfg = Release|x64
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Release|Mixed Platforms.ActiveCfg = Release|x64
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Release|Mixed Platforms.Build.0 = Release|x64
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Release|x64.ActiveCfg = Release|x64
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C72DED4C-E82A-4E26-B7A8-715F4747CCEC} = {3879DA65-DC66-4EFF-87E6-E9109C007B84}
+		{5A1545E2-B111-442D-880C-8C86869270B4} = {3879DA65-DC66-4EFF-87E6-E9109C007B84}
+		{6C37BB51-ECAB-42A3-8EB3-30E45503B92D} = {3879DA65-DC66-4EFF-87E6-E9109C007B84}
 	EndGlobalSection
 EndGlobal

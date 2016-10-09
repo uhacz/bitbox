@@ -8,10 +8,11 @@ passes:
 
 };#~header
 
+#include <sys/binding_map.h>
 #include <sys/types.hlsl>
 #include <sys/vs_screenquad.hlsl>
 
-cbuffer MaterialData : register(b3)
+cbuffer MaterialData : register(BSLOT(SLOT_MATERIAL_DATA))
 {
     float2 _rcpFrame;
 };

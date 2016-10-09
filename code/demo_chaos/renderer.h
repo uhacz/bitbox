@@ -127,18 +127,21 @@ namespace gfx{
         f32 specular = 0.5f;
         f32 roughness = 0.5f;
         f32 metallic = 0.f;
-
+    };
+    struct MaterialTextures
+    {
         gdi::TextureRO diffuse_tex;
         gdi::TextureRO specular_tex;
         gdi::TextureRO roughness_tex;
         gdi::TextureRO metallic_tex;
     };
+
     namespace renderer
     {
         void startup();
         void shutdown();
 
-        Material createMaterial( const char* name, const MaterialDesc& desc );
+        Material createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextures* textures );
         void destroyMaterial( Material* m );
         Material findMaterial( const char* name );
 
@@ -153,5 +156,11 @@ namespace gfx{
         void destroyMeshInstance( MeshInstance* mi );
         void setRenderSource( MeshInstance mi, RenderSource rsource );
         void setMaterial( MeshInstance mi, Material m );
+    }///
+
+    namespace renderer_util
+    {
+        void copyTexture( const gdi::TextureRW* destination, const gdi::ResourceRO* source );
+        void rasterizeFramebuffer( const gdi::ResourceRO& source );
     }///
 }}///

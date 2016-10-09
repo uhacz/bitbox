@@ -9,17 +9,20 @@
 // system bindings:
 // - b0 : frame data
 // - b1 : instance offset
+// - b2 : lightning data
 // - b3 : material data
 // - t0 : instance data (world matrices)
 // - t1 : instance data (worldIT matrices)
-// - t2 : lightning data 
-// - t3 : lightning indices 
+
+// - t2 : lights data 
+// - t3 : lights indices 
 
 // - t4-t7 : material textures -> forward
 // - t2-t5 : material textures -> deffered
 
 ////
-shared cbuffer LightningData : register( b2 )
+shared
+cbuffer LightningData : register(BSLOT(SLOT_LIGHTNING_DATA))
 {
     uint2 _numTilesXY;
     uint  _numTiles;
@@ -36,8 +39,8 @@ shared cbuffer LightningData : register( b2 )
     //float3 _skyColor;
 };
 
-Buffer<float4> _lightsData    : register( t2 );
-Buffer<uint>   _lightsIndices : register( t3 );
+Buffer<float4> _lightsData : register(TSLOT(SLOT_LIGHTS_DATA) );
+Buffer<uint> _lightsIndices : register(TSLOT(SLOT_LIGHTS_INDICES) );
 
 ////
 struct ShadingData

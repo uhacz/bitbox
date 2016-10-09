@@ -1,13 +1,15 @@
 #ifndef VERTEX_TRANSFORM
 #define VERTEX_TRANSFORM
 
-shared cbuffer InstanceOffset : register(b1)
+#include <sys/binding_map.h>
+
+shared cbuffer InstanceOffset : register(BSLOT(SLOT_INSTANCE_OFFSET) )
 {
     uint _begin;
 };
 
-Buffer<float4> _instance_world : register(t0);
-Buffer<float3> _instance_worldIT : register(t1);
+Buffer<float4> _instance_world : register(TSLOT(SLOT_INSTANCE_DATA_WORLD));
+Buffer<float3> _instance_worldIT : register(TSLOT(SLOT_INSTANCE_DATA_WORLD_IT));
 
 void fetchWorld( out float4 row0, out float4 row1, out float4 row2, uint instanceID )
 {

@@ -457,155 +457,30 @@ RenderSourceRange getRange( RenderSource rsource, u32 index )
 
 }}///
 
-#include <util/array.h>
-#include <util/id_table.h>
-#include <util/string_util.h>
+#include "renderer_material.h"
+#include "renderer_shared_mesh.h"
+#include <shaders/hlsl/sys/binding_map.h>
+
 namespace bx{
 namespace gfx{
-    static const ResourceBinding g_material_bindings[] = 
-    {
-        { eRESOURCE_TYPE_UNIFORM, gdi::eSTAGE_MASK_PIXEL, 3, 1 },
-
-    };
-
-
+    
 //////////////////////////////////////////////////////////////////////////
 struct GBuffer
 {
 
 };
 
-struct MaterialContainer
+struct RenderingUtils
 {
-    enum { eMAX_COUNT = 128, };
-    id_table_t< eMAX_COUNT > _id_to_index;
-    id_t                    _index_to_id[eMAX_COUNT] = {};
-    //Pipeline                _pipelines[eMAX_COUNT] = {};
-    ResourceDescriptor      _rdescs[eMAX_COUNT] = {};
-    const char*             _names[eMAX_COUNT] = {};
-
-    inline id_t makeId( Material m ) const { return make_id( m.i ); }
-    inline Material makeMaterial( id_t id ) const { Material m; m.i = id.hash; return m; }
-
-    bool alive( Material m ) const
+    struct Pass
     {
-        id_t id = makeId( m );
-        return id_table::has( _id_to_index, id );
-    }
-
-    Material add( const char* name, Pipeline pipeline, ResourceDescriptor rdesc )
-    {
-        id_t id = id_table::create( _id_to_index );
-        u32 index = id.index;
-
-        _index_to_id[index] = id;
-        _pipelines[index] = pipeline;
-        _rdescs[index] = rdesc;
-        _names[index] = string::duplicate( nullptr, name );
-
-        return makeMaterial( id );
-    }
-    void remove( Material* m )
-    {
-        id_t id = makeId( *m );
-        if( !id_table::has( _id_to_index, id ) )
-            return;
-
-        u32 index = id.index;
-        string::free_and_null( (char**)&_names[index] );
-        _rdescs[index] = BX_GFX_NULL_HANDLE;
-        _pipelines[index] = BX_GFX_NULL_HANDLE;
-        _index_to_id[index] = makeInvalidHandle<id_t>();
-
-        m[0] = makeMaterial( makeInvalidHandle<id_t>() );
-    }
-
-    Material find( const char* name )
-    {
-        const u32 n = id_table::size( _id_to_index );
-        u32 counter = 0;
-        for( u32 i = 0; i < n && counter < n; ++i )
-        {
-            const char* current_name = _names[i];
-            if( !current_name )
-                continue;
-
-            if( string::equal( current_name, name ) )
-            {
-                SYS_ASSERT( id_table::has( _id_to_index, _index_to_id[i] ) );
-                return makeMaterial( _index_to_id[i] );
-            }
-
-            ++counter;
-        }
-        return makeMaterial( makeInvalidHandle<id_t>() );
-    }
-
-    inline u32 _GetIndex( Material m )
-    {
-        id_t id = makeId( m );
-        SYS_ASSERT( id_table::has( _id_to_index, id ) );
-        return id.index;
-    }
-    Pipeline getPipeline( Material m )
-    {
-        u32 index = _GetIndex( m );
-        return _pipelines[index];
-    }
-    ResourceDescriptor getResourceDesc( Material m )
-    {
-        u32 index = _GetIndex( m );
-        return _rdescs[index];
-    }
-};
-
-struct SharedMeshContainer
-{
-    struct Entry
-    {
-        const char* name = nullptr;
-        RenderSource rsource = BX_GFX_NULL_HANDLE;
+        Pipeline pipeline;
+        ResourceDescriptor resource_desc;
     };
-    array_t< Entry > _entries;
 
-    u32 add( const char* name, RenderSource rs )
-    {
-        u32 index = find( name );
-        if( index != UINT32_MAX )
-            return index;
-
-        Entry e;
-        e.name = string::duplicate( nullptr, name );
-        e.rsource = rs;
-        return array::push_back( _entries, e );
-    }
-    void remove( u32 index )
-    {
-        SYS_ASSERT( index < array::sizeu( _entries ) );
-
-        Entry& e = _entries[index];
-        string::free( (char*)e.name );
-
-        array::erase( _entries, index );
-    }
-    u32 find( const char* name )
-    {
-        for( u32 i = 0; i < array::sizeu( _entries ); ++i )
-        {
-            if( string::equal( name, _entries[i].name ) )
-                return i;
-        }
-        return UINT32_MAX;
-    }
-
-    RenderSource getRenderSource( u32 index )
-    {
-        SYS_ASSERT( index < array::sizeu( _entries ) );
-        return _entries[index].rsource;
-    }
+    gdi::ShaderModule* _shader_module = nullptr;
 
 };
-
 
 namespace renderer
 {
@@ -623,11 +498,30 @@ void shutdown()
 
 }
 
-Material createMaterial( const char* name, const MaterialDesc& desc )
+static ResourceBinding g_material_bindings[] =
 {
-    //Pipeline pipeline = createPipeline( pipelineDesc, nullptr );
-    //ResourceDescriptor resourceDesc = createResourceDescriptor( resourceLayout, nullptr );
-    //return g_material_container.add( name, pipeline, resourceDesc );
+    { eRESOURCE_TYPE_UNIFORM, gdi::eSTAGE_MASK_PIXEL, SLOT_MATERIAL_DATA, 1 },
+    { eRESOURCE_TYPE_READ_ONLY, gdi::eSTAGE_MASK_PIXEL, SLOT_MATERIAL_TEXTURE0, SLOT_MATERIAL_TEXTURE_COUNT },
+    { eRESOURCE_TYPE_SAMPLER, gdi::eSTAGE_MASK_PIXEL, 0, 1 },
+};
+Material createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextures* textures )
+{
+    ResourceLayout resourceLayout = {};
+    resourceLayout.bindings = g_material_bindings;
+    resourceLayout.num_bindings = ( textures ) ? 3 : 1;
+    ResourceDescriptor resourceDesc = createResourceDescriptor( resourceLayout, nullptr );
+
+    gdi::ConstantBuffer cbuffer = gdi::create::constantBuffer( sizeof( MaterialDesc ) );
+    setConstantBuffer( resourceDesc, cbuffer, gdi::eSTAGE_MASK_PIXEL, SLOT_MATERIAL_DATA );
+    if( textures )
+    {
+        setResourceRO( resourceDesc, &textures->diffuse_tex, gdi::eSTAGE_MASK_PIXEL, SLOT_MATERIAL_TEXTURE0 );
+        setResourceRO( resourceDesc, &textures->specular_tex, gdi::eSTAGE_MASK_PIXEL, SLOT_MATERIAL_TEXTURE1 );
+        setResourceRO( resourceDesc, &textures->roughness_tex, gdi::eSTAGE_MASK_PIXEL, SLOT_MATERIAL_TEXTURE2 );
+        setResourceRO( resourceDesc, &textures->metallic_tex, gdi::eSTAGE_MASK_PIXEL, SLOT_MATERIAL_TEXTURE3 );
+    }
+        
+    return g_material_container.add( name, resourceDesc );
 }
 
 void destroyMaterial( Material* m )
@@ -635,12 +529,11 @@ void destroyMaterial( Material* m )
     if( !g_material_container.alive( *m ) )
         return;
 
-    //Pipeline pipeline = g_material_container.getPipeline( *m );
-    //ResourceDescriptor rdesc = g_material_container.getResourceDesc( *m );
+    ResourceDescriptor rdesc = g_material_container.getResourceDesc( *m );
     g_material_container.remove( m );
 
-    //destroyResourceDescriptor( &rdesc, nullptr );
-    //destroyPipeline( &pipeline, nullptr );
+
+    destroyResourceDescriptor( &rdesc, nullptr );
 }
 
 Material findMaterial( const char* name )

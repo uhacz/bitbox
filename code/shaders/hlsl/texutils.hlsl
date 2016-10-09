@@ -59,10 +59,10 @@ passes:
 
 #define in_PS out_VS_screenquad
 
-Texture2D gtexture;
-Texture2D gtexture1;
-SamplerState gsampler;
-SamplerState gsampler1;
+Texture2D gtexture : register(t0);
+Texture2D gtexture1 : register( t1 );
+SamplerState gsampler : register(s0);
+SamplerState gsampler1 : register( s1 );
 
 float3 ps_copy_rgb( in_PS IN ) : SV_Target0
 {
@@ -71,7 +71,6 @@ float3 ps_copy_rgb( in_PS IN ) : SV_Target0
 
 float4 ps_copy_rgba( in_PS IN ) : SV_Target0
 {
-    
     return gtexture.SampleLevel( gsampler, IN.uv, 0 );
 }
 float4 ps_copy_rgba_level( in_PS IN ) : SV_Target0

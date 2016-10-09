@@ -341,12 +341,16 @@ namespace gdi{
         sprintf_s( fullFilename, "shader/%s/%s.%s", shaderApi, fileNameWithoutExt, shaderApi );
 
         ResourceID resourceId = ResourceManager::createResourceID( fullFilename );
-        uptr dataPointer = resourceManager->lookup( resourceId );
+        ResourcePtr dataPointer = resourceManager->acquireResource( resourceId );
         if( dataPointer )
         {
-            resourceManager->referenceAdd( resourceId );
             return (bxGdiShaderFx*)dataPointer;
         }
+        //if( dataPointer )
+        //{
+        //    resourceManager->referenceAdd( resourceId );
+        //    return (bxGdiShaderFx*)dataPointer;
+        //}
 
         bxFS::File shaderFile = resourceManager->readTextFileSync( fullFilename );
         if( !shaderFile.ok() )
@@ -356,7 +360,7 @@ namespace gdi{
         
         using namespace fxTool;
 
-        const char* shaderTxt = shaderFile.txt;
+        const char* shaderTxt = (const char*)shaderFile.txt;
         const int shaderTxtLen = (int)shaderFile.size;
         FxSourceDesc fxSrc;
         int ierr = parse_header( &fxSrc, shaderTxt, shaderTxtLen );
@@ -453,10 +457,11 @@ namespace gdi{
         }
 
         _ShaderFx_initParams( fx, global_reflection );
-        shaderFile.release();
+        //shaderFile.release();
         fxTool::release( &fxSrc );
 
-        resourceManager->insert( resourceId, uptr( fx ) );
+        resourceManager->insertResource( resourceId, fx );
+        fx->_resource_id = resourceId;
 
         return fx;
     }
@@ -469,12 +474,14 @@ namespace gdi{
 
 
         bxGdiShaderFx* fx = fxPtr[0];
-        ResourceID resourceId = resourceManager->find( uptr( fx ) );
-        SYS_ASSERT( resourceId != 0 );
-        int instancesLeft = resourceManager->referenceRemove( resourceId );
-        if( instancesLeft == 0 )
+        u32 references_left = resourceManager->releaseResource( fx );
+
+        //ResourceID resourceId = resourceManager->find( uptr( fx ) );
+        //SYS_ASSERT( resourceId != 0 );
+        //int instancesLeft = resourceManager->referenceRemove( resourceId );
+        if( references_left == 0 )
         {
-            SYS_ASSERT( fx->_numInstances == instancesLeft );
+            SYS_ASSERT( fx->_numInstances == (int)references_left );
             _ShaderFx_deinitParams( fx );
             for ( int ipass = 0; ipass < fx->_numPasses; ++ipass )
             {
@@ -542,9 +549,11 @@ namespace gdi{
         ++fx->_numInstances;
 
         {
-            ResourceID resourceId = resourceManager->find( uptr( fx ) );
-            SYS_ASSERT( resourceId != 0 );
-            resourceManager->referenceAdd( resourceId );
+            ResourcePtr ptr = resourceManager->acquireResource( fx->_resource_id );
+            SYS_ASSERT( ptr == fx );
+            //ResourceID resourceId = resourceManager->find( uptr( fx ) );
+            //SYS_ASSERT( resourceId != 0 );
+            //resourceManager->referenceAdd( resourceId );
         }
 
         return fxInstance;
@@ -559,9 +568,11 @@ namespace gdi{
         SYS_ASSERT( fx->_numInstances > 0 );
         --fx->_numInstances;
         {
-            ResourceID resourceId = resourceManager->find( uptr( fx ) );
-            SYS_ASSERT( resourceId != 0 );
-            resourceManager->referenceRemove( resourceId );
+            u32 refs_left = resourceManager->releaseResource( fx );
+            SYS_ASSERT( refs_left == ( fx->_numInstances + 1 ) );
+            //ResourceID resourceId = resourceManager->find( uptr( fx ) );
+            //SYS_ASSERT( resourceId != 0 );
+            //resourceManager->referenceRemove( resourceId );
         }
         for( int i = 0; i < fx->_numCBuffers; ++i )
         {
@@ -646,14 +657,16 @@ namespace gdi{
 
 
 namespace bx{ namespace gdi{
+    
+    ShaderModule* load( const char* filename, ResourceManager* resourceManager )
+    {
+        ResourceLoadResult resource = resourceManager->loadResource( filename, EResourceFileType::BINARY );
+        return (ShaderModule*)resource.ptr;
+    }
 
-struct ShaderModule
-{
-      
-};
-namespace shader_module
-{
-
-}
-
+    void unload( ShaderModule** smod, ResourceManager* resourceManager )
+    {
+        resourceManager->unloadResource( (ResourcePtr*)smod );
+    }
 }}///
+

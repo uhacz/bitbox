@@ -2,7 +2,7 @@
 
 #include "gdi_backend.h"
 #include <util/memory.h>
-
+#include <resource_manager/resource_manager.h>
 struct bxGdiShaderPass
 {
     bxGdiShader progs[bx::gdi::eDRAW_STAGES_COUNT];
@@ -66,6 +66,9 @@ struct bxGdiShaderFx
     struct SamplerDesc;
     struct CBufferDesc;
     struct UniformDesc;
+
+    ///
+    bx::ResourceID _resource_id = 0;
 
     ///
     ///
@@ -207,19 +210,15 @@ namespace gdi{
 
 namespace bx{ namespace gdi{
 
-
-namespace shader_module
-{
-    struct FileHeader
+    struct ShaderModule
     {
         struct Pass
         {
             u32 hashed_name = 0;
             HardwareStateDesc hw_state_desc = {};
             VertexLayout vertex_layout = {};
-            u32 offset_vertex_shader = 0;
-            u32 offset_pixel_shader = 0;
-            u32 offset_compute_shader = 0;
+            u32 offset_bytecode[eDRAW_STAGES_COUNT] = {};
+            u32 size_bytecode[eDRAW_STAGES_COUNT] = {};
         };
 
         u32 tag = bxTag32( "SMDL" );
@@ -228,20 +227,8 @@ namespace shader_module
         Pass passes[1];
     };
 
-    FileHeader* load( const char* filename, bxAllocator* allocator );
-    void unload( FileHeader** header );
-}///
-
-struct ShaderModule;
-namespace shader_module
-{
-    ShaderModule* create( const FileHeader* header, const char* passName );
-    void destroy( ShaderModule* shaderModule );
-}///
-
-
-
-
+    ShaderModule* load( const char* filename, ResourceManager* resourceManager );
+    void unload( ShaderModule** smod, ResourceManager* resourceManager );
 
 }}///
 

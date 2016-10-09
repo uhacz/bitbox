@@ -1,7 +1,9 @@
 #ifndef FRAME_DATA
 #define FRAME_DATA
 
-shared cbuffer FrameData : register(b0)
+#include <sys/binding_map.h>
+
+shared cbuffer FrameData : register(BSLOT(SLOT_FRAME_DATA))
 {
     matrix _camera_view;
 	matrix _camera_proj;

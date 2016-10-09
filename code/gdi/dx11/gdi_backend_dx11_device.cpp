@@ -10,6 +10,7 @@
 #include "DDSTextureLoader.h"
 
 #include "gdi_backend_dx11_startup.h"
+#include "util/common.h"
 
 namespace bx{
 namespace gdi{
@@ -138,10 +139,14 @@ namespace gdi{
         }
 
         u16 input_mask = 0;
+        gdi::VertexLayout& layout = out->vertex_layout;
+        layout.count = 0;
+
         for( u32 i = 0; i < sdesc.InputParameters; ++i )
         {
             D3D11_SIGNATURE_PARAMETER_DESC idesc;
             reflector->GetInputParameterDesc( i, &idesc );
+
 
             EVertexSlot slot = vertexSlotFromString( idesc.SemanticName );
             if( slot >= eSLOT_COUNT )
@@ -149,7 +154,30 @@ namespace gdi{
                 //log_error( "Unknown semantic: '%s'", idesc.SemanticName );
                 continue;
             }
-            input_mask |= ( 1 << (slot + idesc.SemanticIndex) );
+            VertexBufferDesc& desc = layout.descs[layout.count++];
+            
+            input_mask |= ( 1 << ( slot + idesc.SemanticIndex ) );
+
+            desc.slot = slot + idesc.SemanticIndex;
+            desc.numElements = bitcount( (u32)idesc.Mask );
+            desc.typeNorm = 0;
+            if( idesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32 )
+            {
+                desc.dataType = EDataType::eTYPE_INT;
+            }
+            else if( idesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32 )
+            {
+                desc.dataType = EDataType::eTYPE_UINT;
+            }
+            else if( idesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32 )
+            {
+                desc.dataType = EDataType::eTYPE_FLOAT;
+            }
+            else
+            {
+                SYS_NOT_IMPLEMENTED;
+            }
+
         }
         out->input_mask = input_mask;
         reflector->Release();

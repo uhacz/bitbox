@@ -15,12 +15,13 @@ namespace bxFS
     struct File
     {
 	    File()
-        : bin(0)
+        : ptr(0)
         , size(0)
         {}
         union
 	    {
-		    unsigned char* bin;
+            void* ptr;
+            unsigned char* bin;
 		    char* txt;
 	    };
 	    size_t size;

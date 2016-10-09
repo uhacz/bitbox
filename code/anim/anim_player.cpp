@@ -506,7 +506,8 @@ bool SimplePlayer::blendAlpha( f32* dst )
     if( _num_clips != 2 )
         return false;
 
-    return _blend_time / _blend_duration;
+    dst[0] = _blend_time / _blend_duration;
+    return true;
 }
 
 const bxAnim_Joint* SimplePlayer::localJoints() const

@@ -92,6 +92,9 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\gdi\gdi.vcxproj">
+      <Project>{6c37bb51-ecab-42a3-8eb3-30e45503b92d}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\util\util.vcxproj">
       <Project>{c72ded4c-e82a-4e26-b7a8-715f4747ccec}</Project>
     </ProjectReference>

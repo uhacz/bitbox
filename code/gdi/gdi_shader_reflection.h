@@ -2,6 +2,7 @@
 
 #include <util/type.h>
 #include <util/vector.h>
+#include "gdi_backend_struct.h"
 
 namespace bx{
 namespace gdi{
@@ -53,6 +54,7 @@ struct ShaderReflection
 	vector_t<ShaderCBufferDesc> cbuffers;
 	vector_t<ShaderTextureDesc> textures;
 	vector_t<ShaderSamplerDesc> samplers;
+    VertexLayout vertex_layout;
 	u16 input_mask;
 	u16 __pad0[1];
 	
