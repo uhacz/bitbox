@@ -657,16 +657,35 @@ namespace gdi{
 
 
 namespace bx{ namespace gdi{
-    
-    ShaderModule* load( const char* filename, ResourceManager* resourceManager )
+    u32 shaderModuleGenerateHash( const char* txt, u32 version )
+    {
+        return murmur3_hash32( txt, (u32)strlen( txt ), version );
+    }
+
+    ShaderModule* shaderModuleLoad( const char* filename, ResourceManager* resourceManager )
     {
         ResourceLoadResult resource = resourceManager->loadResource( filename, EResourceFileType::BINARY );
         return (ShaderModule*)resource.ptr;
     }
 
-    void unload( ShaderModule** smod, ResourceManager* resourceManager )
+    void shaderModuleUnload( ShaderModule** smod, ResourceManager* resourceManager )
     {
         resourceManager->unloadResource( (ResourcePtr*)smod );
     }
-}}///
+
+    u32 shaderModuleFindPass( const ShaderModule* smod, const char* passName )
+    {
+        const u32 hashed_name = shaderModuleGenerateHash( passName, smod->version );
+        for( u32 i = 0; i < smod->num_passes; ++i )
+        {
+            if( hashed_name == smod->passes[i].hashed_name )
+                return i;
+        }
+        return UINT32_MAX;
+    }
+
+
+
+}
+}///
 

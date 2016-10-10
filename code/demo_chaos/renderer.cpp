@@ -474,9 +474,11 @@ struct RenderingUtils
 {
     struct Pass
     {
-        Pipeline pipeline;
-        ResourceDescriptor resource_desc;
+        Pipeline pipeline = BX_GFX_NULL_HANDLE;
+        ResourceDescriptor resource_desc = BX_GFX_NULL_HANDLE;
     };
+
+    Pass _texture_copy_rgba;
 
     gdi::ShaderModule* _shader_module = nullptr;
 

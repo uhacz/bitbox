@@ -499,7 +499,7 @@ public:
         {
             const BinaryPass& binPass = binDesc.passes[ipass];
             gdi::ShaderModule::Pass& modulePass = smodule->passes[ipass];
-            modulePass.hashed_name = murmur3_hash32( binPass.name.c_str(), (u32)binPass.name.length(), smodule->version );
+            modulePass.hashed_name = gdi::shaderModuleGenerateHash( binPass.name.c_str(), smodule->version );
             modulePass.hw_state_desc = binPass.hwstate;
             modulePass.vertex_layout = binPass.vertex_layout;
 

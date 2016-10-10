@@ -210,8 +210,11 @@ namespace gdi{
 
 namespace bx{ namespace gdi{
 
+    u32 shaderModuleGenerateHash( const char* txt, u32 version );
+
     struct ShaderModule
     {
+        static const u32 VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
         struct Pass
         {
             u32 hashed_name = 0;
@@ -222,13 +225,14 @@ namespace bx{ namespace gdi{
         };
 
         u32 tag = bxTag32( "SMDL" );
-        u32 version = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
+        u32 version = VERSION;
         u32 num_passes = 0;
         Pass passes[1];
     };
 
-    ShaderModule* load( const char* filename, ResourceManager* resourceManager );
-    void unload( ShaderModule** smod, ResourceManager* resourceManager );
+    ShaderModule* shaderModuleLoad( const char* filename, ResourceManager* resourceManager );
+    void shaderModuleUnload( ShaderModule** smod, ResourceManager* resourceManager );
+    u32 shaderModuleFindPass( const ShaderModule* smod, const char* passName );
 
 }}///
 
