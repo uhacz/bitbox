@@ -7,10 +7,6 @@
 namespace bx{
 namespace gfx{
 
-    struct ShaderResource
-    {
-    };
-
     struct PipelineDesc
     {
         gdi::Shader shaders[ gdi::eDRAW_STAGES_COUNT ] = {};
@@ -56,6 +52,10 @@ namespace gfx{
         ResourceBinding() {}
         ResourceBinding( EResourceType t, u8 sm, u8 sl, u8 cnt )
             : type( t ), stage_mask( sm ), first_slot( sl ), count( cnt ) {}
+
+        ResourceBinding( EResourceType t ) { type = t; }
+        ResourceBinding& StageMask( u8 sm ) { stage_mask = sm; return *this; }
+        ResourceBinding& FirstSlotAndCount( u8 fs, u8 cnt ) { first_slot = fs; count = cnt; return *this; }
     };
 
     struct ResourceLayout

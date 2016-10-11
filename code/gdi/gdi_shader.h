@@ -233,7 +233,6 @@ namespace bx{ namespace gdi{
     ShaderModule* shaderModuleLoad( const char* filename, ResourceManager* resourceManager );
     void shaderModuleUnload( ShaderModule** smod, ResourceManager* resourceManager );
     u32 shaderModuleFindPass( const ShaderModule* smod, const char* passName );
-
 }}///
 
 
