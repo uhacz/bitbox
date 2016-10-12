@@ -110,7 +110,7 @@ struct Format
         , numElements(0), normalized(0), srgb(0)
     {}
 
-    Format( EDataType::Enum dt, u8 ne ) { type = dt; numElements = ne;  }
+    Format( EDataType::Enum dt, u8 ne ) { type = dt; numElements = ne; normalized = 0; srgb = 0; }
     Format& Normalized( u32 onOff ) { normalized = onOff; return *this; }
     Format& Srgb( u32 onOff ) { srgb = onOff; return *this; }
     inline u32 ByteWidth() const { return typeStride[type] * numElements; }
@@ -499,6 +499,8 @@ union VertexBufferDesc
     }
     VertexBufferDesc& Normalized() { typeNorm = 1; return *this; }
 
+    inline u32 ByteWidth() const { return typeStride[dataType] * numElements; }
+
     u16 hash = 0;
     struct
     {
@@ -701,7 +703,7 @@ namespace frame
 namespace device
 {
     VertexBuffer   CreateVertexBuffer  ( const VertexBufferDesc& desc, u32 numElements, const void* data = 0 );
-    IndexBuffer    CreateIndexBuffer   ( int dataType, u32 numElements, const void* data = 0 );
+    IndexBuffer    CreateIndexBuffer   ( EDataType::Enum dataType, u32 numElements, const void* data = 0 );
     ConstantBuffer CreateConstantBuffer( u32 sizeInBytes );
     BufferRO       CreateBufferRO      ( int numElements, Format format, unsigned cpuAccessFlag, unsigned gpuAccessFlag );
     //BufferRW createBufferRW( int numElements, bxGdiFormat format, unsigned bindFlags, unsigned cpuAccessFlag, unsigned gpuAccessFlag );

@@ -79,9 +79,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rdi_backend.h" />
+    <ClInclude Include="rdi_backend_dx11.h" />
+    <ClInclude Include="rdi_shader_reflection.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="rdi_backend.cpp" />
+    <ClCompile Include="rdi_backend_dx11.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
