@@ -3,6 +3,9 @@
 #include "DDSTextureLoader.h"
 
 #include <util/memory.h>
+#include <util/hash.h>
+#include <util/common.h>
+#include <util/array_util.h>
 #include <D3Dcompiler.h>
 
 namespace bx { namespace rdi {
@@ -90,6 +93,174 @@ void ShutdownDX11()
 
     g_device->Release();
     g_device = nullptr;
+}
+
+void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, size_t code_blob_size, int stage )
+{
+    ID3D11ShaderReflection* reflector = NULL;
+    D3DReflect( code_blob, code_blob_size, IID_ID3D11ShaderReflection, (void**)&reflector );
+
+    D3D11_SHADER_DESC sdesc;
+    reflector->GetDesc( &sdesc );
+
+    //out->cbuffers.resize( sdesc.ConstantBuffers );
+
+    for( u32 i = 0; i < sdesc.ConstantBuffers; ++i )
+    {
+        //ShaderCBufferDesc& cb = out->cbuffers[i];
+        ID3D11ShaderReflectionConstantBuffer* cbuffer_reflector = reflector->GetConstantBufferByIndex( i );
+
+        D3D11_SHADER_BUFFER_DESC sb_desc;
+        cbuffer_reflector->GetDesc( &sb_desc );
+
+        D3D11_SHADER_INPUT_BIND_DESC bind_desc;
+        reflector->GetResourceBindingDescByName( sb_desc.Name, &bind_desc );
+
+
+        const u32 cb_hashed_name = simple_hash( sb_desc.Name );
+        ShaderCBufferDesc* cbuffer_found = array::find( array::begin( out->cbuffers ), array::end( out->cbuffers ), ShaderReflection::FunctorCBuffer( cb_hashed_name ) );
+        if( cbuffer_found != array::end( out->cbuffers ) )
+        {
+            cbuffer_found->stage_mask |= ( 1 << stage );
+            continue;
+        }
+
+        out->cbuffers.push_back( ShaderCBufferDesc() );
+        ShaderCBufferDesc& cb = out->cbuffers.back();
+        cb.hashed_name = cb_hashed_name;
+        cb.size = sb_desc.Size;
+        cb.slot = bind_desc.BindPoint;
+        cb.stage_mask = ( 1 << stage );
+        //cb.variables.resize( sb_desc.Variables );
+        //cb.num_variables = sb_desc.Variables;
+        //cb.variables = (ShaderVariableDesc*)utils::memory_alloc( cb.num_variables * sizeof(ShaderVariableDesc) );
+
+        for( u32 j = 0; j < sb_desc.Variables; ++j )
+        {
+            ID3D11ShaderReflectionVariable* var_reflector = cbuffer_reflector->GetVariableByIndex( j );
+            ID3D11ShaderReflectionType* var_reflector_type = var_reflector->GetType();
+            D3D11_SHADER_VARIABLE_DESC sv_desc;
+            D3D11_SHADER_TYPE_DESC typeDesc;
+
+            var_reflector->GetDesc( &sv_desc );
+            var_reflector_type->GetDesc( &typeDesc );
+
+            cb.variables.push_back( ShaderVariableDesc() );
+            ShaderVariableDesc& vdesc = cb.variables.back();
+            vdesc.hashed_name = simple_hash( sv_desc.Name );
+            vdesc.offset = sv_desc.StartOffset;
+            vdesc.size = sv_desc.Size;
+            vdesc.type = findBaseType( typeDesc.Name );
+        }
+    }
+
+    for( u32 i = 0; i < sdesc.BoundResources; ++i )
+    {
+        D3D11_SHADER_INPUT_BIND_DESC rdesc;
+        reflector->GetResourceBindingDesc( i, &rdesc );
+
+        /// system variable
+        if( rdesc.Name[0] == '_' )
+            continue;
+
+        const u32 hashed_name = simple_hash( rdesc.Name );
+
+
+        if( rdesc.Type == D3D_SIT_TEXTURE )
+        {
+            ShaderTextureDesc* found = array::find( array::begin( out->textures ), array::end( out->textures ), ShaderReflection::FunctorTexture( hashed_name ) );
+            if( found != array::end( out->textures ) )
+            {
+                found->stage_mask |= ( 1 << stage );
+                continue;
+            }
+            out->textures.push_back( ShaderTextureDesc() );
+            ShaderTextureDesc& tdesc = out->textures.back();
+            tdesc.hashed_name = simple_hash( rdesc.Name );
+            tdesc.slot = rdesc.BindPoint;
+            tdesc.stage_mask = ( 1 << stage );
+            switch( rdesc.Dimension )
+            {
+            case D3D10_SRV_DIMENSION_TEXTURE1D:
+                tdesc.dimm = 1;
+                //SYS_ASSERT( false && "not implemented" );
+                break;
+            case D3D10_SRV_DIMENSION_TEXTURE2D:
+                tdesc.dimm = 2;
+                break;
+            case D3D10_SRV_DIMENSION_TEXTURE3D:
+                tdesc.dimm = 3;
+                SYS_ASSERT( false && "not implemented" );
+                break;
+            case D3D10_SRV_DIMENSION_TEXTURECUBE:
+                tdesc.dimm = 2;
+                tdesc.is_cubemap = 1;
+                SYS_ASSERT( false && "not implemented" );
+                break;
+            default:
+                SYS_ASSERT( false && "not implemented" );
+                break;
+            }
+        }
+        else if( rdesc.Type == D3D_SIT_SAMPLER )
+        {
+            ShaderSamplerDesc* found = array::find( array::begin( out->samplers ), array::end( out->samplers ), ShaderReflection::FunctorSampler( hashed_name ) );
+            if( found != array::end( out->samplers ) )
+            {
+                found->stage_mask |= ( 1 << stage );
+                continue;
+            }
+            out->samplers.push_back( ShaderSamplerDesc() );
+            ShaderSamplerDesc& sdesc = out->samplers.back();
+            sdesc.hashed_name = simple_hash( rdesc.Name );
+            sdesc.slot = rdesc.BindPoint;
+            sdesc.stage_mask = ( 1 << stage );
+        }
+    }
+
+    u16 input_mask = 0;
+    VertexLayout& layout = out->vertex_layout;
+    layout.count = 0;
+
+    for( u32 i = 0; i < sdesc.InputParameters; ++i )
+    {
+        D3D11_SIGNATURE_PARAMETER_DESC idesc;
+        reflector->GetInputParameterDesc( i, &idesc );
+
+
+        EVertexSlot::Enum slot = vertexSlotFromString( idesc.SemanticName );
+        if( slot >= EVertexSlot::COUNT )
+        {
+            //log_error( "Unknown semantic: '%s'", idesc.SemanticName );
+            continue;
+        }
+        VertexBufferDesc& desc = layout.descs[layout.count++];
+
+        input_mask |= ( 1 << ( slot + idesc.SemanticIndex ) );
+
+        desc.slot = slot + idesc.SemanticIndex;
+        desc.numElements = bitcount( (u32)idesc.Mask );
+        desc.typeNorm = 0;
+        if( idesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32 )
+        {
+            desc.dataType = EDataType::INT;
+        }
+        else if( idesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32 )
+        {
+            desc.dataType = EDataType::UINT;
+        }
+        else if( idesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32 )
+        {
+            desc.dataType = EDataType::FLOAT;
+        }
+        else
+        {
+            SYS_NOT_IMPLEMENTED;
+        }
+
+    }
+    out->input_mask = input_mask;
+    reflector->Release();
 }
 
 }}///
@@ -300,7 +471,7 @@ Shader CreateShader( int stage, const char* shaderSource, const char* entryPoint
 
     return sh;
 }
-Shader CreateShader( int stage, const void* codeBlob, size_t codeBlobSizee, ShaderReflection* reflection )
+Shader CreateShader( int stage, const void* codeBlob, size_t codeBlobSize, ShaderReflection* reflection )
 {
     Shader sh = {};
 
@@ -310,16 +481,16 @@ Shader CreateShader( int stage, const void* codeBlob, size_t codeBlobSizee, Shad
     switch( stage )
     {
     case EStage::VERTEX:
-        hres = g_device->CreateVertexShader( codeBlob, codeBlobSizee, 0, &sh.vertex );
+        hres = g_device->CreateVertexShader( codeBlob, codeBlobSize, 0, &sh.vertex );
         SYS_ASSERT( SUCCEEDED( hres ) );
-        hres = D3DGetInputSignatureBlob( codeBlob, codeBlobSizee, &inputSignature );
+        hres = D3DGetInputSignatureBlob( codeBlob, codeBlobSize, &inputSignature );
         SYS_ASSERT( SUCCEEDED( hres ) );
         break;
     case EStage::PIXEL:
-        hres = g_device->CreatePixelShader( codeBlob, codeBlobSizee, 0, &sh.pixel );
+        hres = g_device->CreatePixelShader( codeBlob, codeBlobSize, 0, &sh.pixel );
         break;
     case EStage::COMPUTE:
-        hres = g_device->CreateComputeShader( codeBlob, codeBlobSizee, 0, &sh.compute );
+        hres = g_device->CreateComputeShader( codeBlob, codeBlobSize, 0, &sh.compute );
         break;
     default:
         SYS_NOT_IMPLEMENTED;
@@ -330,7 +501,7 @@ Shader CreateShader( int stage, const void* codeBlob, size_t codeBlobSizee, Shad
 
     if( reflection )
     {
-        Dx11FetchShaderReflection( reflection, codeBlob, codeBlobSizee, stage );
+        Dx11FetchShaderReflection( reflection, codeBlob, codeBlobSize, stage );
         if( stage == EStage::VERTEX )
         {
             sh.vertexInputMask = reflection->input_mask;
