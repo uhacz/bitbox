@@ -79,12 +79,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DDSTextureLoader.h" />
+    <ClInclude Include="rdi.h" />
     <ClInclude Include="rdi_backend.h" />
     <ClInclude Include="rdi_backend_dx11.h" />
     <ClInclude Include="rdi_shader_reflection.h" />
+    <ClInclude Include="rdi_type.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DDSTextureLoader.cpp" />
+    <ClCompile Include="rdi.cpp" />
     <ClCompile Include="rdi_backend.cpp" />
     <ClCompile Include="rdi_backend_dx11.cpp" />
   </ItemGroup>

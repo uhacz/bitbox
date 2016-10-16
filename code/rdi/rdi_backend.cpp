@@ -47,5 +47,4 @@ void Shutdown()
     ShutdownDX11();
 }
 
-}
-}///
+}}///

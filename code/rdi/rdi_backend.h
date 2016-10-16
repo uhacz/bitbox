@@ -646,6 +646,22 @@ struct Shader
     u16 vertexInputMask = 0;
 };
 
+struct ShaderPass
+{
+    ID3D11VertexShader* vertex = nullptr;
+    ID3D11PixelShader* pixel = nullptr;
+    void* input_signature = nullptr;
+    u32 vertex_input_mask = 0;
+};
+struct ShaderPassCreateInfo
+{
+    void* vertex_bytecode = nullptr;
+    void* pixel_bytecode = nullptr;
+    size_t vertex_bytecode_size = 0;
+    size_t pixel_bytecode_size = 0;
+    ShaderReflection* reflection = nullptr;
+};
+
 union InputLayout
 {
     uptr id = 0;
@@ -666,6 +682,13 @@ union RasterState
 {
     uptr id = 0;
     ID3D11RasterizerState* state;
+};
+
+struct HardwareState
+{
+    ID3D11BlendState* blend = nullptr;
+    ID3D11DepthStencilState* depth = nullptr;
+    ID3D11RasterizerState* raster = nullptr;
 };
 
 union Sampler
@@ -708,8 +731,9 @@ namespace device
     BufferRO       CreateBufferRO      ( int numElements, Format format, unsigned cpuAccessFlag, unsigned gpuAccessFlag );
     //BufferRW createBufferRW( int numElements, bxGdiFormat format, unsigned bindFlags, unsigned cpuAccessFlag, unsigned gpuAccessFlag );
 
-    Shader CreateShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, ShaderReflection* reflection = 0 );
-    Shader CreateShader( int stage, const void* codeBlob, size_t codeBlobSizee, ShaderReflection* reflection = 0 );
+    //Shader CreateShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, ShaderReflection* reflection = 0 );
+    //Shader CreateShader( int stage, const void* codeBlob, size_t codeBlobSizee, ShaderReflection* reflection = 0 );
+    ShaderPass CreateShaderPass( const ShaderPassCreateInfo& info );
 
     TextureRO    CreateTexture       ( const void* dataBlob, size_t dataBlobSize );
     TextureRW    CreateTexture1D     ( int w, int mips, Format format, unsigned bindFlags, unsigned cpuaFlags, const void* data );
@@ -718,16 +742,19 @@ namespace device
     Sampler      CreateSampler       ( const SamplerDesc& desc );
 
     InputLayout CreateInputLayout( const VertexBufferDesc* blocks, int nblocks, Shader vertex_shader );
-    BlendState  CreateBlendState( HardwareStateDesc::Blend blend );
-    DepthState  CreateDepthState( HardwareStateDesc::Depth depth );
-    RasterState CreateRasterState( HardwareStateDesc::Raster raster );
+    InputLayout CreateInputLayout( const VertexLayout vertexLayout, ShaderPass shaderPass );
+    //BlendState  CreateBlendState( HardwareStateDesc::Blend blend );
+    //DepthState  CreateDepthState( HardwareStateDesc::Depth depth );
+    //RasterState CreateRasterState( HardwareStateDesc::Raster raster );
+    HardwareState CreateHardwareState( HardwareStateDesc desc );
 
     void DestroyVertexBuffer  ( VertexBuffer* id );
     void DestroyIndexBuffer   ( IndexBuffer* id );
     void DestroyInputLayout   ( InputLayout * id );
     void DestroyConstantBuffer( ConstantBuffer* id );
     void DestroyBufferRO      ( BufferRO* id );
-    void DestroyShader        ( Shader* id );
+    //void DestroyShader        ( Shader* id );
+    void DestroyShaderPass    ( ShaderPass* id );
     void DestroyTexture       ( TextureRO* id );
     void DestroyTexture       ( TextureRW* id );
     void DestroyTexture       ( TextureDepth* id );
@@ -735,6 +762,7 @@ namespace device
     void DestroyBlendState    ( BlendState* id );
     void DestroyDepthState    ( DepthState* id );
     void DestroyRasterState   ( RasterState * id );
+    void DestroyHardwareState ( HardwareState* id );
 }///
 //
 
@@ -744,6 +772,7 @@ namespace context
     void SetVertexBuffers ( CommandQueue* cmdq, VertexBuffer* vbuffers, unsigned start, unsigned n );
     void SetIndexBuffer   ( CommandQueue* cmdq, IndexBuffer ibuffer );
     void SetShaderPrograms( CommandQueue* cmdq, Shader* shaders, int n );
+    void SetShaderPass    ( CommandQueue* cmdq, ShaderPass pass );
     void SetInputLayout   ( CommandQueue* cmdq, InputLayout ilay );
 
     void SetCbuffers   ( CommandQueue* cmdq, ConstantBuffer* cbuffers, unsigned startSlot, unsigned n, unsigned stageMask );
@@ -754,6 +783,7 @@ namespace context
     void SetDepthState  ( CommandQueue* cmdq, DepthState state );
     void SetBlendState  ( CommandQueue* cmdq, BlendState state );
     void SetRasterState ( CommandQueue* cmdq, RasterState state );
+    void SetHardwareState( CommandQueue* cmdq, HardwareState hwstate );
     void SetScissorRects( CommandQueue* cmdq, const Rect* rects, int n );
     void SetTopology    ( CommandQueue* cmdq, int topology );
 

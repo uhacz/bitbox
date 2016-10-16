@@ -418,101 +418,130 @@ BufferRO CreateBufferRO( int numElements, Format format, unsigned cpuAccessFlag,
     return b;
 }
 
-Shader CreateShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, ShaderReflection* reflection )
+//Shader CreateShader( int stage, const char* shaderSource, const char* entryPoint, const char** shaderMacro, ShaderReflection* reflection )
+//{
+//    SYS_ASSERT( stage < EStage::COUNT );
+//    const char* shaderModel[EStage::COUNT] =
+//    {
+//        "vs_4_0",
+//        "ps_4_0",
+//        //"gs_4_0",
+//        //"hs_5_0",
+//        //"ds_5_0",
+//        "cs_5_0"
+//    };
+//
+//    D3D_SHADER_MACRO* ptr_macro_defs = 0;
+//    D3D_SHADER_MACRO macro_defs_array[cMAX_SHADER_MACRO + 1];
+//    memset( macro_defs_array, 0, sizeof( macro_defs_array ) );
+//
+//    if( shaderMacro )
+//    {
+//        const int n_macro = to_D3D_SHADER_MACRO_array( macro_defs_array, cMAX_SHADER_MACRO + 1, shaderMacro );
+//        ptr_macro_defs = macro_defs_array;
+//    }
+//
+//    ID3DBlob* code_blob = 0;
+//    ID3DBlob* error_blob = 0;
+//    HRESULT hr = D3DCompile(
+//        shaderSource,
+//        strlen( shaderSource ),
+//        0,
+//        ptr_macro_defs,
+//        0,
+//        entryPoint,
+//        shaderModel[stage],
+//        0,
+//        0,
+//        &code_blob,
+//        &error_blob
+//        );
+//
+//    if( !SUCCEEDED( hr ) )
+//    {
+//        const char* error_string = (const char*)error_blob->GetBufferPointer();
+//
+//        bxLogError( "Compile shader error:\n%s", error_string );
+//        error_blob->Release();
+//        SYS_ASSERT( false && "Shader compiler failed" );
+//    }
+//
+//    Shader sh = CreateShader( stage, code_blob->GetBufferPointer(), code_blob->GetBufferSize(), reflection );
+//    code_blob->Release();
+//
+//    return sh;
+//}
+//Shader CreateShader( int stage, const void* codeBlob, size_t codeBlobSize, ShaderReflection* reflection )
+//{
+//    Shader sh = {};
+//
+//    ID3DBlob* inputSignature = 0;
+//
+//    HRESULT hres;
+//    switch( stage )
+//    {
+//    case EStage::VERTEX:
+//        hres = g_device->CreateVertexShader( codeBlob, codeBlobSize, 0, &sh.vertex );
+//        SYS_ASSERT( SUCCEEDED( hres ) );
+//        hres = D3DGetInputSignatureBlob( codeBlob, codeBlobSize, &inputSignature );
+//        SYS_ASSERT( SUCCEEDED( hres ) );
+//        break;
+//    case EStage::PIXEL:
+//        hres = g_device->CreatePixelShader( codeBlob, codeBlobSize, 0, &sh.pixel );
+//        break;
+//    case EStage::COMPUTE:
+//        hres = g_device->CreateComputeShader( codeBlob, codeBlobSize, 0, &sh.compute );
+//        break;
+//    default:
+//        SYS_NOT_IMPLEMENTED;
+//        break;
+//    }
+//
+//    SYS_ASSERT( SUCCEEDED( hres ) );
+//
+//    if( reflection )
+//    {
+//        Dx11FetchShaderReflection( reflection, codeBlob, codeBlobSize, stage );
+//        if( stage == EStage::VERTEX )
+//        {
+//            sh.vertexInputMask = reflection->input_mask;
+//        }
+//    }
+//
+//    sh.inputSignature = (void*)inputSignature;
+//    sh.stage = stage;
+//
+//    return sh;
+//}
+ShaderPass device::CreateShaderPass( const ShaderPassCreateInfo& info )
 {
-    SYS_ASSERT( stage < EStage::COUNT );
-    const char* shaderModel[EStage::COUNT] =
-    {
-        "vs_4_0",
-        "ps_4_0",
-        //"gs_4_0",
-        //"hs_5_0",
-        //"ds_5_0",
-        "cs_5_0"
-    };
-
-    D3D_SHADER_MACRO* ptr_macro_defs = 0;
-    D3D_SHADER_MACRO macro_defs_array[cMAX_SHADER_MACRO + 1];
-    memset( macro_defs_array, 0, sizeof( macro_defs_array ) );
-
-    if( shaderMacro )
-    {
-        const int n_macro = to_D3D_SHADER_MACRO_array( macro_defs_array, cMAX_SHADER_MACRO + 1, shaderMacro );
-        ptr_macro_defs = macro_defs_array;
-    }
-
-    ID3DBlob* code_blob = 0;
-    ID3DBlob* error_blob = 0;
-    HRESULT hr = D3DCompile(
-        shaderSource,
-        strlen( shaderSource ),
-        0,
-        ptr_macro_defs,
-        0,
-        entryPoint,
-        shaderModel[stage],
-        0,
-        0,
-        &code_blob,
-        &error_blob
-        );
-
-    if( !SUCCEEDED( hr ) )
-    {
-        const char* error_string = (const char*)error_blob->GetBufferPointer();
-
-        bxLogError( "Compile shader error:\n%s", error_string );
-        error_blob->Release();
-        SYS_ASSERT( false && "Shader compiler failed" );
-    }
-
-    Shader sh = CreateShader( stage, code_blob->GetBufferPointer(), code_blob->GetBufferSize(), reflection );
-    code_blob->Release();
-
-    return sh;
-}
-Shader CreateShader( int stage, const void* codeBlob, size_t codeBlobSize, ShaderReflection* reflection )
-{
-    Shader sh = {};
-
-    ID3DBlob* inputSignature = 0;
+    ShaderPass pass = {};
 
     HRESULT hres;
-    switch( stage )
+    if( info.vertex_bytecode && info.vertex_bytecode_size )
     {
-    case EStage::VERTEX:
-        hres = g_device->CreateVertexShader( codeBlob, codeBlobSize, 0, &sh.vertex );
+        hres = g_device->CreateVertexShader( info.vertex_bytecode, info.vertex_bytecode_size, nullptr, &pass.vertex );
         SYS_ASSERT( SUCCEEDED( hres ) );
-        hres = D3DGetInputSignatureBlob( codeBlob, codeBlobSize, &inputSignature );
+
+        ID3DBlob* blob = nullptr;
+        hres = D3DGetInputSignatureBlob( info.vertex_bytecode, info.vertex_bytecode_size, &blob );
         SYS_ASSERT( SUCCEEDED( hres ) );
-        break;
-    case EStage::PIXEL:
-        hres = g_device->CreatePixelShader( codeBlob, codeBlobSize, 0, &sh.pixel );
-        break;
-    case EStage::COMPUTE:
-        hres = g_device->CreateComputeShader( codeBlob, codeBlobSize, 0, &sh.compute );
-        break;
-    default:
-        SYS_NOT_IMPLEMENTED;
-        break;
-    }
-
-    SYS_ASSERT( SUCCEEDED( hres ) );
-
-    if( reflection )
-    {
-        Dx11FetchShaderReflection( reflection, codeBlob, codeBlobSize, stage );
-        if( stage == EStage::VERTEX )
+        pass.input_signature = (void*)blob;
+        if( info.reflection )
         {
-            sh.vertexInputMask = reflection->input_mask;
+            Dx11FetchShaderReflection( info.reflection, info.vertex_bytecode, info.vertex_bytecode_size, EStage::VERTEX );
+            pass.vertex_input_mask = info.reflection->input_mask;
         }
     }
-
-    sh.inputSignature = (void*)inputSignature;
-    sh.stage = stage;
-
-    return sh;
+    if( info.pixel_bytecode && info.pixel_bytecode_size )
+    {
+        hres = g_device->CreatePixelShader( info.pixel_bytecode, info.pixel_bytecode_size, nullptr, &pass.pixel );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+        Dx11FetchShaderReflection( info.reflection, info.pixel_bytecode, info.pixel_bytecode_size, EStage::PIXEL );
+    }
+    return pass;
 }
+
 
 TextureRO CreateTexture( const void* dataBlob, size_t dataBlobSize )
 {
@@ -840,124 +869,224 @@ Sampler CreateSampler( const SamplerDesc& desc )
     return result;
 }
 
+namespace 
+{
+    ID3D11InputLayout* _CreateInputLayoutInternal( const VertexBufferDesc* blocks, int nblocks, const void* signature )
+    {
+        const int MAX_IEDESCS = cMAX_VERTEX_BUFFERS;
+        SYS_ASSERT( nblocks < MAX_IEDESCS );
+
+        D3D11_INPUT_ELEMENT_DESC d3d_iedescs[MAX_IEDESCS];
+        for( int iblock = 0; iblock < nblocks; ++iblock )
+        {
+            const VertexBufferDesc block = blocks[iblock];
+            const Format format = Format( ( EDataType::Enum )block.dataType, block.numElements ).Normalized( block.typeNorm );
+            D3D11_INPUT_ELEMENT_DESC& d3d_desc = d3d_iedescs[iblock];
+
+            d3d_desc.SemanticName = slotName[block.slot];
+            d3d_desc.SemanticIndex = slotSemanticIndex[block.slot];
+            d3d_desc.Format = to_DXGI_FORMAT( format );
+            d3d_desc.InputSlot = iblock;
+            d3d_desc.AlignedByteOffset = 0;
+            d3d_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+            d3d_desc.InstanceDataStepRate = 0;
+        }
+
+        ID3D11InputLayout *dxLayout = 0;
+        ID3DBlob* signatureBlob = (ID3DBlob*)signature;
+        HRESULT hres = g_device->CreateInputLayout( d3d_iedescs, nblocks, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), &dxLayout );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+
+        return dxLayout;
+    }
+}
+
 InputLayout CreateInputLayout( const VertexBufferDesc* blocks, int nblocks, Shader vertexShader )
 {
     SYS_ASSERT( vertexShader.stage == EStage::VERTEX );
-
-    const int MAX_IEDESCS = cMAX_VERTEX_BUFFERS;
-    SYS_ASSERT( nblocks < MAX_IEDESCS );
-
-    D3D11_INPUT_ELEMENT_DESC d3d_iedescs[MAX_IEDESCS];
-    for( int iblock = 0; iblock < nblocks; ++iblock )
-    {
-        const VertexBufferDesc block = blocks[iblock];
-        const Format format = Format( ( EDataType::Enum )block.dataType, block.numElements ).Normalized( block.typeNorm );
-        D3D11_INPUT_ELEMENT_DESC& d3d_desc = d3d_iedescs[iblock];
-
-        d3d_desc.SemanticName = slotName[block.slot];
-        d3d_desc.SemanticIndex = slotSemanticIndex[block.slot];
-        d3d_desc.Format = to_DXGI_FORMAT( format );
-        d3d_desc.InputSlot = iblock;
-        d3d_desc.AlignedByteOffset = 0;
-        d3d_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-        d3d_desc.InstanceDataStepRate = 0;
-    }
-
-    ID3D11InputLayout *dxLayout = 0;
-    ID3DBlob* signatureBlob = (ID3DBlob*)vertexShader.inputSignature;
-    HRESULT hres = g_device->CreateInputLayout( d3d_iedescs, nblocks, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), &dxLayout );
-    SYS_ASSERT( SUCCEEDED( hres ) );
-
     InputLayout iLay;
-    iLay.layout = dxLayout;
+    iLay.layout = _CreateInputLayoutInternal( blocks, nblocks, vertexShader.inputSignature );
     return iLay;
 }
-BlendState  CreateBlendState( HardwareStateDesc::Blend state )
+InputLayout device::CreateInputLayout( const VertexLayout vertexLayout, ShaderPass shaderPass )
 {
-    D3D11_BLEND_DESC bdesc;
-    memset( &bdesc, 0, sizeof( bdesc ) );
-
-    bdesc.AlphaToCoverageEnable = FALSE;
-    bdesc.IndependentBlendEnable = FALSE;
-    bdesc.RenderTarget[0].BlendEnable    = state.enable;
-    bdesc.RenderTarget[0].SrcBlend       = blendFactor[state.srcFactor];
-    bdesc.RenderTarget[0].DestBlend      = blendFactor[state.dstFactor];
-    bdesc.RenderTarget[0].BlendOp        = blendEquation[state.equation];
-    bdesc.RenderTarget[0].SrcBlendAlpha  = blendFactor[state.srcFactorAlpha];
-    bdesc.RenderTarget[0].DestBlendAlpha = blendFactor[state.dstFactorAlpha];
-    bdesc.RenderTarget[0].BlendOpAlpha   = blendEquation[state.equation];
-
-    u8 mask = 0;
-    mask |= ( state.color_mask & EColorMask::RED   ) ? D3D11_COLOR_WRITE_ENABLE_RED : 0;
-    mask |= ( state.color_mask & EColorMask::GREEN ) ? D3D11_COLOR_WRITE_ENABLE_GREEN : 0;
-    mask |= ( state.color_mask & EColorMask::BLUE  ) ? D3D11_COLOR_WRITE_ENABLE_BLUE : 0;
-    mask |= ( state.color_mask & EColorMask::ALPHA ) ? D3D11_COLOR_WRITE_ENABLE_ALPHA : 0;
-
-    bdesc.RenderTarget[0].RenderTargetWriteMask = mask;
-
-    ID3D11BlendState* dx_state = 0;
-    HRESULT hres = g_device->CreateBlendState( &bdesc, &dx_state );
-    SYS_ASSERT( SUCCEEDED( hres ) );
-
-    BlendState result;
-    result.state = dx_state;
-    return result;
+    InputLayout iLay;
+    iLay.layout = _CreateInputLayoutInternal( vertexLayout.descs, vertexLayout.count, shaderPass.input_signature );
+    return iLay;
 }
-DepthState  CreateDepthState( HardwareStateDesc::Depth state )
+
+
+//BlendState  CreateBlendState( HardwareStateDesc::Blend state )
+//{
+//    D3D11_BLEND_DESC bdesc;
+//    memset( &bdesc, 0, sizeof( bdesc ) );
+//
+//    bdesc.AlphaToCoverageEnable = FALSE;
+//    bdesc.IndependentBlendEnable = FALSE;
+//    bdesc.RenderTarget[0].BlendEnable    = state.enable;
+//    bdesc.RenderTarget[0].SrcBlend       = blendFactor[state.srcFactor];
+//    bdesc.RenderTarget[0].DestBlend      = blendFactor[state.dstFactor];
+//    bdesc.RenderTarget[0].BlendOp        = blendEquation[state.equation];
+//    bdesc.RenderTarget[0].SrcBlendAlpha  = blendFactor[state.srcFactorAlpha];
+//    bdesc.RenderTarget[0].DestBlendAlpha = blendFactor[state.dstFactorAlpha];
+//    bdesc.RenderTarget[0].BlendOpAlpha   = blendEquation[state.equation];
+//
+//    u8 mask = 0;
+//    mask |= ( state.color_mask & EColorMask::RED   ) ? D3D11_COLOR_WRITE_ENABLE_RED : 0;
+//    mask |= ( state.color_mask & EColorMask::GREEN ) ? D3D11_COLOR_WRITE_ENABLE_GREEN : 0;
+//    mask |= ( state.color_mask & EColorMask::BLUE  ) ? D3D11_COLOR_WRITE_ENABLE_BLUE : 0;
+//    mask |= ( state.color_mask & EColorMask::ALPHA ) ? D3D11_COLOR_WRITE_ENABLE_ALPHA : 0;
+//
+//    bdesc.RenderTarget[0].RenderTargetWriteMask = mask;
+//
+//    ID3D11BlendState* dx_state = 0;
+//    HRESULT hres = g_device->CreateBlendState( &bdesc, &dx_state );
+//    SYS_ASSERT( SUCCEEDED( hres ) );
+//
+//    BlendState result;
+//    result.state = dx_state;
+//    return result;
+//}
+//DepthState  CreateDepthState( HardwareStateDesc::Depth state )
+//{
+//    D3D11_DEPTH_STENCIL_DESC dsdesc;
+//    memset( &dsdesc, 0, sizeof( dsdesc ) );
+//
+//    dsdesc.DepthEnable = state.test;
+//    dsdesc.DepthWriteMask = ( state.write ) ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+//    dsdesc.DepthFunc = depthCmpFunc[state.function];
+//
+//    dsdesc.StencilEnable = FALSE;
+//    dsdesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+//    dsdesc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+//
+//    dsdesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+//    dsdesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+//    dsdesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+//    dsdesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+//
+//    dsdesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+//    dsdesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+//    dsdesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+//    dsdesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+//
+//    ID3D11DepthStencilState* dx_state = 0;
+//    HRESULT hres = g_device->CreateDepthStencilState( &dsdesc, &dx_state );
+//    SYS_ASSERT( SUCCEEDED( hres ) );
+//
+//    DepthState result;
+//    result.state = dx_state;
+//    return result;
+//}
+//RasterState CreateRasterState( HardwareStateDesc::Raster state )
+//{
+//    D3D11_RASTERIZER_DESC rdesc;
+//    memset( &rdesc, 0, sizeof( rdesc ) );
+//
+//    rdesc.FillMode = fillMode[state.fillMode];
+//    rdesc.CullMode = cullMode[state.cullMode];
+//    rdesc.FrontCounterClockwise = TRUE;
+//    rdesc.DepthBias = 0;
+//    rdesc.SlopeScaledDepthBias = 0.f;
+//    rdesc.DepthBiasClamp = 0.f;
+//    rdesc.DepthClipEnable = TRUE;
+//    rdesc.ScissorEnable = state.scissor;
+//    rdesc.MultisampleEnable = FALSE;
+//    rdesc.AntialiasedLineEnable = state.antialiasedLine;
+//
+//    ID3D11RasterizerState* dx_state = 0;
+//    HRESULT hres = g_device->CreateRasterizerState( &rdesc, &dx_state );
+//    SYS_ASSERT( SUCCEEDED( hres ) );
+//
+//    RasterState result;
+//    result.state = dx_state;
+//    return result;
+//}
+
+HardwareState device::CreateHardwareState( HardwareStateDesc desc )
 {
-    D3D11_DEPTH_STENCIL_DESC dsdesc;
-    memset( &dsdesc, 0, sizeof( dsdesc ) );
+    HardwareState hwstate = {};
+    {
+        HardwareStateDesc::Blend state = desc.blend;
+        D3D11_BLEND_DESC bdesc;
+        memset( &bdesc, 0, sizeof( bdesc ) );
 
-    dsdesc.DepthEnable = state.test;
-    dsdesc.DepthWriteMask = ( state.write ) ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-    dsdesc.DepthFunc = depthCmpFunc[state.function];
+        bdesc.AlphaToCoverageEnable = FALSE;
+        bdesc.IndependentBlendEnable = FALSE;
+        bdesc.RenderTarget[0].BlendEnable = state.enable;
+        bdesc.RenderTarget[0].SrcBlend = blendFactor[state.srcFactor];
+        bdesc.RenderTarget[0].DestBlend = blendFactor[state.dstFactor];
+        bdesc.RenderTarget[0].BlendOp = blendEquation[state.equation];
+        bdesc.RenderTarget[0].SrcBlendAlpha = blendFactor[state.srcFactorAlpha];
+        bdesc.RenderTarget[0].DestBlendAlpha = blendFactor[state.dstFactorAlpha];
+        bdesc.RenderTarget[0].BlendOpAlpha = blendEquation[state.equation];
 
-    dsdesc.StencilEnable = FALSE;
-    dsdesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
-    dsdesc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+        u8 mask = 0;
+        mask |= ( state.color_mask & EColorMask::RED ) ? D3D11_COLOR_WRITE_ENABLE_RED : 0;
+        mask |= ( state.color_mask & EColorMask::GREEN ) ? D3D11_COLOR_WRITE_ENABLE_GREEN : 0;
+        mask |= ( state.color_mask & EColorMask::BLUE ) ? D3D11_COLOR_WRITE_ENABLE_BLUE : 0;
+        mask |= ( state.color_mask & EColorMask::ALPHA ) ? D3D11_COLOR_WRITE_ENABLE_ALPHA : 0;
 
-    dsdesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
-    dsdesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
-    dsdesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
-    dsdesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        bdesc.RenderTarget[0].RenderTargetWriteMask = mask;
 
-    dsdesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
-    dsdesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
-    dsdesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
-    dsdesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        ID3D11BlendState* dx_state = 0;
+        HRESULT hres = g_device->CreateBlendState( &bdesc, &hwstate.blend );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
 
-    ID3D11DepthStencilState* dx_state = 0;
-    HRESULT hres = g_device->CreateDepthStencilState( &dsdesc, &dx_state );
-    SYS_ASSERT( SUCCEEDED( hres ) );
+    {
+        HardwareStateDesc::Depth state = desc.depth;
+        D3D11_DEPTH_STENCIL_DESC dsdesc;
+        memset( &dsdesc, 0, sizeof( dsdesc ) );
 
-    DepthState result;
-    result.state = dx_state;
-    return result;
+        dsdesc.DepthEnable = state.test;
+        dsdesc.DepthWriteMask = ( state.write ) ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+        dsdesc.DepthFunc = depthCmpFunc[state.function];
+
+        dsdesc.StencilEnable = FALSE;
+        dsdesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+        dsdesc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+
+        dsdesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+        dsdesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        dsdesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+        dsdesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+
+        dsdesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+        dsdesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        dsdesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+        dsdesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+
+        ID3D11DepthStencilState* dx_state = 0;
+        HRESULT hres = g_device->CreateDepthStencilState( &dsdesc, &hwstate.depth );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    {
+        HardwareStateDesc::Raster state = desc.raster;
+        D3D11_RASTERIZER_DESC rdesc;
+        memset( &rdesc, 0, sizeof( rdesc ) );
+
+        rdesc.FillMode = fillMode[state.fillMode];
+        rdesc.CullMode = cullMode[state.cullMode];
+        rdesc.FrontCounterClockwise = TRUE;
+        rdesc.DepthBias = 0;
+        rdesc.SlopeScaledDepthBias = 0.f;
+        rdesc.DepthBiasClamp = 0.f;
+        rdesc.DepthClipEnable = TRUE;
+        rdesc.ScissorEnable = state.scissor;
+        rdesc.MultisampleEnable = FALSE;
+        rdesc.AntialiasedLineEnable = state.antialiasedLine;
+
+        ID3D11RasterizerState* dx_state = 0;
+        HRESULT hres = g_device->CreateRasterizerState( &rdesc, &hwstate.raster );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    return hwstate;
 }
-RasterState CreateRasterState( HardwareStateDesc::Raster state )
-{
-    D3D11_RASTERIZER_DESC rdesc;
-    memset( &rdesc, 0, sizeof( rdesc ) );
 
-    rdesc.FillMode = fillMode[state.fillMode];
-    rdesc.CullMode = cullMode[state.cullMode];
-    rdesc.FrontCounterClockwise = TRUE;
-    rdesc.DepthBias = 0;
-    rdesc.SlopeScaledDepthBias = 0.f;
-    rdesc.DepthBiasClamp = 0.f;
-    rdesc.DepthClipEnable = TRUE;
-    rdesc.ScissorEnable = state.scissor;
-    rdesc.MultisampleEnable = FALSE;
-    rdesc.AntialiasedLineEnable = state.antialiasedLine;
 
-    ID3D11RasterizerState* dx_state = 0;
-    HRESULT hres = g_device->CreateRasterizerState( &rdesc, &dx_state );
-    SYS_ASSERT( SUCCEEDED( hres ) );
-
-    RasterState result;
-    result.state = dx_state;
-    return result;
-}
 
 template< class T >
 static inline void releaseSafe( T*& obj )
@@ -1000,6 +1129,17 @@ void DestroyShader( Shader* id )
         id->inputSignature = 0;
     }
 }
+void DestroyShaderPass( ShaderPass* id )
+{
+    releaseSafe( id->vertex );
+    releaseSafe( id->pixel );
+    {
+        ID3DBlob* blob = (ID3DBlob*)id->input_signature;
+        blob->Release();
+        id->input_signature = nullptr;
+    }
+}
+
 void DestroyTexture( TextureRO* id )
 {
     releaseSafe( id->viewSH );
@@ -1035,6 +1175,14 @@ void DestroyRasterState( RasterState * id )
 {
     releaseSafe( id->state );
 }
+void DestroyHardwareState( HardwareState* id )
+{
+    releaseSafe( id->raster );
+    releaseSafe( id->depth );
+    releaseSafe( id->blend );
+}
+
+
 }///
 
 }}///
@@ -1115,6 +1263,12 @@ void SetShaderPrograms( CommandQueue* cmdq, Shader* shaders, int n )
         }
     }
 }
+void SetShaderPass( CommandQueue* cmdq, ShaderPass pass )
+{
+    cmdq->dx11()->VSSetShader( pass.vertex, 0, 0 );
+    cmdq->dx11()->PSSetShader( pass.pixel, 0, 0 );
+}
+
 void SetInputLayout( CommandQueue* cmdq, InputLayout ilay )
 {
     cmdq->dx11()->IASetInputLayout( ilay.layout );
@@ -1226,6 +1380,17 @@ void SetRasterState( CommandQueue* cmdq, RasterState state )
 {
     cmdq->dx11()->RSSetState( state.state );
 }
+void SetHardwareState( CommandQueue* cmdq, HardwareState hwstate )
+{
+    cmdq->dx11()->OMSetDepthStencilState( hwstate.depth, 0 );
+    
+    const float bfactor[4] = { 0.f, 0.f, 0.f, 0.f };
+    cmdq->dx11()->OMSetBlendState( hwstate.blend, bfactor, 0xFFFFFFFF );
+    
+    cmdq->dx11()->RSSetState( hwstate.raster );
+}
+
+
 void SetScissorRects( CommandQueue* cmdq, const Rect* rects, int n )
 {
     const int cMAX_RECTS = 4;
