@@ -31,13 +31,35 @@ struct RenderingUtils
 
 };
 
+
+//////////////////////////////////////////////////////////////////////////
+struct RendererImpl
+{
+    struct EFramebuffer
+    {
+        enum Enum
+        {
+            ALBEDO_SPECULAR,
+            VPOSITION_ROUGHNESS,
+            VNORMAL_METALIC,
+        };
+    };
+    rdi::RenderTarget renderTarget;
+    rdi::Pipeline pipeline_copy_texture_rgba = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline pipeline_material_notexture = BX_RDI_NULL_HANDLE;
+
+    rdi::ResourceDescriptor rdesc_copy_texture = BX_RDI_NULL_HANDLE;
+
+
+};
+
 namespace renderer
 {
     static SharedMeshContainer g_mesh_container = {};
     static MaterialContainer g_material_container = {};
     
 //////////////////////////////////////////////////////////////////////////
-void startup()
+Renderer startup()
 {
 
 }

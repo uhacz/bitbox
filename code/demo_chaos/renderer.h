@@ -27,10 +27,12 @@ namespace gfx{
         //rdi::TextureRO metallic_tex;
     };
 
+    
+    typedef struct RendererImpl* Renderer;
     namespace renderer
     {
-        void startup();
-        void shutdown();
+        Renderer startup();
+        void shutdown( Renderer* rnd );
 
         Material createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextureNames* textures );
         void destroyMaterial( Material* m );
@@ -52,6 +54,6 @@ namespace gfx{
     namespace renderer_util
     {
         void copyTexture( const rdi::TextureRW* destination, const rdi::ResourceRO* source );
-        void rasterizeFramebuffer( const rdi::ResourceRO& source );
+        void rasterizeFramebuffer( const rdi::ResourceRO* source );
     }///
 }}///
