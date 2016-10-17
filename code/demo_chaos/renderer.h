@@ -15,12 +15,16 @@ namespace gfx{
         f32 roughness = 0.5f;
         f32 metallic = 0.f;
     };
-    struct MaterialTextures
+    struct MaterialTextureNames
     {
-        rdi::TextureRO diffuse_tex;
-        rdi::TextureRO specular_tex;
-        rdi::TextureRO roughness_tex;
-        rdi::TextureRO metallic_tex;
+        const char* diffuse_tex = nullptr;
+        const char* specular_tex = nullptr;
+        const char* roughness_tex = nullptr;
+        const char* metallic_tex = nullptr;
+        //rdi::TextureRO diffuse_tex;
+        //rdi::TextureRO specular_tex;
+        //rdi::TextureRO roughness_tex;
+        //rdi::TextureRO metallic_tex;
     };
 
     namespace renderer
@@ -28,7 +32,7 @@ namespace gfx{
         void startup();
         void shutdown();
 
-        Material createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextures* textures );
+        Material createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextureNames* textures );
         void destroyMaterial( Material* m );
         Material findMaterial( const char* name );
 
