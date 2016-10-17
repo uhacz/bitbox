@@ -188,7 +188,7 @@ struct BIT_ALIGNMENT_16 ResourceDescriptorImpl
 };
 namespace
 {
-    static const u32 _resource_size[_eRESOURCE_TYPE_COUNT_] =
+    static const u32 _resource_size[EBindingType::_COUNT_] =
     {
         sizeof( ResourceRO ),     //eRESOURCE_TYPE_READ_ONLY,
         sizeof( ResourceRW ),     //eRESOURCE_TYPE_READ_WRITE,
@@ -246,7 +246,7 @@ void DestroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocato
 
 namespace
 {
-    const ResourceDescriptorImpl::Desc* _FindResourceDesc( const ResourceDescriptorImpl* impl, EResourceType type, u8 stageMask, u8 slot )
+    const ResourceDescriptorImpl::Desc* _FindResourceDesc( const ResourceDescriptorImpl* impl, EBindingType::Enum type, u8 stageMask, u8 slot )
     {
         for( u32 i = 0; i < impl->count; ++i )
         {
@@ -278,7 +278,7 @@ namespace
 }
 bool SetResourceRO( ResourceDescriptor rdesc, const ResourceRO* resource, u8 stageMask, u8 slot )
 {
-    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, eRESOURCE_TYPE_READ_ONLY, stageMask, slot );
+    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, EBindingType::READ_ONLY, stageMask, slot );
     if( !desc )
         return false;
 
@@ -287,7 +287,7 @@ bool SetResourceRO( ResourceDescriptor rdesc, const ResourceRO* resource, u8 sta
 }
 bool SetResourceRW( ResourceDescriptor rdesc, const ResourceRW* resource, u8 stageMask, u8 slot )
 {
-    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, eRESOURCE_TYPE_READ_WRITE, stageMask, slot );
+    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, EBindingType::READ_WRITE, stageMask, slot );
     if( !desc )
         return false;
 
@@ -296,7 +296,7 @@ bool SetResourceRW( ResourceDescriptor rdesc, const ResourceRW* resource, u8 sta
 }
 bool SetConstantBuffer( ResourceDescriptor rdesc, const ConstantBuffer cbuffer, u8 stageMask, u8 slot )
 {
-    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, eRESOURCE_TYPE_UNIFORM, stageMask, slot );
+    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, EBindingType::UNIFORM, stageMask, slot );
     if( !desc )
         return false;
 
@@ -306,7 +306,7 @@ bool SetConstantBuffer( ResourceDescriptor rdesc, const ConstantBuffer cbuffer, 
 }
 bool SetSampler( ResourceDescriptor rdesc, const Sampler sampler, u8 stageMask, u8 slot )
 {
-    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, eRESOURCE_TYPE_SAMPLER, stageMask, slot );
+    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, EBindingType::SAMPLER, stageMask, slot );
     if( !desc )
         return false;
 
@@ -325,22 +325,22 @@ void BindResources( CommandQueue* cmdq, ResourceDescriptor rdesc )
         const ResourceBinding binding = desc.binding;
 
         const u8* data_begin = rdesc->data + desc.offset;
-        if( binding.type == eRESOURCE_TYPE_READ_ONLY )
+        if( binding.type == EBindingType::READ_ONLY )
         {
             ResourceRO* ro = ( ResourceRO* )data_begin;
             context::SetResourcesRO( cmdq, ro, binding.first_slot, binding.count, binding.stage_mask );
         }
-        else if( binding.type == eRESOURCE_TYPE_READ_WRITE )
+        else if( binding.type == EBindingType::READ_WRITE )
         {
             ResourceRW* rw = ( ResourceRW* )data_begin;
             context::SetResourcesRW( cmdq, rw, binding.first_slot, binding.count, binding.stage_mask );
         }
-        else if( binding.type == eRESOURCE_TYPE_UNIFORM )
+        else if( binding.type == EBindingType::UNIFORM )
         {
             ConstantBuffer* cb = ( ConstantBuffer* )data_begin;
             context::SetCbuffers( cmdq, cb, binding.first_slot, binding.count, binding.stage_mask );
         }
-        else if( binding.type == eRESOURCE_TYPE_SAMPLER )
+        else if( binding.type == EBindingType::SAMPLER )
         {
             Sampler* sampl = ( Sampler* )data_begin;
             context::SetSamplers( cmdq, sampl, binding.first_slot, binding.count, binding.stage_mask );

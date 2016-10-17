@@ -24,7 +24,7 @@ struct SceneImpl
     void remove( MeshInstance* mi );
     MeshInstance find( const char* name );
 
-    void setRenderSource( MeshInstance mi, RenderSource rs );
+    void setRenderSource( MeshInstance mi, rdi::RenderSource rs );
     void setMaterial( MeshInstance mi, Material m );
     void setMatrices( MeshInstance mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
 
@@ -38,7 +38,7 @@ private:
     {
         void*                _memory_handle = nullptr;
         MeshInstanceMatrix*  matrices = nullptr;
-        RenderSource*        render_sources = nullptr;
+        rdi::RenderSource*   render_sources = nullptr;
         Material*            materials = nullptr;
         u32*                 num_instances = nullptr;
         MeshInstance*        mesh_instance = nullptr;

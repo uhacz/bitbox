@@ -9,7 +9,7 @@ bool MaterialContainer::alive( Material m ) const
     return id_table::has( _id_to_index, id );
 }
 
-Material MaterialContainer::add( const char* name, ResourceDescriptor rdesc )
+Material MaterialContainer::add( const char* name, rdi::ResourceDescriptor rdesc )
 {
     id_t id = id_table::create( _id_to_index );
     u32 index = id.index;
@@ -29,7 +29,7 @@ void MaterialContainer::remove( Material* m )
 
     u32 index = id.index;
     string::free_and_null( (char**)&_names[index] );
-    _rdescs[index] = BX_GFX_NULL_HANDLE;
+    _rdescs[index] = BX_RDI_NULL_HANDLE;
     _index_to_id[index] = makeInvalidHandle<id_t>();
 
     m[0] = makeMaterial( makeInvalidHandle<id_t>() );
@@ -63,7 +63,7 @@ u32 MaterialContainer::_GetIndex( Material m )
     return id.index;
 }
 
-ResourceDescriptor MaterialContainer::getResourceDesc( Material m )
+rdi::ResourceDescriptor MaterialContainer::getResourceDesc( Material m )
 {
     u32 index = _GetIndex( m );
     return _rdescs[index];

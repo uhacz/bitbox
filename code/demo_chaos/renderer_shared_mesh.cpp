@@ -3,7 +3,7 @@
 #include <util/string_util.h>
 
 namespace bx {namespace gfx {
-    u32 SharedMeshContainer::add( const char* name, RenderSource rs )
+    u32 SharedMeshContainer::add( const char* name, rdi::RenderSource rs )
     {
         u32 index = find( name );
         if( index != UINT32_MAX )
@@ -35,7 +35,7 @@ namespace bx {namespace gfx {
         return UINT32_MAX;
     }
 
-    RenderSource SharedMeshContainer::getRenderSource( u32 index )
+    rdi::RenderSource SharedMeshContainer::getRenderSource( u32 index )
     {
         SYS_ASSERT( index < array::sizeu( _entries ) );
         return _entries[index].rsource;

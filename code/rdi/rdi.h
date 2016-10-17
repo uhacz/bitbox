@@ -95,26 +95,29 @@ void BindRenderTarget( CommandQueue* cmdq, RenderTarget renderTarget, const std:
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-enum EResourceType : u8
+namespace EBindingType
 {
-    eRESOURCE_TYPE_READ_ONLY,
-    eRESOURCE_TYPE_READ_WRITE,
-    eRESOURCE_TYPE_UNIFORM,
-    eRESOURCE_TYPE_SAMPLER,
-    _eRESOURCE_TYPE_COUNT_,
+    enum Enum : u8
+    {
+        READ_ONLY,
+        READ_WRITE,
+        UNIFORM,
+        SAMPLER,
+        _COUNT_,
+    };
 };
 struct ResourceBinding
 {
-    EResourceType type = _eRESOURCE_TYPE_COUNT_;
+    EBindingType::Enum type = EBindingType::_COUNT_;
     u8 stage_mask = 0;
     u8 first_slot = 0;
     u8 count = 0;
 
     ResourceBinding() {}
-    ResourceBinding( EResourceType t, u8 sm, u8 sl, u8 cnt )
+    ResourceBinding( EBindingType::Enum t, u8 sm, u8 sl, u8 cnt )
         : type( t ), stage_mask( sm ), first_slot( sl ), count( cnt ) {}
 
-    ResourceBinding( EResourceType t ) { type = t; }
+    ResourceBinding( EBindingType::Enum t ) { type = t; }
     ResourceBinding& StageMask( u8 sm ) { stage_mask = sm; return *this; }
     ResourceBinding& FirstSlotAndCount( u8 fs, u8 cnt ) { first_slot = fs; count = cnt; return *this; }
 };

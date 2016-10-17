@@ -10,14 +10,14 @@ struct SharedMeshContainer
     struct Entry
     {
         const char* name = nullptr;
-        RenderSource rsource = BX_GFX_NULL_HANDLE;
+        rdi::RenderSource rsource = BX_RDI_NULL_HANDLE;
     };
     array_t< Entry > _entries;
 
-    u32 add( const char* name, RenderSource rs );
+    u32 add( const char* name, rdi::RenderSource rs );
     void remove( u32 index );
     u32 find( const char* name );
-    RenderSource getRenderSource( u32 index );
+    rdi::RenderSource getRenderSource( u32 index );
 };
 
 }}///
