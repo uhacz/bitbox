@@ -177,13 +177,23 @@ void BindRenderTarget( CommandQueue* cmdq, RenderTarget renderTarget, const std:
 //////////////////////////////////////////////////////////////////////////
 struct BIT_ALIGNMENT_16 ResourceDescriptorImpl
 {
-    struct Desc
+    struct Binding
     {
-        ResourceBinding binding;
-        u32 offset = UINT32_MAX;
+        u8 binding_type = EBindingType::_COUNT_;
+        u8 slot = 0;
+        u16 stage_mask = 0;
+        u32 data_offset = 0;
     };
-    Desc* descs = nullptr;
-    u8* data = nullptr;
+
+    //struct Desc
+    //{
+    //    ResourceBinding binding;
+    //    u32 offset = UINT32_MAX;
+    //};
+
+    u32* HashedNames() { return (u32*)( this + 1 ); }
+    Binding* Bindings() { return (Binding*)(HashedNames() + count); }
+
     u32 count = 0;
 };
 namespace
@@ -198,45 +208,69 @@ namespace
 }///
 ResourceDescriptor CreateResourceDescriptor( const ResourceLayout& layout, bxAllocator* allocator /*= nullptr */ )
 {
+    //u32 mem_size = sizeof( ResourceDescriptorImpl );
+    //mem_size += layout.num_bindings * sizeof( ResourceDescriptorImpl::Desc );
+
+    //u32 data_size = 0;
+    //for( u32 i = 0; i < layout.num_bindings; ++i )
+    //{
+    //    const ResourceBinding binding = layout.bindings[i];
+    //    data_size += binding.count * _resource_size[binding.type];
+    //}
+    //mem_size += data_size;
+
+    //u8* mem = (u8*)BX_MALLOC( utils::getAllocator( allocator ), mem_size, 16 );
+    //memset( mem, 0x00, mem_size );
+
+    //bxBufferChunker chunker( mem, mem_size );
+
+    //ResourceDescriptorImpl* impl = chunker.add< ResourceDescriptorImpl >();
+    //impl->descs = chunker.add< ResourceDescriptorImpl::Desc >( layout.num_bindings );
+    //impl->data = chunker.addBlock( data_size );
+
+    //chunker.check();
+
+    //bxBufferChunker data_chunker( impl->data, data_size );
+    //for( u32 i = 0; i < layout.num_bindings; ++i )
+    //{
+    //    const ResourceBinding binding = layout.bindings[i];
+    //    ResourceDescriptorImpl::Desc& desc = impl->descs[i];
+    //    u8* desc_data_ptr = data_chunker.addBlock( binding.count * _resource_size[binding.type] );
+
+    //    desc.binding = binding;
+    //    ptrdiff_t data_offset = (ptrdiff_t)desc_data_ptr - (ptrdiff_t)impl->data;
+    //    SYS_ASSERT( data_offset >= 0 );
+    //    SYS_ASSERT( data_offset < data_size );
+    //    desc.offset = (u32)( data_offset );
+    //}
+
+    //data_chunker.check();
+
+    //return impl;
+
     u32 mem_size = sizeof( ResourceDescriptorImpl );
-    mem_size += layout.num_bindings * sizeof( ResourceDescriptorImpl::Desc );
+    mem_size += layout.num_bindings * sizeof( u32 ); // hashed names
+    mem_size += layout.num_bindings * sizeof( ResourceDescriptorImpl::Binding );
 
     u32 data_size = 0;
     for( u32 i = 0; i < layout.num_bindings; ++i )
     {
         const ResourceBinding binding = layout.bindings[i];
-        data_size += binding.count * _resource_size[binding.type];
+        data_size += _resource_size[binding.type];
     }
     mem_size += data_size;
 
     u8* mem = (u8*)BX_MALLOC( utils::getAllocator( allocator ), mem_size, 16 );
     memset( mem, 0x00, mem_size );
 
-    bxBufferChunker chunker( mem, mem_size );
+    ResourceDescriptorImpl* impl = (ResourceDescriptorImpl*)mem;
+    impl->count = layout.num_bindings;
+    u32* hashed_names = impl->HashedNames();
+    ResourceDescriptorImpl::Binding* bindings = impl->Bindings();
 
-    ResourceDescriptorImpl* impl = chunker.add< ResourceDescriptorImpl >();
-    impl->descs = chunker.add< ResourceDescriptorImpl::Desc >( layout.num_bindings );
-    impl->data = chunker.addBlock( data_size );
+    SYS_ASSERT( (uptr)( bindings + impl->count ) == (uptr)( (u8*)mem + mem_size ) );
 
-    chunker.check();
 
-    bxBufferChunker data_chunker( impl->data, data_size );
-    for( u32 i = 0; i < layout.num_bindings; ++i )
-    {
-        const ResourceBinding binding = layout.bindings[i];
-        ResourceDescriptorImpl::Desc& desc = impl->descs[i];
-        u8* desc_data_ptr = data_chunker.addBlock( binding.count * _resource_size[binding.type] );
-
-        desc.binding = binding;
-        ptrdiff_t data_offset = (ptrdiff_t)desc_data_ptr - (ptrdiff_t)impl->data;
-        SYS_ASSERT( data_offset >= 0 );
-        SYS_ASSERT( data_offset < data_size );
-        desc.offset = (u32)( data_offset );
-    }
-
-    data_chunker.check();
-
-    return impl;
 }
 
 void DestroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocator /*= nullptr */ )

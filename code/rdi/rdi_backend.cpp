@@ -5,32 +5,33 @@
 
 namespace bx{ namespace rdi{ 
 
-EDataType::Enum typeFromName( const char* name )
+
+EDataType::Enum EDataType::FromName( const char* name )
 {
     for( int itype = 0; itype < EDataType::COUNT; ++itype )
     {
-        if( !strcmp( name, typeName[itype] ) )
+        if( !strcmp( name, EDataType::name[itype] ) )
             return (EDataType::Enum)itype;
     }
     return EDataType::UNKNOWN;
 }
 
-EDataType::Enum findBaseType( const char* name )
+EDataType::Enum EDataType::FindBaseType( const char* name )
 {
     for( int itype = 0; itype < EDataType::COUNT; ++itype )
     {
-        if( strstr( name, typeName[itype] ) )
+        if( strstr( name, EDataType::name[itype] ) )
             return (EDataType::Enum)itype;
     }
     return EDataType::UNKNOWN;
 }
 
 
-EVertexSlot::Enum vertexSlotFromString( const char* n )
+EVertexSlot::Enum EVertexSlot::FromString( const char* n )
 {
     for( int i = 0; i < EVertexSlot::COUNT; ++i )
     {
-        if( !strcmp( n, slotName[i] ) )
+        if( !strcmp( n, EVertexSlot::name[i] ) )
             return ( EVertexSlot::Enum )i;
     }
 

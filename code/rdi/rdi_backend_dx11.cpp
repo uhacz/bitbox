@@ -150,7 +150,7 @@ void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, si
             vdesc.hashed_name = simple_hash( sv_desc.Name );
             vdesc.offset = sv_desc.StartOffset;
             vdesc.size = sv_desc.Size;
-            vdesc.type = findBaseType( typeDesc.Name );
+            vdesc.type = EDataType::FindBaseType( typeDesc.Name );
         }
     }
 
@@ -228,7 +228,7 @@ void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, si
         reflector->GetInputParameterDesc( i, &idesc );
 
 
-        EVertexSlot::Enum slot = vertexSlotFromString( idesc.SemanticName );
+        EVertexSlot::Enum slot = EVertexSlot::FromString( idesc.SemanticName );
         if( slot >= EVertexSlot::COUNT )
         {
             //log_error( "Unknown semantic: '%s'", idesc.SemanticName );
@@ -320,7 +320,7 @@ VertexBuffer CreateVertexBuffer  ( const VertexBufferDesc& desc, u32 numElements
 IndexBuffer CreateIndexBuffer( EDataType::Enum dataType, u32 numElements, const void* data )
 {
     const DXGI_FORMAT d11_data_type = to_DXGI_FORMAT( Format( dataType, 1 ) );
-    const u32 stride = typeStride[dataType];
+    const u32 stride = EDataType::stride[dataType];
     const u32 sizeInBytes = numElements * stride;
 
     D3D11_BUFFER_DESC bdesc;
@@ -883,8 +883,8 @@ namespace
             const Format format = Format( ( EDataType::Enum )block.dataType, block.numElements ).Normalized( block.typeNorm );
             D3D11_INPUT_ELEMENT_DESC& d3d_desc = d3d_iedescs[iblock];
 
-            d3d_desc.SemanticName = slotName[block.slot];
-            d3d_desc.SemanticIndex = slotSemanticIndex[block.slot];
+            d3d_desc.SemanticName = EVertexSlot::name[block.slot];
+            d3d_desc.SemanticIndex = EVertexSlot::semanticIndex[block.slot];
             d3d_desc.Format = to_DXGI_FORMAT( format );
             d3d_desc.InputSlot = iblock;
             d3d_desc.AlignedByteOffset = 0;
@@ -1477,7 +1477,7 @@ unsigned char* Map( CommandQueue* cmdq, IndexBuffer ibuffer, int firstElement, i
     SYS_ASSERT( (u32)( firstElement + numElements ) <= ibuffer.numElements );
     SYS_ASSERT( ibuffer.dataType == EDataType::USHORT || ibuffer.dataType == EDataType::UINT );
 
-    const int offsetInBytes = firstElement * typeStride[ibuffer.dataType];
+    const int offsetInBytes = firstElement * EDataType::stride[ibuffer.dataType];
     const D3D11_MAP dxMapType = ( mapType == EMapType::WRITE ) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE;
 
     return _MapResource( cmdq->dx11(), ibuffer.resource, dxMapType, offsetInBytes );

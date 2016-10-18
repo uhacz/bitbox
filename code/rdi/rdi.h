@@ -15,34 +15,8 @@ namespace rdi {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-struct ShaderFile
-{
-    static const u32 VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
-    
-    struct Pass
-    {
-        u32 hashed_name = 0;
-        HardwareStateDesc hw_state_desc = {};
-        VertexLayout vertex_layout = {};
-        u32 offset_bytecode_pixel = 0;
-        u32 offset_bytecode_vertex = 0;
-        u32 size_bytecode_pixel = 0;
-        u32 size_bytecode_vertex = 0;
-    };
+struct ShaderFile;
 
-    u32 tag = bxTag32( "SF01" );
-    u32 version = VERSION;
-    u32 num_passes = 0;
-    Pass passes[1];
-};
-
-u32 ShaderFileNameHash( const char* name, u32 version );
-ShaderFile* ShaderFileLoad( const char* filename, ResourceManager* resourceManager );
-void ShaderFileUnload( ShaderFile** sfile, ResourceManager* resourceManager );
-u32 ShaderFileFindPass( const ShaderFile* sfile, const char* passName );
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
 struct PipelineDesc
 {
     ShaderFile* shader_file = nullptr;
@@ -108,18 +82,18 @@ namespace EBindingType
 };
 struct ResourceBinding
 {
+    const char* name = nullptr;
     EBindingType::Enum type = EBindingType::_COUNT_;
-    u8 stage_mask = 0;
-    u8 first_slot = 0;
-    u8 count = 0;
+    u8 slot = 0;
+    u16 stage_mask = 0;
 
     ResourceBinding() {}
-    ResourceBinding( EBindingType::Enum t, u8 sm, u8 sl, u8 cnt )
-        : type( t ), stage_mask( sm ), first_slot( sl ), count( cnt ) {}
+    ResourceBinding( const char* n, EBindingType::Enum t, u8 sm, u8 sl, u8 cnt )
+        : name( n ), type( t ), slot( sl ), stage_mask( sm ), count( cnt ) {}
 
-    ResourceBinding( EBindingType::Enum t ) { type = t; }
+    ResourceBinding( const char* n, EBindingType::Enum t ) { name = n;  type = t; }
     ResourceBinding& StageMask( u8 sm ) { stage_mask = sm; return *this; }
-    ResourceBinding& FirstSlotAndCount( u8 fs, u8 cnt ) { first_slot = fs; count = cnt; return *this; }
+    ResourceBinding& Slot( u8 slot ) { slot = slot; return *this; }
 };
 
 struct ResourceLayout
@@ -167,4 +141,33 @@ VertexBuffer GetVertexBuffer( RenderSource rsource, u32 index );
 IndexBuffer GetIndexBuffer( RenderSource rsource );
 RenderSourceRange GetRange( RenderSource rsource, u32 index );
 
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+struct ShaderFile
+{
+    static const u32 VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
+
+    struct Pass
+    {
+        u32 hashed_name = 0;
+        HardwareStateDesc hw_state_desc = {};
+        VertexLayout vertex_layout = {};
+        ResourceLayout resource_layout = {};
+        u32 offset_bytecode_pixel = 0;
+        u32 offset_bytecode_vertex = 0;
+        u32 size_bytecode_pixel = 0;
+        u32 size_bytecode_vertex = 0;
+    };
+
+    u32 tag = bxTag32( "SF01" );
+    u32 version = VERSION;
+    u32 num_passes = 0;
+    Pass passes[1];
+};
+
+u32 ShaderFileNameHash( const char* name, u32 version );
+ShaderFile* ShaderFileLoad( const char* filename, ResourceManager* resourceManager );
+void ShaderFileUnload( ShaderFile** sfile, ResourceManager* resourceManager );
+u32 ShaderFileFindPass( const ShaderFile* sfile, const char* passName );
 }}///

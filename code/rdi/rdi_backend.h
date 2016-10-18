@@ -22,12 +22,6 @@ namespace EStage
         COMPUTE_MASK = BIT_OFFSET( COMPUTE ),
     };
 };
-static const char* stageName[EStage::COUNT] =
-{
-    "vertex",
-    "pixel",
-    "compute",
-};
 
 namespace EBindMask
 {
@@ -64,39 +58,41 @@ namespace EDataType
 
         COUNT,
     };
+    static const unsigned stride[] =
+    {
+        0, //
+        1, //BYTE,
+        1, //UBYTE,
+        2, //SHORT,
+        2, //USHORT,
+        4, //INT,
+        4, //UINT,
+        4, //FLOAT,
+        8, //DOUBLE,
+        2, //DEPTH16,
+        4, //DEPTH24_STENCIL8,
+        4, //DEPTH32F,
+    };
+    static const char* name[] =
+    {
+        "none",
+        "byte",
+        "ubyte",
+        "short",
+        "ushort",
+        "int",
+        "uint",
+        "float",
+        "double",
+        "depth16",
+        "depth24_stencil8",
+        "depth32F",
+    };
+    Enum FromName( const char* name );
+    Enum FindBaseType( const char* name );
+
 };
-static const unsigned typeStride[] =
-{
-    0, //
-    1, //BYTE,
-    1, //UBYTE,
-    2, //SHORT,
-    2, //USHORT,
-    4, //INT,
-    4, //UINT,
-    4, //FLOAT,
-    8, //DOUBLE,
-    2, //DEPTH16,
-    4, //DEPTH24_STENCIL8,
-    4, //DEPTH32F,
-};
-static const char* typeName[] =
-{
-    "none",
-    "byte",
-    "ubyte",
-    "short",
-    "ushort",
-    "int",
-    "uint",
-    "float",
-    "double",
-    "depth16",
-    "depth24_stencil8",
-    "depth32F",
-};
-EDataType::Enum typeFromName( const char* name );
-EDataType::Enum findBaseType( const char* name );
+
 
 struct Format
 {
@@ -113,7 +109,7 @@ struct Format
     Format( EDataType::Enum dt, u8 ne ) { type = dt; numElements = ne; normalized = 0; srgb = 0; }
     Format& Normalized( u32 onOff ) { normalized = onOff; return *this; }
     Format& Srgb( u32 onOff ) { srgb = onOff; return *this; }
-    inline u32 ByteWidth() const { return typeStride[type] * numElements; }
+    inline u32 ByteWidth() const { return EDataType::stride[type] * numElements; }
 };
 
 
@@ -178,45 +174,48 @@ namespace EVertexSlot
         BINORMAL,
         COUNT,
     };
+
+    static const char* name[EVertexSlot::COUNT] =
+    {
+        "POSITION",
+        "BLENDWEIGHT",
+        "NORMAL",
+        "COLOR",
+        "COLOR",
+        "FOGCOORD",
+        "PSIZE",
+        "BLENDINDICES",
+        "TEXCOORD",
+        "TEXCOORD",
+        "TEXCOORD",
+        "TEXCOORD",
+        "TEXCOORD",
+        "TEXCOORD",
+        "TANGENT",
+        "BINORMAL",
+    };
+    static const int semanticIndex[EVertexSlot::COUNT] =
+    {
+        0, //POSITION = 0
+        0, //BLENDWEIGHT,
+        0, //NORMAL,	
+        0, //COLOR0,	
+        1, //COLOR1,	
+        0, //FOGCOORD,	
+        0, //PSIZE,		
+        0, //BLENDINDICES
+        0, //TEXCOORD0,	
+        1, //TEXCOORD1,
+        2, //TEXCOORD2,
+        3, //TEXCOORD3,
+        4, //TEXCOORD4,
+        5, //TEXCOORD5,
+        0, //TANGENT,
+    };
+    EVertexSlot::Enum FromString( const char* n );
+
 };
-static const char* slotName[EVertexSlot::COUNT] =
-{
-    "POSITION",
-    "BLENDWEIGHT",
-    "NORMAL",
-    "COLOR",
-    "COLOR",
-    "FOGCOORD",
-    "PSIZE",
-    "BLENDINDICES",
-    "TEXCOORD",
-    "TEXCOORD",
-    "TEXCOORD",
-    "TEXCOORD",
-    "TEXCOORD",
-    "TEXCOORD",
-    "TANGENT",
-    "BINORMAL",
-};
-static const int slotSemanticIndex[EVertexSlot::COUNT] =
-{
-    0, //POSITION = 0
-    0, //BLENDWEIGHT,
-    0, //NORMAL,	
-    0, //COLOR0,	
-    1, //COLOR1,	
-    0, //FOGCOORD,	
-    0, //PSIZE,		
-    0, //BLENDINDICES
-    0, //TEXCOORD0,	
-    1, //TEXCOORD1,
-    2, //TEXCOORD2,
-    3, //TEXCOORD3,
-    4, //TEXCOORD4,
-    5, //TEXCOORD5,
-    0, //TANGENT,
-};
-EVertexSlot::Enum vertexSlotFromString( const char* n );
+
 
 //////////////////////////////////////////////////////////////////////
 /// hwState
@@ -276,7 +275,7 @@ namespace ECullMode
     };
 };
 
-namespace EFillmode
+namespace EFillMode
 {
     enum Enum
     {
@@ -309,18 +308,20 @@ namespace ESamplerFilter
         BILINEAR_ANISO,
         TRILINEAR_ANISO,
     };
+
+    static const char* name[] =
+    {
+        "NEAREST",
+        "LINEAR",
+        "BILINEAR",
+        "TRILINEAR",
+        "BILINEAR_ANISO",
+        "TRILINEAR_ANISO",
+    };
+    inline int hasMipmaps( Enum filter )	{ return ( filter >= BILINEAR ); }
+    inline int hasAniso  ( Enum filter )    { return ( filter >= BILINEAR_ANISO ); }
 };
-static const char* name[] =
-{
-    "NEAREST",
-    "LINEAR",
-    "BILINEAR",
-    "TRILINEAR",
-    "BILINEAR_ANISO",
-    "TRILINEAR_ANISO",
-};
-inline int hasMipmaps( ESamplerFilter::Enum filter )	{ return ( filter >= ESamplerFilter::BILINEAR); }
-inline int hasAniso( ESamplerFilter::Enum filter )		{ return ( filter >= ESamplerFilter::BILINEAR_ANISO ); }
+
 
 namespace ESamplerDepthCmp
 {
@@ -345,13 +346,15 @@ namespace EAddressMode
         CLAMP,
         BORDER,
     };
+
+    static const char* name[] =
+    {
+        "WRAP",
+        "CLAMP",
+        "BORDER",
+    };
 };
-static const char* addressModeName[] =
-{
-    "WRAP",
-    "CLAMP",
-    "BORDER",
-};
+
 
 static const u32 cMAX_RENDER_TARGETS = 8;
 static const u32 cMAX_CBUFFERS = 6;
@@ -439,7 +442,7 @@ struct HardwareStateDesc
     union Raster
     {
         Raster& CullMode        ( ECullMode::Enum c )  { cullMode = c; return *this; }
-        Raster& FillMode        ( EFillmode::Enum f ) { fillMode = f; return *this; }
+        Raster& FillMode        ( EFillMode::Enum f ) { fillMode = f; return *this; }
         Raster& Multisample     ( u32 onOff )         { multisample = onOff; return *this; }
         Raster& AntialiassedLine( u32 onOff )         { antialiasedLine = onOff; return *this; }
         Raster& Scissor         ( u32 onOff )         { scissor = onOff; return *this; }
@@ -466,7 +469,7 @@ struct HardwareStateDesc
             
         depth.Function( EDepthFunc::LEQUAL ).Test( 1 ).Write( 1 );
 
-        raster.CullMode( ECullMode::BACK ).FillMode( EFillmode::SOLID ).Multisample( 1 ).AntialiassedLine( 1 ).Scissor( 0 );
+        raster.CullMode( ECullMode::BACK ).FillMode( EFillMode::SOLID ).Multisample( 1 ).AntialiassedLine( 1 ).Scissor( 0 );
     }
     Blend blend;
     Depth depth;
@@ -499,7 +502,7 @@ union VertexBufferDesc
     }
     VertexBufferDesc& Normalized() { typeNorm = 1; return *this; }
 
-    inline u32 ByteWidth() const { return typeStride[dataType] * numElements; }
+    inline u32 ByteWidth() const { return EDataType::stride[dataType] * numElements; }
 
     u16 hash = 0;
     struct

@@ -19,19 +19,6 @@ struct GBuffer
 
 };
 
-struct RenderingUtils
-{
-    struct Pass
-    {
-        rdi::Pipeline pipeline = BX_RDI_NULL_HANDLE;
-        rdi::ResourceDescriptor resource_desc = BX_RDI_NULL_HANDLE;
-    };
-
-    Pass _texture_copy_rgba;
-
-};
-
-
 //////////////////////////////////////////////////////////////////////////
 struct RendererImpl
 {
@@ -45,12 +32,14 @@ struct RendererImpl
         };
     };
     rdi::RenderTarget renderTarget;
-    rdi::Pipeline pipeline_copy_texture_rgba = BX_RDI_NULL_HANDLE;
-    rdi::Pipeline pipeline_material_notexture = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline pip_copy_tex_rgba = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline pip_material_notex = BX_RDI_NULL_HANDLE;
 
-    rdi::ResourceDescriptor rdesc_copy_texture = BX_RDI_NULL_HANDLE;
+    rdi::ResourceDescriptor rdesc_copy_tex = BX_RDI_NULL_HANDLE;
+    rdi::ResourceDescriptor rdesc_material_notex = BX_RDI_NULL_HANDLE;
 
-
+    rdi::ShaderFile* sfile_texutil = nullptr;
+    rdi::ShaderFile* sfile_deffered = nullptr;
 };
 
 namespace renderer
