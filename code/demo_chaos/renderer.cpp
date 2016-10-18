@@ -58,21 +58,15 @@ void shutdown()
 
 }
 
-static rdi::ResourceBinding g_material_bindings[] =
-{
-    rdi::ResourceBinding( rdi::EBindingType::UNIFORM  ).StageMask( rdi::EStage::PIXEL_MASK ).FirstSlotAndCount( SLOT_MATERIAL_DATA, 1 ),
-    rdi::ResourceBinding( rdi::EBindingType::READ_ONLY ).StageMask( rdi::EStage::PIXEL_MASK ).FirstSlotAndCount( SLOT_MATERIAL_TEXTURE0, SLOT_MATERIAL_TEXTURE_COUNT ),
-    rdi::ResourceBinding( rdi::EBindingType::SAMPLER ).StageMask( rdi::EStage::PIXEL_MASK ).FirstSlotAndCount( 0, 1 ),
-};
 Material createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextureNames* textures )
 {
-    rdi::ResourceLayout resourceLayout = {};
-    resourceLayout.bindings = g_material_bindings;
-    resourceLayout.num_bindings = ( textures ) ? 3 : 1;
-    rdi::ResourceDescriptor resourceDesc = rdi::CreateResourceDescriptor( resourceLayout, nullptr );
+    //rdi::ResourceLayout resourceLayout = {};
+    //resourceLayout.bindings = g_material_bindings;
+    //resourceLayout.num_bindings = ( textures ) ? 3 : 1;
+    //rdi::ResourceDescriptor resourceDesc = rdi::CreateResourceDescriptor( resourceLayout, nullptr );
 
-    rdi::ConstantBuffer cbuffer = rdi::device::CreateConstantBuffer( sizeof( MaterialDesc ) );
-    rdi::SetConstantBuffer( resourceDesc, cbuffer, rdi::EStage::PIXEL_MASK, SLOT_MATERIAL_DATA );
+    //rdi::ConstantBuffer cbuffer = rdi::device::CreateConstantBuffer( sizeof( MaterialDesc ) );
+    //rdi::SetConstantBuffer( resourceDesc, cbuffer, rdi::EStage::PIXEL_MASK, SLOT_MATERIAL_DATA );
 
     //if( textures )
     //{
@@ -81,8 +75,11 @@ Material createMaterial( const char* name, const MaterialDesc& desc, const Mater
     //    rdi::SetResourceRO( resourceDesc, &textures->roughness_tex, rdi::EStage::PIXEL_MASK, SLOT_MATERIAL_TEXTURE2 );
     //    rdi::SetResourceRO( resourceDesc, &textures->metallic_tex , rdi::EStage::PIXEL_MASK, SLOT_MATERIAL_TEXTURE3 );
     //}
-        
-    return g_material_container.add( name, resourceDesc );
+      
+    Material m;
+    m.i = 0;
+    return m;
+    //return g_material_container.add( name, resourceDesc );
 }
 
 void destroyMaterial( Material* m )

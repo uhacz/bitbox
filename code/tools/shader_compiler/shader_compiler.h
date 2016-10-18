@@ -2,6 +2,6 @@
 
 namespace bx{ namespace tool{
     
-    int ShaderCompilerCompile( const char* inputFile );
+    int ShaderCompilerCompile( const char* inputFile, const char* outputDir );
 
 }}///

@@ -89,7 +89,7 @@ struct ResourceBinding
 
     ResourceBinding() {}
     ResourceBinding( const char* n, EBindingType::Enum t, u8 sm, u8 sl, u8 cnt )
-        : name( n ), type( t ), slot( sl ), stage_mask( sm ), count( cnt ) {}
+        : name( n ), type( t ), slot( sl ), stage_mask( sm ) {}
 
     ResourceBinding( const char* n, EBindingType::Enum t ) { name = n;  type = t; }
     ResourceBinding& StageMask( u8 sm ) { stage_mask = sm; return *this; }
@@ -103,10 +103,11 @@ struct ResourceLayout
 };
 ResourceDescriptor CreateResourceDescriptor( const ResourceLayout& layout, bxAllocator* allocator = nullptr );
 void DestroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocator = nullptr );
-bool SetResourceRO( ResourceDescriptor rdesc, const ResourceRO* resource, u8 stageMask, u8 slot );
-bool SetResourceRW( ResourceDescriptor rdesc, const ResourceRW* resource, u8 stageMask, u8 slot );
-bool SetConstantBuffer( ResourceDescriptor rdesc, const ConstantBuffer cbuffer, u8 stageMask, u8 slot );
-bool SetSampler( ResourceDescriptor rdesc, const Sampler sampler, u8 stageMask, u8 slot );
+u32 GenerateResourceHashedName( const char* name );
+bool SetResourceRO( ResourceDescriptor rdesc, const char* name, const ResourceRO* resource );
+bool SetResourceRW( ResourceDescriptor rdesc, const char* name, const ResourceRW* resource );
+bool SetConstantBuffer( ResourceDescriptor rdesc, const char* name, const ConstantBuffer* cbuffer );
+bool SetSampler( ResourceDescriptor rdesc, const char* name, const Sampler* sampler );
 void BindResources( CommandQueue* cmdq, ResourceDescriptor rdesc );
 
 //////////////////////////////////////////////////////////////////////////
@@ -153,11 +154,12 @@ struct ShaderFile
         u32 hashed_name = 0;
         HardwareStateDesc hw_state_desc = {};
         VertexLayout vertex_layout = {};
-        ResourceLayout resource_layout = {};
         u32 offset_bytecode_pixel = 0;
         u32 offset_bytecode_vertex = 0;
+        u32 offset_resource_descriptor = 0;
         u32 size_bytecode_pixel = 0;
         u32 size_bytecode_vertex = 0;
+        u32 size_resource_descriptor;
     };
 
     u32 tag = bxTag32( "SF01" );

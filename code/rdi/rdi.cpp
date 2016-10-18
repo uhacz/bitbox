@@ -7,6 +7,7 @@
 #include "rdi_shader_reflection.h"
 #include "util/buffer_utils.h"
 #include "util/common.h"
+#include <algorithm>
 
 namespace bx { namespace rdi {
 namespace utils
@@ -191,8 +192,9 @@ struct BIT_ALIGNMENT_16 ResourceDescriptorImpl
     //    u32 offset = UINT32_MAX;
     //};
 
-    u32* HashedNames() { return (u32*)( this + 1 ); }
-    Binding* Bindings() { return (Binding*)(HashedNames() + count); }
+    const u32* HashedNames() const { return (u32*)( this + 1 ); }
+    const Binding* Bindings() const { return (Binding*)(HashedNames() + count); }
+    u8* Data() { return (u8*)( Bindings() + count ); }
 
     u32 count = 0;
 };
@@ -208,46 +210,6 @@ namespace
 }///
 ResourceDescriptor CreateResourceDescriptor( const ResourceLayout& layout, bxAllocator* allocator /*= nullptr */ )
 {
-    //u32 mem_size = sizeof( ResourceDescriptorImpl );
-    //mem_size += layout.num_bindings * sizeof( ResourceDescriptorImpl::Desc );
-
-    //u32 data_size = 0;
-    //for( u32 i = 0; i < layout.num_bindings; ++i )
-    //{
-    //    const ResourceBinding binding = layout.bindings[i];
-    //    data_size += binding.count * _resource_size[binding.type];
-    //}
-    //mem_size += data_size;
-
-    //u8* mem = (u8*)BX_MALLOC( utils::getAllocator( allocator ), mem_size, 16 );
-    //memset( mem, 0x00, mem_size );
-
-    //bxBufferChunker chunker( mem, mem_size );
-
-    //ResourceDescriptorImpl* impl = chunker.add< ResourceDescriptorImpl >();
-    //impl->descs = chunker.add< ResourceDescriptorImpl::Desc >( layout.num_bindings );
-    //impl->data = chunker.addBlock( data_size );
-
-    //chunker.check();
-
-    //bxBufferChunker data_chunker( impl->data, data_size );
-    //for( u32 i = 0; i < layout.num_bindings; ++i )
-    //{
-    //    const ResourceBinding binding = layout.bindings[i];
-    //    ResourceDescriptorImpl::Desc& desc = impl->descs[i];
-    //    u8* desc_data_ptr = data_chunker.addBlock( binding.count * _resource_size[binding.type] );
-
-    //    desc.binding = binding;
-    //    ptrdiff_t data_offset = (ptrdiff_t)desc_data_ptr - (ptrdiff_t)impl->data;
-    //    SYS_ASSERT( data_offset >= 0 );
-    //    SYS_ASSERT( data_offset < data_size );
-    //    desc.offset = (u32)( data_offset );
-    //}
-
-    //data_chunker.check();
-
-    //return impl;
-
     u32 mem_size = sizeof( ResourceDescriptorImpl );
     mem_size += layout.num_bindings * sizeof( u32 ); // hashed names
     mem_size += layout.num_bindings * sizeof( ResourceDescriptorImpl::Binding );
@@ -265,12 +227,54 @@ ResourceDescriptor CreateResourceDescriptor( const ResourceLayout& layout, bxAll
 
     ResourceDescriptorImpl* impl = (ResourceDescriptorImpl*)mem;
     impl->count = layout.num_bindings;
-    u32* hashed_names = impl->HashedNames();
-    ResourceDescriptorImpl::Binding* bindings = impl->Bindings();
+    u32* hashed_names = (u32*)impl->HashedNames();
+    ResourceDescriptorImpl::Binding* bindings = ( ResourceDescriptorImpl::Binding* )impl->Bindings();
 
     SYS_ASSERT( (uptr)( bindings + impl->count ) == (uptr)( (u8*)mem + mem_size ) );
 
+    for( u32 i = 0; i < impl->count; ++i )
+    {
+        const ResourceBinding& src_bind = layout.bindings[i];
+        ResourceDescriptorImpl::Binding& dst_bind = bindings[i];
+        dst_bind.binding_type = src_bind.type;
+        dst_bind.slot = src_bind.slot;
+        dst_bind.stage_mask = src_bind.stage_mask;
+        dst_bind.data_offset = GenerateResourceHashedName( src_bind.name );;
+    }
 
+    struct BindingCmp
+    {
+        inline bool operator()( ResourceDescriptorImpl::Binding a, ResourceDescriptorImpl::Binding b )
+        {
+            const u32 keya = u32( a.binding_type ) << 24 | u32( a.slot ) << 16 | a.stage_mask;
+            const u32 keyb = u32( b.binding_type ) << 24 | u32( b.slot ) << 16 | b.stage_mask;
+            return keya < keyb;
+        }
+    };
+    std::sort( bindings, bindings + impl->count, BindingCmp() );
+    
+    u32 data_offset = 0;
+    for( u32 i = 0; i < impl->count; ++i )
+    {
+        hashed_names[i] = bindings[i].data_offset;
+        bindings[i].data_offset = data_offset;
+        data_offset += _resource_size[bindings[i].binding_type];
+    }
+
+    SYS_ASSERT( data_offset == data_size );
+    SYS_ASSERT( (uptr)( impl->Data() + data_offset ) == (uptr)( (u8*)mem + mem_size ) );
+
+#ifdef _DEBUG
+    for( u32 i = 0; i < impl->count; ++i )
+    {
+        for( u32 j = i + 1; j < impl->count; ++j )
+        {
+            SYS_ASSERT( hashed_names[i] != hashed_names[j] );
+        }
+    }
+#endif
+
+    return impl;
 }
 
 void DestroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocator /*= nullptr */ )
@@ -278,110 +282,98 @@ void DestroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocato
     BX_DELETE0( utils::getAllocator( allocator ), rdesc[0] );
 }
 
+u32 GenerateResourceHashedName( const char* name )
+{
+    return murmur3_hash32( name, (u32)strlen( name ), bxTag32( "RDES" ) );
+}
+
 namespace
 {
-    const ResourceDescriptorImpl::Desc* _FindResourceDesc( const ResourceDescriptorImpl* impl, EBindingType::Enum type, u8 stageMask, u8 slot )
+    u32 _FindResource( const ResourceDescriptorImpl* impl, const char* name )
     {
+        const u32 hashed_name = GenerateResourceHashedName( name );
+        const u32* resource_hashed_names = impl->HashedNames();
         for( u32 i = 0; i < impl->count; ++i )
         {
-            const ResourceDescriptorImpl::Desc* desc = &impl->descs[i];
-            if( desc->binding.type == type && desc->binding.stage_mask == stageMask )
-            {
-                const u16 begin_slot = desc->binding.first_slot;
-                const u16 end_slot = begin_slot + desc->binding.count;
-                const bool slot_in_range = slot >= begin_slot && slot < end_slot;
-                if( slot_in_range )
-                {
-                    return desc;
-                }
-            }
+            if( hashed_name == resource_hashed_names[i] )
+                return i;
+        }
+        return UINT32_MAX;
+    }
+
+    template< typename T >
+    void _SetResource1( ResourceDescriptorImpl* impl, u32 index, const T* resourcePtr )
+    {
+        SYS_ASSERT( index < impl->count );
+        const ResourceDescriptorImpl::Binding& binding = impl->Bindings()[index];
+        T* resource_data = (T*)(impl->Data() + binding.data_offset);
+        resource_data[0] = *resourcePtr;
+    }
+    template< typename T >
+    bool _SetResource2( ResourceDescriptorImpl* impl, const char* name, const T* resourcePtr )
+    {
+        u32 index = _FindResource( impl, name );
+        if( index == UINT32_MAX )
+        {
+            bxLogError( "Resource '%s' not found in descriptor", name );
+            return false;
         }
 
-        bxLogWarning( "Resource not found in descriptor" );
-        return nullptr;
-    }
-
-    template< class T >
-    void _SetResource( ResourceDescriptorImpl* impl, const ResourceDescriptorImpl::Desc* desc, const T* resourcePtr, u8 slot )
-    {
-        T* ro = (T*)( impl->data + desc->offset );
-        const int local_slot = (int)slot - (int)desc->binding.first_slot;
-        SYS_ASSERT( local_slot >= 0 && local_slot < desc->binding.count );
-        ro[local_slot] = *resourcePtr;
+        _SetResource1( impl, index, resourcePtr );
+        return true;
     }
 }
-bool SetResourceRO( ResourceDescriptor rdesc, const ResourceRO* resource, u8 stageMask, u8 slot )
+bool SetResourceRO( ResourceDescriptor rdesc, const char* name, const ResourceRO* resource )
 {
-    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, EBindingType::READ_ONLY, stageMask, slot );
-    if( !desc )
-        return false;
-
-    _SetResource( rdesc, desc, resource, slot );
-    return true;
+    return _SetResource2( rdesc, name, resource );
 }
-bool SetResourceRW( ResourceDescriptor rdesc, const ResourceRW* resource, u8 stageMask, u8 slot )
+bool SetResourceRW( ResourceDescriptor rdesc, const char* name, const ResourceRW* resource )
 {
-    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, EBindingType::READ_WRITE, stageMask, slot );
-    if( !desc )
-        return false;
-
-    _SetResource( rdesc, desc, resource, slot );
-    return true;
+    return _SetResource2( rdesc, name, resource );
 }
-bool SetConstantBuffer( ResourceDescriptor rdesc, const ConstantBuffer cbuffer, u8 stageMask, u8 slot )
+bool SetConstantBuffer( ResourceDescriptor rdesc, const char* name, const ConstantBuffer* cbuffer )
 {
-    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, EBindingType::UNIFORM, stageMask, slot );
-    if( !desc )
-        return false;
-
-    const ConstantBuffer* resource = &cbuffer;
-    _SetResource( rdesc, desc, resource, slot );
-    return true;
+    return _SetResource2( rdesc, name, cbuffer );
 }
-bool SetSampler( ResourceDescriptor rdesc, const Sampler sampler, u8 stageMask, u8 slot )
+bool SetSampler( ResourceDescriptor rdesc, const char* name, const Sampler* sampler )
 {
-    const ResourceDescriptorImpl::Desc* desc = _FindResourceDesc( rdesc, EBindingType::SAMPLER, stageMask, slot );
-    if( !desc )
-        return false;
-
-    const Sampler* resource = &sampler;
-    _SetResource( rdesc, desc, resource, slot );
-    return true;
-
+    return _SetResource2( rdesc, name, sampler );
 }
-
 void BindResources( CommandQueue* cmdq, ResourceDescriptor rdesc )
 {
+    const ResourceDescriptorImpl::Binding* bindings = rdesc->Bindings();
+    u8* data = rdesc->Data();
     const u32 n = rdesc->count;
+
     for( u32 i = 0; i < n; ++i )
     {
-        const ResourceDescriptorImpl::Desc desc = rdesc->descs[i];
-        const ResourceBinding binding = desc.binding;
-
-        const u8* data_begin = rdesc->data + desc.offset;
-        if( binding.type == EBindingType::READ_ONLY )
+        const ResourceDescriptorImpl::Binding b = bindings[i];
+        u8* resource_data = data + b.data_offset;
+        switch( b.binding_type )
         {
-            ResourceRO* ro = ( ResourceRO* )data_begin;
-            context::SetResourcesRO( cmdq, ro, binding.first_slot, binding.count, binding.stage_mask );
-        }
-        else if( binding.type == EBindingType::READ_WRITE )
-        {
-            ResourceRW* rw = ( ResourceRW* )data_begin;
-            context::SetResourcesRW( cmdq, rw, binding.first_slot, binding.count, binding.stage_mask );
-        }
-        else if( binding.type == EBindingType::UNIFORM )
-        {
-            ConstantBuffer* cb = ( ConstantBuffer* )data_begin;
-            context::SetCbuffers( cmdq, cb, binding.first_slot, binding.count, binding.stage_mask );
-        }
-        else if( binding.type == EBindingType::SAMPLER )
-        {
-            Sampler* sampl = ( Sampler* )data_begin;
-            context::SetSamplers( cmdq, sampl, binding.first_slot, binding.count, binding.stage_mask );
-        }
-        else
-        {
-            SYS_ASSERT( false );
+        case EBindingType::READ_ONLY:
+            {
+                ResourceRO* r = (ResourceRO*)resource_data;
+                context::SetResourcesRO( cmdq, r, b.slot, 1, b.stage_mask );
+            }break;
+        case EBindingType::READ_WRITE:
+            {
+                ResourceRW* r = (ResourceRW*)resource_data;
+                context::SetResourcesRW( cmdq, r, b.slot, 1, b.stage_mask );
+            }break;
+        case EBindingType::UNIFORM:
+            {
+                ConstantBuffer* r = (ConstantBuffer*)resource_data;
+                context::SetCbuffers( cmdq, r, b.slot, 1, b.stage_mask );
+            }break;
+        case EBindingType::SAMPLER:
+            {
+                Sampler* r = (Sampler*)resource_data;
+                context::SetSamplers( cmdq, r, b.slot, 1, b.stage_mask );
+            }break;
+        default:
+            SYS_NOT_IMPLEMENTED;
+            break;
         }
     }
 }
