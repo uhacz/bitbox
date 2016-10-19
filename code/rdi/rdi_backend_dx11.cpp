@@ -127,6 +127,7 @@ void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, si
 
         out->cbuffers.push_back( ShaderCBufferDesc() );
         ShaderCBufferDesc& cb = out->cbuffers.back();
+        cb.name = sb_desc.Name;
         cb.hashed_name = cb_hashed_name;
         cb.size = sb_desc.Size;
         cb.slot = bind_desc.BindPoint;
@@ -147,6 +148,7 @@ void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, si
 
             cb.variables.push_back( ShaderVariableDesc() );
             ShaderVariableDesc& vdesc = cb.variables.back();
+            vdesc.name = sv_desc.Name;
             vdesc.hashed_name = simple_hash( sv_desc.Name );
             vdesc.offset = sv_desc.StartOffset;
             vdesc.size = sv_desc.Size;
@@ -176,6 +178,7 @@ void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, si
             }
             out->textures.push_back( ShaderTextureDesc() );
             ShaderTextureDesc& tdesc = out->textures.back();
+            tdesc.name = rdesc.Name;
             tdesc.hashed_name = simple_hash( rdesc.Name );
             tdesc.slot = rdesc.BindPoint;
             tdesc.stage_mask = ( 1 << stage );
@@ -212,6 +215,7 @@ void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, si
             }
             out->samplers.push_back( ShaderSamplerDesc() );
             ShaderSamplerDesc& sdesc = out->samplers.back();
+            sdesc.name = rdesc.Name;
             sdesc.hashed_name = simple_hash( rdesc.Name );
             sdesc.slot = rdesc.BindPoint;
             sdesc.stage_mask = ( 1 << stage );

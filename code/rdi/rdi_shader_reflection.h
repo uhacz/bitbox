@@ -2,47 +2,49 @@
 
 #include <util/type.h>
 #include <util/vector.h>
+#include <string>
 
 namespace bx{ namespace rdi{
 
 struct ShaderVariableDesc
 {
-    ShaderVariableDesc() : hashed_name( hashed_name ), offset( 0 ), size( 0 ), type( 0 ) {}
-    u32 hashed_name;
-    u32 offset;
-    u32 size;
-    u32 type;
+    std::string name;
+    u32 hashed_name = 0;
+    u32 offset = 0;
+    u32 size = 0;
+    u32 type = 0;
 };
 
 struct ShaderCBufferDesc
 {
-    ShaderCBufferDesc() : hashed_name( 0 ), size( 0 ), slot( 0 ), stage_mask( 0 ) {}
-    u32 hashed_name;
-    u32 size;
-    u8 slot;
-    u8 stage_mask;
-    u8 __padd[2];
+    std::string name;
+    u32 hashed_name = 0;
+    u32 size = 0;
+    u8 slot = 0;
+    u8 stage_mask = 0;
+    u8 __padd[2] = {};
     vector_t<ShaderVariableDesc> variables;
 };
 
 struct ShaderTextureDesc
 {
     ShaderTextureDesc() : hashed_name( 0 ), slot( 0 ), dimm( 0 ), is_cubemap( 0 ), pass_index( -1 ) {}
-    u32 hashed_name;
-    u8 slot;
-    u8 stage_mask;
-    u8 dimm;
-    u8 is_cubemap;
-    i8 pass_index;
+    std::string name;
+    u32 hashed_name = 0;
+    u8 slot = 0;
+    u8 stage_mask = 0;
+    u8 dimm = 0;
+    u8 is_cubemap = 0;
+    i8 pass_index = -1;
 };
 
 struct ShaderSamplerDesc
 {
-    ShaderSamplerDesc() : hashed_name( 0 ), slot( 0 ), pass_index( -1 ) {}
-    u32 hashed_name;
-    u8 slot;
-    u8 stage_mask;
-    i8 pass_index;
+    std::string name;
+    u32 hashed_name = 0;
+    u8 slot = 0;
+    u8 stage_mask = 0;
+    i8 pass_index = -1;
 };
 
 struct ShaderReflection

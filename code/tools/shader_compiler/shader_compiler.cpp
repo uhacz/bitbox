@@ -1,5 +1,6 @@
 #include "shader_compiler.h"
 #include "hardware_state_util.h"
+#include "shader_file_writer.h"
 #include <dxgi.h>
 #include <d3d11.h>
 #include <d3d11shader.h>
@@ -8,6 +9,8 @@
 #include <libconfig/libconfig.h>
 #include <string>
 #include <vector>
+#include <iostream>
+#include <map>
 
 #include <util/filesystem.h>
 #include <util/memory.h>
@@ -15,6 +18,9 @@
 #include <util/hash.h>
 
 #include <rdi/rdi.h>
+#include <rdi/rdi_shader_reflection.h>
+#include <rdi/rdi_backend_dx11.h>
+
 
 namespace bx{ 
 using namespace rdi;
@@ -44,30 +50,32 @@ namespace tool{
         };
 
         std::string name;
-        rdi::HardwareState hwstate = {};
+        rdi::HardwareStateDesc hwstate_desc = {};
         rdi::ResourceDescriptor rdesc = BX_RDI_NULL_HANDLE;
         rdi::VertexLayout vertex_layout = {};
 
         Blob bytecode   [rdi::EStage::DRAW_STAGES_COUNT] = {};
         Blob disassembly[rdi::EStage::DRAW_STAGES_COUNT] = {};
+
+        ShaderReflection reflection = {};
     };
 
-    struct FxSourceDesc
+    struct SourceShader
     {
         void* _internal_data;
         std::vector< ConfigPass > passes;
     };
 
-    struct FxBinaryDesc
+    struct CompiledShader
     {
         std::vector< BinaryPass > passes;
     };
 
     //////////////////////////////////////////////////////////////////////////
     ///
-    void release( FxSourceDesc* fx_source );
-    void release( FxBinaryDesc* fx_bin );
-    int parse_header( FxSourceDesc* fx_src, const char* source, int source_size );
+    void Release( SourceShader* fx_source );
+    void Release( CompiledShader* fx_bin );
+    int ParseHeader( SourceShader* fx_src, const char* source, int source_size );
 
 #define print_error( str, ... ) fprintf( stderr, str, __VA_ARGS__ )
 #define print_info( str, ... ) fprintf( stdout, str, __VA_ARGS__ )
@@ -108,7 +116,7 @@ namespace
         return (ID3DBlob*)blob.__priv;
     }
 
-    bool _read_config_int( int* value, config_setting_t* cfg, const char* name )
+    bool _ReadConfigInt( int* value, config_setting_t* cfg, const char* name )
     {
         int ires = config_setting_lookup_int( cfg, name, value );
         const bool ok = ires == CONFIG_TRUE;
@@ -118,7 +126,7 @@ namespace
         }
         return ok;
     }
-    bool _read_config_string( const char** value, config_setting_t* cfg, const char* name )
+    bool _ReadConfigString( const char** value, config_setting_t* cfg, const char* name )
     {
         int ires = config_setting_lookup_string( cfg, name, value );
         const bool ok = ires == CONFIG_TRUE;
@@ -129,79 +137,61 @@ namespace
         return ok;
     }
     
-    void _extract_hwstate( rdi::HardwareStateDesc* hwstate, config_setting_t* hwstate_setting )
+    void _ExtractHardwareStateDesc( rdi::HardwareStateDesc* hwstate, config_setting_t* hwstate_setting )
     {
-        //blend.enable = 0;
-        //blend.color_mask = ColorMask::eALL;
-        //blend.src_factor_alpha = BlendFactor::eONE;
-        //blend.dst_factor_alpha = BlendFactor::eZERO;
-        //blend.src_factor = BlendFactor::eONE;
-        //blend.dst_factor = BlendFactor::eZERO;
-        //blend.equation = BlendEquation::eADD;
-
-        //depth.function = DepthFunc::eLEQUAL;
-        //depth.test = 1;
-        //depth.write = 1;
-
-        //raster.cull_mode = Culling::eBACK;
-        //raster.fill_mode = Fillmode::eSOLID;
-        //raster.multisample = 0;
-        //raster.antialiased_line = 0;
-        //raster.scissor = 0;
-        
         int ival = 0;
         const char* sval = 0;
 
         /// blend
         {
-            if( _read_config_int( &ival, hwstate_setting, "blend_enable" ) )
+            if( _ReadConfigInt( &ival, hwstate_setting, "blend_enable" ) )
                 hwstate->blend.enable = ival;
 
-            if( _read_config_string( &sval, hwstate_setting, "color_mask" ) )
+            if( _ReadConfigString( &sval, hwstate_setting, "color_mask" ) )
                 hwstate->blend.color_mask = ColorMask::FromString( sval );
 
-            if( _read_config_string( &sval, hwstate_setting, "blend_src_factor" ) )
+            if( _ReadConfigString( &sval, hwstate_setting, "blend_src_factor" ) )
             {
                 hwstate->blend.srcFactor = BlendFactor::FromString( sval );
                 hwstate->blend.srcFactorAlpha = BlendFactor::FromString( sval );
             }
-            if( _read_config_string( &sval, hwstate_setting, "blend_dst_factor" ) )
+            if( _ReadConfigString( &sval, hwstate_setting, "blend_dst_factor" ) )
             {
                 hwstate->blend.dstFactor       = BlendFactor::FromString( sval );
                 hwstate->blend.dstFactorAlpha = BlendFactor::FromString( sval );
             }
 
-            if( _read_config_string( &sval, hwstate_setting, "blend_equation" ) )
+            if( _ReadConfigString( &sval, hwstate_setting, "blend_equation" ) )
                 hwstate->blend.equation = BlendEquation::FromString( sval );
         }
         
         /// depth
         {
-            if( _read_config_string( &sval, hwstate_setting, "depth_function" ) )
+            if( _ReadConfigString( &sval, hwstate_setting, "depth_function" ) )
                 hwstate->depth.function = DepthFunc::FromString( sval );
             
-            if( _read_config_int( &ival, hwstate_setting, "depth_test" ) )
+            if( _ReadConfigInt( &ival, hwstate_setting, "depth_test" ) )
                 hwstate->depth.test = (u8)ival;
          
-            if( _read_config_int( &ival, hwstate_setting, "depth_write" ) )
+            if( _ReadConfigInt( &ival, hwstate_setting, "depth_write" ) )
                 hwstate->depth.write = (u8)ival;
         }
 
         /// raster
         {
-            if( _read_config_string( &sval, hwstate_setting, "cull_mode" ) )
+            if( _ReadConfigString( &sval, hwstate_setting, "cull_mode" ) )
                 hwstate->raster.cullMode = Culling::FromString( sval );
 
-            if( _read_config_string( &sval, hwstate_setting, "fill_mode" ) )
+            if( _ReadConfigString( &sval, hwstate_setting, "fill_mode" ) )
                 hwstate->raster.fillMode = Fillmode::FromString( sval );
-            if ( _read_config_int( &ival, hwstate_setting, "scissor" ) )
+            if ( _ReadConfigInt( &ival, hwstate_setting, "scissor" ) )
                 hwstate->raster.scissor = ival;
         }
 
 
     }
 
-    void _extract_passes( std::vector<ConfigPass>* out_passes, config_setting_t* cfg_passes )
+    void _ExtractPasses( std::vector<ConfigPass>* out_passes, config_setting_t* cfg_passes )
     {
         if( !cfg_passes )
             return;
@@ -248,7 +238,7 @@ namespace
             config_setting_t* hwstate_setting = config_setting_get_member( cfgpass, "hwstate" );
             if( hwstate_setting )
             {
-                _extract_hwstate( &hwstate, hwstate_setting );
+                _ExtractHardwareStateDesc( &hwstate, hwstate_setting );
             }
 
             config_setting_lookup_string( cfgpass, "vertex"  , &entry_points[EStage::VERTEX] );
@@ -274,7 +264,7 @@ namespace
         }
     }
 
-    int _read_header( FxSourceDesc* fx_source, char* source )
+    int _ReadHeader( SourceShader* fx_source, char* source )
     {
         const char header_end[] = "#~header";
         const size_t header_end_len = strlen( header_end );
@@ -310,7 +300,7 @@ namespace
         if( cfg_result == CONFIG_TRUE )
         {
             config_setting_t* cfg_passes = config_lookup( header_config, "passes" );
-            _extract_passes( &fx_source->passes, cfg_passes );        
+            _ExtractPasses( &fx_source->passes, cfg_passes );        
         }
         else
         {
@@ -322,7 +312,7 @@ namespace
     }
 }//
 
-void release( FxBinaryDesc* fx_binary )
+void Release( CompiledShader* fx_binary )
 {
     for( int ipass = 0; ipass < (int)fx_binary->passes.size(); ++ipass )
     {
@@ -336,27 +326,299 @@ void release( FxBinaryDesc* fx_binary )
 
             if( disasm_blob )
                 disasm_blob->Release();
+
+            DestroyResourceDescriptor( &fx_binary->passes[ipass].rdesc );
         }
 
         fx_binary->passes[ipass] = BinaryPass();
-
     }
 }
-void release( FxSourceDesc* fx_source )
+void Release( SourceShader* fx_source )
 {
     config_t* cfg = (config_t*)fx_source->_internal_data;
     config_destroy( cfg );
     BX_FREE0( bxDefaultAllocator(), cfg );
     fx_source->_internal_data = 0;
 }
-int parse_header( FxSourceDesc* fx_src, const char* source, int source_size )
+int ParseHeader( SourceShader* fx_src, const char* source, int source_size )
 {
     (void)source_size;
-    return _read_header( fx_src, (char*)source );
+    return _ReadHeader( fx_src, (char*)source );
 }
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+class IncludeMap
+{
+public:
+    IncludeMap() {}
+
+    ~IncludeMap()
+    {
+        for( std::map< std::string, bxFS::File >::iterator it = _file_map.begin(); it != _file_map.end(); ++it )
+        {
+            it->second.release();
+        }
+        _file_map.clear();
+    }
+
+    bxFS::File get( const char* name )
+    {
+        bxFS::File result;
+
+        std::map< std::string, bxFS::File >::iterator found = _file_map.find( name );
+        if( found != _file_map.end() )
+            result = found->second;
+
+        return result;
+    }
+
+    void set( const char* name, const bxFS::File& file )
+    {
+        _file_map[name] = file;
+    }
+
+private:
+
+    std::map< std::string, bxFS::File > _file_map;
+};
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+class dx11ShaderInclude : public ID3DInclude
+{
+public:
+    dx11ShaderInclude( bxFileSystem* fsys, IncludeMap* incmap )
+        : _inc_map( incmap ), _fsys( fsys )
+    {}
+
+    HRESULT __stdcall Open( D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes )
+    {
+        if( IncludeType != D3D10_INCLUDE_SYSTEM && IncludeType != D3D10_INCLUDE_LOCAL )
+        {
+            print_error( "dx11ShaderInclude error: only system and local includes (<file>, not \"file\") are available! Include '%s' failed\n", pFileName );
+            return S_FALSE;
+        }
+
+        bxFS::File file = _inc_map->get( pFileName );
+        if( !file.ok() )
+        {
+            file = _fsys->readFile( pFileName );
+        }
+
+        if( file.ok() )
+        {
+            _inc_map->set( pFileName, file );
+            *ppData = file.txt;
+            *pBytes = (UINT)file.size;
+
+            return S_OK;
+        }
+        else
+        {
+            print_error( "dx11ShaderInclude error: Couldn't open include '%s'. Note that both local includes are treated as system includes and must be relative to shader root\n", pFileName );
+            return S_FALSE;
+        }
+    }
+
+    HRESULT __stdcall Close( LPCVOID pData )
+    {
+        return S_OK;
+    }
+
+    IncludeMap* _inc_map;
+    bxFileSystem* _fsys;
+};
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+class dx11Compiler
+{
+    ID3DBlob* _CompileShader( int stage, const char* shader_source, const char* entry_point, const char** shader_macro )
+    {
+        SYS_ASSERT( stage < EStage::DRAW_STAGES_COUNT );
+        const char* shader_model[EStage::DRAW_STAGES_COUNT] =
+        {
+            "vs_5_0",
+            "ps_5_0",
+        };
+
+        D3D_SHADER_MACRO* ptr_macro_defs = 0;
+        D3D_SHADER_MACRO macro_defs_array[cMAX_SHADER_MACRO + 1];
+        memset( macro_defs_array, 0, sizeof( macro_defs_array ) );
+
+        if( shader_macro )
+        {
+            const int n_macro = to_D3D_SHADER_MACRO_array( macro_defs_array, cMAX_SHADER_MACRO + 1, shader_macro );
+            ptr_macro_defs = macro_defs_array;
+        }
+
+        ID3DBlob* code_blob = 0;
+        ID3DBlob* error_blob = 0;
+        HRESULT hr = D3DCompile(
+            shader_source,
+            strlen( shader_source ),
+            NULL,
+            ptr_macro_defs,
+            _include_interface,
+            entry_point,
+            shader_model[stage],
+            0,
+            0,
+            &code_blob,
+            &error_blob
+            );
+
+        if( !SUCCEEDED( hr ) )
+        {
+            const char* error_string = (const char*)error_blob->GetBufferPointer();
+            print_error( "%s\n", error_string );
+            error_blob->Release();
+        }
+        return code_blob;
+    }
+
+    void _CreateResourceBindings( std::vector< ResourceBinding>* bindings, const ShaderReflection& reflection )
+    {
+        for( const ShaderCBufferDesc& desc : reflection.cbuffers )
+        {
+            ResourceBinding b( desc.name.c_str(), EBindingType::UNIFORM );
+            b.Slot( desc.slot ).StageMask( desc.stage_mask );
+            bindings->push_back( b );
+        }
+        for( const ShaderTextureDesc& desc : reflection.textures )
+        {
+            ResourceBinding b( desc.name.c_str(), EBindingType::READ_ONLY );
+            b.Slot( desc.slot ).StageMask( desc.stage_mask );
+            bindings->push_back( b );
+        }
+        for( const ShaderSamplerDesc& desc : reflection.samplers )
+        {
+            ResourceBinding b( desc.name.c_str(), EBindingType::SAMPLER );
+            b.Slot( desc.slot ).StageMask( desc.stage_mask );
+            bindings->push_back( b );
+        }
+    }
+
+public:
+    virtual ~dx11Compiler()
+    {
+        BX_DELETE( bxDefaultAllocator(), _include_interface );
+        BX_DELETE( bxDefaultAllocator(), _include_map );
+    }
+
+    int Compile( CompiledShader* fx_bin, const SourceShader& fx_src, const char* source, bxFileSystem* fsys, int do_disasm )
+    {
+        if( !_include_map )
+            _include_map = BX_NEW( bxDefaultAllocator(), IncludeMap );
+
+        if( !_include_interface )
+            _include_interface = BX_NEW( bxDefaultAllocator(), dx11ShaderInclude, fsys, _include_map );
+
+        int error_counter = 0;
+
+        const int num_passes = (int)fx_src.passes.size();
+        for( int ipass = 0; ipass < num_passes; ++ipass )
+        {
+            const ConfigPass& pass = fx_src.passes[ipass];
+
+            print_info( "\tcompiling pass: %s ...\n", pass.name );
+
+            BinaryPass bin_pass;
+            for( int j = 0; j < EStage::DRAW_STAGES_COUNT; ++j )
+            {
+                if( !pass.entry_points[j] )
+                    continue;
+
+                ID3DBlob* code_blob = _CompileShader( j, source, pass.entry_points[j], (const char**)pass.defs );
+                ID3DBlob* code_disasm = NULL;
+
+                if( code_blob && do_disasm )
+                {
+                    HRESULT hr = D3DDisassemble( code_blob->GetBufferPointer(), code_blob->GetBufferSize(), D3D_DISASM_ENABLE_DEFAULT_VALUE_PRINTS | D3D_DISASM_ENABLE_INSTRUCTION_NUMBERING, NULL, &code_disasm );
+                    if( !SUCCEEDED( hr ) )
+                    {
+                        print_error( "D3DDisassemble failed\n" );
+                    }
+                }
+                Dx11FetchShaderReflection( &bin_pass.reflection, code_blob->GetBufferPointer(), code_blob->GetBufferSize(), j );
+                
+                std::vector< ResourceBinding > resource_bindings;
+                _CreateResourceBindings( &resource_bindings, bin_pass.reflection );
+                ResourceLayout resource_layout;
+                resource_layout.bindings = resource_bindings.data();
+                resource_layout.num_bindings = (u32)resource_bindings.size();
+                bin_pass.rdesc = CreateResourceDescriptor( resource_layout );
+
+                bin_pass.bytecode[j] = to_Blob( code_blob );
+                bin_pass.disassembly[j] = to_Blob( code_disasm );
+                bin_pass.hwstate_desc = pass.hwstate;
+                bin_pass.name = pass.name;
+                error_counter += code_blob == NULL;
+            }
+
+            fx_bin->passes.push_back( bin_pass );
+        }
+
+        int ires = 0;
+        if( error_counter > 0 )
+        {
+            ires = -1;
+        }
+
+        return ires;
+    }
+
+    IncludeMap* _include_map = nullptr;
+    dx11ShaderInclude* _include_interface = nullptr;
+};
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
 int ShaderCompilerCompile( const char* inputFile, const char* outputDir )
 {
+    ShaderFileWriter writer;
+    int ires = writer.StartUp( inputFile, outputDir );
+
+    print_info( "%s...\n", inputFile );
+
+    if( ires == 0 )
+    {
+        dx11Compiler compiler;
+
+        SourceShader source_shader;
+        CompiledShader compiled_shader;
+        
+        bxFS::File inputFile = writer.InputFile();
+
+        ires = ParseHeader( &source_shader, inputFile.txt, (int)inputFile.size );
+        if( ires == 0 )
+        {
+            ires = compiler.Compile( &compiled_shader, source_shader, inputFile.txt, writer.InputFilesystem(), 1 );
+        }
+
+        if( ires == 0 )
+        {
+            //helper.write( fx_bin );
+            //helper.writeShaderModule( fx_bin );
+        }
+
+        Release( &compiled_shader );
+        Release( &source_shader );
+    }
+
+    writer.ShutDown();
+
+    return ires;
+    
     return 0;
 }
 
