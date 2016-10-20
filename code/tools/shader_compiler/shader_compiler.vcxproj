@@ -79,11 +79,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hardware_state_util.h" />
+    <ClInclude Include="shader_compiler_common.h" />
+    <ClInclude Include="shader_compiler_dx11.h" />
     <ClInclude Include="shader_file_writer.h" />
     <ClInclude Include="shader_compiler.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hardware_state_util.cpp" />
+    <ClCompile Include="shader_compiler_common.cpp" />
+    <ClCompile Include="shader_compiler_dx11.cpp" />
     <ClCompile Include="shader_file_writer.cpp" />
     <ClCompile Include="shader_compiler.cpp" />
   </ItemGroup>

@@ -196,6 +196,7 @@ struct BIT_ALIGNMENT_16 ResourceDescriptorImpl
     const Binding* Bindings() const { return (Binding*)(HashedNames() + count); }
     u8* Data() { return (u8*)( Bindings() + count ); }
 
+    
     u32 count = 0;
 };
 namespace
@@ -208,20 +209,27 @@ namespace
         sizeof( Sampler ),        //eRESOURCE_TYPE_SAMPLER,
     };
 }///
-ResourceDescriptor CreateResourceDescriptor( const ResourceLayout& layout, bxAllocator* allocator /*= nullptr */ )
+ResourceDescriptorMemoryRequirments CalculateResourceDescriptorMemoryRequirments( const ResourceLayout& layout )
 {
-    u32 mem_size = sizeof( ResourceDescriptorImpl );
-    mem_size += layout.num_bindings * sizeof( u32 ); // hashed names
-    mem_size += layout.num_bindings * sizeof( ResourceDescriptorImpl::Binding );
+    ResourceDescriptorMemoryRequirments requirments = {};
 
-    u32 data_size = 0;
+    requirments.descriptor_size = sizeof( ResourceDescriptorImpl );
+    requirments.descriptor_size += layout.num_bindings * sizeof( u32 ); // hashed names
+    requirments.descriptor_size += layout.num_bindings * sizeof( ResourceDescriptorImpl::Binding );
+
     for( u32 i = 0; i < layout.num_bindings; ++i )
     {
         const ResourceBinding binding = layout.bindings[i];
-        data_size += _resource_size[binding.type];
+        requirments.data_size += _resource_size[binding.type];
     }
-    mem_size += data_size;
+    return requirments;
+}
 
+ResourceDescriptor CreateResourceDescriptor( const ResourceLayout& layout, bxAllocator* allocator /*= nullptr */ )
+{
+    ResourceDescriptorMemoryRequirments mem_req = CalculateResourceDescriptorMemoryRequirments( layout );
+
+    const u32 mem_size = mem_req.Total();
     u8* mem = (u8*)BX_MALLOC( utils::getAllocator( allocator ), mem_size, 16 );
     memset( mem, 0x00, mem_size );
 
@@ -261,7 +269,7 @@ ResourceDescriptor CreateResourceDescriptor( const ResourceLayout& layout, bxAll
         data_offset += _resource_size[bindings[i].binding_type];
     }
 
-    SYS_ASSERT( data_offset == data_size );
+    SYS_ASSERT( data_offset == mem_req.data_size );
     SYS_ASSERT( (uptr)( impl->Data() + data_offset ) == (uptr)( (u8*)mem + mem_size ) );
 
 #ifdef _DEBUG

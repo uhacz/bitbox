@@ -21,6 +21,13 @@ namespace EStage
         PIXEL_MASK   = BIT_OFFSET( PIXEL ),
         COMPUTE_MASK = BIT_OFFSET( COMPUTE ),
     };
+
+    static const char* name[COUNT] =
+    {
+        "vertex",
+        "pixel",
+        "compute",
+    };
 };
 
 namespace EBindMask

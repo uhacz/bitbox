@@ -101,6 +101,14 @@ struct ResourceLayout
     ResourceBinding* bindings = nullptr;
     u32 num_bindings = 0;
 };
+struct ResourceDescriptorMemoryRequirments
+{
+    u32 descriptor_size = 0;
+    u32 data_size = 0;
+    u32 Total() const { return descriptor_size + data_size; }
+};
+
+ResourceDescriptorMemoryRequirments CalculateResourceDescriptorMemoryRequirments( const ResourceLayout& layout );
 ResourceDescriptor CreateResourceDescriptor( const ResourceLayout& layout, bxAllocator* allocator = nullptr );
 void DestroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocator = nullptr );
 u32 GenerateResourceHashedName( const char* name );
