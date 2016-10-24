@@ -250,6 +250,7 @@ DataBlob CreateShaderBlob( const CompiledShader& compiled )
         resource_desc_size += binPass.rdesc_mem_size;
     }
     mem_size += bytecode_size;
+    mem_size += resource_desc_size;
 
     void* mem = BX_MALLOC( bxDefaultAllocator(), mem_size, 4 );
     memset( mem, 0x00, mem_size );
@@ -267,7 +268,7 @@ DataBlob CreateShaderBlob( const CompiledShader& compiled )
 
         file_pass.hashed_name = ShaderFileNameHash( bin_pass.name.c_str(), shader_file->version );
         file_pass.hw_state_desc = bin_pass.hwstate_desc;
-        file_pass.vertex_layout = bin_pass.vertex_layout;
+        file_pass.vertex_layout = bin_pass.reflection.vertex_layout;
         
         memcpy( data_current, bin_pass.rdesc, bin_pass.rdesc_mem_size );
         file_pass.offset_resource_descriptor = TYPE_POINTER_GET_OFFSET( &file_pass.offset_resource_descriptor, data_current );
@@ -288,7 +289,7 @@ DataBlob CreateShaderBlob( const CompiledShader& compiled )
             file_pass.size_bytecode_pixel = (u32)blob.size;
             data_current += blob.size;
         }
-    };
+    }
 
     SYS_ASSERT( (uptr)( (u8*)mem + mem_size ) == (uptr)( data_current ) );
 

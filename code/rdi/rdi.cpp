@@ -176,7 +176,7 @@ void BindRenderTarget( CommandQueue* cmdq, RenderTarget renderTarget, const std:
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-struct BIT_ALIGNMENT_16 ResourceDescriptorImpl
+struct ResourceDescriptorImpl
 {
     struct Binding
     {
@@ -238,7 +238,7 @@ ResourceDescriptor CreateResourceDescriptor( const ResourceLayout& layout, bxAll
     u32* hashed_names = (u32*)impl->HashedNames();
     ResourceDescriptorImpl::Binding* bindings = ( ResourceDescriptorImpl::Binding* )impl->Bindings();
 
-    SYS_ASSERT( (uptr)( bindings + impl->count ) == (uptr)( (u8*)mem + mem_size ) );
+    SYS_ASSERT( (uptr)( bindings + impl->count ) == (uptr)( (u8*)mem + mem_req.descriptor_size ) );
 
     for( u32 i = 0; i < impl->count; ++i )
     {

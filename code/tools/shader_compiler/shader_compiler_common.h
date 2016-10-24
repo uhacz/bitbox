@@ -46,8 +46,7 @@ namespace tool{
         rdi::HardwareStateDesc hwstate_desc = {};
         rdi::ResourceDescriptor rdesc = BX_RDI_NULL_HANDLE;
         u32 rdesc_mem_size = 0;
-        rdi::VertexLayout vertex_layout = {};
-
+        
         DataBlob bytecode[rdi::EStage::DRAW_STAGES_COUNT] = {};
         DataBlob disassembly[rdi::EStage::DRAW_STAGES_COUNT] = {};
 

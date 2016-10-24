@@ -190,6 +190,14 @@ int dx11Compiler::Compile( CompiledShader* fx_bin, const SourceShader& fx_src, c
             }
             Dx11FetchShaderReflection( &bin_pass.reflection, code_blob->GetBufferPointer(), code_blob->GetBufferSize(), j );
 
+            bin_pass.bytecode[j] = to_Blob( code_blob );
+            bin_pass.disassembly[j] = to_Blob( code_disasm );
+            bin_pass.hwstate_desc = pass.hwstate;
+            bin_pass.name = pass.name;
+            error_counter += code_blob == NULL;
+        }
+
+        {
             std::vector< ResourceBinding > resource_bindings;
             _CreateResourceBindings( &resource_bindings, bin_pass.reflection );
             ResourceLayout resource_layout;
@@ -199,12 +207,6 @@ int dx11Compiler::Compile( CompiledShader* fx_bin, const SourceShader& fx_src, c
 
             ResourceDescriptorMemoryRequirments rdesc_mem_req = CalculateResourceDescriptorMemoryRequirments( resource_layout );
             bin_pass.rdesc_mem_size = rdesc_mem_req.Total();
-
-            bin_pass.bytecode[j] = to_Blob( code_blob );
-            bin_pass.disassembly[j] = to_Blob( code_disasm );
-            bin_pass.hwstate_desc = pass.hwstate;
-            bin_pass.name = pass.name;
-            error_counter += code_blob == NULL;
         }
 
         fx_bin->passes.push_back( bin_pass );
