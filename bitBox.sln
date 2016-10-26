@@ -42,11 +42,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "engine", "code\engine\engin
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "remotery", "code\tools\remotery\remotery.vcxproj", "{6A836590-4D80-4A33-947D-702BE7147A02}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8BA9AF19-5B58-4DE8-8A6F-D532B29C3B54}"
-	ProjectSection(SolutionItems) = preProject
-		Performance1.psess = Performance1.psess
-	EndProjectSection
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "anim", "code\anim\anim.vcxproj", "{5A1545E2-B111-442D-880C-8C86869270B4}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo_ninja", "code\demo_ninja\demo_ninja.vcxproj", "{5E5FCEDA-3F84-44BC-B236-D096CC6044D8}"
