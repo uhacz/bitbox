@@ -52,34 +52,54 @@ u32 ShaderFileFindPass( const ShaderFile* sfile, const char* passName )
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+struct ShaderObject
+{
+    ShaderPass pass;
+    HardwareState hardware_state;
+    InputLayout input_layout;
+    ResourceDescriptor resource_desc;
+};
+void ShaderObjectCreate( ShaderObject* shaderObj, const ShaderFile* shaderFile, const char* passName, HardwareStateDesc* hwStateDescOverride )
+{
+    const u32 pass_index = ShaderFileFindPass( shaderFile, passName );
+    SYS_ASSERT( pass_index != UINT32_MAX );
+
+    const ShaderFile::Pass& pass = shaderFile->passes[pass_index];
+    ShaderPassCreateInfo pass_create_info = {};
+    pass_create_info.vertex_bytecode = TYPE_OFFSET_GET_POINTER( void, pass.offset_bytecode_vertex );
+    pass_create_info.vertex_bytecode_size = pass.size_bytecode_vertex;
+    pass_create_info.pixel_bytecode = TYPE_OFFSET_GET_POINTER( void, pass.offset_bytecode_pixel );
+    pass_create_info.pixel_bytecode_size = pass.size_bytecode_pixel;
+    pass_create_info.reflection = nullptr; // &shader_reflection;
+    shaderObj->pass = device::CreateShaderPass( pass_create_info );
+
+    shaderObj->input_layout = device::CreateInputLayout( pass.vertex_layout, shaderObj->pass );
+    const HardwareStateDesc* hw_state_desc = ( hwStateDescOverride ) ? hwStateDescOverride : &pass.hw_state_desc;
+    shaderObj->hardware_state = device::CreateHardwareState( *hw_state_desc );
+}
+void ShaderObjectDestroy( ShaderObject* shaderObj )
+{
+    device::DestroyHardwareState( &shaderObj->hardware_state );
+    device::DestroyInputLayout( &shaderObj->input_layout );
+    device::DestroyShaderPass( &shaderObj->pass );
+}
+void ShaderObjectBind( CommandQueue* cmdq, const ShaderObject& shaderObj )
+{
+    context::SetShaderPass( cmdq, shaderObj.pass );
+    context::SetInputLayout( cmdq, shaderObj.input_layout );
+    context::SetHardwareState( cmdq, shaderObj.hardware_state );
+}
+
+
 struct PipelineImpl
 {
-    HardwareState   hw_state = {};
-    InputLayout     input_layout = {};
-    ShaderPass      shader_pass = {};
+    ShaderObject   shader_object = {};
     ETopology::Enum topology = ETopology::TRIANGLES;
 };
 Pipeline CreatePipeline( const PipelineDesc& desc, bxAllocator* allocator /*= nullptr */ )
 {
     PipelineImpl* impl = (PipelineImpl*)BX_NEW( utils::getAllocator( allocator ), PipelineImpl );
-
-    ShaderReflection shader_reflection = {};
-    {
-        const u32 pass_index = ShaderFileFindPass( desc.shader_file, desc.shader_pass_name );
-        SYS_ASSERT( pass_index != UINT32_MAX );
-
-        const ShaderFile::Pass& pass = desc.shader_file->passes[pass_index];
-        ShaderPassCreateInfo pass_create_info = {};
-        pass_create_info.vertex_bytecode = TYPE_OFFSET_GET_POINTER( void, pass.offset_bytecode_vertex );
-        pass_create_info.vertex_bytecode_size = pass.size_bytecode_vertex;
-        pass_create_info.pixel_bytecode = TYPE_OFFSET_GET_POINTER( void, pass.offset_bytecode_pixel );
-        pass_create_info.pixel_bytecode_size = pass.size_bytecode_pixel;
-        pass_create_info.reflection = &shader_reflection;
-        impl->shader_pass = device::CreateShaderPass( pass_create_info );
-    }
-
-    impl->input_layout = device::CreateInputLayout( shader_reflection.vertex_layout, impl->shader_pass );
-    impl->hw_state = device::CreateHardwareState( desc.hw_state_desc );
+    ShaderObjectCreate( &impl->shader_object, desc.shader_file, desc.shader_pass_name, desc.hw_state_desc_override );
     impl->topology = desc.topology;
 
     return impl;
@@ -91,19 +111,19 @@ void DestroyPipeline( Pipeline* pipeline, bxAllocator* allocator /*= nullptr */ 
         return;
 
     PipelineImpl* impl = pipeline[0];
-    device::DestroyHardwareState( &impl->hw_state );
-    device::DestroyInputLayout( &impl->input_layout );
-    device::DestroyShaderPass( &impl->shader_pass );
-
+    ShaderObjectDestroy( &impl->shader_object );
     BX_DELETE0( utils::getAllocator( allocator ), pipeline[0] );
 }
 
 void BindPipeline( CommandQueue* cmdq, Pipeline pipeline )
 {
-    context::SetShaderPass ( cmdq, pipeline->shader_pass );
-    context::SetInputLayout( cmdq, pipeline->input_layout );
-    context::SetHardwareState( cmdq, pipeline->hw_state );
+    ShaderObjectBind( cmdq, pipeline->shader_object );
     context::SetTopology( cmdq, pipeline->topology );
+}
+
+ResourceDescriptor GetResourceDescriptor( Pipeline pipeline )
+{
+    return pipeline->shader_object.resource_desc;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -185,12 +205,6 @@ struct ResourceDescriptorImpl
         u16 stage_mask = 0;
         u32 data_offset = 0;
     };
-
-    //struct Desc
-    //{
-    //    ResourceBinding binding;
-    //    u32 offset = UINT32_MAX;
-    //};
 
     const u32* HashedNames() const { return (u32*)( this + 1 ); }
     const Binding* Bindings() const { return (Binding*)(HashedNames() + count); }

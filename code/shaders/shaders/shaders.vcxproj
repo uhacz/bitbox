@@ -50,6 +50,12 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
+    <CustomBuild>
+      <Command>$(BX_ROOT)bin\x64\tool\tool.exe -t shader_compiler -i %(FullPath) -D $(BX_ROOT)assets\shader\</Command>
+      <Message>Compiling shader</Message>
+      <Outputs>$(BX_ROOT)assets\shader\hlsl\%(Identity)</Outputs>
+      <LinkObjects>false</LinkObjects>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -71,6 +77,11 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(BX_ROOT)assets\shader\hlsl\%(Identity)</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling shader</Message>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="texture_utils.hlsl">
+      <FileType>Document</FileType>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

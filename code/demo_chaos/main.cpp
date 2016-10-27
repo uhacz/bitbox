@@ -8,9 +8,11 @@
 #include <util/config.h>
 //#include <gfx/gfx_camera.h>
 #include <gfx/gfx_debug_draw.h>
-#include <gfx/gfx_gui.h>
+#include <rdi/rdi.h>
 
-#include <gdi/gdi_shader.h>
+//#include <gfx/gfx_gui.h>
+//#include <gdi/gdi_shader.h>
+
 #include "scene.h"
 #include "renderer.h"
 #include "resource_manager/resource_manager.h"
@@ -221,14 +223,31 @@ public:
     //bx::GfxCamera* _camera = nullptr;
     //bx::gfx::CameraInputContext _cameraInputCtx = {};
 
-    bx::gfx::RenderPass _render_pass = BX_GFX_NULL_HANDLE;
-    bx::gfx::Pipeline _pipeline_native_pos_nrm_solid = BX_GFX_NULL_HANDLE;
-    bx::gfx::Pipeline _pipeline_screenquad = BX_GFX_NULL_HANDLE;
-    bx::gfx::ResourceDescriptor _frame_data_rdesc = BX_GFX_NULL_HANDLE;
-    bx::gfx::ResourceDescriptor _instance_data_rdesc = BX_GFX_NULL_HANDLE;
-    bx::gfx::ResourceDescriptor _material_data_rdesc = BX_GFX_NULL_HANDLE;
+    bx::rdi::RenderTarget _rtarget_gbuffer = BX_RDI_NULL_HANDLE;
+    bx::rdi::RenderTarget _rtarget_color = BX_RDI_NULL_HANDLE;
 
-    bxGdiShaderFx* _native_shader_module = nullptr;
+
+    bx::rdi::ShaderFile* _shf_texutil = nullptr;
+    bx::rdi::Pipeline _pipeline_screenquad = BX_RDI_NULL_HANDLE;
+
+    bx::rdi::ConstantBuffer _cbuffer_instance_offset = {};
+    bx::rdi::BufferRO _buffer_instance_world = {};
+    bx::rdi::BufferRO _buffer_instance_world_it = {};
+
+    bx::rdi::Sampler _samp_point = {};
+    bx::rdi::Sampler _samp_linear = {};
+    bx::rdi::Sampler _samp_bilinear = {};
+    bx::rdi::Sampler _samp_trilinear = {};
+
+
+    //bx::gfx::RenderPass _render_pass = BX_GFX_NULL_HANDLE;
+    //bx::gfx::Pipeline _pipeline_native_pos_nrm_solid = BX_GFX_NULL_HANDLE;
+    //bx::gfx::Pipeline _pipeline_screenquad = BX_GFX_NULL_HANDLE;
+    //bx::gfx::ResourceDescriptor _frame_data_rdesc = BX_GFX_NULL_HANDLE;
+    //bx::gfx::ResourceDescriptor _instance_data_rdesc = BX_GFX_NULL_HANDLE;
+    //bx::gfx::ResourceDescriptor _material_data_rdesc = BX_GFX_NULL_HANDLE;
+
+    //bxGdiShaderFx* _native_shader_module = nullptr;
 };
 
 int main( int argc, const char* argv[] )

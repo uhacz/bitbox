@@ -21,7 +21,7 @@ struct PipelineDesc
 {
     ShaderFile* shader_file = nullptr;
     const char* shader_pass_name = nullptr;
-    HardwareStateDesc hw_state_desc = {};
+    HardwareStateDesc* hw_state_desc_override = nullptr;
     ETopology::Enum topology = ETopology::TRIANGLES;
 
     PipelineDesc& Shader( ShaderFile* f, const char* pass_name )
@@ -30,13 +30,13 @@ struct PipelineDesc
         shader_pass_name = pass_name;
         return *this;
     }
-    PipelineDesc& HardwareState( const HardwareStateDesc hwdesc ) { hw_state_desc = hwdesc; return *this; }
+    PipelineDesc& HardwareState( HardwareStateDesc* hwdesc ) { hw_state_desc_override = hwdesc; return *this; }
     PipelineDesc& Topology( ETopology::Enum t ) { topology = t; return *this;  }
 };
 Pipeline CreatePipeline( const PipelineDesc& desc, bxAllocator* allocator = nullptr );
 void DestroyPipeline( Pipeline* pipeline, bxAllocator* allocator = nullptr );
 void BindPipeline( CommandQueue* cmdq, Pipeline pipeline );
-
+ResourceDescriptor GetResourceDescriptor( Pipeline pipeline );
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 struct RenderTargetDesc
@@ -180,4 +180,5 @@ u32 ShaderFileNameHash( const char* name, u32 version );
 ShaderFile* ShaderFileLoad( const char* filename, ResourceManager* resourceManager );
 void ShaderFileUnload( ShaderFile** sfile, ResourceManager* resourceManager );
 u32 ShaderFileFindPass( const ShaderFile* sfile, const char* passName );
+
 }}///
