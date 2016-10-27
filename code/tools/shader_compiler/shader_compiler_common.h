@@ -77,7 +77,7 @@ namespace tool{
     DataBlob CreateShaderBlob( const CompiledShader& compiled );
 
 
-#define print_error( str, ... ) fprintf( stderr, str, __VA_ARGS__ )
-#define print_info( str, ... ) fprintf( stdout, str, __VA_ARGS__ )
+#define print_error( str, ... ) do{ fprintf( stdout, str, __VA_ARGS__ ); fflush( stdout ); }while(0)
+#define print_info( str, ... ) do{ fprintf( stdout, str, __VA_ARGS__ ); fflush( stdout ); }while(0)
 
 }}///

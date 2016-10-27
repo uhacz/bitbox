@@ -19,7 +19,7 @@ int main( int argc, char** argv )
     const int n_initial_args = 3;
 
     cmdline::parser cmd_line;
-    cmd_line.add<std::string>( "tool", 't', "tool name", true );
+    cmd_line.add< std::string >( "tool", 't', "tool name", true );
     cmd_line.add< std::string >( "infile", 'i', "input file", true );
     cmd_line.add< std::string >( "outdir", 'D', "output directory", true );
     cmd_line.parse_check( argc, argv );
@@ -30,7 +30,7 @@ int main( int argc, char** argv )
     {
         const std::string& in_file = cmd_line.get<std::string>("infile");
         const std::string& out_dir = cmd_line.get<std::string>("outdir");
-        result = ShaderCompilerCompile( in_file.c_str(), out_dir.c_str() );
+        result = ShaderCompilerCompile( in_file.c_str(), out_dir.c_str() ); 
     }
 #else
     const char in_file[] = "d:/dev/code/bitBox/code/shaders/hlsl/deffered.hlsl";

@@ -169,7 +169,7 @@ int dx11Compiler::Compile( CompiledShader* fx_bin, const SourceShader& fx_src, c
     {
         const ConfigPass& pass = fx_src.passes[ipass];
 
-        print_info( "\tcompiling pass: %s ...\n", pass.name );
+        print_info( "\tcompiling pass: %s ... \n", pass.name );
 
         BinaryPass bin_pass;
         for( int j = 0; j < EStage::DRAW_STAGES_COUNT; ++j )
@@ -180,6 +180,11 @@ int dx11Compiler::Compile( CompiledShader* fx_bin, const SourceShader& fx_src, c
             ID3DBlob* code_blob = _CompileShader( j, source, pass.entry_points[j], (const char**)pass.defs );
             ID3DBlob* code_disasm = NULL;
 
+            if( !code_blob )
+            {
+                exit( -3 );
+            }
+
             if( code_blob && do_disasm )
             {
                 HRESULT hr = D3DDisassemble( code_blob->GetBufferPointer(), code_blob->GetBufferSize(), D3D_DISASM_ENABLE_DEFAULT_VALUE_PRINTS | D3D_DISASM_ENABLE_INSTRUCTION_NUMBERING, NULL, &code_disasm );
@@ -188,6 +193,10 @@ int dx11Compiler::Compile( CompiledShader* fx_bin, const SourceShader& fx_src, c
                     print_error( "D3DDisassemble failed\n" );
                 }
             }
+
+
+            print_info( "\t\t%s shader: %s (%u B)\n", rdi::EStage::name[j], pass.entry_points[j], code_blob->GetBufferSize() );
+
             Dx11FetchShaderReflection( &bin_pass.reflection, code_blob->GetBufferPointer(), code_blob->GetBufferSize(), j );
 
             bin_pass.bytecode[j] = to_Blob( code_blob );
