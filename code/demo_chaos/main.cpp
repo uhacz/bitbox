@@ -7,17 +7,18 @@
 #include <util/handle_manager.h>
 #include <util/config.h>
 //#include <gfx/gfx_camera.h>
-#include <gfx/gfx_debug_draw.h>
+//#include <gfx/gfx_debug_draw.h>
 #include <rdi/rdi.h>
 
 //#include <gfx/gfx_gui.h>
 //#include <gdi/gdi_shader.h>
 
-#include "scene.h"
+//#include "scene.h"
 #include "renderer.h"
 #include "resource_manager/resource_manager.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+using namespace bx;
 class bxDemoApp : public bxApplication
 {
 public:
@@ -32,6 +33,8 @@ public:
 
         bx::Engine::startup( &_engine, engine_startup_info );
         //bx::game_scene::startup( &_scene, &_engine );
+        bxWindow* win = bxWindow_get();
+        rdi::Startup( (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
 
         bxAsciiScript sceneScript;
@@ -60,71 +63,79 @@ public:
         //    }
         //}
 
-        const bxGdiFormat texture_formats[] =
-        {
-            { bx::gdi::eTYPE_FLOAT, 4 },
-        };
-        bx::gfx::RenderPassDesc render_pass_desc = {};
-        render_pass_desc.num_color_textures = 1;
-        render_pass_desc.color_texture_formats = texture_formats;
-        render_pass_desc.depth_texture_type = bx::gdi::eTYPE_DEPTH32F;
-        render_pass_desc.width = 1920;
-        render_pass_desc.height = 1080;
+        
+        _shf_texutil = rdi::ShaderFileLoad( "shader/bin/texture_utils.shader", _engine.resource_manager );
+        
+        rdi::PipelineDesc pipeline_desc = {};
+        pipeline_desc.Shader( _shf_texutil, "copy_rgba" );
+        _pipeline_copy_texture_rgba = rdi::CreatePipeline( pipeline_desc );
 
-        _render_pass = bx::gfx::createRenderPass( render_pass_desc );
+        //const bxGdiFormat texture_formats[] =
+        //{
+        //    { bx::gdi::eTYPE_FLOAT, 4 },
+        //};
+        //bx::gfx::RenderPassDesc render_pass_desc = {};
+        //render_pass_desc.num_color_textures = 1;
+        //render_pass_desc.color_texture_formats = texture_formats;
+        //render_pass_desc.depth_texture_type = bx::gdi::eTYPE_DEPTH32F;
+        //render_pass_desc.width = 1920;
+        //render_pass_desc.height = 1080;
+
+        //_render_pass = bx::gfx::createRenderPass( render_pass_desc );
 
 
-        _native_shader_module = bx::gdi::shaderFx_createFromFile( _engine.gdi_device, _engine.resource_manager, "native2" );
+        //_native_shader_module = bx::gdi::shaderFx_createFromFile( _engine.gdi_device, _engine.resource_manager, "native2" );
 
-        const bxGdiVertexStreamBlock stream_descs[2] =
-        {
-            { bx::gdi::eSLOT_POSITION, bx::gdi::eTYPE_FLOAT, 3 },
-            { bx::gdi::eSLOT_NORMAL, bx::gdi::eTYPE_FLOAT, 3 },
-        };
+        //const bxGdiVertexStreamBlock stream_descs[2] =
+        //{
+        //    { bx::gdi::eSLOT_POSITION, bx::gdi::eTYPE_FLOAT, 3 },
+        //    { bx::gdi::eSLOT_NORMAL, bx::gdi::eTYPE_FLOAT, 3 },
+        //};
 
-        bx::gfx::PipelineDesc pipeline_desc = {};
-        pipeline_desc.shaders[0] = _native_shader_module->vertexShader( 0 );
-        pipeline_desc.shaders[1] = _native_shader_module->pixelShader( 0 );
-        pipeline_desc.num_vertex_stream_descs = 2;
-        pipeline_desc.vertex_stream_descs = stream_descs;
-        _pipeline_native_pos_nrm_solid = bx::gfx::createPipeline( pipeline_desc );
+        //bx::gfx::PipelineDesc pipeline_desc = {};
+        //pipeline_desc.shaders[0] = _native_shader_module->vertexShader( 0 );
+        //pipeline_desc.shaders[1] = _native_shader_module->pixelShader( 0 );
+        //pipeline_desc.num_vertex_stream_descs = 2;
+        //pipeline_desc.vertex_stream_descs = stream_descs;
+        //_pipeline_native_pos_nrm_solid = bx::gfx::createPipeline( pipeline_desc );
 
-        {
-            bx::gfx::ResourceBinding bindings[] = 
-            {
-                { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_VERTEX | bx::gdi::eSTAGE_MASK_PIXEL, 0, 1 }, // frame data
-                { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_VERTEX, 1, 1 }, // instance offset
-                { bx::gfx::eRESOURCE_TYPE_READ_ONLY, bx::gdi::eSTAGE_MASK_VERTEX, 1, 2 }, // instance data
-                { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_PIXEL, 3, 1 }, // material data
-            };
-            bx::gfx::ResourceLayout layout = {};
-            layout.bindings = bindings;
-            layout.num_bindings = 1;
-            _frame_data_rdesc = bx::gfx::createResourceDescriptor( layout );
+        //{
+        //    bx::gfx::ResourceBinding bindings[] = 
+        //    {
+        //        { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_VERTEX | bx::gdi::eSTAGE_MASK_PIXEL, 0, 1 }, // frame data
+        //        { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_VERTEX, 1, 1 }, // instance offset
+        //        { bx::gfx::eRESOURCE_TYPE_READ_ONLY, bx::gdi::eSTAGE_MASK_VERTEX, 1, 2 }, // instance data
+        //        { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_PIXEL, 3, 1 }, // material data
+        //    };
+        //    bx::gfx::ResourceLayout layout = {};
+        //    layout.bindings = bindings;
+        //    layout.num_bindings = 1;
+        //    _frame_data_rdesc = bx::gfx::createResourceDescriptor( layout );
 
-            layout.bindings = &bindings[1];
-            layout.num_bindings = 3;
-            _instance_data_rdesc = bx::gfx::createResourceDescriptor( layout );
+        //    layout.bindings = &bindings[1];
+        //    layout.num_bindings = 3;
+        //    _instance_data_rdesc = bx::gfx::createResourceDescriptor( layout );
 
-            layout.bindings = &bindings[4];
-            layout.num_bindings = 1;
-            _material_data_rdesc = bx::gfx::createResourceDescriptor( layout );
-        }
+        //    layout.bindings = &bindings[4];
+        //    layout.num_bindings = 1;
+        //    _material_data_rdesc = bx::gfx::createResourceDescriptor( layout );
+        //}
 
         return true;
     }
     virtual void shutdown()
     {
-        bx::gfx::destroyResourceDescriptor( &_material_data_rdesc );
-        bx::gfx::destroyResourceDescriptor( &_instance_data_rdesc );
-        bx::gfx::destroyResourceDescriptor( &_frame_data_rdesc );
+        //bx::gfx::destroyResourceDescriptor( &_material_data_rdesc );
+        //bx::gfx::destroyResourceDescriptor( &_instance_data_rdesc );
+        //bx::gfx::destroyResourceDescriptor( &_frame_data_rdesc );
 
-        bx::gfx::destroyPipeline( &_pipeline_native_pos_nrm_solid, _engine.gdi_device );
-        bx::gdi::shaderFx_release( _engine.gdi_device, _engine.resource_manager, &_native_shader_module );
-        bx::gfx::destroyRenderPass( &_render_pass, _engine.gdi_device );
+        //bx::gfx::destroyPipeline( &_pipeline_native_pos_nrm_solid, _engine.gdi_device );
+        //bx::gdi::shaderFx_release( _engine.gdi_device, _engine.resource_manager, &_native_shader_module );
+        //bx::gfx::destroyRenderPass( &_render_pass, _engine.gdi_device );
 
         //bx::game_scene::shutdown( &_scene, &_engine );
         //bx::gfxCameraDestroy( &_camera );
+        rdi::Shutdown();
         bx::Engine::shutdown( &_engine );
     }
 
@@ -223,17 +234,29 @@ public:
     //bx::GfxCamera* _camera = nullptr;
     //bx::gfx::CameraInputContext _cameraInputCtx = {};
 
+    bx::rdi::ShaderFile* _shf_texutil = nullptr;
+    bx::rdi::Pipeline _pipeline_copy_texture_rgba = BX_RDI_NULL_HANDLE;
+    
     bx::rdi::RenderTarget _rtarget_gbuffer = BX_RDI_NULL_HANDLE;
     bx::rdi::RenderTarget _rtarget_color = BX_RDI_NULL_HANDLE;
 
-
-    bx::rdi::ShaderFile* _shf_texutil = nullptr;
-    bx::rdi::Pipeline _pipeline_screenquad = BX_RDI_NULL_HANDLE;
+    bx::rdi::ShaderFile* _shf_deffered = nullptr;
+    bx::rdi::Pipeline _pipeline_geometry_notex = BX_RDI_NULL_HANDLE;
+    bx::rdi::Pipeline _pipeline_geometry_tex = BX_RDI_NULL_HANDLE;
 
     bx::rdi::ConstantBuffer _cbuffer_instance_offset = {};
     bx::rdi::BufferRO _buffer_instance_world = {};
     bx::rdi::BufferRO _buffer_instance_world_it = {};
+    
+    bx::rdi::ResourceDescriptor _rdesc_frame_data;
+    bx::rdi::ConstantBuffer _cbuffer_frame_data = {};
+    struct FrameData
+    {
+        Matrix4 _view;
+        Matrix4 _view_proj;
+    } _frame_data;
 
+    bx::rdi::ResourceDescriptor _rdesc_samplers;
     bx::rdi::Sampler _samp_point = {};
     bx::rdi::Sampler _samp_linear = {};
     bx::rdi::Sampler _samp_bilinear = {};

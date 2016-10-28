@@ -106,6 +106,9 @@
     <ProjectReference Include="..\phx\phx.vcxproj">
       <Project>{2f15f600-6dda-4beb-a95f-eab6abcd71bc}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\rdi\rdi.vcxproj">
+      <Project>{5146d804-4a7f-442f-9085-5adc06bf9769}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\resource_manager\resource_manager.vcxproj">
       <Project>{117290a3-4a22-4c58-9ac0-ed1c8efa49e3}</Project>
     </ProjectReference>

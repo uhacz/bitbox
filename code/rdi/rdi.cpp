@@ -66,13 +66,14 @@ void ShaderObjectCreate( ShaderObject* shaderObj, const ShaderFile* shaderFile, 
 
     const ShaderFile::Pass& pass = shaderFile->passes[pass_index];
     ShaderPassCreateInfo pass_create_info = {};
-    pass_create_info.vertex_bytecode = TYPE_OFFSET_GET_POINTER( void, pass.offset_bytecode_vertex );
+    pass_create_info.vertex_bytecode = TYPE_OFFSET_GET_POINTER( void, shaderFile->passes[pass_index].offset_bytecode_vertex );
     pass_create_info.vertex_bytecode_size = pass.size_bytecode_vertex;
-    pass_create_info.pixel_bytecode = TYPE_OFFSET_GET_POINTER( void, pass.offset_bytecode_pixel );
+    pass_create_info.pixel_bytecode = TYPE_OFFSET_GET_POINTER( void, shaderFile->passes[pass_index].offset_bytecode_pixel );
     pass_create_info.pixel_bytecode_size = pass.size_bytecode_pixel;
     pass_create_info.reflection = nullptr; // &shader_reflection;
     shaderObj->pass = device::CreateShaderPass( pass_create_info );
-
+    shaderObj->pass.vertex_input_mask = pass.vertex_layout.InputMask();
+    
     shaderObj->input_layout = device::CreateInputLayout( pass.vertex_layout, shaderObj->pass );
     const HardwareStateDesc* hw_state_desc = ( hwStateDescOverride ) ? hwStateDescOverride : &pass.hw_state_desc;
     shaderObj->hardware_state = device::CreateHardwareState( *hw_state_desc );

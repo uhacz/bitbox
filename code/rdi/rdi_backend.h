@@ -525,6 +525,14 @@ struct VertexLayout
 {
     VertexBufferDesc descs[cMAX_VERTEX_BUFFERS] = {};
     u32 count = 0;
+
+    u32 InputMask() const
+    {
+        u32 mask = 0;
+        for( u32 i = 0; i < count; ++i )
+            mask |= 1 << descs[i].slot;
+        return mask;
+    }
 };
 
 }}///
