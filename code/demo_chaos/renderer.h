@@ -34,9 +34,9 @@ namespace gfx{
         Renderer startup();
         void shutdown( Renderer* rnd );
 
-        Material createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextureNames* textures );
-        void destroyMaterial( Material* m );
-        Material findMaterial( const char* name );
+        MaterialID createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextureNames* textures );
+        void destroyMaterial( MaterialID* m );
+        MaterialID findMaterial( const char* name );
 
         void addSharedRenderSource( const char* name, rdi::RenderSource rsource );
         rdi::RenderSource findSharedRenderSource( const char* name );
@@ -45,10 +45,10 @@ namespace gfx{
         void destroyScene( Scene* scene );
         void drawScene( Scene scene, const Camera& camera );
 
-        MeshInstance createMeshInstance( Scene scene, unsigned numInstances, const char* name = nullptr );
-        void destroyMeshInstance( MeshInstance* mi );
-        void setRenderSource( MeshInstance mi, rdi::RenderSource rsource );
-        void setMaterial( MeshInstance mi, Material m );
+        MeshID createMeshInstance( Scene scene, unsigned numInstances, const char* name = nullptr );
+        void destroyMeshInstance( MeshID* mi );
+        void setRenderSource( MeshID mi, rdi::RenderSource rsource );
+        void setMaterial( MeshID mi, MaterialID m );
     }///
 
     namespace renderer_util

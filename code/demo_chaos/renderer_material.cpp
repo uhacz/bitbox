@@ -3,13 +3,13 @@
 
 namespace bx{ namespace gfx{
 
-bool MaterialContainer::alive( Material m ) const
+bool MaterialContainer::alive( MaterialID m ) const
 {
     id_t id = makeId( m );
     return id_table::has( _id_to_index, id );
 }
 
-Material MaterialContainer::add( const char* name, rdi::ResourceDescriptor rdesc )
+MaterialID MaterialContainer::add( const char* name, rdi::ResourceDescriptor rdesc )
 {
     id_t id = id_table::create( _id_to_index );
     u32 index = id.index;
@@ -21,7 +21,7 @@ Material MaterialContainer::add( const char* name, rdi::ResourceDescriptor rdesc
     return makeMaterial( id );
 }
 
-void MaterialContainer::remove( Material* m )
+void MaterialContainer::remove( MaterialID* m )
 {
     id_t id = makeId( *m );
     if( !id_table::has( _id_to_index, id ) )
@@ -35,7 +35,7 @@ void MaterialContainer::remove( Material* m )
     m[0] = makeMaterial( makeInvalidHandle<id_t>() );
 }
 
-Material MaterialContainer::find( const char* name )
+MaterialID MaterialContainer::find( const char* name )
 {
     const u32 n = id_table::size( _id_to_index );
     u32 counter = 0;
@@ -56,14 +56,14 @@ Material MaterialContainer::find( const char* name )
     return makeMaterial( makeInvalidHandle<id_t>() );
 }
 
-u32 MaterialContainer::_GetIndex( Material m )
+u32 MaterialContainer::_GetIndex( MaterialID m )
 {
     id_t id = makeId( m );
     SYS_ASSERT( id_table::has( _id_to_index, id ) );
     return id.index;
 }
 
-rdi::ResourceDescriptor MaterialContainer::getResourceDesc( Material m )
+rdi::ResourceDescriptor MaterialContainer::getResourceDesc( MaterialID m )
 {
     u32 index = _GetIndex( m );
     return _rdescs[index];

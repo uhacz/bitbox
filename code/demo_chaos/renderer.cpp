@@ -58,7 +58,7 @@ void shutdown()
 
 }
 
-Material createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextureNames* textures )
+MaterialID createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextureNames* textures )
 {
     //rdi::ResourceLayout resourceLayout = {};
     //resourceLayout.bindings = g_material_bindings;
@@ -76,13 +76,13 @@ Material createMaterial( const char* name, const MaterialDesc& desc, const Mater
     //    rdi::SetResourceRO( resourceDesc, &textures->metallic_tex , rdi::EStage::PIXEL_MASK, SLOT_MATERIAL_TEXTURE3 );
     //}
       
-    Material m;
+    MaterialID m;
     m.i = 0;
     return m;
     //return g_material_container.add( name, resourceDesc );
 }
 
-void destroyMaterial( Material* m )
+void destroyMaterial( MaterialID* m )
 {
     if( !g_material_container.alive( *m ) )
         return;
@@ -94,7 +94,7 @@ void destroyMaterial( Material* m )
     rdi::DestroyResourceDescriptor( &rdesc, nullptr );
 }
 
-Material findMaterial( const char* name )
+MaterialID findMaterial( const char* name )
 {
     return g_material_container.find( name );
 }

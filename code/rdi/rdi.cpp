@@ -66,19 +66,29 @@ void ShaderObjectCreate( ShaderObject* shaderObj, const ShaderFile* shaderFile, 
 
     const ShaderFile::Pass& pass = shaderFile->passes[pass_index];
     ShaderPassCreateInfo pass_create_info = {};
-    pass_create_info.vertex_bytecode = TYPE_OFFSET_GET_POINTER( void, pass.offset_bytecode_vertex );
+    pass_create_info.vertex_bytecode = TYPE_OFFSET_GET_POINTER( void, shaderFile->passes[pass_index].offset_bytecode_vertex );
     pass_create_info.vertex_bytecode_size = pass.size_bytecode_vertex;
-    pass_create_info.pixel_bytecode = TYPE_OFFSET_GET_POINTER( void, pass.offset_bytecode_pixel );
+    pass_create_info.pixel_bytecode = TYPE_OFFSET_GET_POINTER( void, shaderFile->passes[pass_index].offset_bytecode_pixel );
     pass_create_info.pixel_bytecode_size = pass.size_bytecode_pixel;
     pass_create_info.reflection = nullptr; // &shader_reflection;
     shaderObj->pass = device::CreateShaderPass( pass_create_info );
-
+    shaderObj->pass.vertex_input_mask = pass.vertex_layout.InputMask();
+    
     shaderObj->input_layout = device::CreateInputLayout( pass.vertex_layout, shaderObj->pass );
     const HardwareStateDesc* hw_state_desc = ( hwStateDescOverride ) ? hwStateDescOverride : &pass.hw_state_desc;
     shaderObj->hardware_state = device::CreateHardwareState( *hw_state_desc );
+
+    if( pass.offset_resource_descriptor )
+    {
+        void* src_resource_desc_ptr = TYPE_OFFSET_GET_POINTER( void, pass.offset_resource_descriptor );
+        void* resource_desc_memory = BX_MALLOC( bxDefaultAllocator(), pass.size_resource_descriptor, 16 );
+        memcpy( resource_desc_memory, src_resource_desc_ptr, pass.size_resource_descriptor );
+        shaderObj->resource_desc = (ResourceDescriptor)resource_desc_memory;
+    }
 }
 void ShaderObjectDestroy( ShaderObject* shaderObj )
 {
+    BX_FREE0( bxDefaultAllocator(), shaderObj->resource_desc );
     device::DestroyHardwareState( &shaderObj->hardware_state );
     device::DestroyInputLayout( &shaderObj->input_layout );
     device::DestroyShaderPass( &shaderObj->pass );
@@ -88,6 +98,10 @@ void ShaderObjectBind( CommandQueue* cmdq, const ShaderObject& shaderObj )
     context::SetShaderPass( cmdq, shaderObj.pass );
     context::SetInputLayout( cmdq, shaderObj.input_layout );
     context::SetHardwareState( cmdq, shaderObj.hardware_state );
+    if( shaderObj.resource_desc )
+    {
+        BindResources( cmdq, shaderObj.resource_desc );
+    }
 }
 
 

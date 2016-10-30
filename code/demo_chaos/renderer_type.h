@@ -6,7 +6,7 @@
 namespace bx{ namespace gfx{
     //////////////////////////////////////////////////////////////////////////high level
     typedef struct SceneImpl* Scene;
-    struct MeshInstance { u32 i = 0; };
-    struct Material { u32 i = 0; };
+    struct MeshID { u32 i = 0; };
+    struct MaterialID { u32 i = 0; };
 
 }}///

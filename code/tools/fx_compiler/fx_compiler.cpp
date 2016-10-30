@@ -464,69 +464,69 @@ public:
 
         return 0;
     }
-    int writeShaderModule( const FxBinaryDesc& binDesc )
-    {
-        _out_fs.createDir( "bin" );
-        _out_fs.createDir( "asm" );
+    //int writeShaderModule( const FxBinaryDesc& binDesc )
+    //{
+    //    _out_fs.createDir( "bin" );
+    //    _out_fs.createDir( "asm" );
 
-        const u32 num_passes = (u32)binDesc.passes.size();
+    //    const u32 num_passes = (u32)binDesc.passes.size();
 
-        u32 mem_size = 0;
-        mem_size += sizeof( gdi::ShaderModule );
-        mem_size += sizeof( gdi::ShaderModule::Pass ) * ( num_passes - 1 );
-        
-        u32 bytecode_size = 0;
+    //    u32 mem_size = 0;
+    //    mem_size += sizeof( gdi::ShaderModule );
+    //    mem_size += sizeof( gdi::ShaderModule::Pass ) * ( num_passes - 1 );
+    //    
+    //    u32 bytecode_size = 0;
 
-        for( u32 ipass = 0; ipass < num_passes; ++ipass )
-        {
-            const BinaryPass& binPass = binDesc.passes[ipass];
-            for( u32 istage = 0; istage < gdi::eDRAW_STAGES_COUNT; ++istage )
-            {
-                bytecode_size += (u32)binPass.bytecode[istage].size;
-            }
-        }
-        mem_size += bytecode_size;
+    //    for( u32 ipass = 0; ipass < num_passes; ++ipass )
+    //    {
+    //        const BinaryPass& binPass = binDesc.passes[ipass];
+    //        for( u32 istage = 0; istage < gdi::eDRAW_STAGES_COUNT; ++istage )
+    //        {
+    //            bytecode_size += (u32)binPass.bytecode[istage].size;
+    //        }
+    //    }
+    //    mem_size += bytecode_size;
 
-        void* mem = BX_MALLOC( bxDefaultAllocator(), mem_size, 4 );
-        memset( mem, 0x00, mem_size );
+    //    void* mem = BX_MALLOC( bxDefaultAllocator(), mem_size, 4 );
+    //    memset( mem, 0x00, mem_size );
 
-        gdi::ShaderModule* smodule = new( mem ) gdi::ShaderModule();
-        smodule->num_passes = num_passes;
-        u8* bytecode_data_begin = (u8*)( smodule + 1 ) + ( sizeof( gdi::ShaderModule::Pass ) * (num_passes - 1) );
-        u8* bytecode_data_current = bytecode_data_begin;
-        
-        for( u32 ipass = 0; ipass < num_passes; ++ipass )
-        {
-            const BinaryPass& binPass = binDesc.passes[ipass];
-            gdi::ShaderModule::Pass& modulePass = smodule->passes[ipass];
-            modulePass.hashed_name = gdi::shaderModuleGenerateHash( binPass.name.c_str(), smodule->version );
-            modulePass.hw_state_desc = binPass.hwstate;
-            modulePass.vertex_layout = binPass.vertex_layout;
+    //    gdi::ShaderModule* smodule = new( mem ) gdi::ShaderModule();
+    //    smodule->num_passes = num_passes;
+    //    u8* bytecode_data_begin = (u8*)( smodule + 1 ) + ( sizeof( gdi::ShaderModule::Pass ) * (num_passes - 1) );
+    //    u8* bytecode_data_current = bytecode_data_begin;
+    //    
+    //    for( u32 ipass = 0; ipass < num_passes; ++ipass )
+    //    {
+    //        const BinaryPass& binPass = binDesc.passes[ipass];
+    //        gdi::ShaderModule::Pass& modulePass = smodule->passes[ipass];
+    //        modulePass.hashed_name = gdi::shaderModuleGenerateHash( binPass.name.c_str(), smodule->version );
+    //        modulePass.hw_state_desc = binPass.hwstate;
+    //        modulePass.vertex_layout = binPass.vertex_layout;
 
-            for( u32 istage = 0; istage < gdi::eDRAW_STAGES_COUNT; ++istage )
-            {
-                const BinaryPass::Blob blob = binPass.bytecode[istage];
-                
-                modulePass.offset_bytecode[istage] = TYPE_POINTER_GET_OFFSET( &modulePass.offset_bytecode[istage], bytecode_data_current );
-                modulePass.size_bytecode[istage] = (u32)blob.size;
-                
-                memcpy( bytecode_data_current, blob.ptr, blob.size );
-                bytecode_data_current += blob.size;
-            }
-        }
+    //        for( u32 istage = 0; istage < gdi::eDRAW_STAGES_COUNT; ++istage )
+    //        {
+    //            const BinaryPass::Blob blob = binPass.bytecode[istage];
+    //            
+    //            modulePass.offset_bytecode[istage] = TYPE_POINTER_GET_OFFSET( &modulePass.offset_bytecode[istage], bytecode_data_current );
+    //            modulePass.size_bytecode[istage] = (u32)blob.size;
+    //            
+    //            memcpy( bytecode_data_current, blob.ptr, blob.size );
+    //            bytecode_data_current += blob.size;
+    //        }
+    //    }
 
-        SYS_ASSERT( (uptr)( (u8*)mem + mem_size ) == (uptr)( bytecode_data_current ) );
+    //    SYS_ASSERT( (uptr)( (u8*)mem + mem_size ) == (uptr)( bytecode_data_current ) );
 
 
-        std::string out_filename;
-        out_filename.append( "bin/" );
-        out_filename.append( _out_filename );
-        out_filename.append( ".shader_module" );
+    //    std::string out_filename;
+    //    out_filename.append( "bin/" );
+    //    out_filename.append( _out_filename );
+    //    out_filename.append( ".shader_module" );
 
-        _out_fs.writeFile( out_filename.c_str(), (const u8*)mem, mem_size );
-        BX_FREE0( bxDefaultAllocator(), mem );
-        return 0;
-    }
+    //    _out_fs.writeFile( out_filename.c_str(), (const u8*)mem, mem_size );
+    //    BX_FREE0( bxDefaultAllocator(), mem );
+    //    return 0;
+    //}
 
     FxCompilerHelper()    {}
     ~FxCompilerHelper()   {}
@@ -798,7 +798,7 @@ int compile( const char* input_file_path, const char* output_dir )
         if( ires == 0 )
         {
             helper.write( fx_bin );
-            helper.writeShaderModule( fx_bin );
+            //helper.writeShaderModule( fx_bin );
         }
 
         release( &fx_bin );

@@ -8,7 +8,7 @@
 
 namespace bx{ namespace gfx{
 
-union MeshInstanceMatrix
+union MeshMatrix
 {
     u8 _single[64] = {};
     Matrix4* _multi;
@@ -20,28 +20,28 @@ struct SceneImpl
     void prepare( const char* name, bxAllocator* allocator );
     void unprepare();
 
-    MeshInstance add( const char* name, u32 numInstances );
-    void remove( MeshInstance* mi );
-    MeshInstance find( const char* name );
+    MeshID add( const char* name, u32 numInstances );
+    void remove( MeshID* mi );
+    MeshID find( const char* name );
 
-    void setRenderSource( MeshInstance mi, rdi::RenderSource rs );
-    void setMaterial( MeshInstance mi, Material m );
-    void setMatrices( MeshInstance mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
+    void setRenderSource( MeshID mi, rdi::RenderSource rs );
+    void setMaterial( MeshID mi, MaterialID m );
+    void setMatrices( MeshID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
 
 private: 
     void _SetToDefaults( u32 index );
     void _AllocateData( u32 newSize, bxAllocator* allocator );
-    u32 _GetIndex( MeshInstance mi );
+    u32 _GetIndex( MeshID mi );
 
 private:
     struct Data
     {
         void*                _memory_handle = nullptr;
-        MeshInstanceMatrix*  matrices = nullptr;
+        MeshMatrix*          matrices = nullptr;
         rdi::RenderSource*   render_sources = nullptr;
-        Material*            materials = nullptr;
+        MaterialID*          materials = nullptr;
         u32*                 num_instances = nullptr;
-        MeshInstance*        mesh_instance = nullptr;
+        MeshID*              mesh_instance = nullptr;
         char**               names = nullptr;
 
         u32                  size = 0;

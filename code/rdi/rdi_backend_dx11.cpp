@@ -222,48 +222,49 @@ void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, si
         }
     }
 
-    u16 input_mask = 0;
-    VertexLayout& layout = out->vertex_layout;
-    layout.count = 0;
-
-    for( u32 i = 0; i < sdesc.InputParameters; ++i )
+    if( stage == EStage::VERTEX )
     {
-        D3D11_SIGNATURE_PARAMETER_DESC idesc;
-        reflector->GetInputParameterDesc( i, &idesc );
+        u16 input_mask = 0;
+        VertexLayout& layout = out->vertex_layout;
+        layout.count = 0;
 
+        for( u32 i = 0; i < sdesc.InputParameters; ++i )
+        {
+            D3D11_SIGNATURE_PARAMETER_DESC idesc;
+            reflector->GetInputParameterDesc( i, &idesc );
 
-        EVertexSlot::Enum slot = EVertexSlot::FromString( idesc.SemanticName );
-        if( slot >= EVertexSlot::COUNT )
-        {
-            //log_error( "Unknown semantic: '%s'", idesc.SemanticName );
-            continue;
-        }
-        VertexBufferDesc& desc = layout.descs[layout.count++];
+            EVertexSlot::Enum slot = EVertexSlot::FromString( idesc.SemanticName );
+            if( slot >= EVertexSlot::COUNT )
+            {
+                //log_error( "Unknown semantic: '%s'", idesc.SemanticName );
+                continue;
+            }
+            VertexBufferDesc& desc = layout.descs[layout.count++];
 
-        input_mask |= ( 1 << ( slot + idesc.SemanticIndex ) );
+            input_mask |= ( 1 << ( slot + idesc.SemanticIndex ) );
 
-        desc.slot = slot + idesc.SemanticIndex;
-        desc.numElements = bitcount( (u32)idesc.Mask );
-        desc.typeNorm = 0;
-        if( idesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32 )
-        {
-            desc.dataType = EDataType::INT;
+            desc.slot = slot + idesc.SemanticIndex;
+            desc.numElements = bitcount( (u32)idesc.Mask );
+            desc.typeNorm = 0;
+            if( idesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32 )
+            {
+                desc.dataType = EDataType::INT;
+            }
+            else if( idesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32 )
+            {
+                desc.dataType = EDataType::UINT;
+            }
+            else if( idesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32 )
+            {
+                desc.dataType = EDataType::FLOAT;
+            }
+            else
+            {
+                SYS_NOT_IMPLEMENTED;
+            }
         }
-        else if( idesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32 )
-        {
-            desc.dataType = EDataType::UINT;
-        }
-        else if( idesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32 )
-        {
-            desc.dataType = EDataType::FLOAT;
-        }
-        else
-        {
-            SYS_NOT_IMPLEMENTED;
-        }
-
+        out->input_mask = input_mask;
     }
-    out->input_mask = input_mask;
     reflector->Release();
 }
 
@@ -541,7 +542,10 @@ ShaderPass device::CreateShaderPass( const ShaderPassCreateInfo& info )
     {
         hres = g_device->CreatePixelShader( info.pixel_bytecode, info.pixel_bytecode_size, nullptr, &pass.pixel );
         SYS_ASSERT( SUCCEEDED( hres ) );
-        Dx11FetchShaderReflection( info.reflection, info.pixel_bytecode, info.pixel_bytecode_size, EStage::PIXEL );
+        if( info.reflection )
+        {
+            Dx11FetchShaderReflection( info.reflection, info.pixel_bytecode, info.pixel_bytecode_size, EStage::PIXEL );
+        }
     }
     return pass;
 }

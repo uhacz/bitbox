@@ -16,17 +16,17 @@ struct MaterialContainer
     rdi::ResourceDescriptor _rdescs[eMAX_COUNT] = {};
     const char*             _names[eMAX_COUNT] = {};
 
-    inline id_t makeId( Material m ) const { return make_id( m.i ); }
-    inline Material makeMaterial( id_t id ) const { Material m; m.i = id.hash; return m; }
+    inline id_t makeId( MaterialID m ) const { return make_id( m.i ); }
+    inline MaterialID makeMaterial( id_t id ) const { MaterialID m; m.i = id.hash; return m; }
 
-    bool alive( Material m ) const;
+    bool alive( MaterialID m ) const;
 
-    Material add( const char* name, rdi::ResourceDescriptor rdesc );
-    void remove( Material* m );
+    MaterialID add( const char* name, rdi::ResourceDescriptor rdesc );
+    void remove( MaterialID* m );
 
-    Material find( const char* name );
+    MaterialID find( const char* name );
 
-    u32 _GetIndex( Material m );
-    rdi::ResourceDescriptor getResourceDesc( Material m );
+    u32 _GetIndex( MaterialID m );
+    rdi::ResourceDescriptor getResourceDesc( MaterialID m );
 };
 }}///

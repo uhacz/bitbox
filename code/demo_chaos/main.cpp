@@ -7,17 +7,18 @@
 #include <util/handle_manager.h>
 #include <util/config.h>
 //#include <gfx/gfx_camera.h>
-#include <gfx/gfx_debug_draw.h>
+//#include <gfx/gfx_debug_draw.h>
 #include <rdi/rdi.h>
 
 //#include <gfx/gfx_gui.h>
 //#include <gdi/gdi_shader.h>
 
-#include "scene.h"
+//#include "scene.h"
 #include "renderer.h"
 #include "resource_manager/resource_manager.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+using namespace bx;
 class bxDemoApp : public bxApplication
 {
 public:
@@ -32,6 +33,8 @@ public:
 
         bx::Engine::startup( &_engine, engine_startup_info );
         //bx::game_scene::startup( &_scene, &_engine );
+        bxWindow* win = bxWindow_get();
+        rdi::Startup( (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
 
         bxAsciiScript sceneScript;
@@ -59,6 +62,48 @@ public:
         //        }
         //    }
         //}
+
+        
+        _shf_texutil = rdi::ShaderFileLoad( "shader/bin/texture_utils.shader", _engine.resource_manager );
+        _shf_deffered = rdi::ShaderFileLoad( "shader/bin/deffered.shader", _engine.resource_manager );
+        
+        {
+            rdi::PipelineDesc pipeline_desc = {};
+            pipeline_desc.Shader( _shf_texutil, "copy_rgba" );
+            _pipeline_copy_texture_rgba = rdi::CreatePipeline( pipeline_desc );
+        }
+
+        {
+            rdi::PipelineDesc pipeline_desc = {};
+
+            pipeline_desc.Shader( _shf_deffered, "geometry_notexture" );
+            _pipeline_geometry_notex = rdi::CreatePipeline( pipeline_desc );
+
+            pipeline_desc.Shader( _shf_deffered, "geometry_texture" );
+            _pipeline_geometry_tex = rdi::CreatePipeline( pipeline_desc );
+        }
+
+        {
+            rdi::RenderTargetDesc rt_desc = {};
+            rt_desc.Size( 1920, 1080 );
+            rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
+            rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
+            rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
+            rt_desc.Depth( rdi::EDataType::DEPTH32F );
+
+            _rtarget_gbuffer = rdi::CreateRenderTarget( rt_desc );
+        }
+        {
+            rdi::RenderTargetDesc rt_desc = {};
+            rt_desc.Size( 1920, 1080 );
+            rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
+
+            _rtarget_color = rdi::CreateRenderTarget( rt_desc );
+        }
+
+        {
+            
+        }
 
         //const bxGdiFormat texture_formats[] =
         //{
@@ -115,6 +160,16 @@ public:
     }
     virtual void shutdown()
     {
+        rdi::DestroyRenderTarget( &_rtarget_color );
+        rdi::DestroyRenderTarget( &_rtarget_gbuffer );
+
+        rdi::DestroyPipeline( &_pipeline_geometry_tex );
+        rdi::DestroyPipeline( &_pipeline_geometry_notex );
+        rdi::DestroyPipeline( &_pipeline_copy_texture_rgba );
+
+        rdi::ShaderFileUnload( &_shf_deffered, _engine.resource_manager );
+        rdi::ShaderFileUnload( &_shf_texutil, _engine.resource_manager );
+
         //bx::gfx::destroyResourceDescriptor( &_material_data_rdesc );
         //bx::gfx::destroyResourceDescriptor( &_instance_data_rdesc );
         //bx::gfx::destroyResourceDescriptor( &_frame_data_rdesc );
@@ -125,6 +180,7 @@ public:
 
         //bx::game_scene::shutdown( &_scene, &_engine );
         //bx::gfxCameraDestroy( &_camera );
+        rdi::Shutdown();
         bx::Engine::shutdown( &_engine );
     }
 
@@ -223,17 +279,29 @@ public:
     //bx::GfxCamera* _camera = nullptr;
     //bx::gfx::CameraInputContext _cameraInputCtx = {};
 
+    bx::rdi::ShaderFile* _shf_texutil = nullptr;
+    bx::rdi::Pipeline _pipeline_copy_texture_rgba = BX_RDI_NULL_HANDLE;
+    
+    bx::rdi::ShaderFile* _shf_deffered = nullptr;
+    bx::rdi::Pipeline _pipeline_geometry_notex = BX_RDI_NULL_HANDLE;
+    bx::rdi::Pipeline _pipeline_geometry_tex = BX_RDI_NULL_HANDLE;
+
     bx::rdi::RenderTarget _rtarget_gbuffer = BX_RDI_NULL_HANDLE;
     bx::rdi::RenderTarget _rtarget_color = BX_RDI_NULL_HANDLE;
-
-
-    bx::rdi::ShaderFile* _shf_texutil = nullptr;
-    bx::rdi::Pipeline _pipeline_screenquad = BX_RDI_NULL_HANDLE;
 
     bx::rdi::ConstantBuffer _cbuffer_instance_offset = {};
     bx::rdi::BufferRO _buffer_instance_world = {};
     bx::rdi::BufferRO _buffer_instance_world_it = {};
+    
+    bx::rdi::ResourceDescriptor _rdesc_frame_data;
+    bx::rdi::ConstantBuffer _cbuffer_frame_data = {};
+    struct FrameData
+    {
+        Matrix4 _view;
+        Matrix4 _view_proj;
+    } _frame_data;
 
+    bx::rdi::ResourceDescriptor _rdesc_samplers;
     bx::rdi::Sampler _samp_point = {};
     bx::rdi::Sampler _samp_linear = {};
     bx::rdi::Sampler _samp_bilinear = {};
