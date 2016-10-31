@@ -516,6 +516,17 @@ void BindRenderSource( CommandQueue* cmdq, RenderSource renderSource )
     context::SetIndexBuffer( cmdq, renderSource->index_buffer );
 }
 
+void SubmitRenderSource( CommandQueue* cmdq, RenderSource renderSource, u32 rangeIndex )
+{
+    SYS_ASSERT( rangeIndex < renderSource->num_draw_ranges );
+    RenderSourceRange range = renderSource->draw_ranges[rangeIndex];
+    
+    if( renderSource->index_buffer.id )
+        context::DrawIndexed( cmdq, range.count, range.begin, 0 );
+    else
+        context::Draw( cmdq, range.count, range.begin );
+}
+
 u32 GetNVertexBuffers( RenderSource rsource ) { return rsource->num_vertex_buffers; }
 u32 GetNVertices( RenderSource rsource ) { return rsource->vertex_buffers[0].numElements; }
 u32 GetNIndices( RenderSource rsource ) { return rsource->index_buffer.numElements; }

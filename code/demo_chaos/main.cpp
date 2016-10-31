@@ -170,10 +170,40 @@ public:
             rdi::SetSampler( _rdesc_samplers, "trilinear_aniso", &_samp_trilinear );
         }
 
+        {
+            const float vertices_pos[] =
+            {
+                -1.f, -1.f, 0.f,
+                1.f , -1.f, 0.f,
+                1.f , 1.f , 0.f,
+
+                -1.f, -1.f, 0.f,
+                1.f , 1.f , 0.f,
+                -1.f, 1.f , 0.f,
+            };
+            const float vertices_uv[] =
+            {
+                0.f, 0.f,
+                1.f, 0.f,
+                1.f, 1.f,
+
+                0.f, 0.f,
+                1.f, 1.f,
+                0.f, 1.f,
+            };
+
+            rdi::RenderSourceDesc rsource_desc = {};
+            rsource_desc.Count( 6 );
+            rsource_desc.VertexBuffer( rdi::VertexBufferDesc( rdi::EVertexSlot::POSITION ).DataType( rdi::EDataType::FLOAT, 3 ), vertices_pos );
+            rsource_desc.VertexBuffer( rdi::VertexBufferDesc( rdi::EVertexSlot::TEXCOORD0 ).DataType( rdi::EDataType::FLOAT, 2 ), vertices_uv );
+            _rsource_fullscreen_quad = rdi::CreateRenderSource( rsource_desc );
+        }
+
         return true;
     }
     virtual void shutdown()
     {
+        rdi::DestroyRenderSource( &_rsource_fullscreen_quad );
         rdi::DestroyResourceDescriptor( &_rdesc_samplers );
         rdi::device::DestroySampler( &_samp_trilinear );
         rdi::device::DestroySampler( &_samp_bilinear );
@@ -232,7 +262,7 @@ public:
         rdi::frame::Begin( &cmdq );
         rdi::context::ClearState( cmdq );
 
-        rdi::ClearRenderTarget( cmdq, _rtarget_color, 1.f, 0.f, 0.f, 0.f, 1.f );
+        rdi::ClearRenderTarget( cmdq, _rtarget_color, 0.f, 0.f, 0.f, 0.f, 1.f );
 
         rdi::context::ChangeToMainFramebuffer( cmdq );
         rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_copy_texture_rgba );
@@ -242,8 +272,10 @@ public:
         rdi::BindResources( cmdq, rdesc );
 
         /// draw fullscreen quad
+        rdi::BindRenderSource( cmdq, _rsource_fullscreen_quad );
+        rdi::SubmitRenderSource( cmdq, _rsource_fullscreen_quad );
 
-
+        rdi::context::Swap( cmdq );
 
         rdi::frame::End( &cmdq );
 
@@ -349,6 +381,9 @@ public:
     rdi::Sampler _samp_linear = {};
     rdi::Sampler _samp_bilinear = {};
     rdi::Sampler _samp_trilinear = {};
+
+    rdi::RenderSource _rsource_fullscreen_quad = BX_RDI_NULL_HANDLE;
+
 };
 
 int main( int argc, const char* argv[] )

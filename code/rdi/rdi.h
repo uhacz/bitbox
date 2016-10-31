@@ -135,16 +135,39 @@ struct RenderSourceDesc
     u32 num_indices = 0;
     u32 num_draw_ranges = 0;
     VertexLayout vertex_layout = {};
-    const EDataType::Enum index_type = EDataType::UNKNOWN;
+    EDataType::Enum index_type = EDataType::UNKNOWN;
 
     const void* vertex_data[cMAX_VERTEX_BUFFERS] = {};
     const void* index_data = nullptr;
 
     const RenderSourceRange* draw_ranges = nullptr;
+
+    RenderSourceDesc& Count( u32 nVertices, u32 nIndices = 0 )
+    {
+        num_vertices = nVertices;
+        num_indices = nIndices;
+        return *this;
+    }
+    
+    RenderSourceDesc& VertexBuffer( VertexBufferDesc vbDesc, const void* initialData )
+    {
+        SYS_ASSERT( vertex_layout.count < cMAX_VERTEX_BUFFERS );
+        u32 index = vertex_layout.count++;
+        vertex_layout.descs[index] = vbDesc;
+        vertex_data[index] = initialData;
+        return *this;
+    }
+    RenderSourceDesc& IndexBuffer( EDataType::Enum dt, const void* initialData )
+    {
+        index_type = dt;
+        index_data = initialData;
+        return *this;
+    }
 };
 RenderSource CreateRenderSource( const RenderSourceDesc& desc, bxAllocator* allocator = nullptr );
 void DestroyRenderSource( RenderSource* rsource, bxAllocator* allocator = nullptr );
 void BindRenderSource( CommandQueue* cmdq, RenderSource renderSource );
+void SubmitRenderSource( CommandQueue* cmdq, RenderSource renderSource, u32 rangeIndex = 0 );
 
 u32 GetNVertexBuffers( RenderSource rsource );
 u32 GetNVertices( RenderSource rsource );
