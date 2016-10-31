@@ -17,6 +17,9 @@ union MeshMatrix
 //////////////////////////////////////////////////////////////////////////
 struct SceneImpl
 {
+    static void StartUp();
+    static void ShutDown();
+
     void prepare( const char* name, bxAllocator* allocator );
     void unprepare();
 

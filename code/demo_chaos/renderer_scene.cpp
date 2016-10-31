@@ -116,14 +116,27 @@ struct MeshHandleManager
         return _scene[h.index];
     }
 };
-static MeshHandleManager g_handle = {};
+static MeshHandleManager* g_handle = {};
+MeshHandleManager* GHandle() { return g_handle; }
 
+//////////////////////////////////////////////////////////////////////////
+void SceneImpl::StartUp()
+{
+    g_handle = BX_NEW( bxDefaultAllocator(), MeshHandleManager );
+}
+
+void SceneImpl::ShutDown()
+{
+    BX_DELETE0( bxDefaultAllocator(), g_handle );
+}
+//////////////////////////////////////////////////////////////////////////
 
 Matrix4* getMatrixPtr( MeshMatrix& m, u32 numInstances )
 {
     SYS_ASSERT( numInstances > 0 );
     return ( numInstances == 1 ) ? (Matrix4*)m._single : m._multi;
 }
+
 
 void SceneImpl::prepare( const char* name, bxAllocator* allocator )
 {
@@ -139,20 +152,20 @@ void SceneImpl::unprepare()
 MeshID SceneImpl::add( const char* name, u32 numInstances )
 {
     MeshID mi = find( name );
-    if( g_handle.alive( mi ) )
+    if( GHandle()->alive( mi ) )
     {
         bxLogError( "MeshID with name '%s' already exists", name );
         return makeInvalidMeshID();
     }
 
-    mi = g_handle.acquire();
+    mi = GHandle()->acquire();
     if( _data.size + 1 > _data.capacity )
     {
         _AllocateData( _data.size * 2 + 8, bxDefaultAllocator() );
     }
 
     const u32 index = _data.size++;
-    g_handle.setData( mi, this, index );
+    GHandle()->setData( mi, this, index );
     _SetToDefaults( index );
 
     _data.names[index] = string::duplicate( nullptr, name );
@@ -174,16 +187,16 @@ MeshID SceneImpl::add( const char* name, u32 numInstances )
 
 void SceneImpl::remove( MeshID* mi )
 {
-    if( !g_handle.alive( *mi ) )
+    if( !GHandle()->alive( *mi ) )
         return;
 
     SYS_ASSERT( _data.size > 0 );
-    SYS_ASSERT( g_handle.getScene( *mi ) == this );
+    SYS_ASSERT( GHandle()->getScene( *mi ) == this );
 
-    const u32 index = g_handle.getDataIndex( *mi );
+    const u32 index = GHandle()->getDataIndex( *mi );
     const u32 last_index = _data.size - 1;
 
-    g_handle.release( mi );
+    GHandle()->release( mi );
 
     if( index != last_index )
     {
@@ -193,7 +206,7 @@ void SceneImpl::remove( MeshID* mi )
         _data.num_instances[index]  = _data.num_instances[last_index];
         _data.mesh_instance[index]  = _data.mesh_instance[last_index];
         _data.names[index]          = _data.names[last_index];
-        g_handle.setData( _data.mesh_instance[index], this, index );
+        GHandle()->setData( _data.mesh_instance[index], this, index );
 
         _data.matrices[last_index] = {};
         _data.render_sources[last_index] = BX_RDI_NULL_HANDLE;
@@ -298,8 +311,8 @@ void SceneImpl::_AllocateData( u32 newCapacity, bxAllocator* allocator )
 
 u32 SceneImpl::_GetIndex( MeshID mi )
 {
-    SYS_ASSERT( g_handle.alive( mi ) );
-    u32 index = g_handle.getDataIndex( mi );
+    SYS_ASSERT( GHandle()->alive( mi ) );
+    u32 index = GHandle()->getDataIndex( mi );
     SYS_ASSERT( index < _data.size );
     return index;
 }
@@ -321,21 +334,21 @@ namespace renderer
 
     void destroyMeshID( MeshID* mi )
     {
-        if( !g_handle.alive( *mi ) )
+        if( !GHandle()->alive( *mi ) )
             return;
 
-        Scene scene = g_handle.getScene( *mi );
+        Scene scene = GHandle()->getScene( *mi );
         scene->remove( mi );
     }
 
     void setRenderSource( MeshID mi, rdi::RenderSource rsource )
     {
-        Scene scene = g_handle.getScene( mi );
+        Scene scene = GHandle()->getScene( mi );
         scene->setRenderSource( mi, rsource );
     }
     void setMaterial( MeshID mi, MaterialID  m )
     {
-        Scene scene = g_handle.getScene( mi );
+        Scene scene = GHandle()->getScene( mi );
         scene->setMaterial( mi, m );
     }
 }

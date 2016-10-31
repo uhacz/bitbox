@@ -9,6 +9,7 @@
 //#include <gfx/gfx_camera.h>
 //#include <gfx/gfx_debug_draw.h>
 #include <rdi/rdi.h>
+#include <shaders/shaders/sys/binding_map.h>
 
 //#include <gfx/gfx_gui.h>
 //#include <gdi/gdi_shader.h>
@@ -19,11 +20,18 @@
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 using namespace bx;
+
+// void bx_purecall_handler()
+// {
+//     SYS_ASSERT( false );
+// }
+
 class bxDemoApp : public bxApplication
 {
 public:
     virtual bool startup( int argc, const char** argv )
     {
+        //_set_purecall_handler( bx_purecall_handler );
         bx::Engine::StartupInfo engine_startup_info = {};
         engine_startup_info.cfg_filename = "demo_chaos/global.cfg";
         engine_startup_info.start_gdi = false;
@@ -72,7 +80,7 @@ public:
             pipeline_desc.Shader( _shf_texutil, "copy_rgba" );
             _pipeline_copy_texture_rgba = rdi::CreatePipeline( pipeline_desc );
         }
-
+        
         {
             rdi::PipelineDesc pipeline_desc = {};
 
@@ -102,64 +110,84 @@ public:
         }
 
         {
+            _cbuffer_frame_data = rdi::device::CreateConstantBuffer( sizeof( FrameData ) );
+            _cbuffer_instance_offset = rdi::device::CreateConstantBuffer( sizeof( InstanceOffset ) );
+            const u32 MAX_INSTANCES = 1024;
+            _buffer_instance_world = rdi::device::CreateBufferRO( MAX_INSTANCES, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
+            _buffer_instance_world_it = rdi::device::CreateBufferRO( MAX_INSTANCES, rdi::Format( rdi::EDataType::FLOAT, 3 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
+
+            rdi::ResourceBinding bindings[] =
+            {
+                rdi::ResourceBinding( "offset", rdi::EBindingType::UNIFORM ).StageMask( rdi::EStage::VERTEX ).Slot( SLOT_INSTANCE_OFFSET ),
+                rdi::ResourceBinding( "world", rdi::EBindingType::READ_ONLY ).StageMask( rdi::EStage::VERTEX ).Slot( SLOT_INSTANCE_DATA_WORLD ),
+                rdi::ResourceBinding( "world_it", rdi::EBindingType::READ_ONLY ).StageMask( rdi::EStage::VERTEX ).Slot( SLOT_INSTANCE_DATA_WORLD_IT ),
+            };
             
+            rdi::ResourceLayout layout = {};
+            layout.bindings = bindings;
+            layout.num_bindings = 1;
+            _rdesc_instance_offset = rdi::CreateResourceDescriptor( layout );
+
+            layout.bindings = &bindings[1];
+            layout.num_bindings = 2;
+            _rdesc_instance_data = rdi::CreateResourceDescriptor( layout );
+
+            rdi::SetConstantBuffer( _rdesc_instance_offset, "offset", &_cbuffer_instance_offset );
+            rdi::SetResourceRO( _rdesc_instance_data, "world", &_buffer_instance_world );
+            rdi::SetResourceRO( _rdesc_instance_data, "world_it", &_buffer_instance_world_it );
         }
 
-        //const bxGdiFormat texture_formats[] =
-        //{
-        //    { bx::gdi::eTYPE_FLOAT, 4 },
-        //};
-        //bx::gfx::RenderPassDesc render_pass_desc = {};
-        //render_pass_desc.num_color_textures = 1;
-        //render_pass_desc.color_texture_formats = texture_formats;
-        //render_pass_desc.depth_texture_type = bx::gdi::eTYPE_DEPTH32F;
-        //render_pass_desc.width = 1920;
-        //render_pass_desc.height = 1080;
+        {
+            rdi::SamplerDesc samp_desc = {};
+            
+            samp_desc.Filter( rdi::ESamplerFilter::NEAREST );
+            _samp_point = rdi::device::CreateSampler( samp_desc );
 
-        //_render_pass = bx::gfx::createRenderPass( render_pass_desc );
+            samp_desc.Filter( rdi::ESamplerFilter::LINEAR );
+            _samp_linear = rdi::device::CreateSampler( samp_desc );
 
+            samp_desc.Filter( rdi::ESamplerFilter::BILINEAR_ANISO );
+            _samp_bilinear = rdi::device::CreateSampler( samp_desc );
 
-        //_native_shader_module = bx::gdi::shaderFx_createFromFile( _engine.gdi_device, _engine.resource_manager, "native2" );
+            samp_desc.Filter( rdi::ESamplerFilter::TRILINEAR_ANISO );
+            _samp_trilinear = rdi::device::CreateSampler( samp_desc );
 
-        //const bxGdiVertexStreamBlock stream_descs[2] =
-        //{
-        //    { bx::gdi::eSLOT_POSITION, bx::gdi::eTYPE_FLOAT, 3 },
-        //    { bx::gdi::eSLOT_NORMAL, bx::gdi::eTYPE_FLOAT, 3 },
-        //};
+            rdi::ResourceBinding samp_bindings[] =
+            {
+                rdi::ResourceBinding( "point", rdi::EBindingType::SAMPLER ).StageMask( rdi::EStage::ALL_STAGES_MASK ).Slot( 0 ),
+                rdi::ResourceBinding( "linear", rdi::EBindingType::SAMPLER ).StageMask( rdi::EStage::ALL_STAGES_MASK ).Slot( 1 ),
+                rdi::ResourceBinding( "bilinear_aniso", rdi::EBindingType::SAMPLER ).StageMask( rdi::EStage::ALL_STAGES_MASK ).Slot( 2 ),
+                rdi::ResourceBinding( "trilinear_aniso", rdi::EBindingType::SAMPLER ).StageMask( rdi::EStage::ALL_STAGES_MASK ).Slot( 3 ),
+            };
+            rdi::ResourceLayout resource_layout = {};
+            resource_layout.bindings = samp_bindings;
+            resource_layout.num_bindings = sizeof( samp_bindings ) / sizeof( *samp_bindings );
+            _rdesc_samplers = rdi::CreateResourceDescriptor( resource_layout );
 
-        //bx::gfx::PipelineDesc pipeline_desc = {};
-        //pipeline_desc.shaders[0] = _native_shader_module->vertexShader( 0 );
-        //pipeline_desc.shaders[1] = _native_shader_module->pixelShader( 0 );
-        //pipeline_desc.num_vertex_stream_descs = 2;
-        //pipeline_desc.vertex_stream_descs = stream_descs;
-        //_pipeline_native_pos_nrm_solid = bx::gfx::createPipeline( pipeline_desc );
-
-        //{
-        //    bx::gfx::ResourceBinding bindings[] = 
-        //    {
-        //        { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_VERTEX | bx::gdi::eSTAGE_MASK_PIXEL, 0, 1 }, // frame data
-        //        { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_VERTEX, 1, 1 }, // instance offset
-        //        { bx::gfx::eRESOURCE_TYPE_READ_ONLY, bx::gdi::eSTAGE_MASK_VERTEX, 1, 2 }, // instance data
-        //        { bx::gfx::eRESOURCE_TYPE_UNIFORM  , bx::gdi::eSTAGE_MASK_PIXEL, 3, 1 }, // material data
-        //    };
-        //    bx::gfx::ResourceLayout layout = {};
-        //    layout.bindings = bindings;
-        //    layout.num_bindings = 1;
-        //    _frame_data_rdesc = bx::gfx::createResourceDescriptor( layout );
-
-        //    layout.bindings = &bindings[1];
-        //    layout.num_bindings = 3;
-        //    _instance_data_rdesc = bx::gfx::createResourceDescriptor( layout );
-
-        //    layout.bindings = &bindings[4];
-        //    layout.num_bindings = 1;
-        //    _material_data_rdesc = bx::gfx::createResourceDescriptor( layout );
-        //}
+            rdi::SetSampler( _rdesc_samplers, "point", &_samp_point );
+            rdi::SetSampler( _rdesc_samplers, "linear", &_samp_linear );
+            rdi::SetSampler( _rdesc_samplers, "bilinear_aniso", &_samp_bilinear );
+            rdi::SetSampler( _rdesc_samplers, "trilinear_aniso", &_samp_trilinear );
+        }
 
         return true;
     }
     virtual void shutdown()
     {
+        rdi::DestroyResourceDescriptor( &_rdesc_samplers );
+        rdi::device::DestroySampler( &_samp_trilinear );
+        rdi::device::DestroySampler( &_samp_bilinear );
+        rdi::device::DestroySampler( &_samp_linear );
+        rdi::device::DestroySampler( &_samp_point );
+
+        rdi::DestroyResourceDescriptor( &_rdesc_instance_data );
+        rdi::DestroyResourceDescriptor( &_rdesc_instance_offset );
+
+        rdi::device::DestroyBufferRO( &_buffer_instance_world_it );
+        rdi::device::DestroyBufferRO( &_buffer_instance_world );
+        rdi::device::DestroyConstantBuffer( &_cbuffer_instance_offset );
+        rdi::device::DestroyConstantBuffer( &_cbuffer_frame_data );
+        //
         rdi::DestroyRenderTarget( &_rtarget_color );
         rdi::DestroyRenderTarget( &_rtarget_gbuffer );
 
@@ -170,16 +198,6 @@ public:
         rdi::ShaderFileUnload( &_shf_deffered, _engine.resource_manager );
         rdi::ShaderFileUnload( &_shf_texutil, _engine.resource_manager );
 
-        //bx::gfx::destroyResourceDescriptor( &_material_data_rdesc );
-        //bx::gfx::destroyResourceDescriptor( &_instance_data_rdesc );
-        //bx::gfx::destroyResourceDescriptor( &_frame_data_rdesc );
-
-        //bx::gfx::destroyPipeline( &_pipeline_native_pos_nrm_solid, _engine.gdi_device );
-        //bx::gdi::shaderFx_release( _engine.gdi_device, _engine.resource_manager, &_native_shader_module );
-        //bx::gfx::destroyRenderPass( &_render_pass, _engine.gdi_device );
-
-        //bx::game_scene::shutdown( &_scene, &_engine );
-        //bx::gfxCameraDestroy( &_camera );
         rdi::Shutdown();
         bx::Engine::shutdown( &_engine );
     }
@@ -209,6 +227,26 @@ public:
         //}
 
         rmt_BeginCPUSample( FRAME_UPDATE );
+
+        rdi::CommandQueue* cmdq = nullptr;
+        rdi::frame::Begin( &cmdq );
+        rdi::context::ClearState( cmdq );
+
+        rdi::ClearRenderTarget( cmdq, _rtarget_color, 1.f, 0.f, 0.f, 0.f, 1.f );
+
+        rdi::context::ChangeToMainFramebuffer( cmdq );
+        rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_copy_texture_rgba );
+        rdi::SetResourceRO( rdesc, "gtexture", &rdi::GetTexture( _rtarget_color, 0 ) );
+        rdi::SetSampler( rdesc, "gsampler", &_samp_point );
+        rdi::BindPipeline( cmdq, _pipeline_copy_texture_rgba );
+        rdi::BindResources( cmdq, rdesc );
+
+        /// draw fullscreen quad
+
+
+
+        rdi::frame::End( &cmdq );
+
 
         //bx::GfxCamera* camera = _engine.camera_manager->stack()->top();
 
@@ -275,47 +313,42 @@ public:
     }
     float _time = 0.f;
     bx::Engine _engine;
-    //bx::GameScene _scene;
-    //bx::GfxCamera* _camera = nullptr;
-    //bx::gfx::CameraInputContext _cameraInputCtx = {};
-
-    bx::rdi::ShaderFile* _shf_texutil = nullptr;
-    bx::rdi::Pipeline _pipeline_copy_texture_rgba = BX_RDI_NULL_HANDLE;
     
-    bx::rdi::ShaderFile* _shf_deffered = nullptr;
-    bx::rdi::Pipeline _pipeline_geometry_notex = BX_RDI_NULL_HANDLE;
-    bx::rdi::Pipeline _pipeline_geometry_tex = BX_RDI_NULL_HANDLE;
-
-    bx::rdi::RenderTarget _rtarget_gbuffer = BX_RDI_NULL_HANDLE;
-    bx::rdi::RenderTarget _rtarget_color = BX_RDI_NULL_HANDLE;
-
-    bx::rdi::ConstantBuffer _cbuffer_instance_offset = {};
-    bx::rdi::BufferRO _buffer_instance_world = {};
-    bx::rdi::BufferRO _buffer_instance_world_it = {};
+    rdi::ShaderFile* _shf_texutil = nullptr;
+    rdi::Pipeline _pipeline_copy_texture_rgba = BX_RDI_NULL_HANDLE;
     
-    bx::rdi::ResourceDescriptor _rdesc_frame_data;
-    bx::rdi::ConstantBuffer _cbuffer_frame_data = {};
+    rdi::ShaderFile* _shf_deffered = nullptr;
+    rdi::Pipeline _pipeline_geometry_notex = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline _pipeline_geometry_tex = BX_RDI_NULL_HANDLE;
+
+    rdi::RenderTarget _rtarget_gbuffer = BX_RDI_NULL_HANDLE;
+    rdi::RenderTarget _rtarget_color = BX_RDI_NULL_HANDLE;
+
+
+    struct InstanceOffset
+    {
+        u32 begin;
+        u32 padding_[3];
+    };
+    rdi::ResourceDescriptor _rdesc_instance_offset = BX_RDI_NULL_HANDLE;
+    rdi::ResourceDescriptor _rdesc_instance_data = BX_RDI_NULL_HANDLE;
+    rdi::ConstantBuffer _cbuffer_instance_offset = {};
+    rdi::BufferRO _buffer_instance_world = {};
+    rdi::BufferRO _buffer_instance_world_it = {};
+    
+    rdi::ResourceDescriptor _rdesc_frame_data;
+    rdi::ConstantBuffer _cbuffer_frame_data = {};
     struct FrameData
     {
         Matrix4 _view;
         Matrix4 _view_proj;
     } _frame_data;
 
-    bx::rdi::ResourceDescriptor _rdesc_samplers;
-    bx::rdi::Sampler _samp_point = {};
-    bx::rdi::Sampler _samp_linear = {};
-    bx::rdi::Sampler _samp_bilinear = {};
-    bx::rdi::Sampler _samp_trilinear = {};
-
-
-    //bx::gfx::RenderPass _render_pass = BX_GFX_NULL_HANDLE;
-    //bx::gfx::Pipeline _pipeline_native_pos_nrm_solid = BX_GFX_NULL_HANDLE;
-    //bx::gfx::Pipeline _pipeline_screenquad = BX_GFX_NULL_HANDLE;
-    //bx::gfx::ResourceDescriptor _frame_data_rdesc = BX_GFX_NULL_HANDLE;
-    //bx::gfx::ResourceDescriptor _instance_data_rdesc = BX_GFX_NULL_HANDLE;
-    //bx::gfx::ResourceDescriptor _material_data_rdesc = BX_GFX_NULL_HANDLE;
-
-    //bxGdiShaderFx* _native_shader_module = nullptr;
+    rdi::ResourceDescriptor _rdesc_samplers;
+    rdi::Sampler _samp_point = {};
+    rdi::Sampler _samp_linear = {};
+    rdi::Sampler _samp_bilinear = {};
+    rdi::Sampler _samp_trilinear = {};
 };
 
 int main( int argc, const char* argv[] )

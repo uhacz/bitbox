@@ -44,18 +44,23 @@ struct RendererImpl
 
 namespace renderer
 {
-    static SharedMeshContainer g_mesh_container = {};
-    static MaterialContainer g_material_container = {};
+    static SharedMeshContainer* g_mesh_container = nullptr;
+    static MaterialContainer* g_material_container = nullptr;
     
 //////////////////////////////////////////////////////////////////////////
 Renderer startup()
 {
+    g_mesh_container = BX_NEW( bxDefaultAllocator(), SharedMeshContainer );
+    g_material_container = BX_NEW( bxDefaultAllocator(), MaterialContainer );
+    SceneImpl::StartUp();
     return nullptr;
 }
 
 void shutdown()
 {
-
+    SceneImpl::ShutDown();
+    BX_DELETE0( bxDefaultAllocator(), g_material_container );
+    BX_DELETE0( bxDefaultAllocator(), g_mesh_container );
 }
 
 MaterialID createMaterial( const char* name, const MaterialDesc& desc, const MaterialTextureNames* textures )
@@ -84,11 +89,11 @@ MaterialID createMaterial( const char* name, const MaterialDesc& desc, const Mat
 
 void destroyMaterial( MaterialID* m )
 {
-    if( !g_material_container.alive( *m ) )
+    if( !g_material_container->alive( *m ) )
         return;
 
-    rdi::ResourceDescriptor rdesc = g_material_container.getResourceDesc( *m );
-    g_material_container.remove( m );
+    rdi::ResourceDescriptor rdesc = g_material_container->getResourceDesc( *m );
+    g_material_container->remove( m );
 
 
     rdi::DestroyResourceDescriptor( &rdesc, nullptr );
@@ -96,18 +101,18 @@ void destroyMaterial( MaterialID* m )
 
 MaterialID findMaterial( const char* name )
 {
-    return g_material_container.find( name );
+    return g_material_container->find( name );
 }
 
 void addSharedRenderSource( const char* name, rdi::RenderSource rsource )
 {
-    g_mesh_container.add( name, rsource );
+    g_mesh_container->add( name, rsource );
 }
 
 rdi::RenderSource findSharedRenderSource( const char* name )
 {
-    u32 index = g_mesh_container.find( name );
-    return ( index != UINT32_MAX ) ? g_mesh_container.getRenderSource( index ) : BX_RDI_NULL_HANDLE;
+    u32 index = g_mesh_container->find( name );
+    return ( index != UINT32_MAX ) ? g_mesh_container->getRenderSource( index ) : BX_RDI_NULL_HANDLE;
 }
 
 Scene createScene( const char* name )

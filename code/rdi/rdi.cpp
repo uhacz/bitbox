@@ -187,6 +187,19 @@ void DestroyRenderTarget( RenderTarget* renderTarget, bxAllocator* allocator /*=
 }
 
 
+void ClearRenderTarget( CommandQueue* cmdq, RenderTarget rtarget, float r, float g, float b, float a, float d )
+{
+    float rgbad[5] = { r, g, b, a, d };
+    int clear_depth = ( d >= 0.f ) ? 1 : 0;
+    rdi::context::ClearBuffers( cmdq, rtarget->color_textures, rtarget->num_color_textures, rtarget->depth_texture, rgbad, 1, clear_depth );
+}
+
+void ClearRenderTargetDepth( CommandQueue* cmdq, RenderTarget rtarget, float d )
+{
+    float rgbad[5] = { 0.f, 0.f, 0.f, 0.f, d };
+    rdi::context::ClearBuffers( cmdq, nullptr, 0, rtarget->depth_texture, rgbad, 0, 1 );
+}
+
 void BindRenderTarget( CommandQueue* cmdq, RenderTarget renderTarget, const std::initializer_list<u8>& colorTextureIndices, bool useDepth )
 {
     SYS_ASSERT( (u32)colorTextureIndices.size() < cMAX_RENDER_TARGETS );
@@ -206,6 +219,17 @@ void BindRenderTarget( CommandQueue* cmdq, RenderTarget renderTarget, const std:
     }
 
     context::ChangeRenderTargets( cmdq, color, (u32)colorTextureIndices.size(), depth );
+}
+
+TextureRW GetTexture( RenderTarget rtarget, u32 index )
+{
+    SYS_ASSERT( index < rtarget->num_color_textures );
+    return rtarget->color_textures[index];
+}
+
+TextureDepth GetTextureDepth( RenderTarget rtarget )
+{
+    return rtarget->depth_texture;
 }
 
 //////////////////////////////////////////////////////////////////////////

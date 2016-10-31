@@ -65,7 +65,11 @@ struct RenderTargetDesc
 
 RenderTarget CreateRenderTarget( const RenderTargetDesc& desc, bxAllocator* allocator = nullptr );
 void DestroyRenderTarget( RenderTarget* renderPass, bxAllocator* allocator = nullptr );
+void ClearRenderTarget( CommandQueue* cmdq, RenderTarget rtarget, float r, float g, float b, float a, float d );
+void ClearRenderTargetDepth( CommandQueue* cmdq, RenderTarget rtarget, float d );
 void BindRenderTarget( CommandQueue* cmdq, RenderTarget renderTarget, const std::initializer_list<u8>& colorTextureIndices, bool useDepth );
+TextureRW GetTexture( RenderTarget rtarget, u32 index );
+TextureDepth GetTextureDepth( RenderTarget rtarget );
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -93,7 +97,7 @@ struct ResourceBinding
 
     ResourceBinding( const char* n, EBindingType::Enum t ) { name = n;  type = t; }
     ResourceBinding& StageMask( u8 sm ) { stage_mask = sm; return *this; }
-    ResourceBinding& Slot( u8 slot ) { slot = slot; return *this; }
+    ResourceBinding& Slot( u8 sl ) { slot = sl; return *this; }
 };
 
 struct ResourceLayout

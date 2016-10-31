@@ -1124,6 +1124,7 @@ void DestroyConstantBuffer( ConstantBuffer* id )
 }
 void DestroyBufferRO( BufferRO* id )
 {
+    releaseSafe( id->viewSH );
     releaseSafe( id->buffer );
 }
 void DestroyShader( Shader* id )
