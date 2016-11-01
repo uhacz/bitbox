@@ -353,3 +353,102 @@ namespace renderer
     }
 }
 }}///
+
+
+
+#include <shaders/shaders/sys/binding_map.h>
+
+namespace bx { namespace gfx {
+
+void VertexTransformDataInit( VertexTransformData* vt, u32 maxInstances )
+{
+    vt->_offset   = rdi::device::CreateConstantBuffer( sizeof( VertexTransformData::InstanceOffset ) );
+    vt->_world    = rdi::device::CreateBufferRO( maxInstances, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
+    vt->_world_it = rdi::device::CreateBufferRO( maxInstances, rdi::Format( rdi::EDataType::FLOAT, 3 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
+
+    rdi::ResourceBinding bindings[] =
+    {
+        rdi::ResourceBinding( "offset", rdi::EBindingType::UNIFORM ).StageMask( rdi::EStage::VERTEX_MASK ).Slot( SLOT_INSTANCE_OFFSET ),
+        rdi::ResourceBinding( "world", rdi::EBindingType::READ_ONLY ).StageMask( rdi::EStage::VERTEX_MASK ).Slot( SLOT_INSTANCE_DATA_WORLD ),
+        rdi::ResourceBinding( "world_it", rdi::EBindingType::READ_ONLY ).StageMask( rdi::EStage::VERTEX_MASK ).Slot( SLOT_INSTANCE_DATA_WORLD_IT ),
+    };
+
+    rdi::ResourceLayout layout = {};
+    layout.bindings = bindings;
+    layout.num_bindings = 3;
+    vt->_rdesc = rdi::CreateResourceDescriptor( layout );
+
+    rdi::SetConstantBuffer( vt->_rdesc, "offset", &vt->_offset );
+    rdi::SetResourceRO( vt->_rdesc, "world", &vt->_world );
+    rdi::SetResourceRO( vt->_rdesc, "world_it", &vt->_world_it );
+
+    vt->_max_instances = maxInstances;
+}
+
+void VertexTransformDataDeinit( VertexTransformData* vt )
+{
+    rdi::DestroyResourceDescriptor( &vt->_rdesc );
+    rdi::device::DestroyBufferRO( &vt->_world_it );
+    rdi::device::DestroyBufferRO( &vt->_world );
+    rdi::device::DestroyConstantBuffer( &vt->_offset );
+}
+
+void VertexTransformData::Map( rdi::CommandQueue* cmdq )
+{
+    SYS_ASSERT( _mapped_data_world == nullptr );
+    SYS_ASSERT( _mapped_data_world_it == nullptr );
+    _mapped_data_world = (float4_t*)rdi::context::Map( cmdq, _world, 0, rdi::EMapType::WRITE );
+    _mapped_data_world_it = (float3_t*)rdi::context::Map( cmdq, _world_it, 0, rdi::EMapType::WRITE );
+
+    _num_instances = 0;
+}
+void VertexTransformData::Unmap( rdi::CommandQueue* cmdq )
+{
+    SYS_ASSERT( _mapped_data_world != nullptr );
+    SYS_ASSERT( _mapped_data_world_it != nullptr );
+
+    rdi::context::Unmap( cmdq, _world_it );
+    rdi::context::Unmap( cmdq, _world );
+
+    _mapped_data_world = nullptr;
+    _mapped_data_world_it = nullptr;
+}
+u32 VertexTransformData::AddBatch( const Matrix4* matrices, u32 count )
+{
+    if( _num_instances + count > _max_instances )
+        return UINT32_MAX;
+
+    u32 offset = _num_instances;
+    _num_instances += count;
+
+    for( u32 imatrix = 0; imatrix < count; ++imatrix )
+    {
+        const u32 dataOffset = ( offset + imatrix ) * 3;
+        const Matrix4 worldRows = transpose( matrices[imatrix] );
+        const Matrix3 worldITRows = inverse( matrices[imatrix].getUpper3x3() );
+
+        const float4_t* worldRowsPtr = (float4_t*)&worldRows;
+        memcpy( _mapped_data_world + dataOffset, worldRowsPtr, sizeof( float4_t ) * 3 );
+
+        const float4_t* worldITRowsPtr = (float4_t*)&worldITRows;
+        memcpy( _mapped_data_world_it + dataOffset + 0, worldITRowsPtr + 0, sizeof( float3_t ) );
+        memcpy( _mapped_data_world_it + dataOffset + 1, worldITRowsPtr + 1, sizeof( float3_t ) );
+        memcpy( _mapped_data_world_it + dataOffset + 2, worldITRowsPtr + 2, sizeof( float3_t ) );
+    }
+    return offset;
+}
+void VertexTransformData::Bind( rdi::CommandQueue* cmdq )
+{
+    rdi::BindResources( cmdq, _rdesc );
+}
+
+void VertexTransformData::SetCurrent( rdi::CommandQueue* cmdq, u32 index )
+{
+    InstanceOffset off = {};
+    off.begin = index;
+    rdi::context::UpdateCBuffer( cmdq, _offset, &off );
+}
+
+
+
+}}///

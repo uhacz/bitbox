@@ -3,7 +3,7 @@
 
 #include <sys/binding_map.h>
 
-shared cbuffer InstanceOffset : register(BSLOT(SLOT_INSTANCE_OFFSET) )
+shared cbuffer _InstanceOffset : register(BSLOT(SLOT_INSTANCE_OFFSET) )
 {
     uint _begin;
 };

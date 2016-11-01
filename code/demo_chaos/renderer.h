@@ -21,12 +21,7 @@ namespace gfx{
         const char* specular_tex = nullptr;
         const char* roughness_tex = nullptr;
         const char* metallic_tex = nullptr;
-        //rdi::TextureRO diffuse_tex;
-        //rdi::TextureRO specular_tex;
-        //rdi::TextureRO roughness_tex;
-        //rdi::TextureRO metallic_tex;
     };
-
     
     typedef struct RendererImpl* Renderer;
     namespace renderer

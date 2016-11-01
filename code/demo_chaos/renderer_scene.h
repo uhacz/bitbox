@@ -57,3 +57,38 @@ private:
 };
 
 }}///
+
+
+#include <rdi/rdi.h>
+namespace bx { namespace gfx {
+
+struct VertexTransformData
+{
+    struct InstanceOffset
+    {
+        u32 begin;
+        u32 padding_[3];
+    };
+
+    rdi::ConstantBuffer _offset = {};
+    rdi::BufferRO _world = {};
+    rdi::BufferRO _world_it = {};
+    rdi::ResourceDescriptor _rdesc = BX_RDI_NULL_HANDLE;
+    
+    u32 _max_instances = 0;
+    u32 _num_instances = 0;
+
+    float4_t* _mapped_data_world = nullptr;
+    float3_t* _mapped_data_world_it = nullptr;
+
+    void Map( rdi::CommandQueue* cmdq );
+    void Unmap( rdi::CommandQueue* cmdq );
+    u32  AddBatch( const Matrix4* matrices, u32 count );
+    void Bind( rdi::CommandQueue* cmdq );
+    void SetCurrent( rdi::CommandQueue* cmdq, u32 index );
+};
+
+void VertexTransformDataInit( VertexTransformData* vt, u32 maxInstances );
+void VertexTransformDataDeinit( VertexTransformData* vt );
+
+}}///

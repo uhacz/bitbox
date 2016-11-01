@@ -113,6 +113,9 @@ void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, si
         D3D11_SHADER_BUFFER_DESC sb_desc;
         cbuffer_reflector->GetDesc( &sb_desc );
 
+        if( sb_desc.Name[0] == '_' )
+            continue;
+
         D3D11_SHADER_INPUT_BIND_DESC bind_desc;
         reflector->GetResourceBindingDescByName( sb_desc.Name, &bind_desc );
 
@@ -1435,7 +1438,7 @@ void ChangeToMainFramebuffer( CommandQueue* cmdq )
     cmdq->dx11()->OMSetRenderTargets( 1, &cmdq->_mainFramebuffer, 0 );
     cmdq->dx11()->RSSetViewports( 1, &vp );
 }
-void ChangeRenderTargets( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, TextureDepth depthTex )
+void ChangeRenderTargets( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, TextureDepth depthTex, bool changeViewport )
 {
     const int SLOT_COUNT = cMAX_RENDER_TARGETS;
     SYS_ASSERT( nColor < SLOT_COUNT );
@@ -1449,6 +1452,16 @@ void ChangeRenderTargets( CommandQueue* cmdq, TextureRW* colorTex, unsigned nCol
     }
 
     cmdq->dx11()->OMSetRenderTargets( SLOT_COUNT, rtv, dsv );
+
+    if( changeViewport )
+    {
+        Viewport vp;
+        vp.x = 0;
+        vp.y = 0;
+        vp.w = ( colorTex ) ? colorTex->width : depthTex.width;
+        vp.h = ( colorTex ) ? colorTex->height : depthTex.height;
+        SetViewport( cmdq, vp );
+    }
 }
 
 unsigned char* _MapResource( ID3D11DeviceContext* ctx, ID3D11Resource* resource, D3D11_MAP dxMapType, int offsetInBytes )

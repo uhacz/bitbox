@@ -1,12 +1,14 @@
 #include "rdi.h"
+#include "rdi_shader_reflection.h"
 
 #include <util/hash.h>
 #include <util/memory.h>
+#include <util/buffer_utils.h>
+#include <util/common.h>
+#include <util/poly/poly_shape.h>
 
 #include <resource_manager/resource_manager.h>
-#include "rdi_shader_reflection.h"
-#include "util/buffer_utils.h"
-#include "util/common.h"
+
 #include <algorithm>
 
 namespace bx { namespace rdi {
@@ -219,6 +221,11 @@ void BindRenderTarget( CommandQueue* cmdq, RenderTarget renderTarget, const std:
     }
 
     context::ChangeRenderTargets( cmdq, color, (u32)colorTextureIndices.size(), depth );
+}
+
+void BindRenderTarget( CommandQueue* cmdq, RenderTarget renderTarget )
+{
+    context::ChangeRenderTargets( cmdq, renderTarget->color_textures, renderTarget->num_color_textures, renderTarget->depth_texture );
 }
 
 TextureRW GetTexture( RenderTarget rtarget, u32 index )
@@ -542,4 +549,27 @@ RenderSourceRange GetRange( RenderSource rsource, u32 index )
     SYS_ASSERT( index < rsource->num_draw_ranges );
     return rsource->draw_ranges[index];
 }
+
+RenderSource CreateRenderSourceFromPolyShape( const bxPolyShape& shape )
+{
+    const int nVertices = shape.nvertices();
+    const int nIndices = shape.ntriangles() * 3;
+
+    const float* pos = shape.positions;
+    const float* nrm = shape.normals;
+    const float* uvs = shape.texcoords;
+    const u32* indices = shape.indices;
+
+    RenderSourceDesc desc = {};
+    desc.Count( nVertices, nIndices );
+    desc.VertexBuffer( VertexBufferDesc( EVertexSlot::POSITION ).DataType( EDataType::FLOAT, 3 ), pos );
+    desc.VertexBuffer( VertexBufferDesc( EVertexSlot::NORMAL ).DataType( EDataType::FLOAT, 3 ), nrm );
+    desc.VertexBuffer( VertexBufferDesc( EVertexSlot::TEXCOORD0 ).DataType( EDataType::FLOAT, 2 ), uvs );
+    desc.IndexBuffer( EDataType::UINT, indices );
+
+    RenderSource rsource = CreateRenderSource( desc );
+    
+    return rsource;
+}
+
 }}///

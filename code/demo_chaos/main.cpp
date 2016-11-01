@@ -16,7 +16,9 @@
 
 //#include "scene.h"
 #include "renderer.h"
+#include "renderer_scene.h"
 #include "resource_manager/resource_manager.h"
+#include "util/poly/poly_shape.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 using namespace bx;
@@ -74,6 +76,7 @@ public:
         
         _shf_texutil = rdi::ShaderFileLoad( "shader/bin/texture_utils.shader", _engine.resource_manager );
         _shf_deffered = rdi::ShaderFileLoad( "shader/bin/deffered.shader", _engine.resource_manager );
+        _shf_test = rdi::ShaderFileLoad( "shader/bin/test.shader", _engine.resource_manager );
         
         {
             rdi::PipelineDesc pipeline_desc = {};
@@ -89,6 +92,12 @@ public:
 
             pipeline_desc.Shader( _shf_deffered, "geometry_texture" );
             _pipeline_geometry_tex = rdi::CreatePipeline( pipeline_desc );
+        }
+
+        {
+            rdi::PipelineDesc pipeline_desc = {};
+            pipeline_desc.Shader( _shf_test, "color" );
+            _pipeline_test_color = rdi::CreatePipeline( pipeline_desc );
         }
 
         {
@@ -109,32 +118,46 @@ public:
             _rtarget_color = rdi::CreateRenderTarget( rt_desc );
         }
 
+        //{
+        //    _cbuffer_frame_data = rdi::device::CreateConstantBuffer( sizeof( FrameData ) );
+        //    _cbuffer_instance_offset = rdi::device::CreateConstantBuffer( sizeof( InstanceOffset ) );
+        //    const u32 MAX_INSTANCES = 1024;
+        //    _buffer_instance_world = rdi::device::CreateBufferRO( MAX_INSTANCES, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
+        //    _buffer_instance_world_it = rdi::device::CreateBufferRO( MAX_INSTANCES, rdi::Format( rdi::EDataType::FLOAT, 3 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
+
+        //    rdi::ResourceBinding bindings[] =
+        //    {
+        //        rdi::ResourceBinding( "offset", rdi::EBindingType::UNIFORM ).StageMask( rdi::EStage::VERTEX ).Slot( SLOT_INSTANCE_OFFSET ),
+        //        rdi::ResourceBinding( "world", rdi::EBindingType::READ_ONLY ).StageMask( rdi::EStage::VERTEX ).Slot( SLOT_INSTANCE_DATA_WORLD ),
+        //        rdi::ResourceBinding( "world_it", rdi::EBindingType::READ_ONLY ).StageMask( rdi::EStage::VERTEX ).Slot( SLOT_INSTANCE_DATA_WORLD_IT ),
+        //    };
+        //    
+        //    rdi::ResourceLayout layout = {};
+        //    layout.bindings = bindings;
+        //    layout.num_bindings = 1;
+        //    _rdesc_instance_offset = rdi::CreateResourceDescriptor( layout );
+
+        //    layout.bindings = &bindings[1];
+        //    layout.num_bindings = 2;
+        //    _rdesc_instance_data = rdi::CreateResourceDescriptor( layout );
+
+        //    rdi::SetConstantBuffer( _rdesc_instance_offset, "offset", &_cbuffer_instance_offset );
+        //    rdi::SetResourceRO( _rdesc_instance_data, "world", &_buffer_instance_world );
+        //    rdi::SetResourceRO( _rdesc_instance_data, "world_it", &_buffer_instance_world_it );
+        //}
+
+        {
+            gfx::VertexTransformDataInit( &_vertex_transform_data, 1024 );
+        }
+
         {
             _cbuffer_frame_data = rdi::device::CreateConstantBuffer( sizeof( FrameData ) );
-            _cbuffer_instance_offset = rdi::device::CreateConstantBuffer( sizeof( InstanceOffset ) );
-            const u32 MAX_INSTANCES = 1024;
-            _buffer_instance_world = rdi::device::CreateBufferRO( MAX_INSTANCES, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
-            _buffer_instance_world_it = rdi::device::CreateBufferRO( MAX_INSTANCES, rdi::Format( rdi::EDataType::FLOAT, 3 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
-
-            rdi::ResourceBinding bindings[] =
-            {
-                rdi::ResourceBinding( "offset", rdi::EBindingType::UNIFORM ).StageMask( rdi::EStage::VERTEX ).Slot( SLOT_INSTANCE_OFFSET ),
-                rdi::ResourceBinding( "world", rdi::EBindingType::READ_ONLY ).StageMask( rdi::EStage::VERTEX ).Slot( SLOT_INSTANCE_DATA_WORLD ),
-                rdi::ResourceBinding( "world_it", rdi::EBindingType::READ_ONLY ).StageMask( rdi::EStage::VERTEX ).Slot( SLOT_INSTANCE_DATA_WORLD_IT ),
-            };
-            
+            rdi::ResourceBinding binding = rdi::ResourceBinding( "frame_data", rdi::EBindingType::UNIFORM ).Slot( SLOT_FRAME_DATA ).StageMask( rdi::EStage::ALL_STAGES_MASK );
             rdi::ResourceLayout layout = {};
-            layout.bindings = bindings;
+            layout.bindings = &binding;
             layout.num_bindings = 1;
-            _rdesc_instance_offset = rdi::CreateResourceDescriptor( layout );
-
-            layout.bindings = &bindings[1];
-            layout.num_bindings = 2;
-            _rdesc_instance_data = rdi::CreateResourceDescriptor( layout );
-
-            rdi::SetConstantBuffer( _rdesc_instance_offset, "offset", &_cbuffer_instance_offset );
-            rdi::SetResourceRO( _rdesc_instance_data, "world", &_buffer_instance_world );
-            rdi::SetResourceRO( _rdesc_instance_data, "world_it", &_buffer_instance_world_it );
+            _rdesc_frame_data = rdi::CreateResourceDescriptor( layout );
+            rdi::SetConstantBuffer( _rdesc_frame_data, "frame_data", &_cbuffer_frame_data );
         }
 
         {
@@ -199,10 +222,25 @@ public:
             _rsource_fullscreen_quad = rdi::CreateRenderSource( rsource_desc );
         }
 
+        {//// poly shapes
+            bxPolyShape polyShape;
+            bxPolyShape_createBox( &polyShape, 1 );
+            _rsource_box = rdi::CreateRenderSourceFromPolyShape( polyShape );
+            bxPolyShape_deallocateShape( &polyShape );
+
+            bxPolyShape_createShpere( &polyShape, 8 );
+            _rsource_sphere = rdi::CreateRenderSourceFromPolyShape( polyShape );
+            bxPolyShape_deallocateShape( &polyShape );
+        }
+
+        _camera.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
+        _instances[0] = Matrix4::identity();
         return true;
     }
     virtual void shutdown()
     {
+        rdi::DestroyRenderSource( &_rsource_sphere );
+        rdi::DestroyRenderSource( &_rsource_box );
         rdi::DestroyRenderSource( &_rsource_fullscreen_quad );
         rdi::DestroyResourceDescriptor( &_rdesc_samplers );
         rdi::device::DestroySampler( &_samp_trilinear );
@@ -210,21 +248,25 @@ public:
         rdi::device::DestroySampler( &_samp_linear );
         rdi::device::DestroySampler( &_samp_point );
 
-        rdi::DestroyResourceDescriptor( &_rdesc_instance_data );
-        rdi::DestroyResourceDescriptor( &_rdesc_instance_offset );
+        gfx::VertexTransformDataDeinit( &_vertex_transform_data );
+        //rdi::DestroyResourceDescriptor( &_rdesc_instance_data );
+        //rdi::DestroyResourceDescriptor( &_rdesc_instance_offset );
 
-        rdi::device::DestroyBufferRO( &_buffer_instance_world_it );
-        rdi::device::DestroyBufferRO( &_buffer_instance_world );
-        rdi::device::DestroyConstantBuffer( &_cbuffer_instance_offset );
+        //rdi::device::DestroyBufferRO( &_buffer_instance_world_it );
+        //rdi::device::DestroyBufferRO( &_buffer_instance_world );
+        //rdi::device::DestroyConstantBuffer( &_cbuffer_instance_offset );
+        rdi::DestroyResourceDescriptor( &_rdesc_frame_data );
         rdi::device::DestroyConstantBuffer( &_cbuffer_frame_data );
         //
         rdi::DestroyRenderTarget( &_rtarget_color );
         rdi::DestroyRenderTarget( &_rtarget_gbuffer );
 
+        rdi::DestroyPipeline( &_pipeline_test_color );
         rdi::DestroyPipeline( &_pipeline_geometry_tex );
         rdi::DestroyPipeline( &_pipeline_geometry_notex );
         rdi::DestroyPipeline( &_pipeline_copy_texture_rgba );
 
+        rdi::ShaderFileUnload( &_shf_test, _engine.resource_manager );
         rdi::ShaderFileUnload( &_shf_deffered, _engine.resource_manager );
         rdi::ShaderFileUnload( &_shf_texutil, _engine.resource_manager );
 
@@ -258,19 +300,68 @@ public:
 
         rmt_BeginCPUSample( FRAME_UPDATE );
 
+        {
+            bxInput* input = &win->input;
+            bxInput_Mouse* inputMouse = &input->mouse;
+            bxInput_PadState* inputPad = input->pad.currentState();
+
+            if( inputPad->connected && !useDebugCamera )
+            {
+                const float sensitivity = 3.f;
+                _camera_input_ctx.updateInput( -inputPad->analog.right_X * sensitivity, inputPad->analog.right_Y * sensitivity, deltaTime );
+            }
+            else
+            {
+                _camera_input_ctx.updateInput( inputMouse->currentState()->lbutton
+                                               , inputMouse->currentState()->mbutton
+                                               , inputMouse->currentState()->rbutton
+                                               , inputMouse->currentState()->dx
+                                               , inputMouse->currentState()->dy
+                                               , 0.01f
+                                               , deltaTime );
+            }
+            const Matrix4 new_camera_world = _camera_input_ctx.computeMovement( _camera.world, 0.15f );
+            _camera.world = new_camera_world;
+        }
+
+        gfx::computeMatrices( &_camera );
+        rdi::Viewport screen_viewport = gfx::computeViewport( _camera, win->width, win->height, 1920, 1080 );
+
         rdi::CommandQueue* cmdq = nullptr;
         rdi::frame::Begin( &cmdq );
         rdi::context::ClearState( cmdq );
 
-        rdi::ClearRenderTarget( cmdq, _rtarget_color, 0.f, 0.f, 0.f, 0.f, 1.f );
+        {
+            FrameData fdata;
+            fdata._view = _camera.view;
+            fdata._view_proj = _camera.view_proj;
+
+            rdi::context::UpdateCBuffer( cmdq, _cbuffer_frame_data, &fdata );
+            rdi::BindResources( cmdq, _rdesc_frame_data );
+        }
+
+        _vertex_transform_data.Map( cmdq );
+        u32 index = _vertex_transform_data.AddBatch( _instances, NUM_INSTANCES );
+        _vertex_transform_data.Unmap( cmdq );
+        _vertex_transform_data.Bind( cmdq );
+
+        rdi::ClearRenderTarget( cmdq, _rtarget_color, 1.f, 1.f, 1.f, 1.f, 1.f );
+        rdi::BindRenderTarget( cmdq, _rtarget_color );
+
+        _vertex_transform_data.SetCurrent( cmdq, index );
+        rdi::BindPipeline( cmdq, _pipeline_test_color );
+        rdi::BindRenderSource( cmdq, _rsource_box );
+        rdi::SubmitRenderSource( cmdq, _rsource_box );
+
 
         rdi::context::ChangeToMainFramebuffer( cmdq );
+        rdi::context::SetViewport( cmdq, screen_viewport );
         rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_copy_texture_rgba );
         rdi::SetResourceRO( rdesc, "gtexture", &rdi::GetTexture( _rtarget_color, 0 ) );
         rdi::SetSampler( rdesc, "gsampler", &_samp_point );
         rdi::BindPipeline( cmdq, _pipeline_copy_texture_rgba );
         rdi::BindResources( cmdq, rdesc );
-
+        
         /// draw fullscreen quad
         rdi::BindRenderSource( cmdq, _rsource_fullscreen_quad );
         rdi::SubmitRenderSource( cmdq, _rsource_fullscreen_quad );
@@ -280,31 +371,7 @@ public:
         rdi::frame::End( &cmdq );
 
 
-        //bx::GfxCamera* camera = _engine.camera_manager->stack()->top();
 
-        //{
-        //    bxInput* input = &win->input;
-        //    bxInput_Mouse* inputMouse = &input->mouse;
-        //    bxInput_PadState* inputPad = input->pad.currentState();
-
-        //    if( inputPad->connected && !useDebugCamera )
-        //    {
-        //        const float sensitivity = 3.f;
-        //        _cameraInputCtx.updateInput( -inputPad->analog.right_X * sensitivity, inputPad->analog.right_Y * sensitivity, deltaTime );
-        //    }
-        //    else
-        //    {
-        //        _cameraInputCtx.updateInput( inputMouse->currentState()->lbutton
-        //                                    , inputMouse->currentState()->mbutton
-        //                                    , inputMouse->currentState()->rbutton
-        //                                    , inputMouse->currentState()->dx
-        //                                    , inputMouse->currentState()->dy
-        //                                    , 0.01f
-        //                                    , deltaTime );
-        //    }
-        //    const Matrix4 newCameraMatrix = _cameraInputCtx.computeMovement( bx::gfxCameraWorldMatrixGet( camera ), 0.15f );
-        //    bx::gfxCameraWorldMatrixSet( camera, newCameraMatrix );
-        //}
 
         //bx::gfxCameraComputeMatrices( camera );
         //
@@ -353,20 +420,20 @@ public:
     rdi::Pipeline _pipeline_geometry_notex = BX_RDI_NULL_HANDLE;
     rdi::Pipeline _pipeline_geometry_tex = BX_RDI_NULL_HANDLE;
 
+    rdi::ShaderFile* _shf_test = nullptr;
+    rdi::Pipeline _pipeline_test_color = BX_RDI_NULL_HANDLE;
+
+
     rdi::RenderTarget _rtarget_gbuffer = BX_RDI_NULL_HANDLE;
     rdi::RenderTarget _rtarget_color = BX_RDI_NULL_HANDLE;
 
 
-    struct InstanceOffset
-    {
-        u32 begin;
-        u32 padding_[3];
-    };
-    rdi::ResourceDescriptor _rdesc_instance_offset = BX_RDI_NULL_HANDLE;
-    rdi::ResourceDescriptor _rdesc_instance_data = BX_RDI_NULL_HANDLE;
-    rdi::ConstantBuffer _cbuffer_instance_offset = {};
-    rdi::BufferRO _buffer_instance_world = {};
-    rdi::BufferRO _buffer_instance_world_it = {};
+    gfx::VertexTransformData _vertex_transform_data;
+    //rdi::ResourceDescriptor _rdesc_instance_offset = BX_RDI_NULL_HANDLE;
+    //rdi::ResourceDescriptor _rdesc_instance_data = BX_RDI_NULL_HANDLE;
+    //rdi::ConstantBuffer _cbuffer_instance_offset = {};
+    //rdi::BufferRO _buffer_instance_world = {};
+    //rdi::BufferRO _buffer_instance_world_it = {};
     
     rdi::ResourceDescriptor _rdesc_frame_data;
     rdi::ConstantBuffer _cbuffer_frame_data = {};
@@ -383,7 +450,14 @@ public:
     rdi::Sampler _samp_trilinear = {};
 
     rdi::RenderSource _rsource_fullscreen_quad = BX_RDI_NULL_HANDLE;
+    rdi::RenderSource _rsource_box = BX_RDI_NULL_HANDLE;
+    rdi::RenderSource _rsource_sphere = BX_RDI_NULL_HANDLE;
 
+    gfx::Camera _camera = {};
+    gfx::CameraInputContext _camera_input_ctx = {};
+
+    static const int NUM_INSTANCES = 1;
+    Matrix4 _instances[NUM_INSTANCES];
 };
 
 int main( int argc, const char* argv[] )

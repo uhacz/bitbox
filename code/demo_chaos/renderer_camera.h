@@ -9,10 +9,10 @@ namespace gfx{
 
     struct Camera
     {
-        Matrix4 world;
-        Matrix4 view;
-        Matrix4 proj;
-        Matrix4 view_proj;
+        Matrix4 world = Matrix4::identity();
+        Matrix4 view = Matrix4::identity();
+        Matrix4 proj = Matrix4::identity();
+        Matrix4 view_proj = Matrix4::identity();
         struct Params
         {
             f32 hAperture = 1.8f;

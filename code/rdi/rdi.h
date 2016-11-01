@@ -7,6 +7,7 @@
 #include <initializer_list>
 
 struct bxAllocator;
+struct bxPolyShape;
 
 namespace bx{ 
     class ResourceManager;
@@ -68,6 +69,7 @@ void DestroyRenderTarget( RenderTarget* renderPass, bxAllocator* allocator = nul
 void ClearRenderTarget( CommandQueue* cmdq, RenderTarget rtarget, float r, float g, float b, float a, float d );
 void ClearRenderTargetDepth( CommandQueue* cmdq, RenderTarget rtarget, float d );
 void BindRenderTarget( CommandQueue* cmdq, RenderTarget renderTarget, const std::initializer_list<u8>& colorTextureIndices, bool useDepth );
+void BindRenderTarget( CommandQueue* cmdq, RenderTarget renderTarget );
 TextureRW GetTexture( RenderTarget rtarget, u32 index );
 TextureDepth GetTextureDepth( RenderTarget rtarget );
 
@@ -176,6 +178,7 @@ u32 GetNRanges( RenderSource rsource );
 VertexBuffer GetVertexBuffer( RenderSource rsource, u32 index );
 IndexBuffer GetIndexBuffer( RenderSource rsource );
 RenderSourceRange GetRange( RenderSource rsource, u32 index );
+RenderSource CreateRenderSourceFromPolyShape( const bxPolyShape& shape );
 
 
 //////////////////////////////////////////////////////////////////////////

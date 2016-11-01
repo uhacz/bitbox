@@ -33,7 +33,7 @@ int main( int argc, char** argv )
         result = ShaderCompilerCompile( in_file.c_str(), out_dir.c_str() ); 
     }
 #else
-    const char in_file[] = "d:/dev/code/bitBox/code/shaders/hlsl/deffered.hlsl";
+    const char in_file[] = "d:/dev/code/bitBox/code/shaders/shaders/test.hlsl";
     const char out_dir[] = "d:/dev/code/bitBox/assets/shader/hlsl/";
     int result = ShaderCompilerCompile( in_file, out_dir );
 #endif
