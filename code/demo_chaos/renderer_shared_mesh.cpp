@@ -3,16 +3,16 @@
 #include <util/string_util.h>
 
 namespace bx {namespace gfx {
-    u32 SharedMeshContainer::add( const char* name, rdi::RenderSource rs )
+    void SharedMeshContainer::add( const char* name, rdi::RenderSource rs )
     {
         u32 index = find( name );
         if( index != UINT32_MAX )
-            return index;
+            return;
 
         Entry e;
         e.name = string::duplicate( nullptr, name );
         e.rsource = rs;
-        return array::push_back( _entries, e );
+        array::push_back( _entries, e );
     }
 
     void SharedMeshContainer::remove( u32 index )
@@ -35,7 +35,7 @@ namespace bx {namespace gfx {
         return UINT32_MAX;
     }
 
-    rdi::RenderSource SharedMeshContainer::getRenderSource( u32 index )
+    rdi::RenderSource SharedMeshContainer::get( u32 index )
     {
         SYS_ASSERT( index < array::sizeu( _entries ) );
         return _entries[index].rsource;

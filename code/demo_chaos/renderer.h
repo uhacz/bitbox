@@ -57,7 +57,7 @@ namespace bx{ namespace gfx{
 
 namespace bx{ namespace gfx{
 
-struct RendererStartUpInfo
+struct RendererDesc
 {
     u16 framebuffer_width = 1920;
     u16 framebuffer_height = 1080;
@@ -66,19 +66,23 @@ struct RendererStartUpInfo
 class Renderer
 {
 public:
-    void StartUp( const RendererStartUpInfo& info );
-    void ShutDown();
+    void StartUp( const RendererDesc& desc, ResourceManager* resourceManager );
+    void ShutDown( ResourceManager* resourceManager );
     
-    MaterialID CreateMaterial( const char* name, const MaterialDesc& desc, const MaterialTextureNames* textures );
-    void DestroyMaterial( MaterialID id );
-    MaterialID FindMaterial( const char* name );
+    Scene CreateScene( const char* name );
+    void DestroyScene( Scene* scene );
 
-
-
+    const RendererDesc& GetDesc() const { return _desc; }
+    void RasterizeFramebuffer( const rdi::ResourceRO source, const Camera& camera );
+    
 private:
+    RendererDesc _desc = {};
 
+    rdi::ShaderFile* _shf_texutil = nullptr;
+    rdi::Pipeline _pipeline_copy_texture_rgba = BX_RDI_NULL_HANDLE;
+    rdi::RenderTarget _render_target = BX_RDI_NULL_HANDLE;
 
-
+    SharedMeshContainer _shared_mesh = {};
 };
 
 }}///

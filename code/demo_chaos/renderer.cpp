@@ -112,8 +112,7 @@ void addSharedRenderSource( const char* name, rdi::RenderSource rsource )
 
 rdi::RenderSource findSharedRenderSource( const char* name )
 {
-    u32 index = g_mesh_container->find( name );
-    return ( index != UINT32_MAX ) ? g_mesh_container->getRenderSource( index ) : BX_RDI_NULL_HANDLE;
+    return g_mesh_container->query( name );
 }
 
 Scene createScene( const char* name )
@@ -134,5 +133,48 @@ void destroyScene( Scene* scene )
 }
 
 }///
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void Renderer::StartUp( const RendererDesc& desc, ResourceManager* resourceManager )
+{
+    _desc = desc;
+    {
+        rdi::RenderTargetDesc rt_desc = {};
+        rt_desc.Size( 1920, 1080 );
+        rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
+        a
+        _render_target = rdi::CreateRenderTarget( rt_desc );
+    }
+    
+    _shf_texutil = rdi::ShaderFileLoad( "shader/bin/texture_utils.shader", resourceManager );
+    {
+        rdi::PipelineDesc pipeline_desc = {};
+        pipeline_desc.Shader( _shf_texutil, "copy_rgba" );
+        _pipeline_copy_texture_rgba = rdi::CreatePipeline( pipeline_desc );
+    }
+}
+
+void Renderer::ShutDown( ResourceManager* resourceManager )
+{
+
+}
+
+Scene Renderer::CreateScene( const char* name )
+{
+
+}
+
+void Renderer::DestroyScene( Scene* scene )
+{
+
+}
+
+void Renderer::RasterizeFramebuffer( const rdi::ResourceRO source, const Camera& camera )
+{
+
+}
 
 }}///

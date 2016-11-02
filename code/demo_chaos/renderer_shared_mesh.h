@@ -14,10 +14,18 @@ struct SharedMeshContainer
     };
     array_t< Entry > _entries;
 
-    u32 add( const char* name, rdi::RenderSource rs );
+    void add( const char* name, rdi::RenderSource rs );
     void remove( u32 index );
+    
+    inline rdi::RenderSource query( const char* name )
+    {
+        u32 index = find( name );
+        return ( index != UINT32_MAX ) ? get( index ) : BX_RDI_NULL_HANDLE;
+    }
+
+private:
     u32 find( const char* name );
-    rdi::RenderSource getRenderSource( u32 index );
+    rdi::RenderSource get( u32 index );
 };
 
 }}///

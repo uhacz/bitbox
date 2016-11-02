@@ -435,8 +435,7 @@ public:
 
     rdi::ShaderFile* _shf_test = nullptr;
     rdi::Pipeline _pipeline_test_color = BX_RDI_NULL_HANDLE;
-
-
+    
     rdi::RenderTarget _rtarget_gbuffer = BX_RDI_NULL_HANDLE;
     rdi::RenderTarget _rtarget_color = BX_RDI_NULL_HANDLE;
 
