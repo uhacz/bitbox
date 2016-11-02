@@ -44,8 +44,9 @@ struct RendererImpl
 
 namespace renderer
 {
-    static SharedMeshContainer* g_mesh_container = nullptr;
-    static MaterialContainer* g_material_container = nullptr;
+
+static SharedMeshContainer* g_mesh_container = nullptr;
+static MaterialContainer* g_material_container = nullptr;
     
 //////////////////////////////////////////////////////////////////////////
 Renderer startup()

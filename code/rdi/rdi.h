@@ -170,6 +170,7 @@ RenderSource CreateRenderSource( const RenderSourceDesc& desc, bxAllocator* allo
 void DestroyRenderSource( RenderSource* rsource, bxAllocator* allocator = nullptr );
 void BindRenderSource( CommandQueue* cmdq, RenderSource renderSource );
 void SubmitRenderSource( CommandQueue* cmdq, RenderSource renderSource, u32 rangeIndex = 0 );
+void SubmitRenderSourceInstanced( CommandQueue* cmdq, RenderSource renderSource, u32 numInstances, u32 rangeIndex = 0 );
 
 u32 GetNVertexBuffers( RenderSource rsource );
 u32 GetNVertices( RenderSource rsource );

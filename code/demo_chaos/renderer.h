@@ -3,9 +3,11 @@
 #include <rdi/rdi_backend.h>
 #include "renderer_type.h"
 #include "renderer_camera.h"
+#include "renderer_material.h"
+#include "renderer_shared_mesh.h"
+#include "renderer_scene.h"
 
-namespace bx{
-namespace gfx{
+namespace bx{ namespace gfx{
 
     struct MaterialDesc
     {
@@ -52,3 +54,32 @@ namespace gfx{
         void rasterizeFramebuffer( const rdi::ResourceRO* source );
     }///
 }}///
+
+namespace bx{ namespace gfx{
+
+struct RendererStartUpInfo
+{
+    u16 framebuffer_width = 1920;
+    u16 framebuffer_height = 1080;
+};
+
+class Renderer
+{
+public:
+    void StartUp( const RendererStartUpInfo& info );
+    void ShutDown();
+    
+    MaterialID CreateMaterial( const char* name, const MaterialDesc& desc, const MaterialTextureNames* textures );
+    void DestroyMaterial( MaterialID id );
+    MaterialID FindMaterial( const char* name );
+
+
+
+private:
+
+
+
+};
+
+}}///
+

@@ -234,7 +234,14 @@ public:
         }
 
         _camera.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
-        _instances[0] = Matrix4::identity();
+        _box_instances[0] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 0.f, 0.f ) );
+        _box_instances[1] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 0.f, 0.f, 0.f ) );
+        _box_instances[2] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 4, 0.f ) ), Vector3(-2.f, 0.f, 0.f ) );
+
+        _sph_instances[0] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 2.f, 2.f, 0.f ) );
+        _sph_instances[1] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 0.f, 0.f, -2.f ) );
+        _sph_instances[2] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f,-2.f, 0.f ) );
+
         return true;
     }
     virtual void shutdown()
@@ -341,17 +348,23 @@ public:
         }
 
         _vertex_transform_data.Map( cmdq );
-        u32 index = _vertex_transform_data.AddBatch( _instances, NUM_INSTANCES );
+        u32 box_batch_index = _vertex_transform_data.AddBatch( _box_instances, NUM_INSTANCES );
+        u32 sph_batch_index = _vertex_transform_data.AddBatch( _sph_instances, NUM_INSTANCES );
         _vertex_transform_data.Unmap( cmdq );
         _vertex_transform_data.Bind( cmdq );
 
         rdi::ClearRenderTarget( cmdq, _rtarget_color, 1.f, 1.f, 1.f, 1.f, 1.f );
         rdi::BindRenderTarget( cmdq, _rtarget_color );
 
-        _vertex_transform_data.SetCurrent( cmdq, index );
         rdi::BindPipeline( cmdq, _pipeline_test_color );
+
+        _vertex_transform_data.SetCurrent( cmdq, box_batch_index );
         rdi::BindRenderSource( cmdq, _rsource_box );
-        rdi::SubmitRenderSource( cmdq, _rsource_box );
+        rdi::SubmitRenderSourceInstanced( cmdq, _rsource_box, NUM_INSTANCES );
+
+        _vertex_transform_data.SetCurrent( cmdq, sph_batch_index );
+        rdi::BindRenderSource( cmdq, _rsource_sphere );
+        rdi::SubmitRenderSourceInstanced( cmdq, _rsource_sphere, NUM_INSTANCES );
 
 
         rdi::context::ChangeToMainFramebuffer( cmdq );
@@ -456,8 +469,9 @@ public:
     gfx::Camera _camera = {};
     gfx::CameraInputContext _camera_input_ctx = {};
 
-    static const int NUM_INSTANCES = 1;
-    Matrix4 _instances[NUM_INSTANCES];
+    static const int NUM_INSTANCES = 3;
+    Matrix4 _box_instances[NUM_INSTANCES];
+    Matrix4 _sph_instances[NUM_INSTANCES];
 };
 
 int main( int argc, const char* argv[] )
