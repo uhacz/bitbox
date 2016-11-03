@@ -15,11 +15,13 @@ namespace bx {namespace gfx {
         array::push_back( _entries, e );
     }
 
-    void SharedMeshContainer::remove( u32 index )
+    void SharedMeshContainer::remove( const char* name, rdi::RenderSource* rs )
     {
+        u32 index = find( name );
         SYS_ASSERT( index < array::sizeu( _entries ) );
 
         Entry& e = _entries[index];
+        rs[0] = e.rsource;
         string::free( (char*)e.name );
 
         array::erase( _entries, index );

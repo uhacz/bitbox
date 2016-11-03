@@ -15,7 +15,7 @@ struct SharedMeshContainer
     array_t< Entry > _entries;
 
     void add( const char* name, rdi::RenderSource rs );
-    void remove( u32 index );
+    void remove( const char* name, rdi::RenderSource* rs );
     
     inline rdi::RenderSource query( const char* name )
     {
