@@ -1,5 +1,7 @@
 #include "anim.h"
 
+namespace bx{ namespace anim{
+
 static inline void _ComputeFrame( u32* frameInt, f32* frameFrac, f32 evalTime, f32 sampleFrequency )
 {
     f32 frame = evalTime * sampleFrequency;
@@ -26,7 +28,7 @@ struct FrameInfo
     const Vector3* translations1;
     const Vector3* scales1;
 
-    FrameInfo( const bxAnim_Clip* anim, u32 frameInteger )
+    FrameInfo( const Clip* anim, u32 frameInteger )
     {
         const u16 numJoints = anim->numJoints;
         const u32 currentFrame = ( frameInteger ) % anim->numFrames;
@@ -46,7 +48,7 @@ struct FrameInfo
     }
 };
 
-void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 evalTime, u32 beginJoint, u32 endJoint )
+void evaluateClip( Joint* out_joints, const Clip* anim, f32 evalTime, u32 beginJoint, u32 endJoint )
 {
     u32 frameInteger = 0;
     f32 frameFraction = 0.f;
@@ -54,7 +56,7 @@ void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f3
 	evaluateClip( out_joints, anim, frameInteger, frameFraction, beginJoint, endJoint );
 }
 
-void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frameInteger, f32 frameFraction, u32 beginJoint, u32 endJoint )
+void evaluateClip( Joint* out_joints, const Clip* anim, u32 frameInteger, f32 frameFraction, u32 beginJoint, u32 endJoint )
 {
     const FrameInfo frame( anim, frameInteger );
 
@@ -99,7 +101,7 @@ void bxAnim::evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u3
 }
 
 
-void bxAnim::evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 evalTime, const i16* indices, u32 numIndices )
+void evaluateClipIndexed( Joint* out_joints, const Clip* anim, f32 evalTime, const i16* indices, u32 numIndices )
 {
     u32 frameInteger = 0;
     f32 frameFraction = 0.f;
@@ -108,7 +110,7 @@ void bxAnim::evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* a
 
 }
 
-void bxAnim::evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frameInteger, f32 frameFraction, const i16* indices, u32 numIndices )
+void evaluateClipIndexed( Joint* out_joints, const Clip* anim, u32 frameInteger, f32 frameFraction, const i16* indices, u32 numIndices )
 {
     const FrameInfo frame( anim, frameInteger );
     const floatInVec alpha( frameFraction );
@@ -148,6 +150,6 @@ void bxAnim::evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* a
 
         out_joints[ii].scale = s;
     }
-
-
 }
+
+}}///

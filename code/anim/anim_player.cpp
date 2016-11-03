@@ -7,20 +7,20 @@
 namespace bx{
 namespace anim{
 
-void CascadePlayer::prepare( const bxAnim_Skel* skel, bxAllocator* allcator /*= nullptr */ )
+void CascadePlayer::prepare( const Skel* skel, bxAllocator* allcator /*= nullptr */ )
 {
-    _ctx = bxAnim::contextInit( *skel );
+    _ctx = contextInit( *skel );
 
 }
 
 void CascadePlayer::unprepare( bxAllocator* allocator /*= nullptr */ )
 {
-    bxAnim::contextDeinit( &_ctx );
+    contextDeinit( &_ctx );
 }
 
 namespace
 {
-    static void makeLeaf( CascadePlayer::Node* node, const bxAnim_Clip* clip, float startTime, u64 userData )
+    static void makeLeaf( CascadePlayer::Node* node, const Clip* clip, float startTime, u64 userData )
     {
         *node = {};
         node->clip = clip;
@@ -35,7 +35,7 @@ namespace
     }
 }
 
-bool CascadePlayer::play( const bxAnim_Clip* clip, float startTime, float blendDuration, u64 userData, bool replaceLastIfFull )
+bool CascadePlayer::play( const Clip* clip, float startTime, float blendDuration, u64 userData, bool replaceLastIfFull )
 {
     u32 node_index = _AllocateNode();
     if( node_index == UINT32_MAX )
@@ -98,14 +98,14 @@ void CascadePlayer::tick( float deltaTime )
     _Tick_updateTime( deltaTime );    
 }
 
-const bxAnim_Joint* CascadePlayer::localJoints() const
+const Joint* CascadePlayer::localJoints() const
 {
-    return bxAnim::poseFromStack( _ctx, 0 );
+    return poseFromStack( _ctx, 0 );
 }
 
-bxAnim_Joint* CascadePlayer::localJoints()
+Joint* CascadePlayer::localJoints()
 {
-    return bxAnim::poseFromStack( _ctx, 0 );
+    return poseFromStack( _ctx, 0 );
 }
 
 bool CascadePlayer::userData( u64* dst, u32 depth )
@@ -132,18 +132,18 @@ void CascadePlayer::_Tick_processBlendTree()
     if( _nodes[_root_node_index].isLeaf() )
     {
         const Node& node = _nodes[_root_node_index];
-        bxAnim_BlendLeaf leaf( node.clip, node.clip_eval_time );
+        BlendLeaf leaf( node.clip, node.clip_eval_time );
 
-        bxAnimExt::processBlendTree( _ctx,
-                                     0 | bxAnim::eBLEND_TREE_LEAF,
-                                     nullptr, 0,
-                                     &leaf, 1
-                                     );
+        anim_ext::processBlendTree( _ctx,
+                                    0 | EBlendTreeIndex::LEAF,
+                                    nullptr, 0,
+                                    &leaf, 1
+                                    );
     }
     else
     {
-        bxAnim_BlendLeaf leaves[eMAX_NODES] = {};
-        bxAnim_BlendBranch branches[eMAX_NODES] = {};
+        BlendLeaf leaves[eMAX_NODES] = {};
+        BlendBranch branches[eMAX_NODES] = {};
 
         u32 num_leaves = 0;
         u32 num_branches = 0;
@@ -157,8 +157,8 @@ void CascadePlayer::_Tick_processBlendTree()
             const Node& node = _nodes[node_index];
 
             const u32 leaf_index = num_leaves++;
-            bxAnim_BlendLeaf* leaf = &leaves[leaf_index];
-            leaf[0] = bxAnim_BlendLeaf( node.clip, node.clip_eval_time );
+            BlendLeaf* leaf = &leaves[leaf_index];
+            leaf[0] = BlendLeaf( node.clip, node.clip_eval_time );
 
             if( node.isLeaf() )
             {
@@ -166,13 +166,13 @@ void CascadePlayer::_Tick_processBlendTree()
                 SYS_ASSERT( num_branches > 0 );
 
                 const u32 last_branch = num_branches - 1;
-                bxAnim_BlendBranch* branch = &branches[last_branch];
+                BlendBranch* branch = &branches[last_branch];
 
-                branch->right = leaf_index | bxAnim::eBLEND_TREE_LEAF;
+                branch->right = leaf_index | EBlendTreeIndex::LEAF;
             }
             else
             {
-                bxAnim_BlendBranch* last_branch = nullptr;
+                BlendBranch* last_branch = nullptr;
                 if( node_index != _root_node_index )
                 {
                     const u32 last_branch_index = num_branches - 1;
@@ -183,19 +183,19 @@ void CascadePlayer::_Tick_processBlendTree()
                 const u32 branch_index = num_branches++;
                 if( last_branch )
                 {
-                    last_branch->right = branch_index | bxAnim::eBLEND_TREE_BRANCH;
+                    last_branch->right = branch_index | EBlendTreeIndex::BRANCH;
                 }
 
                 const float blend_alpha = minOfPair( 1.f, node.blend_time / node.blend_duration );
-                bxAnim_BlendBranch* branch = &branches[branch_index];
-                branch[0] = bxAnim_BlendBranch( leaf_index | bxAnim::eBLEND_TREE_LEAF, 0, blend_alpha );
+                BlendBranch* branch = &branches[branch_index];
+                branch[0] = BlendBranch( leaf_index | EBlendTreeIndex::LEAF, 0, blend_alpha );
             }
 
             node_index = node.next;
         }
 
-        bxAnimExt::processBlendTree( _ctx,
-                                     0 | bxAnim::eBLEND_TREE_BRANCH,
+        anim_ext::processBlendTree( _ctx,
+                                     0 | EBlendTreeIndex::BRANCH,
                                      branches, num_branches,
                                      leaves, num_leaves
                                     );
@@ -241,8 +241,8 @@ void CascadePlayer::_Tick_updateTime( float deltaTime )
             
             if( next_node->isLeaf() )
             {
-                const bxAnim_Clip* clipA = node->clip;
-                const bxAnim_Clip* clipB = next_node->clip;
+                const Clip* clipA = node->clip;
+                const Clip* clipB = next_node->clip;
                 
                 const float blend_alpha = minOfPair( 1.f, node->blend_time / node->blend_duration );
                 const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
@@ -296,8 +296,8 @@ void CascadePlayer::_Tick_updateTime( float deltaTime )
         //            //Node* next_node = &_nodes[node->next];
         //            //if( next_node->isLeaf() )
         //            //{
-        //            //    const bxAnim_Clip* clipA = node->clip;
-        //            //    const bxAnim_Clip* clipB = next_node->clip;
+        //            //    const Clip* clipA = node->clip;
+        //            //    const Clip* clipB = next_node->clip;
         //            //    
         //            //    const float blend_alpha = minOfPair( 1.f, node->blend_time / node->blend_duration );
         //            //    const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
@@ -339,14 +339,14 @@ u32 CascadePlayer::_AllocateNode()
 
 //////////////////////////////////////////////////////////////////////////
 
-void SimplePlayer::prepare( const bxAnim_Skel* skel, bxAllocator* allcator /*= nullptr */ )
+void SimplePlayer::prepare( const Skel* skel, bxAllocator* allcator /*= nullptr */ )
 {
-    _ctx = bxAnim::contextInit( *skel );
-    _prev_joints = (bxAnim_Joint*)BX_MALLOC( allcator, skel->numJoints * sizeof( bxAnim_Joint ), 16 );
+    _ctx = contextInit( *skel );
+    _prev_joints = (Joint*)BX_MALLOC( allcator, skel->numJoints * sizeof( Joint ), 16 );
     
     for( u32 i = 0; i < skel->numJoints; ++i )
     {
-        _prev_joints[i] = bxAnim_Joint::identity();
+        _prev_joints[i] = Joint::identity();
     }
 }
 
@@ -354,10 +354,10 @@ void SimplePlayer::prepare( const bxAnim_Skel* skel, bxAllocator* allcator /*= n
 void SimplePlayer::unprepare( bxAllocator* allocator /*= nullptr */ )
 {
     BX_FREE0( allocator, _prev_joints );
-    bxAnim::contextDeinit( &_ctx );
+    contextDeinit( &_ctx );
 }
 
-void SimplePlayer::play( const bxAnim_Clip* clip, float startTime, float blendTime, u64 userData )
+void SimplePlayer::play( const anim::Clip* clip, float startTime, float blendTime, u64 userData )
 {
     if( _num_clips == 2 )
         return;
@@ -386,7 +386,7 @@ void SimplePlayer::play( const bxAnim_Clip* clip, float startTime, float blendTi
 
 void SimplePlayer::tick( float deltaTime )
 {
-    memcpy( _prev_joints, localJoints(), _ctx->numJoints * sizeof( bxAnim_Joint ) );
+    memcpy( _prev_joints, localJoints(), _ctx->numJoints * sizeof( Joint ) );
     _Tick_processBlendTree();
     _Tick_updateTime( deltaTime );
 }
@@ -411,23 +411,23 @@ void SimplePlayer::_Tick_processBlendTree()
     {
         const Clip& c = _clips[0];
 
-        bxAnim_BlendLeaf leaf( c.clip, c.eval_time );
-        bxAnimExt::processBlendTree( _ctx, 0 | bxAnim::eBLEND_TREE_LEAF, nullptr, 0, &leaf, 1 );
+        BlendLeaf leaf( c.clip, c.eval_time );
+        anim_ext::processBlendTree( _ctx, 0 | EBlendTreeIndex::LEAF, nullptr, 0, &leaf, 1 );
     }
     else
     {
         const Clip& c0 = _clips[0];
         const Clip& c1 = _clips[1];
 
-        bxAnim_BlendLeaf leaves[2] =
+        BlendLeaf leaves[2] =
         {
             { c0.clip, c0.eval_time },
             { c1.clip, c1.eval_time },
         };
 
         const float blend_alpha = minOfPair( 1.f, _blend_time / _blend_duration );
-        bxAnim_BlendBranch branch( 0 | bxAnim::eBLEND_TREE_LEAF, 1 | bxAnim::eBLEND_TREE_LEAF, blend_alpha );
-        bxAnimExt::processBlendTree( _ctx, 0 | bxAnim::eBLEND_TREE_BRANCH, &branch, 1, leaves, 2 );
+        BlendBranch branch( 0 | EBlendTreeIndex::LEAF, 1 | EBlendTreeIndex::LEAF, blend_alpha );
+        anim_ext::processBlendTree( _ctx, 0 | EBlendTreeIndex::BRANCH, &branch, 1, leaves, 2 );
     }
 }
 
@@ -449,8 +449,8 @@ void SimplePlayer::_Tick_updateTime( float deltaTime )
         //_ClipUpdateTime( &_clips[0], deltaTime );
         //_ClipUpdateTime( &_clips[1], deltaTime );
 
-        const bxAnim_Clip* clipA = c0.clip;
-        const bxAnim_Clip* clipB = c1.clip;
+        const anim::Clip* clipA = c0.clip;
+        const anim::Clip* clipB = c1.clip;
 
         const float blend_alpha = minOfPair( 1.f, _blend_time / _blend_duration );
         const float clip_duration = lerp( blend_alpha, clipA->duration, clipB->duration );
@@ -510,22 +510,22 @@ bool SimplePlayer::blendAlpha( f32* dst )
     return true;
 }
 
-const bxAnim_Joint* SimplePlayer::localJoints() const
+const Joint* SimplePlayer::localJoints() const
 {
-    return bxAnim::poseFromStack( _ctx, 0 );
+    return poseFromStack( _ctx, 0 );
 }
 
-bxAnim_Joint* SimplePlayer::localJoints()
+Joint* SimplePlayer::localJoints()
 {
-    return bxAnim::poseFromStack( _ctx, 0 );
+    return poseFromStack( _ctx, 0 );
 }
 
-const bxAnim_Joint* SimplePlayer::prevLocalJoints() const
+const Joint* SimplePlayer::prevLocalJoints() const
 {
     return _prev_joints;
 }
 
-bxAnim_Joint* SimplePlayer::prevLocalJoints()
+Joint* SimplePlayer::prevLocalJoints()
 {
     return _prev_joints;
 }

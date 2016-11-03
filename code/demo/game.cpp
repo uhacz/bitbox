@@ -1021,8 +1021,8 @@ namespace bx
 
 	struct CharacterAnimBlendTree
 	{
-        bxAnim_BlendBranch _branch[ECharacterAnimBranch::eCOUNT];
-        bxAnim_BlendLeaf _leaf[ECharacterAnimLeaf::eCOUNT];
+        anim::BlendBranch _branch[ECharacterAnimBranch::eCOUNT];
+        anim::BlendLeaf _leaf[ECharacterAnimLeaf::eCOUNT];
 	};
 
 	struct CharacterAnimController
@@ -1035,9 +1035,9 @@ namespace bx
 
         f32 _runBlendAlpha = 0.f;
 
-		bxAnim_Context* _animCtx = nullptr;
-		bxAnim_Skel* _skel = nullptr;
-		bxAnim_Clip* _clip[ ECharacterAnimClip::eCOUNT ];
+		anim::Context* _animCtx = nullptr;
+		anim::Skel* _skel = nullptr;
+		anim::Clip* _clip[ ECharacterAnimClip::eCOUNT ];
 
 		u64 _timeUS = 0;
 	};
@@ -1445,15 +1445,15 @@ namespace bx
 	{
 		CharacterAnimController* ca = BX_NEW( bxDefaultAllocator(), CharacterAnimController );
 
-		ca->_skel = bxAnimExt::loadSkelFromFile( bx::getResourceManager(), "anim/human.skel" );
-		ca->_clip[ECharacterAnimClip::eIDLE] = bxAnimExt::loadAnimFromFile( bx::getResourceManager(), "anim/idle.anim" );
-		ca->_clip[ECharacterAnimClip::eWALK] = bxAnimExt::loadAnimFromFile( bx::getResourceManager(), "anim/run.anim" );
-        ca->_clip[ECharacterAnimClip::eRUN]  = bxAnimExt::loadAnimFromFile( bx::getResourceManager(), "anim/fast_run.anim" );
-        ca->_clip[ECharacterAnimClip::eJUMP] = bxAnimExt::loadAnimFromFile( bx::getResourceManager(), "anim/jump.anim" );
-		ca->_animCtx = bxAnim::contextInit( *ca->_skel );
+		ca->_skel = anim_ext::loadSkelFromFile( bx::getResourceManager(), "anim/human.skel" );
+		ca->_clip[ECharacterAnimClip::eIDLE] = anim_ext::loadAnimFromFile( bx::getResourceManager(), "anim/idle.anim" );
+		ca->_clip[ECharacterAnimClip::eWALK] = anim_ext::loadAnimFromFile( bx::getResourceManager(), "anim/run.anim" );
+        ca->_clip[ECharacterAnimClip::eRUN]  = anim_ext::loadAnimFromFile( bx::getResourceManager(), "anim/fast_run.anim" );
+        ca->_clip[ECharacterAnimClip::eJUMP] = anim_ext::loadAnimFromFile( bx::getResourceManager(), "anim/jump.anim" );
+		ca->_animCtx = anim::contextInit( *ca->_skel );
 		
-        ca->_footIndexL = bxAnim::getJointByName( ca->_skel, "LeftFoot" );
-        ca->_footIndexR = bxAnim::getJointByName( ca->_skel, "RightFoot" );
+        ca->_footIndexL = anim::getJointByName( ca->_skel, "LeftFoot" );
+        ca->_footIndexR = anim::getJointByName( ca->_skel, "RightFoot" );
 
 		canim[0] = ca;
 	}
@@ -1465,10 +1465,10 @@ namespace bx
 		CharacterAnimController* ca = canim[0];
 		for( int i = 0; i < ECharacterAnimClip::eCOUNT; ++i )
 		{
-			bxAnimExt::unloadAnimFromFile( bx::getResourceManager(), &ca->_clip[i] );
+			anim_ext::unloadAnimFromFile( bx::getResourceManager(), &ca->_clip[i] );
 		}
-        bxAnimExt::unloadSkelFromFile( bx::getResourceManager(), &ca->_skel );
-		bxAnim::contextDeinit( &ca->_animCtx );
+        anim_ext::unloadSkelFromFile( bx::getResourceManager(), &ca->_skel );
+		anim::contextDeinit( &ca->_animCtx );
 
 		BX_DELETE0( bxDefaultAllocator(), canim[0] );
 	}
@@ -1497,36 +1497,36 @@ namespace bx
         const float jumpEvalTime = linearstep( 0.01f, 1.99f, ccImpl->_jumpValue02 );
 
         CharacterAnimBlendTree btree;
-        btree._branch[ECharacterAnimBranch::eROOT] = bxAnim_BlendBranch( ECharacterAnimLeaf::eIDLE | bxAnim::eBLEND_TREE_LEAF, ECharacterAnimBranch::eMOTION| bxAnim::eBLEND_TREE_BRANCH, rootBlendAlpha );
-        btree._branch[ECharacterAnimBranch::eLOCO] = bxAnim_BlendBranch( ECharacterAnimLeaf::eWALK| bxAnim::eBLEND_TREE_LEAF, ECharacterAnimLeaf::eRUN| bxAnim::eBLEND_TREE_LEAF, runBlendAlpha );
-        btree._branch[ECharacterAnimBranch::eMOTION] = bxAnim_BlendBranch( ECharacterAnimBranch::eLOCO | bxAnim::eBLEND_TREE_BRANCH, ECharacterAnimLeaf::eJUMP | bxAnim::eBLEND_TREE_LEAF, jumpBlendAlpha );
-        btree._leaf[ECharacterAnimLeaf::eIDLE] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eIDLE], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eIDLE]->duration ) );
-        btree._leaf[ECharacterAnimLeaf::eWALK] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eWALK], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eWALK]->duration ) );
-        btree._leaf[ECharacterAnimLeaf::eRUN]  = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eRUN] , ::fmod( timeS, canim->_clip[ECharacterAnimClip::eRUN]->duration ) );
-        btree._leaf[ECharacterAnimLeaf::eJUMP] = bxAnim_BlendLeaf( canim->_clip[ECharacterAnimClip::eJUMP], canim->_clip[ECharacterAnimClip::eJUMP]->duration * jumpEvalTime );
+        btree._branch[ECharacterAnimBranch::eROOT]   = anim::BlendBranch( ECharacterAnimLeaf::eIDLE   | anim::EBlendTreeIndex::LEAF, ECharacterAnimBranch::eMOTION| anim::EBlendTreeIndex::BRANCH, rootBlendAlpha );
+        btree._branch[ECharacterAnimBranch::eLOCO]   = anim::BlendBranch( ECharacterAnimLeaf::eWALK   | anim::EBlendTreeIndex::LEAF, ECharacterAnimLeaf::eRUN| anim::EBlendTreeIndex::LEAF, runBlendAlpha );
+        btree._branch[ECharacterAnimBranch::eMOTION] = anim::BlendBranch( ECharacterAnimBranch::eLOCO | anim::EBlendTreeIndex::BRANCH, ECharacterAnimLeaf::eJUMP | anim::EBlendTreeIndex::LEAF, jumpBlendAlpha );
+        btree._leaf[ECharacterAnimLeaf::eIDLE] = anim::BlendLeaf( canim->_clip[ECharacterAnimClip::eIDLE], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eIDLE]->duration ) );
+        btree._leaf[ECharacterAnimLeaf::eWALK] = anim::BlendLeaf( canim->_clip[ECharacterAnimClip::eWALK], ::fmod( timeS, canim->_clip[ECharacterAnimClip::eWALK]->duration ) );
+        btree._leaf[ECharacterAnimLeaf::eRUN]  = anim::BlendLeaf( canim->_clip[ECharacterAnimClip::eRUN] , ::fmod( timeS, canim->_clip[ECharacterAnimClip::eRUN]->duration ) );
+        btree._leaf[ECharacterAnimLeaf::eJUMP] = anim::BlendLeaf( canim->_clip[ECharacterAnimClip::eJUMP], canim->_clip[ECharacterAnimClip::eJUMP]->duration * jumpEvalTime );
         
-        bxAnim::evaluateBlendTree( canim->_animCtx
-                                   , ECharacterAnimBranch::eROOT | bxAnim::eBLEND_TREE_BRANCH
+        anim::evaluateBlendTree( canim->_animCtx
+                                   , ECharacterAnimBranch::eROOT | anim::EBlendTreeIndex::BRANCH
                                    , btree._branch, ECharacterAnimBranch::eCOUNT
                                    , btree._leaf, ECharacterAnimLeaf::eCOUNT
                                     );
-        bxAnim::evaluateCommandList( canim->_animCtx
+        anim::evaluateCommandList( canim->_animCtx
                                      , btree._branch, ECharacterAnimBranch::eCOUNT
                                      , btree._leaf, ECharacterAnimLeaf::eCOUNT
                                       );
 
         const Matrix4 rootPose = ccImpl->worldPoseFoot();
-        bxAnim_Joint rootJoint = toAnimJoint_noScale( rootPose );
-        bxAnim_Joint* localJoints = bxAnim::poseFromStack( canim->_animCtx, 0 );
-        bxAnim_Joint* worldJoints = canim->_animCtx->poseCache[0];
-		bxAnim_Joint* worldJointsZero = canim->_animCtx->poseCache[1];
+        anim::Joint rootJoint = anim::toAnimJoint_noScale( rootPose );
+        anim::Joint* localJoints = anim::poseFromStack( canim->_animCtx, 0 );
+        anim::Joint* worldJoints = canim->_animCtx->poseCache[0];
+		anim::Joint* worldJointsZero = canim->_animCtx->poseCache[1];
 
 		const Vector3 prevFootPositionL = canim->_prevFootPosL; //worldJointsZero[canim->_footIndexL].position;
 		const Vector3 prevFootPositionR = canim->_prevFootPosR; //worldJointsZero[canim->_footIndexR].position;
 		//bxAnim::evaluateClip( localJoints, clip, clipTimeS );
-        bxAnim_Joint zeroJoint = bxAnim_Joint::identity();
+        anim::Joint zeroJoint = anim::Joint::identity();
         zeroJoint.rotation = rootJoint.rotation;
-        bxAnimExt::localJointsToWorldJoints( worldJointsZero, localJoints, canim->_skel, zeroJoint );
+        anim_ext::localJointsToWorldJoints( worldJointsZero, localJoints, canim->_skel, zeroJoint );
         
         const Vector3 currFootPositionL = worldJointsZero[canim->_footIndexL].position;
         const Vector3 currFootPositionR = worldJointsZero[canim->_footIndexR].position;
@@ -1655,14 +1655,14 @@ namespace bx
     {
         CharacterAnimController* canim = scene->canim;
         CharacterControllerImpl* ccImpl = (CharacterControllerImpl*)scene->cct;
-        bxAnim_Joint* localJoints = bxAnim::poseFromStack( canim->_animCtx, 0 );
+        anim::Joint* localJoints = anim::poseFromStack( canim->_animCtx, 0 );
         const Matrix4 rootPose = ccImpl->worldPoseFoot();
-        bxAnim_Joint rootJoint = toAnimJoint_noScale( rootPose );
+        anim::Joint rootJoint = anim::toAnimJoint_noScale( rootPose );
 
         const float scale = cgfx->_mesh_scale;
         const Vector3 scaleV3( scale );
 
-        bxAnimExt::localJointsToWorldMatrices( cgfx->_world_matrices, localJoints, canim->_skel, rootJoint );
+        anim_ext::localJointsToWorldMatrices( cgfx->_world_matrices, localJoints, canim->_skel, rootJoint );
         
         for( u32 i = 0; i < cgfx->_num_instances; ++i )
         {

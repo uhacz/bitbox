@@ -1,6 +1,8 @@
 #include "anim.h"
 
-void bxAnim::blendJointsLinear( bxAnim_Joint* outJoints, const bxAnim_Joint* leftJoints, const bxAnim_Joint* rightJoints, float blendFactor, unsigned short numJoints )
+namespace bx{ namespace anim{
+
+void blendJointsLinear( Joint* outJoints, const Joint* leftJoints, const Joint* rightJoints, float blendFactor, unsigned short numJoints )
 {
 	u16 i = 0;
 
@@ -41,3 +43,4 @@ void bxAnim::blendJointsLinear( bxAnim_Joint* outJoints, const bxAnim_Joint* lef
 	} while ( ++i < numJoints );
 }
 
+}}///

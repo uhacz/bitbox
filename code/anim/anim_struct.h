@@ -3,7 +3,9 @@
 #include <util/type.h>
 #include <util/debug.h>
 
-struct BIT_ALIGNMENT_16 bxAnim_Skel
+namespace bx{ namespace anim{
+
+struct BIT_ALIGNMENT_16 Skel
 {
 	u32 tag;
 	u16 numJoints;
@@ -14,7 +16,7 @@ struct BIT_ALIGNMENT_16 bxAnim_Skel
 	u32 pad1__[3];
 };
 
-struct BIT_ALIGNMENT_16 bxAnim_Clip
+struct BIT_ALIGNMENT_16 Clip
 {
 	u32 tag;
 	f32 duration;
@@ -27,13 +29,13 @@ struct BIT_ALIGNMENT_16 bxAnim_Clip
 	u32 pad0__[1];
 };
 
-struct BIT_ALIGNMENT_16 bxAnim_BlendBranch
+struct BIT_ALIGNMENT_16 BlendBranch
 {
-	inline bxAnim_BlendBranch( u16 left_index, u16 right_index, f32 blend_alpha, u16 f = 0 )
+	inline BlendBranch( u16 left_index, u16 right_index, f32 blend_alpha, u16 f = 0 )
 		: left( left_index ), right( right_index ), alpha( blend_alpha ), flags(f)
 	{}
 	
-    inline bxAnim_BlendBranch()
+    inline BlendBranch()
 		: left(0), right(0), flags(0), alpha(0.f)
 	{}
 	u16 left;
@@ -44,12 +46,12 @@ struct BIT_ALIGNMENT_16 bxAnim_BlendBranch
 	u32 pad1__[1];
 };
 
-struct BIT_ALIGNMENT_16 bxAnim_BlendLeaf
+struct BIT_ALIGNMENT_16 BlendLeaf
 {
-	inline bxAnim_BlendLeaf( const bxAnim_Clip* clip, f32 time )
+	inline BlendLeaf( const Clip* clip, f32 time )
 		: anim( (uptr)clip ), evalTime( time )
 	{}
-	inline bxAnim_BlendLeaf()
+	inline BlendLeaf()
 		: anim(0), evalTime(0.f)
 	{}
 
@@ -58,19 +60,19 @@ struct BIT_ALIGNMENT_16 bxAnim_BlendLeaf
 	u32 pad0__[1];
 };
 
-struct bxAnim_Cmd
+struct Cmd
 {
 	u16 command;		/* see AnimCommandOp */
 	u16 arg0;			/* helper argument used by some commands */
 	union
 	{
-		const bxAnim_BlendLeaf*	  leaf;
-		const bxAnim_BlendBranch* branch;
+		const BlendLeaf*	  leaf;
+		const BlendBranch* branch;
 	};
 };
 
-struct bxAnim_Joint;
-struct BIT_ALIGNMENT_16 bxAnim_Context
+struct Joint;
+struct BIT_ALIGNMENT_16 Context
 {
 	enum
 	{
@@ -79,9 +81,9 @@ struct BIT_ALIGNMENT_16 bxAnim_Context
 		eCMD_ARRAY_SIZE = 64,
 	};
 
-	bxAnim_Joint* poseCache[ePOSE_CACHE_SIZE];
-	bxAnim_Joint* poseStack[ePOSE_STACK_SIZE];
-	bxAnim_Cmd* cmdArray = nullptr;
+	Joint* poseCache[ePOSE_CACHE_SIZE];
+	Joint* poseStack[ePOSE_STACK_SIZE];
+	Cmd* cmdArray = nullptr;
 	u8 poseCacheIndex = 0;
 	u8 poseStackIndex = 0;
 	u8 cmdArraySize = 0;
@@ -89,60 +91,63 @@ struct BIT_ALIGNMENT_16 bxAnim_Context
     u16 numJoints = 0;
 };
 
-namespace bxAnim
+ 
+namespace EBlendTreeIndex
 {
-    enum EBlendTreeIndex
+    enum Enum
     {
-        eBLEND_TREE_LEAF = 0x8000,
-        eBLEND_TREE_BRANCH = 0x4000,
+        LEAF = 0x8000,
+        BRANCH = 0x4000,
     };
+};
 
-    enum ECmdOp
+namespace ECmdOp
+{
+    enum Enum
     {
-        eCMD_OP_END_LIST = 0,	/* end of command list marker */
+        END_LIST = 0,	/* end of command list marker */
 
-        eCMD_OP_EVAL,			/* evaluate anim to top of pose cache*/
-        eCMD_OP_PUSH_AND_EVAL,  /* evaluate anim to top of pose stack*/
+        EVAL,			/* evaluate anim to top of pose cache*/
+        PUSH_AND_EVAL,  /* evaluate anim to top of pose stack*/
 
-        eCMD_OP_BLEND_STACK,	/* blend poses from stack*/
-        eCMD_OP_BLEND_CACHE,	/* blend poses from cache */
+        BLEND_STACK,	/* blend poses from stack*/
+        BLEND_CACHE,	/* blend poses from cache */
     };
+};
 
 
-    inline bxAnim_Joint* allocateTmpPose( bxAnim_Context* ctx )
-    {
-        const u8 current_index = ctx->poseCacheIndex;
-        ctx->poseCacheIndex = ( current_index + 1 ) % bxAnim_Context::ePOSE_CACHE_SIZE;
-        return ctx->poseCache[current_index];
-    }
+inline Joint* allocateTmpPose( Context* ctx )
+{
+    const u8 current_index = ctx->poseCacheIndex;
+    ctx->poseCacheIndex = ( current_index + 1 ) % Context::ePOSE_CACHE_SIZE;
+    return ctx->poseCache[current_index];
+}
 
-    inline void poseStackPop( bxAnim_Context* ctx )
-    {
-        SYS_ASSERT( ctx->poseStackIndex > 0 );
-        --ctx->poseStackIndex;
-    }
+inline void poseStackPop( Context* ctx )
+{
+    SYS_ASSERT( ctx->poseStackIndex > 0 );
+    --ctx->poseStackIndex;
+}
 
-    inline u8 poseStackPush( bxAnim_Context* ctx )
-    {
-        ctx->poseStackIndex = ( ctx->poseStackIndex + 1 ) % bxAnim_Context::ePOSE_STACK_SIZE;
-        return ctx->poseStackIndex;
-    }
+inline u8 poseStackPush( Context* ctx )
+{
+    ctx->poseStackIndex = ( ctx->poseStackIndex + 1 ) % Context::ePOSE_STACK_SIZE;
+    return ctx->poseStackIndex;
+}
 
-    /// depth: how many poses we going back in stack (stackIndex decrease)
-    inline u8 poseStackIndex( const bxAnim_Context* ctx, i8 depth )
-    {
-        const i8 iindex = (i8)ctx->poseStackIndex - depth;
-        SYS_ASSERT( iindex < bxAnim_Context::ePOSE_STACK_SIZE );
-        SYS_ASSERT( iindex >= 0 );
-        //const u8 index = (u8)iindex % bxAnim_Context::ePOSE_STACK_SIZE;
-        return iindex;
-    }
-    inline bxAnim_Joint* poseFromStack( const bxAnim_Context* ctx, i8 depth )
-    {
-        const u8 index = poseStackIndex( ctx, depth );
-        return ctx->poseStack[index];
-    }
+/// depth: how many poses we going back in stack (stackIndex decrease)
+inline u8 poseStackIndex( const Context* ctx, i8 depth )
+{
+    const i8 iindex = (i8)ctx->poseStackIndex - depth;
+    SYS_ASSERT( iindex < Context::ePOSE_STACK_SIZE );
+    SYS_ASSERT( iindex >= 0 );
+    //const u8 index = (u8)iindex % bxAnim_Context::ePOSE_STACK_SIZE;
+    return iindex;
+}
+inline Joint* poseFromStack( const Context* ctx, i8 depth )
+{
+    const u8 index = poseStackIndex( ctx, depth );
+    return ctx->poseStack[index];
+}
 
-}///
-
-
+}}///

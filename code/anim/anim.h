@@ -4,43 +4,43 @@
 #include "anim_struct.h"
 #include "anim_common.h"
 
-namespace bxAnim
-{
+namespace bx{ namespace anim{
 
-bxAnim_Context* contextInit( const bxAnim_Skel& skel );
-void contextDeinit( bxAnim_Context** ctx );
+Context* contextInit( const Skel& skel );
+void contextDeinit( Context** ctx );
 
-void evaluateBlendTree( bxAnim_Context* ctx, const u16 root_index , const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves );
-void evaluateCommandList( bxAnim_Context* ctx,  const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves );
-void blendJointsLinear( bxAnim_Joint* out_joints, const bxAnim_Joint* left_joints, const bxAnim_Joint* right_joints, float blend_factor, unsigned short num_joints);
+void evaluateBlendTree( Context* ctx, const u16 root_index , const BlendBranch* blend_branches, unsigned int num_branches, const BlendLeaf* blend_leaves, unsigned int num_leaves );
+void evaluateCommandList( Context* ctx,  const BlendBranch* blend_branches, unsigned int num_branches, const BlendLeaf* blend_leaves, unsigned int num_leaves );
+void blendJointsLinear( Joint* out_joints, const Joint* left_joints, const Joint* right_joints, float blend_factor, unsigned short num_joints);
 
-void evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 eval_time, u32 beginJoint = UINT32_MAX, u32 endJoint = UINT32_MAX );
-void evaluateClip( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frame_integer, f32 frame_fraction, u32 beginJoint = UINT32_MAX, u32 endJoint = UINT32_MAX );
+void evaluateClip( Joint* out_joints, const Clip* anim, f32 eval_time, u32 beginJoint = UINT32_MAX, u32 endJoint = UINT32_MAX );
+void evaluateClip( Joint* out_joints, const Clip* anim, u32 frame_integer, f32 frame_fraction, u32 beginJoint = UINT32_MAX, u32 endJoint = UINT32_MAX );
 
-void evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, f32 eval_time, const i16* indices, u32 numIndices );
-void evaluateClipIndexed( bxAnim_Joint* out_joints, const bxAnim_Clip* anim, u32 frame_integer, f32 frame_fraction, const i16* indices, u32 numIndices );
+void evaluateClipIndexed( Joint* out_joints, const Clip* anim, f32 eval_time, const i16* indices, u32 numIndices );
+void evaluateClipIndexed( Joint* out_joints, const Clip* anim, u32 frame_integer, f32 frame_fraction, const i16* indices, u32 numIndices );
 
 
-void localJointsToWorldMatrices4x4( Matrix4* out_matrices, const bxAnim_Joint* in_joints, const unsigned short* parent_indices, unsigned count, const bxAnim_Joint& root_joint );
-void localJointsToWorldJoints( bxAnim_Joint* out_joints, const bxAnim_Joint* in_joints, const unsigned short* parent_indices, unsigned count, const bxAnim_Joint& root_joint );
-void localJointToWorldJoint( bxAnim_Joint* out_joints, const bxAnim_Joint* in_joints, const unsigned short* parent_indices, unsigned count, const bxAnim_Joint& root_joint );
+void localJointsToWorldMatrices4x4( Matrix4* out_matrices, const Joint* in_joints, const unsigned short* parent_indices, unsigned count, const Joint& root_joint );
+void localJointsToWorldJoints( Joint* out_joints, const Joint* in_joints, const unsigned short* parent_indices, unsigned count, const Joint& root_joint );
+void localJointToWorldJoint( Joint* out_joints, const Joint* in_joints, const unsigned short* parent_indices, unsigned count, const Joint& root_joint );
 
-}///
+}}///
 
-namespace bx
-{
+namespace bx{ 
+
     class ResourceManager;
-}///
-namespace bxAnimExt
-{
-    bxAnim_Skel* loadSkelFromFile( bx::ResourceManager* resourceManager, const char* relativePath );
-    bxAnim_Clip* loadAnimFromFile( bx::ResourceManager* resourceManager, const char* relativePath );
+    
+namespace anim_ext{
 
-    void unloadSkelFromFile( bx::ResourceManager* resourceManager, bxAnim_Skel** skel );
-    void unloadAnimFromFile( bx::ResourceManager* resourceManager, bxAnim_Clip** clip );
+    anim::Skel* loadSkelFromFile( ResourceManager* resourceManager, const char* relativePath );
+    anim::Clip* loadAnimFromFile( ResourceManager* resourceManager, const char* relativePath );
 
-    void localJointsToWorldJoints( bxAnim_Joint* outJoints, const bxAnim_Joint* inJoints, const bxAnim_Skel* skel, const bxAnim_Joint& rootJoint );
-    void localJointsToWorldMatrices( Matrix4* outMatrices, const bxAnim_Joint* inJoints, const bxAnim_Skel* skel, const bxAnim_Joint& rootJoint );
+    void unloadSkelFromFile( ResourceManager* resourceManager, anim::Skel** skel );
+    void unloadAnimFromFile( ResourceManager* resourceManager, anim::Clip** clip );
 
-    void processBlendTree( bxAnim_Context* ctx, const u16 root_index, const bxAnim_BlendBranch* blend_branches, unsigned int num_branches, const bxAnim_BlendLeaf* blend_leaves, unsigned int num_leaves );
-}///
+    void localJointsToWorldJoints( anim::Joint* outJoints, const anim::Joint* inJoints, const anim::Skel* skel, const anim::Joint& rootJoint );
+    void localJointsToWorldMatrices( Matrix4* outMatrices, const anim::Joint* inJoints, const anim::Skel* skel, const anim::Joint& rootJoint );
+
+    void processBlendTree( anim::Context* ctx, const u16 root_index, const anim::BlendBranch* blend_branches, unsigned int num_branches, const anim::BlendLeaf* blend_leaves, unsigned int num_leaves );
+
+}}///

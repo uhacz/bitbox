@@ -1,7 +1,9 @@
 #include "anim.h"
 #include <util/debug.h>
 
-void bxAnim::localJointsToWorldJoints( bxAnim_Joint* outJoints, const bxAnim_Joint* inJoints, const unsigned short* parentIndices, unsigned count, const bxAnim_Joint& rootJoint )
+namespace bx{ namespace anim{
+
+void localJointsToWorldJoints( Joint* outJoints, const Joint* inJoints, const unsigned short* parentIndices, unsigned count, const Joint& rootJoint )
 {
 	SYS_ASSERT( outJoints != inJoints );
 	SYS_ASSERT( count > 0 );
@@ -11,9 +13,9 @@ void bxAnim::localJointsToWorldJoints( bxAnim_Joint* outJoints, const bxAnim_Joi
 	{
 		const unsigned short parentIdx = parentIndices[i];
 
-		bxAnim_Joint world;
-		const bxAnim_Joint& local = inJoints[i];
-		const bxAnim_Joint& worldParent = ( parentIdx != 0xFFFF ) ? outJoints[parentIdx] : rootJoint;
+		Joint world;
+		const Joint& local = inJoints[i];
+		const Joint& worldParent = ( parentIdx != 0xFFFF ) ? outJoints[parentIdx] : rootJoint;
 
 		world.rotation = worldParent.rotation * local.rotation;
 		world.rotation = normalize( world.rotation );
@@ -34,3 +36,5 @@ void bxAnim::localJointsToWorldJoints( bxAnim_Joint* outJoints, const bxAnim_Joi
 
 	} while ( ++i < count );
 }
+
+}}///

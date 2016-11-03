@@ -15,7 +15,7 @@ namespace motion_matching{
 
 namespace utils
 {
-    void debugDrawJoints( const bxAnim_Joint* joints, const u16* parentIndices, u32 numJoints, u32 color, float radius, float scale )
+    void debugDrawJoints( const anim::Joint* joints, const u16* parentIndices, u32 numJoints, u32 color, float radius, float scale )
     {
         for( u32 i = 0; i < numJoints; ++i )
         {
@@ -184,33 +184,33 @@ void poseFree( Pose* pose, bxAllocator* allocator )
 
 void posePrepare( Pose* pose, const PosePrepareInfo& info )
 {
-    const bxAnim_Clip* clip = info.clip;
-    const bxAnim_Skel* skel = info.skel;
+    const anim::Clip* clip = info.clip;
+    const anim::Skel* skel = info.skel;
     const u32 frameNo = info.frameNo;
     const Vector4 plane = makePlane( Vector3::yAxis(), Vector3( 0.f ) );
 
-    std::vector< bxAnim_Joint > frame_joints_0;
-    std::vector< bxAnim_Joint > frame_joints_1;
-    std::vector< bxAnim_Joint > tmp_joints;
+    std::vector< anim::Joint > frame_joints_0;
+    std::vector< anim::Joint > frame_joints_1;
+    std::vector< anim::Joint > tmp_joints;
     frame_joints_0.resize( skel->numJoints );
     frame_joints_1.resize( skel->numJoints );
     tmp_joints.resize( skel->numJoints );
 
-    bxAnim_Joint j0[_eMATCH_JOINT_COUNT_], j1[_eMATCH_JOINT_COUNT_];
+    anim::Joint j0[_eMATCH_JOINT_COUNT_], j1[_eMATCH_JOINT_COUNT_];
     const u32 lastFrame = info.clip->numFrames - 1;
     if( frameNo == lastFrame )
     {
-        bxAnim::evaluateClip( frame_joints_0.data(), clip, frameNo - 1, 0.f );
-        bxAnim::evaluateClip( frame_joints_1.data(), clip, frameNo, 0.f );
+        evaluateClip( frame_joints_0.data(), clip, frameNo - 1, 0.f );
+        evaluateClip( frame_joints_1.data(), clip, frameNo, 0.f );
     }
     else
     {
-        bxAnim::evaluateClip( frame_joints_0.data(), clip, frameNo, 0.f );
-        bxAnim::evaluateClip( frame_joints_1.data(), clip, frameNo + 1, 0.f );
+        evaluateClip( frame_joints_0.data(), clip, frameNo, 0.f );
+        evaluateClip( frame_joints_1.data(), clip, frameNo + 1, 0.f );
     }
 
     {
-        bxAnim_Joint root_joint = bxAnim_Joint::identity();
+        anim::Joint root_joint = anim::Joint::identity();
         {
             const Vector3 p0 = projectVectorOnPlane( frame_joints_0[0].position, plane );
             const Vector3 p1 = projectVectorOnPlane( frame_joints_1[0].position, plane );
@@ -220,11 +220,11 @@ void posePrepare( Pose* pose, const PosePrepareInfo& info )
         frame_joints_0[0].position = utils::removeRootMotion( frame_joints_0[0].position );
         frame_joints_1[0].position = utils::removeRootMotion( frame_joints_1[0].position );
 
-        bxAnimExt::localJointsToWorldJoints( tmp_joints.data(), frame_joints_0.data(), skel, root_joint );
+        anim_ext::localJointsToWorldJoints( tmp_joints.data(), frame_joints_0.data(), skel, root_joint );
         for( u32 i = 0; i < _eMATCH_JOINT_COUNT_; ++i )
             j0[i] = tmp_joints[info.joint_indices[i]];
 
-        bxAnimExt::localJointsToWorldJoints( tmp_joints.data(), frame_joints_1.data(), skel, root_joint );
+        anim_ext::localJointsToWorldJoints( tmp_joints.data(), frame_joints_1.data(), skel, root_joint );
         for( u32 i = 0; i < _eMATCH_JOINT_COUNT_; ++i )
             j1[i] = tmp_joints[info.joint_indices[i]];
     }
@@ -260,18 +260,18 @@ void posePrepare( Pose* pose, const PosePrepareInfo& info )
         const u32 frameA = info.frameNo;
         const u32 frameB = ( frameA + 1 ) % clip->numFrames;
 
-        bxAnim::evaluateClip( frame_joints_0.data(), clip, frameA, 0.f );
-        bxAnim::evaluateClip( frame_joints_1.data(), clip, frameB, 0.f );
+        anim::evaluateClip( frame_joints_0.data(), clip, frameA, 0.f );
+        anim::evaluateClip( frame_joints_1.data(), clip, frameB, 0.f );
         
         Vector3 pos0[_eMATCH_JOINT_COUNT_];
         Vector3 pos1[_eMATCH_JOINT_COUNT_];
-        bxAnimExt::localJointsToWorldJoints( tmp_joints.data(), frame_joints_0.data(), skel, bxAnim_Joint::identity() );
+        anim_ext::localJointsToWorldJoints( tmp_joints.data(), frame_joints_0.data(), skel, anim::Joint::identity() );
         const Vector3 frame0_displacement_xz = projectVectorOnPlane( tmp_joints[0].position, plane );
         
         for( u32 i = 0; i < _eMATCH_JOINT_COUNT_; ++i )
             pos0[i] = tmp_joints[info.joint_indices[i]].position;
                 
-        bxAnimExt::localJointsToWorldJoints( tmp_joints.data(), frame_joints_1.data(), skel, bxAnim_Joint::identity() );
+        anim_ext::localJointsToWorldJoints( tmp_joints.data(), frame_joints_1.data(), skel, anim::Joint::identity() );
         for( u32 i = 0; i < _eMATCH_JOINT_COUNT_; ++i )
             pos1[i] = tmp_joints[info.joint_indices[i]].position;
 
@@ -310,8 +310,8 @@ void stateAllocate( State* state, u32 numJoints, bxAllocator* allocator )
     memset( state->_memory_handle, 0x00, mem_size );
 
     bxBufferChunker chunker( state->_memory_handle, mem_size );
-    state->joint_world = chunker.add< bxAnim_Joint >( numJoints );
-    state->scratch_joints = chunker.add< bxAnim_Joint >( numJoints );
+    state->joint_world = chunker.add< anim::Joint >( numJoints );
+    state->scratch_joints = chunker.add< anim::Joint >( numJoints );
     state->matrix_world = chunker.add< Matrix4 >( numJoints );
 
     chunker.check();
@@ -323,15 +323,15 @@ void stateFree( State* state, bxAllocator* allocator )
     state[0] = {};
 }
 
-void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float trajectoryStartTime, float trajectoryDuration )
+void computeClipTrajectory( ClipTrajectory* ct, const anim::Clip* clip, float trajectoryStartTime, float trajectoryDuration )
 {
     const Vector4 plane = makePlane( Vector3::yAxis(), Vector3( 0.f ) );
-    bxAnim_Joint root_joint;
-    bxAnim::evaluateClip( &root_joint, clip, 0, 0.f, 0, 0 );
+    anim::Joint root_joint;
+    anim::evaluateClip( &root_joint, clip, 0, 0.f, 0, 0 );
     const Vector3 root_displacement_xz = projectVectorOnPlane( root_joint.position, plane );
     const Vector3 root_displacement_y = utils::removeRootMotion( root_joint.position ); // mulPerElem( root_joint.position, Vector3( 0.f, 1.f, 0.f ) );
 
-    bxAnim_Joint trajectory_joint;
+    anim::Joint trajectory_joint;
     const float duration = trajectoryDuration;
     const float dt = ( duration ) / (float)( eNUM_TRAJECTORY_POINTS - 1 );
     const float start_time = trajectoryStartTime;
@@ -344,7 +344,7 @@ void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float t
         if( trajectory_time <= ( clip->duration + FLT_EPSILON ) )
         {
             trajectory_time = minOfPair( clip->duration, trajectory_time );
-            bxAnim::evaluateClip( &trajectory_joint, clip, trajectory_time, 0, 0 );
+            anim::evaluateClip( &trajectory_joint, clip, trajectory_time, 0, 0 );
             trajectory_joint.position -= root_displacement_xz;
             trajectory_joint.position -= root_displacement_y;
             ct->pos[i] = trajectory_joint.position;
@@ -353,10 +353,10 @@ void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float t
         {
             trajectory_time = ::fmodf( trajectory_time, 1.f );
 
-            bxAnim_Joint last_joint, prev_last_joint;
-            bxAnim::evaluateClip( &last_joint, clip, clip->numFrames - 1, 0.f, 0, 0 );
-            bxAnim::evaluateClip( &prev_last_joint, clip, clip->numFrames - 2, 0.f, 0, 0 );
-            bxAnim::evaluateClip( &trajectory_joint, clip, trajectory_time, 0, 0 );
+            anim::Joint last_joint, prev_last_joint;
+            anim::evaluateClip( &last_joint, clip, clip->numFrames - 1, 0.f, 0, 0 );
+            anim::evaluateClip( &prev_last_joint, clip, clip->numFrames - 2, 0.f, 0, 0 );
+            anim::evaluateClip( &trajectory_joint, clip, trajectory_time, 0, 0 );
 
             Vector3 v = last_joint.position - prev_last_joint.position;
 
@@ -388,14 +388,14 @@ void Context::load( const char* skelFile, const AnimClipInfo* animInfo, unsigned
 
     ResourceManager* resource_manager = getResourceManager();
 
-    _data.skel = bxAnimExt::loadSkelFromFile( resource_manager, skelFile );
+    _data.skel = anim_ext::loadSkelFromFile( resource_manager, skelFile );
     SYS_ASSERT( _data.skel != nullptr );
 
     _data.clips.reserve( numAnims );
     _data.clip_infos.reserve( numAnims );
     for( unsigned i = 0; i < numAnims; ++i )
     {
-        bxAnim_Clip* clip = bxAnimExt::loadAnimFromFile( resource_manager, animInfo[i].name.c_str() );
+        anim::Clip* clip = anim_ext::loadAnimFromFile( resource_manager, animInfo[i].name.c_str() );
         if( !clip )
         {
             continue;
@@ -411,13 +411,13 @@ void Context::unload()
     ResourceManager* resource_manager = getResourceManager();
     while( !_data.clips.empty() )
     {
-        bxAnim_Clip* c = _data.clips.back();
-        bxAnimExt::unloadAnimFromFile( resource_manager, &c );
+        anim::Clip* c = _data.clips.back();
+        anim_ext::unloadAnimFromFile( resource_manager, &c );
         _data.clips.pop_back();
     }
         
-    bxAnim_Skel* skel = (bxAnim_Skel*)_data.skel;
-    bxAnimExt::unloadSkelFromFile( resource_manager, &skel );
+    anim::Skel* skel = ( anim::Skel*)_data.skel;
+    anim_ext::unloadSkelFromFile( resource_manager, &skel );
     _data.skel = nullptr;
 }
 
@@ -428,7 +428,7 @@ void Context::prepare( const ContextPrepareInfo& info )
 
     for( u32 i = 0; i < num_match_joints_names; ++i )
     {
-        _data.match_joints_indices[i] = bxAnim::getJointByName( _data.skel, info.matching_joint_names[i] );
+        _data.match_joints_indices[i] = anim::getJointByName( _data.skel, info.matching_joint_names[i] );
     }
 
     prepare_evaluateClips();
@@ -459,14 +459,14 @@ void Context::prepare( const ContextPrepareInfo& info )
 
 void Context::prepare_evaluateClips()
 {
-    const bxAnim_Skel* skel = _data.skel;
+    const anim::Skel* skel = _data.skel;
     std::vector< float > velocity;
 
     //_data.clip_trajectiories.resize( _data.clips.size() );
 
     for( size_t i = 0; i < _data.clips.size(); ++i )
     {
-        const bxAnim_Clip* clip = _data.clips[i];
+        const anim::Clip* clip = _data.clips[i];
         u32 frame_no = 0;
 
         float velocity_sum = 0.f;
@@ -611,7 +611,7 @@ void Context::tick( const Input& input, float deltaTime )
     //bxGfxDebugDraw::addAxes( input.base_matrix_aligned * Matrix4( desired_future_rotation, local_trajectory[3] ) );
     const u32 num_joints = _data.skel->numJoints;
 
-    bxAnim_Joint* curr_local_joints = nullptr;
+    anim::Joint* curr_local_joints = nullptr;
 
     Vector3 prev_matching_pos[_eMATCH_JOINT_COUNT_];
     Vector3 curr_matching_pos[_eMATCH_JOINT_COUNT_];
@@ -624,18 +624,18 @@ void Context::tick( const Input& input, float deltaTime )
     //if( _state.num_clips )
     if( !_anim_player.empty() )
     {
-        bxAnim_Joint* scratch = _state.scratch_joints;
-        bxAnim_Joint* prev_local_joints = _anim_player.prevLocalJoints();
+        anim::Joint* scratch = _state.scratch_joints;
+        anim::Joint* prev_local_joints = _anim_player.prevLocalJoints();
         curr_local_joints = _anim_player.localJoints();
 
         prev_local_joints[0].position = utils::removeRootMotion( prev_local_joints[0].position );
         curr_local_joints[0].position = utils::removeRootMotion( curr_local_joints[0].position );
 
         const Vector4 yplane = makePlane( Vector3::yAxis(), Vector3( 0.f ) );
-        bxAnim_Joint root_joint = bxAnim_Joint::identity();
+        anim::Joint root_joint = anim::Joint::identity();
         
         //
-        bxAnimExt::localJointsToWorldJoints( scratch, prev_local_joints, _data.skel, root_joint );
+        anim_ext::localJointsToWorldJoints( scratch, prev_local_joints, _data.skel, root_joint );
         for( u32 i = 0; i < _data.match_joints_indices.size(); ++i )
         {
             i16 index = _data.match_joints_indices[i];
@@ -643,7 +643,7 @@ void Context::tick( const Input& input, float deltaTime )
         }
 
         //
-        bxAnimExt::localJointsToWorldJoints( scratch, curr_local_joints, _data.skel, root_joint );
+        anim_ext::localJointsToWorldJoints( scratch, curr_local_joints, _data.skel, root_joint );
         for( u32 i = 0; i < _data.match_joints_indices.size(); ++i )
         {
             i16 index = _data.match_joints_indices[i];
@@ -672,7 +672,7 @@ void Context::tick( const Input& input, float deltaTime )
                 continue;
 
             const AnimClipInfo& clip_info = _data.clip_infos[pose.params.clip_index];
-            const bxAnim_Clip* clip = _data.clips[pose.params.clip_index];
+            const anim::Clip* clip = _data.clips[pose.params.clip_index];
             const bool is_pose_clip_looped = clip_info.is_loop == 1;
 
             const ClipTrajectory& pose_trajectory = pose.trajectory; // _data.clip_trajectiories[pose.params.clip_index];
@@ -718,7 +718,7 @@ void Context::tick( const Input& input, float deltaTime )
 
         if( !winner_is_at_the_same_location )
         {
-            bxAnim_Clip* clip = _data.clips[winner_pose.params.clip_index];
+            anim::Clip* clip = _data.clips[winner_pose.params.clip_index];
             _anim_player.play( clip, winner_pose.params.clip_start_time, 0.25f, winner_pose.params.clip_index );
             _state.pose_index = change_index;
             pose_changed = true;
@@ -748,7 +748,7 @@ void Context::tick( const Input& input, float deltaTime )
     {
         const u32 change_index = 0;
         const Pose& winner_pose = _data.poses[change_index];
-        bxAnim_Clip* clip = _data.clips[winner_pose.params.clip_index];
+        anim::Clip* clip = _data.clips[winner_pose.params.clip_index];
         _anim_player.play( clip, winner_pose.params.clip_start_time, 0.25f, winner_pose.params.clip_index );
         //_anim_player.tick( deltaTime );
         _state.pose_index = change_index;
@@ -761,12 +761,12 @@ void Context::tick( const Input& input, float deltaTime )
     curr_local_joints[0].position = utils::removeRootMotion( curr_local_joints[0].position );
 
     const Matrix4 root_matrix = /*Matrix4::translation( pivot ) * */input.base_matrix_aligned;
-    const bxAnim_Joint root = toAnimJoint_noScale( root_matrix );
+    const anim::Joint root = anim::toAnimJoint_noScale( root_matrix );
     const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _data.skel->offsetParentIndices );
     if( curr_local_joints )
     {
-        bxAnimExt::localJointsToWorldMatrices( _state.matrix_world, curr_local_joints, _data.skel, root );
-        bxAnimExt::localJointsToWorldJoints( _state.joint_world, curr_local_joints, _data.skel, root );
+        anim_ext::localJointsToWorldMatrices( _state.matrix_world, curr_local_joints, _data.skel, root );
+        anim_ext::localJointsToWorldJoints( _state.joint_world, curr_local_joints, _data.skel, root );
         //utils::debugDrawMatrices( _state.matrix_world, parent_indices, num_joints, 0x666666FF, 0.015f );
     }
 
@@ -908,7 +908,7 @@ void Context::tick( const Input& input, float deltaTime )
     if( curr_local_joints )
     {
         
-        bxAnimExt::localJointsToWorldJoints( _state.joint_world, curr_local_joints, _data.skel, root );
+        anim_ext::localJointsToWorldJoints( _state.joint_world, curr_local_joints, _data.skel, root );
         const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _data.skel->offsetParentIndices );
         utils::debugDrawJoints( _state.joint_world, parent_indices, num_joints, 0xffffffFF, 0.025f, 1.f );
 
@@ -979,7 +979,7 @@ void Context::_DebugDrawPose( u32 poseIndex, u32 color, const Matrix4& base )
 
     const Pose& pose = _data.poses[poseIndex];
 
-    const bxAnim_Joint root_joint = toAnimJoint_noScale( base );
+    const anim::Joint root_joint = anim::toAnimJoint_noScale( base );
     
 
     const ClipTrajectory& pose_trajectory = pose.trajectory; // _data.clip_trajectiories[pose.params.clip_index];
@@ -1009,11 +1009,11 @@ void Context::_DebugDrawPose( u32 poseIndex, u32 color, const Matrix4& base )
     _debug.joints0.resize( _data.skel->numJoints );
     _debug.joints1.resize( _data.skel->numJoints );
     
-    const bxAnim_Clip* clip = _data.clips[pose.params.clip_index];
+    const anim::Clip* clip = _data.clips[pose.params.clip_index];
     const u16* parent_indices = TYPE_OFFSET_GET_POINTER( u16, _data.skel->offsetParentIndices );
-    bxAnim::evaluateClip( _debug.joints0.data(), clip, pose.params.clip_start_time );
+    anim::evaluateClip( _debug.joints0.data(), clip, pose.params.clip_start_time );
     _debug.joints0[0].position = utils::removeRootMotion( _debug.joints0[0].position ); // mulPerElem( _debug.joints0[0].position, Vector3( 0.f, 1.f, 0.f ) );
-    bxAnimExt::localJointsToWorldJoints( _debug.joints1.data(), _debug.joints0.data(), _data.skel, root_joint );
+    anim_ext::localJointsToWorldJoints( _debug.joints1.data(), _debug.joints0.data(), _data.skel, root_joint );
     utils::debugDrawJoints( _debug.joints1.data(), parent_indices, _data.skel->numJoints, 0x333333ff, 0.01f, 1.f );
 
 }
@@ -1204,16 +1204,16 @@ inline Quat ikComputeDeltaRot( const Vector3& p, const Vector3& e, const Vector3
     return drot;
 }
 
-void ikNodeInit( IKNode3* node, const bxAnim_Skel* skel, const char* jointNames[3] )
+void ikNodeInit( IKNode3* node, const Skel* skel, const char* jointNames[3] )
 {
-    node->idx_begin = bxAnim::getJointByName( skel, jointNames[0] );
-    node->idx_middle = bxAnim::getJointByName( skel, jointNames[1] );
-    node->idx_end = bxAnim::getJointByName( skel, jointNames[2] );
+    node->idx_begin = getJointByName( skel, jointNames[0] );
+    node->idx_middle = getJointByName( skel, jointNames[1] );
+    node->idx_end = getJointByName( skel, jointNames[2] );
     SYS_ASSERT( node->idx_begin != -1 );
     SYS_ASSERT( node->idx_middle != -1 );
     SYS_ASSERT( node->idx_end != -1 );
     
-    const bxAnim_Joint* bind_pose = TYPE_OFFSET_GET_POINTER( bxAnim_Joint, skel->offsetBasePose );
+    const Joint* bind_pose = TYPE_OFFSET_GET_POINTER( Joint, skel->offsetBasePose );
 
     const Vector3& begin_pos = bind_pose[node->idx_begin].position;
     const Vector3& mid_pos = bind_pose[node->idx_middle].position;
@@ -1224,7 +1224,7 @@ void ikNodeInit( IKNode3* node, const bxAnim_Skel* skel, const char* jointNames[
     node->chain_length = node->len_begin_2_mid + node->len_mid_2_end;
 }
 
-void ikNodeSolve( bxAnim_Joint* localJoints, const IKNode3& node, const Matrix4* animMatrices, const i16* parentIndices, const Vector3& goalPosition, float strength, bool debugDraw )
+void ikNodeSolve( Joint* localJoints, const IKNode3& node, const Matrix4* animMatrices, const i16* parentIndices, const Vector3& goalPosition, float strength, bool debugDraw )
 {
     const Matrix4& beginPose = animMatrices[node.idx_begin];
     const Matrix4& midPose = animMatrices[node.idx_middle];
@@ -1261,7 +1261,7 @@ void ikNodeSolve( bxAnim_Joint* localJoints, const IKNode3& node, const Matrix4*
     }
 
     {
-        const bxAnim_Joint& joint = localJoints[node.idx_middle];
+        const Joint& joint = localJoints[node.idx_middle];
         const Matrix4 beginPoseInv = inverse( beginPose );
         const Vector3 posLocal0 = joint.position;
         const Vector3 posLocal1 = mulAsVec4( beginPoseInv, midPos );
@@ -1278,16 +1278,16 @@ void ikNodeSolve( bxAnim_Joint* localJoints, const IKNode3& node, const Matrix4*
             parent = animMatrices[parentIndices[node.idx_begin]];
         for( int i = node.idx_begin; i < node.idx_middle; ++i )
         {
-            const bxAnim_Joint& localJoint = localJoints[i];
+            const Joint& localJoint = localJoints[i];
             parent *= appendScale( Matrix4( localJoint.rotation, localJoint.position ), localJoint.scale );
         }
 
-        const bxAnim_Joint& midJoint = localJoints[node.idx_middle];
+        const Joint& midJoint = localJoints[node.idx_middle];
         newMidPose = parent * appendScale( Matrix4( midJoint.rotation, midJoint.position ), midJoint.scale );
     }
 
     {
-        const bxAnim_Joint& joint = localJoints[node.idx_end];
+        const Joint& joint = localJoints[node.idx_end];
         const Matrix4 newMidPoseInv = inverse( newMidPose );
         const Vector3 p0 = joint.position;
         const Vector3 p1 = mulAsVec4( newMidPoseInv, endPos );

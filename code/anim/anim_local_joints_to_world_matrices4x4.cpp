@@ -1,8 +1,9 @@
 #include "anim.h"
 #include <util/debug.h>
 
+namespace bx{ namespace anim{
 
-void bxAnim::localJointsToWorldMatrices4x4( Matrix4* out_matrices, const bxAnim_Joint* in_joints, const unsigned short* parent_indices, unsigned count, const bxAnim_Joint& root_joint )
+void localJointsToWorldMatrices4x4( Matrix4* out_matrices, const Joint* in_joints, const unsigned short* parent_indices, unsigned count, const Joint& root_joint )
 {
     Matrix4 root = Matrix4( root_joint.rotation, root_joint.position );
     root.setCol0( root.getCol0() * root_joint.scale.getX() );
@@ -19,7 +20,7 @@ void bxAnim::localJointsToWorldMatrices4x4( Matrix4* out_matrices, const bxAnim_
 
         const Matrix4& parent = ( is_root ) ? root : out_transform[parent_idx];
         
-        const bxAnim_Joint& local_joint = in_joints[i];
+        const Joint& local_joint = in_joints[i];
         Vector3 scale_compensate = ( is_root ) ? root_joint.scale : in_joints[parent_idx].scale;
         scale_compensate = recipPerElem( scale_compensate );
 
@@ -52,3 +53,4 @@ void bxAnim::localJointsToWorldMatrices4x4( Matrix4* out_matrices, const bxAnim_
     }
 }
 
+}}//

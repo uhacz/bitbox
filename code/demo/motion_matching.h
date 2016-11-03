@@ -28,8 +28,8 @@ struct IKNode3
     float chain_length = 0.f;
 };
 
-void ikNodeInit( IKNode3* node, const bxAnim_Skel* skel, const char* jointNames[3] );
-void ikNodeSolve( bxAnim_Joint* localJoints, const IKNode3& node, const Matrix4* animMatrices, const i16* parentIndices, const Vector3& goalPosition, float strength, bool debugDraw = false );
+void ikNodeInit( IKNode3* node, const Skel* skel, const char* jointNames[3] );
+void ikNodeSolve( Joint* localJoints, const IKNode3& node, const Matrix4* animMatrices, const i16* parentIndices, const Vector3& goalPosition, float strength, bool debugDraw = false );
 
 }}///
 
@@ -85,8 +85,8 @@ struct AnimFootPlaceInfo
 
 struct PosePrepareInfo
 {
-    const bxAnim_Skel* skel = nullptr;
-    const bxAnim_Clip* clip = nullptr;
+    const anim::Skel* skel = nullptr;
+    const anim::Clip* clip = nullptr;
 
     const i16* joint_indices = nullptr; // [_eMATCH_JOINT_COUNT_];
     u32 frameNo = 0;
@@ -95,8 +95,8 @@ struct PosePrepareInfo
 
 struct Data
 {
-    const bxAnim_Skel* skel = nullptr;
-    std::vector< bxAnim_Clip* > clips;
+    const anim::Skel* skel = nullptr;
+    std::vector< anim::Clip* > clips;
     std::vector< AnimClipInfo > clip_infos;
     std::vector< AnimFootPlaceInfo > clip_foot_place_info;
     //std::vector< ClipTrajectory > clip_trajectiories;
@@ -130,8 +130,8 @@ struct State
     FootLock rfoot_lock;
 
     void* _memory_handle = nullptr;
-    bxAnim_Joint* joint_world = nullptr;
-    bxAnim_Joint* scratch_joints = nullptr;
+    anim::Joint* joint_world = nullptr;
+    anim::Joint* scratch_joints = nullptr;
     Matrix4* matrix_world = nullptr;
 
     Curve3D input_trajectory_curve;
@@ -156,15 +156,15 @@ struct Input
 };
 struct Output
 {
-    bxAnim_Clip* clip = nullptr;
+    anim::Clip* clip = nullptr;
     f32 start_time = 0.f;
     f32 blend_time = 0.f;
 };
 
 struct Debug
 {
-    std::vector< bxAnim_Joint > joints0;
-    std::vector< bxAnim_Joint > joints1;
+    std::vector< anim::Joint > joints0;
+    std::vector< anim::Joint > joints1;
     std::vector< u32 > pose_indices;
 };
 
@@ -176,7 +176,7 @@ void posePrepare( Pose* pose, const PosePrepareInfo& info );
 void stateAllocate( State* state, u32 numJoints, bxAllocator* allocator );
 void stateFree( State* state, bxAllocator* allocator );
 //-------------------------------------------------------------------
-void computeClipTrajectory( ClipTrajectory* ct, const bxAnim_Clip* clip, float trajectoryStartTime, float trajectoryDuration );
+void computeClipTrajectory( ClipTrajectory* ct, const anim::Clip* clip, float trajectoryStartTime, float trajectoryDuration );
     
 struct ContextPrepareInfo
 {

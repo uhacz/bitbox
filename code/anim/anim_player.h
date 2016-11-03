@@ -4,13 +4,13 @@
 
 struct bxAllocator;
 
-struct bxAnim_Joint;
-struct bxAnim_Skel;
-struct bxAnim_Clip;
-struct bxAnim_Context;
-
 namespace bx{
 namespace anim{
+
+    struct Joint;
+    struct Skel;
+    struct Clip;
+    struct Context;
 
 struct CascadePlayer
 {
@@ -20,7 +20,7 @@ struct CascadePlayer
 
     struct Node
     {
-        const bxAnim_Clip* clip = nullptr;
+        const Clip* clip = nullptr;
 
         /// for leaf
         u64 clip_user_data = 0;
@@ -35,19 +35,19 @@ struct CascadePlayer
         bool isEmpty() const { return clip == nullptr; }
     };
 
-    bxAnim_Context* _ctx = nullptr;
+    Context* _ctx = nullptr;
     Node _nodes[eMAX_NODES];
     u32 _root_node_index = UINT32_MAX;
 
-    void prepare( const bxAnim_Skel* skel, bxAllocator* allcator = nullptr );
+    void prepare( const Skel* skel, bxAllocator* allcator = nullptr );
     void unprepare( bxAllocator* allocator = nullptr );
 
-    bool play( const bxAnim_Clip* clip, float startTime, float blendTime, u64 userData, bool replaceLastIfFull );
+    bool play( const Clip* clip, float startTime, float blendTime, u64 userData, bool replaceLastIfFull );
     void tick( float deltaTime );
 
     bool empty() const { return _root_node_index == UINT32_MAX; }
-    const bxAnim_Joint* localJoints() const;
-    bxAnim_Joint*       localJoints();
+    const Joint* localJoints() const;
+    Joint*       localJoints();
     bool userData( u64* dst, u32 depth );
 
 private:
@@ -66,22 +66,22 @@ struct SimplePlayer
 
     struct Clip
     {
-        const bxAnim_Clip* clip = nullptr;
+        const anim::Clip* clip = nullptr;
         u64 user_data = 0;
         f32 eval_time = 0.f;
     };
 
-    bxAnim_Context* _ctx = nullptr;
-    bxAnim_Joint* _prev_joints = nullptr;
+    Context* _ctx = nullptr;
+    Joint* _prev_joints = nullptr;
     Clip _clips[2];
     f32 _blend_time = 0.f;
     f32 _blend_duration = 0.f;
     u32 _num_clips = 0;
 
-    void prepare( const bxAnim_Skel* skel, bxAllocator* allcator = nullptr );
+    void prepare( const Skel* skel, bxAllocator* allcator = nullptr );
     void unprepare( bxAllocator* allocator = nullptr );
 
-    void play( const bxAnim_Clip* clip, float startTime, float blendTime, u64 userData );
+    void play( const anim::Clip* clip, float startTime, float blendTime, u64 userData );
     void tick( float deltaTime );
 private:
     static void _ClipUpdateTime( Clip* clip, float deltaTime );
@@ -92,11 +92,11 @@ private:
 
 public:
     bool empty() const { return _num_clips == 0; }
-    const bxAnim_Joint* localJoints() const;
-    bxAnim_Joint*       localJoints();
+    const Joint* localJoints() const;
+    Joint*       localJoints();
 
-    const bxAnim_Joint* prevLocalJoints() const;
-    bxAnim_Joint*       prevLocalJoints();
+    const Joint* prevLocalJoints() const;
+    Joint*       prevLocalJoints();
 
     bool userData( u64* dst, u32 depth );
     bool evalTime( f32* dst, u32 depth );
