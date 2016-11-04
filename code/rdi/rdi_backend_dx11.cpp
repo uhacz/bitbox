@@ -1545,7 +1545,7 @@ void ClearBuffers( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, Tex
     SYS_ASSERT( nColor < SLOT_COUNT );
 
     ID3D11RenderTargetView *rtv[SLOT_COUNT] = {};
-    ID3D11DepthStencilView *dsv = 0;
+    ID3D11DepthStencilView *dsv = depthTex.viewDS;
     for( u32 i = 0; i < nColor; ++i )
     {
         rtv[i] = colorTex[i].viewRT;

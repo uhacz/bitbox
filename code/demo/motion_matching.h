@@ -143,14 +143,11 @@ struct State
 struct Input
 {
     Vector3 trajectory[eNUM_TRAJECTORY_POINTS];
-    
-    Matrix4 base_matrix;
     Matrix4 base_matrix_aligned;
     
     Vector3 velocity;
     Vector3 acceleration;
-    Vector3 raw_input;
-
+    
     f32 speed01;
     f32 trajectory_integration_time;
 };

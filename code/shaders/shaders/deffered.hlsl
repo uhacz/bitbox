@@ -18,7 +18,7 @@ passes:
 
 #include <sys/vertex_transform.hlsl>
 #include <sys/material.hlsl>
-
+#include <sys/samplers.hlsl>
 struct in_VS
 {
     uint instanceID : SV_InstanceID;
@@ -86,11 +86,6 @@ in_PS vs_geometry_main(in_VS IN)
 #endif
     return OUT;
 }
-
-SamplerState _samp_point : register( s0 );
-SamplerState _samp_linear : register( s1 );
-SamplerState _samp_bilinear : register( s2 );
-SamplerState _samp_trilinear : register( s3 );
 
 out_PS ps_geometry_main( in_PS IN )
 {

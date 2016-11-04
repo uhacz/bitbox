@@ -344,7 +344,7 @@ public:
 
         rdi::CommandQueue* cmdq = nullptr;
         rdi::frame::Begin( &cmdq );
-        rdi::context::ClearState( cmdq );
+        _renderer.BeginFrame( cmdq );
 
         {
             FrameData fdata;
@@ -367,7 +367,6 @@ public:
         rdi::BindPipeline( cmdq, _pipeline_test_color );
 
         _vertex_transform_data.SetCurrent( cmdq, box_batch_index );
-
         rdi::BindRenderSource( cmdq, _rsource_box );
         rdi::SubmitRenderSourceInstanced( cmdq, _rsource_box, NUM_INSTANCES );
 
@@ -377,6 +376,7 @@ public:
 
         rdi::TextureRW texture = rdi::GetTexture( _rtarget_gbuffer, 0 );
         _renderer.RasterizeFramebuffer( cmdq, texture, _camera, win->width, win->height );
+
         //rdi::context::ChangeToMainFramebuffer( cmdq );
         //rdi::context::SetViewport( cmdq, screen_viewport );
         //rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_copy_texture_rgba );
@@ -389,13 +389,9 @@ public:
         //rdi::BindRenderSource( cmdq, _rsource_fullscreen_quad );
         //rdi::SubmitRenderSource( cmdq, _rsource_fullscreen_quad );
 
-        rdi::context::Swap( cmdq );
-
+        _renderer.EndFrame( cmdq );
         rdi::frame::End( &cmdq );
-
-
-
-
+        
         //bx::gfxCameraComputeMatrices( camera );
         //
         //{

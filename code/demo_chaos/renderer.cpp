@@ -283,6 +283,17 @@ void Renderer::DestroyScene( Scene* scene )
     BX_DELETE0( bxDefaultAllocator(), scene[0] );
 }
 
+void Renderer::BeginFrame( rdi::CommandQueue* command_queue )
+{
+    rdi::context::ClearState( command_queue );
+    rdi::BindResources( command_queue, _samplers.resource_desc );
+}
+
+void Renderer::EndFrame( rdi::CommandQueue* command_queue )
+{
+    rdi::context::Swap( command_queue );
+}
+
 void Renderer::RasterizeFramebuffer( rdi::CommandQueue* cmdq, const rdi::ResourceRO source, const Camera& camera, u32 windowW, u32 windowH )
 {
     const rdi::Viewport screen_viewport = gfx::computeViewport( camera, windowW, windowH, _desc.framebuffer_width, _desc.framebuffer_height );
@@ -290,8 +301,8 @@ void Renderer::RasterizeFramebuffer( rdi::CommandQueue* cmdq, const rdi::Resourc
     rdi::context::SetViewport( cmdq, screen_viewport );
     
     rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_copy_texture_rgba );
-    rdi::SetResourceRO( rdesc, "gtexture", &rdi::GetTexture( _render_target, 0 ) );
-    rdi::SetSampler( rdesc, "gsampler", &_samplers.point );
+    rdi::SetResourceRO( rdesc, "gtexture", &source );
+    //rdi::SetSampler( rdesc, "gsampler", &_samplers.point );
     
     rdi::BindPipeline( cmdq, _pipeline_copy_texture_rgba );
     rdi::BindResources( cmdq, rdesc );

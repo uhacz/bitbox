@@ -1137,10 +1137,10 @@ void motionMatchingCollectInput( Input* input, const DynamicState& dstate )
 
     input->velocity = dstate._velocity;
     input->acceleration = dstate._acceleration;
-    input->base_matrix = dstate.computeBaseMatrix( true );
+    //input->base_matrix = dstate.computeBaseMatrix( true );
     input->base_matrix_aligned = dstate.computeBaseMatrix( false );
     input->speed01 = dstate._speed01;
-    input->raw_input = dstate._prev_input_force;
+    //input->raw_input = dstate._prev_input_force;
     input->trajectory_integration_time = dstate._trajectory_integration_time;
 }
 

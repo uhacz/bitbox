@@ -34,7 +34,7 @@ struct SceneImpl
 private: 
     void _SetToDefaults( u32 index );
     void _AllocateData( u32 newSize, bxAllocator* allocator );
-    u32 _GetIndex( MeshID mi );
+    u32  _GetIndex( MeshID mi );
 
 private:
     struct Data

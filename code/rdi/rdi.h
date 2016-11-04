@@ -213,3 +213,30 @@ void ShaderFileUnload( ShaderFile** sfile, ResourceManager* resourceManager );
 u32 ShaderFileFindPass( const ShaderFile* sfile, const char* passName );
 
 }}///
+
+
+namespace bx{ namespace rdi{
+
+    struct DrawCommand
+    {
+        Pipeline pipeline = BX_RDI_NULL_HANDLE;
+        ResourceDescriptor resources = BX_RDI_NULL_HANDLE;
+        RenderSource rsource = BX_RDI_NULL_HANDLE;
+        u8 rsouce_range = 0;
+    };
+    struct UpdateConstantBufferCommand
+    {
+        Resource resource = {};
+        void* data = nullptr;
+        u32 size = 0;
+    };
+
+    ComandBuffer CreateCommandBuffer();
+    void DestroyCommandBuffer( ComandBuffer cmdBuff );
+    void ClearCommandBuffer( ComandBuffer cmdBuff );
+
+
+
+
+
+}}///

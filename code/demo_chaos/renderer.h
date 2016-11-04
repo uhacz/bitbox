@@ -124,6 +124,8 @@ struct GeometryPass
     rdi::ConstantBuffer _cbuffer_frame_data = {};
         
     gfx::VertexTransformData _vertex_transform_data;
+
+
 };
 
 struct PostProcessPass

@@ -22,7 +22,7 @@ void evaluateClipIndexed( Joint* out_joints, const Clip* anim, u32 frame_integer
 
 void localJointsToWorldMatrices4x4( Matrix4* out_matrices, const Joint* in_joints, const unsigned short* parent_indices, unsigned count, const Joint& root_joint );
 void localJointsToWorldJoints( Joint* out_joints, const Joint* in_joints, const unsigned short* parent_indices, unsigned count, const Joint& root_joint );
-void localJointToWorldJoint( Joint* out_joints, const Joint* in_joints, const unsigned short* parent_indices, unsigned count, const Joint& root_joint );
+//void localJointToWorldJoint( Joint* out_joints, const Joint* in_joints, const unsigned short* parent_indices, unsigned count, const Joint& root_joint );
 
 }}///
 
