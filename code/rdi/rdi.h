@@ -217,25 +217,78 @@ u32 ShaderFileFindPass( const ShaderFile* sfile, const char* passName );
 
 namespace bx{ namespace rdi{
 
-    struct DrawCommand
+    struct Command;
+    typedef void( *DispatchFunction )( CommandQueue* cmdq, Command* cmdAddr );
+
+    struct Command
     {
-        Pipeline pipeline = BX_RDI_NULL_HANDLE;
-        ResourceDescriptor resources = BX_RDI_NULL_HANDLE;
+        DispatchFunction _dispatch_ptr = nullptr;
+        Command* _next = nullptr;
+    };
+    struct SetPipelineCmd : Command
+    {
+        static const DispatchFunction DISPATCH_FUNCTION;
+        Pipeline pipeline = nullptr;
+    };
+    struct SetResourcesCmd : Command
+    {
+        static const DispatchFunction DISPATCH_FUNCTION;
+        ResourceDescriptor desc;
+    };
+    struct DrawCmd : Command
+    {
+        static const DispatchFunction DISPATCH_FUNCTION;
         RenderSource rsource = BX_RDI_NULL_HANDLE;
-        u8 rsouce_range = 0;
+        u16 rsouce_range = 0;
+        u16 num_instances = 0;
     };
-    struct UpdateConstantBufferCommand
+    struct UpdateConstantBufferCmd : Command
     {
-        Resource resource = {};
-        void* data = nullptr;
-        u32 size = 0;
+        static const DispatchFunction DISPATCH_FUNCTION;
+        ConstantBuffer cbuffer = {};
+        u8* DataPtr() { return (u8*)(this + 1); }
     };
 
-    ComandBuffer CreateCommandBuffer();
-    void DestroyCommandBuffer( ComandBuffer cmdBuff );
-    void ClearCommandBuffer( ComandBuffer cmdBuff );
+    void SetPipelineCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
+    void SetResourcesCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
+    void DrawCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
+    void UpdateConstantBufferCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
+    
+    //////////////////////////////////////////////////////////////////////////
+    /// @dataCapacity : additional data for commands eg. for UpdateConstantBufferCmd data
+    CommandBuffer CreateCommandBuffer( u32 maxCommands = 64, u32 dataCapacity = 1024*4 );
+    void DestroyCommandBuffer( CommandBuffer* cmdBuff );
+    void ClearCommandBuffer( CommandBuffer cmdBuff );
+    void BeginCommandBuffer( CommandBuffer cmdBuff );
+    void EndCommandBuffer( CommandBuffer cmdBuff );
+    void SubmitCommandBuffer( CommandQueue* cmdq, CommandBuffer cmdBuff );
+    bool SubmitCommand( CommandBuffer cmdbuff, Command* cmdPtr, u64 sortKey );
+    void* _AllocateCommand( CommandBuffer cmdbuff, u32 cmdSize );
 
+    template< typename T >
+    T* AllocateCommand( CommandBuffer cmdbuff, u32 dataSize, Command* parent_cmd )
+    {
+        u32 mem_size = sizeof( T ) + dataSize;
+        void* mem = _AllocateCommand( cmdbuff, mem_size );
+        T* cmd = new( mem ) T();
+        cmd->_dispatch_ptr = T::DISPATCH_FUNCTION;
+        if( parent_cmd )
+        {
+            SYS_ASSERT( parent_cmd->_next == nullptr );
+            parent_cmd->_next = cmd;
+        }
+        return cmd;
+    }
 
+    template< typename T >
+    inline T* AllocateCommand( CommandBuffer cmdbuff, Command* parent_cmd )
+    {
+        return AllocateCommand<T>( cmdbuff, 0, parent_cmd );
+    }
+
+    
+
+    
 
 
 

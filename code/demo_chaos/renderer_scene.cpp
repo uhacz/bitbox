@@ -449,6 +449,16 @@ void VertexTransformData::SetCurrent( rdi::CommandQueue* cmdq, u32 index )
     rdi::context::UpdateCBuffer( cmdq, _offset, &off );
 }
 
+rdi::Command* VertexTransformData::SetCurrent( rdi::CommandBuffer cmdBuff, u32 index, rdi::Command* parentCmd )
+{
+    rdi::UpdateConstantBufferCmd* cmd = rdi::AllocateCommand<rdi::UpdateConstantBufferCmd>( cmdBuff, sizeof( InstanceOffset ), parentCmd );
+    cmd->cbuffer = _offset;
+    InstanceOffset* off = (InstanceOffset*)cmd->DataPtr();
+    memset( off, 0x00, sizeof( InstanceOffset ) );
+    off->begin = index;
 
+    return cmd;
+}
 
-}}///
+}
+}///

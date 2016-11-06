@@ -19,7 +19,11 @@ namespace utils
         return ( defaultAllocator ) ? defaultAllocator : bxDefaultAllocator();
     }
 }
-}}
+
+
+
+}
+}///
 
 
 namespace bx{ namespace rdi{
@@ -51,6 +55,7 @@ u32 ShaderFileFindPass( const ShaderFile* sfile, const char* passName )
     }
     return UINT32_MAX;
 }
+
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -584,3 +589,198 @@ RenderSource CreateRenderSourceFromPolyShape( const bxPolyShape& shape )
 }
 
 }}///
+
+
+namespace bx { namespace rdi {
+
+    const DispatchFunction DrawCmd::DISPATCH_FUNCTION = DrawCmdDispatch;
+    const DispatchFunction UpdateConstantBufferCmd::DISPATCH_FUNCTION = UpdateConstantBufferCmdDispatch;
+    const DispatchFunction SetPipelineCmd::DISPATCH_FUNCTION = SetPipelineCmdDispatch;
+    const DispatchFunction SetResourcesCmd::DISPATCH_FUNCTION = SetResourcesCmdDispatch;
+    
+    void SetPipelineCmdDispatch(  CommandQueue* cmdq, Command* cmdAddr )
+    {
+        SetPipelineCmd* cmd = (SetPipelineCmd*)cmdAddr;
+        BindPipeline( cmdq, cmd->pipeline );
+    }
+    void SetResourcesCmdDispatch(  CommandQueue* cmdq, Command* cmdAddr )
+    {
+        SetResourcesCmd* cmd = (SetResourcesCmd*)cmdAddr;
+        BindResources( cmdq, cmd->desc );
+    }
+
+    void DrawCmdDispatch( CommandQueue* cmdq, Command* cmdAddr )
+    {
+        DrawCmd* cmd = (DrawCmd*)cmdAddr;
+        BindRenderSource( cmdq, cmd->rsource );
+        SubmitRenderSourceInstanced( cmdq, cmd->rsource, cmd->num_instances, cmd->rsouce_range );
+    }
+
+    void UpdateConstantBufferCmdDispatch( CommandQueue* cmdq, Command* cmdAddr )
+    {
+        UpdateConstantBufferCmd* cmd = (UpdateConstantBufferCmd*)cmdAddr;
+        context::UpdateCBuffer( cmdq, cmd->cbuffer, cmd->DataPtr() );
+    }
+
+        //////////////////////////////////////////////////////////////////////////
+    struct CommandBufferImpl
+    {
+        struct CmdInternal
+        {
+            u64 key;
+            Command* cmd;
+        };
+
+        struct Data
+        {
+            void* _memory_handle = nullptr;
+            CmdInternal* commands = nullptr;
+            u8* data = nullptr;
+            
+            u32 max_commands = 0;
+            u32 num_commands = 0;
+            u32 data_capacity = 0;
+            u32 data_size = 0;
+        }_data;
+
+        union
+        {
+            u32 all = 0;
+            struct  
+            {
+                u16 commands;
+                u16 data;
+            };
+        } _overflow;
+
+        u32 _can_add_commands = 0;
+        
+        void AllocateData( u32 maxCommands, u32 dataCapacity, bxAllocator* allocator );
+        void FreeData( bxAllocator* allocator );
+    };
+
+    void CommandBufferImpl::AllocateData( u32 maxCommands, u32 dataCapacity, bxAllocator* allocator )
+    {
+        SYS_ASSERT( _can_add_commands == 0 );
+
+        if( _data.max_commands >= maxCommands && _data.data_capacity >= dataCapacity )
+            return;
+
+        u32 mem_size = maxCommands * sizeof( CmdInternal );
+        mem_size += dataCapacity;
+
+        void* mem = BX_MALLOC( allocator, mem_size, 16 );
+        memset( mem, 0x00, mem_size );
+
+        Data newdata = {};
+        newdata._memory_handle = mem;
+        newdata.max_commands = maxCommands;
+        newdata.data_capacity = dataCapacity;
+        
+        bxBufferChunker chunker( mem, mem_size );
+        newdata.commands = chunker.add< CmdInternal >( maxCommands );
+        newdata.data = chunker.addBlock( dataCapacity );
+        chunker.check();
+
+        FreeData( allocator );
+        _data = newdata;
+    }
+
+    void CommandBufferImpl::FreeData( bxAllocator* allocator )
+    {
+        BX_FREE( allocator, _data._memory_handle );
+        _data = {};
+    }
+
+    CommandBuffer CreateCommandBuffer( u32 maxCommands, u32 dataCapacity )
+    {
+        CommandBufferImpl* impl = BX_NEW( bxDefaultAllocator(), CommandBufferImpl );
+        
+        dataCapacity += maxCommands * sizeof( DrawCmd );
+        impl->AllocateData( maxCommands, dataCapacity, bxDefaultAllocator() );
+        return impl;
+    }
+
+    void DestroyCommandBuffer( CommandBuffer* cmdBuff )
+    {
+        CommandBufferImpl* impl = cmdBuff[0];
+        impl->FreeData( bxDefaultAllocator() );
+        BX_FREE0( bxDefaultAllocator(), cmdBuff[0] );
+    }
+
+    void ClearCommandBuffer( CommandBuffer cmdBuff )
+    {
+        if( cmdBuff->_overflow.all )
+        {
+            u32 maxCommands = ( cmdBuff->_overflow.commands ) ? cmdBuff->_data.max_commands * 2 : cmdBuff->_data.max_commands;
+            u32 dataCapacity = ( cmdBuff->_overflow.data ) ? cmdBuff->_data.data_capacity * 2 : cmdBuff->_data.data_capacity;
+            cmdBuff->AllocateData( maxCommands, dataCapacity, bxDefaultAllocator() );
+            cmdBuff->_overflow.all = 0;
+        }
+        cmdBuff->_data.num_commands = 0;
+        cmdBuff->_data.data_size = 0;
+    }
+
+    void BeginCommandBuffer( CommandBuffer cmdBuff )
+    {
+        cmdBuff->_can_add_commands = 1;
+    }
+    void EndCommandBuffer( CommandBuffer cmdBuff )
+    {
+        cmdBuff->_can_add_commands = 0;
+    }
+    void SubmitCommandBuffer( CommandQueue* cmdq, CommandBuffer cmdBuff )
+    {
+        SYS_ASSERT( cmdBuff->_can_add_commands == 0 );
+
+        struct CmdInternalCmp{
+            inline bool operator () ( const CommandBufferImpl::CmdInternal a, const CommandBufferImpl::CmdInternal b ) { return a.key < b.key; }
+        };
+
+        CommandBufferImpl::Data& data = cmdBuff->_data;
+        std::sort( data.commands, data.commands + data.num_commands, CmdInternalCmp() );
+
+        for( u32 i = 0; i < data.num_commands; ++i )
+        {
+            Command* cmd = data.commands[i].cmd;
+            while( cmd )
+            {
+                ( *cmd->_dispatch_ptr )( cmdq, cmd );
+                cmd = cmd->_next;
+            }
+        }
+    }
+    bool SubmitCommand( CommandBuffer cmdbuff, Command* cmdPtr, u64 sortKey )
+    {
+        SYS_ASSERT( cmdbuff->_can_add_commands );
+        CommandBufferImpl::Data& data = cmdbuff->_data;
+        if( data.num_commands >= data.max_commands )
+            return false;
+
+        u32 index = data.num_commands++;
+        CommandBufferImpl::CmdInternal cmd_int = {};
+        cmd_int.key = sortKey;
+        cmd_int.cmd = cmdPtr;
+        data.commands[index] = cmd_int;
+        return true;
+    }
+    void* _AllocateCommand( CommandBuffer cmdbuff, u32 cmdSize )
+    {
+        SYS_ASSERT( cmdbuff->_can_add_commands );
+        CommandBufferImpl::Data& data = cmdbuff->_data;
+        if( data.data_size + cmdSize > data.data_capacity )
+            return nullptr;
+
+        u8* ptr = data.data + data.data_size;
+        data.data_size += cmdSize;
+        
+        return ptr;
+    }
+
+
+
+
+
+
+}
+}///

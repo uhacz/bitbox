@@ -58,10 +58,11 @@ shared
 cbuffer MaterialData : register( BSLOT( SLOT_MATERIAL_DATA ) )
 {
     MATERIAL_VARIABLES;
+}; 
+
 #if defined( USE_TEXTURES )
     MATERIAL_TEXTURES;
 #endif
-}; 
 
 in_PS vs_geometry_main(in_VS IN)
 {

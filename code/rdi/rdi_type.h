@@ -10,5 +10,5 @@ typedef struct PipelineImpl* Pipeline;
 typedef struct RenderTargetImpl* RenderTarget;
 typedef struct ResourceDescriptorImpl* ResourceDescriptor;
 typedef struct RenderSourceImpl* RenderSource;
-typedef struct CommandBufferImpl* ComandBuffer;
+typedef struct CommandBufferImpl* CommandBuffer;
 }}///

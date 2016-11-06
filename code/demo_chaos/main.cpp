@@ -238,6 +238,8 @@ public:
         _rsource_box = _renderer.GetSharedMesh().query( ":box" );
         _rsource_sphere = _renderer.GetSharedMesh().query( ":sphere" );
 
+        _command_buffer = rdi::CreateCommandBuffer();
+
 
         _camera.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
         _box_instances[0] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 0.f, 0.f ) );
@@ -260,6 +262,8 @@ public:
         //rdi::device::DestroySampler( &_samp_bilinear );
         //rdi::device::DestroySampler( &_samp_linear );
         //rdi::device::DestroySampler( &_samp_point );
+
+        rdi::DestroyCommandBuffer( &_command_buffer );
 
         _renderer.ShutDown( _engine.resource_manager );
 
@@ -364,15 +368,48 @@ public:
         rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 0.f, 0.f, 0.f, 0.f, 1.f );
         rdi::BindRenderTarget( cmdq, _rtarget_gbuffer, { 0 }, true );
 
-        rdi::BindPipeline( cmdq, _pipeline_test_color );
+        rdi::ClearCommandBuffer( _command_buffer );
+        rdi::BeginCommandBuffer( _command_buffer );
 
-        _vertex_transform_data.SetCurrent( cmdq, box_batch_index );
-        rdi::BindRenderSource( cmdq, _rsource_box );
-        rdi::SubmitRenderSourceInstanced( cmdq, _rsource_box, NUM_INSTANCES );
+        {
+            rdi::Command* instance_cmd = _vertex_transform_data.SetCurrent( _command_buffer, box_batch_index, nullptr );
 
-        _vertex_transform_data.SetCurrent( cmdq, sph_batch_index );
-        rdi::BindRenderSource( cmdq, _rsource_sphere );
-        rdi::SubmitRenderSourceInstanced( cmdq, _rsource_sphere, NUM_INSTANCES );
+            rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand<rdi::SetPipelineCmd>( _command_buffer, instance_cmd );
+            pipeline_cmd->pipeline = _pipeline_test_color;
+
+            rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( _command_buffer, pipeline_cmd );
+            draw_cmd->rsource = _rsource_box;
+            draw_cmd->num_instances = NUM_INSTANCES;
+
+            rdi::SubmitCommand( _command_buffer, instance_cmd, 0 );
+        }
+
+        {
+            rdi::Command* instance_cmd = _vertex_transform_data.SetCurrent( _command_buffer, sph_batch_index, nullptr );
+
+            rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand<rdi::SetPipelineCmd>( _command_buffer, instance_cmd );
+            pipeline_cmd->pipeline = _pipeline_test_color;
+
+            rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( _command_buffer, pipeline_cmd );
+            draw_cmd->rsource = _rsource_sphere;
+            draw_cmd->num_instances = NUM_INSTANCES;
+
+            rdi::SubmitCommand( _command_buffer, instance_cmd, 0 );
+        }
+
+        rdi::EndCommandBuffer( _command_buffer );
+
+        rdi::SubmitCommandBuffer( cmdq, _command_buffer );
+
+        //rdi::BindPipeline( cmdq, _pipeline_test_color );
+        //_vertex_transform_data.SetCurrent( cmdq, box_batch_index );
+        //rdi::BindRenderSource( cmdq, _rsource_box );
+        //rdi::SubmitRenderSourceInstanced( cmdq, _rsource_box, NUM_INSTANCES );
+
+        //_vertex_transform_data.SetCurrent( cmdq, sph_batch_index );
+        //rdi::BindRenderSource( cmdq, _rsource_sphere );
+        //rdi::SubmitRenderSourceInstanced( cmdq, _rsource_sphere, NUM_INSTANCES );
+
 
         rdi::TextureRW texture = rdi::GetTexture( _rtarget_gbuffer, 0 );
         _renderer.RasterizeFramebuffer( cmdq, texture, _camera, win->width, win->height );
@@ -472,12 +509,17 @@ public:
     rdi::RenderSource _rsource_box = BX_RDI_NULL_HANDLE;
     rdi::RenderSource _rsource_sphere = BX_RDI_NULL_HANDLE;
 
+    rdi::CommandBuffer _command_buffer = BX_RDI_NULL_HANDLE;
+
     gfx::Camera _camera = {};
     gfx::CameraInputContext _camera_input_ctx = {};
 
     static const int NUM_INSTANCES = 3;
     Matrix4 _box_instances[NUM_INSTANCES];
     Matrix4 _sph_instances[NUM_INSTANCES];
+
+
+
 };
 
 int main( int argc, const char* argv[] )

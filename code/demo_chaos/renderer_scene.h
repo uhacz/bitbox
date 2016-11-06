@@ -53,7 +53,6 @@ private:
 
     const char* _name = nullptr;
     bxAllocator* _allocator = nullptr;
-
 };
 
 }}///
@@ -86,6 +85,8 @@ struct VertexTransformData
     u32  AddBatch( const Matrix4* matrices, u32 count );
     void Bind( rdi::CommandQueue* cmdq );
     void SetCurrent( rdi::CommandQueue* cmdq, u32 index );
+    rdi::Command* SetCurrent( rdi::CommandBuffer cmdBuff, u32 index, rdi::Command* parentCmd = nullptr );
+
 };
 
 void VertexTransformDataInit( VertexTransformData* vt, u32 maxInstances );
