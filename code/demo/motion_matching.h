@@ -21,7 +21,7 @@ struct IKNode3
     i16 idx_begin = -1;
     i16 idx_middle = -1;
     i16 idx_end = -1;
-    i16 idx_padding__ = -1;
+    i16 num_iterations = -1;
 
     float len_begin_2_mid = 0.f;
     float len_mid_2_end = 0.f;

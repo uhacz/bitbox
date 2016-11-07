@@ -9,10 +9,10 @@
     float  metallic
 
 #define MATERIAL_TEXTURES \
-    texture2D diffuse_tex : register (TSLOT(SLOT_MATERIAL_TEXTURE0)); \
-    texture2D specular_tex : register (TSLOT(SLOT_MATERIAL_TEXTURE1)); \
-    texture2D roughness_tex : register (TSLOT(SLOT_MATERIAL_TEXTURE2)); \
-    texture2D metallic_tex : register (TSLOT(SLOT_MATERIAL_TEXTURE3))
+    texture2D diffuse_tex   TREGISTER( SLOT_MATERIAL_TEXTURE0 ); \
+    texture2D specular_tex  TREGISTER( SLOT_MATERIAL_TEXTURE1 ); \
+    texture2D roughness_tex TREGISTER( SLOT_MATERIAL_TEXTURE2 ); \
+    texture2D metallic_tex  TREGISTER( SLOT_MATERIAL_TEXTURE3 )
 
 #define MATERIAL_TEXTURES_CPP \
     const char* diffuse_tex; \

@@ -5,7 +5,8 @@
 #include <util/array.h>
 #include <util/id_table.h>
 #include <util/string_util.h>
-#include <rdi/rdi_type.h>
+#include <rdi/rdi.h>
+
 namespace bx{ namespace gfx{
 
 struct MaterialContainer
@@ -32,10 +33,20 @@ struct MaterialContainer
 
 namespace MATERIALS
 {
+#define BX_CPP
     typedef float3_t float3;
-    typedef const char* texture2D;
+    typedef rdi::TextureRO texture2D;
 #include <shaders/shaders/sys/material.hlsl>
 #include <shaders/shaders/sys/binding_map.h>
+
+    static const rdi::ResourceBinding bindings[] =
+    {
+        rdi::ResourceBinding( "MaterialData", rdi::EBindingType::UNIFORM ).Slot( SLOT_MATERIAL_DATA ).StageMask( rdi::EStage::PIXEL_MASK ),
+        rdi::ResourceBinding( "diffuse_tex", rdi::EBindingType::READ_ONLY ).Slot( SLOT_MATERIAL_TEXTURE0 ).StageMask( rdi::EStage::PIXEL_MASK ),
+        rdi::ResourceBinding( "specular_tex", rdi::EBindingType::READ_ONLY ).Slot( SLOT_MATERIAL_TEXTURE1 ).StageMask( rdi::EStage::PIXEL_MASK ),
+        rdi::ResourceBinding( "roughness_tex", rdi::EBindingType::READ_ONLY ).Slot( SLOT_MATERIAL_TEXTURE2 ).StageMask( rdi::EStage::PIXEL_MASK ),
+        rdi::ResourceBinding( "metallic_tex", rdi::EBindingType::READ_ONLY ).Slot( SLOT_MATERIAL_TEXTURE3 ).StageMask( rdi::EStage::PIXEL_MASK ),
+    };
 
     struct MaterialData
     {
@@ -45,28 +56,41 @@ namespace MATERIALS
     {
         MATERIAL_TEXTURES_CPP
     };
-    
+    struct MaterialTextureObject
+    {
+        MATERIAL_TEXTURES;
+    };
+
+    struct Material
+    {
+        MaterialData* data = nullptr;
+        MaterialTextureObject* textures = nullptr;
+    };
+
     namespace Red
     {
+        static Material material = {};
         static const MaterialData data = MaterialData( float3( 1.f, 0.f, 0.f ), 0.5, 0.5, 0.5, 0.5 );
         static const MaterialTextures textures = MaterialTextures( nullptr, nullptr, nullptr, nullptr );
-        static rdi::ResourceDescriptor desc = BX_RDI_NULL_HANDLE;
+        static MaterialTextureObject textures_obj = {};
     }///
     namespace Green
     {
         static const MaterialData data = MaterialData( float3( 0.f, 1.f, 0.f ), 0.5, 0.5, 0.5, 0.5 );
         static const MaterialTextures textures = MaterialTextures( nullptr, nullptr, nullptr, nullptr );
-        static rdi::ResourceDescriptor desc = BX_RDI_NULL_HANDLE;
+        static MaterialTextureObject textures_obj = {};
     }///
     namespace Blue
     {
         static const MaterialData data = MaterialData( float3( 0.f, 0.f, 1.f ), 0.5, 0.5, 0.5, 0.5 );
         static const MaterialTextures textures = MaterialTextures( nullptr, nullptr, nullptr, nullptr );
-        static rdi::ResourceDescriptor desc = BX_RDI_NULL_HANDLE;
+        static MaterialTextureObject textures_obj = {};
     }///
 
     void CreateMaterials();
     void DestroyMaterials();
+    void FillDescriptor( rdi::ResourceDescriptor rdesc, const MaterialData& data );
+    void FillDescriptor( rdi::ResourceDescriptor rdesc, const MaterialTextureObject& textures );
 }///
 
 

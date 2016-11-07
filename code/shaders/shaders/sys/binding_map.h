@@ -25,5 +25,11 @@
 #define TSLOT( slot ) t##slot
 #define SSLOT( slot ) s##slot
 
+#ifndef BX_CPP
+#define TREGISTER( slot ) : register( TSLOT( slot ) )
+#else
+#define TREGISTER( slot ) = {}
+#endif
+
 
 #endif

@@ -21,7 +21,6 @@ namespace bx
 
             return i;
         }
-
     }
 
     void curve::allocate( Curve3D& cv, u32 size )

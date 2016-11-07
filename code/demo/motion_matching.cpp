@@ -1240,7 +1240,7 @@ void ikNodeSolve( Joint* localJoints, const IKNode3& node, const Matrix4* animMa
     Vector3 midPos = midPose.getTranslation();
     Vector3 endPos = endPose.getTranslation();
     const Vector3 goal = projectPointOnPlane( goalPosition, plane );
-    for( int i = 0; i < 8; ++i )
+    for( int i = 0; i < node.num_iterations; ++i )
     {
         {
             //float limit[2] = { 0.f, PI /2 };
