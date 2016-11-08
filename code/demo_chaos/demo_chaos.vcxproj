@@ -88,7 +88,9 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="renderer_camera.cpp" />
-    <ClCompile Include="renderer_material.cpp" />
+    <ClCompile Include="renderer_material.cpp">
+      <PreprocessToFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</PreprocessToFile>
+    </ClCompile>
     <ClCompile Include="renderer_scene.cpp" />
     <ClCompile Include="renderer_shared_mesh.cpp" />
     <ClCompile Include="scene.cpp" />

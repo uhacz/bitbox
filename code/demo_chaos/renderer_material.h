@@ -1,30 +1,37 @@
 #pragma once
 
 #include "renderer_type.h"
+
 #include <util/debug.h>
 #include <util/array.h>
 #include <util/id_table.h>
 #include <util/string_util.h>
+
+#include <resource_manager/resource_manager.h>
+
 #include <rdi/rdi.h>
 
 namespace bx{ namespace gfx{
 
 #define BX_CPP
     typedef float3_t float3;
-    typedef rdi::TextureRO texture2D;
 #include <shaders/shaders/sys/binding_map.h>
 #include <shaders/shaders/sys/material.hlsl>
     struct MaterialData
     {
-        MATERIAL_DATA_CPP
+        MATERIAL_DATA_CPP;
     };
     struct MaterialTextures
     {
-        MATERIAL_TEXTURES_CPP
+        MATERIAL_TEXTURES_CPP;
+    };
+    struct MaterialTextureResources
+    {
+        MATERIAL_TEXTURE_RESOURCES_CPP;
     };
     struct MaterialTextureObject
     {
-        MATERIAL_TEXTURES;
+        MATERIAL_TEXTURE_OBJECTS_CPP;
     };
     struct Material
     {
@@ -36,10 +43,11 @@ struct MaterialContainer
 {
     enum { eMAX_COUNT = 128, };
     id_table_t< eMAX_COUNT > _id_to_index;
-    id_t                    _index_to_id[eMAX_COUNT] = {};
+    id_t                     _index_to_id[eMAX_COUNT] = {};
     //rdi::ResourceDescriptor _rdescs[eMAX_COUNT] = {};
-    Material                _material[eMAX_COUNT] = {};
-    const char*             _names[eMAX_COUNT] = {};
+    Material                 _material[eMAX_COUNT] = {};
+    MaterialTextureResources _resources[eMAX_COUNT] = {};
+    const char*              _names[eMAX_COUNT] = {};
 
     inline id_t MakeId( MaterialID m ) const { return make_id( m.i ); }
     inline MaterialID MakeMaterial( id_t id ) const { MaterialID m; m.i = id.hash; return m; }
@@ -47,7 +55,7 @@ struct MaterialContainer
     bool Alive( MaterialID m ) const;
 
     //MaterialID add( const char* name, rdi::ResourceDescriptor rdesc );
-    MaterialID Add( const char* name, const Material& mat );
+    MaterialID Add( const char* name, const Material& mat, const MaterialTextureResources& resources );
     void Remove( MaterialID* m );
 
     MaterialID Find( const char* name ) const;
@@ -55,7 +63,12 @@ struct MaterialContainer
     u32 _GetIndex( MaterialID m ) const;
     //rdi::ResourceDescriptor getResourceDesc( MaterialID m );
     const Material& GetMaterial( MaterialID id ) const;
+    MaterialTextureResources& GetResources( MaterialID id );
 };
+
+
+MaterialID CreateMaterial( ResourceManager* resourceManager, const MaterialTextures& textures );
+void DestroyMaterial( ResourceManager* resourceManager, MaterialID* id );
 
 }}///
 
