@@ -24,6 +24,7 @@
 
 #define MATERIAL_DATA_CPP \
     MATERIAL_VARIABLES; \
+    MaterialData() {} \
     MaterialData( float3 dc, float d, float s, float r, float m ) \
         : diffuse_color(dc), diffuse( d ), specular( s ), roughness( r ), metallic( m ) {}
 
