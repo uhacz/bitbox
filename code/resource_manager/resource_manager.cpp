@@ -219,13 +219,14 @@ public:
         _mapLock.unlock();
     }
     
-    void ResourceManager::insertResource( ResourceID id, ResourcePtr ptr )
+    int ResourceManager::insertResource( ResourceID id, ResourcePtr ptr )
     {
+        int reference_count = 0;
         _mapLock.lock();
         ResourceLoadResult result = lookup( id );
         if( result.ok() )
         {
-            referenceAdd( id );
+            reference_count = referenceAdd( id );
         }
         else
         {
@@ -234,8 +235,11 @@ public:
             rlr.ptr = ptr;
             rlr.size = 0;
             insert( id, rlr );
+            reference_count = 1;
         }
         _mapLock.unlock();
+
+        return reference_count;
     }
 
     virtual ResourcePtr acquireResource( ResourceID id )
@@ -260,6 +264,15 @@ public:
 
         return (unsigned)references_left;
     }
+    virtual unsigned releaseResource( ResourceID resourceId )
+    {
+        _mapLock.lock();
+        int references_left = referenceRemove( resourceId );
+        _mapLock.unlock();
+        return (unsigned)references_left;
+    }
+
+
 };
 
 static ResourceManager* __resourceManager = nullptr;

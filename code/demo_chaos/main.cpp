@@ -19,6 +19,7 @@
 #include "renderer_scene.h"
 #include "resource_manager/resource_manager.h"
 #include "util/poly/poly_shape.h"
+#include "renderer_texture.h"
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 using namespace bx;
@@ -45,6 +46,7 @@ public:
         //bx::game_scene::startup( &_scene, &_engine );
         bxWindow* win = bxWindow_get();
         rdi::Startup( (uptr)win->hwnd, win->width, win->height, win->full_screen );
+        gfx::TextureManagerStartUp();
 
 
         bxAsciiScript sceneScript;
@@ -289,6 +291,7 @@ public:
         rdi::ShaderFileUnload( &_shf_deffered, _engine.resource_manager );
         //rdi::ShaderFileUnload( &_shf_texutil, _engine.resource_manager );
 
+        gfx::TextureManagerShutDown();
         rdi::Shutdown();
         bx::Engine::shutdown( &_engine );
     }

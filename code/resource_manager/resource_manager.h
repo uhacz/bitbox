@@ -42,10 +42,11 @@ public:
     virtual void        unloadResource( ResourcePtr* resourcePointer ) = 0;
 
     // these functions does not manage allocated resources data
-    virtual void        insertResource( ResourceID id, ResourcePtr resourcePointer ) = 0;
+    virtual int         insertResource( ResourceID id, ResourcePtr resourcePointer ) = 0;
     virtual ResourcePtr acquireResource( ResourceID id ) = 0;
     // returns number of references left
     virtual unsigned    releaseResource( ResourcePtr resourcePointer ) = 0;
+    virtual unsigned    releaseResource( ResourceID resourceId ) = 0;
 
     //virtual void       insert( ResourceID id, ResourcePtr data ) = 0;
 	//virtual ResourcePtr lookup( ResourceID id ) = 0;

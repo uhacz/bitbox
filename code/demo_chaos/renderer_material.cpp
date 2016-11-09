@@ -79,9 +79,16 @@ MaterialTextureResources& MaterialContainer::GetResources( MaterialID id )
     return _resources[index];
 }
 
-MaterialID CreateMaterial( ResourceManager* resourceManager, const MaterialTextures& textures )
+
+void MaterialContainer::SetMaterialData( MaterialID id, const MaterialData& data )
 {
-    
+    u32 index = _GetIndex( id );
+    _material[index].data = data;
+}
+
+MaterialID CreateMaterial( ResourceManager* resourceManager, const char* name, const MaterialData& data, const MaterialTextures& textures )
+{
+        
 }
 
 void DestroyMaterial( ResourceManager* resourceManager, MaterialID* id )

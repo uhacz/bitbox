@@ -64,10 +64,11 @@ struct MaterialContainer
     //rdi::ResourceDescriptor getResourceDesc( MaterialID m );
     const Material& GetMaterial( MaterialID id ) const;
     MaterialTextureResources& GetResources( MaterialID id );
+
+    void SetMaterialData( MaterialID id, const MaterialData& data );
 };
 
-
-MaterialID CreateMaterial( ResourceManager* resourceManager, const MaterialTextures& textures );
+MaterialID CreateMaterial( ResourceManager* resourceManager, const char* name, const MaterialData& data, const MaterialTextures& textures );
 void DestroyMaterial( ResourceManager* resourceManager, MaterialID* id );
 
 }}///
