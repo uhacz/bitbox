@@ -106,6 +106,10 @@ struct ResourceLayout
 {
     ResourceBinding* bindings = nullptr;
     u32 num_bindings = 0;
+
+    ResourceLayout() {}
+    ResourceLayout( ResourceBinding* b, u32 n )
+        : bindings( b ), num_bindings( n ) {}
 };
 struct ResourceDescriptorMemoryRequirments
 {

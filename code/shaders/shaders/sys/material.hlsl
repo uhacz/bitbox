@@ -19,15 +19,11 @@
 
 #ifdef BX_CPP
     #define MATERIAL_TEXTURES_CPP _MATERIAL_TEXTURES( const char* )
-    #define MATERIAL_TEXTURE_RESOURCES_CPP _MATERIAL_TEXTURES( bx::ResourceID )
-    #define MATERIAL_TEXTURE_OBJECTS_CPP _MATERIAL_TEXTURES( bx::rdi::TextureRO )
+    //#define MATERIAL_TEXTURE_RESOURCES_CPP _MATERIAL_TEXTURES( bx::ResourceID )
+    #define MATERIAL_TEXTURE_HANDLES_CPP _MATERIAL_TEXTURES( bx::gfx::TextureHandle )
 
-#define MATERIAL_DATA_CPP \
-    MATERIAL_VARIABLES; \
-    MaterialData() {} \
-    MaterialData( float3 dc, float d, float s, float r, float m ) \
-        : diffuse_color(dc), diffuse( d ), specular( s ), roughness( r ), metallic( m ) {}
-
+#define MATERIAL_DATA_CPP MATERIAL_VARIABLES
+    
 #endif
 
 #endif
