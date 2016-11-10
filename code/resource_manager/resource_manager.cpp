@@ -295,11 +295,39 @@ void ResourceManager::shutdown( ResourceManager** resourceManager )
 
     resourceManager[0] = nullptr;
 }
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+Handle HandleManager::Create( uptr data )
+{
+    _lock.lock();
+    Handle handle = id_table::create( _id_table );
+    _lock.unlock();
+
+    _data[handle.index] = data;
+    return handle;
+}
+
+void HandleManager::Destroy( Handle handle )
+{
+    if( !id_table::has( _id_table, handle ) )
+        return;
+
+    _lock.lock();
+    u32 index = handle.index;
+    id_table::destroy( _id_table, handle );
+    _lock.unlock();
+
+    _data[handle.index] = 0;
+}
+
 }///
 
 namespace bx
 {
-    ResourceManager* bx::getResourceManager()
+    ResourceManager* bx::GResourceManager()
     {
         return __resourceManager;
     }

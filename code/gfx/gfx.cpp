@@ -160,7 +160,7 @@ namespace bx
     //
     void gfxContextStartup( GfxContext** gfx, bxGdiDeviceBackend* dev )
     {
-        ResourceManager* resourceManager = bx::getResourceManager();
+        ResourceManager* resourceManager = bx::GResourceManager();
         GfxContext* g = BX_NEW( bxDefaultAllocator(), GfxContext );
 
         gfxViewCreate( &g->_cmdQueue._view, dev, 1024 * 4 );
@@ -221,7 +221,7 @@ namespace bx
         if( !gfx[0] )
             return;
 
-        ResourceManager* resourceManager = bx::getResourceManager();
+        ResourceManager* resourceManager = bx::GResourceManager();
 
         GfxContext* g = gfx[0];
         gfxSunLightDestroy( &g->_sunLight );
@@ -271,7 +271,7 @@ namespace bx
 
     void gfxContextTick( GfxContext* gfx, bxGdiDeviceBackend* dev )
     {
-        ResourceManager* resourceManager = bx::getResourceManager();
+        ResourceManager* resourceManager = bx::GResourceManager();
 
         gfx->_lockActorsToRelease.lock();
 

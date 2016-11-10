@@ -2,6 +2,9 @@
 
 #include <util/filesystem.h>
 #include <util/type.h>
+#include <util/debug.h>
+#include <util/id_table.h>
+#include <util/thread/mutex.h>
 
 namespace bx
 {
@@ -60,9 +63,53 @@ public:
     //virtual void lock() = 0;
     //virtual void unlock() = 0;
 };
+//////////////////////////////////////////////////////////////////////////
+
+typedef id_t Handle;
+class HandleManager
+{
+public:
+    Handle Create( uptr data );
+    void Destroy( Handle handle );
+
+    bool Alive( Handle handle ) const { return id_table::has( _id_table, handle ); }
+    
+    uptr Data( Handle handle )
+    {
+        SYS_ASSERT( id_table::has( _id_table, handle ) );
+        return _data[handle.index];
+    }
+    template< typename T >
+    T DataAs( Handle handle )
+    {
+        SYS_STATIC_ASSERT( sizeof( T ) == sizeof( *_data ) );
+        return (T)Data( handle );
+    }
+    
+    void SetData( Handle handle, uptr data )
+    {
+        SYS_ASSERT( id_table::has( _id_table, handle ) );
+        _data[handle.index] = data;
+    }
+    template< typename T >
+    void SetDataAs( Handle handle, T data )
+    {
+        SYS_STATIC_ASSERT( sizeof( T ) == sizeof( *_data ) );
+        SetData( handle, (uptr)data );
+    }
+
+private:
+    static const u32 MAX_HANDLES = 16*1024;
+    id_table_t<MAX_HANDLES> _id_table;
+    uptr _data[MAX_HANDLES] = {};
+
+    bxBenaphore _lock;
+};
+
 }///
 
 namespace bx
 {
-    extern ResourceManager* getResourceManager();
+    extern ResourceManager* GResourceManager();
+    extern HandleManager* GResourceHandle();
 }///

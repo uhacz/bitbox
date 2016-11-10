@@ -386,7 +386,7 @@ void Context::load( const char* skelFile, const AnimClipInfo* animInfo, unsigned
         _allocator = bxDefaultAllocator();
     }
 
-    ResourceManager* resource_manager = getResourceManager();
+    ResourceManager* resource_manager = GResourceManager();
 
     _data.skel = anim_ext::loadSkelFromFile( resource_manager, skelFile );
     SYS_ASSERT( _data.skel != nullptr );
@@ -408,7 +408,7 @@ void Context::load( const char* skelFile, const AnimClipInfo* animInfo, unsigned
 
 void Context::unload()
 {
-    ResourceManager* resource_manager = getResourceManager();
+    ResourceManager* resource_manager = GResourceManager();
     while( !_data.clips.empty() )
     {
         anim::Clip* c = _data.clips.back();

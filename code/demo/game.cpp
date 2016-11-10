@@ -1445,11 +1445,11 @@ namespace bx
 	{
 		CharacterAnimController* ca = BX_NEW( bxDefaultAllocator(), CharacterAnimController );
 
-		ca->_skel = anim_ext::loadSkelFromFile( bx::getResourceManager(), "anim/human.skel" );
-		ca->_clip[ECharacterAnimClip::eIDLE] = anim_ext::loadAnimFromFile( bx::getResourceManager(), "anim/idle.anim" );
-		ca->_clip[ECharacterAnimClip::eWALK] = anim_ext::loadAnimFromFile( bx::getResourceManager(), "anim/run.anim" );
-        ca->_clip[ECharacterAnimClip::eRUN]  = anim_ext::loadAnimFromFile( bx::getResourceManager(), "anim/fast_run.anim" );
-        ca->_clip[ECharacterAnimClip::eJUMP] = anim_ext::loadAnimFromFile( bx::getResourceManager(), "anim/jump.anim" );
+		ca->_skel = anim_ext::loadSkelFromFile( bx::GResourceManager(), "anim/human.skel" );
+		ca->_clip[ECharacterAnimClip::eIDLE] = anim_ext::loadAnimFromFile( bx::GResourceManager(), "anim/idle.anim" );
+		ca->_clip[ECharacterAnimClip::eWALK] = anim_ext::loadAnimFromFile( bx::GResourceManager(), "anim/run.anim" );
+        ca->_clip[ECharacterAnimClip::eRUN]  = anim_ext::loadAnimFromFile( bx::GResourceManager(), "anim/fast_run.anim" );
+        ca->_clip[ECharacterAnimClip::eJUMP] = anim_ext::loadAnimFromFile( bx::GResourceManager(), "anim/jump.anim" );
 		ca->_animCtx = anim::contextInit( *ca->_skel );
 		
         ca->_footIndexL = anim::getJointByName( ca->_skel, "LeftFoot" );
@@ -1465,9 +1465,9 @@ namespace bx
 		CharacterAnimController* ca = canim[0];
 		for( int i = 0; i < ECharacterAnimClip::eCOUNT; ++i )
 		{
-			anim_ext::unloadAnimFromFile( bx::getResourceManager(), &ca->_clip[i] );
+			anim_ext::unloadAnimFromFile( bx::GResourceManager(), &ca->_clip[i] );
 		}
-        anim_ext::unloadSkelFromFile( bx::getResourceManager(), &ca->_skel );
+        anim_ext::unloadSkelFromFile( bx::GResourceManager(), &ca->_skel );
 		anim::contextDeinit( &ca->_animCtx );
 
 		BX_DELETE0( bxDefaultAllocator(), canim[0] );
