@@ -460,5 +460,4 @@ rdi::Command* VertexTransformData::SetCurrent( rdi::CommandBuffer cmdBuff, u32 i
     return cmd;
 }
 
-}
-}///
+}}///

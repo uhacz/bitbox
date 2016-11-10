@@ -373,15 +373,17 @@ namespace
         return UINT32_MAX;
     }
 
-    template< typename T >
+    template< EBindingType::Enum B, typename T >
     void _SetResource1( ResourceDescriptorImpl* impl, u32 index, const T* resourcePtr )
     {
         SYS_ASSERT( index < impl->count );
         const ResourceDescriptorImpl::Binding& binding = impl->Bindings()[index];
+        SYS_ASSERT( binding.binding_type == B );
+
         T* resource_data = (T*)(impl->Data() + binding.data_offset);
         resource_data[0] = *resourcePtr;
     }
-    template< typename T >
+    template< EBindingType::Enum B, typename T >
     bool _SetResource2( ResourceDescriptorImpl* impl, const char* name, const T* resourcePtr )
     {
         u32 index = _FindResource( impl, name );
@@ -391,25 +393,51 @@ namespace
             return false;
         }
 
-        _SetResource1( impl, index, resourcePtr );
+        _SetResource1<B>( impl, index, resourcePtr );
         return true;
     }
 }
+
+u32 FindResource( ResourceDescriptor rdesc, const char* name )
+{
+    return _FindResource( rdesc, name );
+}
+
+void SetResourceROByIndex( ResourceDescriptor rdesc, u32 index, const ResourceRO* resource )
+{
+    _SetResource1<EBindingType::READ_ONLY>( rdesc, index, resource );
+}
+
+void SetResourceRWByIndex( ResourceDescriptor rdesc, u32 index, const ResourceRW* resource )
+{
+    _SetResource1<EBindingType::READ_WRITE>( rdesc, index, resource );
+}
+
+void SetConstantBufferByIndex( ResourceDescriptor rdesc, u32 index, const ConstantBuffer* cbuffer )
+{
+    _SetResource1<EBindingType::UNIFORM>( rdesc, index, cbuffer );
+}
+
+void SetSamplerByIndex( ResourceDescriptor rdesc, u32 index, const Sampler* sampler )
+{
+    _SetResource1<EBindingType::SAMPLER>( rdesc, index, sampler );
+}
+
 bool SetResourceRO( ResourceDescriptor rdesc, const char* name, const ResourceRO* resource )
 {
-    return _SetResource2( rdesc, name, resource );
+    return _SetResource2<EBindingType::READ_ONLY>( rdesc, name, resource );
 }
 bool SetResourceRW( ResourceDescriptor rdesc, const char* name, const ResourceRW* resource )
 {
-    return _SetResource2( rdesc, name, resource );
+    return _SetResource2<EBindingType::READ_WRITE>( rdesc, name, resource );
 }
 bool SetConstantBuffer( ResourceDescriptor rdesc, const char* name, const ConstantBuffer* cbuffer )
 {
-    return _SetResource2( rdesc, name, cbuffer );
+    return _SetResource2<EBindingType::UNIFORM>( rdesc, name, cbuffer );
 }
 bool SetSampler( ResourceDescriptor rdesc, const char* name, const Sampler* sampler )
 {
-    return _SetResource2( rdesc, name, sampler );
+    return _SetResource2<EBindingType::SAMPLER>( rdesc, name, sampler );
 }
 void BindResources( CommandQueue* cmdq, ResourceDescriptor rdesc )
 {

@@ -356,7 +356,7 @@ IndexBuffer CreateIndexBuffer( EDataType::Enum dataType, u32 numElements, const 
 
     return iBuffer;
 }
-ConstantBuffer CreateConstantBuffer( u32 sizeInBytes )
+ConstantBuffer CreateConstantBuffer( u32 sizeInBytes, const void* data )
 {
     D3D11_BUFFER_DESC bdesc;
     memset( &bdesc, 0, sizeof( bdesc ) );
@@ -365,8 +365,15 @@ ConstantBuffer CreateConstantBuffer( u32 sizeInBytes )
     bdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     bdesc.CPUAccessFlags = 0;
 
+    D3D11_SUBRESOURCE_DATA resourceData;
+    resourceData.pSysMem = data;
+    resourceData.SysMemPitch = 0;
+    resourceData.SysMemSlicePitch = 0;
+
+    D3D11_SUBRESOURCE_DATA* resourceDataPointer = ( data ) ? &resourceData : 0;
+
     ID3D11Buffer* buffer = 0;
-    HRESULT hres = g_device->CreateBuffer( &bdesc, 0, &buffer );
+    HRESULT hres = g_device->CreateBuffer( &bdesc, resourceDataPointer, &buffer );
     SYS_ASSERT( SUCCEEDED( hres ) );
 
     ConstantBuffer b;

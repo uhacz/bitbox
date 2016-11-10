@@ -3,7 +3,6 @@
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
 #include <util/containers.h>
-
 #include "renderer_type.h"
 
 namespace bx{ namespace gfx{

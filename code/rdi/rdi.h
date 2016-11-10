@@ -122,6 +122,13 @@ ResourceDescriptorMemoryRequirments CalculateResourceDescriptorMemoryRequirments
 ResourceDescriptor CreateResourceDescriptor( const ResourceLayout& layout, bxAllocator* allocator = nullptr );
 void DestroyResourceDescriptor( ResourceDescriptor* rdesc, bxAllocator* allocator = nullptr );
 u32 GenerateResourceHashedName( const char* name );
+
+u32 FindResource( ResourceDescriptor rdesc, const char* name );
+void SetResourceROByIndex( ResourceDescriptor rdesc, u32 index, const ResourceRO* resource );
+void SetResourceRWByIndex( ResourceDescriptor rdesc, u32 index, const ResourceRW* resource );
+void SetConstantBufferByIndex( ResourceDescriptor rdesc, u32 index, const ConstantBuffer* cbuffer );
+void SetSamplerByIndex( ResourceDescriptor rdesc, u32 index, const Sampler* sampler );
+
 bool SetResourceRO( ResourceDescriptor rdesc, const char* name, const ResourceRO* resource );
 bool SetResourceRW( ResourceDescriptor rdesc, const char* name, const ResourceRW* resource );
 bool SetConstantBuffer( ResourceDescriptor rdesc, const char* name, const ConstantBuffer* cbuffer );

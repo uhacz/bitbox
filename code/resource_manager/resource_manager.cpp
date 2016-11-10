@@ -323,6 +323,19 @@ void HandleManager::Destroy( Handle handle )
     _data[handle.index] = 0;
 }
 
+static HandleManager* g_handle_manager = nullptr;
+HandleManager* HandleManager::_StartUp()
+{
+    g_handle_manager = BX_NEW( bxDefaultAllocator(), HandleManager );
+    return g_handle_manager;
+}
+
+void HandleManager::_ShutDown( HandleManager** handleManager )
+{
+    SYS_ASSERT( *handleManager == g_handle_manager );
+    BX_DELETE0( bxDefaultAllocator(), handleManager[0] );
+}
+
 }///
 
 namespace bx
@@ -331,4 +344,10 @@ namespace bx
     {
         return __resourceManager;
     }
+
+    HandleManager* GHandle()
+    {
+        return g_handle_manager;
+    }
+
 }///

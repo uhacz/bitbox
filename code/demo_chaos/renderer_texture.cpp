@@ -1,6 +1,5 @@
 #include "renderer_texture.h"
 #include <util\debug.h>
-#include <util\id_table.h>
 
 namespace bx{ namespace gfx{
 
@@ -15,7 +14,7 @@ TextureHandle TextureManager::CreateFromFile( const char* fileName )
     if( resource_ptr )
     {
         auto resource = ( rdi::TextureRO* )resource_ptr;
-        TextureHandle handle = GResourceHandle()->Create( (uptr)resource );
+        TextureHandle handle = GHandle()->Create( (uptr)resource );
         return handle;
     }
     else
@@ -29,26 +28,26 @@ TextureHandle TextureManager::CreateFromFile( const char* fileName )
         if ( !resource_ptr )
         {
             ptr = _Alloc();
-            handle = GResourceHandle()->Create( (uptr)ptr );
+            handle = GHandle()->Create( (uptr)ptr );
             resource_manager->insertResource( resource_id, ResourcePtr( ptr ) );
             create_texture = true;
         }
         else
         {
-            handle.hash = (u32)resource_ptr;
+            handle = GHandle()->Create( (uptr)resource_ptr );
         }
         
         _lock.unlock();
 
-        SYS_ASSERT( id_table::has( _id_table, handle ) );
+
+        SYS_ASSERT( GHandle()->Alive( handle ) );
 
         if( create_texture )
         {
             bxFS::File file = resource_manager->readFileSync( fileName );
             if( file.ok() )
             {
-                _texture_ro[handle.index] = rdi::device::CreateTexture( file.bin, file.size );
-                //_resource_id[handle.index] = resource_id;
+                ptr[0] = rdi::device::CreateTexture( file.bin, file.size );
             }
             file.release();
         }
@@ -58,19 +57,21 @@ TextureHandle TextureManager::CreateFromFile( const char* fileName )
 
 void TextureManager::Release( TextureHandle h )
 {
-    if( !id_table::has( _id_table, h ) )
+    if( !GHandle()->Alive( h ) )
         return;
 
 
     //ResourceID resource_id = _resource_id[h.index];
-    ResourcePtr resource_ptr = (ResourcePtr)h.hash;
+    ResourcePtr resource_ptr = GHandle()->DataAs<ResourcePtr>( h );
     int ref_left = GResourceManager()->releaseResource( resource_ptr );
     if( ref_left == 0 )
     {
-        rdi::device::DestroyTexture( &_texture_ro[h.index] );
-        id_table::destroy( _id_table, h );
-        h.hash = 0;
+        rdi::TextureRO* texture = ( rdi::TextureRO* )resource_ptr;
+        rdi::device::DestroyTexture( texture );
+        _Free( texture );
     }
+
+    GHandle()->Destroy( h );
 }
 
 void TextureManager::_StartUp()

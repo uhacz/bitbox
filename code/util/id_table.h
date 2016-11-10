@@ -1,3 +1,5 @@
+#pragma once
+
 #include "containers.h"
 
 #define BX_ID_TABLE_T_DEF u32 MAX, typename Tid

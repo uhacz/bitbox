@@ -98,6 +98,9 @@ public:
         SetData( handle, (uptr)data );
     }
 
+    static HandleManager* _StartUp();
+    static void _ShutDown( HandleManager** handleManager );
+
 private:
     static const u32 MAX_HANDLES = 16*1024;
     id_table_t<MAX_HANDLES> _id_table;
@@ -111,5 +114,5 @@ private:
 namespace bx
 {
     extern ResourceManager* GResourceManager();
-    extern HandleManager* GResourceHandle();
+    extern HandleManager* GHandle();
 }///

@@ -745,7 +745,7 @@ namespace device
 {
     VertexBuffer   CreateVertexBuffer  ( const VertexBufferDesc& desc, u32 numElements, const void* data = 0 );
     IndexBuffer    CreateIndexBuffer   ( EDataType::Enum dataType, u32 numElements, const void* data = 0 );
-    ConstantBuffer CreateConstantBuffer( u32 sizeInBytes );
+    ConstantBuffer CreateConstantBuffer( u32 sizeInBytes, const void* data = nullptr );
     BufferRO       CreateBufferRO      ( int numElements, Format format, unsigned cpuAccessFlag, unsigned gpuAccessFlag );
     //BufferRW createBufferRW( int numElements, bxGdiFormat format, unsigned bindFlags, unsigned cpuAccessFlag, unsigned gpuAccessFlag );
 

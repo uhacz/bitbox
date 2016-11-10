@@ -31,13 +31,15 @@ namespace bx{ namespace gfx{
     {
         MATERIAL_TEXTURE_HANDLES_CPP;
     };
-#undef BX_CPP
+//#undef BX_CPP
 
     struct Material
     {
         MaterialData data;
-        rdi::ConstantBuffer data_cbuffer;
         MaterialTextureHandles htexture;
+
+        rdi::ConstantBuffer data_cbuffer;
+        rdi::ResourceDescriptor resource_desc;
     };
     void Clear( Material* mat );
     

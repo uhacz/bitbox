@@ -2,7 +2,7 @@
 #include <rdi/rdi_backend.h>
 #include <resource_manager/resource_manager.h>
 #include <util/pool_allocator.h>
-#include <util/containers.h>
+//#include <util/containers.h>
 #include <util/thread/mutex.h>
 
 namespace bx{ namespace gfx{

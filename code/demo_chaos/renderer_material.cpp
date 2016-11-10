@@ -89,17 +89,21 @@ MaterialID CreateMaterial( MaterialContainer* container, const char* name, const
     Clear( &mat );
     
     mat.data = data;
-    mat.data_cbuffer = rdi::device::CreateConstantBuffer( sizeof( MaterialData ) );
+    mat.data_cbuffer = rdi::device::CreateConstantBuffer( sizeof( MaterialData ), &data );
 
-    if( textures.diffuse_tex )
+    rdi::ResourceLayout resource_layout = material_resource_layout::laytout_notex;
     {
         TextureManager* texture_manager = GTextureManager();
         mat.htexture.diffuse_tex = texture_manager->CreateFromFile( textures.diffuse_tex );
         mat.htexture.specular_tex = texture_manager->CreateFromFile( textures.specular_tex );
         mat.htexture.roughness_tex = texture_manager->CreateFromFile( textures.roughness_tex );
         mat.htexture.metallic_tex = texture_manager->CreateFromFile( textures.metallic_tex );
+
+        resource_layout = material_resource_layout::laytout_tex;
     }
 
+    mat.resource_desc = rdi::CreateResourceDescriptor( resource_layout );
+    FillResourceDescriptor( mat.resource_desc, mat );
     return container->Add( name, mat );
 }
 
@@ -109,6 +113,9 @@ void DestroyMaterial( MaterialContainer* container, MaterialID* id )
         return;
 
     Material mat = container->GetMaterial( *id );
+
+    rdi::DestroyResourceDescriptor( &mat.resource_desc );
+
     TextureManager* texture_manager = GTextureManager();
     texture_manager->Release( mat.htexture.diffuse_tex );
     texture_manager->Release( mat.htexture.specular_tex );
@@ -122,7 +129,19 @@ void DestroyMaterial( MaterialContainer* container, MaterialID* id )
 
 void FillResourceDescriptor( rdi::ResourceDescriptor rdesc, const Material& mat )
 {
-    
+    rdi::SetConstantBufferByIndex( rdesc, 0, &mat.data_cbuffer );
+    if( GHandle()->Alive( mat.htexture.diffuse_tex ) )
+    {
+        rdi::TextureRO* diffuse_tex   = GHandle()->DataAs<rdi::TextureRO*>( mat.htexture.diffuse_tex );
+        rdi::TextureRO* specular_tex  = GHandle()->DataAs<rdi::TextureRO*>( mat.htexture.specular_tex );
+        rdi::TextureRO* roughness_tex = GHandle()->DataAs<rdi::TextureRO*>( mat.htexture.roughness_tex );
+        rdi::TextureRO* metallic_tex  = GHandle()->DataAs<rdi::TextureRO*>( mat.htexture.metallic_tex );
+        
+        rdi::SetResourceROByIndex( rdesc, 1, diffuse_tex );
+        rdi::SetResourceROByIndex( rdesc, 2, specular_tex );
+        rdi::SetResourceROByIndex( rdesc, 3, roughness_tex );
+        rdi::SetResourceROByIndex( rdesc, 4, metallic_tex );
+    }
 }
 
 }}///
