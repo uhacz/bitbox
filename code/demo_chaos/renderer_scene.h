@@ -14,21 +14,24 @@ union MeshMatrix
 };
 
 //////////////////////////////////////////////////////////////////////////
+struct VertexTransformData;
 struct SceneImpl
 {
     static void StartUp();
     static void ShutDown();
 
-    void prepare( const char* name, bxAllocator* allocator );
-    void unprepare();
+    void Prepare( const char* name, bxAllocator* allocator );
+    void Unprepare();
 
-    MeshID add( const char* name, u32 numInstances );
-    void remove( MeshID* mi );
-    MeshID find( const char* name );
+    MeshID Add( const char* name, u32 numInstances );
+    void Remove( MeshID* mi );
+    MeshID Find( const char* name );
 
-    void setRenderSource( MeshID mi, rdi::RenderSource rs );
-    void setMaterial( MeshID mi, MaterialID m );
-    void setMatrices( MeshID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
+    void SetRenderSource( MeshID mi, rdi::RenderSource rs );
+    void SetMaterial( MeshID mi, MaterialID m );
+    void SetMatrices( MeshID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
+
+    void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform );
 
 private: 
     void _SetToDefaults( u32 index );
@@ -82,6 +85,7 @@ struct VertexTransformData
     void Map( rdi::CommandQueue* cmdq );
     void Unmap( rdi::CommandQueue* cmdq );
     u32  AddBatch( const Matrix4* matrices, u32 count );
+
     void Bind( rdi::CommandQueue* cmdq );
     void SetCurrent( rdi::CommandQueue* cmdq, u32 index );
     rdi::Command* SetCurrent( rdi::CommandBuffer cmdBuff, u32 index, rdi::Command* parentCmd = nullptr );

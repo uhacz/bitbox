@@ -106,27 +106,33 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
-struct GeometryPass
+class GeometryPass
 {
+public:
+    void PrepareScene( Scene scene );
+    void Flush( rdi::CommandQueue* cmdq );
+    
+private:
     struct FrameData
     {
         Matrix4 _view;
         Matrix4 _view_proj;
     };
-    
+
     rdi::RenderTarget _rtarget_gbuffer = BX_RDI_NULL_HANDLE;
 
-    rdi::ShaderFile* _shf_deffered = nullptr;
     rdi::Pipeline _pipeline_geometry_notex = BX_RDI_NULL_HANDLE;
     rdi::Pipeline _pipeline_geometry_tex = BX_RDI_NULL_HANDLE;
 
     rdi::ResourceDescriptor _rdesc_frame_data;
     rdi::ConstantBuffer _cbuffer_frame_data = {};
-        
     gfx::VertexTransformData _vertex_transform_data;
 
-
+    rdi::CommandBuffer _command_buffer;
 };
+void StartUp( GeometryPass** pass );
+void ShutDown( GeometryPass** pass );
+//////////////////////////////////////////////////////////////////////////
 
 struct PostProcessPass
 {

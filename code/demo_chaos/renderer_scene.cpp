@@ -138,20 +138,20 @@ Matrix4* getMatrixPtr( MeshMatrix& m, u32 numInstances )
 }
 
 
-void SceneImpl::prepare( const char* name, bxAllocator* allocator )
+void SceneImpl::Prepare( const char* name, bxAllocator* allocator )
 {
     _name = string::duplicate( nullptr, name );
     _allocator = ( allocator ) ? allocator : bxDefaultAllocator();
 }
-void SceneImpl::unprepare()
+void SceneImpl::Unprepare()
 {
     _allocator = nullptr;
     string::free_and_null( (char**)_name );
 }
 
-MeshID SceneImpl::add( const char* name, u32 numInstances )
+MeshID SceneImpl::Add( const char* name, u32 numInstances )
 {
-    MeshID mi = find( name );
+    MeshID mi = Find( name );
     if( GHandle()->alive( mi ) )
     {
         bxLogError( "MeshID with name '%s' already exists", name );
@@ -185,7 +185,7 @@ MeshID SceneImpl::add( const char* name, u32 numInstances )
     return mi;
 }
 
-void SceneImpl::remove( MeshID* mi )
+void SceneImpl::Remove( MeshID* mi )
 {
     if( !GHandle()->alive( *mi ) )
         return;
@@ -217,7 +217,7 @@ void SceneImpl::remove( MeshID* mi )
     }
 }
 
-MeshID SceneImpl::find( const char* name )
+MeshID SceneImpl::Find( const char* name )
 {
     for( u32 i = 0; i < _data.size; ++i )
     {
@@ -229,19 +229,19 @@ MeshID SceneImpl::find( const char* name )
     return makeInvalidMeshID();
 }
 
-void SceneImpl::setRenderSource( MeshID mi, rdi::RenderSource rs )
+void SceneImpl::SetRenderSource( MeshID mi, rdi::RenderSource rs )
 {
     const u32 index = _GetIndex( mi );
     _data.render_sources[index] = rs;
 }
 
-void SceneImpl::setMaterial( MeshID mi, MaterialID m )
+void SceneImpl::SetMaterial( MeshID mi, MaterialID m )
 {
     const u32 index = _GetIndex( mi );
     _data.materials[index] = m;
 }
 
-void SceneImpl::setMatrices( MeshID mi, const Matrix4* matrices, u32 count, u32 startIndex )
+void SceneImpl::SetMatrices( MeshID mi, const Matrix4* matrices, u32 count, u32 startIndex )
 {
     const u32 index = _GetIndex( mi );
     const u32 num_instances = _data.num_instances[index];
@@ -250,6 +250,14 @@ void SceneImpl::setMatrices( MeshID mi, const Matrix4* matrices, u32 count, u32 
     for( u32 i = 0; i < count; ++i )
     {
         data[startIndex + i] = matrices[i];
+    }
+}
+
+void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform )
+{
+    for( u32 i = 0; i < _data.size; ++i )
+    {
+           
     }
 }
 
@@ -329,7 +337,7 @@ namespace renderer
 
     MeshID createMeshID( Scene scene, unsigned numInstances, const char* name /*= nullptr */ )
     {
-        return scene->add( name, numInstances );
+        return scene->Add( name, numInstances );
     }
 
     void destroyMeshID( MeshID* mi )
@@ -338,18 +346,18 @@ namespace renderer
             return;
 
         Scene scene = GHandle()->getScene( *mi );
-        scene->remove( mi );
+        scene->Remove( mi );
     }
 
     void setRenderSource( MeshID mi, rdi::RenderSource rsource )
     {
         Scene scene = GHandle()->getScene( mi );
-        scene->setRenderSource( mi, rsource );
+        scene->SetRenderSource( mi, rsource );
     }
     void setMaterial( MeshID mi, MaterialID  m )
     {
         Scene scene = GHandle()->getScene( mi );
-        scene->setMaterial( mi, m );
+        scene->SetMaterial( mi, m );
     }
 }
 }}///

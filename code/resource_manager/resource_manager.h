@@ -59,6 +59,7 @@ public:
 	//virtual int   referenceRemove( ResourceID id ) = 0;
 
     static ResourceID createResourceID( const char* path );
+    static ResourceID createResourceID( const char* name, const char* type );
 
     //virtual void lock() = 0;
     //virtual void unlock() = 0;

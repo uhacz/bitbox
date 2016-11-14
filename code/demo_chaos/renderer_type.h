@@ -11,5 +11,4 @@ namespace bx{ namespace gfx{
 
     inline bool IsValid( MeshID id ) { return id.i != 0;  }
     inline bool IsValid( MaterialID id ) { return id.i != 0; }
-
 }}///

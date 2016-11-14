@@ -11,72 +11,77 @@ namespace bx
 
 ResourceID ResourceManager::createResourceID( const char* path )
 {
-	const size_t NAME_SIZE = 256;
-	const size_t TYPE_SIZE = 32;
-	char name[NAME_SIZE];
-	char type[TYPE_SIZE];
-	memset( name, 0, sizeof(name) );
-	memset( type, 0, sizeof(type) );
+    const size_t NAME_SIZE = 256;
+    const size_t TYPE_SIZE = 32;
+    char name[NAME_SIZE];
+    char type[TYPE_SIZE];
+    memset( name, 0, sizeof(name) );
+    memset( type, 0, sizeof(type) );
 
-	char* str = (char*)path;
+    char* str = (char*)path;
 
-	str = string::token( str, name, NAME_SIZE-1, "." );
-	if( str )
+    str = string::token( str, name, NAME_SIZE-1, "." );
+    if( str )
     {
-		string::token( str, type, TYPE_SIZE-1, " .\n" );
+        string::token( str, type, TYPE_SIZE-1, " .\n" );
     }
-	const u32 name_hash = simple_hash( name );
-	const u32 type_hash = simple_hash( type );
+    return createResourceID( name, type );
+}
 
-	return (u64(name_hash) << 32) | u64(type_hash);
+ResourceID ResourceManager::createResourceID( const char* name, const char* type )
+{
+    const u32 name_hash = simple_hash( name );
+    const u32 type_hash = simple_hash( type );
+
+    return ( u64( name_hash ) << 32 ) | u64( type_hash );
 }
 
 struct Resource
 {
-	Resource( ResourceLoadResult d )
-		: data( d )
-		, referenceCounter(1)
-	{}
+    Resource( ResourceLoadResult d )
+        : data( d )
+        , referenceCounter(1)
+    {}
     ResourceLoadResult data;
-	i32 referenceCounter;
+    i32 referenceCounter;
 };
 
 class bxResourceManagerImpl : public ResourceManager
 {
 public:
-	typedef hashmap_t ResourceMap;
+    typedef hashmap_t ResourceMap;
 
-	bxFileSystem _fs;
-	ResourceMap _map;
-	bxBenaphore _mapLock;
+    bxFileSystem _fs;
+    ResourceMap _map;
+    bxBenaphore _mapLock;
 
 public:
-	virtual ~bxResourceManagerImpl() {}
+    virtual ~bxResourceManagerImpl() {}
 
     int startup( const char* root )
-	{
-		int ires = _fs.startup( root );
+    {
+        int ires = _fs.startup( root );
 
-		return ires;
-	}
+        return ires;
+    }
 
-	void shutdown()
-	{
-		_fs.shutdown();
-		if( !hashmap::empty( _map ) )
-		{
-			bxLogError( "There are live resources!!!" );
-		}
-	}
+    void shutdown()
+    {
+        _fs.shutdown();
+        if( !hashmap::empty( _map ) )
+        {
+            bxLogError( "There are live resources!!!" );
+        }
+    }
 
-	virtual bxFS::File readFileSync( const char* relative_path )
-	{
-		return _fs.readFile( relative_path );
-	}
+    virtual bxFS::File readFileSync( const char* relative_path )
+    {
+        return _fs.readFile( relative_path );
+    }
     virtual bxFS::File readTextFileSync( const char* relative_path )
-	{
-		return _fs.readTextFile( relative_path );
-	}
+    {
+        return _fs.readTextFile( relative_path );
+    }
     virtual bxFS::Path absolutePath( const char* relativePath )
     {
         bxFS::Path path;
@@ -85,20 +90,20 @@ public:
     }
 
     void insert( ResourceID id, ResourceLoadResult data )
-	{
-		//_mapLock.lock();
-		SYS_ASSERT( !hashmap::lookup( _map, id ) );
+    {
+        //_mapLock.lock();
+        SYS_ASSERT( !hashmap::lookup( _map, id ) );
         
         Resource* res = BX_NEW( bxDefaultAllocator(), Resource, data );
 
         hashmap::insert( _map, id )->value = (size_t)res;
-		
+        
         //_mapLock.unlock();
-	}
-	ResourceLoadResult lookup( ResourceID id )
-	{
+    }
+    ResourceLoadResult lookup( ResourceID id )
+    {
         ResourceLoadResult result = {};
-		//_mapLock.lock();
+        //_mapLock.lock();
 
         hashmap_t::cell_t* cell = hashmap::lookup( _map, id );
         if ( cell )
@@ -107,15 +112,15 @@ public:
             result = res->data;
         }
 
-		//_mapLock.unlock();
+        //_mapLock.unlock();
 
-		return result;
-	}
+        return result;
+    }
     
     ResourceID find( ResourcePtr data )
     {
         ResourceID result = 0;
-		//_mapLock.lock();
+        //_mapLock.lock();
 
         hashmap::iterator it( _map );
 
@@ -128,46 +133,46 @@ public:
                 break;
             }
         }
-		//_mapLock.unlock();
+        //_mapLock.unlock();
 
-		return result;
+        return result;
     }
     int referenceAdd( ResourceID id )
-	{
-		//_mapLock.lock();
+    {
+        //_mapLock.lock();
         hashmap_t::cell_t* cell = hashmap::lookup( _map, id );
         SYS_ASSERT( cell != 0 );
         Resource* resource = (Resource*)cell->value;
-		//if (resource->data )
-		//{
+        //if (resource->data )
+        //{
         ++resource->referenceCounter;
-		//}
-		//_mapLock.unlock();
+        //}
+        //_mapLock.unlock();
 
         return resource->referenceCounter;
-	
-	}
-	
+    
+    }
+    
     int referenceRemove( ResourceID id )
-	{
-		//_mapLock.lock();
-		hashmap_t::cell_t* cell = hashmap::lookup( _map, id );
+    {
+        //_mapLock.lock();
+        hashmap_t::cell_t* cell = hashmap::lookup( _map, id );
         SYS_ASSERT( cell != 0 );
         Resource* resource = (Resource*)cell->value;
 
-		//if (resource->data)
-		{
-			SYS_ASSERT( resource->referenceCounter > 0 );
+        //if (resource->data)
+        {
+            SYS_ASSERT( resource->referenceCounter > 0 );
             if( --resource->referenceCounter == 0 )
             {
                 hashmap::eraseByKey( _map, id );
                 BX_DELETE0( bxDefaultAllocator(), resource );
             }
-		}
-		//_mapLock.unlock();
+        }
+        //_mapLock.unlock();
         
         return ( resource ) ? resource->referenceCounter : 0;
-	}
+    }
 
     ResourceLoadResult loadResource( const char* filename, EResourceFileType::Enum fileType ) override
     {
@@ -279,17 +284,17 @@ static ResourceManager* __resourceManager = nullptr;
 
 ResourceManager* ResourceManager::startup( const char* root )
 {
-	bxResourceManagerImpl* impl= BX_NEW( bxDefaultAllocator(), bxResourceManagerImpl );
-	impl->startup( root );
+    bxResourceManagerImpl* impl= BX_NEW( bxDefaultAllocator(), bxResourceManagerImpl );
+    impl->startup( root );
 
     __resourceManager = impl;
-	return impl;
+    return impl;
 }
 void ResourceManager::shutdown( ResourceManager** resourceManager )
 {
-	bxResourceManagerImpl* impl = (bxResourceManagerImpl*)resourceManager[0];
-	impl->shutdown();
-	BX_DELETE( bxDefaultAllocator(), impl );
+    bxResourceManagerImpl* impl = (bxResourceManagerImpl*)resourceManager[0];
+    impl->shutdown();
+    BX_DELETE( bxDefaultAllocator(), impl );
 
     __resourceManager = nullptr;
 

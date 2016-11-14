@@ -269,7 +269,7 @@ void Renderer::ShutDown( ResourceManager* resourceManager )
 Scene Renderer::CreateScene( const char* name )
 {
     SceneImpl* impl = BX_NEW( bxDefaultAllocator(), SceneImpl );
-    impl->prepare( name, nullptr );
+    impl->Prepare( name, nullptr );
     return impl;
 }
 
@@ -279,7 +279,7 @@ void Renderer::DestroyScene( Scene* scene )
     if( !impl )
         return;
 
-    impl->unprepare();
+    impl->Unprepare();
     BX_DELETE0( bxDefaultAllocator(), scene[0] );
 }
 
