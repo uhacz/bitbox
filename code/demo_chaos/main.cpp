@@ -244,6 +244,10 @@ public:
 
 
         _camera.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
+
+        
+
+
         _box_instances[0] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 0.f, 0.f ) );
         _box_instances[1] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 0.f, 0.f, 0.f ) );
         _box_instances[2] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 4, 0.f ) ), Vector3(-2.f, 0.f, 0.f ) );
@@ -517,12 +521,12 @@ public:
     gfx::Camera _camera = {};
     gfx::CameraInputContext _camera_input_ctx = {};
 
-    static const int NUM_INSTANCES = 3;
-    Matrix4 _box_instances[NUM_INSTANCES];
-    Matrix4 _sph_instances[NUM_INSTANCES];
+    gfx::MeshID _boxes;
+    gfx::MeshID _spheres;
 
-
-
+    //static const int NUM_INSTANCES = 3;
+    //Matrix4 _box_instances[NUM_INSTANCES];
+    //Matrix4 _sph_instances[NUM_INSTANCES];
 };
 
 int main( int argc, const char* argv[] )

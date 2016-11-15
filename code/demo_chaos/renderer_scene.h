@@ -4,6 +4,7 @@
 #include <util/vectormath/vectormath.h>
 #include <util/containers.h>
 #include "renderer_type.h"
+#include "renderer_camera.h"
 
 namespace bx{ namespace gfx{
 
@@ -31,14 +32,14 @@ struct SceneImpl
     void SetMaterial( MeshID mi, MaterialID m );
     void SetMatrices( MeshID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
 
-    void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform );
+    void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Camera& camera );
 
-private: 
+    
+    //////////////////////////////////////////////////////////////////////////
     void _SetToDefaults( u32 index );
     void _AllocateData( u32 newSize, bxAllocator* allocator );
     u32  _GetIndex( MeshID mi );
 
-private:
     struct Data
     {
         void*                _memory_handle = nullptr;

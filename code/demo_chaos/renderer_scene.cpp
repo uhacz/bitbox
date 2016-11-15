@@ -6,6 +6,7 @@
 #include "util/buffer_utils.h"
 
 #include "renderer.h"
+#include "util/camera.h"
 
 namespace bx{ namespace gfx{
 
@@ -253,11 +254,54 @@ void SceneImpl::SetMatrices( MeshID mi, const Matrix4* matrices, u32 count, u32 
     }
 }
 
-void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform )
+namespace renderer_scene_internal
+{
+    union SortKey
+    {
+        u64 hash = 0;
+        struct
+        {
+            u64 depth : 32;
+            u64 material : 32;
+        };
+    };
+}///
+
+void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Camera& camera )
 {
     for( u32 i = 0; i < _data.size; ++i )
     {
-           
+        const u32 num_instances = _data.num_instances[i];
+        Matrix4* matrices = getMatrixPtr( _data.matrices[i], num_instances );
+
+        rdi::RenderSource rsource = _data.render_sources[i];
+        MaterialPipeline material_pipeline = GMaterialManager1()->Pipeline( _data.materials[i] );
+
+        for( u32 imatrix = 0; imatrix < num_instances; ++imatrix )
+        {
+            const Matrix4& matrix = matrices[imatrix];
+            const float depth = cameraDepth( camera.world, matrix.getTranslation() ).getAsFloat();
+
+            const u32 batch_offset = vtransform->AddBatch( &matrix, 1 );
+
+            renderer_scene_internal::SortKey skey;
+            skey.depth = TypeReinterpert( depth ).u;
+            skey.material = _data.materials[i].i;
+
+            rdi::Command* instance_cmd = vtransform->SetCurrent( cmdb, batch_offset, nullptr );
+            
+            rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand<rdi::SetPipelineCmd>( cmdb, instance_cmd );
+            pipeline_cmd->pipeline = material_pipeline.pipeline;
+
+            rdi::SetResourcesCmd* resources_cmd = rdi::AllocateCommand<rdi::SetResourcesCmd>( cmdb, pipeline_cmd );
+            resources_cmd->desc = material_pipeline.resource_desc;
+
+            rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, pipeline_cmd );
+            draw_cmd->rsource = rsource;
+            draw_cmd->num_instances = num_instances;
+
+            rdi::SubmitCommand( cmdb, instance_cmd, skey.hash );
+        }
     }
 }
 
