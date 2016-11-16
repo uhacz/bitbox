@@ -3,6 +3,12 @@
 #include <util/type.h>
 #include <rdi/rdi_type.h>
 
+#ifndef BX_CPP
+#define BX_CPP
+#endif
+#include <shaders/shaders/sys/binding_map.h>
+
+
 namespace bx{ namespace gfx{
     //////////////////////////////////////////////////////////////////////////high level
     typedef struct SceneImpl* Scene;

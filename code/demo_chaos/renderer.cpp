@@ -8,9 +8,6 @@
 #include "renderer_material.h"
 #include "renderer_shared_mesh.h"
 
-#include <shaders/hlsl/sys/binding_map.h>
-
-
 
 //namespace bx{
 //namespace gfx{

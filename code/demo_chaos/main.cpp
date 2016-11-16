@@ -9,7 +9,6 @@
 //#include <gfx/gfx_camera.h>
 //#include <gfx/gfx_debug_draw.h>
 #include <rdi/rdi.h>
-#include <shaders/shaders/sys/binding_map.h>
 
 //#include <gfx/gfx_gui.h>
 //#include <gdi/gdi_shader.h>
@@ -46,7 +45,8 @@ public:
         //bx::game_scene::startup( &_scene, &_engine );
         bxWindow* win = bxWindow_get();
         rdi::Startup( (uptr)win->hwnd, win->width, win->height, win->full_screen );
-        gfx::TextureManagerStartUp();
+        gfx::TextureManager::_StartUp();
+        gfx::MaterialManager::_StartUp();
 
 
         bxAsciiScript sceneScript;
@@ -245,21 +245,58 @@ public:
 
         _camera.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
 
+        {
+            gfx::MaterialDesc mat_desc;
+            mat_desc.data.diffuse_color = float3_t( 1.f, 0.f, 0.f );
+            mat_desc.data.diffuse = 0.4f;
+            mat_desc.data.roughness = 0.5f;
+            mat_desc.data.specular = 0.1f;
+            mat_desc.data.metallic = 0.0f;
+
+            gfx::GMaterialManager()->Create( "red", mat_desc );
+        }
+
+        _gfx_scene = _renderer.CreateScene( "test" );
+        _boxes = _gfx_scene->Add( "boxes", NUM_INSTANCES );
+        _spheres = _gfx_scene->Add( "spheres", NUM_INSTANCES );
+
+        Matrix4 box_instances[ NUM_INSTANCES ] = 
+        {
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 0.f, 0.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 0.f, 0.f, 0.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 4, 0.f ) ), Vector3(-2.f, 0.f, 0.f ) ),
+        };
+
+        Matrix4 sph_instances[ NUM_INSTANCES ] = 
+        {
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 2.f, 2.f, 0.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 0.f, 0.f, -2.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f,-2.f, 0.f ) ),
+        };
+
+        _gfx_scene->SetMatrices( _boxes, box_instances, NUM_INSTANCES );
+        _gfx_scene->SetMatrices( _spheres, box_instances, NUM_INSTANCES );
+
+        _gfx_scene->SetRenderSource( _boxes, _rsource_box );
+        _gfx_scene->SetRenderSource( _spheres, _rsource_sphere );
+
+        gfx::MaterialID material_id = gfx::GMaterialManager()->Find( "red" );
+        _gfx_scene->SetMaterial( _boxes, material_id );
+        _gfx_scene->SetMaterial( _spheres, material_id );
         
-
-
-        _box_instances[0] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 0.f, 0.f ) );
-        _box_instances[1] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 0.f, 0.f, 0.f ) );
-        _box_instances[2] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 4, 0.f ) ), Vector3(-2.f, 0.f, 0.f ) );
-
-        _sph_instances[0] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 2.f, 2.f, 0.f ) );
-        _sph_instances[1] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 0.f, 0.f, -2.f ) );
-        _sph_instances[2] = Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f,-2.f, 0.f ) );
-
         return true;
     }
     virtual void shutdown()
     {
+        _gfx_scene->Remove( &_spheres );
+        _gfx_scene->Remove( &_boxes );
+
+        _renderer.DestroyScene( &_gfx_scene );
+        
+        gfx::GMaterialManager()->Destroy( gfx::GMaterialManager()->Find( "red" ) );
+
+
+        
         //rdi::DestroyRenderSource( &_rsource_sphere );
         //rdi::DestroyRenderSource( &_rsource_box );
         //rdi::DestroyRenderSource( &_rsource_fullscreen_quad );
@@ -295,7 +332,8 @@ public:
         rdi::ShaderFileUnload( &_shf_deffered, _engine.resource_manager );
         //rdi::ShaderFileUnload( &_shf_texutil, _engine.resource_manager );
 
-        gfx::TextureManagerShutDown();
+        gfx::MaterialManager::_ShutDown();
+        gfx::TextureManager::_ShutDown();
         rdi::Shutdown();
         bx::Engine::shutdown( &_engine );
     }
@@ -367,44 +405,50 @@ public:
         }
 
         _vertex_transform_data.Map( cmdq );
-        u32 box_batch_index = _vertex_transform_data.AddBatch( _box_instances, NUM_INSTANCES );
-        u32 sph_batch_index = _vertex_transform_data.AddBatch( _sph_instances, NUM_INSTANCES );
+        rdi::ClearCommandBuffer( _command_buffer );
+        rdi::BeginCommandBuffer( _command_buffer );
+
+        _gfx_scene->BuildCommandBuffer( _command_buffer, &_vertex_transform_data, _camera );
+        
+        rdi::EndCommandBuffer( _command_buffer );
+        //u32 box_batch_index = _vertex_transform_data.AddBatch( _box_instances, NUM_INSTANCES );
+        //u32 sph_batch_index = _vertex_transform_data.AddBatch( _sph_instances, NUM_INSTANCES );
+        
         _vertex_transform_data.Unmap( cmdq );
         _vertex_transform_data.Bind( cmdq );
 
         rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 0.f, 0.f, 0.f, 0.f, 1.f );
         rdi::BindRenderTarget( cmdq, _rtarget_gbuffer, { 0 }, true );
 
-        rdi::ClearCommandBuffer( _command_buffer );
-        rdi::BeginCommandBuffer( _command_buffer );
+        
 
-        {
-            rdi::Command* instance_cmd = _vertex_transform_data.SetCurrent( _command_buffer, box_batch_index, nullptr );
+        //{
+        //    rdi::Command* instance_cmd = _vertex_transform_data.SetCurrent( _command_buffer, box_batch_index, nullptr );
 
-            rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand<rdi::SetPipelineCmd>( _command_buffer, instance_cmd );
-            pipeline_cmd->pipeline = _pipeline_test_color;
+        //    rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand<rdi::SetPipelineCmd>( _command_buffer, instance_cmd );
+        //    pipeline_cmd->pipeline = _pipeline_test_color;
 
-            rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( _command_buffer, pipeline_cmd );
-            draw_cmd->rsource = _rsource_box;
-            draw_cmd->num_instances = NUM_INSTANCES;
+        //    rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( _command_buffer, pipeline_cmd );
+        //    draw_cmd->rsource = _rsource_box;
+        //    draw_cmd->num_instances = NUM_INSTANCES;
 
-            rdi::SubmitCommand( _command_buffer, instance_cmd, 0 );
-        }
+        //    rdi::SubmitCommand( _command_buffer, instance_cmd, 0 );
+        //}
 
-        {
-            rdi::Command* instance_cmd = _vertex_transform_data.SetCurrent( _command_buffer, sph_batch_index, nullptr );
+        //{
+        //    rdi::Command* instance_cmd = _vertex_transform_data.SetCurrent( _command_buffer, sph_batch_index, nullptr );
 
-            rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand<rdi::SetPipelineCmd>( _command_buffer, instance_cmd );
-            pipeline_cmd->pipeline = _pipeline_test_color;
+        //    rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand<rdi::SetPipelineCmd>( _command_buffer, instance_cmd );
+        //    pipeline_cmd->pipeline = _pipeline_test_color;
 
-            rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( _command_buffer, pipeline_cmd );
-            draw_cmd->rsource = _rsource_sphere;
-            draw_cmd->num_instances = NUM_INSTANCES;
+        //    rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( _command_buffer, pipeline_cmd );
+        //    draw_cmd->rsource = _rsource_sphere;
+        //    draw_cmd->num_instances = NUM_INSTANCES;
 
-            rdi::SubmitCommand( _command_buffer, instance_cmd, 0 );
-        }
+        //    rdi::SubmitCommand( _command_buffer, instance_cmd, 0 );
+        //}
 
-        rdi::EndCommandBuffer( _command_buffer );
+        
 
         rdi::SubmitCommandBuffer( cmdq, _command_buffer );
 
@@ -521,10 +565,12 @@ public:
     gfx::Camera _camera = {};
     gfx::CameraInputContext _camera_input_ctx = {};
 
+    gfx::Scene _gfx_scene = nullptr;
+
     gfx::MeshID _boxes;
     gfx::MeshID _spheres;
 
-    //static const int NUM_INSTANCES = 3;
+    static const int NUM_INSTANCES = 3;
     //Matrix4 _box_instances[NUM_INSTANCES];
     //Matrix4 _sph_instances[NUM_INSTANCES];
 };

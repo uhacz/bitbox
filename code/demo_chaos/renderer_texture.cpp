@@ -74,15 +74,6 @@ void TextureManager::Release( TextureHandle h )
     GHandle()->Destroy( h );
 }
 
-void TextureManager::_StartUp()
-{
-    _allocator.startup( sizeof( rdi::TextureRO ), MAX_TEXTURES, bxDefaultAllocator(), sizeof( void* ) );
-}
-
-void TextureManager::_ShutDown()
-{
-    _allocator.shutdown();
-}
 
 rdi::TextureRO* TextureManager::_Alloc()
 {
@@ -100,23 +91,19 @@ void TextureManager::_Free( rdi::TextureRO* ptr )
 }
 
 static TextureManager* g_texture_manager = nullptr;
-
-void TextureManagerStartUp()
+void TextureManager::_StartUp()
 {
     SYS_ASSERT( g_texture_manager == nullptr );
     g_texture_manager = BX_NEW( bxDefaultAllocator(), TextureManager );
-    g_texture_manager->_StartUp();
+
+    g_texture_manager->_allocator.startup( sizeof( rdi::TextureRO ), MAX_TEXTURES, bxDefaultAllocator(), sizeof( void* ) );
 }
 
-void TextureManagerShutDown()
+void TextureManager::_ShutDown()
 {
-    if( !g_texture_manager )
-        return;
-
-    g_texture_manager->_ShutDown();
+    g_texture_manager->_allocator.shutdown();
     BX_DELETE0( bxDefaultAllocator(), g_texture_manager );
 }
-
 
 TextureManager* GTextureManager()
 {

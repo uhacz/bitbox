@@ -14,8 +14,11 @@ public:
     TextureHandle CreateFromFile( const char* fileName );
     void Release( TextureHandle h );
 
-    void _StartUp();
-    void _ShutDown();
+    bool Alive( TextureHandle h ) { return GHandle()->Alive( h ); }
+    rdi::TextureRO* Texture( TextureHandle h ) { return GHandle()->DataAs<rdi::TextureRO*>( h ); }
+
+    static void _StartUp();
+    static void _ShutDown();
 
 private:
     rdi::TextureRO* _Alloc();
@@ -24,14 +27,7 @@ private:
     static const u32 MAX_TEXTURES = 64;
     bxDynamicPoolAllocator _allocator;
     bxBenaphore _lock;
-
-    //id_table_t<MAX_TEXTURES> _id_table;
-    //rdi::TextureRO _texture_ro[MAX_TEXTURES] = {};
-    //ResourceID _resource_id[MAX_TEXTURES] = {};
 };
-
-void TextureManagerStartUp();
-void TextureManagerShutDown();
 
 TextureManager* GTextureManager();
 
