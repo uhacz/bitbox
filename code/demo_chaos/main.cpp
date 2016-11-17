@@ -275,7 +275,7 @@ public:
         };
 
         _gfx_scene->SetMatrices( _boxes, box_instances, NUM_INSTANCES );
-        _gfx_scene->SetMatrices( _spheres, box_instances, NUM_INSTANCES );
+        _gfx_scene->SetMatrices( _spheres, sph_instances, NUM_INSTANCES );
 
         _gfx_scene->SetRenderSource( _boxes, _rsource_box );
         _gfx_scene->SetRenderSource( _spheres, _rsource_sphere );
@@ -418,7 +418,7 @@ public:
         _vertex_transform_data.Bind( cmdq );
 
         rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 0.f, 0.f, 0.f, 0.f, 1.f );
-        rdi::BindRenderTarget( cmdq, _rtarget_gbuffer, { 0 }, true );
+        rdi::BindRenderTarget( cmdq, _rtarget_gbuffer );
 
         
 
@@ -462,7 +462,7 @@ public:
         //rdi::SubmitRenderSourceInstanced( cmdq, _rsource_sphere, NUM_INSTANCES );
 
 
-        rdi::TextureRW texture = rdi::GetTexture( _rtarget_gbuffer, 0 );
+        rdi::TextureRW texture = rdi::GetTexture( _rtarget_gbuffer, 2 );
         _renderer.RasterizeFramebuffer( cmdq, texture, _camera, win->width, win->height );
 
         //rdi::context::ChangeToMainFramebuffer( cmdq );
@@ -567,8 +567,8 @@ public:
 
     gfx::Scene _gfx_scene = nullptr;
 
-    gfx::MeshID _boxes;
-    gfx::MeshID _spheres;
+    gfx::ActorID _boxes;
+    gfx::ActorID _spheres;
 
     static const int NUM_INSTANCES = 3;
     //Matrix4 _box_instances[NUM_INSTANCES];

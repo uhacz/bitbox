@@ -14,31 +14,31 @@ union MeshMatrix
     Matrix4* _multi;
 };
 
+
 //////////////////////////////////////////////////////////////////////////
 struct VertexTransformData;
+struct ActorHandleManager;
+
 struct SceneImpl
 {
-    static void StartUp();
-    static void ShutDown();
-
     void Prepare( const char* name, bxAllocator* allocator );
     void Unprepare();
 
-    MeshID Add( const char* name, u32 numInstances );
-    void Remove( MeshID* mi );
-    MeshID Find( const char* name );
+    ActorID Add( const char* name, u32 numInstances );
+    void Remove( ActorID* mi );
+    ActorID Find( const char* name );
 
-    void SetRenderSource( MeshID mi, rdi::RenderSource rs );
-    void SetMaterial( MeshID mi, MaterialID m );
-    void SetMatrices( MeshID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
+    void SetRenderSource( ActorID mi, rdi::RenderSource rs );
+    void SetMaterial( ActorID mi, MaterialID m );
+    void SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
 
     void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Camera& camera );
 
-    
+private:
     //////////////////////////////////////////////////////////////////////////
     void _SetToDefaults( u32 index );
     void _AllocateData( u32 newSize, bxAllocator* allocator );
-    u32  _GetIndex( MeshID mi );
+    u32  _GetIndex( ActorID mi );
 
     struct Data
     {
@@ -47,7 +47,7 @@ struct SceneImpl
         rdi::RenderSource*   render_sources = nullptr;
         MaterialID*          materials = nullptr;
         u32*                 num_instances = nullptr;
-        MeshID*              mesh_instance = nullptr;
+        ActorID*              mesh_instance = nullptr;
         char**               names = nullptr;
 
         u32                  size = 0;
@@ -56,6 +56,9 @@ struct SceneImpl
 
     const char* _name = nullptr;
     bxAllocator* _allocator = nullptr;
+    ActorHandleManager* _handle_manager = nullptr;
+
+    friend class Renderer;
 };
 
 }}///

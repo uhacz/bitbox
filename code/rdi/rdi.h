@@ -36,7 +36,7 @@ struct PipelineDesc
 };
 Pipeline CreatePipeline( const PipelineDesc& desc, bxAllocator* allocator = nullptr );
 void DestroyPipeline( Pipeline* pipeline, bxAllocator* allocator = nullptr );
-void BindPipeline( CommandQueue* cmdq, Pipeline pipeline );
+void BindPipeline( CommandQueue* cmdq, Pipeline pipeline, bool bindResources );
 ResourceDescriptor GetResourceDescriptor( Pipeline pipeline );
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -240,6 +240,7 @@ namespace bx{ namespace rdi{
     {
         static const DispatchFunction DISPATCH_FUNCTION;
         Pipeline pipeline = nullptr;
+        u8 bindResources = 0;
     };
     struct SetResourcesCmd : Command
     {

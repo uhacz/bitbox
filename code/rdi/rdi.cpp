@@ -100,12 +100,12 @@ void ShaderObjectDestroy( ShaderObject* shaderObj )
     device::DestroyInputLayout( &shaderObj->input_layout );
     device::DestroyShaderPass( &shaderObj->pass );
 }
-void ShaderObjectBind( CommandQueue* cmdq, const ShaderObject& shaderObj )
+void ShaderObjectBind( CommandQueue* cmdq, const ShaderObject& shaderObj, bool bindResources )
 {
     context::SetShaderPass( cmdq, shaderObj.pass );
     context::SetInputLayout( cmdq, shaderObj.input_layout );
     context::SetHardwareState( cmdq, shaderObj.hardware_state );
-    if( shaderObj.resource_desc )
+    if( shaderObj.resource_desc && bindResources )
     {
         BindResources( cmdq, shaderObj.resource_desc );
     }
@@ -136,9 +136,9 @@ void DestroyPipeline( Pipeline* pipeline, bxAllocator* allocator /*= nullptr */ 
     BX_DELETE0( utils::getAllocator( allocator ), pipeline[0] );
 }
 
-void BindPipeline( CommandQueue* cmdq, Pipeline pipeline )
+void BindPipeline( CommandQueue* cmdq, Pipeline pipeline, bool bindResources )
 {
-    ShaderObjectBind( cmdq, pipeline->shader_object );
+    ShaderObjectBind( cmdq, pipeline->shader_object, bindResources );
     context::SetTopology( cmdq, pipeline->topology );
 }
 
@@ -629,7 +629,7 @@ namespace bx { namespace rdi {
     void SetPipelineCmdDispatch(  CommandQueue* cmdq, Command* cmdAddr )
     {
         SetPipelineCmd* cmd = (SetPipelineCmd*)cmdAddr;
-        BindPipeline( cmdq, cmd->pipeline );
+        BindPipeline( cmdq, cmd->pipeline, cmd->bindResources ? true : false );
     }
     void SetResourcesCmdDispatch(  CommandQueue* cmdq, Command* cmdAddr )
     {
