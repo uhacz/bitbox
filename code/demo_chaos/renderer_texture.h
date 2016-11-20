@@ -17,6 +17,7 @@ public:
     bool Alive( TextureHandle h ) { return GHandle()->Alive( h ); }
     rdi::TextureRO* Texture( TextureHandle h ) { return GHandle()->DataAs<rdi::TextureRO*>( h ); }
 
+    //////////////////////////////////////////////////////////////////////////
     static void _StartUp();
     static void _ShutDown();
 

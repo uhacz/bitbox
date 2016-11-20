@@ -28,7 +28,8 @@ struct SceneImpl
     void Remove( ActorID* mi );
     ActorID Find( const char* name );
 
-    void SetRenderSource( ActorID mi, rdi::RenderSource rs );
+    //void SetRenderSource( ActorID mi, rdi::RenderSource rs );
+    void SetMesh( ActorID actorId, MeshHandle handle );
     void SetMaterial( ActorID mi, MaterialID m );
     void SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
 
@@ -44,10 +45,11 @@ private:
     {
         void*                _memory_handle = nullptr;
         MeshMatrix*          matrices = nullptr;
-        rdi::RenderSource*   render_sources = nullptr;
+        //rdi::RenderSource*   render_sources = nullptr;
+        MeshHandle*          meshes = nullptr;
         MaterialID*          materials = nullptr;
         u32*                 num_instances = nullptr;
-        ActorID*              mesh_instance = nullptr;
+        ActorID*              actor_id = nullptr;
         char**               names = nullptr;
 
         u32                  size = 0;
@@ -94,9 +96,9 @@ struct VertexTransformData
     void SetCurrent( rdi::CommandQueue* cmdq, u32 index );
     rdi::Command* SetCurrent( rdi::CommandBuffer cmdBuff, u32 index, rdi::Command* parentCmd = nullptr );
 
-};
 
-void VertexTransformDataInit( VertexTransformData* vt, u32 maxInstances );
-void VertexTransformDataDeinit( VertexTransformData* vt );
+    static void _Init( VertexTransformData* vt, u32 maxInstances );
+    static void _Deinit( VertexTransformData* vt );
+};
 
 }}///

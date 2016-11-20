@@ -261,10 +261,13 @@ public:
     }
     virtual unsigned releaseResource( ResourcePtr resourcePointer )
     {
+        int references_left = UINT32_MAX;
         _mapLock.lock();
         ResourceID resource_id = find( resourcePointer );
-        SYS_ASSERT( resource_id != 0 );
-        int references_left = referenceRemove( resource_id );
+        if( resource_id != 0 )
+        {
+            references_left = referenceRemove( resource_id );
+        }
         _mapLock.unlock();
 
         return (unsigned)references_left;

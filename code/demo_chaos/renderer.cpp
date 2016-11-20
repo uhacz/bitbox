@@ -16,6 +16,9 @@
 namespace bx{ namespace gfx{
 void Renderer::StartUp( const RendererDesc& desc, ResourceManager* resourceManager )
 {
+    TextureManager::_StartUp();
+    MaterialManager::_StartUp();
+    MeshManager::_StartUp();
     {
         _actor_handle_manager = BX_NEW( bxDefaultAllocator(), ActorHandleManager );
         _actor_handle_manager->StartUp();
@@ -97,7 +100,8 @@ void Renderer::StartUp( const RendererDesc& desc, ResourceManager* resourceManag
         rsource_desc.VertexBuffer( rdi::VertexBufferDesc( rdi::EVertexSlot::POSITION ).DataType( rdi::EDataType::FLOAT, 3 ), vertices_pos );
         rsource_desc.VertexBuffer( rdi::VertexBufferDesc( rdi::EVertexSlot::TEXCOORD0 ).DataType( rdi::EDataType::FLOAT, 2 ), vertices_uv );
         rdi::RenderSource rsource = rdi::CreateRenderSource( rsource_desc );
-        _shared_mesh.add( ":fullscreen_quad", rsource );
+        MeshHandle hmesh = GMeshManager()->Add( ":fullscreen_quad" );
+        GMeshManager()->SetRenderSource( hmesh, rsource );
     }
 
     {//// poly shapes
@@ -110,8 +114,13 @@ void Renderer::StartUp( const RendererDesc& desc, ResourceManager* resourceManag
         rdi::RenderSource rsource_sphere = rdi::CreateRenderSourceFromPolyShape( polyShape );
         bxPolyShape_deallocateShape( &polyShape );
 
-        _shared_mesh.add( ":sphere", rsource_sphere );
-        _shared_mesh.add( ":box", rsource_box );
+        MeshHandle hmesh = GMeshManager()->Add( ":sphere" );
+        GMeshManager()->SetRenderSource( hmesh, rsource_sphere );
+        GMeshManager()->SetLocalAABB( hmesh, bxAABB( Vector3( -0.5f ), Vector3( 0.5f ) ) );
+
+        hmesh = GMeshManager()->Add( ":box" );
+        GMeshManager()->SetRenderSource( hmesh, rsource_box );
+        GMeshManager()->SetLocalAABB( hmesh, bxAABB( Vector3( -0.5f ), Vector3( 0.5f ) ) );
     }
 }
 
@@ -119,14 +128,13 @@ void Renderer::ShutDown( ResourceManager* resourceManager )
 {
     {
         rdi::RenderSource rs;
-        
-        _shared_mesh.remove( ":box", &rs );
+        GMeshManager()->RemoveByName( ":box", &rs );
         rdi::DestroyRenderSource( &rs );
-        
-        _shared_mesh.remove( ":sphere", &rs );
+
+        GMeshManager()->RemoveByName( ":sphere", &rs );
         rdi::DestroyRenderSource( &rs );
-        
-        _shared_mesh.remove( ":fullscreen_quad", &rs );
+
+        GMeshManager()->RemoveByName( ":fullscreen_quad", &rs );
         rdi::DestroyRenderSource( &rs );
     }
 
@@ -142,6 +150,10 @@ void Renderer::ShutDown( ResourceManager* resourceManager )
     rdi::DestroyRenderTarget( &_render_target );
 
     rdi::ShaderFileUnload( &_shf_texutil, resourceManager );
+
+    MeshManager::_ShutDown();
+    MaterialManager::_ShutDown();
+    TextureManager::_ShutDown();
 
     {
         _actor_handle_manager->ShutDown();
@@ -192,7 +204,8 @@ void Renderer::RasterizeFramebuffer( rdi::CommandQueue* cmdq, const rdi::Resourc
     rdi::BindPipeline( cmdq, _pipeline_copy_texture_rgba, true );
     rdi::BindResources( cmdq, rdesc );
 
-    rdi::RenderSource rsource_fullscreen_quad = _shared_mesh.query( ":fullscreen_quad" );
+    MeshHandle hmesh_fullscreen_quad = GMeshManager()->Find( ":fullscreen_quad" );
+    rdi::RenderSource rsource_fullscreen_quad = GMeshManager()->RenderSource( hmesh_fullscreen_quad );
     rdi::BindRenderSource( cmdq, rsource_fullscreen_quad );
     rdi::SubmitRenderSource( cmdq, rsource_fullscreen_quad );
 

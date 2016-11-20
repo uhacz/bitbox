@@ -276,6 +276,12 @@ void MaterialManager::Destroy( MaterialID materialId )
     }
 }
 
+void MaterialManager::DestroyByName( const char* name )
+{
+    MaterialID m = Find( name );
+    Destroy( m );
+}
+
 MaterialID MaterialManager::Find( const char* name )
 {
     MaterialID id;

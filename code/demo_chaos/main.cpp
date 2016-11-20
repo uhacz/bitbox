@@ -45,10 +45,7 @@ public:
         //bx::game_scene::startup( &_scene, &_engine );
         bxWindow* win = bxWindow_get();
         rdi::Startup( (uptr)win->hwnd, win->width, win->height, win->full_screen );
-        gfx::TextureManager::_StartUp();
-        gfx::MaterialManager::_StartUp();
-
-
+        
         bxAsciiScript sceneScript;
         if( _engine._camera_script_callback )
             _engine._camera_script_callback->addCallback( &sceneScript );
@@ -151,7 +148,7 @@ public:
         //}
 
         {
-            gfx::VertexTransformDataInit( &_vertex_transform_data, 1024 );
+            gfx::VertexTransformData::_Init( &_vertex_transform_data, 1024 );
         }
 
         {
@@ -237,8 +234,8 @@ public:
         //    bxPolyShape_deallocateShape( &polyShape );
         //}
 
-        _rsource_box = _renderer.GetSharedMesh().query( ":box" );
-        _rsource_sphere = _renderer.GetSharedMesh().query( ":sphere" );
+        //_rsource_box = _renderer.GetSharedMesh().query( ":box" );
+        //_rsource_sphere = _renderer.GetSharedMesh().query( ":sphere" );
 
         _command_buffer = rdi::CreateCommandBuffer();
 
@@ -277,8 +274,8 @@ public:
         _gfx_scene->SetMatrices( _boxes, box_instances, NUM_INSTANCES );
         _gfx_scene->SetMatrices( _spheres, sph_instances, NUM_INSTANCES );
 
-        _gfx_scene->SetRenderSource( _boxes, _rsource_box );
-        _gfx_scene->SetRenderSource( _spheres, _rsource_sphere );
+        _gfx_scene->SetMesh( _boxes, gfx::GMeshManager()->Find( ":box" ));
+        _gfx_scene->SetMesh( _spheres, gfx::GMeshManager()->Find( ":sphere" ) );
 
         gfx::MaterialID material_id = gfx::GMaterialManager()->Find( "red" );
         _gfx_scene->SetMaterial( _boxes, material_id );
@@ -293,24 +290,13 @@ public:
 
         _renderer.DestroyScene( &_gfx_scene );
         
-        gfx::GMaterialManager()->Destroy( gfx::GMaterialManager()->Find( "red" ) );
-
-
-        
-        //rdi::DestroyRenderSource( &_rsource_sphere );
-        //rdi::DestroyRenderSource( &_rsource_box );
-        //rdi::DestroyRenderSource( &_rsource_fullscreen_quad );
-        //rdi::DestroyResourceDescriptor( &_rdesc_samplers );
-        //rdi::device::DestroySampler( &_samp_trilinear );
-        //rdi::device::DestroySampler( &_samp_bilinear );
-        //rdi::device::DestroySampler( &_samp_linear );
-        //rdi::device::DestroySampler( &_samp_point );
+        gfx::GMaterialManager()->DestroyByName( "red" );
 
         rdi::DestroyCommandBuffer( &_command_buffer );
 
         _renderer.ShutDown( _engine.resource_manager );
 
-        gfx::VertexTransformDataDeinit( &_vertex_transform_data );
+        gfx::VertexTransformData::_Deinit( &_vertex_transform_data );
         //rdi::DestroyResourceDescriptor( &_rdesc_instance_data );
         //rdi::DestroyResourceDescriptor( &_rdesc_instance_offset );
 
@@ -332,8 +318,6 @@ public:
         rdi::ShaderFileUnload( &_shf_deffered, _engine.resource_manager );
         //rdi::ShaderFileUnload( &_shf_texutil, _engine.resource_manager );
 
-        gfx::MaterialManager::_ShutDown();
-        gfx::TextureManager::_ShutDown();
         rdi::Shutdown();
         bx::Engine::shutdown( &_engine );
     }
@@ -420,95 +404,25 @@ public:
         rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 0.f, 0.f, 0.f, 0.f, 1.f );
         rdi::BindRenderTarget( cmdq, _rtarget_gbuffer );
 
-        
-
-        //{
-        //    rdi::Command* instance_cmd = _vertex_transform_data.SetCurrent( _command_buffer, box_batch_index, nullptr );
-
-        //    rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand<rdi::SetPipelineCmd>( _command_buffer, instance_cmd );
-        //    pipeline_cmd->pipeline = _pipeline_test_color;
-
-        //    rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( _command_buffer, pipeline_cmd );
-        //    draw_cmd->rsource = _rsource_box;
-        //    draw_cmd->num_instances = NUM_INSTANCES;
-
-        //    rdi::SubmitCommand( _command_buffer, instance_cmd, 0 );
-        //}
-
-        //{
-        //    rdi::Command* instance_cmd = _vertex_transform_data.SetCurrent( _command_buffer, sph_batch_index, nullptr );
-
-        //    rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand<rdi::SetPipelineCmd>( _command_buffer, instance_cmd );
-        //    pipeline_cmd->pipeline = _pipeline_test_color;
-
-        //    rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( _command_buffer, pipeline_cmd );
-        //    draw_cmd->rsource = _rsource_sphere;
-        //    draw_cmd->num_instances = NUM_INSTANCES;
-
-        //    rdi::SubmitCommand( _command_buffer, instance_cmd, 0 );
-        //}
-
-        
-
         rdi::SubmitCommandBuffer( cmdq, _command_buffer );
-
-        //rdi::BindPipeline( cmdq, _pipeline_test_color );
-        //_vertex_transform_data.SetCurrent( cmdq, box_batch_index );
-        //rdi::BindRenderSource( cmdq, _rsource_box );
-        //rdi::SubmitRenderSourceInstanced( cmdq, _rsource_box, NUM_INSTANCES );
-
-        //_vertex_transform_data.SetCurrent( cmdq, sph_batch_index );
-        //rdi::BindRenderSource( cmdq, _rsource_sphere );
-        //rdi::SubmitRenderSourceInstanced( cmdq, _rsource_sphere, NUM_INSTANCES );
-
 
         rdi::TextureRW texture = rdi::GetTexture( _rtarget_gbuffer, 2 );
         _renderer.RasterizeFramebuffer( cmdq, texture, _camera, win->width, win->height );
 
-        //rdi::context::ChangeToMainFramebuffer( cmdq );
-        //rdi::context::SetViewport( cmdq, screen_viewport );
-        //rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_copy_texture_rgba );
-        //rdi::SetResourceRO( rdesc, "gtexture", &rdi::GetTexture( _rtarget_color, 0 ) );
-        //rdi::SetSampler( rdesc, "gsampler", &_samp_point );
-        //rdi::BindPipeline( cmdq, _pipeline_copy_texture_rgba );
-        //rdi::BindResources( cmdq, rdesc );
-        //
-        ///// draw fullscreen quad
-        //rdi::BindRenderSource( cmdq, _rsource_fullscreen_quad );
-        //rdi::SubmitRenderSource( cmdq, _rsource_fullscreen_quad );
-
         _renderer.EndFrame( cmdq );
         rdi::frame::End( &cmdq );
         
-        //bx::gfxCameraComputeMatrices( camera );
-        //
-        //{
-        //    bx::phxSceneSync( _scene.phx_scene() );
-        //}
-        //
-        //bx::gfxCameraComputeMatrices( camera );
-        //
-        //{
-        //    bx::phxSceneSimulate( _scene.phx_scene(), deltaTime );
-        //}
-        //
-        //bx::gfxContextTick( _engine.gfx_context, _engine.gdi_device );
 
         rmt_EndCPUSample();
 
-        //bx::GfxCommandQueue* cmdq = nullptr;
-        //bx::gfxCommandQueueAcquire( &cmdq, _engine.gfx_context, _engine.gdi_context );
-        //bx::gfxContextFrameBegin( _engine.gfx_context, _engine.gdi_context );
+        //rmt_BeginCPUSample( FRAME_DRAW );
+        //rmt_BeginCPUSample( scene );
+        //rmt_EndCPUSample();
 
-        rmt_BeginCPUSample( FRAME_DRAW );
-        rmt_BeginCPUSample( scene );
-        //bx::gfxSceneDraw( _scene.gfx_scene(), cmdq, camera );
-        rmt_EndCPUSample();
-
-        rmt_BeginCPUSample( gui );
-        //bxGfxGUI::draw( _engine.gdi_context );
-        rmt_EndCPUSample();
-        rmt_EndCPUSample();
+        //rmt_BeginCPUSample( gui );
+        ////bxGfxGUI::draw( _engine.gdi_context );
+        //rmt_EndCPUSample();
+        //rmt_EndCPUSample();
 
         //bx::gfxContextFrameEnd( _engine.gfx_context, _engine.gdi_context );
         //bx::gfxCommandQueueRelease( &cmdq );
@@ -557,8 +471,8 @@ public:
     //rdi::Sampler _samp_trilinear = {};
 
     //rdi::RenderSource _rsource_fullscreen_quad = BX_RDI_NULL_HANDLE;
-    rdi::RenderSource _rsource_box = BX_RDI_NULL_HANDLE;
-    rdi::RenderSource _rsource_sphere = BX_RDI_NULL_HANDLE;
+    //rdi::RenderSource _rsource_box = BX_RDI_NULL_HANDLE;
+    //rdi::RenderSource _rsource_sphere = BX_RDI_NULL_HANDLE;
 
     rdi::CommandBuffer _command_buffer = BX_RDI_NULL_HANDLE;
 

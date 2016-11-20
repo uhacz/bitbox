@@ -50,7 +50,7 @@ ActorID SceneImpl::Add( const char* name, u32 numInstances )
     _handle_manager->setData( mi, this, index );
     _SetToDefaults( index );
 
-    _data.mesh_instance[index] = mi;
+    _data.actor_id[index] = mi;
     _data.names[index] = string::duplicate( nullptr, name );
     _data.num_instances[index] = numInstances;
     if( numInstances > 1 )
@@ -84,18 +84,19 @@ void SceneImpl::Remove( ActorID* mi )
     if( index != last_index )
     {
         _data.matrices[index]       = _data.matrices[last_index];
-        _data.render_sources[index] = _data.render_sources[last_index];
+        //_data.render_sources[index] = _data.render_sources[last_index];
+        _data.meshes[index]         = _data.meshes[last_index];
         _data.materials[index]      = _data.materials[last_index];
         _data.num_instances[index]  = _data.num_instances[last_index];
-        _data.mesh_instance[index]  = _data.mesh_instance[last_index];
+        _data.actor_id[index]  = _data.actor_id[last_index];
         _data.names[index]          = _data.names[last_index];
-        _handle_manager->setData( _data.mesh_instance[index], this, index );
+        _handle_manager->setData( _data.actor_id[index], this, index );
 
         _data.matrices[last_index] = {};
-        _data.render_sources[last_index] = BX_RDI_NULL_HANDLE;
+        _data.meshes[last_index].i = 0;
         _data.materials[last_index] = {};
         _data.num_instances[last_index] = 0;
-        _data.mesh_instance[last_index] = makeInvalidMeshID();
+        _data.actor_id[last_index] = makeInvalidMeshID();
         _data.names[last_index] = nullptr;
     }
 }
@@ -106,17 +107,23 @@ ActorID SceneImpl::Find( const char* name )
     {
         if( string::equal( name, _data.names[i] ) )
         {
-            return _data.mesh_instance[i];
+            return _data.actor_id[i];
         }
     }
     return makeInvalidMeshID();
 }
 
-void SceneImpl::SetRenderSource( ActorID mi, rdi::RenderSource rs )
+void SceneImpl::SetMesh( ActorID actorId, MeshHandle handle )
 {
-    const u32 index = _GetIndex( mi );
-    _data.render_sources[index] = rs;
+    const u32 index = _GetIndex( actorId );
+    _data.meshes[index] = handle;
 }
+
+//void SceneImpl::SetRenderSource( ActorID mi, rdi::RenderSource rs )
+//{
+//    const u32 index = _GetIndex( mi );
+//    _data.render_sources[index] = rs;
+//}
 
 void SceneImpl::SetMaterial( ActorID mi, MaterialID m )
 {
@@ -156,7 +163,8 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
         const u32 num_instances = _data.num_instances[i];
         Matrix4* matrices = getMatrixPtr( _data.matrices[i], num_instances );
 
-        rdi::RenderSource rsource = _data.render_sources[i];
+        MeshHandle hmesh = _data.meshes[i];
+        rdi::RenderSource rsource = GMeshManager()->RenderSource( hmesh );
         MaterialPipeline material_pipeline = GMaterialManager()->Pipeline( _data.materials[i] );
 
         for( u32 imatrix = 0; imatrix < num_instances; ++imatrix )
@@ -190,8 +198,8 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
 void SceneImpl::_SetToDefaults( u32 index )
 {
     string::free_and_null( &_data.names[index] );
-    _data.mesh_instance [index] = makeInvalidMeshID();
-    _data.render_sources[index] = BX_RDI_NULL_HANDLE;
+    _data.actor_id [index] = makeInvalidMeshID();
+    _data.meshes[index].i = 0;
     _data.materials     [index] = {};
     
     if( _data.num_instances[index] > 1 )
@@ -206,10 +214,10 @@ void SceneImpl::_AllocateData( u32 newCapacity, bxAllocator* allocator )
 {
     u32 mem_size = 0;
     mem_size += newCapacity * sizeof( *_data.matrices );
-    mem_size += newCapacity * sizeof( *_data.render_sources );
+    mem_size += newCapacity * sizeof( *_data.meshes );
     mem_size += newCapacity * sizeof( *_data.materials );
     mem_size += newCapacity * sizeof( *_data.num_instances );
-    mem_size += newCapacity * sizeof( *_data.mesh_instance );
+    mem_size += newCapacity * sizeof( *_data.actor_id );
     mem_size += newCapacity * sizeof( *_data.names );
 
     void* mem = BX_MALLOC( allocator, mem_size, 16 );
@@ -222,20 +230,20 @@ void SceneImpl::_AllocateData( u32 newCapacity, bxAllocator* allocator )
     
     bxBufferChunker chunker( mem, mem_size );
     new_data.matrices       = chunker.add< MeshMatrix >( newCapacity );
-    new_data.render_sources = chunker.add< rdi::RenderSource >( newCapacity );
+    new_data.meshes         = chunker.add< MeshHandle >( newCapacity );
     new_data.materials      = chunker.add< MaterialID >( newCapacity );
     new_data.num_instances  = chunker.add< u32 >( newCapacity );
-    new_data.mesh_instance  = chunker.add< ActorID >( newCapacity );
+    new_data.actor_id  = chunker.add< ActorID >( newCapacity );
     new_data.names          = chunker.add< char* >( newCapacity );
     chunker.check();
 
     if( _data.size )
     {
         BX_CONTAINER_COPY_DATA( &new_data, &_data, matrices );
-        BX_CONTAINER_COPY_DATA( &new_data, &_data, render_sources );
+        BX_CONTAINER_COPY_DATA( &new_data, &_data, meshes );
         BX_CONTAINER_COPY_DATA( &new_data, &_data, materials );
         BX_CONTAINER_COPY_DATA( &new_data, &_data, num_instances );
-        BX_CONTAINER_COPY_DATA( &new_data, &_data, mesh_instance );
+        BX_CONTAINER_COPY_DATA( &new_data, &_data, actor_id );
         BX_CONTAINER_COPY_DATA( &new_data, &_data, names );
     }
 
@@ -255,10 +263,10 @@ u32 SceneImpl::_GetIndex( ActorID mi )
 
 namespace bx { namespace gfx {
 
-void VertexTransformDataInit( VertexTransformData* vt, u32 maxInstances )
+void VertexTransformData::_Init( VertexTransformData* vt, u32 maxInstances )
 {
-    vt->_offset   = rdi::device::CreateConstantBuffer( sizeof( VertexTransformData::InstanceOffset ) );
-    vt->_world    = rdi::device::CreateBufferRO( maxInstances, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
+    vt->_offset = rdi::device::CreateConstantBuffer( sizeof( VertexTransformData::InstanceOffset ) );
+    vt->_world = rdi::device::CreateBufferRO( maxInstances, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
     vt->_world_it = rdi::device::CreateBufferRO( maxInstances, rdi::Format( rdi::EDataType::FLOAT, 3 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
 
     rdi::ResourceBinding bindings[] =
@@ -280,7 +288,7 @@ void VertexTransformDataInit( VertexTransformData* vt, u32 maxInstances )
     vt->_max_instances = maxInstances;
 }
 
-void VertexTransformDataDeinit( VertexTransformData* vt )
+void VertexTransformData::_Deinit( VertexTransformData* vt )
 {
     rdi::DestroyResourceDescriptor( &vt->_rdesc );
     rdi::device::DestroyBufferRO( &vt->_world_it );
@@ -354,5 +362,6 @@ rdi::Command* VertexTransformData::SetCurrent( rdi::CommandBuffer cmdBuff, u32 i
 
     return cmd;
 }
+
 
 }}///
