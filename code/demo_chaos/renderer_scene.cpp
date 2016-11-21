@@ -125,7 +125,7 @@ void SceneImpl::SetMesh( ActorID actorId, MeshHandle handle )
 //    _data.render_sources[index] = rs;
 //}
 
-void SceneImpl::SetMaterial( ActorID mi, MaterialID m )
+void SceneImpl::SetMaterial( ActorID mi, MaterialHandle m )
 {
     const u32 index = _GetIndex( mi );
     _data.materials[index] = m;
@@ -231,7 +231,7 @@ void SceneImpl::_AllocateData( u32 newCapacity, bxAllocator* allocator )
     bxBufferChunker chunker( mem, mem_size );
     new_data.matrices       = chunker.add< MeshMatrix >( newCapacity );
     new_data.meshes         = chunker.add< MeshHandle >( newCapacity );
-    new_data.materials      = chunker.add< MaterialID >( newCapacity );
+    new_data.materials      = chunker.add< MaterialHandle >( newCapacity );
     new_data.num_instances  = chunker.add< u32 >( newCapacity );
     new_data.actor_id  = chunker.add< ActorID >( newCapacity );
     new_data.names          = chunker.add< char* >( newCapacity );

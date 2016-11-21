@@ -277,7 +277,7 @@ public:
         _gfx_scene->SetMesh( _boxes, gfx::GMeshManager()->Find( ":box" ));
         _gfx_scene->SetMesh( _spheres, gfx::GMeshManager()->Find( ":sphere" ) );
 
-        gfx::MaterialID material_id = gfx::GMaterialManager()->Find( "red" );
+        gfx::MaterialHandle material_id = gfx::GMaterialManager()->Find( "red" );
         _gfx_scene->SetMaterial( _boxes, material_id );
         _gfx_scene->SetMaterial( _spheres, material_id );
         

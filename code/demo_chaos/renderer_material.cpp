@@ -1,4 +1,5 @@
 #include "renderer_material.h"
+#include <util\hash.h>
 
 namespace bx{ namespace gfx{
 
@@ -181,39 +182,65 @@ namespace bx{ namespace gfx{
 //
 ////////////////////////////////////////////////////////////////////////////
 
-
-MaterialID MaterialManager::Create( const char* name, const MaterialDesc& desc )
+namespace material_manager_internal
 {
-    MaterialID material_id = Find( name );
+    static const u32 HASH_SEED = bxTag32( "MATE" );
+    static inline u32 GenerateNameHash( const char* name )
+    {
+        return murmur3_hash32( name, (u32)strlen( name ), HASH_SEED );
+    }
+}///
+MaterialHandle MaterialManager::Create( const char* name, const MaterialDesc& desc )
+{
+    MaterialHandle material_id = Find( name );
     if( IsValid( material_id ) )
     {
         return material_id;
     }
 
-    ResourceManager* resource_manager = GResourceManager();
 
-    ResourceID resource_id = ResourceManager::createResourceID( name, "material" );
-    bool create_material = false;
-    _lock.lock();
-    ResourcePtr resource_ptr = resource_manager->acquireResource( resource_id );
-    if( !resource_ptr )
-    {
-        id_t id = id_table::create( _id_to_index );
-        GResourceManager()->insertResource( resource_id, ResourcePtr( id.hash ) );
-        material_id.i = id.hash;
-        create_material = true;
-    }
-    else
-    {
-        material_id.i = (u32)resource_ptr;             
-    }
-    _lock.unlock();
 
-    if( create_material )
+    //ResourceManager* resource_manager = GResourceManager();
+
+    //ResourceID resource_id = ResourceManager::createResourceID( name, "material" );
+    //bool create_material = false;
+    //_lock.lock();
+    //ResourcePtr resource_ptr = resource_manager->acquireResource( resource_id );
+    //if( !resource_ptr )
+    //{
+    //    id_t id = id_table::create( _id_to_index );
+    //    GResourceManager()->insertResource( resource_id, ResourcePtr( id.hash ) );
+    //    material_id.i = id.hash;
+    //    create_material = true;
+    //}
+    //else
+    //{
+    //    material_id.i = (u32)resource_ptr;             
+    //}
+    //_lock.unlock();
+    const u32 hashed_name = material_manager_internal::GenerateNameHash( name );
+
+    {
+        bxScopeBenaphore lock( _lock );
+        material_id = Find( name );
+        if( IsValid( material_id ) )
+        {
+            return material_id;
+        }
+        else
+        {
+            id_t id = id_table::create( _id_to_index );
+            material_id = MakeMaterial( id );
+            _hashed_names[id.index] = hashed_name;
+        }
+    }
+    
+    if( IsValid( material_id ) )
     {
         const bool use_textures = desc.textures.diffuse_tex != nullptr;
 
         id_t id = MakeId( material_id );
+        
         
         _data[id.index] = desc.data;
         _data_cbuffer[id.index] = rdi::device::CreateConstantBuffer( sizeof( MaterialData ), &desc.data );
@@ -247,16 +274,17 @@ MaterialID MaterialManager::Create( const char* name, const MaterialDesc& desc )
     return material_id;
 }
 
-void MaterialManager::Destroy( MaterialID materialId )
+void MaterialManager::Destroy( MaterialHandle materialId )
 {
     if( !IsValid( materialId ) )
         return;
 
-    int references_left = GResourceManager()->releaseResource( ResourcePtr( materialId.i ) );
-    if (references_left == 0 )
+    //int references_left = GResourceManager()->releaseResource( ResourcePtr( materialId.i ) );
+    //if (references_left == 0 )
     {
         id_t id = MakeId( materialId );
-        
+        _hashed_names[id.index] = 0;
+
         MaterialTextureHandles& htexture = _textures[id.index];
         if( GTextureManager()->Alive( htexture.diffuse_tex ) )
         {
@@ -278,25 +306,39 @@ void MaterialManager::Destroy( MaterialID materialId )
 
 void MaterialManager::DestroyByName( const char* name )
 {
-    MaterialID m = Find( name );
+    MaterialHandle m = Find( name );
     Destroy( m );
 }
 
-MaterialID MaterialManager::Find( const char* name )
+MaterialHandle MaterialManager::Find( const char* name )
 {
-    MaterialID id;
-    
-    ResourceID resource_id = ResourceManager::createResourceID( name, "material" );
-    ResourcePtr resource_ptr = GResourceManager()->acquireResource( resource_id );
-    if( resource_ptr )
+    MaterialHandle id;
+
+    const u32 hashed_name = material_manager_internal::GenerateNameHash( name );
+
+    for( u32 i = 0; i < MAX_COUNT; ++i )
     {
-        id.i = (u32)resource_ptr;
+        if( _hashed_names[i] == 0 )
+            continue;
+
+        if( _hashed_names[i] == hashed_name )
+        {
+            id = MakeMaterial( id_table::id( _id_to_index, i ) );
+            break;
+        }
     }
+
+    //ResourceID resource_id = ResourceManager::createResourceID( name, "material" );
+    //ResourcePtr resource_ptr = GResourceManager()->acquireResource( resource_id );
+    //if( resource_ptr )
+    //{
+    //    id.i = (u32)resource_ptr;
+    //}
 
     return id;
 }
 
-MaterialPipeline MaterialManager::Pipeline( MaterialID materialId ) const
+MaterialPipeline MaterialManager::Pipeline( MaterialHandle materialId ) const
 {
     id_t id = MakeId( materialId );
     SYS_ASSERT( id_table::has( _id_to_index, id ) );
@@ -304,39 +346,39 @@ MaterialPipeline MaterialManager::Pipeline( MaterialID materialId ) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-MaterialManager* g_material_manager1 = nullptr;
+MaterialManager* g_material_manager = nullptr;
 void MaterialManager::_StartUp()
 {
-    SYS_ASSERT( g_material_manager1 == nullptr );
-    g_material_manager1 = BX_NEW( bxDefaultAllocator(), MaterialManager );
+    SYS_ASSERT( g_material_manager == nullptr );
+    g_material_manager = BX_NEW( bxDefaultAllocator(), MaterialManager );
+    
 
     rdi::ShaderFile* sfile = rdi::ShaderFileLoad( "shader/bin/deffered.shader", GResourceManager() );
-    
     rdi::PipelineDesc pipeline_desc = {};
 
     pipeline_desc.Shader( sfile, "geometry_notexture" );
-    g_material_manager1->_pipeline_notex = rdi::CreatePipeline( pipeline_desc );
-    SYS_ASSERT( g_material_manager1->_pipeline_notex != BX_RDI_NULL_HANDLE );
+    g_material_manager->_pipeline_notex = rdi::CreatePipeline( pipeline_desc );
+    SYS_ASSERT( g_material_manager->_pipeline_notex != BX_RDI_NULL_HANDLE );
 
     pipeline_desc.Shader( sfile, "geometry_texture" );
-    g_material_manager1->_pipeline_tex = rdi::CreatePipeline( pipeline_desc );
-    SYS_ASSERT( g_material_manager1->_pipeline_tex != BX_RDI_NULL_HANDLE );
+    g_material_manager->_pipeline_tex = rdi::CreatePipeline( pipeline_desc );
+    SYS_ASSERT( g_material_manager->_pipeline_tex != BX_RDI_NULL_HANDLE );
 }
 
 void MaterialManager::_ShutDown()
 {
-    SYS_ASSERT( g_material_manager1 != nullptr );
+    SYS_ASSERT( g_material_manager != nullptr );
     
     {
-        rdi::DestroyPipeline( &g_material_manager1->_pipeline_tex );
-        rdi::DestroyPipeline( &g_material_manager1->_pipeline_notex );
+        rdi::DestroyPipeline( &g_material_manager->_pipeline_tex );
+        rdi::DestroyPipeline( &g_material_manager->_pipeline_notex );
     }
 
-    BX_DELETE0( bxDefaultAllocator(), g_material_manager1 );
+    BX_DELETE0( bxDefaultAllocator(), g_material_manager );
 }
 MaterialManager* GMaterialManager()
 {
-    return g_material_manager1;
+    return g_material_manager;
 }
 
 

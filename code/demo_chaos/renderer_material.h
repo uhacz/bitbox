@@ -8,7 +8,7 @@
 #include <util/id_table.h>
 #include <util/string_util.h>
 
-#include <resource_manager/resource_manager.h>
+//#include <resource_manager/resource_manager.h>
 
 #include <rdi/rdi.h>
 
@@ -63,20 +63,20 @@ struct MaterialPipeline
 class MaterialManager
 {
 public:
-    MaterialID Create( const char* name, const MaterialDesc& desc );
-    void Destroy( MaterialID id );
+    MaterialHandle Create( const char* name, const MaterialDesc& desc );
+    void Destroy( MaterialHandle id );
     void DestroyByName( const char* name );
-    MaterialID Find( const char* name );
+    MaterialHandle Find( const char* name );
     
-    MaterialPipeline Pipeline( MaterialID id ) const;
+    MaterialPipeline Pipeline( MaterialHandle id ) const;
 
     //////////////////////////////////////////////////////////////////////////
     static void _StartUp();
     static void _ShutDown();
 
 private:
-    inline id_t MakeId( MaterialID m ) const { return make_id( m.i ); }
-    inline MaterialID MakeMaterial( id_t id ) const { MaterialID m; m.i = id.hash; return m; }
+    inline id_t MakeId( MaterialHandle m ) const { return make_id( m.i ); }
+    inline MaterialHandle MakeMaterial( id_t id ) const { MaterialHandle m; m.i = id.hash; return m; }
 
     static const u8 MAX_COUNT = 128;
     id_table_t< MAX_COUNT > _id_to_index;
@@ -85,6 +85,7 @@ private:
     rdi::ConstantBuffer      _data_cbuffer[MAX_COUNT] = {};
     MaterialTextureHandles   _textures[MAX_COUNT] = {};
     u32                      _hashed_names[MAX_COUNT] = {};
+
 
     rdi::Pipeline _pipeline_tex = BX_RDI_NULL_HANDLE;
     rdi::Pipeline _pipeline_notex = BX_RDI_NULL_HANDLE;

@@ -99,8 +99,8 @@ public:
         SetData( handle, (uptr)data );
     }
 
-    static HandleManager* _StartUp();
-    static void _ShutDown( HandleManager** handleManager );
+    static void _StartUp();
+    static void _ShutDown();
 
 private:
     static const u32 MAX_HANDLES = 16*1024;

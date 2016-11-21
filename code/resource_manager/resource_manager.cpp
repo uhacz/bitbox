@@ -332,16 +332,16 @@ void HandleManager::Destroy( Handle handle )
 }
 
 static HandleManager* g_handle_manager = nullptr;
-HandleManager* HandleManager::_StartUp()
+void HandleManager::_StartUp()
 {
+    SYS_ASSERT( g_handle_manager == nullptr );
     g_handle_manager = BX_NEW( bxDefaultAllocator(), HandleManager );
-    return g_handle_manager;
 }
 
-void HandleManager::_ShutDown( HandleManager** handleManager )
+void HandleManager::_ShutDown()
 {
-    SYS_ASSERT( *handleManager == g_handle_manager );
-    BX_DELETE0( bxDefaultAllocator(), handleManager[0] );
+    SYS_ASSERT( g_handle_manager != nullptr );
+    BX_DELETE0( bxDefaultAllocator(), g_handle_manager );
 }
 
 }///

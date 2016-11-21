@@ -30,7 +30,7 @@ struct SceneImpl
 
     //void SetRenderSource( ActorID mi, rdi::RenderSource rs );
     void SetMesh( ActorID actorId, MeshHandle handle );
-    void SetMaterial( ActorID mi, MaterialID m );
+    void SetMaterial( ActorID mi, MaterialHandle m );
     void SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
 
     void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Camera& camera );
@@ -45,11 +45,10 @@ private:
     {
         void*                _memory_handle = nullptr;
         MeshMatrix*          matrices = nullptr;
-        //rdi::RenderSource*   render_sources = nullptr;
         MeshHandle*          meshes = nullptr;
-        MaterialID*          materials = nullptr;
+        MaterialHandle*      materials = nullptr;
         u32*                 num_instances = nullptr;
-        ActorID*              actor_id = nullptr;
+        ActorID*             actor_id = nullptr;
         char**               names = nullptr;
 
         u32                  size = 0;

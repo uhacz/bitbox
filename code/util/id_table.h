@@ -62,6 +62,14 @@ namespace id_table
     }
 
     template <BX_ID_TABLE_T_DEF>
+    inline id_t id( const id_table_t<BX_ID_TABLE_T_ARG>& a, u32 index )
+    {
+        SYS_ASSERT( index < MAX );
+        SYS_ASSERT( a._ids[index].index == index );
+        return a._ids[index];
+    }
+
+    template <BX_ID_TABLE_T_DEF>
     inline u16 size( const id_table_t<BX_ID_TABLE_T_ARG>& a )
     {
         return a._size;

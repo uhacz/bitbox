@@ -66,7 +66,9 @@ class GeometryPass
 public:
     void PrepareScene( Scene scene );
     void Flush( rdi::CommandQueue* cmdq );
-    
+
+    static void _StartUp( GeometryPass** pass );
+    static void _ShutDown( GeometryPass** pass );
 private:
     struct FrameData
     {
@@ -76,18 +78,21 @@ private:
 
     rdi::RenderTarget _rtarget_gbuffer = BX_RDI_NULL_HANDLE;
 
-    rdi::Pipeline _pipeline_geometry_notex = BX_RDI_NULL_HANDLE;
-    rdi::Pipeline _pipeline_geometry_tex = BX_RDI_NULL_HANDLE;
-
     rdi::ResourceDescriptor _rdesc_frame_data;
     rdi::ConstantBuffer _cbuffer_frame_data = {};
     gfx::VertexTransformData _vertex_transform_data;
-
     rdi::CommandBuffer _command_buffer;
 };
-void StartUp( GeometryPass** pass );
-void ShutDown( GeometryPass** pass );
+
 //////////////////////////////////////////////////////////////////////////
+
+class LightPass
+{
+public:
+private:
+    
+
+};
 
 struct PostProcessPass
 {

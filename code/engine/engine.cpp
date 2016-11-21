@@ -18,6 +18,7 @@ void Engine::startup( Engine* e, const StartupInfo& info )
     bxWindow* win = bxWindow_get();
     const char* assetDir = bxConfig::global_string( "assetDir" );
     e->resource_manager = ResourceManager::startup( assetDir );
+    HandleManager::_StartUp();
     
     if( info.start_gdi )
     {
@@ -83,6 +84,7 @@ void Engine::shutdown( Engine* e )
         gdi::backendShutdown( &e->gdi_device );
     }
 
+    HandleManager::_ShutDown();
     ResourceManager::shutdown( &e->resource_manager );
     
     bxConfig::global_deinit();
