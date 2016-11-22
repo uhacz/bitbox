@@ -212,3 +212,85 @@ void Renderer::RasterizeFramebuffer( rdi::CommandQueue* cmdq, const rdi::Resourc
 }
 
 }}///
+
+
+namespace bx{ namespace gfx{
+
+void GeometryPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera )
+{
+    {
+        FrameData fdata;
+        fdata._view = camera.view;
+        fdata._view_proj = camera.view_proj;
+
+        rdi::context::UpdateCBuffer( cmdq, _cbuffer_frame_data, &fdata );
+        //rdi::BindResources( cmdq, _rdesc_frame_data );
+    }
+
+    {
+        _vertex_transform_data.Map( cmdq );
+
+        rdi::ClearCommandBuffer( _command_buffer );
+        rdi::BeginCommandBuffer( _command_buffer );
+
+        scene->BuildCommandBuffer( _command_buffer, &_vertex_transform_data, camera );
+
+        rdi::EndCommandBuffer( _command_buffer );
+
+        _vertex_transform_data.Unmap( cmdq );
+    }
+}
+
+void GeometryPass::Flush( rdi::CommandQueue* cmdq )
+{
+    rdi::BindResources( cmdq, _rdesc_frame_data );
+    _vertex_transform_data.Bind( cmdq );
+    
+    rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 0.f, 0.f, 0.f, 0.f, 1.f );
+    rdi::BindRenderTarget( cmdq, _rtarget_gbuffer );
+
+    rdi::SubmitCommandBuffer( cmdq, _command_buffer );
+}
+
+void GeometryPass::_StartUp( GeometryPass* pass )
+{
+    {
+        rdi::RenderTargetDesc rt_desc = {};
+        rt_desc.Size( 1920, 1080 );
+        rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
+        rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
+        rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
+        rt_desc.Depth( rdi::EDataType::DEPTH32F );
+
+        pass->_rtarget_gbuffer = rdi::CreateRenderTarget( rt_desc );
+    }
+
+    {
+        pass->_cbuffer_frame_data = rdi::device::CreateConstantBuffer( sizeof( FrameData ) );
+        rdi::ResourceBinding binding = rdi::ResourceBinding( "frame_data", rdi::EBindingType::UNIFORM ).Slot( SLOT_FRAME_DATA ).StageMask( rdi::EStage::ALL_STAGES_MASK );
+        rdi::ResourceLayout layout = {};
+        layout.bindings = &binding;
+        layout.num_bindings = 1;
+        pass->_rdesc_frame_data = rdi::CreateResourceDescriptor( layout );
+        rdi::SetConstantBuffer( pass->_rdesc_frame_data, "frame_data", &pass->_cbuffer_frame_data );
+    }
+
+    {
+        pass->_command_buffer = rdi::CreateCommandBuffer();
+    }
+
+    VertexTransformData::_Init( &pass->_vertex_transform_data, 1024 );
+
+}
+
+void GeometryPass::_ShutDown( GeometryPass* pass )
+{
+    VertexTransformData::_Deinit( &pass->_vertex_transform_data );
+
+    rdi::DestroyCommandBuffer( &pass->_command_buffer );
+    rdi::DestroyResourceDescriptor( &pass->_rdesc_frame_data );
+    rdi::device::DestroyConstantBuffer( &pass->_cbuffer_frame_data );
+    rdi::DestroyRenderTarget( &pass->_rtarget_gbuffer );
+}
+
+}}///

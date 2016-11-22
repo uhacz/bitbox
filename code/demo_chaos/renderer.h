@@ -64,12 +64,16 @@ private:
 class GeometryPass
 {
 public:
-    void PrepareScene( Scene scene );
+    void PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
     void Flush( rdi::CommandQueue* cmdq );
 
-    static void _StartUp( GeometryPass** pass );
-    static void _ShutDown( GeometryPass** pass );
+    static void _StartUp( GeometryPass* pass );
+    static void _ShutDown( GeometryPass* pass );
+
+    rdi::RenderTarget GBuffer() const { return _rtarget_gbuffer; }
+
 private:
+
     struct FrameData
     {
         Matrix4 _view;
@@ -98,56 +102,6 @@ struct PostProcessPass
 {
 
 };
-
-
-//class Resources
-//{
-//public:
-//    TextureHandle1 CreateTextureFromFile( const char* filename, const char* shortName );
-//    void Destroy( TextureHandle1 h );
-//    bool Alive( TextureHandle1 h ) const;
-//    rdi::TextureRO Texture( TextureHandle1 h ) const;
-//    
-//    MaterialHandle CreateMaterialFromFile( const char* filename, const char* shortName );
-//    void Destroy( MaterialHandle h );
-//    bool Alive( MaterialHandle h ) const;
-//    MaterialPipeline Pipeline( MaterialHandle h ) const;
-//
-//    MeshHandle CreateMesh( const char* shortName );
-//    void Destroy( MeshHandle h );
-//    bool Alive( MeshHandle h ) const;
-//
-//    void SetRenderSource( MeshHandle h, rdi::RenderSource rsource );
-//    void SetLocalAABB( MeshHandle h, const bxAABB& aabb );
-//
-//    rdi::RenderSource RenderSource( MeshHandle h ) const;
-//    bxAABB LocalAABB( MeshHandle h ) const;
-//    
-//private:
-//    static inline TextureHandle1 MakeTextureHandle ( id_t id ) { TextureHandle1 h = { id.hash }; return h; }
-//    static inline MaterialHandle MakeMaterialHandle( id_t id ) { MaterialHandle h = { id.hash }; return h; }
-//    static inline MeshHandle     MakeMeshHandle    ( id_t id ) { MeshHandle     h = { id.hash }; return h; }
-//
-//    static const u32 MAX_TEXTURES = 128;
-//    static const u32 MAX_MATERIALS = 64;
-//    static const u32 MAX_MESHES = 256;
-//
-//    id_table_t<MAX_TEXTURES> _id_texture;
-//    id_table_t<MAX_MATERIALS> _id_material;
-//    id_table_t<MAX_MESHES> _id_mesh;
-//
-//    struct MaterialData
-//    {
-//        MaterialPipeline         _material_pipeline[MAX_MATERIALS] = {};
-//        MaterialData             _data[MAX_MATERIALS] = {};
-//        rdi::ConstantBuffer      _data_cbuffer[MAX_MATERIALS] = {};
-//        MaterialTextureHandles   _textures[MAX_MATERIALS] = {};
-//
-//        rdi::Pipeline _pipeline_tex = BX_RDI_NULL_HANDLE;
-//        rdi::Pipeline _pipeline_notex = BX_RDI_NULL_HANDLE;
-//    };
-//
-//};
 
 }}///
 
