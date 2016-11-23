@@ -14,11 +14,19 @@ passes:
             USE_TEXTURES = 1;
         };
     };
+
+    lighting = 
+    {
+        vertex = "vs_screenquad";
+        pixel = "ps_lighting";
+    };
+
 }; #~header
 
 #include <sys/vertex_transform.hlsl>
 #include <sys/material.hlsl>
 #include <sys/samplers.hlsl>
+
 struct in_VS
 {
     uint instanceID : SV_InstanceID;
