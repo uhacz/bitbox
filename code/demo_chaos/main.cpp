@@ -76,6 +76,7 @@ public:
         _renderer.StartUp( renderer_desc, _engine.resource_manager );
 
         gfx::GeometryPass::_StartUp( &_geometry_pass );
+        gfx::LightPass::_StartUp( &_light_pass );
 
         _camera.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
 
@@ -129,6 +130,7 @@ public:
         
         gfx::GMaterialManager()->DestroyByName( "red" );
 
+        gfx::LightPass::_ShutDown( &_light_pass );
         gfx::GeometryPass::_ShutDown( &_geometry_pass );
         _renderer.ShutDown( _engine.resource_manager );
 
@@ -196,7 +198,11 @@ public:
         _geometry_pass.PrepareScene( cmdq, _gfx_scene, _camera );
         _geometry_pass.Flush( cmdq );
 
-        rdi::TextureRW texture = rdi::GetTexture( _geometry_pass.GBuffer(), 2 );
+        _light_pass.PrepareScene( cmdq, _gfx_scene, _camera );
+        _light_pass.Flush( cmdq, _renderer.GetFramebuffer(), _geometry_pass.GBuffer() );
+
+        //rdi::TextureRW texture = rdi::GetTexture( _geometry_pass.GBuffer(), 2 );
+        rdi::TextureRW texture = _renderer.GetFramebuffer();
         _renderer.RasterizeFramebuffer( cmdq, texture, _camera, win->width, win->height );
 
         _renderer.EndFrame( cmdq );
@@ -225,6 +231,7 @@ public:
     bx::Engine _engine;
     gfx::Renderer _renderer;
     gfx::GeometryPass _geometry_pass;
+    gfx::LightPass _light_pass;
 
     gfx::Camera _camera = {};
     gfx::CameraInputContext _camera_input_ctx = {};

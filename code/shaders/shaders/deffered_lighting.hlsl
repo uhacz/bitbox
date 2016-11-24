@@ -22,13 +22,14 @@ shared
 cbuffer FrameData : register(BSLOT( SLOT_FRAME_DATA ) )
 {
     float3 sunColor;
-    float3 vsSunL;
+    float sunIntensity;
+    float3 vsSunL; // L means direction TO light
 };
 
 float3 ps_lighting(in_PS IN) : SV_Target0
 {
     const float sun_radius_over_distance = 0.00465;
-
+    float4 albedo_spec = gbuffer_albedo_spec.SampleLevel(_samp_point, IN.uv, 0.0);
     float3 vsPosition = gbuffer_vpos_rough.SampleLevel(_samp_point, IN.uv, 0.0).rgb;
     float3 vsNormal = gbuffer_vnrm_metal.SampleLevel( _samp_point, IN.uv, 0.0).rgb;
 
@@ -37,7 +38,8 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float3 P = vsSunL + D * saturate(sun_radius_over_distance * rsqrt(dot(D, D)) );
     float3 specular_sun = normalize(P);
 
-    float3 diffuse_sun = saturate(dot(vsNormal, vsSunL)) * sunColor;
+    float3 diffuse_sun = saturate(dot(-vsNormal, vsSunL)) * sunColor;
+    //diffuse_sun *= albedo_spec.rgb;
 
-    return float4(specular_sun + diffuse_sun, 1.0);
+    return float4( diffuse_sun, 1.0);
 }

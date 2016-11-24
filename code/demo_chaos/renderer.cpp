@@ -211,6 +211,8 @@ void Renderer::RasterizeFramebuffer( rdi::CommandQueue* cmdq, const rdi::Resourc
 
 }
 
+
+
 }}///
 
 
@@ -293,4 +295,60 @@ void GeometryPass::_ShutDown( GeometryPass* pass )
     rdi::DestroyRenderTarget( &pass->_rtarget_gbuffer );
 }
 
+
+//////////////////////////////////////////////////////////////////////////
+void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera )
+{
+    {
+        FrameData fdata = {};
+        fdata.sun_color = float3_t( 1.0f, 1.0f, 1.0f );
+        fdata.sun_intensity = 1.f;
+
+        const Vector3 L = normalize( mulAsVec4( camera.view, Vector3( 1.f, 1.f, 0.f ) ) );
+        storeXYZ( L, fdata.vs_sun_L.xyz );
+
+        rdi::context::UpdateCBuffer( cmdq, _cbuffer_fdata, &fdata );
+    }
+}
+
+void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer )
+{
+    float rgbad[] = { 0.f, 0.f, 0.f, 0.f, 1.f };
+    rdi::context::ClearBuffers( cmdq, &outputTexture, 1, rdi::TextureDepth(), rgbad, 1, 0 );
+    rdi::context::ChangeRenderTargets( cmdq, &outputTexture, 1, rdi::TextureDepth() );
+
+    rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline );
+    rdi::SetResourceRO( rdesc, "gbuffer_albedo_spec", &rdi::GetTexture( gbuffer, 0 ) );
+    rdi::SetResourceRO( rdesc, "gbuffer_vpos_rough", &rdi::GetTexture( gbuffer, 1 ) );
+    rdi::SetResourceRO( rdesc, "gbuffer_vnrm_metal", &rdi::GetTexture( gbuffer, 2 ) );
+
+    rdi::BindPipeline( cmdq, _pipeline, true );
+
+    MeshHandle hmesh_fullscreen_quad = GMeshManager()->Find( ":fullscreen_quad" );
+    rdi::RenderSource rsource_fullscreen_quad = GMeshManager()->RenderSource( hmesh_fullscreen_quad );
+    rdi::BindRenderSource( cmdq, rsource_fullscreen_quad );
+    rdi::SubmitRenderSource( cmdq, rsource_fullscreen_quad );
+}
+
+void LightPass::_StartUp( LightPass* pass )
+{
+    rdi::ShaderFile* shf = rdi::ShaderFileLoad( "shader/bin/deffered_lighting.shader", GResourceManager() );
+
+    rdi::PipelineDesc pipeline_desc;
+    pipeline_desc.Shader( shf, "lighting" );
+
+    pass->_pipeline = rdi::CreatePipeline( pipeline_desc );
+    pass->_cbuffer_fdata = rdi::device::CreateConstantBuffer( sizeof( FrameData ), nullptr );
+
+    rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( pass->_pipeline );
+    rdi::SetConstantBuffer( rdesc, "FrameData", &pass->_cbuffer_fdata );
+
+    rdi::ShaderFileUnload( &shf, GResourceManager() );
+}
+
+void LightPass::_ShutDown( LightPass* pass )
+{
+    rdi::device::DestroyConstantBuffer( &pass->_cbuffer_fdata );
+    rdi::DestroyPipeline( &pass->_pipeline );
+}
 }}///

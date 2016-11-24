@@ -93,11 +93,27 @@ private:
 class LightPass
 {
 public:
+    void PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
+    void Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer );
+
+    static void _StartUp( LightPass* pass );
+    static void _ShutDown( LightPass* pass );
+
 private:
-    
+    struct FrameData
+    {
+        float3_t sun_color;
+        f32 sun_intensity;
+        float3_t vs_sun_L;
+        f32 padd_ = 0.f;
+    };
+
+    rdi::Pipeline _pipeline = BX_RDI_NULL_HANDLE;
+    rdi::ConstantBuffer _cbuffer_fdata = {};
 
 };
 
+//////////////////////////////////////////////////////////////////////////
 struct PostProcessPass
 {
 
