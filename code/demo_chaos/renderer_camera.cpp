@@ -1,4 +1,5 @@
 #include "renderer_camera.h"
+#include <util/camera.h>
 
 namespace bx{ namespace gfx{
 
@@ -30,7 +31,9 @@ void computeMatrices( Camera* cam )
     const float aspect = cam->aspect();
 
     cam->view = inverse( cam->world );
-    cam->proj = Matrix4::perspective( fov, aspect, cam->params.zNear, cam->params.zFar );
+    //cam->proj = Matrix4::perspective( fov, aspect, cam->params.zNear, cam->params.zFar );
+    cam->proj = cameraMatrixProjection( aspect, fov, cam->params.zNear, cam->params.zFar );
+    cam->proj = cameraMatrixProjectionDx11( cam->proj );
     cam->view_proj = cam->proj * cam->view;
 }
 

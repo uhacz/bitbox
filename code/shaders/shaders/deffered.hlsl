@@ -14,13 +14,6 @@ passes:
             USE_TEXTURES = 1;
         };
     };
-
-    lighting = 
-    {
-        vertex = "vs_screenquad";
-        pixel = "ps_lighting";
-    };
-
 }; #~header
 
 #include <sys/vertex_transform.hlsl>
@@ -41,8 +34,8 @@ struct in_VS
 struct in_PS
 {
     float4 hpos : SV_Position;
-    float3 vpos : TEXCOORD0;
-    float3 vnrm : TEXCOORD1;
+    float3 wpos : TEXCOORD0;
+    float3 wnrm : TEXCOORD1;
 #if defined(USE_TEXTURES)
     float2 texcoord : TEXCOORD2;
 #endif
@@ -51,8 +44,8 @@ struct in_PS
 struct out_PS
 {
     float4 albedo_spec  : SV_Target0;
-    float4 vpos_rough   : SV_Target1;
-    float4 vnrm_metal   : SV_Target2;
+    float4 wpos_rough   : SV_Target1;
+    float4 wnrm_metal   : SV_Target2;
 };
 
 shared
@@ -88,8 +81,11 @@ in_PS vs_geometry_main(in_VS IN)
 
     float4 wpos4 = float4( wpos, 1.0 );
     OUT.hpos = mul( _viewProj, wpos4 );
-    OUT.vpos = mul( _view, wpos4 ).xyz;
-    OUT.vnrm = mul( (float3x3) _view, wnrm );
+    OUT.wpos = wpos;
+    OUT.wnrm = wnrm;
+    //OUT.vpos = mul( _view, wpos4 ).xyz;
+    //OUT.vnrm = mul( (float3x3) _view, wnrm );
+
 #if defined(USE_TEXTURES)
     OUT.texcoord = IN.texcoord;
 #endif
@@ -112,12 +108,12 @@ out_PS ps_geometry_main( in_PS IN )
     metallic_value *= metallic_tex.Sample( _samp_point, uv ).r;
 #endif
 
-    float3 vN = normalize( IN.vnrm );
+    float3 N = normalize( IN.wnrm );
 
     out_PS OUT = (out_PS)0;
     OUT.albedo_spec = float4( albedo_value.rbg, specular_value );
-    OUT.vpos_rough = float4( IN.vpos, roughness_value );
-    OUT.vnrm_metal = float4( vN, metallic_value );
+    OUT.wpos_rough = float4( IN.wpos, roughness_value );
+    OUT.wnrm_metal = float4( N, metallic_value );
 
     return OUT;
 }

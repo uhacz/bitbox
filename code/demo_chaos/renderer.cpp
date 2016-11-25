@@ -301,10 +301,12 @@ void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera
 {
     {
         FrameData fdata = {};
+        storeXYZ( camera.worldEye(), fdata.camera_eye.xyz );
         fdata.sun_color = float3_t( 1.0f, 1.0f, 1.0f );
         fdata.sun_intensity = 1.f;
 
-        const Vector3 L = normalize( mulAsVec4( camera.view, Vector3( 1.f, 1.f, 0.f ) ) );
+        //const Vector3 L = normalize( mulAsVec4( camera.view, Vector3( 1.f, 1.f, 0.f ) ) );
+        const Vector3 L = normalize( Vector3( 1.f, 1.f, 0.f ) );
         storeXYZ( L, fdata.vs_sun_L.xyz );
 
         rdi::context::UpdateCBuffer( cmdq, _cbuffer_fdata, &fdata );
@@ -319,8 +321,8 @@ void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rd
 
     rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline );
     rdi::SetResourceRO( rdesc, "gbuffer_albedo_spec", &rdi::GetTexture( gbuffer, 0 ) );
-    rdi::SetResourceRO( rdesc, "gbuffer_vpos_rough", &rdi::GetTexture( gbuffer, 1 ) );
-    rdi::SetResourceRO( rdesc, "gbuffer_vnrm_metal", &rdi::GetTexture( gbuffer, 2 ) );
+    rdi::SetResourceRO( rdesc, "gbuffer_wpos_rough", &rdi::GetTexture( gbuffer, 1 ) );
+    rdi::SetResourceRO( rdesc, "gbuffer_wnrm_metal", &rdi::GetTexture( gbuffer, 2 ) );
 
     rdi::BindPipeline( cmdq, _pipeline, true );
 
