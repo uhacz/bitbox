@@ -78,13 +78,13 @@ public:
         gfx::GeometryPass::_StartUp( &_geometry_pass );
         gfx::LightPass::_StartUp( &_light_pass );
 
-        _camera.world = Matrix4::translation( Vector3( 0.f, 0.f, 5.f ) );
+        _camera.world = Matrix4( Matrix3::rotationY(PI), Vector3( 0.f, 0.f,-5.f ) );
 
         {
             gfx::MaterialDesc mat_desc;
             mat_desc.data.diffuse_color = float3_t( 1.f, 0.f, 0.f );
-            mat_desc.data.diffuse = 0.4f;
-            mat_desc.data.roughness = 0.5f;
+            mat_desc.data.diffuse = 0.5f;
+            mat_desc.data.roughness = 0.2f;
             mat_desc.data.specular = 0.1f;
             mat_desc.data.metallic = 0.0f;
 
@@ -97,16 +97,16 @@ public:
 
         Matrix4 box_instances[ NUM_INSTANCES ] = 
         {
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 0.f, 0.f ) ),
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 0.f, 0.f, 0.f ) ),
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 4, 0.f ) ), Vector3(-2.f, 0.f, 0.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 2.f, 2.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 2.f, 0.f, 2.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 4, 0.f ) ), Vector3( 2.f, -2.f, 2.f ) ),
         };
 
         Matrix4 sph_instances[ NUM_INSTANCES ] = 
         {
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 2.f, 2.f, 0.f ) ),
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 0.f, 0.f, -2.f ) ),
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f,-2.f, 0.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f, 2.f,-2.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f, 0.f,-2.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f,-2.f,-2.f ) ),
         };
 
         _gfx_scene->SetMatrices( _boxes, box_instances, NUM_INSTANCES );

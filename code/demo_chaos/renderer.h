@@ -104,10 +104,12 @@ private:
     {
         float3_t camera_eye;
         f32 padd0_ = 0.f;
+        float3_t camera_dir;
+        f32 padd1_ = 0.f;
         float3_t sun_color;
         f32 sun_intensity;
         float3_t vs_sun_L;
-        f32 padd1_ = 0.f;
+        f32 padd2_ = 0.f;
     };
 
     rdi::Pipeline _pipeline = BX_RDI_NULL_HANDLE;

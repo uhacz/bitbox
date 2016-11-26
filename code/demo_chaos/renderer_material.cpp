@@ -197,9 +197,7 @@ MaterialHandle MaterialManager::Create( const char* name, const MaterialDesc& de
     {
         return material_id;
     }
-
-
-
+    
     //ResourceManager* resource_manager = GResourceManager();
 
     //ResourceID resource_id = ResourceManager::createResourceID( name, "material" );

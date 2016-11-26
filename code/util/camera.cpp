@@ -6,6 +6,28 @@ namespace bx{ namespace gfx{
 
     Matrix4 cameraMatrixProjection( float aspect, float fov, float znear, float zfar )
     {
+        //const float scale = 1.f / ::tan(  fov * 0.5f );
+        //const float z_range = zfar - znear;
+        //const float z_range_inv = 1.f / z_range;
+        ////const float z_remap_a = ( zfar ) * z_range_inv;
+        ////const float z_remap_b = ( zfar * znear ) * z_range_inv;
+
+        //const float z_remap_a = (zfar)* z_range_inv;
+        //const float z_remap_b = ( zfar * znear ) * z_range_inv;
+
+        //Vector4 x( scale / aspect, 0.f, 0.f, 0.f );
+        //Vector4 y( 0.f, scale, 0.f, 0.f );
+        //Vector4 z( 0.f, 0.f, z_remap_a, 1.f );
+        //Vector4 w( 0.f, 0.f,-z_remap_b, 0.f );
+
+        //const Matrix4 test = Matrix4::perspective( fov, aspect, znear, zfar );
+        //const Matrix4 persp = Matrix4( x, y, z, w );
+
+
+        //Vector4 a = persp * Vector4( -1.f, 1.f, znear, 1.f );a /= a.getW();
+        //Vector4 b = persp * Vector4( 1.f, -1.f, zfar, 1.f ); b /= b.getW();
+        //Vector4 c = persp * Vector4( 0.f, 0.f, znear, 1.f ); c /= c.getW();
+        //return persp;
         return Matrix4::perspective( fov, aspect, znear, zfar );
     }
 

@@ -302,11 +302,12 @@ void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera
     {
         FrameData fdata = {};
         storeXYZ( camera.worldEye(), fdata.camera_eye.xyz );
+        storeXYZ( camera.worldDir(), fdata.camera_dir.xyz );
         fdata.sun_color = float3_t( 1.0f, 1.0f, 1.0f );
         fdata.sun_intensity = 1.f;
 
         //const Vector3 L = normalize( mulAsVec4( camera.view, Vector3( 1.f, 1.f, 0.f ) ) );
-        const Vector3 L = normalize( Vector3( 1.f, 1.f, 0.f ) );
+        const Vector3 L = normalize( Vector3( 1.f, 1.f, 1.f ) );
         storeXYZ( L, fdata.vs_sun_L.xyz );
 
         rdi::context::UpdateCBuffer( cmdq, _cbuffer_fdata, &fdata );
