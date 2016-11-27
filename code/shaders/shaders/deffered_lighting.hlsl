@@ -88,5 +88,11 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float3 diffuse = albedo_spec.rgb * ( 1.0f - f );
     float3 color = ( specular.xxx + diffuse * PI_RCP ) * NdotL;
 
+    float ambientCoeff = 0.015f;
+    float NdotL_ambient = saturate( -dot( N, -L ) ) * ambientCoeff * 0.1 + ambientCoeff;
+    float3 ambient = NdotL_ambient * albedo_spec.rgb * PI_RCP;
+    
+    color += ambient;
+    
     return float4( color, 1.0 );
 }

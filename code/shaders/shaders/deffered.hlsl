@@ -111,7 +111,7 @@ out_PS ps_geometry_main( in_PS IN )
     float3 N = normalize( IN.wnrm );
 
     out_PS OUT = (out_PS)0;
-    OUT.albedo_spec = float4( albedo_value.rbg, specular_value );
+    OUT.albedo_spec = float4( albedo_value.rgb, specular_value );
     OUT.wpos_rough = float4( IN.wpos, roughness_value );
     OUT.wnrm_metal = float4( N, metallic_value );
 

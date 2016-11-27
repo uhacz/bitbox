@@ -87,8 +87,19 @@ public:
             mat_desc.data.roughness = 0.2f;
             mat_desc.data.specular = 0.1f;
             mat_desc.data.metallic = 0.0f;
-
             gfx::GMaterialManager()->Create( "red", mat_desc );
+
+            mat_desc.data.diffuse_color = float3_t( 0.f, 1.f, 0.f );
+            mat_desc.data.roughness = 0.1f;
+            mat_desc.data.specular = 0.1f;
+            mat_desc.data.metallic = 0.0f;
+            gfx::GMaterialManager()->Create( "green", mat_desc );
+
+            mat_desc.data.diffuse_color = float3_t( 0.f, 0.f, 1.f );
+            mat_desc.data.roughness = 0.6f;
+            mat_desc.data.specular = 0.01f;
+            mat_desc.data.metallic = 0.0f;
+            gfx::GMaterialManager()->Create( "blue", mat_desc );
         }
 
         _gfx_scene = _renderer.CreateScene( "test" );
@@ -99,7 +110,7 @@ public:
         {
             Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 2.f, 2.f ) ),
             Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 2.f, 0.f, 2.f ) ),
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 4, 0.f ) ), Vector3( 2.f, -2.f, 2.f ) ),
+            appendScale( Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 0.f, -3.f, 0.f ) ), Vector3( 10.f, 0.1f, 10.f ) ),
         };
 
         Matrix4 sph_instances[ NUM_INSTANCES ] = 
@@ -117,6 +128,8 @@ public:
 
         gfx::MaterialHandle material_id = gfx::GMaterialManager()->Find( "red" );
         _gfx_scene->SetMaterial( _boxes, material_id );
+
+        material_id = gfx::GMaterialManager()->Find( "green" );
         _gfx_scene->SetMaterial( _spheres, material_id );
         
         return true;
@@ -129,6 +142,8 @@ public:
         _renderer.DestroyScene( &_gfx_scene );
         
         gfx::GMaterialManager()->DestroyByName( "red" );
+        gfx::GMaterialManager()->DestroyByName( "green" );
+        gfx::GMaterialManager()->DestroyByName( "blue" );
 
         gfx::LightPass::_ShutDown( &_light_pass );
         gfx::GeometryPass::_ShutDown( &_geometry_pass );
