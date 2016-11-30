@@ -824,7 +824,7 @@ namespace context
 
 
     void ClearState( CommandQueue* cmdq );
-    void ClearBuffers( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, TextureDepth depthTex, float rgbad[5], int flag_color, int flag_depth );
+    void ClearBuffers( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, TextureDepth depthTex, const float rgbad[5], int flag_color, int flag_depth );
 
     void Swap( CommandQueue* cmdq );
     void GenerateMipmaps( CommandQueue* cmdq, TextureRW texture );

@@ -17,7 +17,7 @@
 
 #define MATERIAL_TEXTURES _MATERIAL_TEXTURES( texture2D )
 
-#ifdef BX_CPP
+#ifdef __cplusplus
     #define MATERIAL_TEXTURES_CPP _MATERIAL_TEXTURES( const char* )
     #define MATERIAL_TEXTURE_HANDLES_CPP _MATERIAL_TEXTURES( bx::gfx::TextureHandle )
 

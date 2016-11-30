@@ -210,8 +210,13 @@ void Renderer::RasterizeFramebuffer( rdi::CommandQueue* cmdq, const rdi::Resourc
     rdi::SubmitRenderSource( cmdq, rsource_fullscreen_quad );
 
 }
-
-
+void Renderer::DrawFullScreenQuad( rdi::CommandQueue* cmdq )
+{
+    MeshHandle hmesh_fullscreen_quad = GMeshManager()->Find( ":fullscreen_quad" );
+    rdi::RenderSource rsource_fullscreen_quad = GMeshManager()->RenderSource( hmesh_fullscreen_quad );
+    rdi::BindRenderSource( cmdq, rsource_fullscreen_quad );
+    rdi::SubmitRenderSource( cmdq, rsource_fullscreen_quad );
+}
 
 }}///
 
@@ -326,11 +331,7 @@ void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rd
     rdi::SetResourceRO( rdesc, "gbuffer_wnrm_metal", &rdi::GetTexture( gbuffer, 2 ) );
 
     rdi::BindPipeline( cmdq, _pipeline, true );
-
-    MeshHandle hmesh_fullscreen_quad = GMeshManager()->Find( ":fullscreen_quad" );
-    rdi::RenderSource rsource_fullscreen_quad = GMeshManager()->RenderSource( hmesh_fullscreen_quad );
-    rdi::BindRenderSource( cmdq, rsource_fullscreen_quad );
-    rdi::SubmitRenderSource( cmdq, rsource_fullscreen_quad );
+    Renderer::DrawFullScreenQuad( cmdq );
 }
 
 void LightPass::_StartUp( LightPass* pass )
@@ -354,4 +355,125 @@ void LightPass::_ShutDown( LightPass* pass )
     rdi::device::DestroyConstantBuffer( &pass->_cbuffer_fdata );
     rdi::DestroyPipeline( &pass->_pipeline );
 }
+
+//////////////////////////////////////////////////////////////////////////
+static void ChangeTargetAndClear( rdi::CommandQueue* cmdq, rdi::TextureRW texture, const float clearColor[5] )
+{
+    rdi::context::ChangeRenderTargets( cmdq, &texture, 1, rdi::TextureDepth() );
+    rdi::context::ClearBuffers( cmdq, &texture, 1, rdi::TextureDepth(), clearColor, 1, 0 );
+}
+void PostProcessPass::_StartUp( PostProcessPass* pass )
+{
+    // --- ToneMapping
+    {
+        PostProcessPass::ToneMapping& tm = pass->_tm;
+        PostProcessPass::ToneMapping::MaterialData& data = tm.data;
+        data.input_size0 = float2_t( 0.f, 0.f );
+        data.delta_time = 1.f / 60.f;
+        
+        data.bloom_thresh = 0.f;
+        data.bloom_blur_sigma = 0.f;
+        data.bloom_magnitude = 0.f;
+        
+        data.lum_tau = 15.f;
+        data.auto_exposure_key_value = 0.30f;
+        data.use_auto_exposure = 1;
+        data.camera_aperture = 16.f;
+        data.camera_shutterSpeed = 0.01f;
+        data.camera_iso = 200.f;
+
+        tm.cbuffer_data = rdi::device::CreateConstantBuffer( sizeof( PostProcessPass::ToneMapping::MaterialData ), &data );
+        
+        const int lumiTexSize = 1024;
+        tm.adapted_luminance[0] = rdi::device::CreateTexture2D( lumiTexSize, lumiTexSize, 11, rdi::Format( rdi::EDataType::FLOAT, 1 ), rdi::EBindMask::RENDER_TARGET | rdi::EBindMask::SHADER_RESOURCE, 0, 0 );
+        tm.adapted_luminance[1] = rdi::device::CreateTexture2D( lumiTexSize, lumiTexSize, 11, rdi::Format( rdi::EDataType::FLOAT, 1 ), rdi::EBindMask::RENDER_TARGET | rdi::EBindMask::SHADER_RESOURCE, 0, 0 );
+        tm.initial_luminance = rdi::device::CreateTexture2D( lumiTexSize, lumiTexSize, 1, rdi::Format( rdi::EDataType::FLOAT, 1 ), rdi::EBindMask::RENDER_TARGET | rdi::EBindMask::SHADER_RESOURCE, 0, 0 );
+
+        rdi::ShaderFile* sf = rdi::ShaderFileLoad( "shader/bin/tone_mapping.shader", GResourceManager() );
+        
+        rdi::ResourceDescriptor rdesc = BX_RDI_NULL_HANDLE;
+        rdi::PipelineDesc pipeline_desc = {};
+        
+        {
+            pipeline_desc.Shader( sf, "luminance_map" );
+            tm.pipeline_luminance_map = rdi::CreatePipeline( pipeline_desc );
+        }
+
+        {
+            pipeline_desc.Shader( sf, "adapt_luminance" );
+            tm.pipeline_adapt_luminance = rdi::CreatePipeline( pipeline_desc );
+            rdesc = rdi::GetResourceDescriptor( tm.pipeline_adapt_luminance );
+            rdi::SetConstantBuffer( rdesc, "MaterialData", &tm.cbuffer_data );
+        }
+
+        {
+            pipeline_desc.Shader( sf, "composite" );
+            tm.pipeline_composite = rdi::CreatePipeline( pipeline_desc );
+            rdesc = rdi::GetResourceDescriptor( tm.pipeline_composite );
+            rdi::SetConstantBuffer( rdesc, "MaterialData", &tm.cbuffer_data );
+        }
+    }
+}
+
+void PostProcessPass::_ShutDown( PostProcessPass* pass )
+{
+    // --- ToneMapping
+    {
+        PostProcessPass::ToneMapping& tm = pass->_tm;
+        rdi::DestroyPipeline( &tm.pipeline_composite );
+        rdi::DestroyPipeline( &tm.pipeline_adapt_luminance );
+        rdi::DestroyPipeline( &tm.pipeline_luminance_map );
+    
+        rdi::device::DestroyTexture( &tm.initial_luminance );
+        rdi::device::DestroyTexture( &tm.adapted_luminance[1] );
+        rdi::device::DestroyTexture( &tm.adapted_luminance[0] );
+
+        rdi::device::DestroyConstantBuffer( &tm.cbuffer_data );
+    }
+}
+
+void PostProcessPass::DoToneMapping( rdi::CommandQueue* cmdq, rdi::TextureRW outTexture, rdi::TextureRW inTexture, float deltaTime )
+{
+    // --- ToneMapping
+    {
+        _tm.data.input_size0 = float2_t( (float)outTexture.width, (float)outTexture.height );
+        _tm.data.delta_time = deltaTime;
+        rdi::context::UpdateCBuffer( cmdq, _tm.cbuffer_data, &_tm.cbuffer_data );
+
+
+        const float clear_color[5] = { 0.f, 0.f, 0.f, 0.f, 1.0f };
+
+        { // --- LuminanceMap
+            ChangeTargetAndClear( cmdq, _tm.initial_luminance, clear_color );
+            
+            rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _tm.pipeline_luminance_map );
+            rdi::SetResourceRO( rdesc, "_tex_input0", &inTexture );
+            rdi::BindPipeline( cmdq, _tm.pipeline_luminance_map, true );
+            Renderer::DrawFullScreenQuad( cmdq );
+        }
+
+        { // --- AdaptLuminance
+            ChangeTargetAndClear( cmdq, _tm.CurrLuminanceTexture(), clear_color );
+            rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _tm.pipeline_adapt_luminance );
+            rdi::SetResourceRO( rdesc, "_tex_input0", &_tm.PrevLuminanceTexture() );
+            rdi::SetResourceRO( rdesc, "_tex_input1", &_tm.initial_luminance );
+            rdi::BindPipeline( cmdq, _tm.pipeline_adapt_luminance, true );
+            Renderer::DrawFullScreenQuad( cmdq );
+        }
+
+        { // --- Composite
+            ChangeTargetAndClear( cmdq, outTexture, clear_color );
+            rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _tm.pipeline_composite );
+            rdi::SetResourceRO( rdesc, "_tex_input0", &inTexture );
+            rdi::SetResourceRO( rdesc, "_tex_input1", &_tm.CurrLuminanceTexture() );
+            rdi::BindPipeline( cmdq, _tm.pipeline_composite, true );
+            Renderer::DrawFullScreenQuad( cmdq );
+        }
+    
+        _tm.current_luminance_texture = !_tm.current_luminance_texture;
+    }
+
+
+}
+
 }}///

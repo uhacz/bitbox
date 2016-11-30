@@ -3,9 +3,6 @@
 #include <util/type.h>
 #include <rdi/rdi_type.h>
 
-#ifndef BX_CPP
-#define BX_CPP
-#endif
 #include <shaders/shaders/sys/binding_map.h>
 
 

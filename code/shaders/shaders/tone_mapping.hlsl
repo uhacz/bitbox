@@ -76,31 +76,14 @@ passes:
     };
 };#~header
 
-#include <sys/frame_data.hlsl>
 #include <sys/vs_screenquad.hlsl>
+#include <sys/samplers.hlsl>
+#include <sys/binding_map.h>
+#include <sys/tone_mapping_data.h>
 
-
-Texture2D _tex_input0 : register( t0 );
-Texture2D _tex_input1 : register( t1 );
-Texture2D _tex_input2 : register( t2 );
-
-SamplerState _samp_point  : register( s0 );
-SamplerState _samp_linear : register( s1 );
-
-shared cbuffer MaterialData : register(b3)
-{
-    float2 input_size0;
-    float delta_time;
-    float bloom_thresh;
-    float bloom_blur_sigma;
-    float bloom_magnitude;
-    float lum_tau;
-    float auto_exposure_key_value;
-    float camera_aperture;
-    float camera_shutterSpeed;
-    float camera_iso;
-    int useAutoExposure;
-};
+Texture2D tex_input0 : register( t0 );
+Texture2D tex_input1 : register( t1 );
+Texture2D tex_input2 : register( t2 );
 
 /*
 * Get an exposure using the Saturation-based Speed method.
@@ -182,7 +165,7 @@ float3 Tone_map_filmic_ALU( float3 color )
 float3 Calc_exposed_color( float3 color, float avgLuminance, float threshold, out float exposure )
 {    
     float EV100 = computeEV100( camera_aperture, camera_shutterSpeed, camera_iso );    float autoEV100 = computeEV100FromAvgLuminance( avgLuminance );
-    float currentEV = (useAutoExposure) ? autoEV100 : EV100;
+    float currentEV = (use_auto_exposure) ? autoEV100 : EV100;
 
     exposure = convertEV100ToExposure( currentEV );    
     exposure -= threshold;
@@ -225,7 +208,7 @@ float4 Blur(in out_VS_screenquad input, float2 tex_scale, float sigma )
 		float weight = Calc_gaussian_weight( i, sigma );
         float2 texcoord = input.uv;
 		texcoord += ( i * input_size_inv ) * tex_scale;
-		float4 sample = _tex_input0.Sample( _samp_point, texcoord );
+		float4 sample = tex_input0.Sample( _samp_point, texcoord );
 		color += sample * weight;
     }
 
@@ -241,10 +224,10 @@ float4 PS_bloom_threshold(in out_VS_screenquad input) : SV_Target
 {             
     float3 color = 0;
 
-    color = _tex_input0.Sample( _samp_linear, input.uv ).rgb;
+    color = tex_input0.Sample( _samp_linear, input.uv ).rgb;
 
     // Tone map it to threshold
-    float avg_luminance = Get_avg_luminance( _tex_input1, input.uv );
+    float avg_luminance = Get_avg_luminance( tex_input1, input.uv );
 	float exposure = 0;
     color = Tone_map( color, avg_luminance, bloom_thresh, exposure );
     
@@ -254,7 +237,7 @@ float4 PS_bloom_threshold(in out_VS_screenquad input) : SV_Target
 // Uses hw bilinear filtering for upscaling or downscaling
 float4 PS_scale(in out_VS_screenquad input) : SV_Target
 {
-    return _tex_input0.Sample( _samp_linear, input.uv );
+    return tex_input0.Sample( _samp_linear, input.uv );
 }
 
 // Horizontal gaussian blur
@@ -275,13 +258,13 @@ void PS_composite(in out_VS_screenquad input,
 				out float4 output_color    : SV_Target0 )
 {
     // Tone map the primary input
-    float avg_luminance = Get_avg_luminance( _tex_input1, input.uv );
-    float3 color = _tex_input0.Sample( _samp_point, input.uv ).rgb;
+    float avg_luminance = Get_avg_luminance( tex_input1, input.uv );
+    float3 color = tex_input0.Sample( _samp_point, input.uv ).rgb;
     float exposure = 0;
 	color = Tone_map(color, avg_luminance, 0, exposure);
 #ifdef WITH_BLOOM
     // Sample the bloom
-    float3 bloom = _tex_input2.Sample( _samp_linear, input.uv ).rgb;
+    float3 bloom = tex_input2.Sample( _samp_linear, input.uv ).rgb;
     bloom = bloom * bloom_magnitude;
 
     // Add in the bloom
@@ -294,7 +277,7 @@ void PS_composite(in out_VS_screenquad input,
 float4 PS_luminance_map(in out_VS_screenquad input) : SV_Target
 {
     // Sample the input
-    float3 color = _tex_input0.Sample(_samp_linear, input.uv ).rgb;
+    float3 color = tex_input0.Sample(_samp_linear, input.uv ).rgb;
    
     // calculate the luminance using a weighted average
     float luminance = Calc_luminance( color );
@@ -304,8 +287,8 @@ float4 PS_luminance_map(in out_VS_screenquad input) : SV_Target
 // Slowly adjusts the scene luminance based on the previous scene luminance
 float4 PS_adapt_luminance(in out_VS_screenquad input) : SV_Target
 {
-    float last_lum    = exp( _tex_input0.Sample( _samp_point, input.uv ).x );
-    float current_lum = _tex_input1.Sample( _samp_point, input.uv ).x;
+    float last_lum    = exp( tex_input0.Sample( _samp_point, input.uv ).x );
+    float current_lum = tex_input1.Sample( _samp_point, input.uv ).x;
        
     // Adapt the luminance using Pattanaik's technique    
     float adapted_lum = last_lum + ( current_lum - last_lum ) * ( 1 - exp( -delta_time * lum_tau ) );

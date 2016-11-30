@@ -34,7 +34,7 @@ public:
     rdi::TextureRW GetFramebuffer() const { return rdi::GetTexture( _render_target, 0 ); }
     
     void RasterizeFramebuffer( rdi::CommandQueue* cmdq, const rdi::ResourceRO source, const Camera& camera, u32 windowW, u32 windowH );
-
+    static void DrawFullScreenQuad( rdi::CommandQueue* cmdq );
     //SharedMeshContainer& GetSharedMesh() { return _shared_mesh; }
     
 private:
@@ -125,8 +125,32 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
-struct PostProcessPass
+class PostProcessPass
 {
+public:
+    static void _StartUp( PostProcessPass* pass );
+    static void _ShutDown( PostProcessPass* pass );
+
+    void DoToneMapping( rdi::CommandQueue* cmdq, rdi::TextureRW outTexture, rdi::TextureRW inTexture, float deltaTime );
+
+private:
+    struct ToneMapping
+    {
+    #include <shaders/shaders/sys/tone_mapping_data.h>
+        MaterialData data;
+
+        rdi::TextureRW adapted_luminance[2] = {};
+        rdi::TextureRW initial_luminance = {};
+        rdi::Pipeline pipeline_luminance_map = BX_RDI_NULL_HANDLE;
+        rdi::Pipeline pipeline_adapt_luminance = BX_RDI_NULL_HANDLE;
+        rdi::Pipeline pipeline_composite = BX_RDI_NULL_HANDLE;
+        rdi::ConstantBuffer cbuffer_data = {};
+        u32 current_luminance_texture = 0;
+
+        rdi::TextureRW CurrLuminanceTexture() { return adapted_luminance[current_luminance_texture]; }
+        rdi::TextureRW PrevLuminanceTexture() { return adapted_luminance[!current_luminance_texture]; }
+
+    }_tm;
 
 };
 

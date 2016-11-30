@@ -1546,7 +1546,7 @@ void ClearState( CommandQueue* cmdq )
 {
     cmdq->dx11()->ClearState();
 }
-void ClearBuffers( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, TextureDepth depthTex, float rgbad[5], int flag_color, int flag_depth )
+void ClearBuffers( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, TextureDepth depthTex, const float rgbad[5], int flag_color, int flag_depth )
 {
     const int SLOT_COUNT = cMAX_RENDER_TARGETS;
     SYS_ASSERT( nColor < SLOT_COUNT );

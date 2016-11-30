@@ -62,8 +62,7 @@ passes:
 
 Texture2D gtexture : register(t0);
 Texture2D gtexture1 : register( t1 );
-//SamplerState gsampler : register(s0);
-//SamplerState gsampler1 : register( s1 );
+
 
 float3 ps_copy_rgb( in_PS IN ) : SV_Target0
 {

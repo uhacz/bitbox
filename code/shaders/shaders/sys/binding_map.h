@@ -25,10 +25,22 @@
 #define TSLOT( slot ) t##slot
 #define SSLOT( slot ) s##slot
 
-#ifndef BX_CPP
+#ifndef __cplusplus
 #define TREGISTER( slot ) : register( TSLOT( slot ) )
+#define BREGISTER( slot ) : register( BSLOT( slot ) )
+#define CBUFFER shared cbuffer
+
 #else
+
+typedef float2_t float2;
+typedef float3_t float3;
+typedef float4_t float4;
+typedef u32 uint;
+
+
 #define TREGISTER( slot ) = {}
+#define BREGISTER( slot )
+#define CBUFFER struct
 #endif
 
 
