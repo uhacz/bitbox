@@ -18,6 +18,16 @@ struct RendererDesc
 //////////////////////////////////////////////////////////////////////////
 struct ActorHandleManager;
 //////////////////////////////////////////////////////////////////////////
+
+namespace EFramebuffer
+{
+    enum Enum
+    {
+        COLOR,
+        SWAP,
+    };
+}//
+
 class Renderer
 {
 public:
@@ -31,7 +41,7 @@ public:
     void EndFrame( rdi::CommandQueue* command_queue );
 
     const RendererDesc& GetDesc() const { return _desc; }
-    rdi::TextureRW GetFramebuffer() const { return rdi::GetTexture( _render_target, 0 ); }
+    rdi::TextureRW GetFramebuffer( EFramebuffer::Enum index ) const { return rdi::GetTexture( _render_target, index ); }
     
     void RasterizeFramebuffer( rdi::CommandQueue* cmdq, const rdi::ResourceRO source, const Camera& camera, u32 windowW, u32 windowH );
     static void DrawFullScreenQuad( rdi::CommandQueue* cmdq );
@@ -107,18 +117,7 @@ public:
     static void _ShutDown( LightPass* pass );
 
 private:
-    struct FrameData
-    {
-        float3_t camera_eye;
-        f32 padd0_ = 0.f;
-        float3_t camera_dir;
-        f32 padd1_ = 0.f;
-        float3_t sun_color;
-        f32 sun_intensity;
-        float3_t vs_sun_L;
-        f32 padd2_ = 0.f;
-    };
-
+#include <shaders/shaders/sys/deffered_lighting_data.h>
     rdi::Pipeline _pipeline = BX_RDI_NULL_HANDLE;
     rdi::ConstantBuffer _cbuffer_fdata = {};
 

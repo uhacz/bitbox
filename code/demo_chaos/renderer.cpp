@@ -28,7 +28,9 @@ void Renderer::StartUp( const RendererDesc& desc, ResourceManager* resourceManag
     {
         rdi::RenderTargetDesc rt_desc = {};
         rt_desc.Size( desc.framebuffer_width, desc.framebuffer_height );
-        rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
+        rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) ); // COLOR
+        rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) ); // SWAP
+        
         
         _render_target = rdi::CreateRenderTarget( rt_desc );
     }
@@ -253,8 +255,8 @@ void GeometryPass::Flush( rdi::CommandQueue* cmdq )
     rdi::BindResources( cmdq, _rdesc_frame_data );
     _vertex_transform_data.Bind( cmdq );
     
-    rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 0.f, 0.f, 0.f, 0.f, 1.f );
     rdi::BindRenderTarget( cmdq, _rtarget_gbuffer );
+    rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 5000.f, 6000.f, 8000.f, 1000.f, 1.f );
 
     rdi::SubmitCommandBuffer( cmdq, _command_buffer );
 }
@@ -274,12 +276,12 @@ void GeometryPass::_StartUp( GeometryPass* pass )
 
     {
         pass->_cbuffer_frame_data = rdi::device::CreateConstantBuffer( sizeof( FrameData ) );
-        rdi::ResourceBinding binding = rdi::ResourceBinding( "frame_data", rdi::EBindingType::UNIFORM ).Slot( SLOT_FRAME_DATA ).StageMask( rdi::EStage::ALL_STAGES_MASK );
+        rdi::ResourceBinding binding = rdi::ResourceBinding( "FrameData", rdi::EBindingType::UNIFORM ).Slot( SLOT_FRAME_DATA ).StageMask( rdi::EStage::ALL_STAGES_MASK );
         rdi::ResourceLayout layout = {};
         layout.bindings = &binding;
         layout.num_bindings = 1;
         pass->_rdesc_frame_data = rdi::CreateResourceDescriptor( layout );
-        rdi::SetConstantBuffer( pass->_rdesc_frame_data, "frame_data", &pass->_cbuffer_frame_data );
+        rdi::SetConstantBuffer( pass->_rdesc_frame_data, "FrameData", &pass->_cbuffer_frame_data );
     }
 
     {
@@ -305,25 +307,26 @@ void GeometryPass::_ShutDown( GeometryPass* pass )
 void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera )
 {
     {
-        FrameData fdata = {};
-        storeXYZ( camera.worldEye(), fdata.camera_eye.xyz );
-        storeXYZ( camera.worldDir(), fdata.camera_dir.xyz );
-        fdata.sun_color = float3_t( 1.0f, 1.0f, 1.0f );
-        fdata.sun_intensity = 1.f;
+        LightPass::MaterialData mdata = {};
+        storeXYZ( camera.worldEye(), mdata.camera_eye.xyzw );
+        storeXYZ( camera.worldDir(), mdata.camera_dir.xyzw );
+        mdata.sun_color = float4_t( 1.0f, 1.0f, 1.0f, 1.0 );
+        mdata.sun_intensity = 110000.f;
+        mdata.sky_intensity = 30000.f;
 
         //const Vector3 L = normalize( mulAsVec4( camera.view, Vector3( 1.f, 1.f, 0.f ) ) );
         const Vector3 L = normalize( Vector3( 1.f, 1.f, 1.f ) );
-        storeXYZ( L, fdata.vs_sun_L.xyz );
+        storeXYZ( L, mdata.sun_L.xyzw );
 
-        rdi::context::UpdateCBuffer( cmdq, _cbuffer_fdata, &fdata );
+        rdi::context::UpdateCBuffer( cmdq, _cbuffer_fdata, &mdata );
     }
 }
 
 void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer )
 {
-    float rgbad[] = { 0.f, 0.f, 0.f, 0.f, 1.f };
-    rdi::context::ClearBuffers( cmdq, &outputTexture, 1, rdi::TextureDepth(), rgbad, 1, 0 );
+    float rgbad[] = { 0.0f, 0.0f, 0.0f, 1.f, 1.f };
     rdi::context::ChangeRenderTargets( cmdq, &outputTexture, 1, rdi::TextureDepth() );
+    rdi::context::ClearBuffers( cmdq, &outputTexture, 1, rdi::TextureDepth(), rgbad, 1, 0 );
 
     rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline );
     rdi::SetResourceRO( rdesc, "gbuffer_albedo_spec", &rdi::GetTexture( gbuffer, 0 ) );
@@ -342,10 +345,10 @@ void LightPass::_StartUp( LightPass* pass )
     pipeline_desc.Shader( shf, "lighting" );
 
     pass->_pipeline = rdi::CreatePipeline( pipeline_desc );
-    pass->_cbuffer_fdata = rdi::device::CreateConstantBuffer( sizeof( FrameData ), nullptr );
+    pass->_cbuffer_fdata = rdi::device::CreateConstantBuffer( sizeof( LightPass::MaterialData ), nullptr );
 
     rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( pass->_pipeline );
-    rdi::SetConstantBuffer( rdesc, "FrameData", &pass->_cbuffer_fdata );
+    rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer_fdata );
 
     rdi::ShaderFileUnload( &shf, GResourceManager() );
 }
@@ -447,7 +450,7 @@ void PostProcessPass::DoToneMapping( rdi::CommandQueue* cmdq, rdi::TextureRW out
             ChangeTargetAndClear( cmdq, _tm.initial_luminance, clear_color );
             
             rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _tm.pipeline_luminance_map );
-            rdi::SetResourceRO( rdesc, "_tex_input0", &inTexture );
+            rdi::SetResourceRO( rdesc, "tex_input0", &inTexture );
             rdi::BindPipeline( cmdq, _tm.pipeline_luminance_map, true );
             Renderer::DrawFullScreenQuad( cmdq );
         }
@@ -455,17 +458,19 @@ void PostProcessPass::DoToneMapping( rdi::CommandQueue* cmdq, rdi::TextureRW out
         { // --- AdaptLuminance
             ChangeTargetAndClear( cmdq, _tm.CurrLuminanceTexture(), clear_color );
             rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _tm.pipeline_adapt_luminance );
-            rdi::SetResourceRO( rdesc, "_tex_input0", &_tm.PrevLuminanceTexture() );
-            rdi::SetResourceRO( rdesc, "_tex_input1", &_tm.initial_luminance );
+            rdi::SetResourceRO( rdesc, "tex_input0", &_tm.PrevLuminanceTexture() );
+            rdi::SetResourceRO( rdesc, "tex_input1", &_tm.initial_luminance );
             rdi::BindPipeline( cmdq, _tm.pipeline_adapt_luminance, true );
             Renderer::DrawFullScreenQuad( cmdq );
+
+            rdi::context::GenerateMipmaps( cmdq, _tm.CurrLuminanceTexture() );
         }
 
         { // --- Composite
             ChangeTargetAndClear( cmdq, outTexture, clear_color );
             rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _tm.pipeline_composite );
-            rdi::SetResourceRO( rdesc, "_tex_input0", &inTexture );
-            rdi::SetResourceRO( rdesc, "_tex_input1", &_tm.CurrLuminanceTexture() );
+            rdi::SetResourceRO( rdesc, "tex_input0", &inTexture );
+            rdi::SetResourceRO( rdesc, "tex_input1", &_tm.CurrLuminanceTexture() );
             rdi::BindPipeline( cmdq, _tm.pipeline_composite, true );
             Renderer::DrawFullScreenQuad( cmdq );
         }

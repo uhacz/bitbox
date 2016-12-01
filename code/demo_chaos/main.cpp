@@ -206,7 +206,8 @@ public:
         }
 
         gfx::computeMatrices( &_camera );
-        rdi::Viewport screen_viewport = gfx::computeViewport( _camera, win->width, win->height, 1920, 1080 );
+        const gfx::RendererDesc& renderer_desc = _renderer.GetDesc();
+        rdi::Viewport screen_viewport = gfx::computeViewport( _camera, win->width, win->height, renderer_desc.framebuffer_width, renderer_desc.framebuffer_height );
 
         rdi::CommandQueue* cmdq = nullptr;
         rdi::frame::Begin( &cmdq );
@@ -216,13 +217,17 @@ public:
         _geometry_pass.Flush( cmdq );
 
         _light_pass.PrepareScene( cmdq, _gfx_scene, _camera );
-        _light_pass.Flush( cmdq, _renderer.GetFramebuffer(), _geometry_pass.GBuffer() );
+        _light_pass.Flush( cmdq, _renderer.GetFramebuffer( gfx::EFramebuffer::SWAP ), _geometry_pass.GBuffer() );
+
+
+        rdi::TextureRW srcColor = _renderer.GetFramebuffer( gfx::EFramebuffer::SWAP );
+        rdi::TextureRW dstColor = _renderer.GetFramebuffer( gfx::EFramebuffer::COLOR );
+        _post_pass.DoToneMapping( cmdq, dstColor, srcColor, deltaTime );
+
 
         //rdi::TextureRW texture = rdi::GetTexture( _geometry_pass.GBuffer(), 2 );
 
-
-
-        rdi::TextureRW texture = _renderer.GetFramebuffer();
+        rdi::TextureRW texture = dstColor;
         _renderer.RasterizeFramebuffer( cmdq, texture, _camera, win->width, win->height );
 
         _renderer.EndFrame( cmdq );
