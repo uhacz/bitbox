@@ -11,6 +11,7 @@ CBUFFER MaterialData BREGISTER( SLOT_MATERIAL_DATA )
     float bloom_magnitude;
 
     float lum_tau;
+    //float adaptation_rate;
     float auto_exposure_key_value;
     int use_auto_exposure;
 

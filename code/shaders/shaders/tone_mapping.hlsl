@@ -136,7 +136,8 @@ float Calc_luminance(float3 color)
 // Retrieves the log-average lumanaince from the texture
 float Get_avg_luminance(Texture2D tex_lum, float2 uv )
 {
-	return exp( tex_lum.SampleLevel( _samp_linear, uv, 10.f ).x );
+	//return exp( tex_lum.SampleLevel( _samp_linear, uv, 10.f ).x );
+    return max( exp( tex_lum.Load( int3( 0, 0, 9 ) ).x ), 0.01 );
 }
 
 float3 ACESFilm(float3 x)
@@ -289,9 +290,8 @@ float4 PS_adapt_luminance(in out_VS_screenquad input) : SV_Target
 {
     float last_lum    = exp( tex_input0.Sample( _samp_point, input.uv ).x );
     float current_lum = tex_input1.Sample( _samp_point, input.uv ).x;
-       
-    // Adapt the luminance using Pattanaik's technique    
-    float adapted_lum = last_lum + ( current_lum - last_lum ) * ( 1 - exp( -delta_time * lum_tau ) );
-
-    return float4( log( adapted_lum ).xxxx );
+    
+    float adapted_lum = last_lum + ( current_lum - last_lum ) * ( 1.f - exp( -delta_time * lum_tau ) );
+    //float adapted_lum = last_lum - last_lum * adaptation_rate + current_lum * adaptation_rate; // above equation rewritten to allow better instruction scheduling
+    return log( max( adapted_lum, 0.001 ) );
 }

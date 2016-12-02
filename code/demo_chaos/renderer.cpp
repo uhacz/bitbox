@@ -256,7 +256,8 @@ void GeometryPass::Flush( rdi::CommandQueue* cmdq )
     _vertex_transform_data.Bind( cmdq );
     
     rdi::BindRenderTarget( cmdq, _rtarget_gbuffer );
-    rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 5000.f, 6000.f, 8000.f, 1000.f, 1.f );
+    //rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 5000.f, 6000.f, 8000.f, 1000.f, 1.f );
+    rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 0.5f, 0.6f, 0.8f, 1.f, 1.f );
 
     rdi::SubmitCommandBuffer( cmdq, _command_buffer );
 }
@@ -379,6 +380,7 @@ void PostProcessPass::_StartUp( PostProcessPass* pass )
         data.bloom_magnitude = 0.f;
         
         data.lum_tau = 15.f;
+        //data.adaptation_rate = 0.5f;
         data.auto_exposure_key_value = 0.30f;
         data.use_auto_exposure = 1;
         data.camera_aperture = 16.f;
@@ -439,9 +441,11 @@ void PostProcessPass::DoToneMapping( rdi::CommandQueue* cmdq, rdi::TextureRW out
 {
     // --- ToneMapping
     {
+        //SYS_STATIC_ASSERT( sizeof( PostProcessPass::ToneMapping::MaterialData ) == 44 );
         _tm.data.input_size0 = float2_t( (float)outTexture.width, (float)outTexture.height );
         _tm.data.delta_time = deltaTime;
-        rdi::context::UpdateCBuffer( cmdq, _tm.cbuffer_data, &_tm.cbuffer_data );
+        //_tm.data.adaptation_rate = adaptationRate;
+        rdi::context::UpdateCBuffer( cmdq, _tm.cbuffer_data, &_tm.data );
 
 
         const float clear_color[5] = { 0.f, 0.f, 0.f, 0.f, 1.0f };
@@ -477,8 +481,6 @@ void PostProcessPass::DoToneMapping( rdi::CommandQueue* cmdq, rdi::TextureRW out
     
         _tm.current_luminance_texture = !_tm.current_luminance_texture;
     }
-
-
 }
 
 }}///

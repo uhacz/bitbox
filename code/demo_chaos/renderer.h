@@ -132,7 +132,7 @@ public:
 
     void DoToneMapping( rdi::CommandQueue* cmdq, rdi::TextureRW outTexture, rdi::TextureRW inTexture, float deltaTime );
 
-private:
+
     struct ToneMapping
     {
     #include <shaders/shaders/sys/tone_mapping_data.h>
