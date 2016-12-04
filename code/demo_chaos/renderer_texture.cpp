@@ -47,7 +47,13 @@ TextureHandle TextureManager::CreateFromFile( const char* fileName )
             bxFS::File file = resource_manager->readFileSync( fileName );
             if( file.ok() )
             {
-                ptr[0] = rdi::device::CreateTexture( file.bin, file.size );
+                if( strstr( fileName, ".dds" ) )
+                    ptr[0] = rdi::device::CreateTextureFromDDS( file.bin, file.size );
+                else if( strstr( fileName, ".hdr" ) )
+                    ptr[0] = rdi::device::CreateTextureFromHDR( file.bin, file.size );
+                else
+                    SYS_NOT_IMPLEMENTED;
+
             }
             file.release();
         }

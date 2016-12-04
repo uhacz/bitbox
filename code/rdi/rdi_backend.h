@@ -753,7 +753,8 @@ namespace device
     //Shader CreateShader( int stage, const void* codeBlob, size_t codeBlobSizee, ShaderReflection* reflection = 0 );
     ShaderPass CreateShaderPass( const ShaderPassCreateInfo& info );
 
-    TextureRO    CreateTexture       ( const void* dataBlob, size_t dataBlobSize );
+    TextureRO    CreateTextureFromDDS( const void* dataBlob, size_t dataBlobSize );
+    TextureRO    CreateTextureFromHDR( const void* dataBlob, size_t dataBlobSize );
     TextureRW    CreateTexture1D     ( int w, int mips, Format format, unsigned bindFlags, unsigned cpuaFlags, const void* data );
     TextureRW    CreateTexture2D     ( int w, int h, int mips, Format format, unsigned bindFlags, unsigned cpuaFlags, const void* data );
     TextureDepth CreateTexture2Ddepth( int w, int h, int mips, EDataType::Enum dataType );

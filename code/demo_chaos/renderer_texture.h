@@ -27,7 +27,7 @@ private:
 
     static const u32 MAX_TEXTURES = 64;
     bxDynamicPoolAllocator _allocator;
-    bxBenaphore _lock;
+    bxRecursiveBenaphore _lock;
 };
 
 TextureManager* GTextureManager();

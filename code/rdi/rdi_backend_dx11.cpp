@@ -1,6 +1,7 @@
 #include "rdi_backend_dx11.h"
 #include "rdi_shader_reflection.h"
-#include "DDSTextureLoader.h"
+//#include "DDSTextureLoader.h"
+#include "DirectXTex/DirectXTex.h"
 
 #include <util/memory.h>
 #include <util/hash.h>
@@ -560,30 +561,54 @@ ShaderPass device::CreateShaderPass( const ShaderPassCreateInfo& info )
     return pass;
 }
 
-
-TextureRO CreateTexture( const void* dataBlob, size_t dataBlobSize )
+TextureRO CreateTextureFromDDS( const void* dataBlob, size_t dataBlobSize )
 {
     ID3D11Resource* resource = 0;
     ID3D11ShaderResourceView* srv = 0;
-    //HRESULT hres = D3DX11CreateTextureFromMemory( device::get(dev), data_blob, data_blob_size, 0, 0, &resource, 0 );
 
-    HRESULT hres = DirectX::CreateDDSTextureFromMemory( g_device, (const u8*)dataBlob, dataBlobSize, &resource, &srv );
+    DirectX::ScratchImage scratch_img = {};
+    DirectX::TexMetadata tex_metadata = {};
+
+    HRESULT hres = DirectX::LoadFromDDSMemory( dataBlob, dataBlobSize, DirectX::DDS_FLAGS_NONE, &tex_metadata, scratch_img );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+    
+    TextureRO tex;
+    hres = DirectX::CreateTexture( g_device, scratch_img.GetImages(), scratch_img.GetImageCount(), tex_metadata, &tex.resource );
     SYS_ASSERT( SUCCEEDED( hres ) );
 
-    ID3D11Texture2D* tex2D = (ID3D11Texture2D*)resource;
-    D3D11_TEXTURE2D_DESC desc = {};
-    tex2D->GetDesc( &desc );
+    hres = DirectX::CreateShaderResourceView( g_device, scratch_img.GetImages(), scratch_img.GetImageCount(), tex_metadata, &tex.viewSH );
+    SYS_ASSERT( SUCCEEDED( hres ) );
 
-    TextureRO tex;
-
-    tex.resource = resource;
-    tex.viewSH = srv;
-
-    tex.width = (u16)desc.Width;
-    tex.height = (u16)desc.Height;
-    tex.depth = 0;
+    tex.width = (u16)tex_metadata.width;
+    tex.height = (u16)tex_metadata.height;
+    tex.depth = (u16)tex_metadata.depth;
     return tex;
 }
+TextureRO device::CreateTextureFromHDR( const void* dataBlob, size_t dataBlobSize )
+{
+    ID3D11Resource* resource = 0;
+    ID3D11ShaderResourceView* srv = 0;
+
+    DirectX::ScratchImage scratch_img = {};
+    DirectX::TexMetadata tex_metadata = {};
+
+    HRESULT hres = DirectX::LoadFromHDRMemory( dataBlob, dataBlobSize, &tex_metadata, scratch_img );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    TextureRO tex;
+    hres = DirectX::CreateTexture( g_device, scratch_img.GetImages(), scratch_img.GetImageCount(), tex_metadata, &tex.resource );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    hres = DirectX::CreateShaderResourceView( g_device, scratch_img.GetImages(), scratch_img.GetImageCount(), tex_metadata, &tex.viewSH );
+    SYS_ASSERT( SUCCEEDED( hres ) );
+
+    tex.width = (u16)tex_metadata.width;
+    tex.height = (u16)tex_metadata.height;
+    tex.depth = (u16)tex_metadata.depth;
+    return tex;
+}
+
+
 TextureRW CreateTexture1D( int w, int mips, Format format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
 {
     const DXGI_FORMAT dx_format = to_DXGI_FORMAT( format );
@@ -673,8 +698,8 @@ TextureRW CreateTexture1D( int w, int mips, Format format, unsigned bindFlags, u
     tex.viewUA = view_ua;
     tex.viewRT = view_rt;
     tex.width = w;
-    tex.height = 0;
-    tex.depth = 0;
+    tex.height = 1;
+    tex.depth = 1;
     tex.format = format;
     return tex;
 }
@@ -769,7 +794,7 @@ TextureRW CreateTexture2D( int w, int h, int mips, Format format, unsigned bindF
     tex.viewRT = view_rt;
     tex.width = w;
     tex.height = h;
-    tex.depth = 0;
+    tex.depth = 1;
     tex.format = format;
     return tex;
 }
@@ -850,7 +875,7 @@ TextureDepth CreateTexture2Ddepth( int w, int h, int mips, EDataType::Enum dataT
     tex.viewSH = view_sh;
     tex.width = w;
     tex.height = h;
-    tex.depth = 0;
+    tex.depth = 1;
     tex.format = Format( dataType, 1 );
 
     return tex;
