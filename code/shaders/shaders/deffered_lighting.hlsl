@@ -18,6 +18,7 @@ passes:
 texture2D gbuffer_albedo_spec : register(t0);
 texture2D gbuffer_wpos_rough : register(t1);
 texture2D gbuffer_wnrm_metal : register(t2);
+textureCUBE skybox : register( t3 );
 
 #define PI	   (3.14159265f)
 #define PI_RCP (0.31830988618379067154f)
@@ -85,7 +86,9 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float NdotL_ambient = saturate( -dot( N, -L ) ) * ambientCoeff * 0.1 + ambientCoeff;
     float3 ambient = NdotL_ambient * albedo_spec.rgb * PI_RCP * sky_intensity;
     
+    float3 envColor = skybox.Sample( _samp_point, N ).rgb;
+
     color += ambient;
     
-    return float4( color, 1.0 );
+    return float4( envColor, 1.0 );
 }

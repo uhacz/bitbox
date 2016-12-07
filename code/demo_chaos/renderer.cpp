@@ -352,10 +352,13 @@ void LightPass::_StartUp( LightPass* pass )
     rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer_fdata );
 
     rdi::ShaderFileUnload( &shf, GResourceManager() );
+
+    pass->_sky_cubemap = GTextureManager()->CreateFromFile( "texture/sky_cubemap.DDS" );
 }
 
 void LightPass::_ShutDown( LightPass* pass )
 {
+    GTextureManager()->Release( pass->_sky_cubemap );
     rdi::device::DestroyConstantBuffer( &pass->_cbuffer_fdata );
     rdi::DestroyPipeline( &pass->_pipeline );
 }

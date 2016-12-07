@@ -121,6 +121,7 @@ private:
     rdi::Pipeline _pipeline = BX_RDI_NULL_HANDLE;
     rdi::ConstantBuffer _cbuffer_fdata = {};
 
+    TextureHandle _sky_cubemap = {};
 };
 
 //////////////////////////////////////////////////////////////////////////

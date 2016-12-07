@@ -133,8 +133,8 @@ public:
         material_id = gfx::GMaterialManager()->Find( "green" );
         _gfx_scene->SetMaterial( _spheres, material_id );
         
-        gfx::TextureHandle htex0 = gfx::GTextureManager()->CreateFromFile( "texture/kozak.dds" );
-        gfx::TextureHandle htex1 = gfx::GTextureManager()->CreateFromFile( "texture/skybox_texture_cubemap.DDS" );
+        //gfx::TextureHandle htex0 = gfx::GTextureManager()->CreateFromFile( "texture/kozak.dds" );
+        //gfx::TextureHandle htex1 = gfx::GTextureManager()->CreateFromFile( "texture/sky_cubemap.DDS" );
 
         return true;
     }
