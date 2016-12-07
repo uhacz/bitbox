@@ -134,7 +134,7 @@ public:
         _gfx_scene->SetMaterial( _spheres, material_id );
         
         gfx::TextureHandle htex0 = gfx::GTextureManager()->CreateFromFile( "texture/kozak.dds" );
-        gfx::TextureHandle htex1 = gfx::GTextureManager()->CreateFromFile( "texture/CGSkies_0171_free.hdr" );
+        gfx::TextureHandle htex1 = gfx::GTextureManager()->CreateFromFile( "texture/skybox_texture_cubemap.DDS" );
 
         return true;
     }
