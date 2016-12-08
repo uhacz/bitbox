@@ -257,7 +257,7 @@ void GeometryPass::Flush( rdi::CommandQueue* cmdq )
     
     rdi::BindRenderTarget( cmdq, _rtarget_gbuffer );
     //rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 5000.f, 6000.f, 8000.f, 1000.f, 1.f );
-    rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 0.5f, 0.6f, 0.8f, 1.f, 1.f );
+    rdi::ClearRenderTarget( cmdq, _rtarget_gbuffer, 0.f, 0.f, 0.f, 1.f, 1.f );
 
     rdi::SubmitCommandBuffer( cmdq, _command_buffer );
 }
@@ -270,7 +270,7 @@ void GeometryPass::_StartUp( GeometryPass* pass )
         rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
         rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
         rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
-        rt_desc.Depth( rdi::EDataType::DEPTH32F );
+        rt_desc.Depth( rdi::EDataType::DEPTH24_STENCIL8 );
 
         pass->_rtarget_gbuffer = rdi::CreateRenderTarget( rt_desc );
     }
@@ -309,11 +309,16 @@ void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera
 {
     {
         LightPass::MaterialData mdata = {};
+
         storeXYZ( camera.worldEye(), mdata.camera_eye.xyzw );
         storeXYZ( camera.worldDir(), mdata.camera_dir.xyzw );
         mdata.sun_color = float4_t( 1.0f, 1.0f, 1.0f, 1.0 );
         mdata.sun_intensity = 110000.f;
         mdata.sky_intensity = 30000.f;
+
+        mdata.view_proj_inv = inverse( camera.view_proj );
+        mdata.render_target_size = float2_t( 1920.f, 1080.f );
+        mdata.render_target_size_rcp = float2_t( 1.f / mdata.render_target_size.x, 1.f / mdata.render_target_size.y );
 
         //const Vector3 L = normalize( mulAsVec4( camera.view, Vector3( 1.f, 1.f, 0.f ) ) );
         const Vector3 L = normalize( Vector3( 1.f, 1.f, 1.f ) );
@@ -333,6 +338,7 @@ void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rd
     rdi::SetResourceRO( rdesc, "gbuffer_albedo_spec", &rdi::GetTexture( gbuffer, 0 ) );
     rdi::SetResourceRO( rdesc, "gbuffer_wpos_rough", &rdi::GetTexture( gbuffer, 1 ) );
     rdi::SetResourceRO( rdesc, "gbuffer_wnrm_metal", &rdi::GetTexture( gbuffer, 2 ) );
+    rdi::SetResourceRO( rdesc, "depthTexture", &rdi::GetTextureDepth( gbuffer ) );
 
     rdi::BindPipeline( cmdq, _pipeline, true );
     Renderer::DrawFullScreenQuad( cmdq );
@@ -354,6 +360,7 @@ void LightPass::_StartUp( LightPass* pass )
     rdi::ShaderFileUnload( &shf, GResourceManager() );
 
     pass->_sky_cubemap = GTextureManager()->CreateFromFile( "texture/sky_cubemap.DDS" );
+    rdi::SetResourceRO( rdesc, "skybox", GTextureManager()->Texture( pass->_sky_cubemap ) );
 }
 
 void LightPass::_ShutDown( LightPass* pass )

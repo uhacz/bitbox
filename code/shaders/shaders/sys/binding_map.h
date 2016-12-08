@@ -32,10 +32,13 @@
 
 #else
 
+#include <util/vectormath/vectormath.h>
 typedef float2_t float2;
 typedef float3_t float3;
 typedef float4_t float4;
 typedef u32 uint;
+typedef Matrix4 matrix;
+
 
 
 #define TREGISTER( slot ) = {}

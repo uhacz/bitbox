@@ -188,21 +188,21 @@ void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, si
             tdesc.stage_mask = ( 1 << stage );
             switch( rdesc.Dimension )
             {
-            case D3D10_SRV_DIMENSION_TEXTURE1D:
+            case D3D_SRV_DIMENSION_TEXTURE1D:
                 tdesc.dimm = 1;
                 //SYS_ASSERT( false && "not implemented" );
                 break;
-            case D3D10_SRV_DIMENSION_TEXTURE2D:
+            case D3D_SRV_DIMENSION_TEXTURE2D:
                 tdesc.dimm = 2;
                 break;
-            case D3D10_SRV_DIMENSION_TEXTURE3D:
+            case D3D_SRV_DIMENSION_TEXTURE3D:
                 tdesc.dimm = 3;
                 SYS_ASSERT( false && "not implemented" );
                 break;
-            case D3D10_SRV_DIMENSION_TEXTURECUBE:
+            case D3D_SRV_DIMENSION_TEXTURECUBE:
                 tdesc.dimm = 2;
                 tdesc.is_cubemap = 1;
-                SYS_ASSERT( false && "not implemented" );
+                //SYS_ASSERT( false && "not implemented" );
                 break;
             default:
                 SYS_ASSERT( false && "not implemented" );

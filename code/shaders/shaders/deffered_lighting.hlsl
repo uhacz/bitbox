@@ -15,10 +15,11 @@ passes:
 
 #define in_PS out_VS_screenquad
 
-texture2D gbuffer_albedo_spec : register(t0);
-texture2D gbuffer_wpos_rough : register(t1);
-texture2D gbuffer_wnrm_metal : register(t2);
-textureCUBE skybox : register( t3 );
+Texture2D<float>    depthTexture        : register( t0 );
+texture2D<float4>   gbuffer_albedo_spec : register( t1 );
+texture2D<float4>   gbuffer_wpos_rough  : register( t2 );
+texture2D<float4>   gbuffer_wnrm_metal  : register( t3 );
+textureCUBE<float3> skybox              : register( t4 );
 
 #define PI	   (3.14159265f)
 #define PI_RCP (0.31830988618379067154f)
@@ -46,15 +47,30 @@ float3 SunSpecularL( in float3 wpos, in float3 N, in float3 L )
 
 float3 ps_lighting(in_PS IN) : SV_Target0
 {
+    int3 positionSS = int3( ( int2 )( IN.uv * render_target_size ), 0 );
     
-    float4 albedo_spec = gbuffer_albedo_spec.SampleLevel(_samp_point, IN.uv, 0.0);
-    float4 wpos_rough = gbuffer_wpos_rough.SampleLevel(_samp_point, IN.uv, 0.0);
-    
-    const float3 N = gbuffer_wnrm_metal.SampleLevel( _samp_point, IN.uv, 0.0).rgb;
-    const float3 V = normalize( camera_eye - wpos_rough.xyz );
+    float4 albedo_spec = gbuffer_albedo_spec.Load( positionSS );
+    float4 wpos_rough = gbuffer_wpos_rough.Load( positionSS );
+    float4 wnrm_metal = gbuffer_wnrm_metal.Load( positionSS );
+    float depthCS = depthTexture.Load( positionSS );
+
+    float4 positionCS = float4( ( ( float2( positionSS.xy ) + 0.5 ) * render_target_size_rcp ) * float2( 2.0, -2.0 ) + float2( -1.0, 1.0 ), depthCS, 1.0 );
+    float4 positionWS = mul( view_proj_inv, positionCS );
+    positionWS.xyz *= rcp( positionWS.w );
+
+    //float4 albedo_spec = gbuffer_albedo_spec.SampleLevel(_samp_point, IN.uv, 0.0);
+    //float4 wpos_rough = gbuffer_wpos_rough.SampleLevel(_samp_point, IN.uv, 0.0);
+    //const float3 N = gbuffer_wnrm_metal.SampleLevel( _samp_point, IN.uv, 0.0).rgb;
+    const float3 N = wnrm_metal.xyz;
+    const float3 V = normalize( camera_eye - positionWS.xyz );
     const float3 L = sun_L;
-    const float3 sunL = SunSpecularL( wpos_rough.xyz, N, L );
+    const float3 sunL = SunSpecularL( positionWS.xyz, N, L );
     const float3 H = normalize( L+V );
+
+    //if( depth == 1.0 )
+    {
+        //return float4( skybox.SampleLevel( _samp_linear, -V, 0.0 ), 1.0 ) * sky_intensity;
+    }
 
     const float NdotH = saturate( dot( N, H ) );
     const float NdotL = saturate( dot( N, L ) );
@@ -86,9 +102,8 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float NdotL_ambient = saturate( -dot( N, -L ) ) * ambientCoeff * 0.1 + ambientCoeff;
     float3 ambient = NdotL_ambient * albedo_spec.rgb * PI_RCP * sky_intensity;
     
-    float3 envColor = skybox.Sample( _samp_point, N ).rgb;
+    //float3 envColor = skybox.Sample( _samp_point, N ).rgb;
 
     color += ambient;
-    
-    return float4( envColor, 1.0 );
+    return float4( color, 1.0 );
 }
