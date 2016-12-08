@@ -197,7 +197,7 @@ void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, si
                 break;
             case D3D_SRV_DIMENSION_TEXTURE3D:
                 tdesc.dimm = 3;
-                SYS_ASSERT( false && "not implemented" );
+                //SYS_ASSERT( false && "not implemented" );
                 break;
             case D3D_SRV_DIMENSION_TEXTURECUBE:
                 tdesc.dimm = 2;

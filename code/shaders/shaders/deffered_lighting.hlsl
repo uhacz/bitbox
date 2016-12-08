@@ -47,6 +47,7 @@ float3 SunSpecularL( in float3 wpos, in float3 N, in float3 L )
 
 float3 ps_lighting(in_PS IN) : SV_Target0
 {
+    //float2 render_target_size = float2( 1920, 1080 );
     int3 positionSS = int3( ( int2 )( IN.uv * render_target_size ), 0 );
     
     float4 albedo_spec = gbuffer_albedo_spec.Load( positionSS );
@@ -58,9 +59,8 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float4 positionWS = mul( view_proj_inv, positionCS );
     positionWS.xyz *= rcp( positionWS.w );
 
-    //float4 albedo_spec = gbuffer_albedo_spec.SampleLevel(_samp_point, IN.uv, 0.0);
-    //float4 wpos_rough = gbuffer_wpos_rough.SampleLevel(_samp_point, IN.uv, 0.0);
-    //const float3 N = gbuffer_wnrm_metal.SampleLevel( _samp_point, IN.uv, 0.0).rgb;
+    //const float3 positionWS = wpos_rough.xyz;
+    
     const float3 N = wnrm_metal.xyz;
     const float3 V = normalize( camera_eye - positionWS.xyz );
     const float3 L = sun_L;
@@ -102,8 +102,8 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float NdotL_ambient = saturate( -dot( N, -L ) ) * ambientCoeff * 0.1 + ambientCoeff;
     float3 ambient = NdotL_ambient * albedo_spec.rgb * PI_RCP * sky_intensity;
     
-    //float3 envColor = skybox.Sample( _samp_point, N ).rgb;
+    float3 envColor = skybox.Sample( _samp_point, N ).rgb;
 
-    color += ambient;
-    return float4( color, 1.0 );
+    color += envColor;
+    return float4( N, 1.0 );
 }
