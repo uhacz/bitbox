@@ -44,6 +44,10 @@ float3 SunSpecularL( in float3 wpos, in float3 N, in float3 L )
     float3 specular_l = normalize( P );
     return specular_l;
 }
+float roughnessToShininess( float roughness )
+{
+    return 2.0 / ( roughness*roughness ) - 1.999;
+}
 
 float3 ps_lighting(in_PS IN) : SV_Target0
 {
@@ -66,10 +70,11 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     const float3 L = sun_L;
     const float3 sunL = SunSpecularL( positionWS.xyz, N, L );
     const float3 H = normalize( L+V );
+    
 
-    //if( depth == 1.0 )
+    if( depthCS == 1.0 )
     {
-        //return float4( skybox.SampleLevel( _samp_linear, -V, 0.0 ), 1.0 ) * sky_intensity;
+        return float4( skybox.SampleLevel( _samp_linear, -V, 0.0 ), 1.0 ) * sky_intensity;
     }
 
     const float NdotH = saturate( dot( N, H ) );
@@ -78,6 +83,8 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     const float NdotV = saturate( dot( N, V ) );
     const float VdotH = saturate( dot( V, H ) );
     const float HdotSunL = saturate( dot( H, sunL ) );
+
+    const float3 R = 2.0*NdotV*N - V;
 
     float m = wpos_rough.w;
     float m2 = m * m;
@@ -98,12 +105,22 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float3 diffuse = albedo_spec.rgb * ( 1.0f - f );
     float3 color = ( specular.xxx + diffuse ) * NdotL * sun_intensity * PI_RCP;
 
-    float ambientCoeff = 0.015f;
-    float NdotL_ambient = saturate( -dot( N, -L ) ) * ambientCoeff * 0.1 + ambientCoeff;
-    float3 ambient = NdotL_ambient * albedo_spec.rgb * PI_RCP * sky_intensity;
-    
-    float3 envColor = skybox.Sample( _samp_point, N ).rgb;
+    //float ambientCoeff = 0.015f;
+    //float NdotL_ambient = saturate( -dot( N, -L ) ) * ambientCoeff * 0.1 + ambientCoeff;
+    //float3 ambient = NdotL_ambient * albedo_spec.rgb * PI_RCP * sky_intensity;
+        
+    float environmentMapWidth = 1024;
+    float glossyExponent = roughnessToShininess( m );
+    float MIPlevel = log2( environmentMapWidth * sqrt( 3 ) ) - 0.5 * log2( glossyExponent + 1 );    //float a = m * 10.f;
+    float3 diffuse_env = skybox.SampleLevel( _samp_bilinear, N, 11.0 ).rgb;
+    float3 specular_env = skybox.SampleLevel( _samp_bilinear, R, MIPlevel ).rgb;
 
-    color += envColor;
-    return float4( N, 1.0 );
+    color += albedo_spec.rgb * diffuse_env * sky_intensity;
+    color += albedo_spec.w * specular_env * sky_intensity;
+
+
+    //float3 envColor = diffuse_env + specular_env; // skybox.Sample( _samp_point, N ).rgb;
+
+    //color += envColor;
+    return float4( color, 1.0 );
 }

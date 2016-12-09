@@ -85,20 +85,20 @@ public:
             gfx::MaterialDesc mat_desc;
             mat_desc.data.diffuse_color = float3_t( 1.f, 0.f, 0.f );
             mat_desc.data.diffuse = 0.5f;
-            mat_desc.data.roughness = 0.2f;
-            mat_desc.data.specular = 0.1f;
+            mat_desc.data.roughness = 0.01f;
+            mat_desc.data.specular = 0.9f;
             mat_desc.data.metallic = 0.0f;
             gfx::GMaterialManager()->Create( "red", mat_desc );
 
             mat_desc.data.diffuse_color = float3_t( 0.f, 1.f, 0.f );
             mat_desc.data.roughness = 0.1f;
-            mat_desc.data.specular = 0.1f;
+            mat_desc.data.specular = 0.91f;
             mat_desc.data.metallic = 0.0f;
             gfx::GMaterialManager()->Create( "green", mat_desc );
 
             mat_desc.data.diffuse_color = float3_t( 0.f, 0.f, 1.f );
-            mat_desc.data.roughness = 0.6f;
-            mat_desc.data.specular = 0.01f;
+            mat_desc.data.roughness = 0.91f;
+            mat_desc.data.specular = 0.19f;
             mat_desc.data.metallic = 0.0f;
             gfx::GMaterialManager()->Create( "blue", mat_desc );
         }
