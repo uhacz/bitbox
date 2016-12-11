@@ -17,8 +17,8 @@ passes:
 }; #~header
 
 #include <sys/vertex_transform.hlsl>
-#include <sys/material.hlsl>
 #include <sys/samplers.hlsl>
+#include <material_data.h>
 
 struct in_VS
 {

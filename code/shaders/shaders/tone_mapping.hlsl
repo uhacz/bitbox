@@ -79,7 +79,7 @@ passes:
 #include <sys/vs_screenquad.hlsl>
 #include <sys/samplers.hlsl>
 #include <sys/binding_map.h>
-#include <sys/tone_mapping_data.h>
+#include <tone_mapping_data.h>
 
 Texture2D tex_input0 : register( t0 );
 Texture2D tex_input1 : register( t1 );

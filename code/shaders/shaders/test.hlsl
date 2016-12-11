@@ -35,7 +35,7 @@ struct out_PS
 };
 
 #include <sys/vertex_transform.hlsl>
-#include <sys/material.hlsl>
+#include <material_data.h>
 
 cbuffer _FrameData : register( BSLOT( SLOT_FRAME_DATA ) )
 {

@@ -16,7 +16,7 @@ namespace bx{ namespace gfx{
     
     //////////////////////////////////////////////////////////////////////////
     typedef float3_t float3;
-#include <shaders/shaders/sys/material.hlsl>
+#include <shaders/shaders/material_data.h>
     struct MaterialData
     {
         MATERIAL_DATA_CPP;

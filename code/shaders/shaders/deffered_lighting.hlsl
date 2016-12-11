@@ -11,7 +11,7 @@ passes:
 #include <sys/samplers.hlsl>
 #include <sys/vs_screenquad.hlsl>
 #include <sys/binding_map.h>
-#include <sys/deffered_lighting_data.h>
+#include <deffered_lighting_data.h>
 
 #define in_PS out_VS_screenquad
 

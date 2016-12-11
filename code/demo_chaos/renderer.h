@@ -99,7 +99,30 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
+class ShadowPass
+{
+public:
+    void PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
+    void Flush( rdi::CommandQueue* cmdq );
 
+    static void _StartUp( GeometryPass* pass );
+    static void _ShutDown( GeometryPass* pass );
+
+    rdi::TextureRW ShadowMap() const { return _shadow_map; }
+    
+private:
+#include <shaders/shaders/shadow_data.h>
+    rdi::TextureRW _shadow_map = {};
+
+    rdi::Pipeline _pipeline_depth = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline _pipeline_resolve = BX_RDI_NULL_HANDLE;
+
+    rdi::CommandBuffer _cbuffer = {};
+    gfx::VertexTransformData _vertex_transform_data;
+    rdi::CommandBuffer _cmd_buffer = BX_RDI_NULL_HANDLE;
+};
+
+//////////////////////////////////////////////////////////////////////////
 class SkyPass
 {
 public:
@@ -107,6 +130,7 @@ private:
 
 };
 
+//////////////////////////////////////////////////////////////////////////
 class LightPass
 {
 public:
@@ -117,7 +141,7 @@ public:
     static void _ShutDown( LightPass* pass );
 
 private:
-#include <shaders/shaders/sys/deffered_lighting_data.h>
+#include <shaders/shaders/deffered_lighting_data.h>
     rdi::Pipeline _pipeline = BX_RDI_NULL_HANDLE;
     rdi::ConstantBuffer _cbuffer_fdata = {};
 
@@ -136,7 +160,7 @@ public:
 
     struct ToneMapping
     {
-    #include <shaders/shaders/sys/tone_mapping_data.h>
+    #include <shaders/shaders/tone_mapping_data.h>
         MaterialData data;
 
         rdi::TextureRW adapted_luminance[2] = {};
