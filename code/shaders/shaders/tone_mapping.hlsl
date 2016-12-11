@@ -1,35 +1,35 @@
 passes:
 {
-    bloom_threshold = 
-    {
-	    vertex = "vs_screenquad";
-        pixel = "PS_bloom_threshold";
-        hwstate = 
-        {
-            depth_test = 0;
-            depth_write = 0;
-        };
-    };
-    bloom_blurh = 
-    {
-	    vertex = "vs_screenquad";
-        pixel = "PS_bloom_blurh";
-        hwstate = 
-        {
-            depth_test = 0;
-            depth_write = 0;
-        };
-    };
-    bloom_blurv = 
-    {
-	    vertex = "vs_screenquad";
-        pixel = "PS_bloom_blurv";
-        hwstate = 
-        {
-            depth_test = 0;
-            depth_write = 0;
-        };
-    };
+    //bloom_threshold = 
+    //{
+	//    vertex = "vs_screenquad";
+    //    pixel = "PS_bloom_threshold";
+    //    hwstate = 
+    //    {
+    //        depth_test = 0;
+    //        depth_write = 0;
+    //    };
+    //};
+    //bloom_blurh = 
+    //{
+	//    vertex = "vs_screenquad";
+    //    pixel = "PS_bloom_blurh";
+    //    hwstate = 
+    //    {
+    //        depth_test = 0;
+    //        depth_write = 0;
+    //    };
+    //};
+    //bloom_blurv = 
+    //{
+	//    vertex = "vs_screenquad";
+    //    pixel = "PS_bloom_blurv";
+    //    hwstate = 
+    //    {
+    //        depth_test = 0;
+    //        depth_write = 0;
+    //    };
+    //};
 
     luminance_map = 
     {
@@ -53,16 +53,16 @@ passes:
         };
     };
 
-    scale = 
-    {
-        vertex = "vs_screenquad";
-        pixel = "PS_scale";
-        hwstate = 
-        {
-            depth_test = 0;
-            depth_write = 0;
-        };
-    };
+    //scale = 
+    //{
+    //    vertex = "vs_screenquad";
+    //    pixel = "PS_scale";
+    //    hwstate = 
+    //    {
+    //        depth_test = 0;
+    //        depth_write = 0;
+    //    };
+    //};
 
     adapt_luminance = 
     {
@@ -84,6 +84,110 @@ passes:
 Texture2D tex_input0 : register( t0 );
 Texture2D tex_input1 : register( t1 );
 Texture2D tex_input2 : register( t2 );
+
+#if 0 
+// Approximates luminance from an RGB value
+float CalcLuminance( float3 color )
+{
+    return max( dot( color, float3( 0.299f, 0.587f, 0.114f ) ), 0.0001f );
+}
+
+// Retrieves the log-average lumanaince from the texture
+float GetAvgLuminance( Texture2D lumTex, float2 texCoord )
+{
+    return max( exp( lumTex.Load( int3( 0, 0, 10 ) ).x ), 0.01 );
+    //return exp( lumTex.SampleLevel( _samp_linear, texCoord, 10.0 ).x );
+}
+float3 ToneMap_ACESFilm( float3 x )
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return saturate( ( x * ( a * x + b ) ) / ( x * ( c * x + d ) + e ) );
+}
+// Applies the filmic curve from John Hable's presentation
+float3 ToneMap_FilmicALU( float3 color )
+{
+    color = max( 0, color - 0.004f );
+    color = ( color * ( 6.2f * color + 0.5f ) ) / ( color * ( 6.2f * color + 1.7f ) + 0.06f );
+
+    // result has 1/2.2 baked in
+    return pow( color, 2.2f );
+}
+// Determines the color based on exposure settings
+float3 CalcExposedColor( float3 color, float avgLuminance, float threshold, out float exposure )
+{
+    exposure = 0;
+
+    // Use geometric mean        
+    avgLuminance = max( avgLuminance, 0.00001f );
+
+    float keyValue = 0;
+    if( use_auto_exposure == 0 )
+        keyValue = exposure_key_value;
+    else
+        keyValue = 1.03f - ( 2.0f / ( 2 + log10( avgLuminance + 1 ) ) );
+
+    float linearExposure = ( keyValue / avgLuminance );
+    exposure = log2( max( linearExposure, 0.000001f ) );
+    exposure -= threshold;
+    return exp2( exposure ) * color;
+}
+
+float3 ToneMap( float3 color, float avgLuminance, float threshold, out float exposure )
+{
+    float pixelLuminance = CalcLuminance( color );
+    color = CalcExposedColor( color, avgLuminance, threshold, exposure );
+    color = ToneMap_ACESFilm( color );
+    //color = ToneMap_FilmicALU( color );
+    return color;
+}
+// Applies exposure and tone mapping to the input, and combines it with the
+// results of the bloom pass
+void PS_composite( in out_VS_screenquad input,
+				out float4 output_color : SV_Target0 )
+{
+    // Tone map the primary input
+    float avg_luminance = GetAvgLuminance( tex_input1, input.uv );
+    float3 color = tex_input0.Sample( _samp_point, input.uv ).rgb;
+    float exposure = 0;
+    color = ToneMap( color, avg_luminance, 0, exposure );
+    #ifdef WITH_BLOOM
+    // Sample the bloom
+    float3 bloom = tex_input2.Sample( _samp_linear, input.uv ).rgb;
+    bloom = bloom * bloom_magnitude;
+
+    // Add in the bloom
+	color = color + bloom;
+    #endif
+    output_color = float4( color, 1.0f );
+}
+
+// Creates the luminance map for the scene
+float4 PS_luminance_map( in out_VS_screenquad input ) : SV_Target
+{
+    // Sample the input
+    float3 color = tex_input0.Sample( _samp_linear, input.uv ).rgb;
+   
+    // calculate the luminance using a weighted average
+    float luminance = CalcLuminance( color );
+    return luminance.xxxx;
+}
+
+// Slowly adjusts the scene luminance based on the previous scene luminance
+float4 PS_adapt_luminance( in out_VS_screenquad input ) : SV_Target
+{
+    float last_lum = exp( tex_input0.SampleLevel( _samp_point, input.uv, 0.f ).x );
+    float current_lum = tex_input1.SampleLevel( _samp_point, input.uv, 0.f ).x;
+    
+    float adapted_lum = last_lum + ( current_lum - last_lum ) * ( 1.f - exp( -delta_time * lum_tau ) );
+    //float adapted_lum = last_lum - last_lum * adaptation_rate + current_lum * adaptation_rate; // above equation rewritten to allow better instruction scheduling
+    return log( max( adapted_lum, 0.001 ) );
+}
+#endif
+#if 1
 
 /*
 * Get an exposure using the Saturation-based Speed method.
@@ -137,7 +241,7 @@ float Calc_luminance(float3 color)
 float Get_avg_luminance(Texture2D tex_lum, float2 uv )
 {
 	//return exp( tex_lum.SampleLevel( _samp_linear, uv, 10.f ).x );
-    return max( exp( tex_lum.Load( int3( 0, 0, 9 ) ).x ), 0.01 );
+    return max( exp( tex_lum.Load( int3( 0, 0, 10 ) ).x ), 0.01 );
 }
 
 float3 ACESFilm(float3 x)
@@ -295,3 +399,4 @@ float4 PS_adapt_luminance(in out_VS_screenquad input) : SV_Target
     //float adapted_lum = last_lum - last_lum * adaptation_rate + current_lum * adaptation_rate; // above equation rewritten to allow better instruction scheduling
     return log( max( adapted_lum, 0.001 ) );
 }
+#endif

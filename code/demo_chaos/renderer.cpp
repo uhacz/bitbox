@@ -393,7 +393,7 @@ void PostProcessPass::_StartUp( PostProcessPass* pass )
         
         data.lum_tau = 15.f;
         //data.adaptation_rate = 0.5f;
-        data.auto_exposure_key_value = 0.30f;
+        data.exposure_key_value = 0.1f;
         data.use_auto_exposure = 1;
         data.camera_aperture = 16.f;
         data.camera_shutterSpeed = 0.01f;

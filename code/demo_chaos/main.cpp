@@ -85,13 +85,13 @@ public:
             gfx::MaterialDesc mat_desc;
             mat_desc.data.diffuse_color = float3_t( 1.f, 0.f, 0.f );
             mat_desc.data.diffuse = 0.5f;
-            mat_desc.data.roughness = 0.01f;
-            mat_desc.data.specular = 0.9f;
+            mat_desc.data.roughness = 0.5f;
+            mat_desc.data.specular = 0.3f;
             mat_desc.data.metallic = 0.0f;
             gfx::GMaterialManager()->Create( "red", mat_desc );
 
             mat_desc.data.diffuse_color = float3_t( 0.f, 1.f, 0.f );
-            mat_desc.data.roughness = 0.1f;
+            mat_desc.data.roughness = 0.21f;
             mat_desc.data.specular = 0.91f;
             mat_desc.data.metallic = 0.0f;
             gfx::GMaterialManager()->Create( "green", mat_desc );
@@ -109,14 +109,14 @@ public:
 
         Matrix4 box_instances[ NUM_INSTANCES ] = 
         {
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 2.f, 2.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 1.f, 2.f ) ),
             Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 2.f, 0.f, 2.f ) ),
-            appendScale( Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 0.f, -3.f, 0.f ) ), Vector3( 10.f, 0.1f, 10.f ) ),
+            appendScale( Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 0.f, -2.f, 0.f ) ), Vector3( 10.f, 0.1f, 10.f ) ),
         };
 
         Matrix4 sph_instances[ NUM_INSTANCES ] = 
         {
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f, 2.f,-2.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f, 1.f,-2.f ) ),
             Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f, 0.f,-2.f ) ),
             Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f,-2.f,-2.f ) ),
         };
@@ -229,7 +229,7 @@ public:
 
 
         //rdi::TextureRW texture = rdi::GetTexture( _geometry_pass.GBuffer(), 2 );
-
+        //rdi::TextureRW texture = _post_pass._tm.initial_luminance;
         rdi::TextureRW texture = dstColor;
         _renderer.RasterizeFramebuffer( cmdq, texture, _camera, win->width, win->height );
 

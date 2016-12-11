@@ -74,7 +74,7 @@ float3 ps_lighting(in_PS IN) : SV_Target0
 
     if( depthCS == 1.0 )
     {
-        return float4( skybox.SampleLevel( _samp_linear, -V, 0.0 ), 1.0 ) * sky_intensity;
+        return float4( skybox.SampleLevel( _samp_linear, -V, 0.0 ), 1.0 ) * sky_intensity * PI_RCP;
     }
 
     const float NdotH = saturate( dot( N, H ) );
@@ -103,7 +103,7 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float specular = d * vis * f;
 
     float3 diffuse = albedo_spec.rgb * ( 1.0f - f );
-    float3 color = ( specular.xxx + diffuse ) * NdotL * sun_intensity * PI_RCP;
+    float3 color = ( specular.xxx + diffuse ) * NdotL * sun_intensity;
 
     //float ambientCoeff = 0.015f;
     //float NdotL_ambient = saturate( -dot( N, -L ) ) * ambientCoeff * 0.1 + ambientCoeff;
@@ -115,8 +115,8 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float3 diffuse_env = skybox.SampleLevel( _samp_bilinear, N, 11.0 ).rgb;
     float3 specular_env = skybox.SampleLevel( _samp_bilinear, R, MIPlevel ).rgb;
 
-    color += albedo_spec.rgb * diffuse_env * sky_intensity;
-    color += albedo_spec.w * specular_env * sky_intensity;
+    color += ( albedo_spec.rgb * diffuse_env + albedo_spec.w * specular_env ) * sky_intensity;
+    color *= PI_RCP;
 
 
     //float3 envColor = diffuse_env + specular_env; // skybox.Sample( _samp_point, N ).rgb;
