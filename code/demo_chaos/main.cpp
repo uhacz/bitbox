@@ -85,8 +85,8 @@ public:
             gfx::MaterialDesc mat_desc;
             mat_desc.data.diffuse_color = float3_t( 1.f, 0.f, 0.f );
             mat_desc.data.diffuse = 0.5f;
-            mat_desc.data.roughness = 0.5f;
-            mat_desc.data.specular = 0.3f;
+            mat_desc.data.roughness = 0.01f;
+            mat_desc.data.specular = 0.9f;
             mat_desc.data.metallic = 0.0f;
             gfx::GMaterialManager()->Create( "red", mat_desc );
 
@@ -101,6 +101,13 @@ public:
             mat_desc.data.specular = 0.19f;
             mat_desc.data.metallic = 0.0f;
             gfx::GMaterialManager()->Create( "blue", mat_desc );
+
+
+            mat_desc.data.diffuse_color = float3_t( 0.4f, 0.4f, 0.4f );
+            mat_desc.data.roughness = 0.5f;
+            mat_desc.data.specular = 0.5f;
+            mat_desc.data.metallic = 0.0f;
+            gfx::GMaterialManager()->Create( "grey", mat_desc );
         }
 
         _gfx_scene = _renderer.CreateScene( "test" );
@@ -108,34 +115,74 @@ public:
         _gfx_scene->GetSunSkyLight()->sun_direction = normalize( Vector3( -1.f, 0.2f, 0.f ) );
         _gfx_scene->GetSunSkyLight()->sky_cubemap = gfx::GTextureManager()->CreateFromFile( "texture/sky1_cubemap.DDS" );
 
-        _boxes = _gfx_scene->Add( "boxes", NUM_INSTANCES );
-        _spheres = _gfx_scene->Add( "spheres", NUM_INSTANCES );
-
-        Matrix4 box_instances[ NUM_INSTANCES ] = 
         {
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, -1.f, 2.f ) ),
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 2.f, -2.f, 2.f ) ),
-            appendScale( Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 0.f, -2.f, 0.f ) ), Vector3( 10.f, 0.1f, 10.f ) ),
-        };
+            gfx::ActorID actor = _gfx_scene->Add( "ground", 1 );
+            _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "grey" ) );
+            _gfx_scene->SetMesh( actor, gfx::GMeshManager()->Find( ":box" ) );
 
-        Matrix4 sph_instances[ NUM_INSTANCES ] = 
+            Matrix4 pose = Matrix4::translation( Vector3( 0.f, -1.0f, 0.f ) );
+            pose = appendScale( pose, Vector3( 100.f, 1.f, 100.f ) );
+
+            _gfx_scene->SetMatrices( actor, &pose, 1 );
+        }
+
+        gfx::MeshHandle mesh_handle = gfx::GMeshManager()->Find( ":sphere" );
+
+        for( u32 ir = 0; ir <= 10; ++ir )
         {
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f, 1.f,-2.f ) ),
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f, 0.f,-2.f ) ),
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f,-2.f,-2.f ) ),
-        };
+            for( u32 is = 0; is <= 10; ++is )
+            {
+                gfx::MaterialDesc mat_desc;
+                mat_desc.data.diffuse_color = float3_t( 0.2f, 0.2f, 0.2f );
+                mat_desc.data.diffuse = 0.95f;
+                mat_desc.data.roughness = ir * 0.1f;
+                mat_desc.data.specular = is * 0.1f;
+                mat_desc.data.metallic = 0.0f;
 
-        _gfx_scene->SetMatrices( _boxes, box_instances, NUM_INSTANCES );
-        _gfx_scene->SetMatrices( _spheres, sph_instances, NUM_INSTANCES );
+                char nameBuff[32];
+                sprintf_s( nameBuff, 32, "mat%u%u", ir, is );
+                gfx::MaterialHandle hmat = gfx::GMaterialManager()->Create( nameBuff, mat_desc );
 
-        _gfx_scene->SetMesh( _boxes, gfx::GMeshManager()->Find( ":box" ));
-        _gfx_scene->SetMesh( _spheres, gfx::GMeshManager()->Find( ":sphere" ) );
+                sprintf_s( nameBuff, 32, "actor%u%u", ir, is );
+                gfx::ActorID actor = _gfx_scene->Add( nameBuff, 1 );
 
-        gfx::MaterialHandle material_id = gfx::GMaterialManager()->Find( "red" );
-        _gfx_scene->SetMaterial( _boxes, material_id );
+                const Vector3 pos = Vector3( -10.f + (float)is, 0.f, -10.f + (float)ir );
+                const Matrix4 pose( Matrix3::identity(), pos );
 
-        material_id = gfx::GMaterialManager()->Find( "green" );
-        _gfx_scene->SetMaterial( _spheres, material_id );
+                _gfx_scene->SetMesh( actor, mesh_handle );
+                _gfx_scene->SetMaterial( actor, hmat );
+                _gfx_scene->SetMatrices( actor, &pose, 1 );
+            }
+        }
+
+        //_boxes = _gfx_scene->Add( "boxes", NUM_INSTANCES );
+        //_spheres = _gfx_scene->Add( "spheres", NUM_INSTANCES );
+        //
+        //Matrix4 box_instances[ NUM_INSTANCES ] = 
+        //{
+        //    Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, -1.f, 2.f ) ),
+        //    Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 2.f, -2.f, 2.f ) ),
+        //    appendScale( Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 0.f, -2.f, 0.f ) ), Vector3( 10.f, 0.1f, 10.f ) ),
+        //};
+        //
+        //Matrix4 sph_instances[ NUM_INSTANCES ] = 
+        //{
+        //    Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f, 1.f,-2.f ) ),
+        //    Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f, 0.f,-2.f ) ),
+        //    Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( -2.f,-2.f,-2.f ) ),
+        //};
+        //
+        //_gfx_scene->SetMatrices( _boxes, box_instances, NUM_INSTANCES );
+        //_gfx_scene->SetMatrices( _spheres, sph_instances, NUM_INSTANCES );
+        //
+        //_gfx_scene->SetMesh( _boxes, gfx::GMeshManager()->Find( ":box" ));
+        //_gfx_scene->SetMesh( _spheres, gfx::GMeshManager()->Find( ":sphere" ) );
+        //
+        //gfx::MaterialHandle material_id = gfx::GMaterialManager()->Find( "red" );
+        //_gfx_scene->SetMaterial( _boxes, material_id );
+        //
+        //material_id = gfx::GMaterialManager()->Find( "green" );
+        //_gfx_scene->SetMaterial( _spheres, material_id );
         
         //gfx::TextureHandle htex0 = gfx::GTextureManager()->CreateFromFile( "texture/kozak.dds" );
         //gfx::TextureHandle htex1 = gfx::GTextureManager()->CreateFromFile( "texture/sky_cubemap.DDS" );
@@ -149,9 +196,9 @@ public:
 
         _renderer.DestroyScene( &_gfx_scene );
         
-        gfx::GMaterialManager()->DestroyByName( "red" );
-        gfx::GMaterialManager()->DestroyByName( "green" );
-        gfx::GMaterialManager()->DestroyByName( "blue" );
+        //gfx::GMaterialManager()->DestroyByName( "red" );
+        //gfx::GMaterialManager()->DestroyByName( "green" );
+        //gfx::GMaterialManager()->DestroyByName( "blue" );
 
         gfx::PostProcessPass::_ShutDown( &_post_pass );
         gfx::LightPass::_ShutDown( &_light_pass );

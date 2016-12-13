@@ -145,7 +145,10 @@ public:
 private:
 #include <shaders/shaders/deffered_lighting_data.h>
     rdi::Pipeline _pipeline = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline _pipeline_skybox = BX_RDI_NULL_HANDLE;
     rdi::ConstantBuffer _cbuffer_fdata = {};
+
+    u8 _has_skybox = 0;
 
     //TextureHandle _sky_cubemap = {};
 };

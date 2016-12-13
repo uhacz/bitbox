@@ -286,7 +286,7 @@ void GeometryPass::_StartUp( GeometryPass* pass )
     }
 
     {
-        pass->_command_buffer = rdi::CreateCommandBuffer();
+        pass->_command_buffer = rdi::CreateCommandBuffer( 1024 );
     }
 
     VertexTransformData::_Init( &pass->_vertex_transform_data, 1024 );
@@ -356,9 +356,18 @@ void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera
             storeXYZ( L, mdata.sun_L.xyzw );
             mdata.sun_L.w = 0.f;
 
-            rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline );
-            rdi::SetResourceRO( rdesc, "skybox", GTextureManager()->Texture( sunSky->sky_cubemap ) );
+            if( GTextureManager()->Alive( sunSky->sky_cubemap ) )
+            {
+                rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_skybox );
+                rdi::SetResourceRO( rdesc, "skybox", GTextureManager()->Texture( sunSky->sky_cubemap ) );
+                _has_skybox = 1;
+            }
+            else
+            {
+                _has_skybox = 0;
+            }
         }
+
 
         mdata.view_proj_inv = inverse( camera.view_proj );
         mdata.render_target_size = float2_t( 1920.f, 1080.f );
@@ -374,13 +383,14 @@ void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rd
     rdi::context::ChangeRenderTargets( cmdq, &outputTexture, 1, rdi::TextureDepth() );
     rdi::context::ClearBuffers( cmdq, &outputTexture, 1, rdi::TextureDepth(), rgbad, 1, 0 );
 
-    rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline );
+    rdi::Pipeline pipeline = ( _has_skybox ) ? _pipeline_skybox : _pipeline;
+    rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( pipeline );
     rdi::SetResourceRO( rdesc, "gbuffer_albedo_spec", &rdi::GetTexture( gbuffer, 0 ) );
     rdi::SetResourceRO( rdesc, "gbuffer_wpos_rough", &rdi::GetTexture( gbuffer, 1 ) );
     rdi::SetResourceRO( rdesc, "gbuffer_wnrm_metal", &rdi::GetTexture( gbuffer, 2 ) );
     rdi::SetResourceRO( rdesc, "depthTexture", &rdi::GetTextureDepth( gbuffer ) );
+    rdi::BindPipeline( cmdq, pipeline, true );
 
-    rdi::BindPipeline( cmdq, _pipeline, true );
     Renderer::DrawFullScreenQuad( cmdq );
 }
 
@@ -389,13 +399,24 @@ void LightPass::_StartUp( LightPass* pass )
     rdi::ShaderFile* shf = rdi::ShaderFileLoad( "shader/bin/deffered_lighting.shader", GResourceManager() );
 
     rdi::PipelineDesc pipeline_desc;
+    
     pipeline_desc.Shader( shf, "lighting" );
-
     pass->_pipeline = rdi::CreatePipeline( pipeline_desc );
+    
+    pipeline_desc.Shader( shf, "lighting_skybox" );
+    pass->_pipeline_skybox = rdi::CreatePipeline( pipeline_desc );
+
+
     pass->_cbuffer_fdata = rdi::device::CreateConstantBuffer( sizeof( LightPass::MaterialData ), nullptr );
 
-    rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( pass->_pipeline );
-    rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer_fdata );
+    {
+        rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( pass->_pipeline );
+        rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer_fdata );
+    }
+    {
+        rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( pass->_pipeline_skybox );
+        rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer_fdata );
+    }
 
     rdi::ShaderFileUnload( &shf, GResourceManager() );
 
@@ -408,6 +429,7 @@ void LightPass::_ShutDown( LightPass* pass )
     //GTextureManager()->Release( pass->_sky_cubemap );
     rdi::device::DestroyConstantBuffer( &pass->_cbuffer_fdata );
     rdi::DestroyPipeline( &pass->_pipeline );
+    rdi::DestroyPipeline( &pass->_pipeline_skybox );
 }
 
 //////////////////////////////////////////////////////////////////////////

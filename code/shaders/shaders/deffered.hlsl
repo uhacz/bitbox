@@ -107,6 +107,8 @@ out_PS ps_geometry_main( in_PS IN )
     roughness_value *= roughness_tex.Sample( _samp_point, uv ).r;
     metallic_value *= metallic_tex.Sample( _samp_point, uv ).r;
 #endif
+    
+    roughness_value = max( 0.00001, roughness_value );
 
     float3 N = normalize( IN.wnrm );
 
