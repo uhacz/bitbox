@@ -21,7 +21,7 @@ namespace bx{ namespace gfx{
 
     }
 
-    bx::gfx::ActorID ActorHandleManager::acquire()
+    ActorID ActorHandleManager::acquire()
     {
         static_assert( sizeof( ActorID ) == sizeof( ActorHandle ), "Handle mismatch" );
 

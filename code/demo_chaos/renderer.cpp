@@ -302,7 +302,37 @@ void GeometryPass::_ShutDown( GeometryPass* pass )
     rdi::device::DestroyConstantBuffer( &pass->_cbuffer_frame_data );
     rdi::DestroyRenderTarget( &pass->_rtarget_gbuffer );
 }
+//////////////////////////////////////////////////////////////////////////
+void ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera )
+{
 
+}
+
+void ShadowPass::Flush( rdi::CommandQueue* cmdq )
+{
+
+}
+
+void ShadowPass::_StartUp( ShadowPass* pass, const RendererDesc& rndDesc, u32 shadowMapSize )
+{
+    pass->_depth_map = rdi::device::CreateTexture2Ddepth( shadowMapSize, shadowMapSize, 1, rdi::EDataType::DEPTH32F );
+
+    const u32 bindFlags = rdi::EBindMask::SHADER_RESOURCE | rdi::EBindMask::RENDER_TARGET;
+    const u32 cpuAccessMask = 0;
+    pass->_shadow_map = rdi::device::CreateTexture2D( rndDesc.framebuffer_width, rndDesc.framebuffer_height, 1, rdi::Format( rdi::EDataType::FLOAT, 1 ), bindFlags, cpuAccessMask, nullptr );
+
+
+    rdi::ShaderFile* shf = rdi::ShaderFileLoad( "shader/bin/shadow.shader", GResourceManager() );
+    rdi::PipelineDesc pipeline_desc;
+    pipeline_desc.Shader( shf, "" );
+
+}
+
+void ShadowPass::_ShutDown( ShadowPass* pass )
+{
+    rdi::device::DestroyTexture( &pass->_shadow_map );
+    rdi::device::DestroyTexture( &pass->_depth_map );
+}
 
 //////////////////////////////////////////////////////////////////////////
 void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera )
@@ -313,18 +343,26 @@ void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera
 
         storeXYZ( camera.worldEye(), mdata.camera_eye.xyzw );
         storeXYZ( camera.worldDir(), mdata.camera_dir.xyzw );
-        mdata.sun_color = float4_t( 1.0f, 1.0f, 1.0f, 1.0 );
-        mdata.sun_intensity = 110000.f;
-        mdata.sky_intensity = 30000.f;
+
+        SunSkyLight* sunSky = scene->GetSunSkyLight();
+        if( sunSky )
+        {
+            mdata.sun_color = float4_t( sunSky->sun_color, 1.0 );
+            mdata.sun_intensity = sunSky->sun_intensity;
+            mdata.sky_intensity = sunSky->sky_intensity;
+
+            // L means dir TO light
+            const Vector3 L = -normalize( sunSky->sun_direction );
+            storeXYZ( L, mdata.sun_L.xyzw );
+            mdata.sun_L.w = 0.f;
+
+            rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline );
+            rdi::SetResourceRO( rdesc, "skybox", GTextureManager()->Texture( sunSky->sky_cubemap ) );
+        }
 
         mdata.view_proj_inv = inverse( camera.view_proj );
         mdata.render_target_size = float2_t( 1920.f, 1080.f );
         mdata.render_target_size_rcp = float2_t( 1.f / mdata.render_target_size.x, 1.f / mdata.render_target_size.y );
-        //u32 a = offsetof( LightPass::MaterialData, sky_intensity );
-        //const Vector3 L = normalize( mulAsVec4( camera.view, Vector3( 1.f, 1.f, 0.f ) ) );
-        const Vector3 L = normalize( Vector3( 1.f, 1.f, 1.f ) );
-        storeXYZ( L, mdata.sun_L.xyzw );
-        mdata.sun_L.w = 0.f;
 
         rdi::context::UpdateCBuffer( cmdq, _cbuffer_fdata, &mdata );
     }
@@ -361,13 +399,13 @@ void LightPass::_StartUp( LightPass* pass )
 
     rdi::ShaderFileUnload( &shf, GResourceManager() );
 
-    pass->_sky_cubemap = GTextureManager()->CreateFromFile( "texture/sky1_cubemap.DDS" );
-    rdi::SetResourceRO( rdesc, "skybox", GTextureManager()->Texture( pass->_sky_cubemap ) );
+    //pass->_sky_cubemap = GTextureManager()->CreateFromFile( "texture/sky1_cubemap.DDS" );
+    //rdi::SetResourceRO( rdesc, "skybox", GTextureManager()->Texture( pass->_sky_cubemap ) );
 }
 
 void LightPass::_ShutDown( LightPass* pass )
 {
-    GTextureManager()->Release( pass->_sky_cubemap );
+    //GTextureManager()->Release( pass->_sky_cubemap );
     rdi::device::DestroyConstantBuffer( &pass->_cbuffer_fdata );
     rdi::DestroyPipeline( &pass->_pipeline );
 }

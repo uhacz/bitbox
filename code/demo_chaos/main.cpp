@@ -104,13 +104,17 @@ public:
         }
 
         _gfx_scene = _renderer.CreateScene( "test" );
+        _gfx_scene->EnableSunSkyLight();
+        _gfx_scene->GetSunSkyLight()->sun_direction = normalize( Vector3( -1.f, 0.2f, 0.f ) );
+        _gfx_scene->GetSunSkyLight()->sky_cubemap = gfx::GTextureManager()->CreateFromFile( "texture/sky1_cubemap.DDS" );
+
         _boxes = _gfx_scene->Add( "boxes", NUM_INSTANCES );
         _spheres = _gfx_scene->Add( "spheres", NUM_INSTANCES );
 
         Matrix4 box_instances[ NUM_INSTANCES ] = 
         {
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, 1.f, 2.f ) ),
-            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 2.f, 0.f, 2.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 2, 0.f ) ), Vector3( 2.f, -1.f, 2.f ) ),
+            Matrix4( Matrix3::rotationZYX( Vector3( 0.f, PI / 3, 0.f ) ), Vector3( 2.f, -2.f, 2.f ) ),
             appendScale( Matrix4( Matrix3::rotationZYX( Vector3( 0.f, 0.f, 0.f ) ), Vector3( 0.f, -2.f, 0.f ) ), Vector3( 10.f, 0.1f, 10.f ) ),
         };
 

@@ -71,6 +71,7 @@ union float4_t
     
     float4_t() {}
     float4_t( f32 vx, f32 vy, f32 vz, f32 vw ) : x( vx ), y( vy ), z( vz ), w( vw ) {}
+    float4_t( const float3_t xyz, f32 vw ): x( xyz.x ), y( xyz.y ), z( xyz.z ), w( vw ) {}
 };
 
 union i32x2

@@ -5,15 +5,26 @@
 #include <util/containers.h>
 #include "renderer_type.h"
 #include "renderer_camera.h"
+#include "renderer_texture.h"
 
 namespace bx{ namespace gfx{
 
+// ---
 union MeshMatrix
 {
     u8 _single[64] = {};
     Matrix4* _multi;
 };
-
+// --- 
+struct SunSkyLight
+{
+    Vector3 sun_direction{ 0.f, -1.f, 0.f };
+    float3_t sun_color{ 1.f, 1.f, 1.f };
+    f32 sun_intensity = 110000.f;
+    f32 sky_intensity = 30000.f;
+    TextureHandle sky_cubemap = {};
+};
+// ---
 
 //////////////////////////////////////////////////////////////////////////
 struct VertexTransformData;
@@ -28,20 +39,24 @@ struct SceneImpl
     void Remove( ActorID* mi );
     ActorID Find( const char* name );
 
-    //void SetRenderSource( ActorID mi, rdi::RenderSource rs );
     void SetMesh( ActorID actorId, MeshHandle handle );
     void SetMaterial( ActorID mi, MaterialHandle m );
     void SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
 
     void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Camera& camera );
 
+    void EnableSunSkyLight( const SunSkyLight& data = SunSkyLight() );
+    void DisableSunSkyLight();
+    SunSkyLight* GetSunSkyLight();
+    
+
 private:
     //////////////////////////////////////////////////////////////////////////
     void _SetToDefaults( u32 index );
-    void _AllocateData( u32 newSize, bxAllocator* allocator );
+    void _AllocateMeshData( u32 newSize, bxAllocator* allocator );
     u32  _GetIndex( ActorID mi );
 
-    struct Data
+    struct MeshData
     {
         void*                _memory_handle = nullptr;
         MeshMatrix*          matrices = nullptr;
@@ -53,7 +68,10 @@ private:
 
         u32                  size = 0;
         u32                  capacity = 0;
-    }_data;
+    }_mesh_data;
+
+
+    SunSkyLight* _sun_sky_light = nullptr;
 
     const char* _name = nullptr;
     bxAllocator* _allocator = nullptr;

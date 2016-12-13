@@ -27,6 +27,11 @@ void SceneImpl::Prepare( const char* name, bxAllocator* allocator )
 }
 void SceneImpl::Unprepare()
 {
+    if( _sun_sky_light )
+    {
+        GTextureManager()->Release( _sun_sky_light->sky_cubemap );
+        BX_DELETE0( _allocator, _sun_sky_light );
+    }
     _allocator = nullptr;
     string::free_and_null( (char**)&_name );
 }
@@ -41,25 +46,25 @@ ActorID SceneImpl::Add( const char* name, u32 numInstances )
     }
 
     mi = _handle_manager->acquire();
-    if( _data.size + 1 > _data.capacity )
+    if( _mesh_data.size + 1 > _mesh_data.capacity )
     {
-        _AllocateData( _data.size * 2 + 8, bxDefaultAllocator() );
+        _AllocateMeshData( _mesh_data.size * 2 + 8, bxDefaultAllocator() );
     }
 
-    const u32 index = _data.size++;
+    const u32 index = _mesh_data.size++;
     _handle_manager->setData( mi, this, index );
     _SetToDefaults( index );
 
-    _data.actor_id[index] = mi;
-    _data.names[index] = string::duplicate( nullptr, name );
-    _data.num_instances[index] = numInstances;
+    _mesh_data.actor_id[index] = mi;
+    _mesh_data.names[index] = string::duplicate( nullptr, name );
+    _mesh_data.num_instances[index] = numInstances;
     if( numInstances > 1 )
     {
         u32 mem_size = numInstances * sizeof( Matrix4 );
-        _data.matrices[index]._multi = (Matrix4*)BX_MALLOC( bxDefaultAllocator(), mem_size, 16 );
+        _mesh_data.matrices[index]._multi = (Matrix4*)BX_MALLOC( bxDefaultAllocator(), mem_size, 16 );
     }
 
-    Matrix4* matrices = getMatrixPtr( _data.matrices[index], numInstances );
+    Matrix4* matrices = getMatrixPtr( _mesh_data.matrices[index], numInstances );
     for( u32 i = 0; i < numInstances; ++i )
     {
         matrices[i] = Matrix4::identity();
@@ -73,41 +78,41 @@ void SceneImpl::Remove( ActorID* mi )
     if( !_handle_manager->alive( *mi ) )
         return;
 
-    SYS_ASSERT( _data.size > 0 );
+    SYS_ASSERT( _mesh_data.size > 0 );
     SYS_ASSERT( _handle_manager->getScene( *mi ) == this );
 
     const u32 index = _handle_manager->getDataIndex( *mi );
-    const u32 last_index = --_data.size;
+    const u32 last_index = --_mesh_data.size;
 
     _handle_manager->release( mi );
 
     if( index != last_index )
     {
-        _data.matrices[index]       = _data.matrices[last_index];
+        _mesh_data.matrices[index]       = _mesh_data.matrices[last_index];
         //_data.render_sources[index] = _data.render_sources[last_index];
-        _data.meshes[index]         = _data.meshes[last_index];
-        _data.materials[index]      = _data.materials[last_index];
-        _data.num_instances[index]  = _data.num_instances[last_index];
-        _data.actor_id[index]  = _data.actor_id[last_index];
-        _data.names[index]          = _data.names[last_index];
-        _handle_manager->setData( _data.actor_id[index], this, index );
+        _mesh_data.meshes[index]         = _mesh_data.meshes[last_index];
+        _mesh_data.materials[index]      = _mesh_data.materials[last_index];
+        _mesh_data.num_instances[index]  = _mesh_data.num_instances[last_index];
+        _mesh_data.actor_id[index]  = _mesh_data.actor_id[last_index];
+        _mesh_data.names[index]          = _mesh_data.names[last_index];
+        _handle_manager->setData( _mesh_data.actor_id[index], this, index );
 
-        _data.matrices[last_index] = {};
-        _data.meshes[last_index].i = 0;
-        _data.materials[last_index] = {};
-        _data.num_instances[last_index] = 0;
-        _data.actor_id[last_index] = makeInvalidMeshID();
-        _data.names[last_index] = nullptr;
+        _mesh_data.matrices[last_index] = {};
+        _mesh_data.meshes[last_index].i = 0;
+        _mesh_data.materials[last_index] = {};
+        _mesh_data.num_instances[last_index] = 0;
+        _mesh_data.actor_id[last_index] = makeInvalidMeshID();
+        _mesh_data.names[last_index] = nullptr;
     }
 }
 
 ActorID SceneImpl::Find( const char* name )
 {
-    for( u32 i = 0; i < _data.size; ++i )
+    for( u32 i = 0; i < _mesh_data.size; ++i )
     {
-        if( string::equal( name, _data.names[i] ) )
+        if( string::equal( name, _mesh_data.names[i] ) )
         {
-            return _data.actor_id[i];
+            return _mesh_data.actor_id[i];
         }
     }
     return makeInvalidMeshID();
@@ -116,7 +121,7 @@ ActorID SceneImpl::Find( const char* name )
 void SceneImpl::SetMesh( ActorID actorId, MeshHandle handle )
 {
     const u32 index = _GetIndex( actorId );
-    _data.meshes[index] = handle;
+    _mesh_data.meshes[index] = handle;
 }
 
 //void SceneImpl::SetRenderSource( ActorID mi, rdi::RenderSource rs )
@@ -128,14 +133,14 @@ void SceneImpl::SetMesh( ActorID actorId, MeshHandle handle )
 void SceneImpl::SetMaterial( ActorID mi, MaterialHandle m )
 {
     const u32 index = _GetIndex( mi );
-    _data.materials[index] = m;
+    _mesh_data.materials[index] = m;
 }
 
 void SceneImpl::SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32 startIndex )
 {
     const u32 index = _GetIndex( mi );
-    const u32 num_instances = _data.num_instances[index];
-    Matrix4* data = getMatrixPtr( _data.matrices[index], num_instances );
+    const u32 num_instances = _mesh_data.num_instances[index];
+    Matrix4* data = getMatrixPtr( _mesh_data.matrices[index], num_instances );
     SYS_ASSERT( startIndex + count <= num_instances );
     for( u32 i = 0; i < count; ++i )
     {
@@ -158,14 +163,14 @@ namespace renderer_scene_internal
 
 void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Camera& camera )
 {
-    for( u32 i = 0; i < _data.size; ++i )
+    for( u32 i = 0; i < _mesh_data.size; ++i )
     {
-        const u32 num_instances = _data.num_instances[i];
-        Matrix4* matrices = getMatrixPtr( _data.matrices[i], num_instances );
+        const u32 num_instances = _mesh_data.num_instances[i];
+        Matrix4* matrices = getMatrixPtr( _mesh_data.matrices[i], num_instances );
 
-        MeshHandle hmesh = _data.meshes[i];
+        MeshHandle hmesh = _mesh_data.meshes[i];
         rdi::RenderSource rsource = GMeshManager()->RenderSource( hmesh );
-        MaterialPipeline material_pipeline = GMaterialManager()->Pipeline( _data.materials[i] );
+        MaterialPipeline material_pipeline = GMaterialManager()->Pipeline( _mesh_data.materials[i] );
 
         for( u32 imatrix = 0; imatrix < num_instances; ++imatrix )
         {
@@ -176,7 +181,7 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
 
             renderer_scene_internal::SortKey skey;
             skey.depth = TypeReinterpert( depth ).u;
-            skey.material = _data.materials[i].i;
+            skey.material = _mesh_data.materials[i].i;
 
             rdi::Command* instance_cmd = vtransform->SetCurrent( cmdb, batch_offset, nullptr );
             
@@ -195,37 +200,59 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
     }
 }
 
-void SceneImpl::_SetToDefaults( u32 index )
+void SceneImpl::EnableSunSkyLight( const SunSkyLight& data /*= SunSkyLight() */ )
 {
-    string::free_and_null( &_data.names[index] );
-    _data.actor_id [index] = makeInvalidMeshID();
-    _data.meshes[index].i = 0;
-    _data.materials     [index] = {};
-    
-    if( _data.num_instances[index] > 1 )
+    if( _sun_sky_light )
     {
-        BX_FREE( bxDefaultAllocator(), _data.matrices[index]._multi );
-        memset( &_data.matrices[index], 0x00, sizeof( MeshMatrix ) );
+        bxLogWarning( "SunSky light already enabled!!" );
+        return;
     }
-    _data.num_instances[index] = 0;
+
+    _sun_sky_light = BX_NEW( _allocator, SunSkyLight );
+    _sun_sky_light[0] = data;
 }
 
-void SceneImpl::_AllocateData( u32 newCapacity, bxAllocator* allocator )
+void SceneImpl::DisableSunSkyLight()
+{
+    BX_DELETE0( _allocator, _sun_sky_light );
+}
+
+SunSkyLight* SceneImpl::GetSunSkyLight()
+{
+    return _sun_sky_light;
+}
+
+void SceneImpl::_SetToDefaults( u32 index )
+{
+    string::free_and_null( &_mesh_data.names[index] );
+    _mesh_data.actor_id [index] = makeInvalidMeshID();
+    _mesh_data.meshes[index].i = 0;
+    _mesh_data.materials     [index] = {};
+    
+    if( _mesh_data.num_instances[index] > 1 )
+    {
+        BX_FREE( bxDefaultAllocator(), _mesh_data.matrices[index]._multi );
+        memset( &_mesh_data.matrices[index], 0x00, sizeof( MeshMatrix ) );
+    }
+    _mesh_data.num_instances[index] = 0;
+}
+
+void SceneImpl::_AllocateMeshData( u32 newCapacity, bxAllocator* allocator )
 {
     u32 mem_size = 0;
-    mem_size += newCapacity * sizeof( *_data.matrices );
-    mem_size += newCapacity * sizeof( *_data.meshes );
-    mem_size += newCapacity * sizeof( *_data.materials );
-    mem_size += newCapacity * sizeof( *_data.num_instances );
-    mem_size += newCapacity * sizeof( *_data.actor_id );
-    mem_size += newCapacity * sizeof( *_data.names );
+    mem_size += newCapacity * sizeof( *_mesh_data.matrices );
+    mem_size += newCapacity * sizeof( *_mesh_data.meshes );
+    mem_size += newCapacity * sizeof( *_mesh_data.materials );
+    mem_size += newCapacity * sizeof( *_mesh_data.num_instances );
+    mem_size += newCapacity * sizeof( *_mesh_data.actor_id );
+    mem_size += newCapacity * sizeof( *_mesh_data.names );
 
     void* mem = BX_MALLOC( allocator, mem_size, 16 );
     memset( mem, 0x00, mem_size );
     
-    Data new_data = {};
+    MeshData new_data = {};
     new_data._memory_handle = mem;
-    new_data.size = _data.size;
+    new_data.size = _mesh_data.size;
     new_data.capacity = newCapacity;
     
     bxBufferChunker chunker( mem, mem_size );
@@ -237,25 +264,25 @@ void SceneImpl::_AllocateData( u32 newCapacity, bxAllocator* allocator )
     new_data.names          = chunker.add< char* >( newCapacity );
     chunker.check();
 
-    if( _data.size )
+    if( _mesh_data.size )
     {
-        BX_CONTAINER_COPY_DATA( &new_data, &_data, matrices );
-        BX_CONTAINER_COPY_DATA( &new_data, &_data, meshes );
-        BX_CONTAINER_COPY_DATA( &new_data, &_data, materials );
-        BX_CONTAINER_COPY_DATA( &new_data, &_data, num_instances );
-        BX_CONTAINER_COPY_DATA( &new_data, &_data, actor_id );
-        BX_CONTAINER_COPY_DATA( &new_data, &_data, names );
+        BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, matrices );
+        BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, meshes );
+        BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, materials );
+        BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, num_instances );
+        BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, actor_id );
+        BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, names );
     }
 
-    BX_FREE( allocator, _data._memory_handle );
-    _data = new_data;
+    BX_FREE( allocator, _mesh_data._memory_handle );
+    _mesh_data = new_data;
 }
 
 u32 SceneImpl::_GetIndex( ActorID mi )
 {
     SYS_ASSERT( _handle_manager->alive( mi ) );
     u32 index = _handle_manager->getDataIndex( mi );
-    SYS_ASSERT( index < _data.size );
+    SYS_ASSERT( index < _mesh_data.size );
     return index;
 }
 

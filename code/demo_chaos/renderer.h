@@ -105,13 +105,15 @@ public:
     void PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
     void Flush( rdi::CommandQueue* cmdq );
 
-    static void _StartUp( GeometryPass* pass );
-    static void _ShutDown( GeometryPass* pass );
 
-    rdi::TextureRW ShadowMap() const { return _shadow_map; }
+    static void _StartUp( ShadowPass* pass, const RendererDesc& rndDesc, u32 shadowMapSize = 2048 );
+    static void _ShutDown( ShadowPass* pass );
+
+    rdi::TextureDepth DepthMap() const { return _depth_map; }
     
 private:
 #include <shaders/shaders/shadow_data.h>
+    rdi::TextureDepth _depth_map = {};
     rdi::TextureRW _shadow_map = {};
 
     rdi::Pipeline _pipeline_depth = BX_RDI_NULL_HANDLE;
@@ -145,7 +147,7 @@ private:
     rdi::Pipeline _pipeline = BX_RDI_NULL_HANDLE;
     rdi::ConstantBuffer _cbuffer_fdata = {};
 
-    TextureHandle _sky_cubemap = {};
+    //TextureHandle _sky_cubemap = {};
 };
 
 //////////////////////////////////////////////////////////////////////////
