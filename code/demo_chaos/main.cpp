@@ -112,8 +112,10 @@ public:
 
         _gfx_scene = _renderer.CreateScene( "test" );
         _gfx_scene->EnableSunSkyLight();
-        _gfx_scene->GetSunSkyLight()->sun_direction = normalize( Vector3( -1.f, 0.2f, 0.f ) );
-        _gfx_scene->GetSunSkyLight()->sky_cubemap = gfx::GTextureManager()->CreateFromFile( "texture/sky1_cubemap.DDS" );
+        _gfx_scene->GetSunSkyLight()->sun_direction = normalize( Vector3( -1.f, -1.0f, 0.f ) );
+        _gfx_scene->GetSunSkyLight()->sky_cubemap = gfx::GTextureManager()->CreateFromFile( "texture/test_cubemap.dds" );
+        _gfx_scene->GetSunSkyLight()->sky_intensity = 1.f;
+        _gfx_scene->GetSunSkyLight()->sun_intensity = 1.f;
 
         {
             gfx::ActorID actor = _gfx_scene->Add( "ground", 1 );
@@ -191,8 +193,8 @@ public:
     }
     virtual void shutdown()
     {
-        _gfx_scene->Remove( &_spheres );
-        _gfx_scene->Remove( &_boxes );
+        //_gfx_scene->Remove( &_spheres );
+        //_gfx_scene->Remove( &_boxes );
 
         _renderer.DestroyScene( &_gfx_scene );
         
@@ -312,16 +314,11 @@ public:
     gfx::GeometryPass _geometry_pass;
     gfx::LightPass _light_pass;
     gfx::PostProcessPass _post_pass;
+    gfx::Scene _gfx_scene = nullptr;
 
     gfx::Camera _camera = {};
     gfx::CameraInputContext _camera_input_ctx = {};
 
-    gfx::Scene _gfx_scene = nullptr;
-
-    gfx::ActorID _boxes;
-    gfx::ActorID _spheres;
-
-    static const int NUM_INSTANCES = 3;
 };
 
 int main( int argc, const char* argv[] )

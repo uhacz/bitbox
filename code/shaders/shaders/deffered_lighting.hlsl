@@ -60,7 +60,13 @@ float roughnessToShininess( float roughness )
 {
     return 2.0 / ( roughness*roughness ) - 1.999;
 }
-
+float3 F_Schlick(float3 F0, float NoL)
+{
+    float powBase = 1.0 - NoL;
+    float powBase2 = powBase*powBase;
+    float powBase5 = powBase2*powBase2*powBase;
+    return F0 + (1.0 - F0)*powBase5; // TODO: Rewrite for less instructions.
+}
 float3 ps_lighting(in_PS IN) : SV_Target0
 {
     //float2 render_target_size = float2( 1920, 1080 );
@@ -77,10 +83,13 @@ float3 ps_lighting(in_PS IN) : SV_Target0
 
     //const float3 positionWS = wpos_rough.xyz;
     
+    float metalness = wnrm_metal.w;
+    float3 diffuseColor = albedo_spec.rgb - albedo_spec.rgb*wnrm_metal.w;
+
     const float3 N = wnrm_metal.xyz;
     const float3 V = normalize( camera_eye - positionWS.xyz );
     const float3 L = sun_L;
-    const float3 sunL = SunSpecularL( positionWS.xyz, N, L );
+    const float3 sunL = SunSpecularL(positionWS.xyz, N, L);
     const float3 H = normalize( L+V );
     
 #ifdef USE_SKYBOX
@@ -111,13 +120,14 @@ float3 ps_lighting(in_PS IN) : SV_Target0
 
     // Calculate the Fresnel term
     float spec = albedo_spec.w;
-    float f0 = 0.16 * spec*spec;
-    float f = Fresnel( f0, HdotSunL );
+    float3 f0 = lerp(0.04, albedo_spec.rgb, metalness);
+    //float f0 = 0.16 * spec*spec;
+    float f = F_Schlick( f0, HdotSunL );
 
     // Put it all together
     float specular = d * vis * f;
 
-    float3 diffuse = albedo_spec.rgb * ( 1.0f - f );
+    float3 diffuse = diffuseColor * ( 1.0f - f );
     float3 color = ( specular.xxx + diffuse ) * NdotL * sun_intensity * PI_RCP;
 
 #ifdef USE_SKYBOX
