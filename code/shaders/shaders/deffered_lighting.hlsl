@@ -67,72 +67,79 @@ float3 F_Schlick(float3 F0, float NoL)
     float powBase5 = powBase2*powBase2*powBase;
     return F0 + (1.0 - F0)*powBase5; // TODO: Rewrite for less instructions.
 }
+
+float3 ComputeDiffuse( float3 baseColor, float3 f0, float NdotL )
+{
+    return baseColor * ( 1.0f - F_Schlick( f0, NdotL ) ) * NdotL * PI_RCP;
+}
+float3 ComputeSpecular( float3 baseColor, float3 f0, float roughness, float HdotL, float NdotH, float NdotV, float NdotL )
+{
+    float m = roughness;
+    float m2 = m * m;
+       
+    float3 F = F_Schlick( f0, HdotL );
+
+    float denom = NdotH*( NdotH*m2 - NdotH ) + 1.0;	// 2 madds.
+    float D = m2 / ( PI * denom * denom );
+
+    float l_part = NdotV*sqrt( m2 + ( 1.0 - m2 )*NdotL*NdotL );
+    float v_part = NdotL*sqrt( m2 + ( 1.0 - m2 )*NdotV*NdotV );
+    float G = 0.5 / max( l_part + v_part, 10e-7 );
+
+    return F * ( D*G*NdotL );
+}
+
+
 float3 ps_lighting(in_PS IN) : SV_Target0
 {
     //float2 render_target_size = float2( 1920, 1080 );
     int3 positionSS = int3( ( int2 )( IN.uv * render_target_size ), 0 );
     
     float4 albedo_spec = gbuffer_albedo_spec.Load( positionSS );
-    float4 wpos_rough = gbuffer_wpos_rough.Load( positionSS );
-    float4 wnrm_metal = gbuffer_wnrm_metal.Load( positionSS );
-    float depthCS = depthTexture.Load( positionSS );
+    float4 wpos_rough  = gbuffer_wpos_rough.Load( positionSS );
+    float4 wnrm_metal  = gbuffer_wnrm_metal.Load( positionSS );
+    float  depthCS     = depthTexture.Load( positionSS );
+
+    float metalness  = wnrm_metal.w;
+    float roughness  = wpos_rough.w;
+    float3 baseColor = albedo_spec.rgb - albedo_spec.rgb*wnrm_metal.w;
+    float3 f0        = lerp( 0.04, baseColor, metalness );
 
     float4 positionCS = float4( ( ( float2( positionSS.xy ) + 0.5 ) * render_target_size_rcp ) * float2( 2.0, -2.0 ) + float2( -1.0, 1.0 ), depthCS, 1.0 );
     float4 positionWS = mul( view_proj_inv, positionCS );
-    positionWS.xyz *= rcp( positionWS.w );
+    positionWS.xyz   *= rcp( positionWS.w );
 
-    //const float3 positionWS = wpos_rough.xyz;
-    
-    float metalness = wnrm_metal.w;
-    float3 diffuseColor = albedo_spec.rgb - albedo_spec.rgb*wnrm_metal.w;
-
-    const float3 N = wnrm_metal.xyz;
-    const float3 V = normalize( camera_eye - positionWS.xyz );
+    const float3 V = normalize( camera_eye.xyz - positionWS.xyz );
+    const float3 N = normalize( wnrm_metal.xyz );
     const float3 L = sun_L;
-    const float3 sunL = SunSpecularL(positionWS.xyz, N, L);
-    const float3 H = normalize( L+V );
+    //const float3 sunL = SunSpecularL(positionWS.xyz, N, L);
+    const float3 H = normalize( L + V );
     
 #ifdef USE_SKYBOX
     if( depthCS == 1.0 )
     {
-        return float4( skybox.SampleLevel( _samp_linear, -V, 0.0 ), 1.0 ) * sky_intensity * PI_RCP;
+        return float4( skybox.SampleLevel( _samp_bilinear, -V, 0.0 ), 1.0 ) * sky_intensity; // *PI_RCP;
     }
 #endif
 
     const float NdotH = saturate( dot( N, H ) );
     const float NdotL = saturate( dot( N, L ) );
-    const float NdotSunL = saturate( dot( N, sunL ) );
+    //const float NdotSunL = saturate( dot( N, sunL ) );
     const float NdotV = saturate( dot( N, V ) );
     const float VdotH = saturate( dot( V, H ) );
-    const float HdotSunL = saturate( dot( H, sunL ) );
+    const float HdotL = saturate( dot( H, L ) );
+    //const float HdotSunL = saturate( dot( H, sunL ) );
 
     const float3 R = 2.0*NdotV*N - V;
-
-    float m = wpos_rough.w;
-    float m2 = m * m;
-
-    // Calculate the distribution term
-    float d = m2 / ( PI * pow( NdotH * NdotH * ( m2 - 1 ) + 1, 2.0f ) );
-    // Calculate the matching visibility term
-    float v1i = GGX_V1( m2, NdotSunL );
-    float v1o = GGX_V1( m2, NdotV );
-    float vis = v1i * v1o;
-
-    // Calculate the Fresnel term
-    float spec = albedo_spec.w;
-    float3 f0 = lerp(0.04, albedo_spec.rgb, metalness);
-    //float f0 = 0.16 * spec*spec;
-    float f = F_Schlick( f0, HdotSunL );
-
-    // Put it all together
-    float specular = d * vis * f;
-
-    float3 diffuse = diffuseColor * ( 1.0f - f );
-    float3 color = ( specular.xxx + diffuse ) * NdotL * sun_intensity * PI_RCP;
+        
+    float3 diffuse  = ComputeDiffuse( baseColor, f0, NdotL );
+    float3 specular = ComputeSpecular( baseColor, f0, roughness, HdotL, NdotH, NdotV, NdotL );
+    
+    float3 color = sun_color * ( specular + diffuse ) * sun_intensity * PI_RCP;
 
 #ifdef USE_SKYBOX
     float environmentMapWidth = 1024;
-    float glossyExponent = roughnessToShininess( m );
+    float glossyExponent = roughnessToShininess( roughness );
     float MIPlevel = log2( environmentMapWidth * sqrt( 3 ) ) - 0.5 * log2( glossyExponent + 1 );    
     float3 diffuse_env = skybox.SampleLevel( _samp_bilinear, N, 10.0 ).rgb;
     float3 specular_env = skybox.SampleLevel( _samp_bilinear, R, MIPlevel ).rgb;
@@ -147,5 +154,5 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     //float3 envColor = diffuse_env + specular_env; // skybox.Sample( _samp_point, N ).rgb;
     //color += envColor;
     
-    return float4( color, 1.0 );
+    return float4( specular, 1.0 );
 }

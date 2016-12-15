@@ -340,6 +340,7 @@ void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera
     {
         //SYS_STATIC_ASSERT( sizeof( LightPass::MaterialData ) == 152 );
         LightPass::MaterialData mdata = {};
+        memset( &mdata, 0x00, sizeof( mdata ) );
 
         storeXYZ( camera.worldEye(), mdata.camera_eye.xyzw );
         storeXYZ( camera.worldDir(), mdata.camera_dir.xyzw );
@@ -464,7 +465,7 @@ void PostProcessPass::_StartUp( PostProcessPass* pass )
         const int lumiTexSize = 1024;
         tm.adapted_luminance[0] = rdi::device::CreateTexture2D( lumiTexSize, lumiTexSize, 11, rdi::Format( rdi::EDataType::FLOAT, 1 ), rdi::EBindMask::RENDER_TARGET | rdi::EBindMask::SHADER_RESOURCE, 0, 0 );
         tm.adapted_luminance[1] = rdi::device::CreateTexture2D( lumiTexSize, lumiTexSize, 11, rdi::Format( rdi::EDataType::FLOAT, 1 ), rdi::EBindMask::RENDER_TARGET | rdi::EBindMask::SHADER_RESOURCE, 0, 0 );
-        tm.initial_luminance = rdi::device::CreateTexture2D( lumiTexSize, lumiTexSize, 1, rdi::Format( rdi::EDataType::FLOAT, 1 ), rdi::EBindMask::RENDER_TARGET | rdi::EBindMask::SHADER_RESOURCE, 0, 0 );
+        tm.initial_luminance    = rdi::device::CreateTexture2D( lumiTexSize, lumiTexSize, 1 , rdi::Format( rdi::EDataType::FLOAT, 1 ), rdi::EBindMask::RENDER_TARGET | rdi::EBindMask::SHADER_RESOURCE, 0, 0 );
 
         rdi::ShaderFile* sf = rdi::ShaderFileLoad( "shader/bin/tone_mapping.shader", GResourceManager() );
         

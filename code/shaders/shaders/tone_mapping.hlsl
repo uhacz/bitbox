@@ -236,14 +236,14 @@ float convertEV100ToExposure( float EV100 )
 // Approximates luminance from an RGB value
 float Calc_luminance(float3 color)
 {
-    return max(dot(color, float3(0.299f, 0.587f, 0.114f)), EPSILON );
+    return max(dot(color, float3(0.299f, 0.587f, 0.114f)), 0.0001f );
 }
 
 // Retrieves the log-average lumanaince from the texture
 float Get_avg_luminance(Texture2D tex_lum, float2 uv )
 {
-	//return exp( tex_lum.SampleLevel( _samp_linear, uv, 10.f ).x );
-    return max( exp( tex_lum.Load( int3( 0, 0, 10 ) ).x ), EPSILON );
+	//return exp( tex_lum.SampleLevel( _samp_point, uv, 10.f ).x );
+    return max( exp( tex_lum.Load( int3( 0, 0, 10 ) ).x ), 0.01 );
 }
 
 float3 ACESFilm(float3 x)
@@ -271,8 +271,7 @@ float3 Tone_map_filmic_ALU( float3 color )
 // Determines the color based on exposure settings
 float3 Calc_exposed_color( float3 color, float avgLuminance, float threshold )
 {    
-    float currentEV = 0.f;    if( use_auto_exposure )    {        currentEV = computeEV100FromAvgLuminance( avgLuminance );    }    else    {        currentEV = computeEV100(camera_aperture, camera_shutterSpeed, camera_iso);    }    float exposure = convertEV100ToExposure(currentEV);    exposure -= threshold;    //float currentEV = computeEV100(camera_aperture, camera_shutterSpeed, camera_iso);            
-    
+    float currentEV = 0.f;    if( use_auto_exposure )    {        currentEV = computeEV100FromAvgLuminance( avgLuminance );    }    else    {        currentEV = computeEV100(camera_aperture, camera_shutterSpeed, camera_iso);    }    float exposure = convertEV100ToExposure(currentEV);    exposure -= threshold;    
     return (exposure) * color;
 }
 
@@ -282,8 +281,8 @@ float3 Tone_map( float3 color, float avg_luminance, float threshold )
 {
     //float pixel_luminance = Calc_luminance( color );
     float3 exposedColor = Calc_exposed_color( color, avg_luminance, threshold );
-    return exposedColor;
-    //return Tone_map_filmic_ALU( exposedColor );
+    //return exposedColor;
+    return Tone_map_filmic_ALU( exposedColor );
 }
 
 // Calculates the gaussian blur weight for a given distance and sigmas
@@ -355,6 +354,7 @@ void PS_composite(in out_VS_screenquad input,
     // Tone map the primary input
     float avg_luminance = Get_avg_luminance( tex_input1, input.uv );
     float3 color = tex_input0.Sample( _samp_point, input.uv ).rgb;
+    //color = avg_luminance.xxx / 2;
     color = Tone_map(color, avg_luminance, 0 );
 #ifdef WITH_BLOOM
     // Sample the bloom
@@ -368,14 +368,15 @@ void PS_composite(in out_VS_screenquad input,
 }
 
 // Creates the luminance map for the scene
-float4 PS_luminance_map(in out_VS_screenquad input) : SV_Target
+float PS_luminance_map(in out_VS_screenquad input) : SV_Target
 {
     // Sample the input
-    float3 color = tex_input0.Sample(_samp_linear, input.uv ).rgb;
+    float3 color = tex_input0.SampleLevel(_samp_point, input.uv, 0 ).rgb;
    
     // calculate the luminance using a weighted average
-    float luminance = Calc_luminance( color );
-    return float4(luminance, luminance, luminance, luminance );
+    //float luminance = normalize( color ); // Calc_luminance( color );
+    float luminance = max( dot( color, float3( 0.299f, 0.587f, 0.114f ) ), 0.0001f );
+    return luminance;
 }
 
 // Slowly adjusts the scene luminance based on the previous scene luminance
@@ -387,6 +388,6 @@ float4 PS_adapt_luminance(in out_VS_screenquad input) : SV_Target
     //float adapted_lum = last_lum + ( current_lum - last_lum ) * ( 1.f - exp( -delta_time * lum_tau ) );
     float adaptation_rate = 0.1f;
     float adapted_lum = last_lum - last_lum * adaptation_rate + current_lum * adaptation_rate; // above equation rewritten to allow better instruction scheduling
-    return log( max( adapted_lum, EPSILON ) );
+    return log( max( adapted_lum, 0.001 ) );
 }
 #endif
