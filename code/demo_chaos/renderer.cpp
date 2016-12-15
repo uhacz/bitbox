@@ -2,6 +2,7 @@
 #include <util\common.h>
 #include <util\buffer_utils.h>
 #include <util\poly\poly_shape.h>
+#include <resource_manager\resource_manager.h>
 #include <rdi/rdi.h>
 
 #include "renderer_scene.h"
@@ -112,7 +113,7 @@ void Renderer::StartUp( const RendererDesc& desc, ResourceManager* resourceManag
         rdi::RenderSource rsource_box = rdi::CreateRenderSourceFromPolyShape( polyShape );
         bxPolyShape_deallocateShape( &polyShape );
 
-        bxPolyShape_createShpere( &polyShape, 8 );
+        bxPolyShape_createShpere( &polyShape, 9 );
         rdi::RenderSource rsource_sphere = rdi::CreateRenderSourceFromPolyShape( polyShape );
         bxPolyShape_deallocateShape( &polyShape );
 
@@ -360,7 +361,10 @@ void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera
             if( GTextureManager()->Alive( sunSky->sky_cubemap ) )
             {
                 rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_skybox );
-                rdi::SetResourceRO( rdesc, "skybox", GTextureManager()->Texture( sunSky->sky_cubemap ) );
+                rdi::TextureRO* sky_cubemap = GTextureManager()->Texture( sunSky->sky_cubemap );
+                rdi::SetResourceRO( rdesc, "skybox", sky_cubemap );
+                mdata.environment_map_width = sky_cubemap->info.width;
+                mdata.environment_map_max_mip = sky_cubemap->info.mips - 1;
                 _has_skybox = 1;
             }
             else
@@ -515,7 +519,7 @@ void PostProcessPass::DoToneMapping( rdi::CommandQueue* cmdq, rdi::TextureRW out
     // --- ToneMapping
     {
         //SYS_STATIC_ASSERT( sizeof( PostProcessPass::ToneMapping::MaterialData ) == 44 );
-        _tm.data.input_size0 = float2_t( (float)outTexture.width, (float)outTexture.height );
+        _tm.data.input_size0 = float2_t( (float)outTexture.info.width, (float)outTexture.info.height );
         _tm.data.delta_time = deltaTime;
         //_tm.data.adaptation_rate = adaptationRate;
         rdi::context::UpdateCBuffer( cmdq, _tm.cbuffer_data, &_tm.data );

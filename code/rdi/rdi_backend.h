@@ -617,32 +617,31 @@ struct BufferRW : ResourceRW
     Format format;
 };
 
-struct TextureRO : ResourceRO
+struct TextureInfo
 {
     u16 width = 0;
     u16 height = 0;
     u16 depth = 0;
+    u8 mips = 0;
     Format format = {};
+    
+};
+
+struct TextureRO : ResourceRO
+{
+    TextureInfo info;
 };
 
 struct TextureRW : ResourceRW
 {
     ID3D11RenderTargetView* viewRT = nullptr;
-
-    u16 width = 0;
-    u16 height = 0;
-    u16 depth = 0;
-    Format format = {};
+    TextureInfo info;
 };
 
 struct TextureDepth : ResourceRW
 {
     ID3D11DepthStencilView* viewDS = nullptr;
-
-    u16 width = 0;
-    u16 height = 0;
-    u16 depth = 0;
-    Format format = {};
+    TextureInfo info;
 };
 
 struct Shader

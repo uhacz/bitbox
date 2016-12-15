@@ -1,5 +1,6 @@
 #include "renderer_material.h"
 #include <util\hash.h>
+#include <resource_manager\resource_manager.h>
 
 namespace bx{ namespace gfx{
 

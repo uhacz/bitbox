@@ -579,9 +579,11 @@ TextureRO CreateTextureFromDDS( const void* dataBlob, size_t dataBlobSize )
     hres = DirectX::CreateShaderResourceView( g_device, scratch_img.GetImages(), scratch_img.GetImageCount(), tex_metadata, &tex.viewSH );
     SYS_ASSERT( SUCCEEDED( hres ) );
 
-    tex.width = (u16)tex_metadata.width;
-    tex.height = (u16)tex_metadata.height;
-    tex.depth = (u16)tex_metadata.depth;
+    tex.info.width  = (u16)tex_metadata.width;
+    tex.info.height = (u16)tex_metadata.height;
+    tex.info.depth  = (u16)tex_metadata.depth;
+    tex.info.mips   = (u8)tex_metadata.mipLevels;
+    
     return tex;
 }
 TextureRO device::CreateTextureFromHDR( const void* dataBlob, size_t dataBlobSize )
@@ -602,9 +604,10 @@ TextureRO device::CreateTextureFromHDR( const void* dataBlob, size_t dataBlobSiz
     hres = DirectX::CreateShaderResourceView( g_device, scratch_img.GetImages(), scratch_img.GetImageCount(), tex_metadata, &tex.viewSH );
     SYS_ASSERT( SUCCEEDED( hres ) );
 
-    tex.width = (u16)tex_metadata.width;
-    tex.height = (u16)tex_metadata.height;
-    tex.depth = (u16)tex_metadata.depth;
+    tex.info.width = (u16)tex_metadata.width;
+    tex.info.height = (u16)tex_metadata.height;
+    tex.info.depth = (u16)tex_metadata.depth;
+    tex.info.mips = (u8)tex_metadata.mipLevels;
     return tex;
 }
 
@@ -697,10 +700,11 @@ TextureRW CreateTexture1D( int w, int mips, Format format, unsigned bindFlags, u
     tex.viewSH = view_sh;
     tex.viewUA = view_ua;
     tex.viewRT = view_rt;
-    tex.width = w;
-    tex.height = 1;
-    tex.depth = 1;
-    tex.format = format;
+    tex.info.width = w;
+    tex.info.height = 1;
+    tex.info.depth = 1;
+    tex.info.mips = mips;
+    tex.info.format = format;
     return tex;
 }
 TextureRW CreateTexture2D( int w, int h, int mips, Format format, unsigned bindFlags, unsigned cpuaFlags, const void* data )
@@ -792,10 +796,11 @@ TextureRW CreateTexture2D( int w, int h, int mips, Format format, unsigned bindF
     tex.viewSH = view_sh;
     tex.viewUA = view_ua;
     tex.viewRT = view_rt;
-    tex.width = w;
-    tex.height = h;
-    tex.depth = 1;
-    tex.format = format;
+    tex.info.width = w;
+    tex.info.height = h;
+    tex.info.depth = 1;
+    tex.info.mips = mips;
+    tex.info.format = format;
     return tex;
 }
 TextureDepth CreateTexture2Ddepth( int w, int h, int mips, EDataType::Enum dataType )
@@ -873,10 +878,11 @@ TextureDepth CreateTexture2Ddepth( int w, int h, int mips, EDataType::Enum dataT
     tex.texture2D = tex2d;
     tex.viewDS = view_ds;
     tex.viewSH = view_sh;
-    tex.width = w;
-    tex.height = h;
-    tex.depth = 1;
-    tex.format = Format( dataType, 1 );
+    tex.info.width = w;
+    tex.info.height = h;
+    tex.info.depth = 1;
+    tex.info.mips = mips;
+    tex.info.format = Format( dataType, 1 );
 
     return tex;
 }
@@ -1490,8 +1496,8 @@ void ChangeRenderTargets( CommandQueue* cmdq, TextureRW* colorTex, unsigned nCol
         Viewport vp;
         vp.x = 0;
         vp.y = 0;
-        vp.w = ( colorTex ) ? colorTex->width : depthTex.width;
-        vp.h = ( colorTex ) ? colorTex->height : depthTex.height;
+        vp.w = ( colorTex ) ? colorTex->info.width  : depthTex.info.width;
+        vp.h = ( colorTex ) ? colorTex->info.height : depthTex.info.height;
         SetViewport( cmdq, vp );
     }
 }
@@ -1543,9 +1549,9 @@ void UpdateCBuffer( CommandQueue* cmdq, ConstantBuffer cbuffer, const void* data
 }
 void UpdateTexture( CommandQueue* cmdq, TextureRW texture, const void* data )
 {
-    const u32 formatWidth = texture.format.ByteWidth();
-    const u32 srcRowPitch = formatWidth * texture.width;
-    const u32 srcDepthPitch = srcRowPitch * texture.height;
+    const u32 formatWidth = texture.info.format.ByteWidth();
+    const u32 srcRowPitch = formatWidth * texture.info.width;
+    const u32 srcDepthPitch = srcRowPitch * texture.info.height;
     cmdq->dx11()->UpdateSubresource( texture.resource, 0, NULL, data, srcRowPitch, srcDepthPitch );
 }
 
@@ -1617,8 +1623,8 @@ TextureRW GetBackBufferTexture( CommandQueue* cmdq )
     TextureRW tex;
     tex.id = 0;
     tex.viewRT = cmdq->_mainFramebuffer;
-    tex.width = cmdq->_mainFramebufferWidth;
-    tex.height = cmdq->_mainFramebufferHeight;
+    tex.info.width = cmdq->_mainFramebufferWidth;
+    tex.info.height = cmdq->_mainFramebufferHeight;
 
     return tex;
 }

@@ -113,9 +113,9 @@ public:
         _gfx_scene = _renderer.CreateScene( "test" );
         _gfx_scene->EnableSunSkyLight();
         _gfx_scene->GetSunSkyLight()->sun_direction = normalize( Vector3( -1.f, -1.0f, 0.f ) );
-        _gfx_scene->GetSunSkyLight()->sky_cubemap = gfx::GTextureManager()->CreateFromFile( "texture/test_cubemap.dds" );
-        _gfx_scene->GetSunSkyLight()->sky_intensity = 1.f;
-        _gfx_scene->GetSunSkyLight()->sun_intensity = 1.f;
+        _gfx_scene->GetSunSkyLight()->sky_cubemap = gfx::GTextureManager()->CreateFromFile( "texture/sky1_cubemap.dds" );
+        //_gfx_scene->GetSunSkyLight()->sky_intensity = 1.f;
+        //_gfx_scene->GetSunSkyLight()->sun_intensity = 1.f;
 
         {
             gfx::ActorID actor = _gfx_scene->Add( "ground", 1 );

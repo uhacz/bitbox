@@ -232,7 +232,6 @@ float convertEV100ToExposure( float EV100 )
     float maxLuminance = 1.2f * pow( 2.0f, EV100 );    return 1.0f / maxLuminance;
 }
 
-#define EPSILON 0.001
 // Approximates luminance from an RGB value
 float Calc_luminance(float3 color)
 {
@@ -259,13 +258,12 @@ float3 ACESFilm(float3 x)
 // Applies the filmic curve from John Hable's presentation
 float3 Tone_map_filmic_ALU( float3 color )
 {
-    return ACESFilm(color);
-    //color = max(0, color - 0.004f);
-    //color = (color * (6.2f * color + 0.5f)) / (color * (6.2f * color + 1.7f)+ 0.06f);
-    //
-    //// result has 1/2.2 baked in
-    //return pow(color, 2.2f);
-    //return color;
+    color = max(0, color - 0.004f);
+    color = (color * (6.2f * color + 0.5f)) / (color * (6.2f * color + 1.7f)+ 0.06f);
+    
+    // result has 1/2.2 baked in
+    return pow(color, 2.2f);
+    return color;
 }
 
 // Determines the color based on exposure settings
@@ -281,8 +279,7 @@ float3 Tone_map( float3 color, float avg_luminance, float threshold )
 {
     //float pixel_luminance = Calc_luminance( color );
     float3 exposedColor = Calc_exposed_color( color, avg_luminance, threshold );
-    //return exposedColor;
-    return Tone_map_filmic_ALU( exposedColor );
+    return ACESFilm( exposedColor );
 }
 
 // Calculates the gaussian blur weight for a given distance and sigmas
@@ -354,7 +351,6 @@ void PS_composite(in out_VS_screenquad input,
     // Tone map the primary input
     float avg_luminance = Get_avg_luminance( tex_input1, input.uv );
     float3 color = tex_input0.Sample( _samp_point, input.uv ).rgb;
-    //color = avg_luminance.xxx / 2;
     color = Tone_map(color, avg_luminance, 0 );
 #ifdef WITH_BLOOM
     // Sample the bloom
@@ -375,7 +371,7 @@ float PS_luminance_map(in out_VS_screenquad input) : SV_Target
    
     // calculate the luminance using a weighted average
     //float luminance = normalize( color ); // Calc_luminance( color );
-    float luminance = max( dot( color, float3( 0.299f, 0.587f, 0.114f ) ), 0.0001f );
+    float luminance = max( dot( color, float3( 0.299f, 0.587f, 0.114f ) ), 0.001f );
     return luminance;
 }
 
@@ -385,9 +381,9 @@ float4 PS_adapt_luminance(in out_VS_screenquad input) : SV_Target
     float last_lum    = exp( tex_input0.Sample( _samp_point, input.uv ).x );
     float current_lum = tex_input1.Sample( _samp_point, input.uv ).x;
     
-    //float adapted_lum = last_lum + ( current_lum - last_lum ) * ( 1.f - exp( -delta_time * lum_tau ) );
-    float adaptation_rate = 0.1f;
-    float adapted_lum = last_lum - last_lum * adaptation_rate + current_lum * adaptation_rate; // above equation rewritten to allow better instruction scheduling
+    float adapted_lum = last_lum + ( current_lum - last_lum ) * ( 1.f - exp( -delta_time * lum_tau ) );
+    //float adaptation_rate = 0.1f;
+    //float adapted_lum = last_lum - last_lum * adaptation_rate + current_lum * adaptation_rate; // above equation rewritten to allow better instruction scheduling
     return log( max( adapted_lum, 0.001 ) );
 }
 #endif

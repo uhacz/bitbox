@@ -12,6 +12,8 @@ CBUFFER MaterialData BREGISTER( SLOT_MATERIAL_DATA )
     float2 render_target_size_rcp;
     float sun_intensity;
     float sky_intensity;
+    float environment_map_width;
+    int environment_map_max_mip;
 };
 
 #endif
