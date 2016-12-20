@@ -56,7 +56,6 @@ u32 ShaderFileFindPass( const ShaderFile* sfile, const char* passName )
     return UINT32_MAX;
 }
 
-
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 struct ShaderObject
@@ -614,6 +613,45 @@ RenderSource CreateRenderSourceFromPolyShape( const bxPolyShape& shape )
     RenderSource rsource = CreateRenderSource( desc );
     
     return rsource;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+RenderSource CreateFullscreenQuad()
+{
+    const float vertices_pos[] =
+    {
+        -1.f, -1.f, 0.f,
+        1.f , -1.f, 0.f,
+        1.f , 1.f , 0.f,
+
+        -1.f, -1.f, 0.f,
+        1.f , 1.f , 0.f,
+        -1.f, 1.f , 0.f,
+    };
+    const float vertices_uv[] =
+    {
+        0.f, 0.f,
+        1.f, 0.f,
+        1.f, 1.f,
+
+        0.f, 0.f,
+        1.f, 1.f,
+        0.f, 1.f,
+    };
+
+    rdi::RenderSourceDesc rsource_desc = {};
+    rsource_desc.Count( 6 );
+    rsource_desc.VertexBuffer( rdi::VertexBufferDesc( rdi::EVertexSlot::POSITION ).DataType( rdi::EDataType::FLOAT, 3 ), vertices_pos );
+    rsource_desc.VertexBuffer( rdi::VertexBufferDesc( rdi::EVertexSlot::TEXCOORD0 ).DataType( rdi::EDataType::FLOAT, 2 ), vertices_uv );
+    rdi::RenderSource rsource = rdi::CreateRenderSource( rsource_desc );
+    return rsource;
+}
+
+void DrawFullscreenQuad( CommandQueue* cmdq, RenderSource fsq )
+{
+    BindRenderSource( cmdq, fsq );
+    SubmitRenderSource( cmdq, fsq );
 }
 
 }}///

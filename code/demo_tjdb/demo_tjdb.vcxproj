@@ -14,6 +14,7 @@
     <ProjectGuid>{753F2519-5524-4CDB-80C9-EF9F6B5AEEFF}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>demo_tjdb</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -85,33 +86,30 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="tjdb.cpp" />
+    <ClCompile Include="no_gods_no_masters.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="tjdb.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\gdi\gdi.vcxproj">
-      <Project>{6c37bb51-ecab-42a3-8eb3-30e45503b92d}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\gfx\gfx.vcxproj">
-      <Project>{f3b3bc37-9aaa-4b41-af4e-144c1317f283}</Project>
+    <ProjectReference Include="..\rdi\rdi.vcxproj">
+      <Project>{5146d804-4a7f-442f-9085-5adc06bf9769}</Project>
     </ProjectReference>
     <ProjectReference Include="..\resource_manager\resource_manager.vcxproj">
       <Project>{117290a3-4a22-4c58-9ac0-ed1c8efa49e3}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\shaders\hlsl\hlsl.vcxproj">
-      <Project>{752ee42b-6767-4d1c-8ce2-227e00965d51}</Project>
+    <ProjectReference Include="..\shaders\shaders\shaders.vcxproj">
+      <Project>{b825d183-8d6d-42c7-85a2-b9f0e96c3259}</Project>
     </ProjectReference>
     <ProjectReference Include="..\system\system.vcxproj">
       <Project>{02eab815-4288-477b-a47d-982eb8a15c1f}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\tools\fx_compiler\fx_compiler.vcxproj">
-      <Project>{18b49f0b-c441-4267-94e1-1e71e803b040}</Project>
+    <ProjectReference Include="..\tools\shader_compiler\shader_compiler.vcxproj">
+      <Project>{0ebf648f-cb37-414f-89c5-0d73bcd6adde}</Project>
     </ProjectReference>
     <ProjectReference Include="..\util\util.vcxproj">
       <Project>{c72ded4c-e82a-4e26-b7a8-715f4747ccec}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="no_gods_no_masters.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

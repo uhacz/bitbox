@@ -191,7 +191,9 @@ VertexBuffer GetVertexBuffer( RenderSource rsource, u32 index );
 IndexBuffer GetIndexBuffer( RenderSource rsource );
 RenderSourceRange GetRange( RenderSource rsource, u32 index );
 RenderSource CreateRenderSourceFromPolyShape( const bxPolyShape& shape );
-
+//////////////////////////////////////////////////////////////////////////
+RenderSource CreateFullscreenQuad();
+void DrawFullscreenQuad( CommandQueue* cmdq, RenderSource fsq );
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -222,6 +224,8 @@ u32 ShaderFileNameHash( const char* name, u32 version );
 ShaderFile* ShaderFileLoad( const char* filename, ResourceManager* resourceManager );
 void ShaderFileUnload( ShaderFile** sfile, ResourceManager* resourceManager );
 u32 ShaderFileFindPass( const ShaderFile* sfile, const char* passName );
+
+
 
 }}///
 

@@ -78,32 +78,8 @@ void Renderer::StartUp( const RendererDesc& desc, ResourceManager* resourceManag
     }
 
     {
-        const float vertices_pos[] =
-        {
-            -1.f, -1.f, 0.f,
-            1.f , -1.f, 0.f,
-            1.f , 1.f , 0.f,
-
-            -1.f, -1.f, 0.f,
-            1.f , 1.f , 0.f,
-            -1.f, 1.f , 0.f,
-        };
-        const float vertices_uv[] =
-        {
-            0.f, 0.f,
-            1.f, 0.f,
-            1.f, 1.f,
-
-            0.f, 0.f,
-            1.f, 1.f,
-            0.f, 1.f,
-        };
-
-        rdi::RenderSourceDesc rsource_desc = {};
-        rsource_desc.Count( 6 );
-        rsource_desc.VertexBuffer( rdi::VertexBufferDesc( rdi::EVertexSlot::POSITION ).DataType( rdi::EDataType::FLOAT, 3 ), vertices_pos );
-        rsource_desc.VertexBuffer( rdi::VertexBufferDesc( rdi::EVertexSlot::TEXCOORD0 ).DataType( rdi::EDataType::FLOAT, 2 ), vertices_uv );
-        rdi::RenderSource rsource = rdi::CreateRenderSource( rsource_desc );
+        
+        rdi::RenderSource rsource = rdi::CreateFullscreenQuad();
         MeshHandle hmesh = GMeshManager()->Add( ":fullscreen_quad" );
         GMeshManager()->SetRenderSource( hmesh, rsource );
     }
@@ -218,8 +194,7 @@ void Renderer::DrawFullScreenQuad( rdi::CommandQueue* cmdq )
 {
     MeshHandle hmesh_fullscreen_quad = GMeshManager()->Find( ":fullscreen_quad" );
     rdi::RenderSource rsource_fullscreen_quad = GMeshManager()->RenderSource( hmesh_fullscreen_quad );
-    rdi::BindRenderSource( cmdq, rsource_fullscreen_quad );
-    rdi::SubmitRenderSource( cmdq, rsource_fullscreen_quad );
+    rdi::DrawFullscreenQuad( cmdq, rsource_fullscreen_quad );
 }
 
 }}///

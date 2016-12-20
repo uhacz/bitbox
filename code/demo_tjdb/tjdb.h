@@ -11,6 +11,22 @@ struct bxGdiContext;
 
 namespace tjdb
 {
+    class App : public bxApplication
+    {
+    public:
+        App();
+
+        virtual bool startup( int argc, const char** argv );
+        virtual void shutdown();
+
+        virtual bool update( u64 deltaTimeUS );
+
+        bxResourceManager* _resourceManager;
+        bxGdiDeviceBackend* _gdiDev;
+        bxGdiContext* _gdiCtx;
+    };
+
+
     void startup( bxWindow* win, bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
     void shutdown( bxGdiDeviceBackend* dev, bxResourceManager* resourceManager );
 

@@ -1,0 +1,27 @@
+#pragma once
+#include <system\application.h>
+
+#include <resource_manager/resource_manager.h>
+#include <rdi/rdi.h>
+
+using namespace bx;
+
+namespace tjdb
+{
+class NoGodsNoMasters : public bxApplication
+{
+public:
+    bool startup( int argc, const char** argv ) override;
+    void shutdown() override;
+    bool update( u64 deltaTimeUS ) override;
+
+
+private:
+    rdi::RenderSource _fullscreen_quad = BX_RDI_NULL_HANDLE;
+    rdi::TextureRO _main_texture = {};
+};
+
+
+}//
+
+
