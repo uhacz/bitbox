@@ -3,6 +3,7 @@
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
 #include <util/containers.h>
+#include <util/view_frustum.h>
 #include "renderer_type.h"
 #include "renderer_camera.h"
 #include "renderer_texture.h"
@@ -44,6 +45,7 @@ struct SceneImpl
     void SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
 
     void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Camera& camera );
+    void BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Matrix4& lightWorld, const ViewFrustum& lightFrustum );
 
     void EnableSunSkyLight( const SunSkyLight& data = SunSkyLight() );
     void DisableSunSkyLight();

@@ -9,6 +9,7 @@
 #include "renderer_scene_actor.h"
 #include "renderer_material.h"
 #include "renderer_shared_mesh.h"
+#include "util\camera.h"
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -304,9 +305,76 @@ void GeometryPass::_ShutDown( GeometryPass* pass )
     rdi::DestroyRenderTarget( &pass->_rtarget_gbuffer );
 }
 //////////////////////////////////////////////////////////////////////////
+namespace
+{
+    static Matrix3 computeBasis1( const Vector3& dir )
+    {
+        // Derive two remaining vectors
+        Vector3 right, up;
+        if( ::abs( dir.getY().getAsFloat() ) > 0.9999f )
+        {
+            right = Vector3( 1.0f, 0.0f, 0.0f );
+        }
+        else
+        {
+            right = normalize( cross( Vector3( 0.0f, 1.0f, 0.0f ), dir ) );
+        }
+
+        up = cross( dir, right );
+        return Matrix3( right, up, dir );
+    }
+}
+void ShadowPass::_ComputeLightMatrixOrtho( LightMatrices* matrices, const Vector3 wsFrustumCorners[8], const Vector3 wsLightDirection )
+{
+    Vector3 wsCenter( 0.f );
+    for( int i = 0; i < 8; ++i )
+    {
+        wsCenter += wsFrustumCorners[i];
+    }
+    wsCenter *= 1.f / 8.f;
+
+    Matrix3 lRot = computeBasis1( -wsLightDirection );
+    Matrix4 lWorld( lRot, wsCenter );
+    Matrix4 lView = orthoInverse( lWorld );
+    //bxGfxDebugDraw::addAxes( lWorld );
+
+    bxAABB lsAABB = bxAABB::prepare();
+    for( int i = 0; i < 8; ++i )
+    {
+        Vector3 lsCorner = mulAsVec4( lView, wsFrustumCorners[i] );
+        lsAABB = bxAABB::extend( lsAABB, lsCorner );
+    }
+
+    Vector3 lsAABBsize = bxAABB::size( lsAABB ) * halfVec;
+    float3_t lsMin, lsMax, lsExt;
+    m128_to_xyz( lsMin.xyz, lsAABB.min.get128() );
+    m128_to_xyz( lsMax.xyz, lsAABB.max.get128() );
+    m128_to_xyz( lsExt.xyz, lsAABBsize.get128() );
+
+
+
+    const Matrix4 lProj = bx::gfx::cameraMatrixOrtho( lsMin.x, lsMax.x, lsMin.y, lsMax.y, -lsExt.z, lsExt.z );
+
+    matrices->world = lWorld;
+    matrices->view = lView;
+    matrices->proj = lProj;
+    
+}
+
 void ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera )
 {
+    {
+        _vertex_transform_data.Map( cmdq );
 
+        rdi::ClearCommandBuffer( _cmd_buffer );
+        rdi::BeginCommandBuffer( _cmd_buffer );
+
+        scene->BuildCommandBuffer( _cmd_buffer, &_vertex_transform_data, camera );
+
+        rdi::EndCommandBuffer( _cmd_buffer );
+
+        _vertex_transform_data.Unmap( cmdq );
+    }
 }
 
 void ShadowPass::Flush( rdi::CommandQueue* cmdq )
@@ -322,18 +390,43 @@ void ShadowPass::_StartUp( ShadowPass* pass, const RendererDesc& rndDesc, u32 sh
     const u32 cpuAccessMask = 0;
     pass->_shadow_map = rdi::device::CreateTexture2D( rndDesc.framebuffer_width, rndDesc.framebuffer_height, 1, rdi::Format( rdi::EDataType::FLOAT, 1 ), bindFlags, cpuAccessMask, nullptr );
 
+    pass->_cbuffer = rdi::device::CreateConstantBuffer( sizeof( ShadowPass::MaterialData ) );
 
     rdi::ShaderFile* shf = rdi::ShaderFileLoad( "shader/bin/shadow.shader", GResourceManager() );
-    rdi::PipelineDesc pipeline_desc;
-    pipeline_desc.Shader( shf, "" );
+    rdi::PipelineDesc pipeline_desc = {};
+    rdi::ResourceDescriptor rdesc = BX_RDI_NULL_HANDLE;
 
+    pipeline_desc.Shader( shf, "depth" );
+    pass->_pipeline_depth = rdi::CreatePipeline( pipeline_desc );
+    rdesc = rdi::GetResourceDescriptor( pass->_pipeline_depth );
+    rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer );
+
+    pipeline_desc.Shader( shf, "resolve" );
+    pass->_pipeline_resolve = rdi::CreatePipeline( pipeline_desc );
+    rdesc = rdi::GetResourceDescriptor( pass->_pipeline_resolve );
+    rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer );
+    
+    rdi::ShaderFileUnload( &shf, GResourceManager() );
+
+    pass->_cmd_buffer = rdi::CreateCommandBuffer( 1024 );
+    VertexTransformData::_Init( &pass->_vertex_transform_data, 1024 );
 }
 
 void ShadowPass::_ShutDown( ShadowPass* pass )
 {
+    VertexTransformData::_Deinit( &pass->_vertex_transform_data );
+    rdi::DestroyCommandBuffer( &pass->_cmd_buffer );
+    
+    rdi::device::DestroyConstantBuffer( &pass->_cbuffer );
+
+    rdi::DestroyPipeline( &pass->_pipeline_resolve );
+    rdi::DestroyPipeline( &pass->_pipeline_depth );
+
     rdi::device::DestroyTexture( &pass->_shadow_map );
     rdi::device::DestroyTexture( &pass->_depth_map );
 }
+
+
 
 //////////////////////////////////////////////////////////////////////////
 void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera )
@@ -456,7 +549,7 @@ void PostProcessPass::_StartUp( PostProcessPass* pass )
         data.bloom_blur_sigma = 0.f;
         data.bloom_magnitude = 0.f;
         
-        data.lum_tau = 15.f;
+        data.lum_tau = 5.f;
         //data.adaptation_rate = 0.5f;
         data.exposure_key_value = 0.30f;
         data.use_auto_exposure = 1;

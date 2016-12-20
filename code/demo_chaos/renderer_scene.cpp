@@ -200,6 +200,11 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
     }
 }
 
+void SceneImpl::BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Matrix4& lightWorld, const ViewFrustum& lightFrustum )
+{
+
+}
+
 void SceneImpl::EnableSunSkyLight( const SunSkyLight& data /*= SunSkyLight() */ )
 {
     if( _sun_sky_light )

@@ -1,12 +1,12 @@
 passes:
 {
-    shadowDepthPass =
+    depth =
     {
         vertex = "vs_shadowDepth";
         pixel = "ps_shadowDepth";
     };
 
-    shadowResolvePass =
+    resolve =
     {
         vertex = "vs_screenquad";
         pixel = "ps_shadowResolve";

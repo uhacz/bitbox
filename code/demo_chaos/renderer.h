@@ -112,6 +112,16 @@ public:
     rdi::TextureDepth DepthMap() const { return _depth_map; }
     
 private:
+    struct LightMatrices
+    {
+        Matrix4 world;
+        Matrix4 view;
+        Matrix4 proj;
+    };
+    void _ComputeLightMatrixOrtho( LightMatrices* matrices, const Vector3 wsFrustumCorners[8], const Vector3 wsLightDirection );
+
+
+private:
 #include <shaders/shaders/shadow_data.h>
     rdi::TextureDepth _depth_map = {};
     rdi::TextureRW _shadow_map = {};
@@ -119,17 +129,9 @@ private:
     rdi::Pipeline _pipeline_depth = BX_RDI_NULL_HANDLE;
     rdi::Pipeline _pipeline_resolve = BX_RDI_NULL_HANDLE;
 
-    rdi::CommandBuffer _cbuffer = {};
+    rdi::ConstantBuffer _cbuffer = {};
     gfx::VertexTransformData _vertex_transform_data;
     rdi::CommandBuffer _cmd_buffer = BX_RDI_NULL_HANDLE;
-};
-
-//////////////////////////////////////////////////////////////////////////
-class SkyPass
-{
-public:
-private:
-
 };
 
 //////////////////////////////////////////////////////////////////////////
