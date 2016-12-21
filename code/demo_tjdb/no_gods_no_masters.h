@@ -18,7 +18,19 @@ public:
 
 private:
     rdi::RenderSource _fullscreen_quad = BX_RDI_NULL_HANDLE;
-    rdi::TextureRO _main_texture = {};
+    rdi::TextureRO _kozak_texture = {};
+
+    rdi::Pipeline _pipeline_blit = BX_RDI_NULL_HANDLE;
+
+    struct
+    {
+        rdi::ResourceDescriptor resource_desc = BX_RDI_NULL_HANDLE;
+        rdi::Sampler point = {};
+        rdi::Sampler linear = {};
+        rdi::Sampler bilinear = {};
+        rdi::Sampler trilinear = {};
+    } _samplers;
+    
 };
 
 
