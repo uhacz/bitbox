@@ -202,7 +202,33 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
 
 void SceneImpl::BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Matrix4& lightWorld, const ViewFrustum& lightFrustum )
 {
+    for( u32 i = 0; i < _mesh_data.size; ++i )
+    {
+        const u32 num_instances = _mesh_data.num_instances[i];
+        Matrix4* matrices = getMatrixPtr( _mesh_data.matrices[i], num_instances );
 
+        MeshHandle hmesh = _mesh_data.meshes[i];
+        rdi::RenderSource rsource = GMeshManager()->RenderSource( hmesh );
+
+        for( u32 imatrix = 0; imatrix < num_instances; ++imatrix )
+        {
+            const Matrix4& matrix = matrices[imatrix];
+            const float depth = cameraDepth( lightWorld, matrix.getTranslation() ).getAsFloat();
+
+            const u32 batch_offset = vtransform->AddBatch( &matrix, 1 );
+
+            renderer_scene_internal::SortKey skey;
+            skey.depth = TypeReinterpert( depth ).u;
+            skey.material = _mesh_data.materials[i].i;
+
+            rdi::Command* instance_cmd = vtransform->SetCurrent( cmdb, batch_offset, nullptr );
+            rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, instance_cmd );
+            draw_cmd->rsource = rsource;
+            draw_cmd->num_instances = 1;
+
+            rdi::SubmitCommand( cmdb, instance_cmd, skey.hash );
+        }
+    }
 }
 
 void SceneImpl::EnableSunSkyLight( const SunSkyLight& data /*= SunSkyLight() */ )

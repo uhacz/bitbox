@@ -282,23 +282,30 @@ float ps_shadowResolve( in in_PS_shadow IN) : SV_Target0
         discard;
 
 
-    float linearDepth = resolveLinearDepth( pixelDepth, reprojectDepthInfo );
+    //float linearDepth = resolveLinearDepth( pixelDepth, reprojectDepthInfo );
     float2 screenPos_m11 = IN.screenPos;
-    float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth, reprojectInfo );
-    float4 posWS = mul( cameraWorld, float4(posVS, 1.0) );
 
-    const float normalOffset = 0.015f;
-    {
-        const float3 nrmVS = cross( normalize( ddy_fine( posVS ) ), normalize( ddx_fine( posVS ) ) );
-        //const float3 nrmVS = normalsVS.SampleLevel( samplNormalsVS, input.uv, 0.0 );
-        const float3 N = normalize( mul( (float3x3)cameraWorld, nrmVS ) );
-        const float scale = 1.f - saturate( dot( lightDirectionWS.xyz, N ) );
-        const float offsetScale = scale * normalOffset;
-        const float3 posOffset = N * offsetScale;
-        posWS.xyz += posOffset;
-    }
+    int3 positionSS = int3( ( int2 )( IN.uv * shadowMapSize ), 0 );
+    float4 positionCS = float4( ( ( float2( positionSS.xy ) + 0.5 ) * shadowMapSizeRcp ) * float2( 2.0, -2.0 ) + float2( -1.0, 1.0 ), pixelDepth, 1.0 );
+    float4 positionWS = mul( cameraViewProjInv, positionCS );
+    positionWS.xyz *= rcp( positionWS.w );
 
-    float4 shadowPos = mul( lightViewProj, posWS );
+    //float4 posVS = float4( ( ( float2( positionSS.xy ) + 0.5 ) * render_target_size_rcp ) * float2( 2.0, -2.0 ) + float2( -1.0, 1.0 ), pixelDepth, 1.0 );
+    //float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth, reprojectInfo );
+    //float4 posWS = mul( cameraWorld, float4(posVS, 1.0) );
+
+    //const float normalOffset = 0.015f;
+    //{
+    //    const float3 nrmVS = cross( normalize( ddy_fine( posVS ) ), normalize( ddx_fine( posVS ) ) );
+    //    //const float3 nrmVS = normalsVS.SampleLevel( samplNormalsVS, input.uv, 0.0 );
+    //    const float3 N = normalize( mul( (float3x3)cameraWorld, nrmVS ) );
+    //    const float scale = 1.f - saturate( dot( lightDirectionWS.xyz, N ) );
+    //    const float offsetScale = scale * normalOffset;
+    //    const float3 posOffset = N * offsetScale;
+    //    posWS.xyz += posOffset;
+    //}
+
+    float4 shadowPos = mul( lightViewProj, positionWS );
     const float bias = 0.001f;
     const float offsetU = 0.f;
     float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, bias, 1.f, offsetU );

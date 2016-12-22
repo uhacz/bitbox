@@ -336,20 +336,48 @@ void ShadowPass::_ComputeLightMatrixOrtho( LightMatrices* matrices, const Vector
     
 }
 
-void ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera )
+bool ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera )
 {
+    SunSkyLight* sunSky = scene->GetSunSkyLight();
+    if( !sunSky )
+        return false;
+    
+    Vector3 cameraFrustumCorners[8];
+    viewFrustumExtractCorners( cameraFrustumCorners, camera.view_proj );
+        
+    LightMatrices lightMatrices;
+    _ComputeLightMatrixOrtho( &lightMatrices, cameraFrustumCorners, sunSky->sun_direction );
+    
     {
+        const ViewFrustum lightFrustum = viewFrustumExtract( lightMatrices.proj * lightMatrices.view );
         _vertex_transform_data.Map( cmdq );
 
         rdi::ClearCommandBuffer( _cmd_buffer );
         rdi::BeginCommandBuffer( _cmd_buffer );
 
-        scene->BuildCommandBuffer( _cmd_buffer, &_vertex_transform_data, camera );
+        scene->BuildCommandBufferShadow( _cmd_buffer, &_vertex_transform_data, lightMatrices.world, lightFrustum );
 
         rdi::EndCommandBuffer( _cmd_buffer );
 
         _vertex_transform_data.Unmap( cmdq );
     }
+
+    {
+        const Matrix4 lightViewProjDx11 = cameraMatrixProjectionDx11( lightMatrices.proj );
+
+        ShadowPass::MaterialData mdata;
+        memset( &mdata, 0x00, sizeof( mdata ) );
+
+        mdata.cameraViewProjInv = inverse( camera.view_proj );
+        mdata.lightViewProj = lightViewProjDx11 * lightMatrices.view;
+        m128_to_xyz( mdata.lightDirectionWS.xyzw, sunSky->sun_direction.get128() );
+        mdata.shadowMapSize = float2_t( _shadow_map.info.width, _shadow_map.info.height );
+        mdata.shadowMapSizeRcp = float2_t( 1.f / _shadow_map.info.width, 1.f / _shadow_map.info.height );
+
+        rdi::context::UpdateCBuffer( cmdq, _cbuffer, &mdata );
+    }
+
+    return true;
 }
 
 void ShadowPass::Flush( rdi::CommandQueue* cmdq )
