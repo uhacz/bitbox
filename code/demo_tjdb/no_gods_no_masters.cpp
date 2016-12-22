@@ -32,13 +32,19 @@ namespace tjdb
         
         // ---
         _fullscreen_quad = rdi::CreateFullscreenQuad();
-        _kozak_texture = LoadTextureFromFile( "texture/kozak.DDS" );
+        _bg_texture = LoadTextureFromFile( "texture/tjdb/okladka_bg.DDS" );
+        _logo_texture = LoadTextureFromFile( "texture/tjdb/okladka_logo.DDS" );
+        _spis_texture = LoadTextureFromFile( "texture/tjdb/okladka_spis.DDS" );
+
 
         rdi::ShaderFile* shf = rdi::ShaderFileLoad( "shader/bin/tjdb_no_gods_no_masters.shader", GResourceManager() );
 
         rdi::PipelineDesc pipeline_desc = {};
         pipeline_desc.Shader( shf, "blit" );
         _pipeline_blit = rdi::CreatePipeline( pipeline_desc );
+
+        pipeline_desc.Shader( shf, "main" );
+        _pipeline_main = rdi::CreatePipeline( pipeline_desc );
 
         rdi::ShaderFileUnload( &shf, GResourceManager() );
 
@@ -93,7 +99,10 @@ namespace tjdb
         }
 
         rdi::DestroyPipeline( &_pipeline_blit );
-        rdi::device::DestroyTexture( &_kozak_texture );
+        rdi::DestroyPipeline( &_pipeline_main );
+        rdi::device::DestroyTexture( &_bg_texture );
+        rdi::device::DestroyTexture( &_logo_texture );
+        rdi::device::DestroyTexture( &_spis_texture );
         rdi::DestroyRenderSource( &_fullscreen_quad );
 
         // ---
@@ -123,11 +132,21 @@ namespace tjdb
 
         
         rdi::context::ChangeToMainFramebuffer( cmdq );
-        {
-            rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_blit );
-            rdi::SetResourceRO( rdesc, "gSrcTexture", &_kozak_texture );
-            rdi::BindPipeline( cmdq, _pipeline_blit, true );
+        //{
+        //    rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_blit );
+        //    rdi::SetResourceRO( rdesc, "gSrcTexture", &_bg_texture );
+        //    rdi::BindPipeline( cmdq, _pipeline_blit, true );
+        //
+        //    rdi::DrawFullscreenQuad( cmdq, _fullscreen_quad );
+        //}
 
+        {
+            rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_main );
+            rdi::SetResourceRO( rdesc, "gBgTex", &_bg_texture );
+            rdi::SetResourceRO( rdesc, "gLogoTex", &_logo_texture );
+            rdi::SetResourceRO( rdesc, "gSpisTex", &_spis_texture );
+            rdi::BindPipeline( cmdq, _pipeline_main, true );
+            
             rdi::DrawFullscreenQuad( cmdq, _fullscreen_quad );
         }
 

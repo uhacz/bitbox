@@ -18,9 +18,13 @@ public:
 
 private:
     rdi::RenderSource _fullscreen_quad = BX_RDI_NULL_HANDLE;
-    rdi::TextureRO _kozak_texture = {};
+    
+    rdi::TextureRO _bg_texture = {};
+    rdi::TextureRO _logo_texture = {};
+    rdi::TextureRO _spis_texture = {};
 
     rdi::Pipeline _pipeline_blit = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline _pipeline_main = BX_RDI_NULL_HANDLE;
 
     struct
     {
