@@ -102,7 +102,7 @@ private:
 class ShadowPass
 {
 public:
-    void PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
+    bool PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
     void Flush( rdi::CommandQueue* cmdq );
 
 
