@@ -380,9 +380,27 @@ bool ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camer
     return true;
 }
 
-void ShadowPass::Flush( rdi::CommandQueue* cmdq )
+void ShadowPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth sceneDepthTex )
 {
+    {
+        rdi::context::ChangeRenderTargets( cmdq, nullptr, 0, _depth_map );
+        rdi::context::ClearDepthBuffer( cmdq, _depth_map, 1.f );
 
+        _vertex_transform_data.Bind( cmdq );
+        rdi::BindPipeline( cmdq, _pipeline_depth, true );
+        rdi::SubmitCommandBuffer( cmdq, _cmd_buffer );
+    }
+
+    {
+        rdi::context::ChangeRenderTargets( cmdq, &_shadow_map, 1, rdi::TextureDepth() );
+        rdi::context::ClearColorBuffer( cmdq, _shadow_map, 0.f, 0.f, 0.f, 1.f );
+
+        rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_resolve );
+        rdi::SetResourceRO( rdesc, "sceneDepthTex", &sceneDepthTex );
+
+        rdi::BindPipeline( cmdq, _pipeline_resolve, true );
+        Renderer::DrawFullScreenQuad( cmdq );
+    }
 }
 
 void ShadowPass::_StartUp( ShadowPass* pass, const RendererDesc& rndDesc, u32 shadowMapSize )
@@ -408,6 +426,12 @@ void ShadowPass::_StartUp( ShadowPass* pass, const RendererDesc& rndDesc, u32 sh
     pass->_pipeline_resolve = rdi::CreatePipeline( pipeline_desc );
     rdesc = rdi::GetResourceDescriptor( pass->_pipeline_resolve );
     rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer );
+    rdi::SetResourceRO( rdesc, "lightDepthTex", &pass->_depth_map );
+    
+    rdi::SamplerDesc sampler_desc;
+    sampler_desc.Filter( rdi::ESamplerFilter::NEAREST ).Address( rdi::EAddressMode::CLAMP ).DepthCmp( rdi::ESamplerDepthCmp::LEQUAL );
+    pass->_sampler_shadow = rdi::device::CreateSampler( sampler_desc );
+    rdi::SetSampler( rdesc, "samplShadowMap", &pass->_sampler_shadow );
     
     rdi::ShaderFileUnload( &shf, GResourceManager() );
 
@@ -420,6 +444,7 @@ void ShadowPass::_ShutDown( ShadowPass* pass )
     VertexTransformData::_Deinit( &pass->_vertex_transform_data );
     rdi::DestroyCommandBuffer( &pass->_cmd_buffer );
     
+    rdi::device::DestroySampler( &pass->_sampler_shadow );
     rdi::device::DestroyConstantBuffer( &pass->_cbuffer );
 
     rdi::DestroyPipeline( &pass->_pipeline_resolve );

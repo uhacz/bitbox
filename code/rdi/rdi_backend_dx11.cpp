@@ -1609,6 +1609,26 @@ void ClearBuffers( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, Tex
         }
     }
 }
+void ClearDepthBuffer( CommandQueue* cmdq, TextureDepth depthTex, float clearValue )
+{
+    cmdq->dx11()->ClearDepthStencilView( depthTex.viewDS, D3D11_CLEAR_DEPTH, clearValue, 0 );
+}
+void ClearColorBuffers( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, float r, float g, float b, float a )
+{
+    const float rgba[4] = { r, g, b, a };
+
+    const int SLOT_COUNT = cMAX_RENDER_TARGETS;
+    SYS_ASSERT( nColor < SLOT_COUNT );
+    
+    for( unsigned i = 0; i < nColor; ++i )
+    {
+        cmdq->dx11()->ClearRenderTargetView( colorTex[i].viewRT, rgba );
+    }
+
+}
+
+
+
 
 void Swap( CommandQueue* cmdq )
 {

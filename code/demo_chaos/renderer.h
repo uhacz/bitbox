@@ -103,13 +103,14 @@ class ShadowPass
 {
 public:
     bool PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
-    void Flush( rdi::CommandQueue* cmdq );
+    void Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth sceneDepthTex );
 
 
     static void _StartUp( ShadowPass* pass, const RendererDesc& rndDesc, u32 shadowMapSize = 2048 );
     static void _ShutDown( ShadowPass* pass );
 
     rdi::TextureDepth DepthMap() const { return _depth_map; }
+    rdi::TextureRW ShadowMap() const { return _shadow_map; }
     
 private:
     struct LightMatrices
@@ -125,6 +126,7 @@ private:
 #include <shaders/shaders/shadow_data.h>
     rdi::TextureDepth _depth_map = {};
     rdi::TextureRW _shadow_map = {};
+    rdi::Sampler _sampler_shadow = {};
 
     rdi::Pipeline _pipeline_depth = BX_RDI_NULL_HANDLE;
     rdi::Pipeline _pipeline_resolve = BX_RDI_NULL_HANDLE;

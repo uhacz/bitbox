@@ -31,7 +31,7 @@ passes:
 //#define NUM_CASCADES_INV ( 1.0 / (float)NUM_CASCADES )
 //#define FILTER_SIZE 7
 
-Texture2D<float> shadowMap;
+Texture2D<float> lightDepthTex;
 Texture2D<float> sceneDepthTex;
 SamplerComparisonState samplShadowMap;
 
@@ -39,12 +39,12 @@ SamplerComparisonState samplShadowMap;
 
 float shadowMap_sample( float lightDepth, float2 shadowUV )
 {
-    return shadowMap.SampleCmpLevelZero( samplShadowMap, shadowUV.xy, lightDepth );
+    return lightDepthTex.SampleCmpLevelZero( samplShadowMap, shadowUV.xy, lightDepth );
 }
 float shadowMap_sample1( float2 base_uv, float u, float v, float2 shadowMapSizeInv, float lightDepth )
 {
     float2 uv = base_uv + float2(u, v) * shadowMapSizeInv;
-    return shadowMap.SampleCmpLevelZero( samplShadowMap, uv, lightDepth );
+    return lightDepthTex.SampleCmpLevelZero( samplShadowMap, uv, lightDepth );
 }
 float2 computeReceiverPlaneDepthBias( float3 texCoordDX, float3 texCoordDY )
 {
