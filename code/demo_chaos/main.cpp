@@ -9,6 +9,7 @@
 //#include <gfx/gfx_camera.h>
 //#include <gfx/gfx_debug_draw.h>
 #include <rdi/rdi.h>
+#include <rdi/rdi_debug_draw.h>
 
 //#include <gfx/gfx_gui.h>
 //#include <gdi/gdi_shader.h>
@@ -80,7 +81,8 @@ public:
         gfx::LightPass::_StartUp( &_light_pass );
         gfx::PostProcessPass::_StartUp( &_post_pass );
 
-        _camera.world = Matrix4( Matrix3::rotationY(PI), Vector3( 0.f, 0.f,-5.f ) );
+        _camera.world = Matrix4( Matrix3::rotationY(PI), Vector3( -4.21f, 5.f, -20.6f ) );
+        _camera.world *= Matrix4::rotationX( -0.3f );
 
         {
             gfx::MaterialDesc mat_desc;
@@ -264,8 +266,6 @@ public:
         }
 
         gfx::computeMatrices( &_camera );
-        const gfx::RendererDesc& renderer_desc = _renderer.GetDesc();
-        rdi::Viewport screen_viewport = gfx::computeViewport( _camera, win->width, win->height, renderer_desc.framebuffer_width, renderer_desc.framebuffer_height );
 
         rdi::CommandQueue* cmdq = nullptr;
         rdi::frame::Begin( &cmdq );
@@ -288,11 +288,15 @@ public:
 
         //rdi::TextureRW texture = rdi::GetTexture( _geometry_pass.GBuffer(), 2 );
         //rdi::TextureRW texture = _post_pass._tm.initial_luminance;
-        //rdi::TextureRW texture = _shadow_pass.DepthMap();
-        rdi::ResourceRO* texture = &_shadow_pass.DepthMap();
-        _renderer.RasterizeFramebuffer( cmdq, *texture, _camera, win->width, win->height );
+        rdi::TextureRW texture = dstColor;
+        //rdi::ResourceRO texture = _shadow_pass.DepthMap();
+        _renderer.RasterizeFramebuffer( cmdq, texture, _camera, win->width, win->height );
 
+        rdi::debug_draw::AddAxes( Matrix4::identity() );
+
+        rdi::debug_draw::_Flush( cmdq, _camera.view, _camera.proj );
         _renderer.EndFrame( cmdq );
+
         rdi::frame::End( &cmdq );
         
 

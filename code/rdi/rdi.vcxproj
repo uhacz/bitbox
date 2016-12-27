@@ -90,6 +90,7 @@
     <ClInclude Include="rdi.h" />
     <ClInclude Include="rdi_backend.h" />
     <ClInclude Include="rdi_backend_dx11.h" />
+    <ClInclude Include="rdi_debug_draw.h" />
     <ClInclude Include="rdi_shader_reflection.h" />
     <ClInclude Include="rdi_type.h" />
   </ItemGroup>
@@ -117,6 +118,7 @@
     <ClCompile Include="rdi.cpp" />
     <ClCompile Include="rdi_backend.cpp" />
     <ClCompile Include="rdi_backend_dx11.cpp" />
+    <ClCompile Include="rdi_debug_draw.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DirectXTex\DirectXTex.inl" />

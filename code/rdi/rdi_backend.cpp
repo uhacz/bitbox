@@ -1,5 +1,5 @@
 #include "rdi_backend.h"
-
+#include "rdi_debug_draw.h"
 #include "rdi_backend_dx11.h"
 
 
@@ -41,10 +41,12 @@ EVertexSlot::Enum EVertexSlot::FromString( const char* n )
 void Startup( uptr hWnd, int winWidth, int winHeight, int fullScreen )
 {
     StartupDX11( hWnd, winWidth, winHeight, fullScreen );
+    debug_draw::_Startup();
 }
 
 void Shutdown()
 {
+    debug_draw::_Shutdown();
     ShutdownDX11();
 }
 
