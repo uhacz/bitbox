@@ -12,6 +12,7 @@ namespace gfx{
         Matrix4 world = Matrix4::identity();
         Matrix4 view = Matrix4::identity();
         Matrix4 proj = Matrix4::identity();
+        Matrix4 proj_api = Matrix4::identity();
         Matrix4 view_proj = Matrix4::identity();
         struct Params
         {
@@ -19,7 +20,7 @@ namespace gfx{
             f32 vAperture = 1.f;
             f32 focalLength = 50.f;
             f32 zNear = 0.25f;
-            f32 zFar = 250.f;
+            f32 zFar = 100.f;
             f32 orthoWidth = 10.f;
             f32 orthoHeight = 10.f;
         } params;

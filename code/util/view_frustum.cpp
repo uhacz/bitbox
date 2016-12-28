@@ -7,15 +7,15 @@ namespace bx{namespace gfx{
     {
         const Matrix4 vpInv = inverse( viewProjection );
 
-        const Vector3 leftUpperNear = Vector3( 0.f, 1.f, 0.f );
-        const Vector3 leftUpperFar = Vector3( 0.f, 1.f, 1.f );
-        const Vector3 leftLowerNear = Vector3( 0.f, 0.f, 0.f );
-        const Vector3 leftLowerFar = Vector3( 0.f, 0.f, 1.f );
+        const Vector3 leftUpperNear  = Vector3( 0.f, 1.f, 0.f );
+        const Vector3 leftUpperFar   = Vector3( 0.f, 1.f, 1.f );
+        const Vector3 leftLowerNear  = Vector3( 0.f, 0.f, 0.f );
+        const Vector3 leftLowerFar   = Vector3( 0.f, 0.f, 1.f );
 
         const Vector3 rightLowerNear = Vector3( 1.f, 0.f, 0.f );
-        const Vector3 rightLowerFar = Vector3( 1.f, 0.f, 1.f );
+        const Vector3 rightLowerFar  = Vector3( 1.f, 0.f, 1.f );
         const Vector3 rightUpperNear = Vector3( 1.f, 1.f, 0.f );
-        const Vector3 rightUpperFar = Vector3( 1.f, 1.f, 1.f );
+        const Vector3 rightUpperFar  = Vector3( 1.f, 1.f, 1.f );
 
         dst[0] = cameraUnprojectNormalized( leftUpperNear, vpInv );
         dst[1] = cameraUnprojectNormalized( leftUpperFar, vpInv );

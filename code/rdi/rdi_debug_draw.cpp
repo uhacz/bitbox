@@ -319,15 +319,15 @@ void AddFrustum( const Vector3 corners[8], u32 colorRGBA, int depth )
     AddLine( corners[5], corners[7], colorRGBA, true );
     AddLine( corners[7], corners[1], colorRGBA, true );
 
-    AddLine( corners[0], corners[4], colorRGBA, true );
-    AddLine( corners[2], corners[6], colorRGBA, true );
-    AddLine( corners[1], corners[5], colorRGBA, true );
-    AddLine( corners[3], corners[7], colorRGBA, true );
-
-    AddLine( corners[0], corners[3], colorRGBA, true );
-    AddLine( corners[1], corners[2], colorRGBA, true );
-    AddLine( corners[4], corners[7], colorRGBA, true );
-    AddLine( corners[5], corners[6], colorRGBA, true );
+    //AddLine( corners[0], corners[4], colorRGBA, true );
+    //AddLine( corners[2], corners[6], colorRGBA, true );
+    //AddLine( corners[1], corners[5], colorRGBA, true );
+    //AddLine( corners[3], corners[7], colorRGBA, true );
+    //
+    //AddLine( corners[0], corners[3], colorRGBA, true );
+    //AddLine( corners[1], corners[2], colorRGBA, true );
+    //AddLine( corners[4], corners[7], colorRGBA, true );
+    //AddLine( corners[5], corners[6], colorRGBA, true );
 }
 
 void AddFrustum( const Matrix4& viewProj, u32 colorRGBA, int depth )

@@ -4,6 +4,12 @@ passes:
     {
         vertex = "vs_shadowDepth";
         pixel = "ps_shadowDepth";
+        hwstate =
+        {
+            depth_test = 1;
+            depth_write = 1;
+            color_mask = "";
+        };
     };
 
     resolve =
@@ -33,6 +39,7 @@ passes:
 
 Texture2D<float> lightDepthTex;
 Texture2D<float> sceneDepthTex;
+texture2D<float4> sceneNormalsTex;
 SamplerComparisonState samplShadowMap;
 
 #define in_PS_shadow out_VS_screenquad
@@ -41,9 +48,9 @@ float shadowMap_sample( float lightDepth, float2 shadowUV )
 {
     return lightDepthTex.SampleCmpLevelZero( samplShadowMap, shadowUV.xy, lightDepth );
 }
-float shadowMap_sample1( float2 base_uv, float u, float v, float2 shadowMapSizeInv, float lightDepth )
+float shadowMap_sample1( float2 base_uv, float u, float v, float2 mapSizeRcp, float lightDepth )
 {
-    float2 uv = base_uv + float2(u, v) * shadowMapSizeInv;
+    float2 uv = base_uv + float2( u, v ) * mapSizeRcp;
     return lightDepthTex.SampleCmpLevelZero( samplShadowMap, uv, lightDepth );
 }
 float2 computeReceiverPlaneDepthBias( float3 texCoordDX, float3 texCoordDY )
@@ -60,8 +67,8 @@ float2 computeReceiverPlaneDepthBias( float3 texCoordDX, float3 texCoordDY )
 
 float4 computeShadowUV( in float3 shadowPos, in float scaleU, in float offsetU )
 {
-    float2 texelSize = 1.0f / shadowMapSize;
-    float2 uv = shadowPos.xy * shadowMapSize.xy;
+    float2 texelSize = depthMapSizeRcp;
+    float2 uv = shadowPos.xy * depthMapSize.xy;
     
     float2 base_uv;
     base_uv.x = floor( uv.x + 0.5 );
@@ -94,7 +101,7 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float bias, in float
     //const float bias = 0.001f;
     //const float bias = biasGet( cascadeIdx ); // *(1.f + pow( 2.f, (float)cascadeIdx )) / shadowMapSize.y;
     float lightDepth = saturate( shadowPos.z ) - bias;
-    float2 shadowMapSizeInv = 1.0 / shadowMapSize.xy;
+    //float2 shadowMapSizeInv = 1.0 / shadowMapSize.xy;
     float4 base_uvst = computeShadowUV( shadowPos, scaleU, offsetU );
 
     float2 base_uv = base_uvst.xy;
@@ -229,7 +236,7 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float bias, in float
     {
         for ( int j = 0; j < 4; j++ )
         {
-            sum += uw[j] * vw[i] * shadowMap_sample1( base_uv, u[j], v[i], shadowMapSizeInv, lightDepth );
+            sum += uw[j] * vw[i] * shadowMap_sample1( base_uv, u[j], v[i], depthMapSizeRcp, lightDepth );
         }
     }
 
@@ -242,7 +249,7 @@ float sampleShadowMap_optimizedPCF( in float3 shadowPos, in float bias, in float
 struct in_VS
 {
     uint   instanceID : SV_InstanceID;
-    float4 pos	  	  : POSITION;
+    float3 pos	  	  : POSITION;
 };
 
 struct in_PS
@@ -252,18 +259,16 @@ struct in_PS
 
 struct out_PS
 {};
+
 in_PS vs_shadowDepth( in_VS IN )
 {
     in_PS OUT = (in_PS)0;
 
     float4 row0, row1, row2;
-    float3 row0IT, row1IT, row2IT;
-
     fetchWorld( row0, row1, row2, IN.instanceID );
-    fetchWorldIT( row0IT, row1IT, row2IT, IN.instanceID );
 
-    float3 wpos = transformPosition( row0, row1, row2, IN.pos );
-    OUT.hpos = mul( lightViewProj, float4(wpos, 1.f) );
+    float3 wpos = transformPosition( row0, row1, row2, float4(IN.pos,1.0 ) );
+    OUT.hpos = mul( lightViewProj, float4( wpos, 1.f ) );
     return OUT;
 }
 
@@ -276,17 +281,18 @@ out_PS ps_shadowDepth( in_PS input )
 
 float ps_shadowResolve( in in_PS_shadow IN) : SV_Target0
 {
-    float pixelDepth = sceneDepthTex.SampleLevel( _samp_point, IN.uv, 0.0f ).r;
+    int3 positionSS = int3( (int2)( IN.uv * shadowMapSize ), 0 );
+    float depthCS = sceneDepthTex.Load( positionSS );
     [branch]
-    if ( pixelDepth > 0.99999f )
+    if( depthCS > 0.99999f )
         discard;
 
 
     //float linearDepth = resolveLinearDepth( pixelDepth, reprojectDepthInfo );
     float2 screenPos_m11 = IN.screenPos;
 
-    int3 positionSS = int3( ( int2 )( IN.uv * shadowMapSize ), 0 );
-    float4 positionCS = float4( ( ( float2( positionSS.xy ) + 0.5 ) * shadowMapSizeRcp ) * float2( 2.0, -2.0 ) + float2( -1.0, 1.0 ), pixelDepth, 1.0 );
+    float4 positionCS = float4( ( ( float2( positionSS.xy ) + 0.5 ) * shadowMapSizeRcp ) * float2( 2.0, -2.0 ) + float2( -1.0, 1.0 ), depthCS, 1.0 );
+    //float4 positionCS = float4( screenPos_m11, depthCS, 1.0 );
     float4 positionWS = mul( cameraViewProjInv, positionCS );
     positionWS.xyz *= rcp( positionWS.w );
 
@@ -294,20 +300,22 @@ float ps_shadowResolve( in in_PS_shadow IN) : SV_Target0
     //float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth, reprojectInfo );
     //float4 posWS = mul( cameraWorld, float4(posVS, 1.0) );
 
-    //const float normalOffset = 0.015f;
-    //{
+    const float normalOffset = 0.05f;
+    {
     //    const float3 nrmVS = cross( normalize( ddy_fine( posVS ) ), normalize( ddx_fine( posVS ) ) );
     //    //const float3 nrmVS = normalsVS.SampleLevel( samplNormalsVS, input.uv, 0.0 );
     //    const float3 N = normalize( mul( (float3x3)cameraWorld, nrmVS ) );
-    //    const float scale = 1.f - saturate( dot( lightDirectionWS.xyz, N ) );
-    //    const float offsetScale = scale * normalOffset;
-    //    const float3 posOffset = N * offsetScale;
-    //    posWS.xyz += posOffset;
-    //}
+        const float3 N = sceneNormalsTex.Load( positionSS ).xyz;
+        const float scale = 1.f - saturate( dot( lightDirectionWS.xyz, N ) );
+        const float offsetScale = scale * normalOffset;
+        const float3 posOffset = N * offsetScale;
+        positionWS.xyz += posOffset;
+    }
 
-    float4 shadowPos = mul( lightViewProj, positionWS );
+    float4 shadowPos = mul( lightViewProj_01, float4( positionWS.xyz, 1.0 ) );
     const float bias = 0.001f;
     const float offsetU = 0.f;
     float shadowValue = sampleShadowMap_optimizedPCF( shadowPos.xyz, bias, 1.f, offsetU );
     return shadowValue;
+
 }

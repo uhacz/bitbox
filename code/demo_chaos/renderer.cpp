@@ -3,7 +3,9 @@
 #include <util\buffer_utils.h>
 #include <util\poly\poly_shape.h>
 #include <resource_manager\resource_manager.h>
+
 #include <rdi/rdi.h>
+#include <rdi/rdi_debug_draw.h>
 
 #include "renderer_scene.h"
 #include "renderer_scene_actor.h"
@@ -197,6 +199,12 @@ void Renderer::DrawFullScreenQuad( rdi::CommandQueue* cmdq )
     rdi::DrawFullscreenQuad( cmdq, rsource_fullscreen_quad );
 }
 
+void Renderer::DebugDraw( rdi::CommandQueue* cmdq, rdi::TextureRW targetColor, rdi::TextureDepth targetDepth, const Camera& camera )
+{
+    rdi::context::ChangeRenderTargets( cmdq, &targetColor, 1, targetDepth );
+    rdi::debug_draw::_Flush( cmdq, camera.view, camera.proj );
+}
+
 }}///
 
 
@@ -311,7 +319,7 @@ void ShadowPass::_ComputeLightMatrixOrtho( LightMatrices* matrices, const Vector
     Matrix3 lRot = computeBasis1( -wsLightDirection );
     Matrix4 lWorld( lRot, wsCenter );
     Matrix4 lView = orthoInverse( lWorld );
-    //bxGfxDebugDraw::addAxes( lWorld );
+    rdi::debug_draw::AddAxes( lWorld );
 
     bxAABB lsAABB = bxAABB::prepare();
     for( int i = 0; i < 8; ++i )
@@ -326,9 +334,29 @@ void ShadowPass::_ComputeLightMatrixOrtho( LightMatrices* matrices, const Vector
     m128_to_xyz( lsMax.xyz, lsAABB.max.get128() );
     m128_to_xyz( lsExt.xyz, lsAABBsize.get128() );
 
+    const Matrix4 lProj = bx::gfx::cameraMatrixOrtho( lsMin.x, lsMax.x, lsMin.y, lsMax.y, lsMin.z, lsMax.z );
+    //const Matrix4 lProj = bx::gfx::cameraMatrixOrtho( -lsExt.x, lsExt.x, -lsExt.y, lsExt.y, -lsExt.z, lsExt.z );
+    //const Matrix4 lProj = cameraMatrixProjection( 1.f, 0.857652068f, 0.1, lsMax.z );
+
+    //float l = lsMin.x;
+    //float r = lsMax.x;
+    //float b = lsMin.y;
+    //float t = lsMax.y;
+    //float n = -lsExt.z;
+    //float f = lsExt.z;
+
+    //const Matrix4 lProj1 = Matrix4(
+    //    Vector4( 2.f / (r - l), 0.f, 0.f, 0.f ),
+    //    Vector4( 0.f, 2.f / (t - b), 0.f, 0.f ),
+    //    Vector4( 0.f, 0.f,-2.f / (f - n), 0.f ),
+    //    Vector4( -((r+l) / (r-l)), -((t+b)/(t-b)), -((f+n)/(f-n)), 1.f )
+    //    );
 
 
-    const Matrix4 lProj = bx::gfx::cameraMatrixOrtho( lsMin.x, lsMax.x, lsMin.y, lsMax.y, -lsExt.z, lsExt.z );
+    //Matrix4 vp = cameraMatrixProjectionDx11( lProj ) * lView;
+    //Vector4 a = vp * Point3( 0.f );
+
+    rdi::debug_draw::AddFrustum( lProj * lView, 0xFF00FF00, true );
 
     matrices->world = lWorld;
     matrices->view = lView;
@@ -343,7 +371,7 @@ bool ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camer
         return false;
     
     Vector3 cameraFrustumCorners[8];
-    viewFrustumExtractCorners( cameraFrustumCorners, camera.view_proj );
+    viewFrustumExtractCorners( cameraFrustumCorners, camera.proj * camera.view );
         
     LightMatrices lightMatrices;
     _ComputeLightMatrixOrtho( &lightMatrices, cameraFrustumCorners, sunSky->sun_direction );
@@ -363,14 +391,21 @@ bool ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camer
     }
 
     {
-        const Matrix4 lightViewProjDx11 = cameraMatrixProjectionDx11( lightMatrices.proj );
+        const Matrix4 sc = Matrix4::scale( Vector3( 0.5f, 0.5f, 0.5f ) );
+        const Matrix4 tr = Matrix4::translation( Vector3( 1.f, 1.f, 1.f ) );
+        const Matrix4 proj = sc * tr * lightMatrices.proj;
 
         ShadowPass::MaterialData mdata;
         memset( &mdata, 0x00, sizeof( mdata ) );
 
         mdata.cameraViewProjInv = inverse( camera.view_proj );
-        mdata.lightViewProj = lightViewProjDx11 * lightMatrices.view;
+        mdata.lightViewProj = cameraMatrixProjectionDx11( lightMatrices.proj ) * lightMatrices.view;
+        mdata.lightViewProj_01 = proj * lightMatrices.view;
         m128_to_xyz( mdata.lightDirectionWS.xyzw, sunSky->sun_direction.get128() );
+
+        mdata.depthMapSize = float2_t( _depth_map.info.width, _depth_map.info.height );
+        mdata.depthMapSizeRcp = float2_t( 1.f / _depth_map.info.width, 1.f / _depth_map.info.height );
+
         mdata.shadowMapSize = float2_t( _shadow_map.info.width, _shadow_map.info.height );
         mdata.shadowMapSizeRcp = float2_t( 1.f / _shadow_map.info.width, 1.f / _shadow_map.info.height );
 
@@ -380,7 +415,7 @@ bool ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camer
     return true;
 }
 
-void ShadowPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth sceneDepthTex )
+void ShadowPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth sceneDepthTex, rdi::ResourceRO sceneNormalsTex )
 {
     {
         rdi::context::ChangeRenderTargets( cmdq, nullptr, 0, _depth_map );
@@ -388,15 +423,17 @@ void ShadowPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth sceneDepthTex
 
         _vertex_transform_data.Bind( cmdq );
         rdi::BindPipeline( cmdq, _pipeline_depth, true );
+        //rdi::context::SetShader( cmdq, rdi::Shader(), rdi::EStage::PIXEL );
         rdi::SubmitCommandBuffer( cmdq, _cmd_buffer );
     }
 
     {
         rdi::context::ChangeRenderTargets( cmdq, &_shadow_map, 1, rdi::TextureDepth() );
-        rdi::context::ClearColorBuffer( cmdq, _shadow_map, 0.f, 0.f, 0.f, 1.f );
+        rdi::context::ClearColorBuffer( cmdq, _shadow_map, 1.f, 1.f, 1.f, 1.f );
 
         rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_resolve );
         rdi::SetResourceRO( rdesc, "sceneDepthTex", &sceneDepthTex );
+        rdi::SetResourceRO( rdesc, "sceneNormalsTex", &sceneNormalsTex );
 
         rdi::BindPipeline( cmdq, _pipeline_resolve, true );
         Renderer::DrawFullScreenQuad( cmdq );
@@ -503,7 +540,7 @@ void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera
     }
 }
 
-void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer )
+void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer, rdi::ResourceRO shadowMap )
 {
     float rgbad[] = { 0.0f, 0.0f, 0.0f, 1.f, 1.f };
     rdi::context::ChangeRenderTargets( cmdq, &outputTexture, 1, rdi::TextureDepth() );
@@ -515,6 +552,7 @@ void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rd
     rdi::SetResourceRO( rdesc, "gbuffer_wpos_rough", &rdi::GetTexture( gbuffer, 1 ) );
     rdi::SetResourceRO( rdesc, "gbuffer_wnrm_metal", &rdi::GetTexture( gbuffer, 2 ) );
     rdi::SetResourceRO( rdesc, "depthTexture", &rdi::GetTextureDepth( gbuffer ) );
+    rdi::SetResourceRO( rdesc, "shadowMap", &shadowMap );
     rdi::BindPipeline( cmdq, pipeline, true );
 
     Renderer::DrawFullScreenQuad( cmdq );

@@ -28,9 +28,10 @@ Texture2D<float>    depthTexture        : register( t0 );
 texture2D<float4>   gbuffer_albedo_spec : register( t1 );
 texture2D<float4>   gbuffer_wpos_rough  : register( t2 );
 texture2D<float4>   gbuffer_wnrm_metal  : register( t3 );
+texture2D <float>   shadowMap           : register( t4 );
 
 #ifdef USE_SKYBOX
-textureCUBE<float3> skybox              : register( t4 );
+textureCUBE<float3> skybox              : register( t5 );
 #endif
 
 #define PI	   (3.14159265f)
@@ -97,6 +98,7 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float4 wpos_rough  = gbuffer_wpos_rough.Load( positionSS );
     float4 wnrm_metal  = gbuffer_wnrm_metal.Load( positionSS );
     float  depthCS     = depthTexture.Load( positionSS );
+    float shadow       = shadowMap.Load( positionSS );
 
     float metalness  = wnrm_metal.w;
     float roughness  = wpos_rough.w;
@@ -134,7 +136,7 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float3 diffuse  = ComputeDiffuse( baseColor, f0, NdotL );
     float3 specular = ComputeSpecular( baseColor, f0, roughness, HdotL, NdotH, NdotV, NdotL );
     
-    float3 color = sun_color * ( specular + diffuse ) * sun_intensity;
+    float3 color = sun_color * ( specular + diffuse ) * sun_intensity * shadow;
 
 #ifdef USE_SKYBOX
     float glossyExponent = roughnessToShininess( roughness );
@@ -150,5 +152,7 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     color += ambient;
 #endif
    
+    //color = lerp( color * 0.5f, color, shadow );
+
     return float4( color, 1.0 );
 }

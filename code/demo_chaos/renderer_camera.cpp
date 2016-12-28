@@ -33,8 +33,9 @@ void computeMatrices( Camera* cam )
     cam->view = inverse( cam->world );
     //cam->proj = Matrix4::perspective( fov, aspect, cam->params.zNear, cam->params.zFar );
     cam->proj = cameraMatrixProjection( aspect, fov, cam->params.zNear, cam->params.zFar );
-    cam->proj = cameraMatrixProjectionDx11( cam->proj );
-    cam->view_proj = cam->proj * cam->view;
+    cam->proj_api = cameraMatrixProjectionDx11( cam->proj );
+    //cam->proj = cameraMatrixProjectionDx11( cam->proj );
+    cam->view_proj = cam->proj_api * cam->view;
 }
 
 }}///

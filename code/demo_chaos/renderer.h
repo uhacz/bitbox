@@ -45,6 +45,7 @@ public:
     
     void RasterizeFramebuffer( rdi::CommandQueue* cmdq, const rdi::ResourceRO source, const Camera& camera, u32 windowW, u32 windowH );
     static void DrawFullScreenQuad( rdi::CommandQueue* cmdq );
+    static void DebugDraw( rdi::CommandQueue* cmdq, rdi::TextureRW targetColor, rdi::TextureDepth targetDepth, const Camera& camera );
     //SharedMeshContainer& GetSharedMesh() { return _shared_mesh; }
     
 private:
@@ -103,7 +104,7 @@ class ShadowPass
 {
 public:
     bool PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
-    void Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth sceneDepthTex );
+    void Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth sceneDepthTex, rdi::ResourceRO sceneNormalsTex );
 
 
     static void _StartUp( ShadowPass* pass, const RendererDesc& rndDesc, u32 shadowMapSize = 2048 );
@@ -141,7 +142,7 @@ class LightPass
 {
 public:
     void PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
-    void Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer );
+    void Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer, rdi::ResourceRO shadowMap );
 
     static void _StartUp( LightPass* pass );
     static void _ShutDown( LightPass* pass );

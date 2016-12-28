@@ -77,12 +77,13 @@ public:
         _renderer.StartUp( renderer_desc, _engine.resource_manager );
 
         gfx::GeometryPass::_StartUp( &_geometry_pass );
-        gfx::ShadowPass::_StartUp( &_shadow_pass, _renderer.GetDesc(), 1024 * 4 );
+        gfx::ShadowPass::_StartUp( &_shadow_pass, _renderer.GetDesc(), 1024 * 8 );
         gfx::LightPass::_StartUp( &_light_pass );
         gfx::PostProcessPass::_StartUp( &_post_pass );
 
         _camera.world = Matrix4( Matrix3::rotationY(PI), Vector3( -4.21f, 5.f, -20.6f ) );
         _camera.world *= Matrix4::rotationX( -0.3f );
+        _camera.params.zFar = 100.f;
 
         {
             gfx::MaterialDesc mat_desc;
@@ -274,27 +275,43 @@ public:
         _geometry_pass.PrepareScene( cmdq, _gfx_scene, _camera );
         _geometry_pass.Flush( cmdq );
 
+        rdi::TextureDepth depthTexture = rdi::GetTextureDepth( _geometry_pass.GBuffer() );
         _shadow_pass.PrepareScene( cmdq, _gfx_scene, _camera );
-        _shadow_pass.Flush( cmdq, rdi::GetTextureDepth( _geometry_pass.GBuffer() ) );
+        _shadow_pass.Flush( cmdq, depthTexture, rdi::GetTexture( _geometry_pass.GBuffer(), 2 ) );
 
         _light_pass.PrepareScene( cmdq, _gfx_scene, _camera );
-        _light_pass.Flush( cmdq, _renderer.GetFramebuffer( gfx::EFramebuffer::SWAP ), _geometry_pass.GBuffer() );
+        _light_pass.Flush( cmdq, _renderer.GetFramebuffer( gfx::EFramebuffer::SWAP ), _geometry_pass.GBuffer(), _shadow_pass.ShadowMap() );
 
 
         rdi::TextureRW srcColor = _renderer.GetFramebuffer( gfx::EFramebuffer::SWAP );
         rdi::TextureRW dstColor = _renderer.GetFramebuffer( gfx::EFramebuffer::COLOR );
         _post_pass.DoToneMapping( cmdq, dstColor, srcColor, deltaTime );
 
-
-        //rdi::TextureRW texture = rdi::GetTexture( _geometry_pass.GBuffer(), 2 );
-        //rdi::TextureRW texture = _post_pass._tm.initial_luminance;
-        rdi::TextureRW texture = dstColor;
-        //rdi::ResourceRO texture = _shadow_pass.DepthMap();
-        _renderer.RasterizeFramebuffer( cmdq, texture, _camera, win->width, win->height );
-
         rdi::debug_draw::AddAxes( Matrix4::identity() );
 
-        rdi::debug_draw::_Flush( cmdq, _camera.view, _camera.proj );
+        gfx::Renderer::DebugDraw( cmdq, dstColor, depthTexture, _camera );
+        //rdi::debug_draw::_Flush( cmdq, _camera.view, _camera.proj );
+
+        rdi::ResourceRO* toRasterize[] =
+        {
+            &dstColor,
+            &_shadow_pass.ShadowMap(),
+            &_shadow_pass.DepthMap(),
+        };
+        const int toRasterizeN = sizeof( toRasterize ) / sizeof( *toRasterize );
+        static int dstColorSelect = 0;
+        if( bxInput_isKeyPressedOnce( &win->input.kbd, ' ' ) )
+        {
+            dstColorSelect = (dstColorSelect + 1) % toRasterizeN;
+        }
+        //rdi::TextureRW texture = rdi::GetTexture( _geometry_pass.GBuffer(), 2 );
+        //rdi::TextureRW texture = _post_pass._tm.initial_luminance;
+        //rdi::TextureRW texture = dstColor;
+        //rdi::ResourceRO texture = _shadow_pass.DepthMap();
+        rdi::ResourceRO texture = *toRasterize[dstColorSelect];
+        _renderer.RasterizeFramebuffer( cmdq, texture, _camera, win->width, win->height );
+
+        
         _renderer.EndFrame( cmdq );
 
         rdi::frame::End( &cmdq );

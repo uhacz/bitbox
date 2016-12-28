@@ -790,6 +790,7 @@ namespace context
     void SetVertexBuffers ( CommandQueue* cmdq, VertexBuffer* vbuffers, unsigned start, unsigned n );
     void SetIndexBuffer   ( CommandQueue* cmdq, IndexBuffer ibuffer );
     void SetShaderPrograms( CommandQueue* cmdq, Shader* shaders, int n );
+    void SetShader        ( CommandQueue* cmdq, Shader shader, EStage::Enum stage );
     void SetShaderPass    ( CommandQueue* cmdq, ShaderPass pass );
     void SetInputLayout   ( CommandQueue* cmdq, InputLayout ilay );
 

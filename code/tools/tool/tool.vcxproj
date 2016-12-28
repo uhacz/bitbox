@@ -96,6 +96,9 @@
     <ProjectReference Include="..\..\rdi\rdi.vcxproj">
       <Project>{5146d804-4a7f-442f-9085-5adc06bf9769}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\resource_manager\resource_manager.vcxproj">
+      <Project>{117290a3-4a22-4c58-9ac0-ed1c8efa49e3}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\util\util.vcxproj">
       <Project>{c72ded4c-e82a-4e26-b7a8-715f4747ccec}</Project>
     </ProjectReference>

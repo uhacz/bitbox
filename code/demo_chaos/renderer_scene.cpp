@@ -219,7 +219,7 @@ void SceneImpl::BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransfo
 
             renderer_scene_internal::SortKey skey;
             skey.depth = TypeReinterpert( depth ).u;
-            skey.material = _mesh_data.materials[i].i;
+            skey.material = 0;
 
             rdi::Command* instance_cmd = vtransform->SetCurrent( cmdb, batch_offset, nullptr );
             rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, instance_cmd );

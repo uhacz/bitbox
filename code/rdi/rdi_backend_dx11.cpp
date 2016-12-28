@@ -1318,6 +1318,24 @@ void SetShaderPass( CommandQueue* cmdq, ShaderPass pass )
     cmdq->dx11()->VSSetShader( pass.vertex, 0, 0 );
     cmdq->dx11()->PSSetShader( pass.pixel, 0, 0 );
 }
+void SetShader( CommandQueue* cmdq, Shader shader, EStage::Enum stage )
+{
+    switch( stage )
+    {
+    case EStage::VERTEX:
+        cmdq->dx11()->VSSetShader( shader.vertex, nullptr, 0 );
+        break;
+    case EStage::PIXEL:
+        cmdq->dx11()->PSSetShader( shader.pixel, nullptr, 0 );
+        break;
+    case EStage::COMPUTE:
+        cmdq->dx11()->CSSetShader( shader.compute, nullptr, 0 );
+        break;
+    default:
+        SYS_NOT_IMPLEMENTED;
+    }
+}
+
 
 void SetInputLayout( CommandQueue* cmdq, InputLayout ilay )
 {
