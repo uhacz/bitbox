@@ -10,20 +10,20 @@ int main( int argc, const char** argv )
     unsigned h = 1080;
     bool fs = true;
 #else
-    unsigned w = 1280;
-    unsigned h = 720;
+    unsigned w = 960;
+    unsigned h = 540;
     bool fs = false;
 #endif
     bxWindow* window = bxWindow_create( "tjdb", w, h, fs, 0 );
     if ( window )
     {
-        tjdb::NoGodsNoMasters app;
-        if ( bxApplication_startup( &app, argc, argv ) )
+        tjdb::NoGodsNoMasters* app = &tjdb::gTJDB;
+        if ( bxApplication_startup( app, argc, argv ) )
         {
-            bxApplication_run( &app );
+            bxApplication_run( app );
         }
 
-        bxApplication_shutdown( &app );
+        bxApplication_shutdown( app );
         bxWindow_release();
     }
 
