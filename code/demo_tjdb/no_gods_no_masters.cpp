@@ -173,6 +173,8 @@ namespace tjdb
         _color_texture = rdi::device::CreateTexture2D( w, h, 1, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::EBindMask::SHADER_RESOURCE | rdi::EBindMask::RENDER_TARGET, 0, nullptr );
         _swap_texture = rdi::device::CreateTexture2D( w, h, 1, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::EBindMask::SHADER_RESOURCE | rdi::EBindMask::RENDER_TARGET, 0, nullptr );
 
+        _cbuffer_mdata = rdi::device::CreateConstantBuffer( sizeof( NoGodsNoMasters::MaterialData ) );
+
         PostProcessPass::_StartUp( &_post_process );
 
         rdi::ShaderFile* shf = rdi::ShaderFileLoad( "shader/bin/tjdb_no_gods_no_masters.shader", GResourceManager() );
@@ -186,8 +188,8 @@ namespace tjdb
 
         rdi::ShaderFileUnload( &shf, GResourceManager() );
 
-        rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_blit );
-        
+        rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_main );
+        rdi::SetConstantBuffer( rdesc, "MaterialData", &_cbuffer_mdata );
 
         {
             rdi::SamplerDesc samp_desc = {};
@@ -263,6 +265,8 @@ namespace tjdb
         rdi::DestroyPipeline( &_pipeline_main );
 
         PostProcessPass::_ShutDown( &_post_process );
+
+        rdi::device::DestroyConstantBuffer( &_cbuffer_mdata );
 
         rdi::device::DestroyTexture( &_bg_texture );
         rdi::device::DestroyTexture( &_bg_mask );
@@ -364,6 +368,27 @@ namespace tjdb
         //}
 
         {
+            NoGodsNoMasters::MaterialData mdata;
+            memset( &mdata, 0x00, sizeof( mdata ) );
+            mdata.resolution = float2_t( _color_texture.info.width, _color_texture.info.height );
+            mdata.resolutionRcp = float2_t( 1.f / _color_texture.info.width, 1.f / _color_texture.info.height );
+            mdata.currentSong = _current_song;
+            mdata.time = _timeS;
+            if( _current_song != UINT32_MAX )
+            {
+                HSTREAM currStream = _song_streams[_current_song];
+                QWORD musicLengthInBytes = BASS_ChannelGetLength( currStream, BASS_POS_BYTE );
+                QWORD musicPosInBytes  = BASS_ChannelGetPosition( currStream, BASS_POS_BYTE );
+
+                float musicLengthInSec = (float)BASS_ChannelBytes2Seconds( currStream, musicLengthInBytes );
+                float musicPosInSec    = (float)BASS_ChannelBytes2Seconds( currStream, musicPosInBytes );
+
+                mdata.songTime = musicPosInSec;
+                mdata.songDuration = musicLengthInSec;
+            }
+
+            rdi::context::UpdateCBuffer( cmdq, _cbuffer_mdata, &mdata );
+
             rdi::context::ChangeRenderTargets( cmdq, &_color_texture, 1, rdi::TextureDepth() );
             rdi::context::ClearColorBuffer( cmdq, _color_texture, 0.f, 0.f, 0.f, 1.f );
 
@@ -401,6 +426,8 @@ namespace tjdb
         rdi::context::Swap( cmdq );
 
         rdi::frame::End( &cmdq );
+
+        _timeS += deltaTime;
 
         return true;
     }

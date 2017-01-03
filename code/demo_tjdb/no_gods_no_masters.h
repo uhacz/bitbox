@@ -63,6 +63,8 @@ private:
     rdi::TextureRW _color_texture = {};
     rdi::TextureRW _swap_texture = {};
 
+    rdi::ConstantBuffer _cbuffer_mdata = {};
+
     rdi::Pipeline _pipeline_blit = BX_RDI_NULL_HANDLE;
     rdi::Pipeline _pipeline_main = BX_RDI_NULL_HANDLE;
 
@@ -88,6 +90,10 @@ private:
     u32 _current_song = UINT32_MAX;
     u32 _next_song = UINT32_MAX;
     bool _stop_request = false;
+
+    float _timeS = 0.f;
+
+#include <shaders/shaders/tjdb_no_gods_no_masters_data.h>
 };
 extern NoGodsNoMasters gTJDB;
 

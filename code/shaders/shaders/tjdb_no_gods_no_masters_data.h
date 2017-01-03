@@ -6,6 +6,8 @@ CBUFFER MaterialData BREGISTER( SLOT_MATERIAL_DATA )
     float2 resolution;
     float2 resolutionRcp;
     float time;
+    float songTime;
+    float songDuration;
     uint currentSong;
 };
 
