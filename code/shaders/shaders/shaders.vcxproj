@@ -108,6 +108,7 @@
     <ClInclude Include="deffered_lighting_data.h" />
     <ClInclude Include="material_data.h" />
     <ClInclude Include="shadow_data.h" />
+    <ClInclude Include="ssao_data.h" />
     <ClInclude Include="tjdb_no_gods_no_masters_data.h" />
     <ClInclude Include="tone_mapping_data.h" />
   </ItemGroup>
@@ -118,6 +119,11 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="debug.hlsl">
+      <FileType>Document</FileType>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="ssao.hlsl">
       <FileType>Document</FileType>
     </CustomBuild>
   </ItemGroup>

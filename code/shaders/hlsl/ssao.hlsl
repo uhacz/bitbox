@@ -1,13 +1,45 @@
 passes:
 {
-    ssao = 
+    ssao =
     {
-	    vertex = "vs_screenquad";
+        vertex = "vs_screenquad";
         pixel = "ps_ssao";
+        hwstate =
+        {
+            depth_test = 0;
+            depth_write = 0;
+            color_mask = "RG";
+        };
     };
 
-    
-};#~header
+    blurX = 
+    {
+        vertex = "vs_screenquad";
+        pixel = "ps_blurX";
+
+        hwstate =
+        {
+            depth_test = 0;
+            depth_write = 0;
+            color_mask = "RG";
+        };
+    };
+
+    blurY = 
+    {
+        vertex = "vs_screenquad";
+        pixel = "ps_blurY";
+
+        hwstate =
+        {
+            depth_test = 0;
+            depth_write = 0;
+            color_mask = "R";
+        };
+    };
+
+
+}; #~header
 
 #include <sys/frame_data.hlsl>
 #include <sys/vs_screenquad.hlsl>

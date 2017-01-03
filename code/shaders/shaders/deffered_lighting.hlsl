@@ -139,8 +139,12 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float3 color = sun_color * ( specular + diffuse ) * sun_intensity * shadow;
 
 #ifdef USE_SKYBOX
-    float glossyExponent = roughnessToShininess( roughness );
-    float MIPlevel = log2( environment_map_width * sqrt( 3 ) ) - 0.5 * log2( glossyExponent + 1 );    
+    //float glossyExponent = roughnessToShininess( roughness );
+    float a2 = roughness * roughness;
+    float specPower = ( 1.0 / a2 - 1.0 ) * 2.0;
+    //float specGloss = log2( specPower ) / 19.0;
+
+    float MIPlevel = log2( environment_map_width * sqrt( 3 ) ) - 0.5 * log2( specPower + 1 );    
     float3 diffuse_env = skybox.SampleLevel( _samp_bilinear, N, environment_map_max_mip ).rgb;
     float3 specular_env = skybox.SampleLevel( _samp_bilinear, R, MIPlevel ).rgb;
 
