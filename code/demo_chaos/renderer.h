@@ -138,6 +138,29 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
+class SsaoPass
+{
+public:
+    void PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera, unsigned fbWidth, unsigned fbHeight );
+    void Flush( rdi::CommandQueue* cmdq, rdi::ResourceRW normalsTexture, rdi::TextureDepth depthTexture );
+
+    static void _StartUp( SsaoPass* pass, const RendererDesc& rndDesc, bool halfRes = true );
+    static void _ShutDown( SsaoPass* pass );
+
+private:
+#include <shaders/shaders/ssao_data.h>
+    rdi::TextureRW _ssao_texture = {};
+    rdi::TextureRW _temp_texture = {};
+    rdi::ConstantBuffer _cbuffer_mdata = {};
+
+    rdi::Pipeline _pipeline_ssao = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline _pipeline_blurx = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline _pipeline_blury = BX_RDI_NULL_HANDLE;
+
+    bool _halfRes = false;
+};
+
+//////////////////////////////////////////////////////////////////////////
 class LightPass
 {
 public:

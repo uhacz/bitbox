@@ -490,8 +490,99 @@ void ShadowPass::_ShutDown( ShadowPass* pass )
     rdi::device::DestroyTexture( &pass->_shadow_map );
     rdi::device::DestroyTexture( &pass->_depth_map );
 }
+//////////////////////////////////////////////////////////////////////////
+void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera, unsigned fbWidth, unsigned fbHeight )
+{
+    SsaoPass::MaterialData mdata;
+    memset( &mdata, 0x00, sizeof( mdata ) );
 
+    mdata.g_ViewMatrix = camera.view;
+    mdata.g_renderTargetSize = float2_t( fbWidth, fbHeight );
+    mdata.g_SSAOPhase = 0.f;
 
+    {
+        const float fbWidthRcp = 1.f / fbWidth;
+        const float fbHeightRcp = 1.f / fbHeight;
+
+        const Matrix4& proj = camera.proj_api;
+        const float m11 = proj.getElem( 0, 0 ).getAsFloat();
+        const float m22 = proj.getElem( 1, 1 ).getAsFloat();
+        const float m33 = proj.getElem( 2, 2 ).getAsFloat();
+        const float m44 = proj.getElem( 3, 2 ).getAsFloat();
+
+        const float m13 = proj.getElem( 0, 2 ).getAsFloat();
+        const float m23 = proj.getElem( 1, 2 ).getAsFloat();
+
+        const float4_t reprojectInfo = float4_t( 1.f / m11, 1.f / m22, m33, -m44 );
+        const float reprojectScale = ( _halfRes ) ? 2.f : 1.f;
+        
+        mdata.g_ReprojectInfoHalfResFromInt = float4_t(
+            ( -reprojectInfo.x * reprojectScale ) * fbWidthRcp,
+            ( -reprojectInfo.y * reprojectScale ) * fbHeightRcp,
+            reprojectInfo.x,
+            reprojectInfo.y
+        );
+    }
+
+    {
+        const float zNear = camera.params.zNear;
+        const float zFar = camera.params.zFar;
+        mdata.g_reprojectionDepth = float2_t( ( zFar - zNear ) / ( -zFar * zNear ), zFar / ( zFar * zNear ) );
+    }
+
+    rdi::context::UpdateCBuffer( cmdq, _cbuffer_mdata, &mdata );
+}
+
+void SsaoPass::Flush( rdi::CommandQueue* cmdq, rdi::ResourceRW normalsTexture, rdi::TextureDepth depthTexture )
+{
+
+}
+
+void SsaoPass::_StartUp( SsaoPass* pass, const RendererDesc& rndDesc, bool halfRes /*= true */ )
+{
+    pass->_halfRes = halfRes;
+    const u32 width = (halfRes ) ? rndDesc.framebuffer_width / 2 : rndDesc.framebuffer_width;
+    const u32 height = ( halfRes ) ? rndDesc.framebuffer_height / 2 : rndDesc.framebuffer_height;
+
+    pass->_ssao_texture = rdi::device::CreateTexture2D( width, height, 1, rdi::Format( rdi::EDataType::FLOAT, 2 ), rdi::EBindMask::SHADER_RESOURCE | rdi::EBindMask::RENDER_TARGET, 0, nullptr );
+    pass->_temp_texture = rdi::device::CreateTexture2D( width, height, 1, rdi::Format( rdi::EDataType::FLOAT, 2 ), rdi::EBindMask::SHADER_RESOURCE | rdi::EBindMask::RENDER_TARGET, 0, nullptr );
+
+    pass->_cbuffer_mdata = rdi::device::CreateConstantBuffer( sizeof( SsaoPass::MaterialData ) );
+
+    rdi::ShaderFile* sf = rdi::ShaderFileLoad( "shader/bin/ssao.shader", GResourceManager() );
+
+    rdi::PipelineDesc pipeline_desc = {};
+    rdi::ResourceDescriptor rdesc = BX_RDI_NULL_HANDLE;
+    
+    pipeline_desc.Shader( sf, "ssao" );
+    pass->_pipeline_ssao = rdi::CreatePipeline( pipeline_desc );
+    rdesc = rdi::GetResourceDescriptor( pass->_pipeline_ssao );
+    rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer_mdata );
+
+    pipeline_desc.Shader( sf, "blurX" );
+    pass->_pipeline_blurx = rdi::CreatePipeline( pipeline_desc );
+    rdesc = rdi::GetResourceDescriptor( pass->_pipeline_blurx );
+    rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer_mdata );
+    rdi::SetResourceRO( rdesc, "in_textureSSAO", &pass->_ssao_texture );
+
+    pipeline_desc.Shader( sf, "blurY" );
+    pass->_pipeline_blury = rdi::CreatePipeline( pipeline_desc );
+    rdesc = rdi::GetResourceDescriptor( pass->_pipeline_blury );
+    rdi::SetConstantBuffer( rdesc, "MaterialData", &pass->_cbuffer_mdata );
+    rdi::SetResourceRO( rdesc, "in_textureSSAO", &pass->_temp_texture );
+
+    rdi::ShaderFileUnload( &sf, GResourceManager() );
+}
+
+void SsaoPass::_ShutDown( SsaoPass* pass )
+{
+    rdi::DestroyPipeline( &pass->_pipeline_blury );
+    rdi::DestroyPipeline( &pass->_pipeline_blurx );
+    rdi::DestroyPipeline( &pass->_pipeline_ssao );
+    rdi::device::DestroyConstantBuffer( &pass->_cbuffer_mdata );
+    rdi::device::DestroyTexture( &pass->_temp_texture );
+    rdi::device::DestroyTexture( &pass->_ssao_texture );
+}
 
 //////////////////////////////////////////////////////////////////////////
 void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera )

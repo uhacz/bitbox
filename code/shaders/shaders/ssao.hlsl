@@ -54,10 +54,10 @@ passes:
 #include <sys/samplers.hlsl>
 #include "ssao_data.h"
 
-Texture2D<float>  InputTextureLinearDepth       : register(t0);
-Texture2D<float2> InputTextureSSAO              : register(t1);
-//Texture2D<float2> InputTextureMotion            : register(t2);
-Texture2D<float4> InputTextureNormals           : register(t3);
+Texture2D<float>  in_textureHwDepth       : register(t0);
+Texture2D<float2> in_textureSSAO          : register(t1);
+//Texture2D<float2> InputTextureMotion      : register(t2);
+Texture2D<float4> in_textureNormals       : register(t3);
 
 /*
 Source of whole algorithm: http://graphics.cs.williams.edu/papers/SAOHPG12/ plus some minor modifications (right now I removed mips)
@@ -127,6 +127,18 @@ a scale factor on radius; you can simply hardcode this to a constant (~500)
 and make your radius value unitless (...but resolution dependent.)  */
 static const float projScale = 250.0f;
 
+float ResolveLinearDepth( float hwDepth )
+{
+    return rcp( hwDepth * g_reprojectionDepth.x + g_reprojectionDepth.y );
+}
+
+float LoadLinearDepth( int2 ssP )
+{
+    float hwDepth = in_textureHwDepth.Load( int3( ssP, 0 ) ).r;
+    float linDepth = ResolveLinearDepth( hwDepth );
+    return linDepth;
+}
+
 /** Reconstruct camera-space P.xyz from screen-space S = (x, y) in
 pixels and camera-space z < 0.  Assumes that the upper-left pixel center
 is at (0.5, 0.5) [but that need not be the location at which the sample tap
@@ -161,7 +173,8 @@ float3 getPosition(int2 ssP)
 {
     float3 P;
 
-    P.z = InputTextureLinearDepth.Load(int3(ssP, 0)).r;
+    //P.z = InputTextureLinearDepth.Load(int3(ssP, 0)).r;
+    P.z = LoadLinearDepth( ssP );
 
     // Offset to pixel center
     P = reconstructCSPosition(float2(ssP), P.z);
@@ -176,7 +189,8 @@ float3 getOffsetPosition(int2 ssC, float2 unitOffset, float ssR)
     float3 P;
 
     // Divide coordinate by 2^mipLevel
-    P.z = InputTextureLinearDepth.Load(int3(ssP, 0)).r;
+    //P.z = InputTextureLinearDepth.Load(int3(ssP, 0)).r;
+    P.z = LoadLinearDepth( ssP );
 
     // Offset to pixel center
     P = reconstructCSPosition(float2(ssP), P.z);
@@ -230,14 +244,14 @@ float2 ps_SSAO( out_VS_screenquad i) : SV_Target
     }
 
     //float2 diffVector = InputTextureMotion.SampleLevel(linearSampler, i.uv, 0);
-    //float2 prevFrame = InputTextureSSAO.SampleLevel(linearSampler, i.uv+diffVector, 0);
+    //float2 prevFrame = in_textureSSAO.SampleLevel(linearSampler, i.uv+diffVector, 0);
     //float keyPrevFrame = prevFrame.g;
     //float aoPrevFrame = prevFrame.r;
 
     // Hash function used in the HPG12 AlchemyAO paper
     float randomPatternRotationAngle = (3 * ssC.x ^ ssC.y + ssC.x * ssC.y) * 10 + g_SSAOPhase;
 
-    float3 normalsWS = InputTextureNormals.Load(int3(ssC, 0)).xyz * 2.0f - 1.0f;
+    float3 normalsWS = in_textureNormals.Load(int3(ssC, 0)).xyz * 2.0f - 1.0f;
     float3 n_C = mul(g_ViewMatrix, float4(normalsWS, 0.0f)).xyz * float3(-1,1,1);
 
     // Choose the screen-space sample radius
@@ -311,7 +325,7 @@ float2 ps_Blur( out_VS_screenquad i) : SV_Target
 
     float2 output = 1.0f;
 
-    float2 temp = InputTextureSSAO.Load(int3(ssC, 0));
+    float2 temp = in_textureSSAO.Load(int3(ssC, 0));
 
 #ifdef HORIZONTAL
     output.g = temp.g;
@@ -344,7 +358,7 @@ float2 ps_Blur( out_VS_screenquad i) : SV_Target
 #else
             float2 axis = float2(0, 1);
 #endif
-            temp = InputTextureSSAO.Load(int3(ssC + axis * (r * SCALE), 0));
+            temp = in_textureSSAO.Load(int3(ssC + axis * (r * SCALE), 0));
             float tapKey = temp.g;
             float value = temp.r;
 
