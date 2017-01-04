@@ -163,10 +163,11 @@ namespace tjdb
         
         // ---
         _fullscreen_quad = rdi::CreateFullscreenQuad();
-        _bg_texture = LoadTextureFromFile( "texture/tjdb/okladka_bg.DDS" );
-        _bg_mask = LoadTextureFromFile( "texture/tjdb/maska_bg.DDS" );
+        _bg_texture   = LoadTextureFromFile( "texture/tjdb/okladka_bg.DDS" );
+        _bg_mask      = LoadTextureFromFile( "texture/tjdb/maska_bg.DDS" );
+        _logo_mask    = LoadTextureFromFile( "texture/tjdb/maska_logo.DDS" );
         _spis_texture = LoadTextureFromFile( "texture/tjdb/maska_spis.DDS" );
-        _fft_texture = rdi::device::CreateTexture1D( FFT_BINS, 1, rdi::Format( rdi::EDataType::FLOAT, 1 ), rdi::EBindMask::SHADER_RESOURCE, 0, NULL );
+        _fft_texture  = rdi::device::CreateTexture1D( FFT_BINS, 1, rdi::Format( rdi::EDataType::FLOAT, 1 ), rdi::EBindMask::SHADER_RESOURCE, 0, NULL );
 
         const u32 w = _bg_texture.info.width;
         const u32 h = _bg_texture.info.height;
@@ -270,6 +271,7 @@ namespace tjdb
 
         rdi::device::DestroyTexture( &_bg_texture );
         rdi::device::DestroyTexture( &_bg_mask );
+        rdi::device::DestroyTexture( &_logo_mask );
         rdi::device::DestroyTexture( &_swap_texture );
         rdi::device::DestroyTexture( &_color_texture );
         rdi::device::DestroyTexture( &_fft_texture );
@@ -395,6 +397,7 @@ namespace tjdb
             rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_main );
             rdi::SetResourceRO( rdesc, "gBgTex", &_bg_texture );
             rdi::SetResourceRO( rdesc, "gBgMaskTex", &_bg_mask );
+            rdi::SetResourceRO( rdesc, "gLogoMaskTex", &_logo_mask );
             rdi::SetResourceRO( rdesc, "gFFTTex", &_fft_texture );
             rdi::SetResourceRO( rdesc, "gSpisTex", &_spis_texture );
             rdi::BindPipeline( cmdq, _pipeline_main, true );

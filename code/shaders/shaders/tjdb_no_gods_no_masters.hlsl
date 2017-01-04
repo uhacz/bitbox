@@ -36,7 +36,7 @@ Texture2D gSrcTexture;
 
 Texture2D gBgTex;
 Texture2D gBgMaskTex;
-//Texture2D gLogoTex;
+Texture2D gLogoMaskTex;
 Texture2D gSpisTex;
 Texture1D<float> gFFTTex;
 
@@ -91,9 +91,13 @@ float4 ps_main( in_PS IN ) : SV_Target0
     float fft9  = gFFTTex.Sample( _samp_point, 0.9f ).r;
     float fft10 = gFFTTex.Sample( _samp_point, 1.0f ).r;
     
-    float4 bgColor = gBgTex.SampleLevel( _samp_point, IN.uv, 0 );
     float3 bgMask = gBgMaskTex.SampleLevel( _samp_point, IN.uv, 0 );
-    float4 spisColor = gSpisTex.SampleLevel( _samp_point, IN.uv, 0 );
+    float logoMask = gLogoMaskTex.SampleLevel( _samp_point, IN.uv, 0 ).r;
+
+    float2 uv = IN.uv;
+    
+    float4 bgColor = gBgTex.SampleLevel( _samp_point, uv, 0 );
+    float4 spisColor = gSpisTex.SampleLevel( _samp_point, uv, 0 );
     
     float3 spisColorValue = spisColor.rgb * spisColor.a;
     if( currentSong < NUM_SONGS )
@@ -131,6 +135,11 @@ float4 ps_main( in_PS IN ) : SV_Target0
     color += fft5 * bgMask.ggb * 10.f;
 
     color = lerp( color, color*0.1, sqrt( fft ) );
+
+    //if( logoMask > 0.f )
+    //{
+    //    color *= saturate( 0.2 - fft05 );
+    //}
 
     return float4( color, 1.0 );
 }

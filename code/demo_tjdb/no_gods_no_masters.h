@@ -56,6 +56,7 @@ private:
     
     rdi::TextureRO _bg_texture = {};
     rdi::TextureRO _bg_mask = {};
+    rdi::TextureRO _logo_mask = {};
 
     //rdi::TextureRO _logo_texture = {};
     rdi::TextureRO _spis_texture = {};
