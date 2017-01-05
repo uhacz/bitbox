@@ -141,8 +141,10 @@ private:
 class SsaoPass
 {
 public:
-    void PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera, unsigned fbWidth, unsigned fbHeight );
-    void Flush( rdi::CommandQueue* cmdq, rdi::ResourceRW normalsTexture, rdi::TextureDepth depthTexture );
+    void PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera );
+    void Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth depthTexture, rdi::ResourceRW normalsTexture );
+
+    rdi::TextureRW SsaoTexture() const { return _ssao_texture; }
 
     static void _StartUp( SsaoPass* pass, const RendererDesc& rndDesc, bool halfRes = true );
     static void _ShutDown( SsaoPass* pass );

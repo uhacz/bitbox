@@ -146,7 +146,7 @@ was placed!]
 */
 float3 reconstructCSPosition(float2 S, float z)
 {
-    return float3((S * g_ReprojectInfoHalfResFromInt.xy + g_ReprojectInfoHalfResFromInt.zw)*z, z);
+    return float3((S * g_ReprojectInfoFromInt.xy + g_ReprojectInfoFromInt.zw)*z, z);
 }
 
 /** Reconstructs screen-space unit normal from screen-space position */
@@ -251,7 +251,7 @@ float2 ps_SSAO( out_VS_screenquad i) : SV_Target
     // Hash function used in the HPG12 AlchemyAO paper
     float randomPatternRotationAngle = (3 * ssC.x ^ ssC.y + ssC.x * ssC.y) * 10 + g_SSAOPhase;
 
-    float3 normalsWS = in_textureNormals.Load(int3(ssC, 0)).xyz * 2.0f - 1.0f;
+    float3 normalsWS = in_textureNormals.Load( int3( ssC, 0 ) ).xyz;// *2.0f - 1.0f;
     float3 n_C = mul(g_ViewMatrix, float4(normalsWS, 0.0f)).xyz * float3(-1,1,1);
 
     // Choose the screen-space sample radius
@@ -284,7 +284,7 @@ float2 ps_SSAO( out_VS_screenquad i) : SV_Target
     //float difference = saturate(1.0f - 5 * abs(C.z - keyPrevFrame));
     //output.r = lerp(output.r, aoPrevFrame, 0.95f*difference);
 
-    return output;
+    return output.gg;
 }
 
 /** Increase to make edges crisper. Decrease to reduce temporal flicker. */

@@ -78,6 +78,7 @@ public:
 
         gfx::GeometryPass::_StartUp( &_geometry_pass );
         gfx::ShadowPass::_StartUp( &_shadow_pass, _renderer.GetDesc(), 1024 * 8 );
+        gfx::SsaoPass::_StartUp( &_ssao_pass, _renderer.GetDesc(), false );
         gfx::LightPass::_StartUp( &_light_pass );
         gfx::PostProcessPass::_StartUp( &_post_pass );
 
@@ -208,6 +209,7 @@ public:
 
         gfx::PostProcessPass::_ShutDown( &_post_pass );
         gfx::LightPass::_ShutDown( &_light_pass );
+        gfx::SsaoPass::_ShutDown( &_ssao_pass );
         gfx::ShadowPass::_ShutDown( &_shadow_pass );
         gfx::GeometryPass::_ShutDown( &_geometry_pass );
         _renderer.ShutDown( _engine.resource_manager );
@@ -276,8 +278,12 @@ public:
         _geometry_pass.Flush( cmdq );
 
         rdi::TextureDepth depthTexture = rdi::GetTextureDepth( _geometry_pass.GBuffer() );
+        rdi::TextureRW normalsTexture = rdi::GetTexture( _geometry_pass.GBuffer(), 2 );
         _shadow_pass.PrepareScene( cmdq, _gfx_scene, _camera );
-        _shadow_pass.Flush( cmdq, depthTexture, rdi::GetTexture( _geometry_pass.GBuffer(), 2 ) );
+        _shadow_pass.Flush( cmdq, depthTexture, normalsTexture );
+
+        _ssao_pass.PrepareScene( cmdq, _camera );
+        _ssao_pass.Flush( cmdq, depthTexture, normalsTexture );
 
         _light_pass.PrepareScene( cmdq, _gfx_scene, _camera );
         _light_pass.Flush( cmdq, _renderer.GetFramebuffer( gfx::EFramebuffer::SWAP ), _geometry_pass.GBuffer(), _shadow_pass.ShadowMap() );
@@ -295,6 +301,7 @@ public:
         rdi::ResourceRO* toRasterize[] =
         {
             &dstColor,
+            &_ssao_pass.SsaoTexture(),
             &_shadow_pass.ShadowMap(),
             &_shadow_pass.DepthMap(),
         };
@@ -342,6 +349,7 @@ public:
     
     gfx::GeometryPass _geometry_pass;
     gfx::ShadowPass _shadow_pass;
+    gfx::SsaoPass _ssao_pass;
     gfx::LightPass _light_pass;
     gfx::PostProcessPass _post_pass;
 

@@ -491,19 +491,25 @@ void ShadowPass::_ShutDown( ShadowPass* pass )
     rdi::device::DestroyTexture( &pass->_depth_map );
 }
 //////////////////////////////////////////////////////////////////////////
-void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera, unsigned fbWidth, unsigned fbHeight )
+void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera )
 {
     SsaoPass::MaterialData mdata;
     memset( &mdata, 0x00, sizeof( mdata ) );
 
+    const float fbWidth  = (float)( ( _halfRes ) ? _ssao_texture.info.width * 2  : _ssao_texture.info.width  );
+    const float fbHeight = (float)( ( _halfRes ) ? _ssao_texture.info.height * 2 : _ssao_texture.info.height );
+    const float fbWidthRcp = 1.f / fbWidth;
+    const float fbHeightRcp = 1.f / fbHeight;
+
     mdata.g_ViewMatrix = camera.view;
-    mdata.g_renderTargetSize = float2_t( fbWidth, fbHeight );
-    mdata.g_SSAOPhase = 0.f;
+    mdata.g_renderTargetSize = float2_t( (float)fbWidth, (float)fbHeight );
+    
+    static float ssaoPhase = 0.f;
+    mdata.g_SSAOPhase = ssaoPhase;
+
+    ssaoPhase += 0.1f;
 
     {
-        const float fbWidthRcp = 1.f / fbWidth;
-        const float fbHeightRcp = 1.f / fbHeight;
-
         const Matrix4& proj = camera.proj_api;
         const float m11 = proj.getElem( 0, 0 ).getAsFloat();
         const float m22 = proj.getElem( 1, 1 ).getAsFloat();
@@ -514,14 +520,17 @@ void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera, unsi
         const float m23 = proj.getElem( 1, 2 ).getAsFloat();
 
         const float4_t reprojectInfo = float4_t( 1.f / m11, 1.f / m22, m33, -m44 );
-        const float reprojectScale = ( _halfRes ) ? 2.f : 1.f;
         
-        mdata.g_ReprojectInfoHalfResFromInt = float4_t(
-            ( -reprojectInfo.x * reprojectScale ) * fbWidthRcp,
-            ( -reprojectInfo.y * reprojectScale ) * fbHeightRcp,
+        mdata.g_ReprojectInfoFromInt = float4_t(
+            ( -reprojectInfo.x * 2.f ) * fbWidthRcp,
+            ( -reprojectInfo.y * 2.f ) * fbHeightRcp,
             reprojectInfo.x,
             reprojectInfo.y
         );
+
+        // add offset to pixel center
+        mdata.g_ReprojectInfoFromInt.z += mdata.g_ReprojectInfoFromInt.x * 0.5f;
+        mdata.g_ReprojectInfoFromInt.w += mdata.g_ReprojectInfoFromInt.y * 0.5f;
     }
 
     {
@@ -533,9 +542,18 @@ void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera, unsi
     rdi::context::UpdateCBuffer( cmdq, _cbuffer_mdata, &mdata );
 }
 
-void SsaoPass::Flush( rdi::CommandQueue* cmdq, rdi::ResourceRW normalsTexture, rdi::TextureDepth depthTexture )
+void SsaoPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth depthTexture, rdi::ResourceRW normalsTexture )
 {
+    {
+        rdi::context::ChangeRenderTargets( cmdq, &_ssao_texture, 1, rdi::TextureDepth() );
+        rdi::context::ClearColorBuffer( cmdq, _ssao_texture, 0.f, 0.f, 0.f, 1.f );
+        rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_ssao );
+        rdi::SetResourceRO( rdesc, "in_textureNormals", &normalsTexture );
+        rdi::SetResourceRO( rdesc, "in_textureHwDepth", &depthTexture );
+        rdi::BindPipeline( cmdq, _pipeline_ssao, true );
 
+        Renderer::DrawFullScreenQuad( cmdq );
+    }
 }
 
 void SsaoPass::_StartUp( SsaoPass* pass, const RendererDesc& rndDesc, bool halfRes /*= true */ )
