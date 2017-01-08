@@ -1,7 +1,7 @@
 #include "no_gods_no_masters.h"
 #include "system/window.h"
 
-#define FINAL 0
+#define FINAL 1
 
 int main( int argc, const char** argv )
 {

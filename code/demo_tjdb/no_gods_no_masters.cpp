@@ -3,6 +3,7 @@
 #include <util/config.h>
 #include <util/signal_filter.h>
 #include <math.h>
+#include "util\common.h"
 
 namespace tjdb
 {
@@ -133,7 +134,7 @@ namespace tjdb
 
 namespace tjdb
 {
-    static const float FFT_LOWPASS_RC = 0.025f;
+    static const float FFT_LOWPASS_RC = 0.015f;
 
     rdi::TextureRO LoadTextureFromFile( const char* filename )
     {
@@ -167,12 +168,15 @@ namespace tjdb
         _bg_mask      = LoadTextureFromFile( "texture/tjdb/maska_bg.DDS" );
         _logo_mask    = LoadTextureFromFile( "texture/tjdb/maska_logo.DDS" );
         _spis_texture = LoadTextureFromFile( "texture/tjdb/maska_spis.DDS" );
+        _random_texture = LoadTextureFromFile( "texture/noise256.DDS" );
         _fft_texture  = rdi::device::CreateTexture1D( FFT_BINS, 1, rdi::Format( rdi::EDataType::FLOAT, 1 ), rdi::EBindMask::SHADER_RESOURCE, 0, NULL );
 
         const u32 w = _bg_texture.info.width;
         const u32 h = _bg_texture.info.height;
         _color_texture = rdi::device::CreateTexture2D( w, h, 1, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::EBindMask::SHADER_RESOURCE | rdi::EBindMask::RENDER_TARGET, 0, nullptr );
         _swap_texture = rdi::device::CreateTexture2D( w, h, 1, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::EBindMask::SHADER_RESOURCE | rdi::EBindMask::RENDER_TARGET, 0, nullptr );
+        for( u32 i = 0; i < 2; ++i )
+            _flame_texture[i] = rdi::device::CreateTexture2D( w, h, 1, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::EBindMask::SHADER_RESOURCE | rdi::EBindMask::RENDER_TARGET, 0, nullptr );
 
         _cbuffer_mdata = rdi::device::CreateConstantBuffer( sizeof( NoGodsNoMasters::MaterialData ) );
 
@@ -187,11 +191,19 @@ namespace tjdb
         pipeline_desc.Shader( shf, "main" );
         _pipeline_main = rdi::CreatePipeline( pipeline_desc );
 
+        pipeline_desc.Shader( shf, "flame" );
+        _pipeline_flame = rdi::CreatePipeline( pipeline_desc );
+
         rdi::ShaderFileUnload( &shf, GResourceManager() );
 
-        rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_main );
+        rdi::ResourceDescriptor rdesc = BX_RDI_NULL_HANDLE;
+
+        rdesc = rdi::GetResourceDescriptor( _pipeline_main );
         rdi::SetConstantBuffer( rdesc, "MaterialData", &_cbuffer_mdata );
 
+        rdesc = rdi::GetResourceDescriptor( _pipeline_flame );
+        rdi::SetConstantBuffer( rdesc, "MaterialData", &_cbuffer_mdata );
+        
         {
             rdi::SamplerDesc samp_desc = {};
 
@@ -262,6 +274,7 @@ namespace tjdb
             rdi::device::DestroySampler( &_samplers.point );
         }
 
+        rdi::DestroyPipeline( &_pipeline_flame );
         rdi::DestroyPipeline( &_pipeline_blit );
         rdi::DestroyPipeline( &_pipeline_main );
 
@@ -269,14 +282,18 @@ namespace tjdb
 
         rdi::device::DestroyConstantBuffer( &_cbuffer_mdata );
 
+        for( u32 i = 0; i < 2; ++i )
+            rdi::device::DestroyTexture( &_flame_texture[i] );
+
         rdi::device::DestroyTexture( &_bg_texture );
         rdi::device::DestroyTexture( &_bg_mask );
         rdi::device::DestroyTexture( &_logo_mask );
+        rdi::device::DestroyTexture( &_spis_texture );
+        rdi::device::DestroyTexture( &_random_texture );
         rdi::device::DestroyTexture( &_swap_texture );
         rdi::device::DestroyTexture( &_color_texture );
         rdi::device::DestroyTexture( &_fft_texture );
         //rdi::device::DestroyTexture( &_logo_texture );
-        rdi::device::DestroyTexture( &_spis_texture );
         rdi::DestroyRenderSource( &_fullscreen_quad );
 
         // ---
@@ -315,6 +332,20 @@ namespace tjdb
             if( bxInput_isKeyPressedOnce( kbd, '0' ) )
                 _stop_request = true;
         }
+
+        if( bxInput_isKeyPressedOnce( kbd, 'F' ) )
+        {
+            if( _current_song != UINT32_MAX )
+            {
+                HSTREAM currStream = _song_streams[_current_song];
+                QWORD musicLengthInBytes = BASS_ChannelGetLength( currStream, BASS_POS_BYTE );
+                float musicLengthInSec = (float)BASS_ChannelBytes2Seconds( currStream, musicLengthInBytes );
+
+                float newPositionInSec = musicLengthInSec - 2.f;
+                QWORD newPositionInBytes = BASS_ChannelSeconds2Bytes( currStream, newPositionInSec );
+                BASS_ChannelSetPosition( currStream, newPositionInBytes, BASS_POS_BYTE );
+            }
+        }
         
         if( _next_song != UINT32_MAX )
         {
@@ -338,19 +369,39 @@ namespace tjdb
 
         if( _current_song != UINT32_MAX )
         {
-            memcpy( _fft_data_prev, _fft_data_curr, FFT_BINS * sizeof( f32 ) );
-            int ierr = BASS_ChannelGetData( _song_streams[_current_song], _fft_data_curr, BASS_DATA_FFT512 );
-            if( ierr != -1 )
+            if( BASS_ChannelIsActive( _song_streams[_current_song] ) )
             {
-                for( int i = 0; i < FFT_BINS; ++i )
+                memcpy( _fft_data_prev, _fft_data_curr, FFT_BINS * sizeof( f32 ) );
+                int ierr = BASS_ChannelGetData( _song_streams[_current_song], _fft_data_curr, BASS_DATA_FFT512 );
+                if( ierr != -1 )
                 {
-                    float sampleValue = ::sqrt( _fft_data_curr[i] );
-                    _fft_data_curr[i] = signalFilter_lowPass( sampleValue, _fft_data_prev[i], FFT_LOWPASS_RC, deltaTime );
-                }
+                    for( int i = 0; i < FFT_BINS; ++i )
+                    {
+                        float sampleValue = ::sqrt( _fft_data_curr[i] );
+                        _fft_data_curr[i] = signalFilter_lowPass( sampleValue, _fft_data_prev[i], FFT_LOWPASS_RC, deltaTime );
+                    }
 
-                rdi::context::UpdateTexture( cmdq, _fft_texture, _fft_data_curr );
+                    rdi::context::UpdateTexture( cmdq, _fft_texture, _fft_data_curr );
                 
-                //ctx->backend()->updateTexture( __data.fftTexture, __data.fftDataCurr );
+                    //ctx->backend()->updateTexture( __data.fftTexture, __data.fftDataCurr );
+                }
+                _wait_time = 0.f;
+            }
+            else
+            {
+                if( _wait_time >= 2.f )
+                {
+                    _next_song = _current_song + 1;
+                    if( _next_song >= NUM_SONGS )
+                    {
+                        _stop_request = true;
+                        _next_song = UINT32_MAX;
+                    }
+                }
+                else
+                {
+                    _wait_time += deltaTime;
+                }
             }
         }
 
@@ -368,7 +419,7 @@ namespace tjdb
         //
         //    rdi::DrawFullscreenQuad( cmdq, _fullscreen_quad );
         //}
-
+        
         {
             NoGodsNoMasters::MaterialData mdata;
             memset( &mdata, 0x00, sizeof( mdata ) );
@@ -376,6 +427,8 @@ namespace tjdb
             mdata.resolutionRcp = float2_t( 1.f / _color_texture.info.width, 1.f / _color_texture.info.height );
             mdata.currentSong = _current_song;
             mdata.time = _timeS;
+            mdata.deltaTime = deltaTime;
+            mdata.frameNo = _frameNo;
             if( _current_song != UINT32_MAX )
             {
                 HSTREAM currStream = _song_streams[_current_song];
@@ -387,22 +440,67 @@ namespace tjdb
 
                 mdata.songTime = musicPosInSec;
                 mdata.songDuration = musicLengthInSec;
+
+                const float fadeTime = 0.5f;
+                const float volume = /*smoothstep( 0.f, fadeTime, musicPosInSec ) * */( 1.f - smoothstep( musicLengthInSec - fadeTime, musicLengthInSec, musicPosInSec ) );
+                BASS_ChannelSetAttribute( currStream, BASS_ATTRIB_VOL, volume );
+
             }
 
             rdi::context::UpdateCBuffer( cmdq, _cbuffer_mdata, &mdata );
 
+            rdi::ResourceDescriptor rdesc = BX_RDI_NULL_HANDLE;
+
+            if( _current_flame_texture == UINT32_MAX )
+            {
+                _current_flame_texture = 0;
+                rdi::TextureRW flame_tex = _flame_texture[_current_flame_texture];
+                rdi::TextureRW prev_flame_tex = _flame_texture[!_current_flame_texture];
+
+                rdi::context::ChangeRenderTargets( cmdq, &flame_tex, 1, rdi::TextureDepth() );
+                rdi::context::ClearColorBuffer( cmdq, flame_tex, 0.f, 0.f, 0.f, 1.f );
+                
+                
+                rdesc = rdi::GetResourceDescriptor( _pipeline_blit );
+                rdi::SetResourceRO( rdesc, "gSrcTexture", &_bg_mask );
+
+                rdi::BindPipeline( cmdq, _pipeline_blit, true );
+                rdi::DrawFullscreenQuad( cmdq, _fullscreen_quad );
+                
+                rdi::context::ChangeRenderTargets( cmdq, &prev_flame_tex, 1, rdi::TextureDepth() );
+                rdi::context::ClearColorBuffer( cmdq, flame_tex, 0.f, 0.f, 0.f, 1.f );
+                rdi::DrawFullscreenQuad( cmdq, _fullscreen_quad );
+            }
+
+            // --
+            rdi::TextureRW curr_flame_tex = _flame_texture[_current_flame_texture];
+            rdi::TextureRW prev_flame_tex = _flame_texture[!_current_flame_texture];
+            rdesc = rdi::GetResourceDescriptor( _pipeline_flame );
+            rdi::SetResourceRO( rdesc, "gBgMaskTex", &_bg_mask );
+            rdi::SetResourceRO( rdesc, "gPrevFlameTex", &prev_flame_tex );
+            rdi::SetResourceRO( rdesc, "gRandomTex", &_random_texture );
+            rdi::SetResourceRO( rdesc, "gFFTTex", &_fft_texture );
+
+            rdi::context::ChangeRenderTargets( cmdq, &curr_flame_tex, 1, rdi::TextureDepth() );
+            rdi::context::ClearColorBuffer( cmdq, curr_flame_tex, 0.f, 0.f, 0.f, 1.f );
+            rdi::BindPipeline( cmdq, _pipeline_flame, true );
+            rdi::DrawFullscreenQuad( cmdq, _fullscreen_quad );
+
+
             rdi::context::ChangeRenderTargets( cmdq, &_color_texture, 1, rdi::TextureDepth() );
             rdi::context::ClearColorBuffer( cmdq, _color_texture, 0.f, 0.f, 0.f, 1.f );
 
-            rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_main );
+            rdesc = rdi::GetResourceDescriptor( _pipeline_main );
             rdi::SetResourceRO( rdesc, "gBgTex", &_bg_texture );
             rdi::SetResourceRO( rdesc, "gBgMaskTex", &_bg_mask );
             rdi::SetResourceRO( rdesc, "gLogoMaskTex", &_logo_mask );
             rdi::SetResourceRO( rdesc, "gFFTTex", &_fft_texture );
             rdi::SetResourceRO( rdesc, "gSpisTex", &_spis_texture );
+            rdi::SetResourceRO( rdesc, "gFlameTex", &curr_flame_tex );
             rdi::BindPipeline( cmdq, _pipeline_main, true );
             
             rdi::DrawFullscreenQuad( cmdq, _fullscreen_quad );
+
         }
 
         {
@@ -413,6 +511,7 @@ namespace tjdb
             rdi::context::ChangeToMainFramebuffer( cmdq );
             rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_blit );
             rdi::SetResourceRO( rdesc, "gSrcTexture", &_swap_texture );
+            //rdi::SetResourceRO( rdesc, "gSrcTexture", &_flame_texture[_current_flame_texture] );
             rdi::BindPipeline( cmdq, _pipeline_blit, true );
 
             const u32 winW = win->width;
@@ -430,8 +529,9 @@ namespace tjdb
 
         rdi::frame::End( &cmdq );
 
+        _current_flame_texture = !_current_flame_texture;
         _timeS += deltaTime;
-
+        _frameNo += 1;
         return true;
     }
 

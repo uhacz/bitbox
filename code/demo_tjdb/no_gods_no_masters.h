@@ -57,17 +57,22 @@ private:
     rdi::TextureRO _bg_texture = {};
     rdi::TextureRO _bg_mask = {};
     rdi::TextureRO _logo_mask = {};
+    rdi::TextureRO _spis_texture = {};
+    rdi::TextureRO _random_texture = {};
+
 
     //rdi::TextureRO _logo_texture = {};
-    rdi::TextureRO _spis_texture = {};
     rdi::TextureRW _fft_texture = {};
     rdi::TextureRW _color_texture = {};
     rdi::TextureRW _swap_texture = {};
+    rdi::TextureRW _flame_texture[2] = {};
+    u32 _current_flame_texture = UINT32_MAX;
 
     rdi::ConstantBuffer _cbuffer_mdata = {};
 
     rdi::Pipeline _pipeline_blit = BX_RDI_NULL_HANDLE;
     rdi::Pipeline _pipeline_main = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline _pipeline_flame = BX_RDI_NULL_HANDLE;
 
     struct
     {
@@ -93,6 +98,8 @@ private:
     bool _stop_request = false;
 
     float _timeS = 0.f;
+    u32 _frameNo = 0;
+    float _wait_time = 0.f;
 
 #include <shaders/shaders/tjdb_no_gods_no_masters_data.h>
 };
