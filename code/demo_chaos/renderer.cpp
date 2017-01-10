@@ -540,7 +540,7 @@ void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera )
         const float zNear = camera.params.zNear;
         const float zFar = camera.params.zFar;
         const float reprojectDepthBias = zFar / ( zFar * zNear );
-        const float reprojectDepthScale = ( zFar - zNear ) / ( zFar * zNear );
+        const float reprojectDepthScale = ( zFar - zNear ) / ( -zFar * zNear );
         mdata.g_reprojectionDepth = float2_t( reprojectDepthScale, reprojectDepthBias );
         
         mdata.g_FarPlane = zFar;

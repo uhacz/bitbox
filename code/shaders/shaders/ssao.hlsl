@@ -127,27 +127,10 @@ a scale factor on radius; you can simply hardcode this to a constant (~500)
 and make your radius value unitless (...but resolution dependent.)  */
 static const float projScale = 250.0;
 
-float ResolveLinearDepth( float hwDepth )
-{
-     return rcp( hwDepth * g_reprojectionDepth.x + g_reprojectionDepth.y );
-}
-
 float LoadLinearDepth( int2 ssP )
 {
     float hwDepth = in_textureHwDepth.Load( int3( ssP, 0 ) ).r;
-    
-    //float depthVS = g_ProjectionParams.w / ( hwDepth + g_ProjectionParams.z );
-    //return -depthVS;
-
-    //float linDepth = ResolveLinearDepth( hwDepth );
-    //return linDepth;
-
-    //float z_rcp = hwDepth * g_reprojectionDepth.x + g_reprojectionDepth.y;
-    //return -rcp( z_rcp );
-
-    return rcp( hwDepth * g_reprojectionDepth.x + g_reprojectionDepth.y ) * g_FarPlane;
-
-
+    return rcp( hwDepth * g_reprojectionDepth.x + g_reprojectionDepth.y );
 }
 
 /** Reconstruct camera-space P.xyz from screen-space S = (x, y) in
@@ -263,9 +246,10 @@ float2 ps_SSAO( out_VS_screenquad i) : SV_Target
     // Hash function used in the HPG12 AlchemyAO paper
     float randomPatternRotationAngle = ( 3 * ssC.x ^ ssC.y + ssC.x * ssC.y ) * 10 + g_SSAOPhase;
 
-    //float3 normalsWS = reconstructCSFaceNormal( C );
-    float3 normalsWS = in_textureNormals.Load( int3( ssC, 0 ) ).xyz; // *2.0f - 1.0f;
-    float3 n_C = normalize( mul( g_ViewMatrix, float4( normalsWS, 0.0f ) ).xyz ); // *float3( -1, 1, 1 );
+    
+    float3 normalsWS = in_textureNormals.Load( int3( ssC, 0 ) ).xyz; //* 2.0f - 1.0f;
+    float3 n_C = normalize( mul( (float3x3)g_ViewMatrix, normalsWS ).xyz ) * float3( -1, 1, -1 );
+    //float3 n_C1 = reconstructCSFaceNormal( C );
 
     // Choose the screen-space sample radius
     float ssDiskRadius = projScale * radius / max(C.z,0.1f);
@@ -296,9 +280,7 @@ float2 ps_SSAO( out_VS_screenquad i) : SV_Target
 
     //float difference = saturate(1.0f - 5 * abs(C.z - keyPrevFrame));
     //output.r = lerp(output.r, aoPrevFrame, 0.95f*difference);
-
-    //return output.rr;
-    return C.xy;
+    return output;
 }
 
 /** Increase to make edges crisper. Decrease to reduce temporal flicker. */
