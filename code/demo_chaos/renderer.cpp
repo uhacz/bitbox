@@ -507,7 +507,8 @@ void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera )
     static float ssaoPhase = 0.f;
     mdata.g_SSAOPhase = ssaoPhase;
 
-    ssaoPhase += 0.1f;
+    //ssaoPhase += 0.1f;
+    ssaoPhase = ::fmodf( ssaoPhase + 0.1f, 10000.f );
 
     {
         const Matrix4& proj = camera.proj_api;
@@ -516,11 +517,13 @@ void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera )
         const float m33 = proj.getElem( 2, 2 ).getAsFloat();
         const float m44 = proj.getElem( 3, 2 ).getAsFloat();
 
-        const float m13 = proj.getElem( 0, 2 ).getAsFloat();
-        const float m23 = proj.getElem( 1, 2 ).getAsFloat();
+        //const float m13 = proj.getElem( 0, 2 ).getAsFloat();
+        //const float m23 = proj.getElem( 1, 2 ).getAsFloat();
 
         const float4_t reprojectInfo = float4_t( 1.f / m11, 1.f / m22, m33, -m44 );
         
+        mdata.g_ProjectionParams = reprojectInfo;
+
         mdata.g_ReprojectInfoFromInt = float4_t(
             ( -reprojectInfo.x * 2.f ) * fbWidthRcp,
             ( -reprojectInfo.y * 2.f ) * fbHeightRcp,
@@ -536,7 +539,11 @@ void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera )
     {
         const float zNear = camera.params.zNear;
         const float zFar = camera.params.zFar;
-        mdata.g_reprojectionDepth = float2_t( ( zFar - zNear ) / ( -zFar * zNear ), zFar / ( zFar * zNear ) );
+        const float reprojectDepthBias = zFar / ( zFar * zNear );
+        const float reprojectDepthScale = ( zFar - zNear ) / ( zFar * zNear );
+        mdata.g_reprojectionDepth = float2_t( reprojectDepthScale, reprojectDepthBias );
+        
+        mdata.g_FarPlane = zFar;
     }
 
     rdi::context::UpdateCBuffer( cmdq, _cbuffer_mdata, &mdata );
