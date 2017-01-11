@@ -285,7 +285,7 @@ float2 ps_SSAO( out_VS_screenquad i) : SV_Target
 }
 
 /** Increase to make edges crisper. Decrease to reduce temporal flicker. */
-#define EDGE_SHARPNESS     (0.7)
+#define EDGE_SHARPNESS     (0.3)
 
 /** Step in 2-pixel intervals since we already blurred against neighbors in the
 first AO pass.  This constant can be increased while R decreases to improve
@@ -298,7 +298,7 @@ from using small numbers of sample taps.
 #define SCALE               (2)
 
 /** Filter radius in pixels. This will be multiplied by SCALE. */
-#define R                   (2)
+#define R                   (5)
 
 
 
@@ -308,8 +308,8 @@ from using small numbers of sample taps.
 static const float gaussian[] =
 //	{ 0.356642, 0.239400, 0.072410, 0.009869 };
 //	{ 0.398943, 0.241971, 0.053991, 0.004432, 0.000134 };  // stddev = 1.0
-  { 0.153170, 0.144893, 0.122649, 0.092902, 0.062970 };  // stddev = 2.0
-//  { 0.111220, 0.107798, 0.098151, 0.083953, 0.067458, 0.050920, 0.036108 }; // stddev = 3.0
+ // { 0.153170, 0.144893, 0.122649, 0.092902, 0.062970 };  // stddev = 2.0
+  { 0.111220, 0.107798, 0.098151, 0.083953, 0.067458, 0.050920, 0.036108 }; // stddev = 3.0
 
 
 float2 ps_Blur( out_VS_screenquad i) : SV_Target

@@ -57,7 +57,7 @@ in_PS vs_object( in_VS input )
 {
     in_PS output;
 	matrix wm = world_matrix[input.instanceID];
-	float4 world_pos = mul( wm, input.pos );
+	float4 world_pos = mul( wm, float4( input.pos.xyz, 1.0 ) );
     output.h_pos = mul( view_proj_matrix, world_pos );
 	output.color = color[input.instanceID];
     return output;

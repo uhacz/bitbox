@@ -4,6 +4,8 @@
 #include <util/vectormath/vectormath.h>
 #include <util/containers.h>
 #include <util/view_frustum.h>
+#include <util/bbox.h>
+
 #include "renderer_type.h"
 #include "renderer_camera.h"
 #include "renderer_texture.h"
@@ -43,9 +45,11 @@ struct SceneImpl
     void SetMesh( ActorID actorId, MeshHandle handle );
     void SetMaterial( ActorID mi, MaterialHandle m );
     void SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
+    void SetLocalAABB( ActorID mi, const bxAABB& aabb );
 
     void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Camera& camera );
     void BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Matrix4& lightWorld, const ViewFrustum& lightFrustum );
+    void ComputeAABB( bxAABB* sceneWorldAABB );
 
     void EnableSunSkyLight( const SunSkyLight& data = SunSkyLight() );
     void DisableSunSkyLight();
@@ -62,6 +66,7 @@ private:
     {
         void*                _memory_handle = nullptr;
         MeshMatrix*          matrices = nullptr;
+        bxAABB*              local_aabb = nullptr;
         MeshHandle*          meshes = nullptr;
         MaterialHandle*      materials = nullptr;
         u32*                 num_instances = nullptr;
@@ -74,6 +79,9 @@ private:
 
 
     SunSkyLight* _sun_sky_light = nullptr;
+
+    bxAABB _scene_aabb = {};
+    u32 _scene_aabb_dirty = 0;
 
     const char* _name = nullptr;
     bxAllocator* _allocator = nullptr;

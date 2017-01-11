@@ -69,7 +69,9 @@ ActorID SceneImpl::Add( const char* name, u32 numInstances )
     {
         matrices[i] = Matrix4::identity();
     }
+    _mesh_data.local_aabb[index] = bxAABB( Vector3( -0.5f ), Vector3( 0.5f ) );
 
+    _scene_aabb_dirty = 1;
     return mi;
 }
 
@@ -88,22 +90,23 @@ void SceneImpl::Remove( ActorID* mi )
 
     if( index != last_index )
     {
-        _mesh_data.matrices[index]       = _mesh_data.matrices[last_index];
-        //_data.render_sources[index] = _data.render_sources[last_index];
-        _mesh_data.meshes[index]         = _mesh_data.meshes[last_index];
-        _mesh_data.materials[index]      = _mesh_data.materials[last_index];
-        _mesh_data.num_instances[index]  = _mesh_data.num_instances[last_index];
-        _mesh_data.actor_id[index]  = _mesh_data.actor_id[last_index];
-        _mesh_data.names[index]          = _mesh_data.names[last_index];
+        _mesh_data.matrices[index]      = _mesh_data.matrices[last_index];
+        _mesh_data.local_aabb[index]    = _mesh_data.local_aabb[last_index];
+        _mesh_data.meshes[index]        = _mesh_data.meshes[last_index];
+        _mesh_data.materials[index]     = _mesh_data.materials[last_index];
+        _mesh_data.num_instances[index] = _mesh_data.num_instances[last_index];
+        _mesh_data.actor_id[index]      = _mesh_data.actor_id[last_index];
+        _mesh_data.names[index]         = _mesh_data.names[last_index];
         _handle_manager->setData( _mesh_data.actor_id[index], this, index );
 
-        _mesh_data.matrices[last_index] = {};
-        _mesh_data.meshes[last_index].i = 0;
-        _mesh_data.materials[last_index] = {};
+        _mesh_data.matrices[last_index]      = {};
+        _mesh_data.meshes[last_index].i      = 0;
+        _mesh_data.materials[last_index]     = {};
         _mesh_data.num_instances[last_index] = 0;
-        _mesh_data.actor_id[last_index] = makeInvalidMeshID();
-        _mesh_data.names[last_index] = nullptr;
+        _mesh_data.actor_id[last_index]      = makeInvalidMeshID();
+        _mesh_data.names[last_index]         = nullptr;
     }
+    _scene_aabb_dirty = 1;
 }
 
 ActorID SceneImpl::Find( const char* name )
@@ -146,6 +149,16 @@ void SceneImpl::SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32
     {
         data[startIndex + i] = matrices[i];
     }
+
+    _scene_aabb_dirty = 1;
+}
+
+void SceneImpl::SetLocalAABB( ActorID mi, const bxAABB& aabb )
+{
+    const u32 index = _GetIndex( mi );
+    _mesh_data.local_aabb[index] = aabb;
+
+    _scene_aabb_dirty = 1;
 }
 
 namespace renderer_scene_internal
@@ -202,12 +215,14 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
 
 void SceneImpl::BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Matrix4& lightWorld, const ViewFrustum& lightFrustum )
 {
-    for( u32 i = 0; i < _mesh_data.size; ++i )
-    {
-        const u32 num_instances = _mesh_data.num_instances[i];
-        Matrix4* matrices = getMatrixPtr( _mesh_data.matrices[i], num_instances );
+    bxAABB aabb = bxAABB::prepare();
 
-        MeshHandle hmesh = _mesh_data.meshes[i];
+    const u32 n = _mesh_data.size;
+    for( u32 i = 0; i < n; ++i )
+    {
+        const u32 num_instances   = _mesh_data.num_instances[i];
+        Matrix4* matrices         = getMatrixPtr( _mesh_data.matrices[i], num_instances );
+        MeshHandle hmesh          = _mesh_data.meshes[i];
         rdi::RenderSource rsource = GMeshManager()->RenderSource( hmesh );
 
         for( u32 imatrix = 0; imatrix < num_instances; ++imatrix )
@@ -228,6 +243,36 @@ void SceneImpl::BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransfo
 
             rdi::SubmitCommand( cmdb, instance_cmd, skey.hash );
         }
+    }
+}
+
+void SceneImpl::ComputeAABB( bxAABB* sceneWorldAABB )
+{
+    if( !_scene_aabb_dirty )
+    {
+        sceneWorldAABB[0] = _scene_aabb;
+    }
+    else
+    {
+        _scene_aabb_dirty = 0;
+
+        _scene_aabb = bxAABB::prepare();
+
+        const u32 n = _mesh_data.size;
+        for( u32 i = 0; i < n; ++i )
+        {
+            const u32 num_instances = _mesh_data.num_instances[i];
+            Matrix4* matrices = getMatrixPtr( _mesh_data.matrices[i], num_instances );
+            const bxAABB& local_aabb = _mesh_data.local_aabb[i];
+
+            for( u32 imatrix = 0; imatrix < num_instances; ++imatrix )
+            {
+                const Matrix4& matrix = matrices[imatrix];
+                const bxAABB world_aabb = bxAABB::transform( matrix, local_aabb );
+                _scene_aabb = bxAABB::merge( _scene_aabb, world_aabb );
+            }
+        }
+        sceneWorldAABB[0] = _scene_aabb;
     }
 }
 
@@ -272,6 +317,7 @@ void SceneImpl::_AllocateMeshData( u32 newCapacity, bxAllocator* allocator )
 {
     u32 mem_size = 0;
     mem_size += newCapacity * sizeof( *_mesh_data.matrices );
+    mem_size += newCapacity * sizeof( *_mesh_data.local_aabb );
     mem_size += newCapacity * sizeof( *_mesh_data.meshes );
     mem_size += newCapacity * sizeof( *_mesh_data.materials );
     mem_size += newCapacity * sizeof( *_mesh_data.num_instances );
@@ -288,16 +334,19 @@ void SceneImpl::_AllocateMeshData( u32 newCapacity, bxAllocator* allocator )
     
     bxBufferChunker chunker( mem, mem_size );
     new_data.matrices       = chunker.add< MeshMatrix >( newCapacity );
+    new_data.local_aabb     = chunker.add< bxAABB >( newCapacity );
     new_data.meshes         = chunker.add< MeshHandle >( newCapacity );
     new_data.materials      = chunker.add< MaterialHandle >( newCapacity );
+
     new_data.num_instances  = chunker.add< u32 >( newCapacity );
-    new_data.actor_id  = chunker.add< ActorID >( newCapacity );
+    new_data.actor_id       = chunker.add< ActorID >( newCapacity );
     new_data.names          = chunker.add< char* >( newCapacity );
     chunker.check();
 
     if( _mesh_data.size )
     {
         BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, matrices );
+        BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, local_aabb );
         BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, meshes );
         BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, materials );
         BX_CONTAINER_COPY_DATA( &new_data, &_mesh_data, num_instances );

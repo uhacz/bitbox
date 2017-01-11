@@ -370,11 +370,27 @@ bool ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camer
     if( !sunSky )
         return false;
     
+    bxAABB scene_aabb = {};
+    scene->ComputeAABB( &scene_aabb );
+    const Vector3 ws_corners[8] =
+    {
+        scene_aabb.min,
+        Vector3( scene_aabb.max.getX(), scene_aabb.min.getY(), scene_aabb.min.getZ() ),
+        Vector3( scene_aabb.max.getX(), scene_aabb.max.getY(), scene_aabb.min.getZ() ),
+        Vector3( scene_aabb.min.getX(), scene_aabb.max.getY(), scene_aabb.min.getZ() ),
+                 
+        Vector3( scene_aabb.min.getX(), scene_aabb.min.getY(), scene_aabb.max.getZ() ),
+        Vector3( scene_aabb.max.getX(), scene_aabb.min.getY(), scene_aabb.max.getZ() ),
+        Vector3( scene_aabb.max.getX(), scene_aabb.max.getY(), scene_aabb.max.getZ() ),
+        Vector3( scene_aabb.min.getX(), scene_aabb.max.getY(), scene_aabb.max.getZ() ),
+    };
+    //rdi::debug_draw::AddBox( Matrix4::translation( bxAABB::center( scene_aabb ) ), bxAABB::size( scene_aabb )*0.5f, 0x000000FF, 1 );
+
     Vector3 cameraFrustumCorners[8];
     viewFrustumExtractCorners( cameraFrustumCorners, camera.proj * camera.view );
         
     LightMatrices lightMatrices;
-    _ComputeLightMatrixOrtho( &lightMatrices, cameraFrustumCorners, sunSky->sun_direction );
+    _ComputeLightMatrixOrtho( &lightMatrices, ws_corners, sunSky->sun_direction );
     
     {
         const ViewFrustum lightFrustum = viewFrustumExtract( lightMatrices.proj * lightMatrices.view );
@@ -382,7 +398,7 @@ bool ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camer
 
         rdi::ClearCommandBuffer( _cmd_buffer );
         rdi::BeginCommandBuffer( _cmd_buffer );
-
+        
         scene->BuildCommandBufferShadow( _cmd_buffer, &_vertex_transform_data, lightMatrices.world, lightFrustum );
 
         rdi::EndCommandBuffer( _cmd_buffer );
