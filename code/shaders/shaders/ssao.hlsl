@@ -114,9 +114,9 @@ This need not match the real far plane*/
 static const int NUM_SPIRAL_TURNS = ROTATIONS[NUM_SAMPLES-1];
 
 /** World-space AO radius in scene units (r).  e.g., 1.0m */
-static const float radius = 0.7;
+//static const float radius = 0.7;
 /** radius*radius*/
-static const float radius2 = (radius*radius);
+//static const float radius2 = (radius*radius);
 
 /** Bias to avoid AO in smooth corners, e.g., 0.01m */
 static const float bias = 0.02f;
@@ -211,7 +211,7 @@ float sampleAO(in int2 ssC, in float3 C, in float3 n_C, in float ssDiskRadius, i
     float vn = dot(v, n_C);
 
     const float epsilon = 0.02f;
-    float f = max(radius2 - vv, 0.0);
+    float f = max(g_radiusWS.y - vv, 0.0);
     return f * f * f * max((vn - bias) * rcp(epsilon + vv), 0.0);
 }
 
@@ -252,7 +252,8 @@ float2 ps_SSAO( out_VS_screenquad i) : SV_Target
     //float3 n_C1 = reconstructCSFaceNormal( C );
 
     // Choose the screen-space sample radius
-    float ssDiskRadius = projScale * radius / max(C.z,0.1f);
+    float ssDiskRadius = projScale * g_radiusWS.x / max( C.z, 0.1f );
+    //float ssDiskRadius = g_radiusSS / length( C );
 
     float sum = 0.0;
 
@@ -262,7 +263,7 @@ float2 ps_SSAO( out_VS_screenquad i) : SV_Target
          sum += sampleAO(ssC, C, n_C, ssDiskRadius, i, randomPatternRotationAngle);
     }
 
-    const float temp = radius2 * radius;
+    const float temp = g_radiusWS.y * g_radiusWS;
     sum /= temp * temp;
 
     float A = max(0.0f, 1.0f - sum * 1.0f * (4.0f / NUM_SAMPLES));
@@ -284,7 +285,7 @@ float2 ps_SSAO( out_VS_screenquad i) : SV_Target
 }
 
 /** Increase to make edges crisper. Decrease to reduce temporal flicker. */
-#define EDGE_SHARPNESS     (1.0)
+#define EDGE_SHARPNESS     (0.7)
 
 /** Step in 2-pixel intervals since we already blurred against neighbors in the
 first AO pass.  This constant can be increased while R decreases to improve

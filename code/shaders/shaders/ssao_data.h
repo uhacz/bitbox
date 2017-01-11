@@ -8,7 +8,7 @@ CBUFFER MaterialData BREGISTER( SLOT_MATERIAL_DATA )
     float4 g_ReprojectInfoFromInt;
     float2 g_reprojectionDepth;
     float2 g_renderTargetSize;
-    float g_FarPlane;
+    float2 g_radiusWS; // x: radius, y: radius^2
     float g_SSAOPhase;
     
 };

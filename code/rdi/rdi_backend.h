@@ -807,7 +807,7 @@ namespace context
     void SetTopology    ( CommandQueue* cmdq, int topology );
 
     void ChangeToMainFramebuffer( CommandQueue* cmdq );
-    void ChangeRenderTargets( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, TextureDepth depthTex, bool changeViewport = true );
+    void ChangeRenderTargets( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor, TextureDepth depthTex = TextureDepth(), bool changeViewport = true );
 
     unsigned char* Map( CommandQueue* cmdq, Resource resource, int offsetInBytes, int mapType = EMapType::WRITE );
     void           Unmap( CommandQueue* cmdq, Resource resource );

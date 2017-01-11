@@ -29,9 +29,10 @@ texture2D<float4>   gbuffer_albedo_spec : register( t1 );
 texture2D<float4>   gbuffer_wpos_rough  : register( t2 );
 texture2D<float4>   gbuffer_wnrm_metal  : register( t3 );
 texture2D <float>   shadowMap           : register( t4 );
+texture2D <float2>  ssaoMap             : register( t5 );
 
 #ifdef USE_SKYBOX
-textureCUBE<float3> skybox              : register( t5 );
+textureCUBE<float3> skybox              : register( t6 );
 #endif
 
 #define PI	   (3.14159265f)
@@ -99,6 +100,7 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float4 wnrm_metal  = gbuffer_wnrm_metal.Load( positionSS );
     float  depthCS     = depthTexture.Load( positionSS );
     float shadow       = shadowMap.Load( positionSS );
+    float ssao         = ssaoMap.SampleLevel( _samp_point, IN.uv, 0 ).r;
 
     float metalness  = wnrm_metal.w;
     float roughness  = wpos_rough.w;
@@ -153,10 +155,7 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float ambientCoeff = 0.015f;
     float NdotL_ambient = saturate( -dot( N, -L ) ) * ambientCoeff * 0.1 + ambientCoeff;
     float3 ambient = NdotL_ambient * albedo_spec.rgb * PI_RCP * sky_intensity;
-    color += ambient;
 #endif
-   
-    //color = lerp( color * 0.5f, color, shadow );
-
+    color = lerp( color*ssao, color, shadow );
     return float4( color, 1.0 );
 }

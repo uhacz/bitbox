@@ -286,7 +286,7 @@ public:
         _ssao_pass.Flush( cmdq, depthTexture, normalsTexture );
 
         _light_pass.PrepareScene( cmdq, _gfx_scene, _camera );
-        _light_pass.Flush( cmdq, _renderer.GetFramebuffer( gfx::EFramebuffer::SWAP ), _geometry_pass.GBuffer(), _shadow_pass.ShadowMap() );
+        _light_pass.Flush( cmdq, _renderer.GetFramebuffer( gfx::EFramebuffer::SWAP ), _geometry_pass.GBuffer(), _shadow_pass.ShadowMap(), _ssao_pass.SsaoTexture() );
 
 
         rdi::TextureRW srcColor = _renderer.GetFramebuffer( gfx::EFramebuffer::SWAP );

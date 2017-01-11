@@ -167,7 +167,7 @@ class LightPass
 {
 public:
     void PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
-    void Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer, rdi::ResourceRO shadowMap );
+    void Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer, rdi::ResourceRO shadowMap, rdi::ResourceRO ssaoMap );
 
     static void _StartUp( LightPass* pass );
     static void _ShutDown( LightPass* pass );

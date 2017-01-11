@@ -506,9 +506,10 @@ void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera )
     
     static float ssaoPhase = 0.f;
     mdata.g_SSAOPhase = ssaoPhase;
+    ssaoPhase = ::fmodf( ssaoPhase + 1.f, 100000.f );
 
-    //ssaoPhase += 0.1f;
-    ssaoPhase = ::fmodf( ssaoPhase + 0.1f, 10000.f );
+    const float radiusWS = 1.0f;
+    mdata.g_radiusWS = float2_t( radiusWS, radiusWS*radiusWS );
 
     {
         const Matrix4& proj = camera.proj_api;
@@ -542,8 +543,6 @@ void SsaoPass::PrepareScene( rdi::CommandQueue* cmdq, const Camera& camera )
         const float reprojectDepthBias = zFar / ( zFar * zNear );
         const float reprojectDepthScale = ( zFar - zNear ) / ( -zFar * zNear );
         mdata.g_reprojectionDepth = float2_t( reprojectDepthScale, reprojectDepthBias );
-        
-        mdata.g_FarPlane = zFar;
     }
 
     rdi::context::UpdateCBuffer( cmdq, _cbuffer_mdata, &mdata );
@@ -561,6 +560,27 @@ void SsaoPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth depthTexture, r
 
         Renderer::DrawFullScreenQuad( cmdq );
     }
+
+    {
+        rdi::context::ChangeRenderTargets( cmdq, &_temp_texture, 1 );
+        rdi::context::ClearColorBuffer( cmdq, _temp_texture, 0.f, 0.f, 0.f, 1.f );
+        rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_blurx );
+        rdi::SetResourceRO( rdesc, "in_textureSSAO", &_ssao_texture );
+        rdi::BindPipeline( cmdq, _pipeline_blurx, true );
+
+        Renderer::DrawFullScreenQuad( cmdq );
+    }
+
+    {
+        rdi::context::ChangeRenderTargets( cmdq, &_ssao_texture, 1 );
+        rdi::context::ClearColorBuffer( cmdq, _ssao_texture, 0.f, 0.f, 0.f, 1.f );
+        rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( _pipeline_blury );
+        rdi::SetResourceRO( rdesc, "in_textureSSAO", &_temp_texture );
+        rdi::BindPipeline( cmdq, _pipeline_blury, true );
+
+        Renderer::DrawFullScreenQuad( cmdq );
+    }
+
 }
 
 void SsaoPass::_StartUp( SsaoPass* pass, const RendererDesc& rndDesc, bool halfRes /*= true */ )
@@ -647,7 +667,6 @@ void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera
             }
         }
 
-
         mdata.view_proj_inv = inverse( camera.view_proj );
         mdata.render_target_size = float2_t( 1920.f, 1080.f );
         mdata.render_target_size_rcp = float2_t( 1.f / mdata.render_target_size.x, 1.f / mdata.render_target_size.y );
@@ -656,7 +675,7 @@ void LightPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera
     }
 }
 
-void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer, rdi::ResourceRO shadowMap )
+void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rdi::RenderTarget gbuffer, rdi::ResourceRO shadowMap, rdi::ResourceRO ssaoMap )
 {
     float rgbad[] = { 0.0f, 0.0f, 0.0f, 1.f, 1.f };
     rdi::context::ChangeRenderTargets( cmdq, &outputTexture, 1, rdi::TextureDepth() );
@@ -669,6 +688,7 @@ void LightPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureRW outputTexture, rd
     rdi::SetResourceRO( rdesc, "gbuffer_wnrm_metal", &rdi::GetTexture( gbuffer, 2 ) );
     rdi::SetResourceRO( rdesc, "depthTexture", &rdi::GetTextureDepth( gbuffer ) );
     rdi::SetResourceRO( rdesc, "shadowMap", &shadowMap );
+    rdi::SetResourceRO( rdesc, "ssaoMap", &ssaoMap );
     rdi::BindPipeline( cmdq, pipeline, true );
 
     Renderer::DrawFullScreenQuad( cmdq );
