@@ -78,6 +78,8 @@ private:
     inline id_t MakeId( MaterialHandle m ) const { return make_id( m.i ); }
     inline MaterialHandle MakeMaterial( id_t id ) const { MaterialHandle m; m.i = id.hash; return m; }
 
+    void _ReleaseDataByIndex( u32 index );
+
     static const u8 MAX_COUNT = 128;
     id_table_t< MAX_COUNT > _id_to_index;
     MaterialPipeline         _material_pipeline[MAX_COUNT] = {};

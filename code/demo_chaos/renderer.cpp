@@ -585,6 +585,8 @@ void SsaoPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth depthTexture, r
         rdi::BindPipeline( cmdq, _pipeline_blurx, true );
 
         Renderer::DrawFullScreenQuad( cmdq );
+
+        rdi::ClearResource( cmdq, rdesc, "in_textureSSAO" );
     }
 
     {
@@ -596,7 +598,6 @@ void SsaoPass::Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth depthTexture, r
 
         Renderer::DrawFullScreenQuad( cmdq );
     }
-
 }
 
 void SsaoPass::_StartUp( SsaoPass* pass, const RendererDesc& rndDesc, bool halfRes /*= true */ )

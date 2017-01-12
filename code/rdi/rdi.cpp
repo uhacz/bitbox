@@ -438,6 +438,46 @@ bool SetSampler( ResourceDescriptor rdesc, const char* name, const Sampler* samp
 {
     return _SetResource2<EBindingType::SAMPLER>( rdesc, name, sampler );
 }
+
+bool ClearResource( CommandQueue* cmdq, ResourceDescriptor rdesc, const char* name )
+{
+    u32 index = _FindResource( rdesc, name );
+    if( index == UINT32_MAX )
+    {
+        bxLogError( "Resource '%s' not found in descriptor", name );
+        return false;
+    }
+
+    const ResourceDescriptorImpl::Binding& binding = rdesc->Bindings()[index];
+    switch( binding.binding_type )
+    {
+    case EBindingType::READ_ONLY:
+        {
+            ResourceRO null_resource = {};
+            context::SetResourcesRO( cmdq, &null_resource, binding.slot, 1, binding.stage_mask );
+        }break;
+    case EBindingType::READ_WRITE:
+        {
+            ResourceRW null_resource = {};
+            context::SetResourcesRW( cmdq, &null_resource, binding.slot, 1, binding.stage_mask );
+        }break;
+    case EBindingType::UNIFORM:
+        {
+            ConstantBuffer null_resource = {};
+            context::SetCbuffers( cmdq, &null_resource, binding.slot, 1, binding.stage_mask );
+        }break;
+    case EBindingType::SAMPLER:
+        {
+            Sampler null_resource = {};
+            context::SetSamplers( cmdq, &null_resource, binding.slot, 1, binding.stage_mask );
+        }break;
+    default:
+        SYS_NOT_IMPLEMENTED;
+        break;
+    }
+    return true;
+}
+
 void BindResources( CommandQueue* cmdq, ResourceDescriptor rdesc )
 {
     const ResourceDescriptorImpl::Binding* bindings = rdesc->Bindings();

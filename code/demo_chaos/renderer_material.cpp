@@ -282,23 +282,10 @@ void MaterialManager::Destroy( MaterialHandle materialId )
     //if (references_left == 0 )
     {
         id_t id = MakeId( materialId );
-        _hashed_names[id.index] = 0;
+        _ReleaseDataByIndex( id.index );
 
-        MaterialTextureHandles& htexture = _textures[id.index];
-        if( GTextureManager()->Alive( htexture.diffuse_tex ) )
-        {
-            GTextureManager()->Release( htexture.diffuse_tex );
-            GTextureManager()->Release( htexture.specular_tex );
-            GTextureManager()->Release( htexture.roughness_tex );
-            GTextureManager()->Release( htexture.metallic_tex );
-        }
-        _material_pipeline[id.index].pipeline = BX_RDI_NULL_HANDLE;
-        rdi::DestroyResourceDescriptor( &_material_pipeline[id.index].resource_desc );
-        rdi::device::DestroyConstantBuffer( &_data_cbuffer[id.index] );
-        memset( &_data[id.index], 0x00, sizeof( MaterialData ) );
-        
         _lock.lock();
-        id_table::destroy( _id_to_index, id );
+            id_table::destroy( _id_to_index, id );
         _lock.unlock();
     }
 }
@@ -308,6 +295,25 @@ void MaterialManager::DestroyByName( const char* name )
     MaterialHandle m = Find( name );
     Destroy( m );
 }
+
+void MaterialManager::_ReleaseDataByIndex( u32 index )
+{
+    _hashed_names[index] = 0;
+
+    MaterialTextureHandles& htexture = _textures[index];
+    if( GTextureManager()->Alive( htexture.diffuse_tex ) )
+    {
+        GTextureManager()->Release( htexture.diffuse_tex );
+        GTextureManager()->Release( htexture.specular_tex );
+        GTextureManager()->Release( htexture.roughness_tex );
+        GTextureManager()->Release( htexture.metallic_tex );
+    }
+    _material_pipeline[index].pipeline = BX_RDI_NULL_HANDLE;
+    rdi::DestroyResourceDescriptor( &_material_pipeline[index].resource_desc );
+    rdi::device::DestroyConstantBuffer( &_data_cbuffer[index] );
+    memset( &_data[index], 0x00, sizeof( MaterialData ) );
+}
+
 
 MaterialHandle MaterialManager::Find( const char* name )
 {
@@ -367,6 +373,16 @@ void MaterialManager::_StartUp()
 void MaterialManager::_ShutDown()
 {
     SYS_ASSERT( g_material_manager != nullptr );
+    
+    {
+        for( u32 i = 0; i < MAX_COUNT; ++i )
+        {
+            if( g_material_manager->_hashed_names[i] != 0 )
+            {
+                g_material_manager->_ReleaseDataByIndex( i );
+            }
+        }
+    }
     
     {
         rdi::DestroyPipeline( &g_material_manager->_pipeline_tex );

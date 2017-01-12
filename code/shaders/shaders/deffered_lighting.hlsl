@@ -90,41 +90,6 @@ float3 ComputeSpecular( float3 baseColor, float3 f0, float roughness, float Hdot
     return F * ( D*G*NdotL );
 }
 
-float SampleTextureCatmullRom4Samples( Texture2D<float> tex, float2 uv, float2 texSize )
-{
-    // Based on the standard Catmull-Rom spline: w1*C1+w2*C2+w3*C3+w4*C4, where
-    // w1 = ((-0.5*f + 1.0)*f - 0.5)*f, w2 = (1.5*f - 2.5)*f*f + 1.0,
-    // w3 = ((-1.5*f + 2.0)*f + 0.5)*f and w4 = (0.5*f - 0.5)*f*f with f as the
-    // normalized interpolation position between C2 (at f=0) and C3 (at f=1).
- 
-    // half_f is a sort of sub-pixelquad fraction, -1 <= half_f < 1.
-    float2 half_f = 2.0 * frac( 0.5 * uv * texSize - 0.25 ) - 1.0;
- 
-    // f is the regular sub-pixel fraction, 0 <= f < 1. This is equivalent to
-    // fract(uv * texSize - 0.5), but based on half_f to prevent rounding issues.
-    float2 f = frac( half_f );
- 
-    float2 s1 = ( 0.5 * f - 0.5 ) * f; // = w1 / (1 - f)
-    float2 s12 = ( -2.0 * f + 1.5 ) * f + 1.0; // = (w2 - w1) / (1 - f)
-    float2 s34 = ( 2.0 * f - 2.5 ) * f - 0.5; // = (w4 - w3) / f
- 
-    // positions is equivalent to: (floor(uv * texSize - 0.5).xyxy + 0.5 +
-    // vec4(-1.0 + w2 / (w2 - w1), 1.0 + w4 / (w4 - w3))) / texSize.xyxy.
-    float4 positions = float4( ( -f * s12 + s1 ) / ( texSize * s12 ) + uv,
-                           ( -f * s34 + s1 + s34 ) / ( texSize * s34 ) + uv );
- 
-    // Determine if the output needs to be sign-flipped. Equivalent to .x*.y of
-    // (1.0 - 2.0 * floor(t - 2.0 * floor(0.5 * t))), where t is uv * texSize - 0.5.
-    float sign_flip = half_f.x * half_f.y > 0.0 ? 1.0 : -1.0;
- 
-    float4 w = float4( -f * s12 + s12, s34 * f ); // = (w2 - w1, w4 - w3)
-    float4 weights = float4( w.xz * ( w.y * sign_flip ), w.xz * ( w.w * sign_flip ) );
- 
-    return tex.Sample( _samp_point, positions.xy ) * weights.x +
-           tex.Sample( _samp_point, positions.zy ) * weights.y +
-           tex.Sample( _samp_point, positions.xw ) * weights.z +
-           tex.Sample( _samp_point, positions.zw ) * weights.w;
-}
 float3 ps_lighting(in_PS IN) : SV_Target0
 {
     int3 positionSS = int3( ( int2 )( IN.uv * render_target_size ), 0 );

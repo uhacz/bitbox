@@ -133,6 +133,7 @@ bool SetResourceRO( ResourceDescriptor rdesc, const char* name, const ResourceRO
 bool SetResourceRW( ResourceDescriptor rdesc, const char* name, const ResourceRW* resource );
 bool SetConstantBuffer( ResourceDescriptor rdesc, const char* name, const ConstantBuffer* cbuffer );
 bool SetSampler( ResourceDescriptor rdesc, const char* name, const Sampler* sampler );
+bool ClearResource( CommandQueue* cmdq, ResourceDescriptor rdesc, const char* name );
 void BindResources( CommandQueue* cmdq, ResourceDescriptor rdesc );
 
 //////////////////////////////////////////////////////////////////////////

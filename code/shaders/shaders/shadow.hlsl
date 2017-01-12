@@ -292,13 +292,9 @@ float ps_shadowResolve( in in_PS_shadow IN) : SV_Target0
     float2 screenPos_m11 = IN.screenPos;
 
     float4 positionCS = float4( ( ( float2( positionSS.xy ) + 0.5 ) * shadowMapSizeRcp ) * float2( 2.0, -2.0 ) + float2( -1.0, 1.0 ), depthCS, 1.0 );
-    //float4 positionCS = float4( screenPos_m11, depthCS, 1.0 );
     float4 positionWS = mul( cameraViewProjInv, positionCS );
     positionWS.xyz *= rcp( positionWS.w );
 
-    //float4 posVS = float4( ( ( float2( positionSS.xy ) + 0.5 ) * render_target_size_rcp ) * float2( 2.0, -2.0 ) + float2( -1.0, 1.0 ), pixelDepth, 1.0 );
-    //float3 posVS = resolvePositionVS( screenPos_m11, -linearDepth, reprojectInfo );
-    //float4 posWS = mul( cameraWorld, float4(posVS, 1.0) );
 
     const float normalOffset = 0.05f;
     {
