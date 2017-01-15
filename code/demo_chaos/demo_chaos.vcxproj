@@ -97,6 +97,7 @@
     <ClCompile Include="renderer_shared_mesh.cpp" />
     <ClCompile Include="renderer_texture.cpp" />
     <ClCompile Include="scene.cpp" />
+    <ClCompile Include="test_game\test_game.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\engine\engine.vcxproj">
@@ -141,6 +142,7 @@
     <ClInclude Include="renderer_texture.h" />
     <ClInclude Include="renderer_type.h" />
     <ClInclude Include="scene.h" />
+    <ClInclude Include="test_game\test_game.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

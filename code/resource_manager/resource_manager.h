@@ -30,8 +30,8 @@ namespace EResourceFileType
 class ResourceManager
 {
 public:
-    static ResourceManager* startup( const char* root );
-	static void shutdown( ResourceManager** resourceManager );
+    static void startup( const char* root );
+	static void shutdown();
     
     virtual ~ResourceManager() {}
 

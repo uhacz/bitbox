@@ -30,6 +30,8 @@ struct bxTimeQuery
     static bxTimeQuery begin();
     static void end( bxTimeQuery* tq );
 
+    bool isRunning() const { return tickStart != 0; }
+
     inline u64 durationMS() const
     {
         return durationUS / 1000;

@@ -285,23 +285,20 @@ public:
 
 static ResourceManager* __resourceManager = nullptr;
 
-ResourceManager* ResourceManager::startup( const char* root )
+void ResourceManager::startup( const char* root )
 {
     bxResourceManagerImpl* impl= BX_NEW( bxDefaultAllocator(), bxResourceManagerImpl );
     impl->startup( root );
 
     __resourceManager = impl;
-    return impl;
 }
-void ResourceManager::shutdown( ResourceManager** resourceManager )
+void ResourceManager::shutdown()
 {
-    bxResourceManagerImpl* impl = (bxResourceManagerImpl*)resourceManager[0];
+    bxResourceManagerImpl* impl = (bxResourceManagerImpl*)__resourceManager;
     impl->shutdown();
     BX_DELETE( bxDefaultAllocator(), impl );
 
     __resourceManager = nullptr;
-
-    resourceManager[0] = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
