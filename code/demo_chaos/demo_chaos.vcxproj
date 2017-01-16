@@ -97,6 +97,7 @@
     <ClCompile Include="renderer_shared_mesh.cpp" />
     <ClCompile Include="renderer_texture.cpp" />
     <ClCompile Include="scene.cpp" />
+    <ClCompile Include="ship_game\ship_game.cpp" />
     <ClCompile Include="test_game\test_game.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -142,6 +143,8 @@
     <ClInclude Include="renderer_texture.h" />
     <ClInclude Include="renderer_type.h" />
     <ClInclude Include="scene.h" />
+    <ClInclude Include="ship_game\ship_game.h" />
+    <ClInclude Include="ship_game\ship_player.h" />
     <ClInclude Include="test_game\test_game.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
