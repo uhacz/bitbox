@@ -4,6 +4,8 @@
 #include "../renderer.h"
 #include <util/camera.h>
 
+#include "ship_player.h"
+
 namespace bx
 {
 namespace ship
@@ -23,15 +25,17 @@ struct Gfx
 
 struct Level
 {
+    const char*     _name = nullptr;
     gfx::Scene      _gfx_scene = nullptr;
-    gfx::Camera     _dev_camera = {};
-    gfx::CameraInputContext _dev_camera_input_ctx = {};
+    PlayerCamera    _player_camera;
+    Player          _player;
 
-    // player camera
-    // player
     // enemies
     // collectibles
     // terrain
+
+    void StartUp( Gfx* gfx, const char* levelName );
+    void ShutDown( Gfx* gfx );
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -48,8 +52,13 @@ public:
     void OnUpdate( const GameTime& time ) override;
     void OnRender( const GameTime& time, rdi::CommandQueue* cmdq ) override;
         
-    Gfx*          _gfx = nullptr;
-    Level*        _level = nullptr;
+    gfx::Camera             _dev_camera           = {};
+    gfx::CameraInputContext _dev_camera_input_ctx = {};
+
+    Gfx*   _gfx     = nullptr;
+    Level* _level   = nullptr;
+
+    bool _use_dev_camera = true;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -62,7 +71,6 @@ public:
 protected:
     void StartUpImpl() override;
     void ShutDownImpl() override;
-    bool PreUpdateImpl( const GameTime& time ) override;
 
 private:
     Gfx _gfx;

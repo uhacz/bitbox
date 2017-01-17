@@ -211,6 +211,12 @@ public:
         //_time += deltaTime;
         //rmt_EndCPUSample();
 
+        bxWindow* win = bxWindow_get();
+        if( bxInput_isKeyPressedOnce( &win->input.kbd, bxInput::eKEY_ESC ) )
+        {
+            return false;
+        }
+
         bool is_game_running = _game->Update();
         if( is_game_running )
         {
