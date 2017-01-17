@@ -21,7 +21,8 @@ struct bxAllocator_Default: public bxAllocator
     virtual void* alloc( size_t size, size_t align )
     {
         void* pointer = dlmemalign( align, size );
-        _allocatedSize += dlmalloc_usable_size( pointer );
+        size_t usable_size = dlmalloc_usable_size( pointer );
+        _allocatedSize += usable_size;
         return pointer;
     }
     virtual void  free( void* ptr )

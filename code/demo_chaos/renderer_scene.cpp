@@ -32,6 +32,15 @@ void SceneImpl::Unprepare()
         GTextureManager()->Release( _sun_sky_light->sky_cubemap );
         BX_DELETE0( _allocator, _sun_sky_light );
     }
+
+    while( _mesh_data.size > 0 )
+    {
+        u32 last = _mesh_data.size - 1;
+        ActorID last_id = _mesh_data.actor_id[last];
+        Remove( &last_id );
+    }
+    BX_FREE0( _allocator, _mesh_data._memory_handle );
+    
     _allocator = nullptr;
     string::free_and_null( (char**)&_name );
 }
@@ -88,8 +97,11 @@ void SceneImpl::Remove( ActorID* mi )
 
     _handle_manager->release( mi );
 
+    string::free_and_null( &_mesh_data.names[index] );
+
     if( index != last_index )
     {
+
         _mesh_data.matrices[index]      = _mesh_data.matrices[last_index];
         _mesh_data.local_aabb[index]    = _mesh_data.local_aabb[last_index];
         _mesh_data.meshes[index]        = _mesh_data.meshes[last_index];

@@ -36,7 +36,7 @@ public:
 
     TestGameData* _data = nullptr;
     gfx::Scene    _gfx_scene = nullptr;
-    gfx::Camera _camera = {};
+    gfx::Camera   _camera = {};
     gfx::CameraInputContext _camera_input_ctx = {};
 };
 
@@ -50,7 +50,6 @@ public:
 protected:
     void StartUpImpl() override;
     void ShutDownImpl() override;
-    bool PreUpdateImpl( const GameTime& time ) override;
 private:
     TestGameData _data;
 };

@@ -2,6 +2,7 @@
 #include "util\debug.h"
 #include "util\string_util.h"
 #include "rdi\rdi_backend_dx11.h"
+#include "util\memory.h"
 
 namespace bx
 {
@@ -81,7 +82,7 @@ void Game::ShutDown()
 
     while( !_states.empty() )
     {
-        delete _states.back();
+        BX_DELETE( bxDefaultAllocator(), _states.back() );
         _states.pop_back();
     }
 }

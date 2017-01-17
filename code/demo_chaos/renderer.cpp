@@ -39,12 +39,13 @@ void Renderer::StartUp( const RendererDesc& desc, ResourceManager* resourceManag
         _render_target = rdi::CreateRenderTarget( rt_desc );
     }
     
-    _shf_texutil = rdi::ShaderFileLoad( "shader/bin/texture_utils.shader", resourceManager );
+    rdi::ShaderFile* shf_texutil = rdi::ShaderFileLoad( "shader/bin/texture_utils.shader", resourceManager );
     {
         rdi::PipelineDesc pipeline_desc = {};
-        pipeline_desc.Shader( _shf_texutil, "copy_rgba" );
+        pipeline_desc.Shader( shf_texutil, "copy_rgba" );
         _pipeline_copy_texture_rgba = rdi::CreatePipeline( pipeline_desc );
     }
+    rdi::ShaderFileUnload( &shf_texutil, resourceManager );
 
     {
         rdi::SamplerDesc samp_desc = {};
@@ -131,7 +132,6 @@ void Renderer::ShutDown( ResourceManager* resourceManager )
     rdi::DestroyPipeline( &_pipeline_copy_texture_rgba );
     rdi::DestroyRenderTarget( &_render_target );
 
-    rdi::ShaderFileUnload( &_shf_texutil, resourceManager );
 
     MeshManager::_ShutDown();
     MaterialManager::_ShutDown();
@@ -806,6 +806,8 @@ void PostProcessPass::_StartUp( PostProcessPass* pass )
             rdesc = rdi::GetResourceDescriptor( tm.pipeline_composite );
             rdi::SetConstantBuffer( rdesc, "MaterialData", &tm.cbuffer_data );
         }
+
+        rdi::ShaderFileUnload( &sf, GResourceManager() );
     }
 }
 

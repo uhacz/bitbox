@@ -368,6 +368,8 @@ void MaterialManager::_StartUp()
     pipeline_desc.Shader( sfile, "geometry_texture" );
     g_material_manager->_pipeline_tex = rdi::CreatePipeline( pipeline_desc );
     SYS_ASSERT( g_material_manager->_pipeline_tex != BX_RDI_NULL_HANDLE );
+
+    rdi::ShaderFileUnload( &sfile, GResourceManager() );
 }
 
 void MaterialManager::_ShutDown()

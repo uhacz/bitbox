@@ -38,17 +38,6 @@ void TestGame::ShutDownImpl()
     _data.renderer.ShutDown( bx::GResourceManager() );
 }
 
-bool TestGame::PreUpdateImpl( const GameTime& time )
-{
-    bxWindow* win = bxWindow_get();
-    if( bxInput_isKeyPressedOnce( &win->input.kbd, bxInput::eKEY_ESC ) )
-    {
-        return false;
-    }
-
-    return true;
-}
-
 void TestMainState::OnStartUp()
 {
     _camera.world = Matrix4( Matrix3::rotationY( PI ), Vector3( -4.21f, 5.f, -20.6f ) );

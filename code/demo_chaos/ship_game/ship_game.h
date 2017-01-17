@@ -4,10 +4,15 @@
 #include "../renderer.h"
 #include <util/camera.h>
 
+#include "ship_player.h"
+
 namespace bx
 {
+namespace ship
+{
+
 //////////////////////////////////////////////////////////////////////////
-struct ShipGameGfx
+struct Gfx
 {
     gfx::Renderer renderer;
 
@@ -18,25 +23,26 @@ struct ShipGameGfx
     gfx::PostProcessPass post_pass;
 };
 
-struct ShipGameLevel
+struct Level
 {
-    gfx::Scene  _gfx_scene = nullptr;
-    gfx::Camera _main_camera = {};
-    gfx::Camera _dev_camera = {};
-    gfx::CameraInputContext _dev_camera_input_ctx = {};
+    const char*     _name = nullptr;
+    gfx::Scene      _gfx_scene = nullptr;
+    PlayerCamera    _player_camera;
+    Player          _player;
 
-    // player
     // enemies
-    // terrain
     // collectibles
-    // 
+    // terrain
+
+    void StartUp( Gfx* gfx, const char* levelName );
+    void ShutDown( Gfx* gfx );
 };
 
 //////////////////////////////////////////////////////////////////////////
-class ShipLevelState : public GameState
+class LevelState : public GameState
 {
 public:
-    ShipLevelState( ShipGameGfx* g )
+    LevelState( Gfx* g )
         : _gfx( g ) {}
 
     const char* GetName() const override { return "Level"; }
@@ -46,8 +52,13 @@ public:
     void OnUpdate( const GameTime& time ) override;
     void OnRender( const GameTime& time, rdi::CommandQueue* cmdq ) override;
         
-    ShipGameGfx*  _gfx = nullptr;
-    ShipGameLevel _level = {};
+    gfx::Camera             _dev_camera           = {};
+    gfx::CameraInputContext _dev_camera_input_ctx = {};
+
+    Gfx*   _gfx     = nullptr;
+    Level* _level   = nullptr;
+
+    bool _use_dev_camera = true;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -60,9 +71,9 @@ public:
 protected:
     void StartUpImpl() override;
     void ShutDownImpl() override;
-    bool PreUpdateImpl( const GameTime& time ) override;
 
 private:
-    ShipGameGfx _gfx;
+    Gfx _gfx;
 };
-}//
+
+}}//

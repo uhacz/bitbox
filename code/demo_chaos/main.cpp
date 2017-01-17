@@ -22,6 +22,7 @@
 //#include "renderer_texture.h"
 
 #include "test_game/test_game.h"
+#include "ship_game/ship_game.h"
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -70,7 +71,7 @@ public:
         //    }
         //}
 
-        _game = new bx::TestGame();
+        _game = BX_NEW( bxDefaultAllocator(), bx::ship::ShipGame );
         _game->StartUp();
 
         return true;
@@ -81,8 +82,7 @@ public:
         //_gfx_scene->Remove( &_boxes );
 
         _game->ShutDown();
-        delete _game;
-        _game = nullptr;
+        BX_DELETE0( bxDefaultAllocator(), _game );
 
         rdi::Shutdown();
         ResourceManager::shutdown();
@@ -210,6 +210,12 @@ public:
 
         //_time += deltaTime;
         //rmt_EndCPUSample();
+
+        bxWindow* win = bxWindow_get();
+        if( bxInput_isKeyPressedOnce( &win->input.kbd, bxInput::eKEY_ESC ) )
+        {
+            return false;
+        }
 
         bool is_game_running = _game->Update();
         if( is_game_running )
