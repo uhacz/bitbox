@@ -18,6 +18,20 @@ struct ShipGameGfx
     gfx::PostProcessPass post_pass;
 };
 
+struct ShipGameLevel
+{
+    gfx::Scene  _gfx_scene = nullptr;
+    gfx::Camera _main_camera = {};
+    gfx::Camera _dev_camera = {};
+    gfx::CameraInputContext _dev_camera_input_ctx = {};
+
+    // player
+    // enemies
+    // terrain
+    // collectibles
+    // 
+};
+
 //////////////////////////////////////////////////////////////////////////
 class ShipLevelState : public GameState
 {
@@ -33,11 +47,7 @@ public:
     void OnRender( const GameTime& time, rdi::CommandQueue* cmdq ) override;
         
     ShipGameGfx*  _gfx = nullptr;
-    gfx::Scene    _gfx_scene = nullptr;
-        
-    gfx::Camera _main_camera = {};
-    gfx::Camera _dev_camera = {};
-    gfx::CameraInputContext _dev_camera_input_ctx = {};
+    ShipGameLevel _level = {};
 };
 
 //////////////////////////////////////////////////////////////////////////
