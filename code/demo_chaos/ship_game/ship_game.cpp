@@ -91,8 +91,10 @@ void Level::StartUp( Gfx* gfx, const char* levelName )
         _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "grey" ) );
         _gfx_scene->SetMesh( actor, gfx::GMeshManager()->Find( ":box" ) );
 
-        Matrix4 pose = Matrix4::translation( Vector3( 0.f, -1.0f, 0.f ) );
-        pose = appendScale( pose, Vector3( 100.f, 1.f, 100.f ) );
+        const float radius = 50.f;
+
+        Matrix4 pose = Matrix4::translation( Vector3( 0.f, -1.f, -radius*0.75f ) );
+        pose = appendScale( pose, Vector3( radius, 0.1f, radius * 2.f ) );
 
         _gfx_scene->SetMatrices( actor, &pose, 1 );
     }
@@ -131,8 +133,9 @@ void LevelState::OnUpdate( const GameTime& time )
 {
     if( _use_dev_camera )
     {
-        game_util::DevCameraCollectInput( &_dev_camera_input_ctx, time.DeltaTimeSec() );
-        const Matrix4 new_camera_world = _dev_camera_input_ctx.computeMovement( _dev_camera.world, 0.15f );
+        game_util::DevCameraCollectInput( &_dev_camera_input_ctx, time.DeltaTimeSec(), 0.01f );
+        _dev_camera.world = _dev_camera_input_ctx.computeMovement( _dev_camera.world, 0.15f );
+
         gfx::computeMatrices( &_dev_camera );
     }
 }

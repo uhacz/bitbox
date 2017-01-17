@@ -93,7 +93,7 @@ void Renderer::StartUp( const RendererDesc& desc, ResourceManager* resourceManag
         rdi::RenderSource rsource_box = rdi::CreateRenderSourceFromPolyShape( polyShape );
         bxPolyShape_deallocateShape( &polyShape );
 
-        bxPolyShape_createShpere( &polyShape, 9 );
+        bxPolyShape_createShpere( &polyShape, 11 );
         rdi::RenderSource rsource_sphere = rdi::CreateRenderSourceFromPolyShape( polyShape );
         bxPolyShape_deallocateShape( &polyShape );
 
