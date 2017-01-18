@@ -1,10 +1,13 @@
 #include "ship_game.h"
-#include "../game_util.h"
+#include "..\game_util.h"
+
 #include <util\memory.h>
+#include <util\string_util.h>
+#include <system\window.h>
 #include <resource_manager\resource_manager.h>
-#include "util\string_util.h"
-#include "system\window.h"
-#include "../../rdi/rdi_debug_draw.h"
+#include <rdi\rdi_debug_draw.h>
+
+#include "ship_level.h"
 
 namespace bx{
 namespace ship{
@@ -78,36 +81,7 @@ void ShipGame::ShutDownImpl()
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-void Level::StartUp( Gfx* gfx, const char* levelName )
-{
-    _name = string::duplicate( (char*)_name, levelName );
-    _gfx_scene = gfx->renderer.CreateScene( levelName );
-    _gfx_scene->EnableSunSkyLight();
-    _gfx_scene->GetSunSkyLight()->sun_direction = normalize( Vector3( -1.f, -1.0f, 0.f ) );
-    _gfx_scene->GetSunSkyLight()->sky_cubemap = gfx::GTextureManager()->CreateFromFile( "texture/sky1_cubemap.dds" );
 
-    {
-        gfx::ActorID actor = _gfx_scene->Add( "ground", 1 );
-        _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "grey" ) );
-        _gfx_scene->SetMesh( actor, gfx::GMeshManager()->Find( ":box" ) );
-
-        const float radius = 50.f;
-
-        Matrix4 pose = Matrix4::translation( Vector3( 0.f, -1.f, -radius*0.75f ) );
-        pose = appendScale( pose, Vector3( radius, 0.1f, radius * 2.f ) );
-
-        _gfx_scene->SetMatrices( actor, &pose, 1 );
-    }
-}
-
-void Level::ShutDown( Gfx* gfx )
-{
-    gfx->renderer.DestroyScene( &_gfx_scene );
-    string::free( (char*)_name );
-    _name = nullptr;
-
-
-}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

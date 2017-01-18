@@ -4,13 +4,13 @@
 #include "../renderer.h"
 #include <util/camera.h>
 
-#include "ship_player.h"
-
 namespace bx
 {
 namespace ship
 {
 
+
+struct Level;
 //////////////////////////////////////////////////////////////////////////
 struct Gfx
 {
@@ -21,21 +21,6 @@ struct Gfx
     gfx::SsaoPass ssao_pass;
     gfx::LightPass light_pass;
     gfx::PostProcessPass post_pass;
-};
-
-struct Level
-{
-    const char*     _name = nullptr;
-    gfx::Scene      _gfx_scene = nullptr;
-    PlayerCamera    _player_camera;
-    Player          _player;
-
-    // enemies
-    // collectibles
-    // terrain
-
-    void StartUp( Gfx* gfx, const char* levelName );
-    void ShutDown( Gfx* gfx );
 };
 
 //////////////////////////////////////////////////////////////////////////
