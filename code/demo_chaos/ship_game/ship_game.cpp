@@ -105,12 +105,22 @@ void LevelState::OnShutDown()
 
 void LevelState::OnUpdate( const GameTime& time )
 {
+    bxWindow* win = bxWindow_get();
+    if( bxInput_isKeyPressedOnce( &win->input.kbd, '1' ) )
+    {
+        _use_dev_camera = !_use_dev_camera;
+    }
     if( _use_dev_camera )
     {
         game_util::DevCameraCollectInput( &_dev_camera_input_ctx, time.DeltaTimeSec(), 0.01f );
         _dev_camera.world = _dev_camera_input_ctx.computeMovement( _dev_camera.world, 0.15f );
 
         gfx::computeMatrices( &_dev_camera );
+    }
+    
+    if( _level )
+    {
+        _level->Tick( time );
     }
 }
 
@@ -121,10 +131,15 @@ void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
     {
         active_camera = &_dev_camera;
     }
-    
+       
     if( !_level )
         return;
     
+    if( !active_camera )
+    {
+        active_camera = &_level->_player_camera._camera;
+    }
+
     gfx::Scene gfx_scene = _level->_gfx_scene;
 
     // ---

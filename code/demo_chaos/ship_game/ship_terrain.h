@@ -2,6 +2,7 @@
 
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
+#include <rdi/rdi_type.h>
 
 namespace bx{namespace ship{
 

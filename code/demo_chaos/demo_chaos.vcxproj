@@ -137,6 +137,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game.h" />
+    <ClInclude Include="game_time.h" />
     <ClInclude Include="game_util.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="renderer_camera.h" />

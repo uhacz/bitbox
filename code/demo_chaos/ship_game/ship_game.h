@@ -43,7 +43,7 @@ public:
     Gfx*   _gfx     = nullptr;
     Level* _level   = nullptr;
 
-    bool _use_dev_camera = true;
+    bool _use_dev_camera = false;
 };
 
 //////////////////////////////////////////////////////////////////////////

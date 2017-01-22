@@ -8,6 +8,7 @@
 #define PI2 6.28318530717958647693f
 #define PI_HALF 1.57079632679489661923f
 #define PI_INV 0.31830988618379067154f
+#define PI_OVER_180 0.01745329251994329577f
 
 inline int bitcount( unsigned int n )
 {

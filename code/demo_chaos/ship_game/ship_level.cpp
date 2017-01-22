@@ -16,12 +16,12 @@ void Level::StartUp( Gfx* gfx, const char* levelName )
 
     {
         gfx::ActorID actor = _gfx_scene->Add( "ground", 1 );
-        _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "grey" ) );
+        _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "red" ) );
         _gfx_scene->SetMesh( actor, gfx::GMeshManager()->Find( ":box" ) );
 
-        const float radius = 50.f;
+        const float radius = 750.f;
 
-        Matrix4 pose = Matrix4::translation( Vector3( 0.f, -1.f, -radius*0.75f ) );
+        Matrix4 pose = Matrix4::translation( Vector3( 0.f, -1.f, radius*0.75f ) );
         pose = appendScale( pose, Vector3( radius, 0.1f, radius * 2.f ) );
 
         _gfx_scene->SetMatrices( actor, &pose, 1 );
@@ -37,5 +37,17 @@ void Level::ShutDown( Gfx* gfx )
 
 }
 
+void Level::Tick( const GameTime& time )
+{
+    const float delta_time_sec = time.DeltaTimeSec();
+    _player_camera.Tick( _player, _terrain, delta_time_sec );
+    _player.Tick( _player_camera, _terrain, delta_time_sec );
+}
 
-}}//
+void Level::Render( rdi::CommandQueue* cmdq, const GameTime& time )
+{
+
+}
+
+}
+}//
