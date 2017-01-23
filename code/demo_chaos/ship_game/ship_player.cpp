@@ -4,6 +4,7 @@
 #include <util/signal_filter.h>
 #include <util/common.h>
 #include <rdi/rdi_debug_draw.h>
+#include "../imgui/imgui.h"
 
 namespace bx{namespace ship{
 
@@ -120,6 +121,16 @@ void Player::FixedTick( const PlayerCamera& camera, const Terrain& terrain, floa
     rdi::debug_draw::AddLine( _pos, _pos + lift_vector, 0xFF00FFFF, 1 );
     rdi::debug_draw::AddSphere( Vector4( _pos, 0.1f ), 0xFF00FF00, 1 );
     rdi::debug_draw::AddBox( Matrix4( _rot, _pos ), Vector3( 0.3f, 0.05f, 0.1f ), 0xFF00FF00, 1 );
+
+    if( ImGui::Begin( "player" ) )
+    {
+        ImGui::Text( "altitude: %f", altitude );
+        ImGui::Text( "air density: %f", air_dens );
+        ImGui::Text( "lift force: %f", lift_force_value );
+        ImGui::Text( "gravity: %f", g );
+    }
+    ImGui::End();
+
 }
 
 }

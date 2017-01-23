@@ -64,6 +64,8 @@ protected:
     virtual void ShutDownImpl   () {}
     virtual bool PreUpdateImpl  ( const GameTime& time ) { return true; }
     virtual bool PostUpdateImpl ( const GameTime& time ) { return true; }
+    virtual void PreRenderImpl  ( const GameTime& time, rdi::CommandQueue* cmdq ) {}
+    virtual void PostRenderImpl ( const GameTime& time, rdi::CommandQueue* cmdq ) {}
     virtual void PauseImpl      () {}
     virtual void ResumeImpl     () {}
 

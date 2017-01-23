@@ -101,22 +101,12 @@
     <ClCompile Include="renderer_scene_actor.cpp" />
     <ClCompile Include="renderer_shared_mesh.cpp" />
     <ClCompile Include="renderer_texture.cpp" />
-    <ClCompile Include="scene.cpp" />
     <ClCompile Include="ship_game\ship_game.cpp" />
     <ClCompile Include="ship_game\ship_level.cpp" />
     <ClCompile Include="ship_game\ship_player.cpp" />
     <ClCompile Include="test_game\test_game.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\engine\engine.vcxproj">
-      <Project>{b8c282a6-c75b-40d0-a85d-461b0893e8a7}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\gdi\gdi.vcxproj">
-      <Project>{6c37bb51-ecab-42a3-8eb3-30e45503b92d}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\gfx\gfx.vcxproj">
-      <Project>{f3b3bc37-9aaa-4b41-af4e-144c1317f283}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\phx\phx.vcxproj">
       <Project>{2f15f600-6dda-4beb-a95f-eab6abcd71bc}</Project>
     </ProjectReference>
@@ -158,7 +148,6 @@
     <ClInclude Include="renderer_shared_mesh.h" />
     <ClInclude Include="renderer_texture.h" />
     <ClInclude Include="renderer_type.h" />
-    <ClInclude Include="scene.h" />
     <ClInclude Include="ship_game\ship_game.h" />
     <ClInclude Include="ship_game\ship_level.h" />
     <ClInclude Include="ship_game\ship_player.h" />

@@ -56,6 +56,9 @@ public:
 protected:
     void StartUpImpl() override;
     void ShutDownImpl() override;
+    bool PreUpdateImpl( const GameTime& time ) override;
+    void PreRenderImpl( const GameTime& time, rdi::CommandQueue* cmdq ) override;
+    void PostRenderImpl( const GameTime& time, rdi::CommandQueue* cmdq ) override;
 
 private:
     Gfx _gfx;

@@ -1232,6 +1232,17 @@ void DestroyHardwareState( HardwareState* id )
     releaseSafe( id->blend );
 }
 
+//---
+void device::GetAPIDevice( ID3D11Device** dev, ID3D11DeviceContext** ctx )
+{
+    dev[0] = g_device;
+    if( ctx )
+    {
+        ctx[0] = g_cmd_queue->_context;
+    }
+}
+
+
 
 }///
 

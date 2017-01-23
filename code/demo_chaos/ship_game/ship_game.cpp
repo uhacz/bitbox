@@ -8,6 +8,8 @@
 #include <rdi\rdi_debug_draw.h>
 
 #include "ship_level.h"
+#include "..\imgui\imgui.h"
+#include "..\imgui\imgui_impl_dx11.h"
 
 namespace bx{
 namespace ship{
@@ -18,6 +20,13 @@ ShipGame::~ShipGame(){}
 
 void ShipGame::StartUpImpl()
 {
+    {
+        ID3D11Device* dev = nullptr;
+        ID3D11DeviceContext* ctx = nullptr;
+        rdi::device::GetAPIDevice( &dev, &ctx );
+        ImGui_ImplDX11_Init( bxWindow_get()->hwnd, dev, ctx );
+    }
+
     ResourceManager* resource_manager = GResourceManager();
     {
         gfx::RendererDesc rdesc = {};
@@ -75,6 +84,27 @@ void ShipGame::ShutDownImpl()
     gfx::ShadowPass::_ShutDown     ( &_gfx.shadow_pass );
     gfx::GeometryPass::_ShutDown   ( &_gfx.geometry_pass );
     _gfx.renderer.ShutDown         ( bx::GResourceManager() );
+
+    {
+        ImGui_ImplDX11_Shutdown();
+    }
+}
+
+bool ShipGame::PreUpdateImpl( const GameTime& time )
+{
+    ImGui_ImplDX11_NewFrame();
+    return true;
+}
+
+void ShipGame::PreRenderImpl( const GameTime& time, rdi::CommandQueue* cmdq )
+{
+    _gfx.renderer.BeginFrame( cmdq );
+}
+
+void ShipGame::PostRenderImpl( const GameTime& time, rdi::CommandQueue* cmdq )
+{
+    ImGui::Render();
+    _gfx.renderer.EndFrame( cmdq );
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -105,6 +135,8 @@ void LevelState::OnShutDown()
 
 void LevelState::OnUpdate( const GameTime& time )
 {
+
+
     bxWindow* win = bxWindow_get();
     if( bxInput_isKeyPressedOnce( &win->input.kbd, '1' ) )
     {
@@ -143,7 +175,7 @@ void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
     gfx::Scene gfx_scene = _level->_gfx_scene;
 
     // ---
-    _gfx->renderer.BeginFrame( cmdq );
+    
 
     _gfx->geometry_pass.PrepareScene( cmdq, gfx_scene, *active_camera );
     _gfx->geometry_pass.Flush( cmdq );
@@ -190,8 +222,6 @@ void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
 
     rdi::ResourceRO texture = *toRasterize[dstColorSelect];
     _gfx->renderer.RasterizeFramebuffer( cmdq, texture, *active_camera, win->width, win->height );
-    _gfx->renderer.EndFrame( cmdq );
-
 }
 
 

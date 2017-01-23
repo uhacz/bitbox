@@ -135,6 +135,8 @@ void Game::Render()
     rdi::CommandQueue* cmdq = nullptr;
     rdi::frame::Begin( &cmdq );
 
+    PreRenderImpl( _time, cmdq );
+
     if( _state_stack.size() == 1 )
     {
         _state_stack[0]->OnRender( _time, cmdq );
@@ -150,6 +152,7 @@ void Game::Render()
         _state_stack.back()->OnRender( _time, cmdq );
     }
 
+    PostRenderImpl( _time, cmdq );
     rdi::frame::End( &cmdq );
 }
 

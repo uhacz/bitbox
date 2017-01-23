@@ -7,6 +7,7 @@
 //#include <util/handle_manager.h>
 #include <util/config.h>
 #include <resource_manager/resource_manager.h>
+
 //#include <gfx/gfx_camera.h>
 //#include <gfx/gfx_debug_draw.h>
 //#include <rdi/rdi.h>
@@ -45,6 +46,8 @@ public:
         bxWindow* win = bxWindow_get();
         rdi::Startup( (uptr)win->hwnd, win->width, win->height, win->full_screen );
         
+
+
         //bxAsciiScript sceneScript;
         //if( _engine._camera_script_callback )
         //    _engine._camera_script_callback->addCallback( &sceneScript );

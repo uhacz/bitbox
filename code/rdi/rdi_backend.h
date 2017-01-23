@@ -540,6 +540,9 @@ struct VertexLayout
 
 //////////////////////////////////////////////////////////////////////////
 /// dx11 structs
+struct ID3D11Device;
+struct ID3D11DeviceContext;
+
 struct ID3D11Resource;
 struct ID3D11DeviceChild;
 struct ID3D11Buffer;
@@ -781,6 +784,9 @@ namespace device
     void DestroyDepthState    ( DepthState* id );
     void DestroyRasterState   ( RasterState * id );
     void DestroyHardwareState ( HardwareState* id );
+
+    // ---
+    void GetAPIDevice( ID3D11Device** dev, ID3D11DeviceContext** ctx );
 }///
 //
 
