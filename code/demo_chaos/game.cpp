@@ -97,6 +97,8 @@ bool Game::Update()
     const u64 deltaTimeUS = _time_query.durationUS;
     _time_query = bxTimeQuery::begin();
 
+
+
     _time = {};
     if( !_pause )
     {
