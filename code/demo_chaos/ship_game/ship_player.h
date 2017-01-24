@@ -34,7 +34,7 @@ struct PlayerInput
 struct PlayerCamera
 {
     Vector3 _up_dir{ 0.f, 1.f, 0.f };
-    f32 _distance_from_player = 1.f;
+    f32 _distance_from_player = 4.f;
     
     gfx::Camera _camera{};
     CameraInput _input{};
@@ -52,22 +52,27 @@ struct Player
     Vector3 _up_dir{ 0.f, 1.f, 0.f };
     Matrix3 _rot = Matrix3::identity();
 
+    Vector3 _lift{ 0.f };
+    Vector3 _drag{ 0.f };
+
     f32 _yaw = 0.f;
     f32 _pitch = 0.f;
     f32 _roll = 0.f;
     f32 _thrust = 0.f;
 
-
     f32 _vel_damping = 0.3f;
-    f32 _mass_inv = 1.f;
+    f32 _mass_inv = 10.f;
     f32 _min_altitude = 0.f;
-    f32 _max_altitude = 10.f;
+    f32 _max_altitude = 40.f;
+    
+    f32 _wing_width = 1.0f;
+    f32 _wing_height = 0.05f;
+    f32 _wing_depth = 0.5f;
 
     PlayerInput _input{};
 
     void Tick( const PlayerCamera& camera, const Terrain& terrain, float deltaTime );
-    void FixedTick( const PlayerCamera& camera, const Terrain& terrain, float deltaTime );
-
+    void Gui();
     //Vector3 GetDirection() const { return fastRotate( _rot, Vector3::zAxis() ); }
     Vector3 GetDirection() const { return _rot.getCol2(); }
 };

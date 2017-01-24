@@ -42,5 +42,7 @@ namespace bx
         u32 push_back( Curve1D& cv, f32 point, f32 t );
         inline u32 size( const Curve1D& cv ) { return cv._size; }
         float evaluate_catmullrom( const Curve1D& cv, f32 t );
+
+        float spline( const float *key, const float* value, int num, float t );
     }//
 }//

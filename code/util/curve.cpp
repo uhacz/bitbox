@@ -163,32 +163,32 @@ namespace bx
             3, -5, 0, 2,
             -3, 4, 1, 0,
             1, -1, 0, 0 };
+    }
 
-        float spline( const float *key, const float* value, int num, float t )
+    float curve::spline( const float *key, const float* value, int num, float t )
+    {
+        const int size = 1;
+
+        // find key
+        int k = 0;
+        while( key[k] < t )
+            k++;
+
+        // interpolant
+        const float h = ( t - key[k - 1] ) / ( key[k] - key[k - 1] );
+
+        float result = 0.f;
+
+        // add basis functions
+        for( int i = 0; i < 4; i++ )
         {
-            const int size = 1;
-
-            // find key
-            int k = 0; 
-            while( key[k] < t ) 
-                k++;
-
-            // interpolant
-            const float h = ( t - key[k - 1] ) / ( key[k] - key[k - 1] );
-
-            float result = 0.f;
-
-            // add basis functions
-            for( int i = 0; i < 4; i++ )
-            {
-                const int kn = clamp( k + i - 2, 0, num - 1 ); 
-                const signed char *co = coefs + 4 * i;
-                const float b = 0.5f*( ( ( co[0] * h + co[1] )*h + co[2] )*h + co[3] );
-                result += b * value[kn];
-            }
-
-            return result;
+            const int kn = clamp( k + i - 2, 0, num - 1 );
+            const signed char *co = curve_internal::coefs + 4 * i;
+            const float b = 0.5f*( ( ( co[0] * h + co[1] )*h + co[2] )*h + co[3] );
+            result += b * value[kn];
         }
+
+        return result;
     }
 
     float curve::evaluate_catmullrom( const Curve1D& cv, f32 t )
@@ -198,7 +198,7 @@ namespace bx
         if( t >= 1.f )
             return cv._points[cv._size - 1];
 
-        return curve_internal::spline( cv._knots, cv._points, cv._size, t );
+        return spline( cv._knots, cv._points, cv._size, t );
     }
 
 
