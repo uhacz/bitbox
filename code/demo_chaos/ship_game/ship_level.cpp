@@ -45,7 +45,7 @@ void Level::StartUp( Gfx* gfx, const char* levelName )
         _gfx_scene->SetMatrices( actor, &pose, 1 );
     }
 
-    _terrain.CreateFromFile( "model/rockyy-terrain.heightfield" );
+    _terrain.CreateFromFile( "model/terrain0.r32" );
 
 }
 

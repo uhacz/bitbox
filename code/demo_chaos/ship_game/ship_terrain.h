@@ -2,15 +2,17 @@
 
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
+#include <util/filesystem.h>
 #include <rdi/rdi_type.h>
 
 namespace bx{namespace ship{
 
 struct Terrain
 {
+    bxFS::File _file = {};
     u32 _num_samples_x = 0;
     u32 _num_samples_z = 0;
-    u8* _samples = nullptr; // 0 -> 0xFFFF
+    f32* _samples = nullptr;
     f32 _sample_scale_xz = 1.f;
     f32 _sample_scale_y = 1.f;
 

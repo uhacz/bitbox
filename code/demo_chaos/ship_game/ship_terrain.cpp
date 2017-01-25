@@ -9,24 +9,23 @@ namespace bx{ namespace ship{
     void Terrain::CreateFromFile( const char* filename )
     {
         ResourceManager* resource_manager = GResourceManager();
-        bxFS::File file = resource_manager->readFileSync( filename );
-        if( !file.ok() )
+        _file = resource_manager->readFileSync( filename );
+        if( _file.ok() )
         {
             return;
         }
 
-        _samples = (u8*)file.bin;
-        _num_samples_x = (u32)( ::sqrt( (float)file.size ) );
+        _samples = (f32*)_file.bin;
+        _num_samples_x = (u32)( ::sqrt( (float)_file.size ) ) / sizeof( *_samples );
         _num_samples_z = _num_samples_x;
 
-        
 
-        file.release();
+
     }
 
     void Terrain::Destroy()
     {
-
+        _file.release();
     }
 
 }
