@@ -44,10 +44,15 @@ void Level::StartUp( Gfx* gfx, const char* levelName )
 
         _gfx_scene->SetMatrices( actor, &pose, 1 );
     }
+
+    _terrain.CreateFromFile( "model/rockyy-terrain.heightfield" );
+
 }
 
 void Level::ShutDown( Gfx* gfx )
 {
+    _terrain.Destroy();
+
     gfx->renderer.DestroyScene( &_gfx_scene );
     string::free( (char*)_name );
     _name = nullptr;

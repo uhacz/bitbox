@@ -104,6 +104,7 @@
     <ClCompile Include="ship_game\ship_game.cpp" />
     <ClCompile Include="ship_game\ship_level.cpp" />
     <ClCompile Include="ship_game\ship_player.cpp" />
+    <ClCompile Include="ship_game\ship_terrain.cpp" />
     <ClCompile Include="test_game\test_game.cpp" />
   </ItemGroup>
   <ItemGroup>
