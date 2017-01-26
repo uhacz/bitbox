@@ -19,7 +19,7 @@ struct Terrain
     u32 _num_tiles_x = 32;
     u32 _num_tiles_z = 32;
     
-    rdi::RenderSource* _rsources = nullptr;
+    rdi::RenderSource _rsource = BX_RDI_NULL_HANDLE;
 
     void CreateFromFile( const char* filename );
     void Destroy();
