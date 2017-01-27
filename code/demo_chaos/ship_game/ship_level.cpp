@@ -76,6 +76,9 @@ void Level::Tick( const GameTime& time )
         
         delta_time_acc = maxOfPair( 0.f, delta_time_acc - max_delta_time );
     }
+
+    _terrain.DebugDraw( 0xFF0000FF );
+
     _player.Gui();
     
 }
