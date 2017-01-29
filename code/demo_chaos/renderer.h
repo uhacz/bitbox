@@ -78,7 +78,7 @@ public:
     void PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
     void Flush( rdi::CommandQueue* cmdq );
 
-    static void _StartUp( GeometryPass* pass );
+    static void _StartUp( GeometryPass* pass, const RendererDesc& rndDesc );
     static void _ShutDown( GeometryPass* pass );
 
     rdi::RenderTarget GBuffer() const { return _rtarget_gbuffer; }

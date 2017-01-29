@@ -149,10 +149,12 @@ struct RenderSourceDesc
     u32 num_indices = 0;
     u32 num_draw_ranges = 0;
     VertexLayout vertex_layout = {};
+    
+    rdi::IndexBuffer shared_index_buffer = {};
     EDataType::Enum index_type = EDataType::UNKNOWN;
-
-    const void* vertex_data[cMAX_VERTEX_BUFFERS] = {};
     const void* index_data = nullptr;
+    
+    const void* vertex_data[cMAX_VERTEX_BUFFERS] = {};
 
     const RenderSourceRange* draw_ranges = nullptr;
 
@@ -173,8 +175,18 @@ struct RenderSourceDesc
     }
     RenderSourceDesc& IndexBuffer( EDataType::Enum dt, const void* initialData )
     {
+        SYS_ASSERT( shared_index_buffer.id == 0 );
         index_type = dt;
         index_data = initialData;
+        return *this;
+    }
+    RenderSourceDesc& SharedIndexBuffer( rdi::IndexBuffer ibuffer )
+    {
+        SYS_ASSERT( index_type == EDataType::UNKNOWN );
+        SYS_ASSERT( index_data == nullptr );
+        
+        shared_index_buffer = ibuffer;
+
         return *this;
     }
 };
@@ -287,6 +299,9 @@ namespace bx{ namespace rdi{
     {
         u32 mem_size = sizeof( T ) + dataSize;
         void* mem = _AllocateCommand( cmdbuff, mem_size );
+        if( !mem )
+            return nullptr;
+
         T* cmd = new( mem ) T();
         cmd->_dispatch_ptr = T::DISPATCH_FUNCTION;
         if( parent_cmd )

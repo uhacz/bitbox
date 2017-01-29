@@ -71,7 +71,7 @@ void ShipGame::StartUpImpl()
         rdesc.framebuffer_height = 1080;
         _gfx.renderer.StartUp( rdesc, resource_manager );
 
-        gfx::GeometryPass::_StartUp   ( &_gfx.geometry_pass );
+        gfx::GeometryPass::_StartUp   ( &_gfx.geometry_pass, _gfx.renderer.GetDesc() );
         gfx::ShadowPass::_StartUp     ( &_gfx.shadow_pass, _gfx.renderer.GetDesc(), 1024 * 8 );
         gfx::SsaoPass::_StartUp       ( &_gfx.ssao_pass  , _gfx.renderer.GetDesc(), false );
         gfx::LightPass::_StartUp      ( &_gfx.light_pass );

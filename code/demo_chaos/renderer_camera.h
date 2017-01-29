@@ -20,7 +20,7 @@ namespace gfx{
             f32 vAperture = 1.f;
             f32 focalLength = 50.f;
             f32 zNear = 0.25f;
-            f32 zFar = 100.f;
+            f32 zFar = 300.f;
             f32 orthoWidth = 10.f;
             f32 orthoHeight = 10.f;
         } params;

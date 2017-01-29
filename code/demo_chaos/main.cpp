@@ -220,6 +220,8 @@ public:
             return false;
         }
 
+        rmt_ScopedCPUSample( MainLoop, 0 );
+
         bool is_game_running = _game->Update();
         if( is_game_running )
         {

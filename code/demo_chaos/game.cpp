@@ -3,6 +3,7 @@
 #include "util\string_util.h"
 #include "rdi\rdi_backend_dx11.h"
 #include "util\memory.h"
+#include "imgui\imgui.h"
 
 namespace bx
 {
@@ -64,6 +65,10 @@ bool Game::PopState()
 
 void Game::StartUp()
 {
+    {
+        rmt_CreateGlobalInstance( &_rmt );
+    }
+
     StartUpImpl();
 
     for( GameState* state : _states )
@@ -85,10 +90,16 @@ void Game::ShutDown()
         BX_DELETE( bxDefaultAllocator(), _states.back() );
         _states.pop_back();
     }
+
+    {
+        rmt_DestroyGlobalInstance( _rmt );
+    }
 }
 
 bool Game::Update()
 {
+    rmt_BeginCPUSample( Update, 0 );
+
     if( _time_query.isRunning() )
     {
         bxTimeQuery::end( &_time_query );
@@ -109,20 +120,40 @@ bool Game::Update()
     
     bool result = true;
 
-    result &= PreUpdateImpl( _time );
-
-    if( !_state_stack.empty() )
     {
-        std::vector<GameState*>::reverse_iterator it = _state_stack.rbegin();
-        (*it)->OnUpdate( _time );
-        ++it;
-        for( ; it < _state_stack.rend(); ++it )
-        {
-            ( *it )->OnBackgroundUpdate( _time );
-        }
+        rmt_BeginCPUSample( PreUpdate, 0 );
+        result &= PreUpdateImpl( _time );
+        rmt_EndCPUSample();
     }
 
-    result &= PostUpdateImpl( _time );
+    {
+        rmt_BeginCPUSample( StateUpdate, 0 )
+        if( !_state_stack.empty() )
+        {
+            std::vector<GameState*>::reverse_iterator it = _state_stack.rbegin();
+            ( *it )->OnUpdate( _time );
+            ++it;
+            for( ; it < _state_stack.rend(); ++it )
+            {
+                ( *it )->OnBackgroundUpdate( _time );
+            }
+        }
+        rmt_EndCPUSample();
+    }
+
+    {
+        rmt_BeginCPUSample( PostUpdate, 0 );
+        result &= PostUpdateImpl( _time );
+        rmt_EndCPUSample();
+    }
+
+    if( ImGui::Begin( "GameUpdate" ) )
+    {
+        ImGui::Text( "DeltaTime: %f", _time.DeltaTimeSec() );
+    }
+    ImGui::End();
+
+    rmt_EndCPUSample();
 
     return result;
 }
@@ -132,28 +163,48 @@ void Game::Render()
     if( _state_stack.empty() )
         return;
     
+    rmt_BeginCPUSample( Render, 0 );
+
     rdi::CommandQueue* cmdq = nullptr;
     rdi::frame::Begin( &cmdq );
 
-    PreRenderImpl( _time, cmdq );
 
-    if( _state_stack.size() == 1 )
     {
-        _state_stack[0]->OnRender( _time, cmdq );
+        rmt_BeginCPUSample( PreRender, 0 );
+        PreRenderImpl( _time, cmdq );
+        rmt_EndCPUSample();
     }
-    else
+
+
     {
-        const size_t n = _state_stack.size();
-        for( size_t i = 0; i < n - 1; ++i )
+        rmt_BeginCPUSample( StateRender, 0 );
+        if( _state_stack.size() == 1 )
         {
-            _state_stack[i]->OnBackgroundRender( _time, cmdq );
+            _state_stack[0]->OnRender( _time, cmdq );
         }
+        else
+        {
+            const size_t n = _state_stack.size();
+            for( size_t i = 0; i < n - 1; ++i )
+            {
+                _state_stack[i]->OnBackgroundRender( _time, cmdq );
+            }
 
-        _state_stack.back()->OnRender( _time, cmdq );
+            _state_stack.back()->OnRender( _time, cmdq );
+        }
+        rmt_EndCPUSample();
     }
 
-    PostRenderImpl( _time, cmdq );
+    {
+        rmt_BeginCPUSample( PostRender, 0 );
+        PostRenderImpl( _time, cmdq );
+        rmt_EndCPUSample();
+    }
+
+
     rdi::frame::End( &cmdq );
+
+    rmt_EndCPUSample();
 }
 
 void Game::Pause()

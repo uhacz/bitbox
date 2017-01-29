@@ -16,36 +16,36 @@ void Level::StartUp( Gfx* gfx, const char* levelName )
     _gfx_scene->GetSunSkyLight()->sun_direction = normalize( Vector3( -1.f, -1.0f, 0.f ) );
     _gfx_scene->GetSunSkyLight()->sky_cubemap = gfx::GTextureManager()->CreateFromFile( "texture/sky1_cubemap.dds" );
 
-    {
-        gfx::ActorID actor = _gfx_scene->Add( "ground", 2 );
-        _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "green" ) );
-        _gfx_scene->SetMesh( actor, gfx::GMeshManager()->Find( ":box" ) );
+    //{
+    //    gfx::ActorID actor = _gfx_scene->Add( "ground", 2 );
+    //    _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "green" ) );
+    //    _gfx_scene->SetMeshHandle( actor, gfx::GMeshManager()->Find( ":box" ) );
 
-        const float radius = 750.f;
+    //    const float radius = 750.f;
 
-        Matrix4 pose[] =
-        {
-            appendScale( Matrix4::translation( Vector3( 0.f, -1.f, radius*0.75f ) ), Vector3( radius, 0.1f, radius * 2.f ) ),
-            appendScale( Matrix4::translation( Vector3( 0.f, -0.5f, radius*0.75f ) ), Vector3( 1.0f, 0.1f, radius * 2.f ) ),
-        };
-        pose[1] *= Matrix4::rotationZ( 3.14f / 4 );
+    //    Matrix4 pose[] =
+    //    {
+    //        appendScale( Matrix4::translation( Vector3( 0.f, -1.f, radius*0.75f ) ), Vector3( radius, 0.1f, radius * 2.f ) ),
+    //        appendScale( Matrix4::translation( Vector3( 0.f, -0.5f, radius*0.75f ) ), Vector3( 1.0f, 0.1f, radius * 2.f ) ),
+    //    };
+    //    pose[1] *= Matrix4::rotationZ( 3.14f / 4 );
 
-        _gfx_scene->SetMatrices( actor, pose, 2 );
-    }
-    {
-        gfx::ActorID actor = _gfx_scene->Add( "ground1", 1 );
-        _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "red" ) );
-        _gfx_scene->SetMesh( actor, gfx::GMeshManager()->Find( ":box" ) );
+    //    _gfx_scene->SetMatrices( actor, pose, 2 );
+    //}
+    //{
+    //    gfx::ActorID actor = _gfx_scene->Add( "ground1", 1 );
+    //    _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "red" ) );
+    //    _gfx_scene->SetMeshHandle( actor, gfx::GMeshManager()->Find( ":box" ) );
 
-        const float radius = 750.f;
+    //    const float radius = 750.f;
 
-        Matrix4 pose = Matrix4::translation( Vector3( 0.f, -1.f, radius*0.75f ) );
-        pose = appendScale( pose, Vector3( radius, 0.1f, radius * 2.f ) );
+    //    Matrix4 pose = Matrix4::translation( Vector3( 0.f, -1.f, radius*0.75f ) );
+    //    pose = appendScale( pose, Vector3( radius, 0.1f, radius * 2.f ) );
 
-        _gfx_scene->SetMatrices( actor, &pose, 1 );
-    }
+    //    _gfx_scene->SetMatrices( actor, &pose, 1 );
+    //}
 
-    _terrain.CreateFromFile( "model/terrain0.r32" );
+    _terrain.CreateFromFile( "model/terrain0.r32", _gfx_scene );
 
 }
 
@@ -77,7 +77,7 @@ void Level::Tick( const GameTime& time )
         delta_time_acc = maxOfPair( 0.f, delta_time_acc - max_delta_time );
     }
 
-    _terrain.DebugDraw( 0xFF0000FF );
+    //_terrain.DebugDraw( 0xFF0000FF );
 
     _player.Gui();
     

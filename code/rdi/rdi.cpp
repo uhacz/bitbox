@@ -522,7 +522,8 @@ void BindResources( CommandQueue* cmdq, ResourceDescriptor rdesc )
 struct RenderSourceImpl
 {
     u16 num_vertex_buffers = 0;
-    u16 num_draw_ranges = 0;
+    u8 num_draw_ranges = 0;
+    u8 has_shared_index_buffer = 0;
     IndexBuffer index_buffer;
     VertexBuffer* vertex_buffers = nullptr;
     RenderSourceRange* draw_ranges = nullptr;
@@ -560,6 +561,13 @@ RenderSource CreateRenderSource( const RenderSourceDesc& desc, bxAllocator* allo
     {
         impl->index_buffer = device::CreateIndexBuffer( desc.index_type, desc.num_indices, desc.index_data );
         default_range.count = desc.num_indices;
+        impl->has_shared_index_buffer = 0;
+    }
+    else if( desc.shared_index_buffer.id )
+    {
+        impl->index_buffer = desc.shared_index_buffer;
+        impl->has_shared_index_buffer = 1;
+        default_range.count = desc.num_indices;
     }
     else
     {
@@ -581,7 +589,10 @@ void DestroyRenderSource( RenderSource* rsource, bxAllocator* allocator /*= null
 
     RenderSourceImpl* impl = rsource[0];
 
-    device::DestroyIndexBuffer( &impl->index_buffer );
+    if( impl->has_shared_index_buffer == 0 )
+    {
+        device::DestroyIndexBuffer( &impl->index_buffer );
+    }
     for( u32 i = 0; i < impl->num_vertex_buffers; ++i )
     {
         device::DestroyVertexBuffer( &impl->vertex_buffers[i] );

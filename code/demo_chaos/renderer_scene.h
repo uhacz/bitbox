@@ -18,6 +18,12 @@ union MeshMatrix
     u8 _single[64] = {};
     Matrix4* _multi;
 };
+union MeshSource
+{
+    rdi::RenderSource rsource = BX_RDI_NULL_HANDLE;
+    MeshHandle handle;
+};
+
 // --- 
 struct SunSkyLight
 {
@@ -42,7 +48,10 @@ struct SceneImpl
     void Remove( ActorID* mi );
     ActorID Find( const char* name );
 
-    void SetMesh( ActorID actorId, MeshHandle handle );
+    // -- actor can have handle OR rsource. Never both at the same time.
+    void SetMeshHandle( ActorID actorId, MeshHandle handle );
+    void SetRenderSource( ActorID actorId, rdi::RenderSource rsource );
+
     void SetMaterial( ActorID mi, MaterialHandle m );
     void SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
     void SetLocalAABB( ActorID mi, const bxAABB& aabb );
@@ -64,17 +73,18 @@ private:
 
     struct MeshData
     {
-        void*                _memory_handle = nullptr;
-        MeshMatrix*          matrices = nullptr;
-        bxAABB*              local_aabb = nullptr;
-        MeshHandle*          meshes = nullptr;
-        MaterialHandle*      materials = nullptr;
-        u32*                 num_instances = nullptr;
-        ActorID*             actor_id = nullptr;
-        char**               names = nullptr;
+        void*           _memory_handle = nullptr;
+        MeshMatrix*     matrices       = nullptr;
+        bxAABB*         local_aabb     = nullptr;
+        MeshSource*     mesh_source    = nullptr;
+        MaterialHandle* materials      = nullptr;
+        u32*            num_instances  = nullptr;
+        ActorID*        actor_id       = nullptr;
+        char**          names          = nullptr;
+        u32*            flags          = nullptr;
 
-        u32                  size = 0;
-        u32                  capacity = 0;
+        u32             size           = 0;
+        u32             capacity       = 0;
     }_mesh_data;
 
 

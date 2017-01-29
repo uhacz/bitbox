@@ -5,6 +5,7 @@
 #include <rdi/rdi_backend.h>
 
 #include "game_time.h"
+#include "profiler.h"
 
 namespace bx
 {
@@ -76,6 +77,8 @@ private:
     bxTimeQuery _time_query = {};
     GameTime _time = {};
     bool _pause = false;
+
+    Remotery* _rmt = nullptr;
 };
 
 }///

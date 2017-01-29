@@ -247,11 +247,11 @@ void GeometryPass::Flush( rdi::CommandQueue* cmdq )
     rdi::SubmitCommandBuffer( cmdq, _command_buffer );
 }
 
-void GeometryPass::_StartUp( GeometryPass* pass )
+void GeometryPass::_StartUp( GeometryPass* pass, const RendererDesc& rndDesc )
 {
     {
         rdi::RenderTargetDesc rt_desc = {};
-        rt_desc.Size( 1920, 1080 );
+        rt_desc.Size( rndDesc.framebuffer_width, rndDesc.framebuffer_height );
         rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
         rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
         rt_desc.Texture( rdi::Format( rdi::EDataType::FLOAT, 4 ) );
@@ -271,10 +271,10 @@ void GeometryPass::_StartUp( GeometryPass* pass )
     }
 
     {
-        pass->_command_buffer = rdi::CreateCommandBuffer( 1024 );
+        pass->_command_buffer = rdi::CreateCommandBuffer( 8*1024 );
     }
 
-    VertexTransformData::_Init( &pass->_vertex_transform_data, 1024 );
+    VertexTransformData::_Init( &pass->_vertex_transform_data, 8*1024 );
 
 }
 

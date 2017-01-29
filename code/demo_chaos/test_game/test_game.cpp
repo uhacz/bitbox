@@ -19,7 +19,7 @@ void TestGame::StartUpImpl()
     gfx::RendererDesc renderer_desc = {};
     _data.renderer.StartUp( renderer_desc, bx::GResourceManager() );
 
-    gfx::GeometryPass::_StartUp   ( &_data.geometry_pass );
+    gfx::GeometryPass::_StartUp   ( &_data.geometry_pass, _data.renderer.GetDesc() );
     gfx::ShadowPass::_StartUp     ( &_data.shadow_pass, _data.renderer.GetDesc(), 1024 * 8 );
     gfx::SsaoPass::_StartUp       ( &_data.ssao_pass, _data.renderer.GetDesc(), false );
     gfx::LightPass::_StartUp      ( &_data.light_pass );
@@ -83,7 +83,7 @@ void TestMainState::OnStartUp()
     {
         gfx::ActorID actor = _gfx_scene->Add( "ground", 1 );
         _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "grey" ) );
-        _gfx_scene->SetMesh( actor, gfx::GMeshManager()->Find( ":box" ) );
+        _gfx_scene->SetMeshHandle( actor, gfx::GMeshManager()->Find( ":box" ) );
 
         Matrix4 pose = Matrix4::translation( Vector3( 0.f, -1.0f, 0.f ) );
         pose = appendScale( pose, Vector3( 100.f, 1.f, 100.f ) );
@@ -114,7 +114,7 @@ void TestMainState::OnStartUp()
             const Vector3 pos = Vector3( -10.f + (float)is, 0.f, -10.f + (float)ir );
             const Matrix4 pose( Matrix3::identity(), pos );
 
-            _gfx_scene->SetMesh( actor, mesh_handle );
+            _gfx_scene->SetMeshHandle( actor, mesh_handle );
             _gfx_scene->SetMaterial( actor, hmat );
             _gfx_scene->SetMatrices( actor, &pose, 1 );
         }
