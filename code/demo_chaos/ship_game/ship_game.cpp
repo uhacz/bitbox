@@ -64,19 +64,9 @@ void ShipGame::StartUpImpl()
         bxWindow_addWinMsgCallback( bxWindow_get(), ImGui_WinMsgHandler );
     }
 
-    ResourceManager* resource_manager = GResourceManager();
-    {
-        gfx::RendererDesc rdesc = {};
-        rdesc.framebuffer_width = 1920;
-        rdesc.framebuffer_height = 1080;
-        _gfx.renderer.StartUp( rdesc, resource_manager );
+    GameGfxStartUp( &_gfx );
 
-        gfx::GeometryPass::_StartUp   ( &_gfx.geometry_pass, _gfx.renderer.GetDesc() );
-        gfx::ShadowPass::_StartUp     ( &_gfx.shadow_pass, _gfx.renderer.GetDesc(), 1024 * 8 );
-        gfx::SsaoPass::_StartUp       ( &_gfx.ssao_pass  , _gfx.renderer.GetDesc(), false );
-        gfx::LightPass::_StartUp      ( &_gfx.light_pass );
-        gfx::PostProcessPass::_StartUp( &_gfx.post_pass );
-    }
+    ResourceManager* resource_manager = GResourceManager();
 
     {
         gfx::MaterialDesc mat_desc;
@@ -115,13 +105,7 @@ void ShipGame::StartUpImpl()
 
 void ShipGame::ShutDownImpl()
 {
-    gfx::PostProcessPass::_ShutDown( &_gfx.post_pass );
-    gfx::LightPass::_ShutDown      ( &_gfx.light_pass );
-    gfx::SsaoPass::_ShutDown       ( &_gfx.ssao_pass );
-    gfx::ShadowPass::_ShutDown     ( &_gfx.shadow_pass );
-    gfx::GeometryPass::_ShutDown   ( &_gfx.geometry_pass );
-    _gfx.renderer.ShutDown         ( bx::GResourceManager() );
-
+    GameGfxShutDown( &_gfx );
     {
         bxWindow_removeWinMsgCallback( bxWindow_get(), ImGui_WinMsgHandler );
         ImGui_ImplDX11_Shutdown();
@@ -150,14 +134,10 @@ void ShipGame::PostRenderImpl( const GameTime& time, rdi::CommandQueue* cmdq )
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
 void LevelState::OnStartUp()
 {
+    _dev_camera.params.zFar = 1000.f;
+    
     _level = BX_NEW( bxDefaultAllocator(), Level );
     _level->StartUp( _gfx, "level" );
 }
@@ -210,59 +190,15 @@ void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
         active_camera = &_level->_player_camera._camera;
     }
 
+    rdi::debug_draw::AddAxes( Matrix4::identity() );
+
     gfx::Scene gfx_scene = _level->_gfx_scene;
 
     // ---
-    
-
-    _gfx->geometry_pass.PrepareScene( cmdq, gfx_scene, *active_camera );
-    _gfx->geometry_pass.Flush( cmdq );
-
-    rdi::TextureDepth depthTexture = rdi::GetTextureDepth( _gfx->geometry_pass.GBuffer() );
-    rdi::TextureRW normalsTexture = rdi::GetTexture( _gfx->geometry_pass.GBuffer(), 2 );
-    _gfx->shadow_pass.PrepareScene( cmdq, gfx_scene, *active_camera );
-    _gfx->shadow_pass.Flush( cmdq, depthTexture, normalsTexture );
-
-    _gfx->ssao_pass.PrepareScene( cmdq, *active_camera );
-    _gfx->ssao_pass.Flush( cmdq, depthTexture, normalsTexture );
-
-    _gfx->light_pass.PrepareScene( cmdq, gfx_scene, *active_camera );
-    _gfx->light_pass.Flush( cmdq,
-        _gfx->renderer.GetFramebuffer( gfx::EFramebuffer::SWAP ),
-        _gfx->geometry_pass.GBuffer(),
-        _gfx->shadow_pass.ShadowMap(),
-        _gfx->ssao_pass.SsaoTexture() );
-
-    rdi::TextureRW srcColor = _gfx->renderer.GetFramebuffer( gfx::EFramebuffer::SWAP );
-    rdi::TextureRW dstColor = _gfx->renderer.GetFramebuffer( gfx::EFramebuffer::COLOR );
-    _gfx->post_pass.DoToneMapping( cmdq, dstColor, srcColor, time.DeltaTimeSec() );
-
-    rdi::debug_draw::AddAxes( Matrix4::identity() );
-
-    gfx::Renderer::DebugDraw( cmdq, dstColor, depthTexture, *active_camera );
-    
-
-    rdi::ResourceRO* toRasterize[] =
-    {
-        &dstColor,
-        &_gfx->ssao_pass.SsaoTexture(),
-        &_gfx->shadow_pass.ShadowMap(),
-        &_gfx->shadow_pass.DepthMap(),
-    };
-    const int toRasterizeN = sizeof( toRasterize ) / sizeof( *toRasterize );
-    static int dstColorSelect = 0;
-
-    bxWindow* win = bxWindow_get();
-    if( bxInput_isKeyPressedOnce( &win->input.kbd, ' ' ) )
-    {
-        dstColorSelect = ( dstColorSelect + 1 ) % toRasterizeN;
-    }
-
-    rdi::ResourceRO texture = *toRasterize[dstColorSelect];
-    _gfx->renderer.RasterizeFramebuffer( cmdq, texture, *active_camera, win->width, win->height );
+    GameGfxDrawScene( cmdq, _gfx, gfx_scene, *active_camera );
+    GameGfxPostProcess( cmdq, _gfx, *active_camera, time.DeltaTimeSec() );
+    GameGfxRasterize( cmdq, _gfx, *active_camera );
 }
-
-
 
 }
 }//

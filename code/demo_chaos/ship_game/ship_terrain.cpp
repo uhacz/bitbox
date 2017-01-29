@@ -213,17 +213,32 @@ namespace bx{ namespace ship{
         GenerateTileIndices( tile_indices, num_points_per_tile_col, num_points_per_tile_row );
         SYS_ASSERT( array::sizeu( tile_indices ) == num_indices_per_tile );
 
+        float min_y = FLT_MAX;
+        for( u32 i = 0; i < num_samples; ++i )
+            min_y = minOfPair( min_y, _samples[i] );
+
+        const float ext_x = _num_samples_x * 0.5f;
+        const float ext_z = _num_samples_z * 0.5f;
+        const float ext_y = ::abs( min_y ) + 30.f;
+
+        Matrix4 transform = Matrix4::translation( Vector3( -ext_x, -ext_y, -ext_z ) );
+        transform = appendScale( transform, Vector3( _sample_scale_xz, _sample_scale_y, _sample_scale_xz ) );
+
         for( u32 iz = 0; iz < _num_samples_z; ++iz )
         {
             for( u32 ix = 0; ix < _num_samples_x; ++ix )
             {
                 const u32 linear_index = iz * _num_samples_x + ix;
 
-                const f32 fx = (f32)ix * _sample_scale_xz;
-                const f32 fy = _samples[linear_index] * _sample_scale_y;
-                const f32 fz = (f32)iz * _sample_scale_xz;
+                const f32 fx = (f32)ix;
+                const f32 fy = ::exp( _samples[linear_index] ) - 1.f;
+                const f32 fz = (f32)iz;
+                const Vector3 p = mulAsVec4( transform, Vector3( fx, fy, fz ) );
+                
+                float3_t p3f;
+                m128_to_xyz( p3f.xyz, p.get128() );
 
-                array::push_back( linear_points, float3_t( fx, fy, fz ) );
+                array::push_back( linear_points, p3f );
                 array::push_back( linear_normals, float3_t( 0.f ) );
             }
         }
@@ -248,13 +263,6 @@ namespace bx{ namespace ship{
                         const float3_t& point = linear_points[linear_index];
                         array::push_back( points, point );
                         array::push_back( normals, linear_normals[linear_index] );
-
-                        //const f32 fx = (f32)x_abs * _sample_scale_xz;
-                        //const f32 fy = _samples[linear_index] * _sample_scale_y;
-                        //const f32 fz = (f32)z_abs * _sample_scale_xz;
-                        //
-                        //array::push_back( points, float3_t( fx, fy, fz ) );
-                        //array::push_back( normals, float3_t( 0.f ) );
 
                         aabb = bxAABB::extend( aabb, Vector3( point.x, point.y, point.z ) );
                     }

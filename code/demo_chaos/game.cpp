@@ -98,7 +98,7 @@ void Game::ShutDown()
 
 bool Game::Update()
 {
-    rmt_BeginCPUSample( Update, 0 );
+    rmt_ScopedCPUSample( Update, 0 );
 
     if( _time_query.isRunning() )
     {
@@ -121,13 +121,12 @@ bool Game::Update()
     bool result = true;
 
     {
-        rmt_BeginCPUSample( PreUpdate, 0 );
+        rmt_ScopedCPUSample( PreUpdate, 0 );
         result &= PreUpdateImpl( _time );
-        rmt_EndCPUSample();
     }
 
     {
-        rmt_BeginCPUSample( StateUpdate, 0 )
+        rmt_ScopedCPUSample( StateUpdate, 0 )
         if( !_state_stack.empty() )
         {
             std::vector<GameState*>::reverse_iterator it = _state_stack.rbegin();
@@ -138,13 +137,11 @@ bool Game::Update()
                 ( *it )->OnBackgroundUpdate( _time );
             }
         }
-        rmt_EndCPUSample();
     }
 
     {
-        rmt_BeginCPUSample( PostUpdate, 0 );
+        rmt_ScopedCPUSample( PostUpdate, 0 );
         result &= PostUpdateImpl( _time );
-        rmt_EndCPUSample();
     }
 
     if( ImGui::Begin( "GameUpdate" ) )
@@ -152,8 +149,6 @@ bool Game::Update()
         ImGui::Text( "DeltaTime: %f", _time.DeltaTimeSec() );
     }
     ImGui::End();
-
-    rmt_EndCPUSample();
 
     return result;
 }
@@ -163,21 +158,20 @@ void Game::Render()
     if( _state_stack.empty() )
         return;
     
-    rmt_BeginCPUSample( Render, 0 );
+    rmt_ScopedCPUSample( Render, 0 );
 
     rdi::CommandQueue* cmdq = nullptr;
     rdi::frame::Begin( &cmdq );
 
 
     {
-        rmt_BeginCPUSample( PreRender, 0 );
+        rmt_ScopedCPUSample( PreRender, 0 );
         PreRenderImpl( _time, cmdq );
-        rmt_EndCPUSample();
     }
 
 
     {
-        rmt_BeginCPUSample( StateRender, 0 );
+        rmt_ScopedCPUSample( StateRender, 0 );
         if( _state_stack.size() == 1 )
         {
             _state_stack[0]->OnRender( _time, cmdq );
@@ -192,19 +186,15 @@ void Game::Render()
 
             _state_stack.back()->OnRender( _time, cmdq );
         }
-        rmt_EndCPUSample();
     }
 
     {
-        rmt_BeginCPUSample( PostRender, 0 );
+        rmt_ScopedCPUSample( PostRender, 0 );
         PostRenderImpl( _time, cmdq );
-        rmt_EndCPUSample();
     }
 
 
     rdi::frame::End( &cmdq );
-
-    rmt_EndCPUSample();
 }
 
 void Game::Pause()

@@ -9,9 +9,12 @@
 #include <rdi\rdi_backend.h>
 
 
-namespace bx{namespace ship{
+namespace bx{
+    
+struct GameGfxDeffered;
 
-struct Gfx;
+namespace ship{
+
 
 struct Level
 {
@@ -25,8 +28,8 @@ struct Level
     // collectibles
     // terrain
 
-    void StartUp( Gfx* gfx, const char* levelName );
-    void ShutDown( Gfx* gfx );
+    void StartUp( GameGfxDeffered* gfx, const char* levelName );
+    void ShutDown( GameGfxDeffered* gfx );
 
     void Tick( const GameTime& time );
     void Render( rdi::CommandQueue* cmdq, const GameTime& time );

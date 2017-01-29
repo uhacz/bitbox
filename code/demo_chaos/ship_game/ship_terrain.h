@@ -18,7 +18,7 @@ struct Terrain
     u32 _num_samples_z = 0;
     f32* _samples = nullptr;
     f32 _sample_scale_xz = 1.0f;
-    f32 _sample_scale_y = 50.f;
+    f32 _sample_scale_y = 100.f;
     
     u32 _num_tiles_x = 16;
     u32 _num_tiles_z = 16;

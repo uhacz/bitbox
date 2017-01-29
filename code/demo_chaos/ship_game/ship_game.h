@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../game.h"
+#include "../game_gfx.h"
 #include "../renderer.h"
 #include <util/camera.h>
 
@@ -12,22 +13,10 @@ namespace ship
 
 struct Level;
 //////////////////////////////////////////////////////////////////////////
-struct Gfx
-{
-    gfx::Renderer renderer;
-
-    gfx::GeometryPass geometry_pass;
-    gfx::ShadowPass shadow_pass;
-    gfx::SsaoPass ssao_pass;
-    gfx::LightPass light_pass;
-    gfx::PostProcessPass post_pass;
-};
-
-//////////////////////////////////////////////////////////////////////////
 class LevelState : public GameState
 {
 public:
-    LevelState( Gfx* g )
+    LevelState( GameGfxDeffered* g )
         : _gfx( g ) {}
 
     const char* GetName() const override { return "Level"; }
@@ -40,8 +29,8 @@ public:
     gfx::Camera             _dev_camera           = {};
     gfx::CameraInputContext _dev_camera_input_ctx = {};
 
-    Gfx*   _gfx     = nullptr;
-    Level* _level   = nullptr;
+    GameGfxDeffered* _gfx   = nullptr;
+    Level*           _level = nullptr;
 
     bool _use_dev_camera = false;
 };
@@ -61,7 +50,7 @@ protected:
     void PostRenderImpl( const GameTime& time, rdi::CommandQueue* cmdq ) override;
 
 private:
-    Gfx _gfx;
+    GameGfxDeffered _gfx;
 };
 
 }}//

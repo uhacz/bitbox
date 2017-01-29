@@ -1,6 +1,7 @@
 #include "ship_level.h"
 #include "ship_game.h"
-#include "../renderer.h"
+
+#include "../game_gfx.h"
 
 #include <util/string_util.h>
 #include "util/common.h"
@@ -8,7 +9,7 @@
 
 namespace bx{ namespace ship{
 
-void Level::StartUp( Gfx* gfx, const char* levelName )
+void Level::StartUp( GameGfxDeffered* gfx, const char* levelName )
 {
     _name = string::duplicate( (char*)_name, levelName );
     _gfx_scene = gfx->renderer.CreateScene( levelName );
@@ -45,19 +46,18 @@ void Level::StartUp( Gfx* gfx, const char* levelName )
     //    _gfx_scene->SetMatrices( actor, &pose, 1 );
     //}
 
+    _player_camera._camera.params.zFar = 1000.f;
     _terrain.CreateFromFile( "model/terrain0.r32", _gfx_scene );
 
 }
 
-void Level::ShutDown( Gfx* gfx )
+void Level::ShutDown( GameGfxDeffered* gfx )
 {
     _terrain.Destroy();
 
     gfx->renderer.DestroyScene( &_gfx_scene );
     string::free( (char*)_name );
     _name = nullptr;
-
-
 }
 
 void Level::Tick( const GameTime& time )
