@@ -85,8 +85,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="flood_game\flood_game.cpp" />
+    <ClCompile Include="flood_game\flood_level.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="game_gfx.cpp" />
+    <ClCompile Include="game_gui.cpp" />
     <ClCompile Include="game_util.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
@@ -133,8 +136,11 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="flood_game\flood_game.h" />
+    <ClInclude Include="flood_game\flood_level.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="game_gfx.h" />
+    <ClInclude Include="game_gui.h" />
     <ClInclude Include="game_time.h" />
     <ClInclude Include="game_util.h" />
     <ClInclude Include="imgui\imconfig.h" />

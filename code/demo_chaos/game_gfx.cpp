@@ -2,9 +2,9 @@
 #include <resource_manager\resource_manager.h>
 #include <system\window.h>
 
-namespace bx
-{
-void GameGfxStartUp( GameGfxDeffered* gfx )
+namespace bx{ namespace game_gfx{
+
+void StartUp( Deffered* gfx )
 {
     ResourceManager* resource_manager = GResourceManager();
     {
@@ -20,7 +20,7 @@ void GameGfxStartUp( GameGfxDeffered* gfx )
         gfx::PostProcessPass::_StartUp( &gfx->post_pass );
     }
 }
-void GameGfxShutDown( GameGfxDeffered* gfx )
+void ShutDown( Deffered* gfx )
 {
     gfx::PostProcessPass::_ShutDown( &gfx->post_pass );
     gfx::LightPass::_ShutDown      ( &gfx->light_pass );
@@ -30,7 +30,7 @@ void GameGfxShutDown( GameGfxDeffered* gfx )
     gfx->renderer.ShutDown( bx::GResourceManager() );
 }
 
-void GameGfxDrawScene( rdi::CommandQueue* cmdq, GameGfxDeffered* gfx, gfx::Scene scene, const gfx::Camera& camera )
+void DrawScene( rdi::CommandQueue* cmdq, Deffered* gfx, gfx::Scene scene, const gfx::Camera& camera )
 {
     gfx->geometry_pass.PrepareScene( cmdq, scene, camera );
     gfx->geometry_pass.Flush( cmdq );
@@ -51,7 +51,7 @@ void GameGfxDrawScene( rdi::CommandQueue* cmdq, GameGfxDeffered* gfx, gfx::Scene
                             gfx->ssao_pass.SsaoTexture() );
 }
 
-void GameGfxPostProcess( rdi::CommandQueue* cmdq, GameGfxDeffered* gfx, const gfx::Camera& camera, float deltaTimeSec )
+void PostProcess( rdi::CommandQueue* cmdq, Deffered* gfx, const gfx::Camera& camera, float deltaTimeSec )
 {
     rdi::TextureDepth depthTexture = rdi::GetTextureDepth( gfx->geometry_pass.GBuffer() );
 
@@ -62,7 +62,7 @@ void GameGfxPostProcess( rdi::CommandQueue* cmdq, GameGfxDeffered* gfx, const gf
     gfx::Renderer::DebugDraw( cmdq, dstColor, depthTexture, camera );
 }
 
-void GameGfxRasterize( rdi::CommandQueue* cmdq, GameGfxDeffered* gfx, const gfx::Camera& camera )
+void Rasterize( rdi::CommandQueue* cmdq, Deffered* gfx, const gfx::Camera& camera )
 {
     rdi::ResourceRO* toRasterize[] =
     {
@@ -84,6 +84,4 @@ void GameGfxRasterize( rdi::CommandQueue* cmdq, GameGfxDeffered* gfx, const gfx:
     gfx->renderer.RasterizeFramebuffer( cmdq, texture, camera, win->width, win->height );
 }
 
-}///
-
-
+}}///

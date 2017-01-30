@@ -9,7 +9,7 @@
 
 namespace bx{ namespace ship{
 
-void Level::StartUp( GameGfxDeffered* gfx, const char* levelName )
+void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
 {
     _name = string::duplicate( (char*)_name, levelName );
     _gfx_scene = gfx->renderer.CreateScene( levelName );
@@ -51,7 +51,7 @@ void Level::StartUp( GameGfxDeffered* gfx, const char* levelName )
 
 }
 
-void Level::ShutDown( GameGfxDeffered* gfx )
+void Level::ShutDown( game_gfx::Deffered* gfx )
 {
     _terrain.Destroy();
 

@@ -16,7 +16,7 @@ struct Level;
 class LevelState : public GameState
 {
 public:
-    LevelState( GameGfxDeffered* g )
+    LevelState( game_gfx::Deffered* g )
         : _gfx( g ) {}
 
     const char* GetName() const override { return "Level"; }
@@ -29,8 +29,8 @@ public:
     gfx::Camera             _dev_camera           = {};
     gfx::CameraInputContext _dev_camera_input_ctx = {};
 
-    GameGfxDeffered* _gfx   = nullptr;
-    Level*           _level = nullptr;
+    game_gfx::Deffered* _gfx   = nullptr;
+    Level*              _level = nullptr;
 
     bool _use_dev_camera = false;
 };
@@ -50,7 +50,7 @@ protected:
     void PostRenderImpl( const GameTime& time, rdi::CommandQueue* cmdq ) override;
 
 private:
-    GameGfxDeffered _gfx;
+    game_gfx::Deffered _gfx;
 };
 
 }}//

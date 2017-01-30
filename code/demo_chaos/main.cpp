@@ -24,6 +24,7 @@
 
 #include "test_game/test_game.h"
 #include "ship_game/ship_game.h"
+#include "flood_game/flood_game.h"
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -74,7 +75,8 @@ public:
         //    }
         //}
 
-        _game = BX_NEW( bxDefaultAllocator(), bx::ship::ShipGame );
+        //_game = BX_NEW( bxDefaultAllocator(), bx::ship::ShipGame );
+        _game = BX_NEW( bxDefaultAllocator(), bx::flood::FloodGame );
         _game->StartUp();
 
         return true;
