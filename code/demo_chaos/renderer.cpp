@@ -319,7 +319,7 @@ void ShadowPass::_ComputeLightMatrixOrtho( LightMatrices* matrices, const Vector
     Matrix3 lRot = computeBasis1( -wsLightDirection );
     Matrix4 lWorld( lRot, wsCenter );
     Matrix4 lView = orthoInverse( lWorld );
-    rdi::debug_draw::AddAxes( lWorld );
+    //rdi::debug_draw::AddAxes( lWorld );
 
     bxAABB lsAABB = bxAABB::prepare();
     for( int i = 0; i < 8; ++i )
@@ -356,7 +356,7 @@ void ShadowPass::_ComputeLightMatrixOrtho( LightMatrices* matrices, const Vector
     //Matrix4 vp = cameraMatrixProjectionDx11( lProj ) * lView;
     //Vector4 a = vp * Point3( 0.f );
 
-    rdi::debug_draw::AddFrustum( lProj * lView, 0xFF00FF00, true );
+    //rdi::debug_draw::AddFrustum( lProj * lView, 0xFF00FF00, true );
 
     matrices->world = lWorld;
     matrices->view = lView;

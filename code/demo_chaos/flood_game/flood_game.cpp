@@ -7,6 +7,7 @@
 #include <rdi\rdi_debug_draw.h>
 
 #include "flood_level.h"
+#include "util\common.h"
 
 
 namespace bx {namespace flood {
@@ -53,6 +54,8 @@ void LevelState::OnStartUp()
 {
     _level = BX_NEW( bxDefaultAllocator(), Level );
     _level->StartUp( _gfx, "level" );
+
+    _dev_camera.world = Matrix4( Matrix3::rotationX( -PI/8 ),  Vector3( 0.f, 4.5f, 9.f ) );
 }
 
 void LevelState::OnShutDown()
