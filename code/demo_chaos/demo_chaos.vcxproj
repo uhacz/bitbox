@@ -85,8 +85,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="flood_game\flood_fluid.cpp" />
     <ClCompile Include="flood_game\flood_game.cpp" />
     <ClCompile Include="flood_game\flood_level.cpp" />
+    <ClCompile Include="flood_game\SPHKernels.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="game_gfx.cpp" />
     <ClCompile Include="game_gui.cpp" />
@@ -136,8 +138,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="flood_game\flood_fluid.h" />
     <ClInclude Include="flood_game\flood_game.h" />
     <ClInclude Include="flood_game\flood_level.h" />
+    <ClInclude Include="flood_game\SPHKernels.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="game_gfx.h" />
     <ClInclude Include="game_gui.h" />
