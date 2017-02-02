@@ -20,6 +20,9 @@ struct Fluid
     f32 density0 = 1000.f;
     f32 viscosity = 0.02f;
 
+    u32 _maxIterations = 100;
+    f32 _maxError = 0.01f;
+
     u32 NumParticles() const { return array::sizeu( x ); }
 };
 

@@ -5,7 +5,7 @@
 #include <util\type.h>
 #include <util\vectormath\vectormath.h>
 
-#define NO_DISTANCE_TEST
+//#define NO_DISTANCE_TEST
 
 namespace PBD
 {
@@ -61,26 +61,26 @@ namespace PBD
 			const f32 rl = length( r ).getAsFloat();
 			const f32 q = rl / m_radius;
 #ifndef NO_DISTANCE_TEST
-			if (q <= 1.0)
-#endif
-			{
-				if (rl > 1.0e-6)
-				{
-					const Vector3 gradq = r * ((f32) 1.0 / (rl*m_radius));
-					if (q <= 0.5)
-					{
-						res = m_l*q*((f32) 3.0*q - (f32) 2.0)*gradq;
-					}
-					else
-					{
-						const f32 factor = 1.0f - q;
-						res = m_l*(-factor*factor)*gradq;
-					}
-				}
-			}
-#ifndef NO_DISTANCE_TEST
- 			else
- 				res.zero();
+            if( q <= 1.0 )
+            #endif
+            {
+                if( rl > 1.0e-6 )
+                {
+                    const Vector3 gradq = r * ( ( f32 ) 1.0 / ( rl*m_radius ) );
+                    if( q <= 0.5 )
+                    {
+                        res = m_l*q*( ( f32 ) 3.0*q - ( f32 ) 2.0 )*gradq;
+                    }
+                    else
+                    {
+                        const f32 factor = 1.0f - q;
+                        res = m_l*( -factor*factor )*gradq;
+                    }
+                }
+            }
+        #ifndef NO_DISTANCE_TEST
+            else
+                res = Vector3( 0.f );
 #endif
 
 			return res;
