@@ -5,6 +5,37 @@
 
 namespace bx{ namespace flood{
 
+
+
+struct NeighbourSearch
+{
+    union Key
+    {
+        __m128i vec;
+        struct  
+        {
+            i32 x, y, z, w;
+        };
+    };
+    static Key MakeKey( const __m128 point, const __m128 cellSizeInv )
+    {
+        static const __m128 _1111 = _mm_set1_ps( 1.f );
+        static const __m128 _0000 = _mm_set1_ps( 0.f );
+        __m128 point_in_grid = vec_mul( point, cellSizeInv );
+        point_in_grid = vec_sel( vec_sub( point_in_grid, _1111 ), point_in_grid, vec_cmpge( point, _0000 ) );
+        Key k;
+        k.vec = _mm_cvtps_epi32( point_in_grid );
+        return k;
+    }
+    
+    f32 _cell_size_inv = 0.f;
+
+    hashmap_t _map;
+
+    
+
+};
+
 struct Fluid
 {
     array_t<Vector3> x;

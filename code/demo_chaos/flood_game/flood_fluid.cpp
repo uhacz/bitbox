@@ -26,6 +26,10 @@ void FluidCreate( Fluid* f, u32 numParticles, float particleRadius )
     array::reserve( f->dpos   , numParticles );
 
     f->particle_radius = particleRadius;
+    f->support_radius = 4.f * particleRadius;
+    PBD::CubicKernel::setRadius( f->support_radius );
+    PBD::Poly6Kernel::setRadius( f->support_radius );
+    PBD::SpikyKernel::setRadius( f->support_radius );
 
     for( u32 i = 0; i < numParticles; ++i )
     {
@@ -51,7 +55,7 @@ void FluidInitBox( Fluid* f, const Matrix4& pose )
     u32 a = (u32)fa;
 
     const float offset = -fa * 0.5f;
-    const float spacing = f->particle_radius * 1.1f;
+    const float spacing = f->particle_radius * 2.f;
 
     const bxGrid grid( a, a, a );
 
@@ -79,7 +83,7 @@ void FluidInitBox( Fluid* f, const Matrix4& pose )
         }
     }
     FluidInitMass( f );
-    PBD::CubicKernel::setRadius( f->support_radius );
+    
 }
 
 //namespace pbd
@@ -174,16 +178,32 @@ void FluidSolvePressure( Fluid* f )
     {
         avg_density_err = 0.f;
 
+        //memset( f->density.begin(), 0x00, num_particles * sizeof( f32 ) );
+
         for( u32 i = 0; i < num_particles; ++i )
         {
             // -- compute particle density
+            //float density = f->density[i];
+            //density += particle_mass * PBD::CubicKernel::W_zero();
+            //for( u32 j = i+1; j < num_particles; ++j )
+            //{
+            //    float value = particle_mass * PBD::CubicKernel::W( x[i] - x[j] );
+            //    density += value;
+            //    f->density[j] += value;
+            //}
+            //f->density[i] = density;
+
             float density = particle_mass * PBD::CubicKernel::W_zero();
             for( u32 j = 0; j < num_particles; ++j )
             {
-                if( i == j )
+                //if( i == j )
+                //    continue;
+
+                if( lengthSqr( x[i] - x[j] ).getAsFloat() > aa )
                     continue;
 
-                density += particle_mass * PBD::CubicKernel::W( x[i] - x[j] );
+                float value = particle_mass * PBD::CubicKernel::W( x[i] - x[j] );
+                density += value;
             }
             f->density[i] = density;
             avg_density_err += ( maxOfPair( density, density0 ) - density0 ) * num_particles_inv;
@@ -192,7 +212,6 @@ void FluidSolvePressure( Fluid* f )
             // Evaluate constraint function
             const float C = maxOfPair( density / density0 - 1.0f, 0.0f );			// clamp to prevent particle clumping at surface
 
-            float lambda = 0.f;
 
             if( C != 0.0f )
             {
@@ -205,6 +224,9 @@ void FluidSolvePressure( Fluid* f )
                     if( i == j )
                         continue;
 
+                    //if( lengthSqr( x[j] - x[i] ).getAsFloat() > aa )
+                    //    continue;
+
                     const Vector3 gradC_j = -particle_mass / density0 * PBD::CubicKernel::gradW( x[i] - x[j] );
                     sum_grad_C2 += lengthSqr( gradC_j ).getAsFloat();
                     gradC_i -= gradC_j;
@@ -212,14 +234,12 @@ void FluidSolvePressure( Fluid* f )
                 sum_grad_C2 += lengthSqr( gradC_i ).getAsFloat();
 
                 // Compute lambda
-                lambda = -C / ( sum_grad_C2 + eps );
+                f->lambda[i] = -C / ( sum_grad_C2 + eps );
             }
             else
             {
-                lambda = 0.0f;
+                f->lambda[i] = 0.f;
             }
-
-            f->lambda[i] = lambda;
         }
 
         // -- position correction
@@ -235,10 +255,10 @@ void FluidSolvePressure( Fluid* f )
 
                 const Vector3& xj = f->p[j];
 
-                if( lengthSqr( xj - xi ).getAsFloat() > aa )
-                    continue;
+                //if( lengthSqr( xj - xi ).getAsFloat() > aa )
+                //    continue;
 
-                const Vector3 gradC_j = -particle_mass / density0 * PBD::CubicKernel::gradW( xi - xj );
+                const Vector3 gradC_j = -(particle_mass / density0) * PBD::CubicKernel::gradW( xi - xj );
                 corr -= ( f->lambda[i] + f->lambda[j] ) * gradC_j;
             }
             f->dpos[i] = corr;
@@ -275,6 +295,7 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
     {
         Vector3 p = f->p[i];
 
+        Vector3 corr( 0.f );
         for( u32 j = 0; j < colliders.num_planes; ++j )
         {
             const Vector4& plane = colliders.planes[j];
@@ -282,9 +303,11 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
             Vector3 dpos = -plane.getXYZ() * minf4( d, zeroVec );
 
             p += dpos;
+            corr += dpos;
         }
 
         f->p[i] = p;
+        //f->v[i] += corr;
     }
 
     const float delta_time_inv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
