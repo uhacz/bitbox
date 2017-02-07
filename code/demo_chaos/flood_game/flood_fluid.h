@@ -2,6 +2,7 @@
 
 #include <util/array.h>
 #include <util/vectormath/vectormath.h>
+#include <intrin.h>
 
 namespace bx{ namespace flood{
 
@@ -9,31 +10,15 @@ namespace bx{ namespace flood{
 
 struct NeighbourSearch
 {
-    union Key
-    {
-        __m128i vec;
-        struct  
-        {
-            i32 x, y, z, w;
-        };
-    };
-    static Key MakeKey( const __m128 point, const __m128 cellSizeInv )
-    {
-        static const __m128 _1111 = _mm_set1_ps( 1.f );
-        static const __m128 _0000 = _mm_set1_ps( 0.f );
-        __m128 point_in_grid = vec_mul( point, cellSizeInv );
-        point_in_grid = vec_sel( vec_sub( point_in_grid, _1111 ), point_in_grid, vec_cmpge( point, _0000 ) );
-        Key k;
-        k.vec = _mm_cvtps_epi32( point_in_grid );
-        return k;
-    }
-    
+    void FindNeighbours( const Vector3* points, u32 numPoints );
+    void SetCellSize( float value );
+
     f32 _cell_size_inv = 0.f;
 
-    hashmap_t _map;
-
-    
-
+    typedef array_t<u32> Indices;
+    hashmap_t        _map;
+    array_t<Indices> _point_neighbour_list;
+    array_t<size_t>  _point_spatial_hash;
 };
 
 struct Fluid
@@ -53,6 +38,8 @@ struct Fluid
 
     u32 _maxIterations = 100;
     f32 _maxError = 0.01f;
+
+    NeighbourSearch _neighbours;
 
     u32 NumParticles() const { return array::sizeu( x ); }
 };

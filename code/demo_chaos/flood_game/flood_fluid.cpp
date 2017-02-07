@@ -1,11 +1,96 @@
 #include "flood_fluid.h"
 #include <rdi/rdi_debug_draw.h>
-#include "util/grid.h"
-#include "util/common.h"
+#include <util/grid.h>
+#include <util/common.h>
+#include <util/hashmap.h>
 
 #include "SPHKernels.h"
 
 namespace bx {namespace flood {
+
+    //union Key
+    //{
+    //    __m128i vec;
+    //    struct  
+    //    {
+    //        i32 x, y, z, w;
+    //    };
+    //};
+    //static Key MakeKey( const __m128 point, const __m128 cellSizeInv )
+    //{
+    //    static const __m128 _1111 = _mm_set1_ps( 1.f );
+    //    static const __m128 _0000 = _mm_set1_ps( 0.f );
+    //    __m128 point_in_grid = vec_mul( point, cellSizeInv );
+    //    point_in_grid = vec_sel( vec_sub( point_in_grid, _1111 ), point_in_grid, vec_cmpge( point, _0000 ) );
+    //    Key k;
+    //    k.vec = _mm_cvtps_epi32( point_in_grid );
+    //    return k;
+    //}
+    //static size_t MakeHash( Key key )
+    //{
+    //    __m128i prime = { 73856093, 19349663, 83492791, 0 };
+    //     key.vec = _mm_mul_epi32( prime, key.vec );
+
+    //     return key.x ^ key.y ^ key.z;
+    //}
+    
+    union SpatialHash
+    {
+        size_t hash;
+        struct
+        {
+            i64 x : 21;
+            i64 y : 21;
+            i64 z : 21;
+            i64 w : 1;
+        };
+    };
+    static inline SpatialHash MakeHash( const __m128 point, const __m128 cellSizeInv )
+    {
+        static const __m128 _1111 = _mm_set1_ps( 1.f );
+        static const __m128 _0000 = _mm_set1_ps( 0.f );
+        __m128 point_in_grid = vec_mul( point, cellSizeInv );
+        point_in_grid = vec_sel( vec_sub( point_in_grid, _1111 ), point_in_grid, vec_cmpge( point, _0000 ) );
+
+        const __m128i point_in_grid_int = _mm_cvtps_epi32( point_in_grid );
+
+        SpatialHash shash;
+        shash.w = 1;
+        shash.x = point_in_grid_int.m128i_i32[0];
+        shash.y = point_in_grid_int.m128i_i32[1];
+        shash.z = point_in_grid_int.m128i_i32[2];
+        return shash;
+    }
+
+    void NeighbourSearch::FindNeighbours( const Vector3* points, u32 numPoints )
+    {
+        const __m128 cell_size_inv_vec = _mm_set1_ps( _cell_size_inv );
+
+
+
+        array::clear( _point_spatial_hash );
+        array::clear( _point_neighbour_list );
+        hashmap::clear( _map );
+
+        array::reserve( _point_spatial_hash, numPoints );
+        array::reserve( _point_neighbour_list, numPoints );
+
+        for( u32 i = 0; i < numPoints; ++i )
+        {
+            SpatialHash hash = MakeHash( points[i].get128(), cell_size_inv_vec );
+
+
+
+            int dupa = 0;
+        }
+    }
+
+    void NeighbourSearch::SetCellSize( float value )
+    {
+        SYS_ASSERT( value > FLT_EPSILON );
+        _cell_size_inv = 1.f / value;
+    }
+
 
 //////////////////////////////////////////////////////////////////////////
 void FluidClear( Fluid* f )
@@ -30,6 +115,8 @@ void FluidCreate( Fluid* f, u32 numParticles, float particleRadius )
     PBD::CubicKernel::setRadius( f->support_radius );
     PBD::Poly6Kernel::setRadius( f->support_radius );
     PBD::SpikyKernel::setRadius( f->support_radius );
+
+    f->_neighbours.SetCellSize( f->support_radius );
 
     for( u32 i = 0; i < numParticles; ++i )
     {
@@ -286,6 +373,8 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
         f->p[i] = p;
     }
 
+    f->_neighbours.FindNeighbours( array::begin( f->p ), array::sizeu( f->p ) );
+
     {
         FluidSolvePressure( f );
     }
@@ -323,5 +412,7 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
         //rdi::debug_draw::AddSphere( Vector4( pos, f->_particle_radius ), 0x0000FFFF, 1 );
     }
 }
+
+
 
 }}///
