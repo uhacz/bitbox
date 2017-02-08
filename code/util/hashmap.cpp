@@ -34,6 +34,31 @@ namespace hashmap
 	    return k;
     }
 
+    inline uint32_t upper_power_of_two( uint32_t v )
+    {
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        v++;
+        return v;
+    }
+
+    inline uint64_t upper_power_of_two( uint64_t v )
+    {
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        v |= v >> 32;
+        v++;
+        return v;
+    }
+
     void _Grow( hashmap_t& hmap, size_t desiredSize)
     {
         SYS_ASSERT((desiredSize & (desiredSize - 1)) == 0);   // Must be a power of 2
@@ -174,6 +199,15 @@ namespace hashmap
     {
         memset( hmap.cells, 0, sizeof(Cell) * hmap.capacity );
         hmap.size = 0;
+    }
+
+    void reserve( hashmap_t& hmap, size_t desiredSize )
+    {
+        if( hmap.size * 4 <= desiredSize * 3 )
+            return;
+
+        desiredSize = upper_power_of_two( desiredSize );
+        _Grow( hmap, desiredSize );
     }
 
     //----------------------------------------------

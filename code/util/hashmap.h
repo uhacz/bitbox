@@ -4,13 +4,15 @@
 
 namespace hashmap
 {
-    hashmap_t::cell_t* lookup( hashmap_t& hmap, size_t key);
+          hashmap_t::cell_t* lookup(       hashmap_t& hmap, size_t key);
     const hashmap_t::cell_t* lookup( const hashmap_t& hmap, size_t key );
+    
     hashmap_t::cell_t* insert( hashmap_t& hmap, size_t key);
-    hashmap_t::cell_t* set( hashmap_t& hmap, size_t key, size_t value );
+    hashmap_t::cell_t* set   ( hashmap_t& hmap, size_t key, size_t value );
 
     void erase( hashmap_t& hmap, hashmap_t::cell_t* cell);
     void clear( hashmap_t& hmap );
+    void reserve( hashmap_t& hmap, size_t desiredSize );
 
     inline bool empty( const hashmap_t& hmap ) { return hmap.size == 0; }
     inline int size( const hashmap_t& hmap ) { return (int)hmap.size; }

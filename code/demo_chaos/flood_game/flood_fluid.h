@@ -16,9 +16,13 @@ struct NeighbourSearch
     f32 _cell_size_inv = 0.f;
 
     typedef array_t<u32> Indices;
+    
     hashmap_t        _map;
+    array_t<size_t>  _map_cells;
     array_t<Indices> _point_neighbour_list;
     array_t<size_t>  _point_spatial_hash;
+
+    u32 _num_points = 0;
 };
 
 struct Fluid

@@ -33,6 +33,35 @@ namespace bx {namespace flood {
 
     //     return key.x ^ key.y ^ key.z;
     //}
+    union PointListCell
+    {
+        size_t hash;
+        struct
+        {
+            u32 index;
+            u32 next;
+        };
+
+        static inline PointListCell makeEmpty() { PointListCell cell = { UINT64_MAX }; return cell; }
+    };
+    void ListPushBack( hashmap_t& map, array_t<size_t>& cellAllocator, size_t mapKey, u32 pointIndex )
+    {
+        hashmap_t::cell_t* cell = hashmap::lookup( map, mapKey );
+        if( !cell )
+        {
+            
+        }
+    }
+    bool ListNext( PointListCell* cell, const array_t<size_t>& cells )
+    {
+        if( cell->next == UINT32_MAX )
+            return false;
+
+        SYS_ASSERT( cell->next < cells.size );
+
+        cell->hash = cells[cell->next];
+        return true;
+    }
     
     union SpatialHash
     {
@@ -64,9 +93,8 @@ namespace bx {namespace flood {
 
     void NeighbourSearch::FindNeighbours( const Vector3* points, u32 numPoints )
     {
+        _num_points = numPoints;
         const __m128 cell_size_inv_vec = _mm_set1_ps( _cell_size_inv );
-
-
 
         array::clear( _point_spatial_hash );
         array::clear( _point_neighbour_list );
@@ -74,6 +102,7 @@ namespace bx {namespace flood {
 
         array::reserve( _point_spatial_hash, numPoints );
         array::reserve( _point_neighbour_list, numPoints );
+        hashmap::reserve( _map, numPoints );
 
         for( u32 i = 0; i < numPoints; ++i )
         {
