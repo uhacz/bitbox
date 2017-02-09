@@ -273,7 +273,7 @@ void FluidInitBox( Fluid* f, const Matrix4& pose )
 //
 //}
 static Fluid* g_fluid = nullptr;
-void FluidSolvePressure( Fluid* f )
+void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
 {
     g_fluid = f;
     const u32 num_particles = f->NumParticles();
@@ -282,6 +282,11 @@ void FluidSolvePressure( Fluid* f )
     const float eps = 1.0e-6f;
     const float particle_mass = f->particle_mass;
     const float density0 = f->density0;
+    const floatInVec density0_inv( 1.f / density0 );
+    const floatInVec particle_mass_vec( particle_mass );
+    const floatInVec particle_mass_div_density0 = particle_mass_vec * density0_inv;
+    const floatInVec support_radius_vec( f->support_radius );
+
     const Vector3* x = array::begin( f->p );
 
     const float eta = f->_maxError * 0.01f * density0;
@@ -289,7 +294,7 @@ void FluidSolvePressure( Fluid* f )
     float avg_density_err = 0.f;
     
     const float aa = f->support_radius * f->support_radius;
-
+    const float s = aa * PI / (f->particle_radius*f->particle_radius);
     while( ( ( avg_density_err > eta ) || ( iterations < 2 ) ) && ( iterations < f->_maxIterations ) )
     {
         avg_density_err = 0.f;
@@ -315,12 +320,25 @@ void FluidSolvePressure( Fluid* f )
                 //if( i == j )
                 //    continue;
 
-                if( lengthSqr( x[i] - x[j] ).getAsFloat() > aa )
-                    continue;
+                //if( lengthSqr( x[i] - x[j] ).getAsFloat() > aa )
+                //    continue;
 
                 float value = particle_mass * PBD::CubicKernel::W( x[i] - x[j] );
                 density += value;
             }
+
+            float colliders_density = 0.f;
+            for( u32 j = 0; j < colliders.num_planes; ++j )
+            {
+                const Vector4& plane = colliders.planes[j];
+                const floatInVec d = dot( plane, Vector4( x[i], oneVec ) );
+                
+                Vector3 dpos = plane.getXYZ() * maxf4( d, zeroVec );
+                
+                colliders_density += PBD::CubicKernel::W( dpos );
+            }
+
+            density += s * colliders_density;
             f->density[i] = density;
             avg_density_err += ( maxOfPair( density, density0 ) - density0 ) * num_particles_inv;
         
@@ -332,7 +350,7 @@ void FluidSolvePressure( Fluid* f )
             if( C != 0.0f )
             {
                 // Compute gradients dC/dx_j 
-                float sum_grad_C2 = 0.0f;
+                floatInVec sum_grad_C2 = zeroVec;
                 Vector3 gradC_i( 0.0f, 0.0f, 0.0f );
 
                 for( u32 j = 0; j < num_particles; ++j )
@@ -343,14 +361,29 @@ void FluidSolvePressure( Fluid* f )
                     //if( lengthSqr( x[j] - x[i] ).getAsFloat() > aa )
                     //    continue;
 
-                    const Vector3 gradC_j = -particle_mass / density0 * PBD::CubicKernel::gradW( x[i] - x[j] );
-                    sum_grad_C2 += lengthSqr( gradC_j ).getAsFloat();
+                    const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::CubicKernel::gradW( x[i] - x[j] );
+                    sum_grad_C2 += lengthSqr( gradC_j );
                     gradC_i -= gradC_j;
                 }
-                sum_grad_C2 += lengthSqr( gradC_i ).getAsFloat();
+                
+
+                //float sum_grad
+                floatInVec sum_grad_C2_colliders( 0.f );
+                for( u32 j = 0; j < colliders.num_planes; ++j )
+                {
+                    const Vector4& plane = colliders.planes[j];
+                    const floatInVec d = dot( plane, Vector4( x[i], oneVec ) );
+                    Vector3 dpos = plane.getXYZ() * d;
+
+                    const Vector3 grad = -PBD::CubicKernel::gradW( dpos );
+                    sum_grad_C2_colliders += lengthSqr( grad );
+                }
 
                 // Compute lambda
-                f->lambda[i] = -C / ( sum_grad_C2 + eps );
+                sum_grad_C2 += lengthSqr( gradC_i );
+                sum_grad_C2 += sum_grad_C2_colliders * floatInVec( s );
+
+                f->lambda[i] = -C / ( sum_grad_C2.getAsFloat() + eps );
             }
             else
             {
@@ -374,10 +407,23 @@ void FluidSolvePressure( Fluid* f )
                 //if( lengthSqr( xj - xi ).getAsFloat() > aa )
                 //    continue;
 
-                const Vector3 gradC_j = -(particle_mass / density0) * PBD::CubicKernel::gradW( xi - xj );
+                const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::CubicKernel::gradW( xi - xj );
                 corr -= ( f->lambda[i] + f->lambda[j] ) * gradC_j;
             }
-            f->dpos[i] = corr;
+
+            Vector3 corr_colliders( 0.f );
+            for( u32 j = 0; j < colliders.num_planes; ++j )
+            {
+                const Vector4& plane = colliders.planes[j];
+                const floatInVec d = dot( plane, Vector4( x[i], oneVec ) );
+                Vector3 dpos = plane.getXYZ() * d;
+
+                const Vector3 gradC_j = -(s / density0) * PBD::CubicKernel::gradW( dpos );
+                const Vector3 dx = 2.0f * f->lambda[i] * gradC_j;
+                corr_colliders -= dx;
+            }
+
+            f->dpos[i] = corr + corr_colliders;
         }
 
         for( u32 i = 0; i < num_particles; ++i )
@@ -405,28 +451,28 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
     f->_neighbours.FindNeighbours( array::begin( f->p ), array::sizeu( f->p ) );
 
     {
-        FluidSolvePressure( f );
+        FluidSolvePressure( f, colliders );
     }
 
 
-    for( u32 i = 0; i < n; ++i )
-    {
-        Vector3 p = f->p[i];
+    //for( u32 i = 0; i < n; ++i )
+    //{
+    //    Vector3 p = f->p[i];
 
-        Vector3 corr( 0.f );
-        for( u32 j = 0; j < colliders.num_planes; ++j )
-        {
-            const Vector4& plane = colliders.planes[j];
-            const floatInVec d = dot( plane, Vector4( p, oneVec ) );
-            Vector3 dpos = -plane.getXYZ() * minf4( d, zeroVec );
+    //    Vector3 corr( 0.f );
+    //    for( u32 j = 0; j < colliders.num_planes; ++j )
+    //    {
+    //        const Vector4& plane = colliders.planes[j];
+    //        const floatInVec d = dot( plane, Vector4( p, oneVec ) );
+    //        Vector3 dpos = -plane.getXYZ() * minf4( d, zeroVec );
 
-            p += dpos;
-            corr += dpos;
-        }
+    //        p += dpos;
+    //        corr += dpos;
+    //    }
 
-        f->p[i] = p;
-        //f->v[i] += corr;
-    }
+    //    f->p[i] = p;
+    //    //f->v[i] += corr;
+    //}
 
     const float delta_time_inv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
     for( u32 i = 0; i < n; ++i )

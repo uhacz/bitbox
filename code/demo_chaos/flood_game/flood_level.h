@@ -27,9 +27,9 @@ struct Level
     void Render( rdi::CommandQueue* cmdq, const GameTime& time );
 
     f32 _world_scale   = 0.01f;
-    u32 _volume_width  = 512;
+    u32 _volume_width  = 256;
     u32 _volume_height = 256;
-    u32 _volume_depth  = 512;
+    u32 _volume_depth  = 256;
 
     Vector4 _plane_right;
     Vector4 _plane_bottom;
