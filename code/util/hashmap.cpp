@@ -203,10 +203,10 @@ namespace hashmap
 
     void reserve( hashmap_t& hmap, size_t desiredSize )
     {
-        if( hmap.size * 4 <= desiredSize * 3 )
+        desiredSize = upper_power_of_two( desiredSize );
+        if( hmap.capacity >= desiredSize )
             return;
 
-        desiredSize = upper_power_of_two( desiredSize );
         _Grow( hmap, desiredSize );
     }
 

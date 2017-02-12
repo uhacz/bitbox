@@ -1,8 +1,10 @@
 #pragma once
 
 #include <util/array.h>
+#include <util/vector.h>
 #include <util/vectormath/vectormath.h>
 #include <intrin.h>
+
 
 namespace bx{ namespace flood{
 
@@ -10,19 +12,31 @@ namespace bx{ namespace flood{
 
 struct NeighbourSearch
 {
+    typedef array_t<u32> Indices;
+    typedef array_t<size_t> MapCells;
+
     void FindNeighbours( const Vector3* points, u32 numPoints );
     void SetCellSize( float value );
+    const Indices& GetNeighbours( u32 index ) const;
 
     f32 _cell_size_inv = 0.f;
 
-    typedef array_t<u32> Indices;
     
-    hashmap_t        _map;
-    array_t<size_t>  _map_cells;
-    array_t<Indices> _point_neighbour_list;
+    hashmap_t _map;
+    MapCells  _map_cells;
+
+    vector_t<Indices> _point_neighbour_list;
     array_t<size_t>  _point_spatial_hash;
 
     u32 _num_points = 0;
+
+    static const u32 INITIAL_NEIGHBOUR_COUNT = 96;
+};
+
+struct StaticBody
+{
+    array_t<Vector3> x;
+
 };
 
 struct Fluid
