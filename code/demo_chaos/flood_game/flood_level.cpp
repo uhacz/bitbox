@@ -49,7 +49,16 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
         _plane_back   = makePlane( -Vector3::zAxis(), Vector3( 0.f, 0.f, depth * 0.5f ) );
     }
 
+
+
     FluidCreate( &_fluid, 5*5*5, 0.1f );
+
+    {
+        StaticBodyCreateBox( &_boundary[0], 2, _volume_height, _volume_depth, 0.1f, Matrix4::translation( Vector3( width*0.5f, 0.f, 0.f ) ) );
+        StaticBodyDoNeighbourMap( &_boundary[0], _fluid.support_radius );
+
+
+    }
 
     //const Matrix4 init_pose = Matrix4( Matrix3::rotationZ( PI / 4 ), Vector3( 0.f ) );
     const Matrix4 init_pose = Matrix4::identity();

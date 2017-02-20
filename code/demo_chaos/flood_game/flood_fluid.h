@@ -8,12 +8,14 @@
 
 namespace bx{ namespace flood{
 
+typedef array_t<u32> Indices;
+typedef array_t<size_t> MapCells;
 
-
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 struct NeighbourSearch
 {
-    typedef array_t<u32> Indices;
-    typedef array_t<size_t> MapCells;
+    
 
     void FindNeighbours( const Vector3* points, u32 numPoints );
     void SetCellSize( float value );
@@ -26,19 +28,38 @@ struct NeighbourSearch
     MapCells  _map_cells;
 
     vector_t<Indices> _point_neighbour_list;
-    array_t<size_t>  _point_spatial_hash;
+    array_t <size_t>  _point_spatial_hash;
 
     u32 _num_points = 0;
 
     static const u32 INITIAL_NEIGHBOUR_COUNT = 96;
 };
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 struct StaticBody
 {
-    array_t<Vector3> x;
+    const Indices* GetNeighbours( const Vector3 posWS );
+    const Vector3& GetPosition( u32 index ) { return _x[index]; }
 
+    // ---
+    vec_float4 _map_cell_size_inv_vec;
+    f32 _particle_radius = 0.f;
+    f32 _map_cell_size = 0.f;
+
+    array_t<Vector3> _x;
+    
+    /*
+    * this map maps particle world position to list of neighbors
+    */
+    hashmap_t _map;
+    vector_t<Indices> _cell_neighbour_list;
 };
+void StaticBodyCreateBox( StaticBody* body, u32 countX, u32 countY, u32 countZ, float particleRadius, const Matrix4& toWS );
+void StaticBodyDoNeighbourMap( StaticBody* body, float supportRadius );
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 struct Fluid
 {
     array_t<Vector3> x;

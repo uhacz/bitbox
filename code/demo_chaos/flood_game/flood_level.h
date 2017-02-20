@@ -39,6 +39,7 @@ struct Level
     Vector4 _plane_back;
 
     Fluid _fluid;
+    StaticBody _boundary[6];
 };
 
 }}
