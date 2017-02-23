@@ -7,6 +7,8 @@
 #include "../imgui/imgui.h"
 
 #include "SPHKernels.h"
+#include "util/time.h"
+#include "util/random.h"
 
 
 
@@ -120,7 +122,7 @@ namespace bx {namespace flood {
         __m128 point_in_grid = vec_mul( point, cellSizeInv );
         //point_in_grid = vec_sel( vec_sub( point_in_grid, _1111 ), point_in_grid, vec_cmpge( point, _0000 ) );
 
-        const __m128i point_in_grid_int = _mm_cvtps_epi32( point_in_grid );
+        const __m128i point_in_grid_int = _mm_cvttps_epi32( point_in_grid );
 
         SpatialHash shash;
         shash.w = 1;
@@ -201,11 +203,14 @@ namespace bx {namespace flood {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    const Indices* StaticBody::GetNeighbours( const Vector3 posWS )
+    const Indices* __vectorcall StaticBody::GetNeighbours( const Vector3 posWS ) const
     {
         SpatialHash hash = MakeHash( posWS.get128(), _map_cell_size_inv_vec );
-        hashmap_t::cell_t* cell = hashmap::lookup( _map, hash.hash );
-        SYS_ASSERT( cell->value < _cell_neighbour_list.size() );
+        const hashmap_t::cell_t* cell = hashmap::lookup( _map, hash.hash );
+        if( cell )
+        {
+            SYS_ASSERT( cell->value < _cell_neighbour_list.size() );
+        }
 
         return ( cell ) ? &_cell_neighbour_list[cell->value] : nullptr;
     }
@@ -213,6 +218,7 @@ namespace bx {namespace flood {
 
     void StaticBodyCreateBox( StaticBody* body, u32 countX, u32 countY, u32 countZ, float particleRadius, const Matrix4& toWS )
     {
+        body->_particle_radius = particleRadius;
         const float particle_phi = particleRadius * 2.f;
         const Vector3 center_shift = Vector3( countX*0.5f, countY*0.5f, countZ*0.5f ) * particle_phi;
 
@@ -303,6 +309,18 @@ namespace bx {namespace flood {
         }
     }
 
+    void StaticBodyDebugDraw( const StaticBody& body, u32 color )
+    {
+        const u32 max_visible_particles = 100;
+
+        bxRandomGen rnd( bxTime::ms() );
+        for( u32 i = 0; i < max_visible_particles; ++i )
+        {
+            u32 index = rnd.get0n( body._x.size );
+            rdi::debug_draw::AddSphere( Vector4( body._x[index], body._particle_radius ), color, 1 );
+        }
+    }
+
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////
 
@@ -331,7 +349,7 @@ void FluidCreate( Fluid* f, u32 numParticles, float particleRadius )
     PBD::Poly6Kernel::setRadius( f->support_radius );
     PBD::SpikyKernel::setRadius( f->support_radius );
 
-    f->_neighbours.SetCellSize( f->support_radius );
+    f->_neighbours.SetCellSize( f->particle_radius * 2 );
 
     for( u32 i = 0; i < numParticles; ++i )
     {
@@ -357,7 +375,7 @@ void FluidInitBox( Fluid* f, const Matrix4& pose )
     u32 a = (u32)fa;
 
     const float offset = -fa * 0.5f;
-    const float spacing = f->particle_radius * 2.f;
+    const float spacing = f->particle_radius * 2.2f;
 
     const bxGrid grid( a, a, a );
 
@@ -489,48 +507,32 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
 
         for( u32 i = 0; i < num_particles; ++i )
         {
-            // -- compute particle density
-            //float density = f->density[i];
-            //density += particle_mass * PBD::CubicKernel::W_zero();
-            //for( u32 j = i+1; j < num_particles; ++j )
-            //{
-            //    float value = particle_mass * PBD::CubicKernel::W( x[i] - x[j] );
-            //    density += value;
-            //    f->density[j] += value;
-            //}
-            //f->density[i] = density;
-
             float density = particle_mass * PBD::CubicKernel::W_zero();
             const Indices& neighbours = f->_neighbours.GetNeighbours( i );
 
             for( u32 ni = 0; ni < neighbours.size; ++ni )
             {
                 const u32 j = neighbours[ni];
-                //if( i == j )
-                //    continue;
-
-                //if( lengthSqr( x[i] - x[j] ).getAsFloat() > aa )
-                //    continue;
-
-
-
                 float value = particle_mass * PBD::CubicKernel::W( x[i] - x[j] );
                 density += value;
             }
 
-            //float colliders_density = 0.f;
-            //for( u32 j = 0; j < colliders.num_planes; ++j )
-            //{
-            //    const Vector4& plane = colliders.planes[j];
-            //    const floatInVec d = dot( plane, Vector4( x[i], oneVec ) );
-            //    
-            //    Vector3 dpos = plane.getXYZ() * maxf4( d, zeroVec );
-            //    
-            //    colliders_density += PBD::CubicKernel::W( dpos );
-            //}
+            float collision_density = 0.f;
+            {
+                floatInVec tmp( 0.f );
+                const StaticBody& sbody = colliders.static_bodies[1];
+                const Indices* sbody_neighbors = sbody.GetNeighbours( x[i] );
+                if( sbody_neighbors )
+                {
+                    for( u32 j = 0; j < sbody_neighbors->size; ++j )
+                    {
+                        const Vector3& xj = sbody.GetPosition( j );
+                        collision_density += particle_mass * PBD::CubicKernel::W( x[i] - xj );
+                    }
+                }
+            }
 
-            //density += s * colliders_density;
-            f->density[i] = density;
+            f->density[i] = density + collision_density;
             avg_density_err += ( maxOfPair( density, density0 ) - density0 ) * num_particles_inv;
         
             // -- compute lambda
@@ -548,34 +550,14 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
                 for( u32 ni = 0; ni < neighbours.size; ++ni )
                 {
                     const u32 j = neighbours[ni];
-                    //if( i == j )
-                    //    continue;
-
-                    //if( lengthSqr( x[j] - x[i] ).getAsFloat() > aa )
-                    //    continue;
 
                     const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::CubicKernel::gradW( x[i] - x[j] );
                     sum_grad_C2 += lengthSqr( gradC_j );
                     gradC_i -= gradC_j;
                 }
-                
-
-                //float sum_grad
-                //floatInVec sum_grad_C2_colliders( 0.f );
-                //for( u32 j = 0; j < colliders.num_planes; ++j )
-                //{
-                //    const Vector4& plane = colliders.planes[j];
-                //    const floatInVec d = dot( plane, Vector4( x[i], oneVec ) );
-                //    Vector3 dpos = plane.getXYZ() * d;
-
-                //    const Vector3 grad = -PBD::CubicKernel::gradW( dpos );
-                //    sum_grad_C2_colliders += lengthSqr( grad );
-                //}
 
                 // Compute lambda
                 sum_grad_C2 += lengthSqr( gradC_i );
-                //sum_grad_C2 += sum_grad_C2_colliders * floatInVec( s );
-
                 f->lambda[i] = -C / ( sum_grad_C2.getAsFloat() + eps );
             }
             else
@@ -596,9 +578,6 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
             {
                 const u32 j = neighbours[ni];
                 const Vector3& xj = f->p[j];
-
-                //if( lengthSqr( xj - xi ).getAsFloat() > aa )
-                //    continue;
 
                 const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::CubicKernel::gradW( xi - xj );
                 corr -= ( f->lambda[i] + f->lambda[j] ) * gradC_j;
@@ -648,24 +627,24 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
     }
 
 
-    for( u32 i = 0; i < n; ++i )
-    {
-        Vector3 p = f->p[i];
+    //for( u32 i = 0; i < n; ++i )
+    //{
+    //    Vector3 p = f->p[i];
 
-        Vector3 corr( 0.f );
-        for( u32 j = 0; j < colliders.num_planes; ++j )
-        {
-            const Vector4& plane = colliders.planes[j];
-            const floatInVec d = dot( plane, Vector4( p, oneVec ) );
-            Vector3 dpos = -plane.getXYZ() * minf4( d, zeroVec );
+    //    Vector3 corr( 0.f );
+    //    for( u32 j = 0; j < colliders.num_planes; ++j )
+    //    {
+    //        const Vector4& plane = colliders.planes[j];
+    //        const floatInVec d = dot( plane, Vector4( p, oneVec ) );
+    //        Vector3 dpos = -plane.getXYZ() * minf4( d, zeroVec );
 
-            p += dpos;
-            corr += dpos;
-        }
+    //        p += dpos;
+    //        corr += dpos;
+    //    }
 
-        f->p[i] = p;
-        //f->v[i] += corr;
-    }
+    //    f->p[i] = p;
+    //    //f->v[i] += corr;
+    //}
 
     const float delta_time_inv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
     for( u32 i = 0; i < n; ++i )

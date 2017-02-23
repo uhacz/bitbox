@@ -39,8 +39,8 @@ struct NeighbourSearch
 //////////////////////////////////////////////////////////////////////////
 struct StaticBody
 {
-    const Indices* GetNeighbours( const Vector3 posWS );
-    const Vector3& GetPosition( u32 index ) { return _x[index]; }
+    const Indices* __vectorcall GetNeighbours( const Vector3 posWS ) const;
+    const Vector3& GetPosition( u32 index ) const { return _x[index]; }
 
     // ---
     vec_float4 _map_cell_size_inv_vec;
@@ -57,6 +57,7 @@ struct StaticBody
 };
 void StaticBodyCreateBox( StaticBody* body, u32 countX, u32 countY, u32 countZ, float particleRadius, const Matrix4& toWS );
 void StaticBodyDoNeighbourMap( StaticBody* body, float supportRadius );
+void StaticBodyDebugDraw( const StaticBody& body, u32 color );
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -87,6 +88,9 @@ struct FluidColliders
 {
     const Vector4* planes = nullptr;
     u32 num_planes = 0;
+
+    const StaticBody* static_bodies = nullptr;
+    u32 num_static_bodies = 0;
 };
 struct FluidSimulationParams
 {
