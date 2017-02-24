@@ -129,6 +129,7 @@ namespace bx {namespace flood {
         shash.x = point_in_grid_int.m128i_i32[0];
         shash.y = point_in_grid_int.m128i_i32[1];
         shash.z = point_in_grid_int.m128i_i32[2];
+
         return shash;
     }
 
@@ -203,7 +204,7 @@ namespace bx {namespace flood {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    const Indices* __vectorcall StaticBody::GetNeighbours( const Vector3 posWS ) const
+    const NeighbourIndices StaticBody::GetNeighbours( const Vector3& posWS ) const
     {
         SpatialHash hash = MakeHash( posWS.get128(), _map_cell_size_inv_vec );
         const hashmap_t::cell_t* cell = hashmap::lookup( _map, hash.hash );
@@ -212,7 +213,15 @@ namespace bx {namespace flood {
             SYS_ASSERT( cell->value < _cell_neighbour_list.size() );
         }
 
-        return ( cell ) ? &_cell_neighbour_list[cell->value] : nullptr;
+        const Indices* indices = ( cell ) ? &_cell_neighbour_list[cell->value] : nullptr;
+
+        NeighbourIndices result = {};
+        if( indices )
+        {
+            result.data = indices->begin();
+            result.size = indices->size;
+        }
+        return result;
     }
 
 
@@ -254,17 +263,17 @@ namespace bx {namespace flood {
 
         hashmap_t tmp_sparse_grid;
         MapCells tmp_sparse_grid_cells;
-        array_t <size_t>  tmp_point_spatial_hash;
+        //array_t <size_t>  tmp_point_spatial_hash;
 
         hashmap::reserve( tmp_sparse_grid, iceil( num_points * 3, 2 ) );
         array::reserve( tmp_sparse_grid_cells, num_points );
-        array::reserve( tmp_point_spatial_hash, num_points );
+        //array::reserve( tmp_point_spatial_hash, num_points );
 
         for( u32 i = 0; i < num_points; ++i )
         {
             SpatialHash hash = MakeHash( body->_x[i].get128(), cell_size_inv_vec );
             ListPushBack( tmp_sparse_grid, tmp_sparse_grid_cells, hash.hash, i );
-            array::push_back( tmp_point_spatial_hash, hash.hash );
+            //array::push_back( tmp_point_spatial_hash, hash.hash );
         }
 
         body->_cell_neighbour_list.resize( hashmap::size( tmp_sparse_grid ) );
@@ -335,6 +344,9 @@ void FluidClear( Fluid* f )
 
 void FluidCreate( Fluid* f, u32 numParticles, float particleRadius )
 {
+    
+
+
     FluidClear( f );
     array::reserve( f->x      , numParticles );
     array::reserve( f->p      , numParticles );
@@ -521,18 +533,22 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
             {
                 floatInVec tmp( 0.f );
                 const StaticBody& sbody = colliders.static_bodies[1];
-                const Indices* sbody_neighbors = sbody.GetNeighbours( x[i] );
-                if( sbody_neighbors )
+                const NeighbourIndices neighbour_indices = sbody.GetNeighbours( x[i] );
+                if( neighbour_indices.Ok() )
                 {
-                    for( u32 j = 0; j < sbody_neighbors->size; ++j )
+                    for( u32 j = 0; j < neighbour_indices.size; ++j )
                     {
-                        const Vector3& xj = sbody.GetPosition( j );
+                        const u32 j_index = neighbour_indices.data[j];
+                        const Vector3& xj = sbody.GetPosition( j_index );
+                        SpatialHash tmp = MakeHash( xj.get128(), sbody._map_cell_size_inv_vec );
                         collision_density += particle_mass * PBD::CubicKernel::W( x[i] - xj );
                     }
                 }
             }
 
-            f->density[i] = density + collision_density;
+            density += collision_density;
+
+            f->density[i] = density;
             avg_density_err += ( maxOfPair( density, density0 ) - density0 ) * num_particles_inv;
         
             // -- compute lambda

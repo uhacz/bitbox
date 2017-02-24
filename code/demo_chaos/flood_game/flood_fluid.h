@@ -11,12 +11,18 @@ namespace bx{ namespace flood{
 typedef array_t<u32> Indices;
 typedef array_t<size_t> MapCells;
 
+struct NeighbourIndices
+{
+    const u32* data = nullptr;
+    u32 size = 0;
+
+    bool Ok() const { return data && size; }
+};
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 struct NeighbourSearch
 {
-    
-
     void FindNeighbours( const Vector3* points, u32 numPoints );
     void SetCellSize( float value );
     const Indices& GetNeighbours( u32 index ) const;
@@ -39,7 +45,8 @@ struct NeighbourSearch
 //////////////////////////////////////////////////////////////////////////
 struct StaticBody
 {
-    const Indices* __vectorcall GetNeighbours( const Vector3 posWS ) const;
+    
+    const NeighbourIndices GetNeighbours( const Vector3& posWS ) const;
     const Vector3& GetPosition( u32 index ) const { return _x[index]; }
 
     // ---
