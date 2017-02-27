@@ -361,7 +361,7 @@ void FluidCreate( Fluid* f, u32 numParticles, float particleRadius )
     PBD::Poly6Kernel::setRadius( f->support_radius );
     PBD::SpikyKernel::setRadius( f->support_radius );
 
-    f->_neighbours.SetCellSize( f->particle_radius * 2 );
+    f->_neighbours.SetCellSize( f->particle_radius * 4 );
 
     for( u32 i = 0; i < numParticles; ++i )
     {
@@ -509,8 +509,8 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
     u32 iterations = 0;
     float avg_density_err = 0.f;
     
-    const float aa = f->support_radius * f->support_radius;
-    const float s = aa * PI / (f->particle_radius*f->particle_radius);
+    //const float aa = f->support_radius * f->support_radius;
+    //const float s = aa * PI / (f->particle_radius*f->particle_radius);
     while( ( ( avg_density_err > eta ) || ( iterations < 2 ) ) && ( iterations < f->_maxIterations ) )
     {
         avg_density_err = 0.f;
@@ -519,20 +519,19 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
 
         for( u32 i = 0; i < num_particles; ++i )
         {
-            float density = particle_mass * PBD::CubicKernel::W_zero();
+            float density = particle_mass * PBD::Poly6Kernel::W_zero();
             const Indices& neighbours = f->_neighbours.GetNeighbours( i );
 
             for( u32 ni = 0; ni < neighbours.size; ++ni )
             {
                 const u32 j = neighbours[ni];
-                float value = particle_mass * PBD::CubicKernel::W( x[i] - x[j] );
+                float value = particle_mass * PBD::Poly6Kernel::W( x[i] - x[j] );
                 density += value;
             }
 
-            float collision_density = 0.f;
+            for( u32 ibody = 0; ibody < colliders.num_static_bodies; ++ibody )
             {
-                floatInVec tmp( 0.f );
-                const StaticBody& sbody = colliders.static_bodies[1];
+                const StaticBody& sbody = colliders.static_bodies[ibody];
                 const NeighbourIndices neighbour_indices = sbody.GetNeighbours( x[i] );
                 if( neighbour_indices.Ok() )
                 {
@@ -540,14 +539,12 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
                     {
                         const u32 j_index = neighbour_indices.data[j];
                         const Vector3& xj = sbody.GetPosition( j_index );
-                        SpatialHash tmp = MakeHash( xj.get128(), sbody._map_cell_size_inv_vec );
-                        collision_density += particle_mass * PBD::CubicKernel::W( x[i] - xj );
+                        density += particle_mass * PBD::Poly6Kernel::W( x[i] - xj );
                     }
                 }
             }
 
-            density += collision_density;
-
+            
             f->density[i] = density;
             avg_density_err += ( maxOfPair( density, density0 ) - density0 ) * num_particles_inv;
         
@@ -567,9 +564,27 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
                 {
                     const u32 j = neighbours[ni];
 
-                    const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::CubicKernel::gradW( x[i] - x[j] );
+                    const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::SpikyKernel::gradW( x[i] - x[j] );
                     sum_grad_C2 += lengthSqr( gradC_j );
                     gradC_i -= gradC_j;
+                }
+
+                for( u32 ibody = 0; ibody < colliders.num_static_bodies; ++ibody )
+                { // boundary
+                    const StaticBody& sbody = colliders.static_bodies[ibody];
+                    const NeighbourIndices neighbour_indices = sbody.GetNeighbours( x[i] );
+                    if( neighbour_indices.Ok() )
+                    {
+                        for( u32 j = 0; j < neighbour_indices.size; ++j )
+                        {
+                            const u32 j_index = neighbour_indices.data[j];
+                            const Vector3& xj = sbody.GetPosition( j_index );
+                            
+                            const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::SpikyKernel::gradW( x[i] - xj );
+                            sum_grad_C2 += lengthSqr( gradC_j );
+                            gradC_i -= gradC_j;
+                        }
+                    }
                 }
 
                 // Compute lambda
@@ -595,22 +610,29 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
                 const u32 j = neighbours[ni];
                 const Vector3& xj = f->p[j];
 
-                const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::CubicKernel::gradW( xi - xj );
+                const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::SpikyKernel::gradW( xi - xj );
                 corr -= ( f->lambda[i] + f->lambda[j] ) * gradC_j;
             }
+            
+            for( u32 ibody = 0; ibody < colliders.num_static_bodies; ++ibody )
+            {
+                const StaticBody& sbody = colliders.static_bodies[ibody];
+                const NeighbourIndices neighbour_indices = sbody.GetNeighbours( x[i] );
+                if( neighbour_indices.Ok() )
+                {
+                    for( u32 j = 0; j < neighbour_indices.size; ++j )
+                    {
+                        const u32 j_index = neighbour_indices.data[j];
+                        const Vector3& xj = sbody.GetPosition( j_index );
 
-            //Vector3 corr_colliders( 0.f );
-            //for( u32 j = 0; j < colliders.num_planes; ++j )
-            //{
-            //    const Vector4& plane = colliders.planes[j];
-            //    const floatInVec d = dot( plane, Vector4( x[i], oneVec ) );
-            //    Vector3 dpos = plane.getXYZ() * d;
+                        const Vector3 gradC_j = -(particle_mass_div_density0)* PBD::SpikyKernel::gradW( xi - xj );
+                        const Vector3 dx = 2.0 * f->lambda[i] * gradC_j;
+                        corr -= dx;
 
-            //    const Vector3 gradC_j = -(s / density0) * PBD::CubicKernel::gradW( dpos );
-            //    const Vector3 dx = 2.0f * f->lambda[i] * gradC_j;
-            //    corr_colliders -= dx;
-            //}
-
+                        //m_model->getForce( particleId.point_set_id, neighborIndex ) += m_model->getMass( i ) * dx * invH2;
+                    }
+                }
+            }
             f->dpos[i] = corr; // +corr_colliders;
         }
 
@@ -670,7 +692,7 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
     }
 
     {
-        static int i = 27;
+        static int i = 0;
         if( ImGui::Begin( "NeighbourDebug" ) )
         {
             ImGui::InputInt( "particle index", &i );

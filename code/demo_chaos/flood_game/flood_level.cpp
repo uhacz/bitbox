@@ -34,16 +34,16 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
         
         Matrix4 pose[] =
         {
-            appendScale( Matrix4::translation( Vector3( 0.f, -height * 0.5f, 0.f ) ), Vector3( width, 0.1f, depth ) ),
+            appendScale( Matrix4::translation( Vector3( 0.f, -height, 0.f ) ), Vector3( width, 0.1f, depth ) ),
         };
         _gfx_scene->SetMatrices( actor, pose, 1 );
     }
 
     // --- border planes
     {
-        _plane_right  = makePlane( -Vector3::xAxis(), Vector3( width * 0.5f, 0.f, 0.f ) );
-        _plane_bottom = makePlane(  Vector3::yAxis(), Vector3( 0.f, -height * 0.5f, 0.f ) );
-        _plane_left   = makePlane(  Vector3::xAxis(), Vector3( -width * 0.5f, 0.f, 0.f ) );
+        _plane_right  = makePlane( -Vector3::xAxis(), Vector3( width, 0.f, 0.f ) );
+        _plane_bottom = makePlane(  Vector3::yAxis(), Vector3( 0.f, -height, 0.f ) );
+        _plane_left   = makePlane(  Vector3::xAxis(), Vector3( -width, 0.f, 0.f ) );
         _plane_top    = makePlane( -Vector3::yAxis(), Vector3( 0.f, height * 0.5f, 0.f ) );
         _plane_front  = makePlane(  Vector3::zAxis(), Vector3( 0.f, 0.f, -depth * 0.5f ) );
         _plane_back   = makePlane( -Vector3::zAxis(), Vector3( 0.f, 0.f, depth * 0.5f ) );
@@ -51,7 +51,7 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
 
 
     const float particle_radius = 0.1f;
-    FluidCreate( &_fluid, 5*5*5, particle_radius );
+    FluidCreate( &_fluid, 7*7*7, particle_radius );
 
     {
         const u32 num_particles[3] = 
@@ -60,11 +60,13 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
             _volume_height * particle_radius,
             _volume_depth * particle_radius,
         };
-        StaticBodyCreateBox( &_boundary[0], 1, num_particles[1], num_particles[2], particle_radius, Matrix4::translation( Vector3( width*0.5f, 0.f, 0.f ) ) );
-        StaticBodyCreateBox( &_boundary[1], num_particles[0], 1, num_particles[2], particle_radius, Matrix4::translation( Vector3( 0.0f,-height*0.5f, 0.f ) ) );
+        StaticBodyCreateBox( &_boundary[0], 1, num_particles[1], num_particles[2], particle_radius, Matrix4::translation( Vector3( width+particle_radius, 0.f, 0.f ) ) );
+        StaticBodyCreateBox( &_boundary[1], num_particles[0], 1, num_particles[2], particle_radius, Matrix4::translation( Vector3( 0.0f,-height + particle_radius, 0.f ) ) );
+        StaticBodyCreateBox( &_boundary[2], 1, num_particles[1], num_particles[2], particle_radius, Matrix4::translation( Vector3( -width + particle_radius, 0.f, 0.f ) ) );
         
-        StaticBodyDoNeighbourMap( &_boundary[0], particle_radius * 2 );
-        StaticBodyDoNeighbourMap( &_boundary[1], particle_radius * 2 );
+        StaticBodyDoNeighbourMap( &_boundary[0], particle_radius * 4 );
+        StaticBodyDoNeighbourMap( &_boundary[1], particle_radius * 4 );
+        StaticBodyDoNeighbourMap( &_boundary[2], particle_radius * 4 );
 
 
     }
@@ -88,14 +90,17 @@ void Level::Tick( const GameTime& time )
     colliders.planes = &_plane_right;
     colliders.num_planes = 6;
     colliders.static_bodies = _boundary;
-    colliders.num_static_bodies = 2;
+    colliders.num_static_bodies = 3;
 
     FluidSimulationParams sim_params = {};
     //sim_params.gravity = Vector3( 0.f, -0.1f, 0.f ); // Vector3::yAxis();
 
     FluidTick( &_fluid, sim_params, colliders, time.DeltaTimeSec() );
 
+    StaticBodyDebugDraw( _boundary[0], 0x333333FF );
     StaticBodyDebugDraw( _boundary[1], 0x333333FF );
+    StaticBodyDebugDraw( _boundary[2], 0x333333FF );
+
 
 }
 
