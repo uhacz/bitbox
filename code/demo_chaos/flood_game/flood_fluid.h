@@ -81,10 +81,10 @@ struct Fluid
     f32 particle_radius = 0.025f;
     f32 support_radius = 4.f * 0.025f;
     f32 particle_mass = 0.f;
-    f32 density0 = 1000.f;
+    f32 density0 = 1000.f; // 6378.f;
     f32 viscosity = 0.02f;
 
-    u32 _maxIterations = 100;
+    u32 _maxIterations = 16;
     f32 _maxError = 0.01f;
 
     NeighbourSearch _neighbours;
@@ -94,7 +94,7 @@ struct Fluid
 
 struct FluidColliders
 {
-    const Vector4* planes = nullptr;
+    const Vector4F* planes = nullptr;
     u32 num_planes = 0;
 
     const StaticBody* static_bodies = nullptr;

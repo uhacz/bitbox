@@ -318,6 +318,12 @@ inline Vector4 makePlane( const Vector3& planeNormal, const Vector3& pointOnPlan
 {
     return Vector4( planeNormal,  -dot( planeNormal, pointOnPlane ) );	
 }
+inline Vector4F makePlane( const Vector3F& planeNormal, const Vector3F& pointOnPlane )
+{
+    return Vector4F( planeNormal, -dot( planeNormal, pointOnPlane ) );
+}
+
+
 
 inline Vector3 projectPointOnPlane( const Vector3& point, const Vector4& plane )
 {

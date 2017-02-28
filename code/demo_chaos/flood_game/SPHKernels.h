@@ -4,6 +4,7 @@
 #include <math.h>
 #include <util\type.h>
 #include <util\vectormath\vectormath.h>
+#include "util\debug.h"
 
 //#define NO_DISTANCE_TEST
 
@@ -55,10 +56,10 @@ namespace PBD
 			return res;
 		}
 
-		static Vector3 gradW(const Vector3 r)
+		static Vector3F gradW(const Vector3F r)
 		{
-			Vector3 res;
-			const f32 rl = length( r ).getAsFloat();
+			Vector3F res;
+			const f32 rl = length( r );
 			const f32 q = rl / m_radius;
 #ifndef NO_DISTANCE_TEST
             if( q <= 1.0 )
@@ -66,7 +67,7 @@ namespace PBD
             {
                 if( rl > 1.0e-6 )
                 {
-                    const Vector3 gradq = r * ( ( f32 ) 1.0 / ( rl*m_radius ) );
+                    const Vector3F gradq = r * ( ( f32 ) 1.0 / ( rl*m_radius ) );
                     if( q <= 0.5 )
                     {
                         res = m_l*q*( ( f32 ) 3.0*q - ( f32 ) 2.0 )*gradq;
@@ -80,7 +81,7 @@ namespace PBD
             }
         #ifndef NO_DISTANCE_TEST
             else
-                res = Vector3( 0.f );
+                res = Vector3F( 0.f );
 #endif
 
 			return res;
@@ -256,7 +257,8 @@ namespace PBD
                 const float r_l = sqrt( r2 );
                 const float hr = m_radius - r_l;
                 const float hr2 = hr*hr;
-                res = m_l * hr2 * r * ( static_cast<float>( 1.0 ) / r_l );
+                const float normalizator = ( r_l > FLT_EPSILON ) ? 1.f / r_l : 0.f;
+                res = m_l * hr2 * r * normalizator;
             }
             //else
             //    res.setZero();
