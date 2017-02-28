@@ -127,6 +127,12 @@
     <ClInclude Include="time.h" />
     <ClInclude Include="type.h" />
     <ClInclude Include="vector.h" />
+    <ClInclude Include="vectormath\scalar\boolInVec.h" />
+    <ClInclude Include="vectormath\scalar\floatInVec.h" />
+    <ClInclude Include="vectormath\scalar\mat_aos.h" />
+    <ClInclude Include="vectormath\scalar\quat_aos.h" />
+    <ClInclude Include="vectormath\scalar\vectormath_aos.h" />
+    <ClInclude Include="vectormath\scalar\vec_aos.h" />
     <ClInclude Include="vectormath\SSE\boolInVec.h" />
     <ClInclude Include="vectormath\SSE\floatInVec.h" />
     <ClInclude Include="vectormath\SSE\mat_aos.h" />

@@ -117,8 +117,8 @@ namespace bx {namespace flood {
     };
     static inline SpatialHash MakeHash( const __m128 point, const __m128 cellSizeInv )
     {
-        static const __m128 _1111 = _mm_set1_ps( 1.f );
-        static const __m128 _0000 = _mm_set1_ps( 0.f );
+        //static const __m128 _1111 = _mm_set1_ps( 1.f );
+        //static const __m128 _0000 = _mm_set1_ps( 0.f );
         __m128 point_in_grid = vec_mul( point, cellSizeInv );
         //point_in_grid = vec_sel( vec_sub( point_in_grid, _1111 ), point_in_grid, vec_cmpge( point, _0000 ) );
 
@@ -133,7 +133,19 @@ namespace bx {namespace flood {
         return shash;
     }
 
-    void NeighbourSearch::FindNeighbours( const Vector3* points, u32 numPoints )
+    static inline SpatialHash MakeHash( const Vector3F& point, const float cellSizeInv )
+    {
+        const Vector3F point_in_grid = point * cellSizeInv;
+        SpatialHash shash;
+        shash.w = 1;
+        shash.x = (int)point_in_grid.x;
+        shash.y = (int)point_in_grid.y;
+        shash.z = (int)point_in_grid.z;
+
+        return shash;
+    }
+
+    void NeighbourSearch::FindNeighbours( const Vector3F* points, u32 numPoints )
     {
         _num_points = numPoints;
         const __m128 cell_size_inv_vec = _mm_set1_ps( _cell_size_inv );
@@ -150,7 +162,7 @@ namespace bx {namespace flood {
 
         for( u32 i = 0; i < numPoints; ++i )
         {
-            SpatialHash hash = MakeHash( points[i].get128(), cell_size_inv_vec );
+            SpatialHash hash = MakeHash( points[i], _cell_size_inv );
             ListPushBack( _map, _map_cells, hash.hash, i );
             array::push_back( _point_spatial_hash, hash.hash );
         }
@@ -204,9 +216,9 @@ namespace bx {namespace flood {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    const NeighbourIndices StaticBody::GetNeighbours( const Vector3& posWS ) const
+    const NeighbourIndices StaticBody::GetNeighbours( const Vector3F& posWS ) const
     {
-        SpatialHash hash = MakeHash( posWS.get128(), _map_cell_size_inv_vec );
+        SpatialHash hash = MakeHash( posWS, _map_cell_size_inv );
         const hashmap_t::cell_t* cell = hashmap::lookup( _map, hash.hash );
         if( cell )
         {
@@ -225,11 +237,11 @@ namespace bx {namespace flood {
     }
 
 
-    void StaticBodyCreateBox( StaticBody* body, u32 countX, u32 countY, u32 countZ, float particleRadius, const Matrix4& toWS )
+    void StaticBodyCreateBox( StaticBody* body, u32 countX, u32 countY, u32 countZ, float particleRadius, const Matrix4F& toWS )
     {
         body->_particle_radius = particleRadius;
         const float particle_phi = particleRadius * 2.f;
-        const Vector3 center_shift = Vector3( countX*0.5f, countY*0.5f, countZ*0.5f ) * particle_phi;
+        const Vector3F center_shift = Vector3F( countX*0.5f, countY*0.5f, countZ*0.5f ) * particle_phi;
 
         const u32 total_count = countX * countY * countZ;
         array::clear( body->_x );
@@ -244,8 +256,8 @@ namespace bx {namespace flood {
                     const float x = ix * particle_phi;
                     const float y = iy * particle_phi;
                     const float z = iz * particle_phi;
-                    const Vector3 pos_ls = Vector3( x, y, z ) - center_shift;
-                    const Vector3 pos_ws = mulAsVec4( toWS, pos_ls );
+                    const Vector3F pos_ls = Vector3F( x, y, z ) - center_shift;
+                    const Vector3F pos_ws = ( toWS * Point3F( pos_ls ) ).getXYZ();
 
                     array::push_back( body->_x, pos_ws );
                 }
@@ -258,6 +270,8 @@ namespace bx {namespace flood {
         const __m128 cell_size_inv_vec = _mm_set1_ps( 1.f / supportRadius );
         body->_map_cell_size = supportRadius;
         body->_map_cell_size_inv_vec = cell_size_inv_vec;
+        body->_map_cell_size_inv = cell_size_inv_vec.m128_f32[0];
+        const float cell_size_inv = body->_map_cell_size_inv;
 
         const u32 num_points = array::sizeu( body->_x );
 
@@ -271,7 +285,7 @@ namespace bx {namespace flood {
 
         for( u32 i = 0; i < num_points; ++i )
         {
-            SpatialHash hash = MakeHash( body->_x[i].get128(), cell_size_inv_vec );
+            SpatialHash hash = MakeHash( body->_x[i], cell_size_inv );
             ListPushBack( tmp_sparse_grid, tmp_sparse_grid_cells, hash.hash, i );
             //array::push_back( tmp_point_spatial_hash, hash.hash );
         }
@@ -322,11 +336,14 @@ namespace bx {namespace flood {
     {
         const u32 max_visible_particles = 100;
 
-        bxRandomGen rnd( bxTime::ms() );
+        bxRandomGen rnd( (u32)bxTime::ms() );
         for( u32 i = 0; i < max_visible_particles; ++i )
         {
             u32 index = rnd.get0n( body._x.size );
-            rdi::debug_draw::AddSphere( Vector4( body._x[index], body._particle_radius ), color, 1 );
+
+            const Vector3 v3( xyz_to_m128( &body._x[index].x ) );
+
+            rdi::debug_draw::AddSphere( Vector4( v3, body._particle_radius ), color, 1 );
         }
     }
 
@@ -365,12 +382,12 @@ void FluidCreate( Fluid* f, u32 numParticles, float particleRadius )
 
     for( u32 i = 0; i < numParticles; ++i )
     {
-        array::push_back( f->x, Vector3( 0.f ) );
-        array::push_back( f->p, Vector3( 0.f ) );
-        array::push_back( f->v, Vector3( 0.f ) );
+        array::push_back( f->x, Vector3F( 0.f ) );
+        array::push_back( f->p, Vector3F( 0.f ) );
+        array::push_back( f->v, Vector3F( 0.f ) );
         array::push_back( f->density, 0.f );
         array::push_back( f->lambda, 0.f );
-        array::push_back( f->dpos, Vector3( 0.f ) );
+        array::push_back( f->dpos, Vector3F( 0.f ) );
     }
 }
 
@@ -381,7 +398,7 @@ void FluidInitMass( Fluid* f )
     const float diam = 2.0f * f->particle_radius;
     f->particle_mass = 0.8f * diam*diam*diam * f->density0;
 }
-void FluidInitBox( Fluid* f, const Matrix4& pose )
+void FluidInitBox( Fluid* f, const Matrix4F& pose )
 {
     float fa = ::pow( (float)f->NumParticles(), 1.f / 3.f );
     u32 a = (u32)fa;
@@ -402,15 +419,15 @@ void FluidInitBox( Fluid* f, const Matrix4& pose )
                 const float fy = ( offset + y ) * spacing;
                 const float fz = ( offset + z ) * spacing;
 
-                Vector3 pos( fx, fy, fz );
-                pos = mulAsVec4( pose, pos );
+                Vector3F pos( fx, fy, fz );
+                pos = (pose * Point3F( pos )).getXYZ();
 
                 const u32 index = grid.index( x, y, z );
                 SYS_ASSERT( index < f->NumParticles() );
 
                 f->x[index] = pos;
                 f->p[index] = pos;
-                f->v[index] = Vector3( 0.f );
+                f->v[index] = Vector3F( 0.f );
             }
         }
     }
@@ -498,12 +515,12 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
     const float eps = 1.0e-6f;
     const float particle_mass = f->particle_mass;
     const float density0 = f->density0;
-    const floatInVec density0_inv( 1.f / density0 );
-    const floatInVec particle_mass_vec( particle_mass );
-    const floatInVec particle_mass_div_density0 = particle_mass_vec * density0_inv;
-    const floatInVec support_radius_vec( f->support_radius );
+    const float density0_inv( 1.f / density0 );
+    const float particle_mass_vec( particle_mass );
+    const float particle_mass_div_density0 = particle_mass_vec * density0_inv;
+    const float support_radius_vec( f->support_radius );
 
-    const Vector3* x = array::begin( f->p );
+    const Vector3F* x = array::begin( f->p );
 
     const float eta = f->_maxError * 0.01f * density0;
     u32 iterations = 0;
@@ -538,7 +555,7 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
                     for( u32 j = 0; j < neighbour_indices.size; ++j )
                     {
                         const u32 j_index = neighbour_indices.data[j];
-                        const Vector3& xj = sbody.GetPosition( j_index );
+                        const Vector3F& xj = sbody.GetPosition( j_index );
                         density += particle_mass * PBD::Poly6Kernel::W( x[i] - xj );
                     }
                 }
@@ -556,16 +573,16 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
             if( C != 0.0f )
             {
                 // Compute gradients dC/dx_j 
-                floatInVec sum_grad_C2 = zeroVec;
-                Vector3 gradC_i( 0.0f, 0.0f, 0.0f );
+                float sum_grad_C2 = 0.f;
+                Vector3F gradC_i( 0.0f, 0.0f, 0.0f );
 
                 const Indices& neighbours = f->_neighbours.GetNeighbours( i );
                 for( u32 ni = 0; ni < neighbours.size; ++ni )
                 {
                     const u32 j = neighbours[ni];
 
-                    const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::SpikyKernel::gradW( x[i] - x[j] );
-                    sum_grad_C2 += lengthSqr( gradC_j );
+                    const Vector3F gradC_j = -(particle_mass_div_density0) * PBD::SpikyKernel::gradW( x[i] - x[j] );
+                    sum_grad_C2 += smath::lengthSqr( gradC_j );
                     gradC_i -= gradC_j;
                 }
 
@@ -578,9 +595,9 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
                         for( u32 j = 0; j < neighbour_indices.size; ++j )
                         {
                             const u32 j_index = neighbour_indices.data[j];
-                            const Vector3& xj = sbody.GetPosition( j_index );
+                            const Vector3F& xj = sbody.GetPosition( j_index );
                             
-                            const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::SpikyKernel::gradW( x[i] - xj );
+                            const Vector3F gradC_j = -(particle_mass_div_density0) * PBD::SpikyKernel::gradW( x[i] - xj );
                             sum_grad_C2 += lengthSqr( gradC_j );
                             gradC_i -= gradC_j;
                         }
@@ -589,7 +606,7 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
 
                 // Compute lambda
                 sum_grad_C2 += lengthSqr( gradC_i );
-                f->lambda[i] = -C / ( sum_grad_C2.getAsFloat() + eps );
+                f->lambda[i] = -C / ( sum_grad_C2 + eps );
             }
             else
             {
@@ -600,17 +617,17 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
         // -- position correction
         for( u32 i = 0; i < num_particles; ++i )
         {
-            Vector3 corr( 0.f );
+            Vector3F corr( 0.f );
 
-            const Vector3& xi = f->p[i];
+            const Vector3F& xi = f->p[i];
 
             const Indices& neighbours = f->_neighbours.GetNeighbours( i );
             for( u32 ni = 0; ni < neighbours.size; ++ni )
             {
                 const u32 j = neighbours[ni];
-                const Vector3& xj = f->p[j];
+                const Vector3F& xj = f->p[j];
 
-                const Vector3 gradC_j = -(particle_mass_div_density0) * PBD::SpikyKernel::gradW( xi - xj );
+                const Vector3F gradC_j = -(particle_mass_div_density0) * PBD::SpikyKernel::gradW( xi - xj );
                 corr -= ( f->lambda[i] + f->lambda[j] ) * gradC_j;
             }
             
@@ -623,10 +640,10 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
                     for( u32 j = 0; j < neighbour_indices.size; ++j )
                     {
                         const u32 j_index = neighbour_indices.data[j];
-                        const Vector3& xj = sbody.GetPosition( j_index );
+                        const Vector3F& xj = sbody.GetPosition( j_index );
 
-                        const Vector3 gradC_j = -(particle_mass_div_density0)* PBD::SpikyKernel::gradW( xi - xj );
-                        const Vector3 dx = 2.0 * f->lambda[i] * gradC_j;
+                        const Vector3F gradC_j = -(particle_mass_div_density0)* PBD::SpikyKernel::gradW( xi - xj );
+                        const Vector3F dx = 2.0f * f->lambda[i] * gradC_j;
                         corr -= dx;
 
                         //m_model->getForce( particleId.point_set_id, neighborIndex ) += m_model->getMass( i ) * dx * invH2;
@@ -651,8 +668,8 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
     const u32 n = f->NumParticles();
     for( u32 i = 0; i < n; ++i )
     {
-        Vector3 v = f->v[i] + params.gravity * deltaTime;
-        Vector3 p = f->x[i] + v*deltaTime;
+        Vector3F v = f->v[i] + params.gravity * deltaTime;
+        Vector3F p = f->x[i] + v*deltaTime;
 
         f->v[i] = v;
         f->p[i] = p;
@@ -698,19 +715,20 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
             ImGui::InputInt( "particle index", &i );
         }
         ImGui::End();
-        rdi::debug_draw::AddBox( Matrix4::translation( f->x[i] ), Vector3( f->particle_radius ), 0x00FF00FF, 1 );
-        const Indices& neighbours = f->_neighbours.GetNeighbours( i );
-        for( u32 j : neighbours )
-        {
-            rdi::debug_draw::AddBox( Matrix4::translation( f->x[j] ), Vector3( f->particle_radius ), 0xFF0000FF, 1 );
-        }
+        //rdi::debug_draw::AddBox( Matrix4::translation( f->x[i] ), Vector3( f->particle_radius ), 0x00FF00FF, 1 );
+        //const Indices& neighbours = f->_neighbours.GetNeighbours( i );
+        //for( u32 j : neighbours )
+        //{
+        //    rdi::debug_draw::AddBox( Matrix4::translation( f->x[j] ), Vector3( f->particle_radius ), 0xFF0000FF, 1 );
+        //}
     }
 
 
-    for( Vector3 pos : f->x )
+    for( Vector3F pos : f->x )
     {
         //rdi::debug_draw::AddBox( Matrix4::translation( pos ), Vector3( f->particle_radius ), 0x0000FFFF, 1 );
-        rdi::debug_draw::AddSphere( Vector4( pos, f->particle_radius ), 0x0000FFFF, 1 );
+        const Vector3 v3( xyz_to_m128( &pos.x ) );
+        rdi::debug_draw::AddSphere( Vector4( v3, f->particle_radius ), 0x0000FFFF, 1 );
     }
 }
 

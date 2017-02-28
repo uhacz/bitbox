@@ -109,7 +109,7 @@ namespace PBD
             m_k = 315.0f / ( 64.0f*pi*pow( m_radius, 9 ) );
             m_l = -945.0f / ( 32.0f*pi*pow( m_radius, 9 ) );
             m_m = m_l;
-            m_W_zero = W( Vector3(0.f) );
+            m_W_zero = W( Vector3F(0.f) );
         }
 
     public:
@@ -130,10 +130,10 @@ namespace PBD
             return res;
         }
 
-        static float W( const Vector3 &r )
+        static float W( const Vector3F &r )
         {
             float res = 0.0f;
-            const float r2 = lengthSqr( r ).getAsFloat();
+            const float r2 = lengthSqr( r ); // .getAsFloat();
             const float radius2 = m_radius*m_radius;
             if( r2 <= radius2 )
             {
@@ -147,10 +147,10 @@ namespace PBD
         * grad(W(r,h)) = r(-945/(32 pi h^9))(h^2-|r|^2)^2
         *              = r(-945/(32 pi h^9))(h^2-r*r)^2
         */
-        static Vector3 gradW( const Vector3 &r )
+        static Vector3F gradW( const Vector3F &r )
         {
-            Vector3 res(0.f);
-            const float r2 = lengthSqr( r ).getAsFloat();
+            Vector3F res(0.f);
+            const float r2 = lengthSqr( r ); // .getAsFloat();
             const float radius2 = m_radius*m_radius;
             if( r2 <= radius2 )
             {
@@ -167,10 +167,10 @@ namespace PBD
         * laplacian(W(r,h)) = (-945/(32 pi h^9))(h^2-|r|^2)(-7|r|^2+3h^2)
         *                   = (-945/(32 pi h^9))(h^2-r*r)(3 h^2-7 r*r)
         */
-        static float laplacianW( const Vector3 &r )
+        static float laplacianW( const Vector3F &r )
         {
             float res;
-            const float r2 = lengthSqr( r ).getAsFloat();
+            const float r2 = lengthSqr( r ); // .getAsFloat();
             const float radius2 = m_radius*m_radius;
             if( r2 <= radius2 )
             {
@@ -208,7 +208,7 @@ namespace PBD
             static const float pi = static_cast<float>( M_PI );
             m_k = 15.0f / ( pi*radius6 );
             m_l = -45.0f / ( pi*radius6 );
-            m_W_zero = W( Vector3(0.f) );
+            m_W_zero = W( Vector3F(0.f) );
         }
 
     public:
@@ -229,10 +229,10 @@ namespace PBD
             return res;
         }
 
-        static float W( const Vector3 &r )
+        static float W( const Vector3F &r )
         {
             float res = 0.0f;
-            const float r2 = lengthSqr( r ).getAsFloat();
+            const float r2 = lengthSqr( r ); // .getAsFloat();
             const float radius2 = m_radius*m_radius;
             if( r2 <= radius2 )
             {
@@ -246,10 +246,10 @@ namespace PBD
         /**
         * grad(W(r,h)) = -r(45/(pi*h^6) * (h-r)^2)
         */
-        static Vector3 gradW( const Vector3 &r )
+        static Vector3F gradW( const Vector3F &r )
         {
-            Vector3 res(0.f);
-            const float r2 = lengthSqr( r ).getAsFloat();
+            Vector3F res(0.f);
+            const float r2 = lengthSqr( r ); // .getAsFloat();
             const float radius2 = m_radius*m_radius;
             if( r2 <= radius2 )
             {

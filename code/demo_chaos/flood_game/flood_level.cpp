@@ -60,9 +60,9 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
             _volume_height * particle_radius,
             _volume_depth * particle_radius,
         };
-        StaticBodyCreateBox( &_boundary[0], 1, num_particles[1], num_particles[2], particle_radius, Matrix4::translation( Vector3( width+particle_radius, 0.f, 0.f ) ) );
-        StaticBodyCreateBox( &_boundary[1], num_particles[0], 1, num_particles[2], particle_radius, Matrix4::translation( Vector3( 0.0f,-height + particle_radius, 0.f ) ) );
-        StaticBodyCreateBox( &_boundary[2], 1, num_particles[1], num_particles[2], particle_radius, Matrix4::translation( Vector3( -width + particle_radius, 0.f, 0.f ) ) );
+        StaticBodyCreateBox( &_boundary[0], 1, num_particles[1], num_particles[2], particle_radius, Matrix4F::translation( Vector3F( width+particle_radius, 0.f, 0.f ) ) );
+        StaticBodyCreateBox( &_boundary[1], num_particles[0], 1, num_particles[2], particle_radius, Matrix4F::translation( Vector3F( 0.0f,-height + particle_radius, 0.f ) ) );
+        StaticBodyCreateBox( &_boundary[2], 1, num_particles[1], num_particles[2], particle_radius, Matrix4F::translation( Vector3F( -width + particle_radius, 0.f, 0.f ) ) );
         
         StaticBodyDoNeighbourMap( &_boundary[0], particle_radius * 4 );
         StaticBodyDoNeighbourMap( &_boundary[1], particle_radius * 4 );
@@ -72,7 +72,7 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
     }
 
     //const Matrix4 init_pose = Matrix4( Matrix3::rotationZ( PI / 4 ), Vector3( 0.f ) );
-    const Matrix4 init_pose = Matrix4::identity();
+    const Matrix4F init_pose = Matrix4F::identity();
     FluidInitBox( &_fluid, init_pose );
 
 }
