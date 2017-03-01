@@ -395,6 +395,7 @@ void FluidInitMass( Fluid* f )
     const float diam = 2.0f * f->particle_radius;
     const float V = diam * diam * diam;
     f->particle_mass = V * f->density0;
+    //f->particle_mass = 1.f;
 }
 void FluidInitBox( Fluid* f, const Matrix4F& pose )
 {
@@ -488,7 +489,7 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
 
                         density += PBD::Poly6Kernel::W( xi_xj );
 
-                        const Vector3F grad = -density0_inv * PBD::SpikyKernel::gradW( xi_xj );
+                        const Vector3F grad = -pmass_div_density0 * PBD::SpikyKernel::gradW( xi_xj );
                         grad_pk_self -= grad;
                         grad_pj_norm_sqr += lengthSqr( grad );
                     }
@@ -508,6 +509,12 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
             }
         }
         
+        const float scorr_k = 0.001f;
+        const float scorr_n = 4.f;
+        const float scorr_dq = 0.1f * f->support_radius;
+        const float scorr_denom = 1.f / PBD::Poly6Kernel::W_zero(); // scorr_dq );
+        
+
         for( u32 i = 0; i < numPoints; ++i )
         {
             const Vector3F& xi = f->p[i];
@@ -525,8 +532,12 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                 const float lambda_sum = lambda_j + lambda_i;
                 const Vector3F xi_xj = xi - xj;
 
+                const float scorr_e = PBD::Poly6Kernel::W( xi_xj ) * scorr_denom;
+                const float scorr_e2 = scorr_e * scorr_e;
+                const float scorr = -scorr_k * scorr_e2*scorr_e2;
+
                 const Vector3F grad = -pmass_div_density0 * PBD::SpikyKernel::gradW( xi_xj );
-                dpos -= (lambda_sum) * grad;
+                dpos -= (lambda_sum + scorr ) * grad;
             }
 
             for( u32 ibody = 0; ibody < colliders.num_static_bodies; ++ibody )
@@ -541,18 +552,11 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                         const Vector3F& xj = sbody.GetPosition( j );
                         const Vector3F xi_xj = xi - xj;
 
-                        const Vector3F grad = -density0_inv * PBD::SpikyKernel::gradW( xi_xj );
+                        const Vector3F grad = -pmass_div_density0 * PBD::SpikyKernel::gradW( xi_xj );
                         const Vector3F dx = lambda_i * grad;
                         dpos -= dx;
                     }
                 }
-            }
-
-            for( u32 cj = 0; cj < colliders.num_planes; ++cj )
-            {
-                const Vector4F& plane = colliders.planes[cj];
-                const float d = dot( plane, Vector4F( xi, 1.f ) );
-                dpos += -plane.getXYZ() * minOfPair( d, 0.f );
             }
 
             f->dpos[i] = dpos;
@@ -562,17 +566,17 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
         {
             f->p[i] += f->dpos[i];
 
-            //Vector3F xi = f->p[i];
+            Vector3F xi = f->p[i];
 
-            //for( u32 cj = 0; cj < colliders.num_planes; ++cj )
-            //{
-            //    const Vector4F& plane = colliders.planes[cj];
-            //    const float d = dot( plane, Vector4F( xi, 1.f ) );
-            //    Vector3F dpos = -plane.getXYZ() * minOfPair( d, 0.f );   
-            //    xi += dpos;
-            //}
+            for( u32 cj = 0; cj < colliders.num_planes; ++cj )
+            {
+                const Vector4F& plane = colliders.planes[cj];
+                const float d = dot( plane, Vector4F( xi, 1.f ) );
+                Vector3F dpos = -plane.getXYZ() * minOfPair( d, 0.f );   
+                xi += dpos;
+            }
 
-            //f->p[i] = xi;
+            f->p[i] = xi;
         }
     }
 }
