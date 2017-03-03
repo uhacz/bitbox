@@ -168,6 +168,7 @@
     <ClInclude Include="ship_game\ship_level.h" />
     <ClInclude Include="ship_game\ship_player.h" />
     <ClInclude Include="ship_game\ship_terrain.h" />
+    <ClInclude Include="spatial_hash_grid.h" />
     <ClInclude Include="test_game\test_game.h" />
   </ItemGroup>
   <ItemGroup>

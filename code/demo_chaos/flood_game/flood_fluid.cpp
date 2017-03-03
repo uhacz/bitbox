@@ -263,6 +263,14 @@ namespace bx {namespace flood {
                 }
             }
         }
+
+        const float diam = particleRadius * 2.f;
+        const float pv = diam * diam * diam;
+        const float V = total_count * pv;
+        const float density0 = 1000.f;
+        const float total_mass = V * density0;
+        body->_particle_mass = total_mass / (float)total_count;
+
     }
 
     void StaticBodyDoNeighbourMap( StaticBody* body, float supportRadius )
@@ -403,7 +411,7 @@ void FluidInitBox( Fluid* f, const Matrix4F& pose )
     u32 a = (u32)fa;
 
     const float offset = -fa * 0.5f;
-    const float spacing = f->particle_radius * 2.2f;
+    const float spacing = f->particle_radius * 2.f;
 
     const bxGrid grid( a, a, a );
 
@@ -487,9 +495,9 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                         const Vector3F& xj = sbody.GetPosition( j );
                         const Vector3F xi_xj = xi - xj;
 
-                        density += PBD::Poly6Kernel::W( xi_xj );
+                        density +=  sbody._particle_mass * PBD::Poly6Kernel::W( xi_xj );
 
-                        const Vector3F grad = -pmass_div_density0 * PBD::SpikyKernel::gradW( xi_xj );
+                        const Vector3F grad = -sbody._particle_mass / density0 * PBD::SpikyKernel::gradW( xi_xj );
                         grad_pk_self -= grad;
                         grad_pj_norm_sqr += lengthSqr( grad );
                     }
@@ -500,7 +508,7 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
             grad_pj_norm_sqr += lengthSqr( grad_pk_self );
             
             const float C = maxOfPair( ( density / density0 ) - 1.f, 0.f );
-            //const float C = ::fabs( ( density / density0 ) - 1.f );
+            //const float C = ( ( density / density0 ) - 1.f );
             f->density[i] = density;
             f->lambda[i] = -C / ( grad_pj_norm_sqr + eps );
             if( i == debug_i )
@@ -536,8 +544,8 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                 const float scorr_e2 = scorr_e * scorr_e;
                 const float scorr = -scorr_k * scorr_e2*scorr_e2;
 
-                const Vector3F grad = -pmass_div_density0 * PBD::SpikyKernel::gradW( xi_xj );
-                dpos -= (lambda_sum + scorr ) * grad;
+                const Vector3F grad = pmass * PBD::SpikyKernel::gradW( xi_xj );
+                dpos += (lambda_sum  ) * grad;
             }
 
             for( u32 ibody = 0; ibody < colliders.num_static_bodies; ++ibody )
@@ -552,14 +560,14 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                         const Vector3F& xj = sbody.GetPosition( j );
                         const Vector3F xi_xj = xi - xj;
 
-                        const Vector3F grad = -pmass_div_density0 * PBD::SpikyKernel::gradW( xi_xj );
+                        const Vector3F grad = PBD::SpikyKernel::gradW( xi_xj );
                         const Vector3F dx = lambda_i * grad;
-                        dpos -= dx;
+                        dpos += dx;
                     }
                 }
             }
 
-            f->dpos[i] = dpos;
+            f->dpos[i] = dpos * density0_inv;
         }
         
         for( u32 i = 0; i < numPoints; ++i )
@@ -757,11 +765,12 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
 
 void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidColliders& colliders, float deltaTime )
 {
-    deltaTime = 0.005f;
+    deltaTime = 0.0016f;
     const u32 n = f->NumParticles();
+    const float pmass_inv = 1.f / f->particle_mass;
     for( u32 i = 0; i < n; ++i )
     {
-        Vector3F v = f->v[i] + params.gravity * deltaTime;
+        Vector3F v = f->v[i] + params.gravity * deltaTime * pmass_inv;
         Vector3F p = f->x[i] + v*deltaTime;
 
         f->v[i] = v;

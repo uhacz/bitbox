@@ -60,6 +60,7 @@ struct StaticBody
     f32 _map_cell_size_inv = 0.f;
     f32 _particle_radius = 0.f;
     f32 _map_cell_size = 0.f;
+    f32 _particle_mass = 0.f;
 
     array_t<Vector3F> _x;
     

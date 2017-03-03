@@ -51,7 +51,7 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
 
 
     const float particle_radius = 0.1f;
-    FluidCreate( &_fluid, 5*5*5, particle_radius );
+    FluidCreate( &_fluid, 7*7*7, particle_radius );
 
     {
         const u32 num_particles[3] = 
