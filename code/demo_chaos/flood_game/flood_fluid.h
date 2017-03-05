@@ -54,6 +54,7 @@ struct StaticBody
     
     const NeighbourIndices GetNeighbours( const Vector3F& posWS ) const;
     const Vector3F& GetPosition( u32 index ) const { return _x[index]; }
+    float GetBoundaryPsi( u32 index ) const { return _boundary_psi[index]; }
 
     // ---
     vec_float4 _map_cell_size_inv_vec;
@@ -63,6 +64,7 @@ struct StaticBody
     f32 _particle_mass = 0.f;
 
     array_t<Vector3F> _x;
+    array_t<f32> _boundary_psi;
     
     /*
     * this map maps particle world position to list of neighbors
@@ -73,6 +75,7 @@ struct StaticBody
 void StaticBodyCreateBox( StaticBody* body, u32 countX, u32 countY, u32 countZ, float particleRadius, const Matrix4F& toWS );
 void StaticBodyDoNeighbourMap( StaticBody* body, float supportRadius );
 void StaticBodyDebugDraw( const StaticBody& body, u32 color );
+void StaticBodyComputeBoundaryPsi( StaticBody* sbody, float density0 );
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

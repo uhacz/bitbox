@@ -51,7 +51,7 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
 
 
     const float particle_radius = 0.1f;
-    FluidCreate( &_fluid, 7*7*7, particle_radius );
+    FluidCreate( &_fluid, 4*4*4, particle_radius );
 
     {
         const u32 num_particles[3] = 
@@ -72,6 +72,11 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
         StaticBodyDoNeighbourMap( &_boundary[2], neighbour_radius );
         StaticBodyDoNeighbourMap( &_boundary[3], neighbour_radius );
         StaticBodyDoNeighbourMap( &_boundary[4], neighbour_radius );
+
+        for( u32 i = 0; i < 5; ++i )
+        {
+            StaticBodyComputeBoundaryPsi( &_boundary[i], _fluid.density0 );
+        }
     }
 
     //const Matrix4 init_pose = Matrix4( Matrix3::rotationZ( PI / 4 ), Vector3( 0.f ) );
