@@ -39,7 +39,7 @@ namespace hash_grid
         array::clear( hg->_lookup_array );
         array::clear( hg->_data );
 
-        array::reserve( hg->_lookup_array, hashmapSize );
+        array::resize( hg->_lookup_array, hashmapSize );
         array::reserve( hg->_data, count );
 
         union Info
@@ -100,14 +100,14 @@ namespace hash_grid
 
         if( current_bucket.count )
         {
-            array::push_back( hg->_lookup_array, current_bucket );
+            hg->_lookup_array[current_grid_index] = current_bucket;
         }
         
         hg->_cell_size = cellSize;
         hg->_cell_size_inv = cellSizeInv;
     }
 
-    uwzgledniæ s¹siadów.
+    //uwzgledniæ s¹siadów.
 
 }
 
@@ -117,7 +117,7 @@ const HashGridStatic::Indices HashGridStatic::Lookup( const Vector3F& x ) const
     SYS_ASSERT( index < _lookup_array.size );
 
     const Bucket b = _lookup_array[index];
-    SYS_ASSERT( (b.begin + b.count) < _data.size );
+    SYS_ASSERT( (b.begin + b.count) <= _data.size );
     
     Indices indices;
     indices.data = _data.begin() + b.begin;

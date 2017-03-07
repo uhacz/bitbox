@@ -540,14 +540,29 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                         grad_pk_self -= grad;
                         grad_pj_norm_sqr += lengthSqr( grad );
 
-                        if( j == debug_i )
+                        if( i == debug_i )
                         {
                             Matrix4 pose( Matrix3::identity(), Vector3( xyz_to_m128( &xj.x ) ) );
-                            rdi::debug_draw::AddBox( pose, Vector3( f->particle_radius ), 0xFF0000FF, 1 );
+                            rdi::debug_draw::AddBox( pose, Vector3( f->particle_radius ), 0x0000FFFF, 1 );
                         }
 
                     }
                 }
+
+                //{
+                //    const HashGridStatic::Indices indices = sbody._hash_grid.Lookup( xi );
+                //    for( u32 jj = 0; jj < indices.count; ++jj )
+                //    {
+                //        const u32 j = indices.data[jj];
+                //        const Vector3F& xj = sbody.GetPosition( j );
+                //        if( i == debug_i )
+                //        {
+                //            Matrix4 pose( Matrix3::identity(), Vector3( xyz_to_m128( &xj.x ) ) );
+                //            rdi::debug_draw::AddBox( pose, Vector3( f->particle_radius ), 0x0000FFFF, 1 );
+                //        }
+
+                //    }
+                //}
             }
 
 
@@ -568,7 +583,7 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
         const float scorr_dq = 0.1f * f->support_radius;
         const float scorr_denom = 1.f / PBD::Poly6Kernel::W_zero(); // scorr_dq );
         
-
+        
         for( u32 i = 0; i < numPoints; ++i )
         {
             const Vector3F& xi = f->p[i];
@@ -576,39 +591,43 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
 
             Vector3F dpos( 0.f );
 
-            const Indices& neighbour_indices = f->_neighbours.GetNeighbours( i );
-            const u32 num_neighbours = array::sizeu( neighbour_indices );
-            for( u32 nj = 0; nj < num_neighbours; ++nj )
+            if( lambda_i != 0.f )
             {
-                const u32 j = neighbour_indices[nj];
-                const Vector3F& xj = f->p[j];
-                const float lambda_j = f->lambda[j];
-                const float lambda_sum = lambda_j + lambda_i;
-                const Vector3F xi_xj = xi - xj;
 
-                const float scorr_e = PBD::Poly6Kernel::W( xi_xj ) * scorr_denom;
-                const float scorr_e2 = scorr_e * scorr_e;
-                const float scorr = -scorr_k * scorr_e2*scorr_e2;
-
-                const Vector3F grad = pmass_div_density0 * PBD::SpikyKernel::gradW( xi_xj );
-                dpos += (lambda_sum + scorr ) * grad;
-            }
-
-            for( u32 ibody = 0; ibody < colliders.num_static_bodies; ++ibody )
-            {
-                const StaticBody& sbody = colliders.static_bodies[ibody];
-                const NeighbourIndices neighbour_indices = sbody.GetNeighbours( xi );
-                if( neighbour_indices.Ok() )
+                const Indices& neighbour_indices = f->_neighbours.GetNeighbours( i );
+                const u32 num_neighbours = array::sizeu( neighbour_indices );
+                for( u32 nj = 0; nj < num_neighbours; ++nj )
                 {
-                    for( u32 nj = 0; nj < neighbour_indices.size; ++nj )
-                    {
-                        const u32 j = neighbour_indices.data[nj];
-                        const Vector3F& xj = sbody.GetPosition( j );
-                        const Vector3F xi_xj = xi - xj;
+                    const u32 j = neighbour_indices[nj];
+                    const Vector3F& xj = f->p[j];
+                    const float lambda_j = f->lambda[j];
+                    const float lambda_sum = lambda_j + lambda_i;
+                    const Vector3F xi_xj = xi - xj;
 
-                        const Vector3F grad = sbody.GetBoundaryPsi( j ) * density0_inv * PBD::SpikyKernel::gradW( xi_xj );
-                        const Vector3F dx = 2.f * lambda_i * grad;
-                        dpos += dx;
+                    const float scorr_e = PBD::Poly6Kernel::W( xi_xj ) * scorr_denom;
+                    const float scorr_e2 = scorr_e * scorr_e;
+                    const float scorr = -scorr_k * scorr_e2*scorr_e2;
+
+                    const Vector3F grad = pmass_div_density0 * PBD::SpikyKernel::gradW( xi_xj );
+                    dpos += ( lambda_sum + scorr ) * grad;
+                }
+
+                for( u32 ibody = 0; ibody < colliders.num_static_bodies; ++ibody )
+                {
+                    const StaticBody& sbody = colliders.static_bodies[ibody];
+                    const NeighbourIndices neighbour_indices = sbody.GetNeighbours( xi );
+                    if( neighbour_indices.Ok() )
+                    {
+                        for( u32 nj = 0; nj < neighbour_indices.size; ++nj )
+                        {
+                            const u32 j = neighbour_indices.data[nj];
+                            const Vector3F& xj = sbody.GetPosition( j );
+                            const Vector3F xi_xj = xi - xj;
+
+                            const Vector3F grad = sbody.GetBoundaryPsi( j ) * density0_inv * PBD::SpikyKernel::gradW( xi_xj );
+                            const Vector3F dx = 2.f * lambda_i * grad;
+                            dpos += dx;
+                        }
                     }
                 }
             }
