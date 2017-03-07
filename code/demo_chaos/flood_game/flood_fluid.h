@@ -3,7 +3,8 @@
 #include <util/array.h>
 #include <util/vector.h>
 #include <util/vectormath/vectormath.h>
-#include <intrin.h>
+#include "../spatial_hash_grid.h"
+
 
 
 namespace bx{ namespace flood{
@@ -69,6 +70,7 @@ struct StaticBody
     */
     hashmap_t _map;
     vector_t<Indices> _cell_neighbour_list;
+    HashGridStatic _hash_grid;
 };
 void StaticBodyCreateBox( StaticBody* body, u32 countX, u32 countY, u32 countZ, float particleRadius, const Matrix4F& toWS );
 void StaticBodyDoNeighbourMap( StaticBody* body, float supportRadius );

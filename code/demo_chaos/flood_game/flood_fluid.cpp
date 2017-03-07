@@ -338,6 +338,9 @@ namespace bx {namespace flood {
             
             ++counter;
         }
+
+        const u32 hashmapSize = 2048;
+        hash_grid::Build( &body->_hash_grid, body->_x.begin(), body->_x.size, hashmapSize, supportRadius );
     }
 
     void StaticBodyDebugDraw( const StaticBody& body, u32 color )

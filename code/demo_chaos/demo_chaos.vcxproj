@@ -112,6 +112,7 @@
     <ClCompile Include="ship_game\ship_level.cpp" />
     <ClCompile Include="ship_game\ship_player.cpp" />
     <ClCompile Include="ship_game\ship_terrain.cpp" />
+    <ClCompile Include="spatial_hash_grid.cpp" />
     <ClCompile Include="test_game\test_game.cpp" />
   </ItemGroup>
   <ItemGroup>
