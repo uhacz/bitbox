@@ -98,6 +98,7 @@ struct Fluid
 
     u32 _maxIterations = 16;
     f32 _maxError = 0.01f;
+    f32 _dt_acc = 0.f;
 
     NeighbourSearch _neighbours;
 

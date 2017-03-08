@@ -486,7 +486,7 @@ static int debug_i = 0;
 
 void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
 {
-    const u32 solver_iterations = 16;
+    const u32 solver_iterations = 6;
 
     const float eps = 1.0e-6f;
     const float density0 = f->density0;
@@ -591,7 +591,7 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
 
             Vector3F dpos( 0.f );
 
-            if( lambda_i != 0.f )
+            //if( lambda_i != 0.f )
             {
 
                 const Indices& neighbour_indices = f->_neighbours.GetNeighbours( i );
@@ -644,7 +644,7 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
             for( u32 cj = 0; cj < colliders.num_planes; ++cj )
             {
                 const Vector4F& plane = colliders.planes[cj];
-                const float d = dot( plane, Vector4F( xi, 1.f ) );
+                const float d = dot( plane, Vector4F( xi, 1.f ) ) - f->particle_radius;
                 Vector3F dpos = -plane.getXYZ() * minOfPair( d, 0.f );   
                 xi += dpos;
             }
@@ -830,50 +830,44 @@ void FluidSolvePressure( Fluid* f, const FluidColliders& colliders )
 
 void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidColliders& colliders, float deltaTime )
 {
-    deltaTime = 0.005f;
+    const float fluid_delta_time = 0.005f;
+    const float fluid_delta_time_inv = 1.f / fluid_delta_time;
+    f->_dt_acc += deltaTime;
+
     const u32 n = f->NumParticles();
     const float pmass_inv = 1.f / f->particle_mass;
-    for( u32 i = 0; i < n; ++i )
-    {
-        Vector3F v = f->v[i] + params.gravity * deltaTime;
-        Vector3F p = f->x[i] + v*deltaTime;
 
-        f->v[i] = v;
-        f->p[i] = p;
+    while( f->_dt_acc >= fluid_delta_time )
+    {
+        for( u32 i = 0; i < n; ++i )
+        {
+            Vector3F v = f->v[i] + params.gravity * fluid_delta_time;
+            Vector3F p = f->x[i] + v*fluid_delta_time;
+
+            f->v[i] = v;
+            f->p[i] = p;
+        }
+
+        f->_neighbours.FindNeighbours( array::begin( f->p ), array::sizeu( f->p ) );
+
+        {
+            FluidSolvePressure1( f, colliders );
+        }
+
+        for( u32 i = 0; i < n; ++i )
+        {
+            f->v[i] = ( f->p[i] - f->x[i] ) * fluid_delta_time_inv;
+            f->x[i] = f->p[i];
+        }
+
+        f->_dt_acc -= fluid_delta_time;
     }
 
-    f->_neighbours.FindNeighbours( array::begin( f->p ), array::sizeu( f->p ) );
-
-    {
-        FluidSolvePressure1( f, colliders );
-    }
+    //deltaTime = 0.005f;
+    
+    
 
 
-    //for( u32 i = 0; i < n; ++i )
-    //{
-    //    Vector3 p = f->p[i];
-
-    //    Vector3 corr( 0.f );
-    //    for( u32 j = 0; j < colliders.num_planes; ++j )
-    //    {
-    //        const Vector4& plane = colliders.planes[j];
-    //        const floatInVec d = dot( plane, Vector4( p, oneVec ) );
-    //        Vector3 dpos = -plane.getXYZ() * minf4( d, zeroVec );
-
-    //        p += dpos;
-    //        corr += dpos;
-    //    }
-
-    //    f->p[i] = p;
-    //    //f->v[i] += corr;
-    //}
-
-    const float delta_time_inv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
-    for( u32 i = 0; i < n; ++i )
-    {
-        f->v[i] = ( f->p[i] - f->x[i] ) * delta_time_inv;
-        f->x[i] = f->p[i];
-    }
 
     {
         if( ImGui::Begin( "FluidDebug" ) )
@@ -886,13 +880,13 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
         }
         ImGui::End();
 
-        const Vector3 box_ext( f->particle_radius );
-        rdi::debug_draw::AddBox( Matrix4::translation( Vector3( xyz_to_m128( &f->x[debug_i].x ) ) ), box_ext, 0x00FF00FF, 1 );
-        const Indices& neighbours = f->_neighbours.GetNeighbours( debug_i );
-        for( u32 j : neighbours )
-        {
-            rdi::debug_draw::AddBox( Matrix4::translation( Vector3( xyz_to_m128( &f->x[j].x ) ) ), box_ext, 0xFF0000FF, 1 );
-        }
+        //const Vector3 box_ext( f->particle_radius );
+        //rdi::debug_draw::AddBox( Matrix4::translation( Vector3( xyz_to_m128( &f->x[debug_i].x ) ) ), box_ext, 0x00FF00FF, 1 );
+        //const Indices& neighbours = f->_neighbours.GetNeighbours( debug_i );
+        //for( u32 j : neighbours )
+        //{
+        //    rdi::debug_draw::AddBox( Matrix4::translation( Vector3( xyz_to_m128( &f->x[j].x ) ) ), box_ext, 0xFF0000FF, 1 );
+        //}
 
 
     }
