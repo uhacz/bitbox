@@ -443,29 +443,26 @@ void FluidInitMass( Fluid* f )
     f->particle_mass = V * f->density0;
     //f->particle_mass = 1.f;
 }
-void FluidInitBox( Fluid* f, const Matrix4F& pose )
+void FluidInitBox( Fluid* f, u32 width, u32 height, u32 depth, const Matrix4F& pose )
 {
-    float fa = ::pow( (float)f->NumParticles(), 1.f / 3.f );
-    u32 a = (u32)fa;
+    //float fa = ::pow( (float)f->NumParticles(), 1.f / 3.f );
+    //u32 a = (u32)fa;
 
-    const float offset = -fa * 0.5f;
-    const float spacing = f->particle_radius * 2.f;
+    Vector3F offset( (f32)width, (f32)height, (f32)depth );
+    offset *= -0.5f;
 
-    const bxGrid grid( a, a, a );
+    Vector3F spacing( f->particle_radius * 2.f );
 
+    const bxGrid grid( width, height, depth );
 
-    for( u32 z = 0; z < a; ++z )
+    for( u32 z = 0; z < depth; ++z )
     {
-        for( u32 y = 0; y < a; ++y )
+        for( u32 y = 0; y < height; ++y )
         {
-            for( u32 x = 0; x < a; ++x )
+            for( u32 x = 0; x < width; ++x )
             {
-                const float fx = ( offset + x ) * spacing;
-                const float fy = ( offset + y ) * spacing;
-                const float fz = ( offset + z ) * spacing;
-
-                Vector3F pos( fx, fy, fz );
-                pos = (pose * Point3F( pos )).getXYZ();
+                const Vector3F xyz = mulPerElem( Vector3F( (f32)x, (f32)y, (f32)z ) + offset, spacing );
+                const Vector3F pos = (pose * Point3F( xyz )).getXYZ();
 
                 const u32 index = grid.index( x, y, z );
                 SYS_ASSERT( index < f->NumParticles() );
@@ -476,8 +473,14 @@ void FluidInitBox( Fluid* f, const Matrix4F& pose )
             }
         }
     }
+}
+
+void FluidCreateBox( Fluid* f, u32 width, u32 height, u32 depth, float particleRadius, const Matrix4F& pose )
+{
+    const u32 num_particles = width * height * depth;
+    FluidCreate( f, num_particles, particleRadius );
+    FluidInitBox( f, width, height, depth, pose );
     FluidInitMass( f );
-    
 }
 
 static Fluid* g_fluid = nullptr;

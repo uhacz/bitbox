@@ -50,14 +50,15 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
 
 
     const float particle_radius = 0.1f;
-    FluidCreate( &_fluid, 8*8*8, particle_radius );
+    const Matrix4F init_pose = Matrix4F::translation( Vector3F( 0.5f, 1.f, 0.f ) );
+    FluidCreateBox( &_fluid, 4, 8, 4, particle_radius, init_pose );
 
     {
         const u32 num_particles[3] = 
         {
-            _volume_width * particle_radius,
-            _volume_height * particle_radius,
-            _volume_depth * particle_radius,
+            (u32)( _volume_width  * particle_radius ),
+            (u32)( _volume_height * particle_radius ),
+            (u32)( _volume_depth  * particle_radius ),
         };
         StaticBodyCreateBox( &_boundary[0], 1, num_particles[1], num_particles[2], particle_radius, Matrix4F::translation( Vector3F( width + particle_radius, 0.f, 0.f ) ) );
         StaticBodyCreateBox( &_boundary[1], num_particles[0], 1, num_particles[2], particle_radius, Matrix4F::translation( Vector3F( 0.f,height - particle_radius, 0.f ) ) );
@@ -79,9 +80,7 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
     }
 
     //const Matrix4 init_pose = Matrix4( Matrix3::rotationZ( PI / 4 ), Vector3( 0.f ) );
-    const Matrix4F init_pose = Matrix4F::translation( Vector3F( 0.5f, 0.f, 0.f ) );
-    FluidInitBox( &_fluid, init_pose );
-
+    //FluidInitBox( &_fluid, init_pose );
 }
 
 void Level::ShutDown( game_gfx::Deffered* gfx )

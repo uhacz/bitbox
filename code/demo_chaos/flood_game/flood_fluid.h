@@ -119,8 +119,11 @@ struct FluidSimulationParams
     f32 velocity_damping = 0.1f;
 };
 
-void FluidCreate( Fluid* f, u32 numParticles, float particleRadius );
-void FluidInitBox( Fluid* f, const Matrix4F& pose );
+//void FluidCreate( Fluid* f, u32 numParticles, float particleRadius );
+//void FluidInitBox( Fluid* f, u32 width, u32 height, u32 depth, const Matrix4F& pose );
+
+void FluidCreateBox( Fluid* f, u32 width, u32 height, u32 depth, float particleRadius, const Matrix4F& pose );
 void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidColliders& colliders, float deltaTime );
+
 
 }}//
