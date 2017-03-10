@@ -552,20 +552,20 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                     }
                 }
 
-                //{
-                //    const HashGridStatic::Indices indices = sbody._hash_grid.Lookup( xi );
-                //    for( u32 jj = 0; jj < indices.count; ++jj )
-                //    {
-                //        const u32 j = indices.data[jj];
-                //        const Vector3F& xj = sbody.GetPosition( j );
-                //        if( i == debug_i )
-                //        {
-                //            Matrix4 pose( Matrix3::identity(), Vector3( xyz_to_m128( &xj.x ) ) );
-                //            rdi::debug_draw::AddBox( pose, Vector3( f->particle_radius ), 0x0000FFFF, 1 );
-                //        }
+                {
+                    const HashGridStatic::Indices indices = sbody._hash_grid.Lookup( xi );
+                    for( u32 jj = 0; jj < indices.count; ++jj )
+                    {
+                        const u32 j = indices.data[jj];
+                        const Vector3F& xj = sbody.GetPosition( j );
+                        if( i == debug_i )
+                        {
+                            Matrix4 pose( Matrix3::identity(), Vector3( xyz_to_m128( &xj.x ) ) );
+                            rdi::debug_draw::AddBox( pose, Vector3( f->particle_radius ), 0x0000FFFF, 1 );
+                        }
 
-                //    }
-                //}
+                    }
+                }
             }
 
 
@@ -614,6 +614,10 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                     const Vector3F grad = pmass_div_density0 * PBD::SpikyKernel::gradW( xi_xj );
                     dpos += ( lambda_sum + scorr ) * grad;
                 }
+
+                change static body query system.
+                When particle is not overlaping obstacle then GetNeighbours will fail
+                Do some proximity check
 
                 for( u32 ibody = 0; ibody < colliders.num_static_bodies; ++ibody )
                 {
@@ -835,11 +839,13 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
 {
     const float fluid_delta_time = 0.005f;
     const float fluid_delta_time_inv = 1.f / fluid_delta_time;
+    const u32 max_iterations = 4;
     f->_dt_acc += deltaTime;
 
     const u32 n = f->NumParticles();
     const float pmass_inv = 1.f / f->particle_mass;
 
+    u32 iteration = 0;
     while( f->_dt_acc >= fluid_delta_time )
     {
         for( u32 i = 0; i < n; ++i )
@@ -864,6 +870,13 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
         }
 
         f->_dt_acc -= fluid_delta_time;
+
+        if( ++iteration >= max_iterations )
+        {
+            f->_dt_acc = 0.f;
+            break;
+        }
+
     }
 
     //deltaTime = 0.005f;
@@ -871,35 +884,60 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
     
 
 
-
+    
     {
         if( ImGui::Begin( "FluidDebug" ) )
         {
             ImGui::InputInt( "particle index", &debug_i );
             ImGui::Text( "density (%i): %f", debug_i, f->density[debug_i] );
-
-            
             ImGui::Text( "lambda(%i): %f", debug_i, max_lambda );
+
+            ImGui::Checkbox( "show density", &f->_debug.show_density );
         }
         ImGui::End();
 
-        //const Vector3 box_ext( f->particle_radius );
-        //rdi::debug_draw::AddBox( Matrix4::translation( Vector3( xyz_to_m128( &f->x[debug_i].x ) ) ), box_ext, 0x00FF00FF, 1 );
-        //const Indices& neighbours = f->_neighbours.GetNeighbours( debug_i );
-        //for( u32 j : neighbours )
-        //{
-        //    rdi::debug_draw::AddBox( Matrix4::translation( Vector3( xyz_to_m128( &f->x[j].x ) ) ), box_ext, 0xFF0000FF, 1 );
-        //}
-
-
+        if( iteration )
+        {
+            const Vector3 box_ext( f->particle_radius );
+            rdi::debug_draw::AddBox( Matrix4::translation( Vector3( xyz_to_m128( &f->x[debug_i].x ) ) ), box_ext, 0x00FF00FF, 1 );
+            const Indices& neighbours = f->_neighbours.GetNeighbours( debug_i );
+            if( neighbours.size )
+            {
+                for( u32 j : neighbours )
+                {
+                    rdi::debug_draw::AddBox( Matrix4::translation( Vector3( xyz_to_m128( &f->x[j].x ) ) ), box_ext, 0xFF0000FF, 1 );
+                }
+            }
+        }
     }
 
 
-    for( Vector3F pos : f->x )
+    for( u32 i = 0; i < f->x.size; ++i )
     {
         //rdi::debug_draw::AddBox( Matrix4::translation( pos ), Vector3( f->particle_radius ), 0x0000FFFF, 1 );
+        const Vector3F& pos = f->x[i];
         const Vector3 v3( xyz_to_m128( &pos.x ) );
-        rdi::debug_draw::AddSphere( Vector4( v3, f->particle_radius ), 0x0000FFFF, 1 );
+
+        u32 color = 0x0000FFFF;
+        if( f->_debug.show_density )
+        {
+            const Vector3F zero_color( 1.f, 1.f, 1.f );
+            const Vector3F one_color( 1.f, 0.f, 0.f );
+
+            const float density = f->density[i];
+            const float alpha = density / f->density0;
+
+            const Vector3F color3f = lerp( alpha, zero_color, one_color );
+
+            const float scaler = 255.f;
+            u8 r = (u8)( color3f.x * scaler );
+            u8 g = (u8)( color3f.y * scaler );
+            u8 b = (u8)( color3f.z * scaler );
+
+            color = ( r << 24 ) | ( g << 16 ) | ( b << 8 ) | 0xFF;
+        }
+
+        rdi::debug_draw::AddSphere( Vector4( v3, f->particle_radius ), color, 1 );
     }
 }
 

@@ -102,6 +102,11 @@ struct Fluid
 
     NeighbourSearch _neighbours;
 
+    struct Debug
+    {
+        bool show_density = true;
+    }_debug;
+
     u32 NumParticles() const { return array::sizeu( x ); }
 };
 

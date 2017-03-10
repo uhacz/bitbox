@@ -49,33 +49,34 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
     }
 
 
-    const float particle_radius = 0.1f;
+    const float particle_radius = 0.05f;
     const Matrix4F init_pose = Matrix4F::translation( Vector3F( 0.5f, 1.f, 0.f ) );
     FluidCreateBox( &_fluid, 4, 8, 4, particle_radius, init_pose );
 
     {
+        const float boundary_particle_radius = 0.05f;
         const u32 num_particles[3] = 
         {
-            (u32)( _volume_width  * particle_radius ),
-            (u32)( _volume_height * particle_radius ),
-            (u32)( _volume_depth  * particle_radius ),
+            (u32)( width  / boundary_particle_radius * 2.f ),
+            (u32)( height / boundary_particle_radius * 2.f ),
+            (u32)( depth  / boundary_particle_radius * 2.f ),
         };
-        StaticBodyCreateBox( &_boundary[0], 1, num_particles[1], num_particles[2], particle_radius, Matrix4F::translation( Vector3F( width + particle_radius, 0.f, 0.f ) ) );
-        StaticBodyCreateBox( &_boundary[1], num_particles[0], 1, num_particles[2], particle_radius, Matrix4F::translation( Vector3F( 0.f,height - particle_radius, 0.f ) ) );
-        StaticBodyCreateBox( &_boundary[2], 1, num_particles[1], num_particles[2], particle_radius, Matrix4F::translation( Vector3F(-width - particle_radius, 0.f, 0.f ) ) );
-        StaticBodyCreateBox( &_boundary[3], num_particles[0], num_particles[1], 1, particle_radius, Matrix4F::translation( Vector3F( 0.f, 0.f,-depth - particle_radius ) ) );
-        StaticBodyCreateBox( &_boundary[4], num_particles[0], num_particles[1], 1, particle_radius, Matrix4F::translation( Vector3F( 0.f, 0.f, depth + particle_radius ) ) );
+        StaticBodyCreateBox( &_boundary[0], 1, num_particles[1], num_particles[2], boundary_particle_radius, Matrix4F::translation( Vector3F( width + boundary_particle_radius*2, 0.f, 0.f ) ) );
+        //StaticBodyCreateBox( &_boundary[1], num_particles[0], 1, num_particles[2], particle_radius, Matrix4F::translation( Vector3F( 0.f,height - particle_radius, 0.f ) ) );
+        //StaticBodyCreateBox( &_boundary[2], 1, num_particles[1], num_particles[2], particle_radius, Matrix4F::translation( Vector3F(-width - particle_radius, 0.f, 0.f ) ) );
+        //StaticBodyCreateBox( &_boundary[3], num_particles[0], num_particles[1], 1, particle_radius, Matrix4F::translation( Vector3F( 0.f, 0.f,-depth - particle_radius ) ) );
+        //StaticBodyCreateBox( &_boundary[4], num_particles[0], num_particles[1], 1, particle_radius, Matrix4F::translation( Vector3F( 0.f, 0.f, depth + particle_radius ) ) );
 
-        const float neighbour_radius = particle_radius * 2.f;
+        const float neighbour_radius = particle_radius * 4.f;
         StaticBodyDoNeighbourMap( &_boundary[0], neighbour_radius );
-        StaticBodyDoNeighbourMap( &_boundary[1], neighbour_radius );
-        StaticBodyDoNeighbourMap( &_boundary[2], neighbour_radius );
-        StaticBodyDoNeighbourMap( &_boundary[3], neighbour_radius );
-        StaticBodyDoNeighbourMap( &_boundary[4], neighbour_radius );
+        //StaticBodyDoNeighbourMap( &_boundary[1], neighbour_radius );
+        //StaticBodyDoNeighbourMap( &_boundary[2], neighbour_radius );
+        //StaticBodyDoNeighbourMap( &_boundary[3], neighbour_radius );
+        //StaticBodyDoNeighbourMap( &_boundary[4], neighbour_radius );
 
-        for( u32 i = 0; i < 5; ++i )
+        for( u32 i = 0; i < 1; ++i )
         {
-            StaticBodyComputeBoundaryPsi( &_boundary[i], _fluid.density0 );
+            StaticBodyComputeBoundaryPsi( &_boundary[i], 3000 );
         }
     }
 
@@ -96,7 +97,7 @@ void Level::Tick( const GameTime& time )
     colliders.planes = &_plane_right;
     colliders.num_planes = 5;
     colliders.static_bodies = _boundary;
-    colliders.num_static_bodies = 5;
+    colliders.num_static_bodies = 1;
 
     FluidSimulationParams sim_params = {};
     //sim_params.gravity = Vector3( 0.f, -0.1f, 0.f ); // Vector3::yAxis();
@@ -105,11 +106,24 @@ void Level::Tick( const GameTime& time )
 
     StaticBodyDebugDraw( _boundary[0], 0x333333FF );
     //StaticBodyDebugDraw( _boundary[1], 0x333333FF );
-    StaticBodyDebugDraw( _boundary[2], 0x333333FF );
+    //StaticBodyDebugDraw( _boundary[2], 0x333333FF );
     //StaticBodyDebugDraw( _boundary[3], 0x333333FF );
     //StaticBodyDebugDraw( _boundary[4], 0x333333FF );
 
+    for( u32 i = 0; i < 5; ++i )
+    {
+        const Vector4F plane = colliders.planes[i];
 
+        const Vector3F point_on_plane = projectPointOnPlane( Vector3F( 0.f ), plane );
+
+        const Vector3 pa( xyzw_to_m128( &point_on_plane.x ) );
+
+        const Vector3F n = plane.getXYZ();
+        const Vector3 v( xyzw_to_m128( &n.x ) );
+        rdi::debug_draw::AddLine( pa, pa + v * 0.1f, 0xFF0000FF, 1 );
+        rdi::debug_draw::AddSphere( Vector4( pa, _fluid.particle_radius ), 0xFF0000FF, 1 );
+
+    }
 }
 
 void Level::Render( rdi::CommandQueue* cmdq, const GameTime& time )

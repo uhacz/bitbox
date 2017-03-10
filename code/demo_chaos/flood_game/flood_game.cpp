@@ -76,8 +76,8 @@ void LevelState::OnUpdate( const GameTime& time )
     }
     if( _use_dev_camera )
     {
-        game_util::DevCameraCollectInput( &_dev_camera_input_ctx, time.DeltaTimeSec(), 0.01f );
-        _dev_camera.world = _dev_camera_input_ctx.computeMovement( _dev_camera.world, 0.15f );
+        game_util::DevCameraCollectInput( &_dev_camera_input_ctx, time.DeltaTimeSec(), 0.005f );
+        _dev_camera.world = _dev_camera_input_ctx.computeMovement( _dev_camera.world, 0.05f );
 
         gfx::computeMatrices( &_dev_camera );
     }

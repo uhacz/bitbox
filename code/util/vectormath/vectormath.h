@@ -324,7 +324,6 @@ inline Vector4F makePlane( const Vector3F& planeNormal, const Vector3F& pointOnP
 }
 
 
-
 inline Vector3 projectPointOnPlane( const Vector3& point, const Vector4& plane )
 {
     const Vector3& n = plane.getXYZ();
@@ -339,6 +338,23 @@ inline Vector3 projectVectorOnPlane( const Vector3& vec, const Vector4& plane )
     const Vector3& n = plane.getXYZ();
     const Vector3& V = vec;
     const Vector3 W = V - dot(V,n) * n;
+    return W;
+}
+
+inline Vector3F projectPointOnPlane( const Vector3F& point, const Vector4F& plane )
+{
+    const Vector3F& n = plane.getXYZ();
+    const Vector3F& Q = point;
+
+    const Vector3F Qp = Q - ( dot( Q, n ) + plane.getW() ) * n;
+    return Qp;
+}
+
+inline Vector3F projectVectorOnPlane( const Vector3F& vec, const Vector4F& plane )
+{
+    const Vector3F& n = plane.getXYZ();
+    const Vector3F& V = vec;
+    const Vector3F W = V - dot( V, n ) * n;
     return W;
 }
 
