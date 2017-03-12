@@ -269,13 +269,17 @@ namespace bx {namespace flood {
                 }
             }
         }
+    }
 
-        const float diam = particleRadius * 2.f;
-        const float pv = diam * diam * diam;
-        const float V = total_count * pv;
-        const float density0 = 1000.f;
-        const float total_mass = V * density0;
-        body->_particle_mass = total_mass / (float)total_count;
+    void StaticBodyCreateBox1( StaticBody* body, float width, float height, float depth, float initialParticleRadius, const Matrix4F& toWS )
+    {
+        float r = initialParticleRadius;
+        float count_xf = ::floor( width  / r );
+        float count_yf = ::floor( height / r );
+        float count_zf = ::floor( depth  / r );
+
+
+
 
     }
 
@@ -301,6 +305,24 @@ namespace bx {namespace flood {
         {
             SpatialHash hash = MakeHash( body->_x[i], cell_size_inv );
             ListPushBack( tmp_sparse_grid, tmp_sparse_grid_cells, hash.hash, i );
+            
+            for( int dz = -1; dz <= 1; ++dz )
+            {
+                for( int dy = -1; dy <= 1; ++dy )
+                {
+                    for( int dx = -1; dx <= 1; ++dx )
+                    {
+                        SpatialHash neighbour_hash;
+                        neighbour_hash.x = hash.x + dx;
+                        neighbour_hash.y = hash.y + dy;
+                        neighbour_hash.z = hash.z + dz;
+                        neighbour_hash.w = 1;
+
+                        ListPushBack( tmp_sparse_grid, tmp_sparse_grid_cells, neighbour_hash.hash, UINT32_MAX );
+                    }
+                }
+            }
+
             //array::push_back( tmp_point_spatial_hash, hash.hash );
         }
 
@@ -335,7 +357,10 @@ namespace bx {namespace flood {
                         PointListCell cell = ListBegin( tmp_sparse_grid, neighbour_hash.hash, tmp_sparse_grid_cells );
                         while( cell.Ok() )
                         {
-                            array::push_back( indices, cell.point_index );
+                            if( cell.point_index != UINT32_MAX )
+                            {
+                                array::push_back( indices, cell.point_index );
+                            }
                             ListNext( &cell, tmp_sparse_grid_cells );
                         }
                     }
@@ -363,6 +388,9 @@ namespace bx {namespace flood {
                 for( u32 nj = 0; nj < nindices.size; ++nj )
                 {
                     const u32 j = nindices.data[nj];
+                    if( j == i )
+                        continue;
+
                     const Vector3F& xj = sbody->GetPosition( j );
 
                     delta += PBD::Poly6Kernel::W( xi - xj );
@@ -387,7 +415,8 @@ namespace bx {namespace flood {
 
             const Vector3 v3( xyz_to_m128( &body._x[index].x ) );
 
-            rdi::debug_draw::AddSphere( Vector4( v3, body._particle_radius ), color, 1 );
+            //rdi::debug_draw::AddSphere( Vector4( v3, body._particle_radius ), color, 1 );
+            rdi::debug_draw::AddBox( Matrix4::translation( v3 ), Vector3( body._particle_radius ), color, 1 );
         }
     }
 
@@ -440,7 +469,7 @@ void FluidInitMass( Fluid* f )
     // mass is slightly reduced to prevent pressure at the beginning of the simulation
     const float diam = 2.0f * f->particle_radius;
     const float V = diam * diam * diam;
-    f->particle_mass = V * f->density0;
+    f->particle_mass = V * f->density0 * 0.8f;
     //f->particle_mass = 1.f;
 }
 void FluidInitBox( Fluid* f, u32 width, u32 height, u32 depth, const Matrix4F& pose )
@@ -489,7 +518,7 @@ static int debug_i = 0;
 
 void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
 {
-    const u32 solver_iterations = 6;
+    const u32 solver_iterations = 4;
 
     const float eps = 1.0e-6f;
     const float density0 = f->density0;
@@ -497,11 +526,17 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
     const float pmass = f->particle_mass;
     const float pmass_div_density0 = pmass / density0;
 
-    const u32 numPoints = array::sizeu( f->p );
+    const u32 num_points = array::sizeu( f->p );
+
+    const float eta = f->_maxError * 0.01f * density0;
+    const float num_points_inv = 1.f / (float)num_points;
+    float avg_density_err = 0.f;
 
     for( u32 sit = 0; sit < solver_iterations; ++sit )
     {
-        for( u32 i = 0; i < numPoints; ++i )
+        avg_density_err = 0.f;
+
+        for( u32 i = 0; i < num_points; ++i )
         {
             const Vector3F& xi = f->p[i];
 
@@ -552,20 +587,20 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                     }
                 }
 
-                {
-                    const HashGridStatic::Indices indices = sbody._hash_grid.Lookup( xi );
-                    for( u32 jj = 0; jj < indices.count; ++jj )
-                    {
-                        const u32 j = indices.data[jj];
-                        const Vector3F& xj = sbody.GetPosition( j );
-                        if( i == debug_i )
-                        {
-                            Matrix4 pose( Matrix3::identity(), Vector3( xyz_to_m128( &xj.x ) ) );
-                            rdi::debug_draw::AddBox( pose, Vector3( f->particle_radius ), 0x0000FFFF, 1 );
-                        }
+                //{
+                //    const HashGridStatic::Indices indices = sbody._hash_grid.Lookup( xi );
+                //    for( u32 jj = 0; jj < indices.count; ++jj )
+                //    {
+                //        const u32 j = indices.data[jj];
+                //        const Vector3F& xj = sbody.GetPosition( j );
+                //        if( i == debug_i )
+                //        {
+                //            Matrix4 pose( Matrix3::identity(), Vector3( xyz_to_m128( &xj.x ) ) );
+                //            rdi::debug_draw::AddBox( pose, Vector3( f->particle_radius ), 0x0000FFFF, 1 );
+                //        }
 
-                    }
-                }
+                //    }
+                //}
             }
 
 
@@ -579,16 +614,22 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
             {
                 max_lambda = maxOfPair( max_lambda, ::fabs( f->lambda[i] ) );
             }
+
+            avg_density_err += ( maxOfPair( density, density0 ) - density0 ) * num_points_inv;
+
         }
         
+
+
         const float scorr_k = 0.001f;
         const float scorr_n = 4.f;
         const float scorr_dq = 0.1f * f->support_radius;
         const float scorr_denom = 1.f / PBD::Poly6Kernel::W_zero(); // scorr_dq );
         
         
-        for( u32 i = 0; i < numPoints; ++i )
+        for( u32 i = 0; i < num_points; ++i )
         {
+
             const Vector3F& xi = f->p[i];
             const float lambda_i = f->lambda[i];
 
@@ -615,9 +656,9 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                     dpos += ( lambda_sum + scorr ) * grad;
                 }
 
-                change static body query system.
-                When particle is not overlaping obstacle then GetNeighbours will fail
-                Do some proximity check
+                //change static body query system.
+                //When particle is not overlaping obstacle then GetNeighbours will fail
+                //Do some proximity check
 
                 for( u32 ibody = 0; ibody < colliders.num_static_bodies; ++ibody )
                 {
@@ -632,7 +673,7 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
                             const Vector3F xi_xj = xi - xj;
 
                             const Vector3F grad = sbody.GetBoundaryPsi( j ) * density0_inv * PBD::SpikyKernel::gradW( xi_xj );
-                            const Vector3F dx = 2.f * lambda_i * grad;
+                            const Vector3F dx = lambda_i * grad;
                             dpos += dx;
                         }
                     }
@@ -642,7 +683,7 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
             f->dpos[i] = dpos;
         }
         
-        for( u32 i = 0; i < numPoints; ++i )
+        for( u32 i = 0; i < num_points; ++i )
         {
             f->p[i] += f->dpos[i];
 
@@ -657,6 +698,11 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
             }
 
             f->p[i] = xi;
+        }
+        if( sit >= 2 )
+        {
+            if( avg_density_err <= eta )
+                 break;
         }
     }
 }
@@ -937,7 +983,8 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
             color = ( r << 24 ) | ( g << 16 ) | ( b << 8 ) | 0xFF;
         }
 
-        rdi::debug_draw::AddSphere( Vector4( v3, f->particle_radius ), color, 1 );
+        //rdi::debug_draw::AddSphere( Vector4( v3, f->particle_radius ), color, 1 );
+        rdi::debug_draw::AddBox( Matrix4::translation( v3 ), Vector3( f->particle_radius ), color, 1 );
     }
 }
 
