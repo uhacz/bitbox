@@ -50,8 +50,8 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
 
 
     const float particle_radius = 0.05f;
-    const Matrix4F init_pose = Matrix4F::translation( Vector3F( 0.5f, 1.f, 0.f ) );
-    FluidCreateBox( &_fluid, 4, 16, 4, particle_radius, init_pose );
+    const Matrix4F init_pose = Matrix4F::translation( Vector3F( 0.5f, 3.f, 0.f ) );
+    FluidCreateBox( &_fluid, 8, 32, 4, particle_radius, init_pose );
 
     {
         const float boundary_particle_radius = particle_radius;
@@ -110,9 +110,9 @@ void Level::Tick( const GameTime& time )
 
     StaticBodyDebugDraw( _boundary[0], 0x333333FF );
     StaticBodyDebugDraw( _boundary[1], 0x333333FF );
-    StaticBodyDebugDraw( _boundary[2], 0x333333FF );
-    StaticBodyDebugDraw( _boundary[3], 0x333333FF );
-    StaticBodyDebugDraw( _boundary[4], 0x333333FF );
+    //StaticBodyDebugDraw( _boundary[2], 0x333333FF );
+    //StaticBodyDebugDraw( _boundary[3], 0x333333FF );
+    //StaticBodyDebugDraw( _boundary[4], 0x333333FF );
 
     //for( u32 i = 0; i < 5; ++i )
     //{
