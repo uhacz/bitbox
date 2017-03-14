@@ -83,6 +83,7 @@ struct Fluid
     array_t<f32> density;
     array_t<f32> lambda;
     array_t<Vector3F> dpos;
+    
 
     f32 particle_radius = 0.025f;
     f32 support_radius = 4.f * 0.025f;

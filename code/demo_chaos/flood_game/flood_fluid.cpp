@@ -9,7 +9,7 @@
 #include "SPHKernels.h"
 #include "util/time.h"
 #include "util/random.h"
-
+#include "../profiler/Remotery.h"
 
 
 namespace bx {namespace flood {
@@ -370,7 +370,7 @@ namespace bx {namespace flood {
             ++counter;
         }
 
-        const u32 hashmapSize = 2048;
+        const u32 hashmapSize = num_points * 2;
         hash_grid::Build( &body->_hash_grid, body->_x.begin(), body->_x.size, hashmapSize, supportRadius );
     }
 
@@ -520,7 +520,7 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
 {
     const u32 solver_iterations = 8;
 
-    const float eps = 1.0e-6f;
+    const float eps = 1.0e-8f;
     const float density0 = f->density0;
     const float density0_inv = 1.f / density0;
     const float pmass = f->particle_mass;
@@ -528,14 +528,8 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
 
     const u32 num_points = array::sizeu( f->p );
 
-    //const float eta = f->_maxError * 0.01f * density0;
-    //const float num_points_inv = 1.f / (float)num_points;
-    //float avg_density_err = 0.f;
-
     for( u32 sit = 0; sit < solver_iterations; ++sit )
     {
-        //avg_density_err = 0.f;
-
         for( u32 i = 0; i < num_points; ++i )
         {
             const Vector3F& xi = f->p[i];
@@ -614,9 +608,6 @@ void FluidSolvePressure1( Fluid* f, const FluidColliders& colliders )
             {
                 max_lambda = maxOfPair( max_lambda, ::fabs( f->lambda[i] ) );
             }
-
-            //avg_density_err += ( maxOfPair( density, density0 ) - density0 ) * num_points_inv;
-
         }
         
 
