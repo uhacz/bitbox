@@ -3,6 +3,7 @@
 #include "../renderer.h"
 #include "../game_gfx.h"
 #include "../game_util.h"
+#include "../imgui/imgui.h"
 
 #include <util/string_util.h>
 #include <rdi/rdi_debug_draw.h>
@@ -51,7 +52,7 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
 
     const float particle_radius = 0.05f;
     const Matrix4F init_pose = Matrix4F::translation( Vector3F( 0.5f, 3.f, 0.f ) );
-    FluidCreateBox( &_fluid, 8, 32, 4, particle_radius, init_pose );
+    FluidCreateBox( &_fluid, 10, 15, 10, particle_radius, init_pose );
 
     {
         const float boundary_particle_radius = particle_radius;
@@ -84,8 +85,7 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
         }
     }
 
-    //const Matrix4 init_pose = Matrix4( Matrix3::rotationZ( PI / 4 ), Vector3( 0.f ) );
-    //FluidInitBox( &_fluid, init_pose );
+    _fluid_sim_params.gravity = Vector3F( 0.f );
 }
 
 void Level::ShutDown( game_gfx::Deffered* gfx )
@@ -103,13 +103,10 @@ void Level::Tick( const GameTime& time )
     colliders.static_bodies = _boundary;
     colliders.num_static_bodies = 5;
 
-    FluidSimulationParams sim_params = {};
-    //sim_params.gravity = Vector3( 0.f, -0.1f, 0.f ); // Vector3::yAxis();
+    FluidTick( &_fluid, _fluid_sim_params, colliders, time.DeltaTimeSec() );
 
-    FluidTick( &_fluid, sim_params, colliders, time.DeltaTimeSec() );
-
-    StaticBodyDebugDraw( _boundary[0], 0x333333FF );
-    StaticBodyDebugDraw( _boundary[1], 0x333333FF );
+    //StaticBodyDebugDraw( _boundary[0], 0x333333FF );
+    //StaticBodyDebugDraw( _boundary[1], 0x333333FF );
     //StaticBodyDebugDraw( _boundary[2], 0x333333FF );
     //StaticBodyDebugDraw( _boundary[3], 0x333333FF );
     //StaticBodyDebugDraw( _boundary[4], 0x333333FF );
@@ -128,6 +125,16 @@ void Level::Tick( const GameTime& time )
     //    rdi::debug_draw::AddSphere( Vector4( pa, _fluid.particle_radius ), 0xFF0000FF, 1 );
 
     //}
+
+    if( ImGui::Begin( "Level" ) )
+    {
+        ImGui::BeginChild( "FluidParams", ImVec2(0,0), true );
+            ImGui::InputFloat3( "gravity", &_fluid_sim_params.gravity.x, 3, ImGuiInputTextFlags_EnterReturnsTrue );
+            ImGui::InputInt   ( "solverIterations", &_fluid_sim_params.solver_iterations );
+            ImGui::InputFloat ( "timeStep", &_fluid_sim_params.time_step );
+        ImGui::EndChild();
+    }
+    ImGui::End();
 }
 
 void Level::Render( rdi::CommandQueue* cmdq, const GameTime& time )

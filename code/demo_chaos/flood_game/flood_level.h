@@ -17,8 +17,8 @@ namespace flood {
 
 struct Level
 {
-    const char*     _name = nullptr;
-    gfx::Scene      _gfx_scene = nullptr;
+    const char* _name      = nullptr;
+    gfx::Scene  _gfx_scene = nullptr;
 
     void StartUp( game_gfx::Deffered* gfx, const char* levelName );
     void ShutDown( game_gfx::Deffered* gfx );
@@ -29,7 +29,7 @@ struct Level
     f32 _world_scale   = 0.01f;
     u32 _volume_width  = 128;
     u32 _volume_height = 32;
-    u32 _volume_depth  = 64;
+    u32 _volume_depth  = 128;
 
     Vector4F _plane_right;
     Vector4F _plane_bottom;
@@ -39,6 +39,8 @@ struct Level
     Vector4F _plane_back;
 
     Fluid _fluid;
+    FluidSimulationParams _fluid_sim_params = {};
+
     StaticBody _boundary[6];
 };
 

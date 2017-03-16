@@ -141,7 +141,9 @@
   <ItemGroup>
     <ClInclude Include="flood_game\flood_fluid.h" />
     <ClInclude Include="flood_game\flood_game.h" />
+    <ClInclude Include="flood_game\flood_helpers.h" />
     <ClInclude Include="flood_game\flood_level.h" />
+    <ClInclude Include="flood_game\flood_rigid_body.h" />
     <ClInclude Include="flood_game\SPHKernels.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="game_gfx.h" />
@@ -155,6 +157,7 @@
     <ClInclude Include="imgui\stb_rect_pack.h" />
     <ClInclude Include="imgui\stb_textedit.h" />
     <ClInclude Include="imgui\stb_truetype.h" />
+    <ClInclude Include="pbd_rigid_body.h" />
     <ClInclude Include="profiler.h" />
     <ClInclude Include="profiler\Remotery.h" />
     <ClInclude Include="renderer.h" />

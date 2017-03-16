@@ -5,6 +5,7 @@
 #include <util/vectormath/vectormath.h>
 #include "../spatial_hash_grid.h"
 
+#include "flood_helpers.h"
 
 
 namespace bx{ namespace flood{
@@ -12,26 +13,18 @@ namespace bx{ namespace flood{
 typedef array_t<u32> Indices;
 typedef array_t<size_t> MapCells;
 
-struct NeighbourIndices
-{
-    const u32* data = nullptr;
-    u32 size = 0;
 
-    bool Ok() const { return data && size; }
-};
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-struct NeighbourSearch
+struct FluidNeighbourSearch
 {
     void FindNeighbours( const Vector3F* points, u32 numPoints );
     void SetCellSize( float value );
     const Indices& GetNeighbours( u32 index ) const;
 
     f32 _cell_size_inv = 0.f;
-
-    
     hashmap_t _map;
     MapCells  _map_cells;
 
@@ -40,17 +33,16 @@ struct NeighbourSearch
 
     u32 _num_points = 0;
 
-    static const u32 INITIAL_NEIGHBOUR_COUNT = 96;
+    static const u32 INITIAL_NEIGHBOUR_COUNT = 16;
 };
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 struct StaticBody
 {
-    
-    const NeighbourIndices GetNeighbours( const Vector3F& posWS ) const;
-    const Vector3F& GetPosition( u32 index ) const { return _x[index]; }
-    float GetBoundaryPsi( u32 index ) const { return _boundary_psi[index]; }
+    const NeighbourIndices GetNeighbours  ( const Vector3F& posWS ) const;
+    const Vector3F&        GetPosition    ( u32 index )             const { return _x[index]; }
+          float            GetBoundaryPsi ( u32 index )             const { return _boundary_psi[index]; }
 
     // ---
     vec_float4 _map_cell_size_inv_vec;
@@ -66,7 +58,6 @@ struct StaticBody
     */
     hashmap_t _map;
     vector_t<Indices> _cell_neighbour_list;
-    HashGridStatic _hash_grid;
 };
 void StaticBodyCreateBox( StaticBody* body, u32 countX, u32 countY, u32 countZ, float particleRadius, const Matrix4F& toWS );
 void StaticBodyDoNeighbourMap( StaticBody* body, float supportRadius );
@@ -83,7 +74,6 @@ struct Fluid
     array_t<f32> density;
     array_t<f32> lambda;
     array_t<Vector3F> dpos;
-    
 
     f32 particle_radius = 0.025f;
     f32 support_radius = 4.f * 0.025f;
@@ -91,11 +81,9 @@ struct Fluid
     f32 density0 = 1000.f; // 6378.f;
     f32 viscosity = 0.02f;
 
-    u32 _maxIterations = 16;
-    f32 _maxError = 0.01f;
     f32 _dt_acc = 0.f;
 
-    NeighbourSearch _neighbours;
+    FluidNeighbourSearch _neighbours;
 
     struct Debug
     {
@@ -116,11 +104,10 @@ struct FluidColliders
 struct FluidSimulationParams
 {
     Vector3F gravity{ 0.f, -9.82f, 0.f };
-    f32 velocity_damping = 0.1f;
+    f32 time_step = 0.005f;
+    i32 solver_iterations = 4;
+    i32 max_steps_per_frame = 4;
 };
-
-//void FluidCreate( Fluid* f, u32 numParticles, float particleRadius );
-//void FluidInitBox( Fluid* f, u32 width, u32 height, u32 depth, const Matrix4F& pose );
 
 void FluidCreateBox( Fluid* f, u32 width, u32 height, u32 depth, float particleRadius, const Matrix4F& pose );
 void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidColliders& colliders, float deltaTime );

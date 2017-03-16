@@ -570,6 +570,15 @@ void ImGui_ImplDX11_NewFrame()
     io.KeyShift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
     io.KeyAlt = (GetKeyState(VK_MENU) & 0x8000) != 0;
     io.KeySuper = false;
+
+    // Setup inputs
+    // (we already got mouse position, buttons, wheel from the window message callback)
+    BYTE keystate[256];
+    GetKeyboardState( keystate );
+    for( int i = 0; i < 256; i++ )
+    {
+        io.KeysDown[i] = ( keystate[i] & 0x80 ) != 0;
+    }
     // io.KeysDown : filled by WM_KEYDOWN/WM_KEYUP events
     // io.MousePos : filled by WM_MOUSEMOVE events
     // io.MouseDown : filled by WM_*BUTTON* events

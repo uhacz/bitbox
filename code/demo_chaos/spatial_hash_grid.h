@@ -9,17 +9,6 @@ namespace bx
 
 struct HashGridStatic
 {
-    //union Hash
-    //{
-    //    i64 key;
-    //    struct  
-    //    {
-    //        i64 index : 22;
-    //        i64 x : 14;
-    //        i64 y : 14;
-    //        i64 z : 14;
-    //    } data;
-    //};
 
     struct Bucket
     {
