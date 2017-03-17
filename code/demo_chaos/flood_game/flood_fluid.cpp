@@ -536,27 +536,27 @@ void FluidSolvePressure2( Fluid* f, const FluidColliders& colliders, u32 solverI
     
     for( u32 sit = 0; sit < solverIterations; ++sit )
     {
-
         for( u32 i = 0; i < num_points; ++i )
         {
             const Indices& neighbour_indices = f->_neighbours.GetNeighbours( i );
             const u32 num_neighbours = array::sizeu( neighbour_indices );
 
             float density = pmass * PBD::Poly6Kernel::W_zero();
-            for( u32 nj = 0; nj < num_neighbours; ++nj )
-            {
-                const u32 j = neighbour_indices[nj];
-                density += pmass * PBD::Poly6Kernel::W( x[i] - x[j] );
-            }
-
             Vector3F grad_sum_i( 0.f );
             float grad_sum_k = 0.f;
+
             for( u32 nj = 0; nj < num_neighbours; ++nj )
             {
                 const u32 j = neighbour_indices[nj];
-                const Vector3F grad = -PBD::SpikyKernel::gradW( x[i] - x[j] );
-                grad_sum_i -= grad;
+                const Vector3F xi_xj = x[i] - x[j];
+
+                density += pmass * PBD::Poly6Kernel::W( xi_xj );
+                
+                const Vector3F grad = PBD::SpikyKernel::gradW( xi_xj );
+                grad_sum_i += grad;
                 grad_sum_k += pmass_div_density0 * lengthSqr( grad );
+
+                
             }
 
             grad_sum_k += pmass_div_density0 * lengthSqr( grad_sum_i );

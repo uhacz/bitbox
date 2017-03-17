@@ -126,7 +126,10 @@ namespace PBD
             const float radius2 = m_radius*m_radius;
             if( r2 <= radius2 )
             {
-                res = pow( radius2 - r2, 3 )*m_k;
+                float a = radius2 - r2;
+                a *= a*a;
+                res = a * m_k;
+                //res = pow( radius2 - r2, 3 )*m_k;
             }
             return res;
         }
@@ -138,7 +141,11 @@ namespace PBD
             const float radius2 = m_radius*m_radius;
             if( r2 <= radius2 )
             {
-                res = pow( radius2 - r2, 3 )*m_k;
+                float a = radius2 - r2;
+                a *= a*a;
+                res = a * m_k;
+
+                //res = pow( radius2 - r2, 3 )*m_k;
             }
             return res;
         }
@@ -257,7 +264,7 @@ namespace PBD
                 const float r_l = sqrt( r2 );
                 const float hr = m_radius - r_l;
                 const float hr2 = hr*hr;
-                const float normalizator = ( r_l > FLT_EPSILON ) ? 1.f / r_l : 0.f;
+                const float normalizator = 1.f / r_l ;// ( r_l > FLT_EPSILON ) ? 1.f / r_l : 0.f;
                 res = m_l * hr2 * r * normalizator;
             }
             //else

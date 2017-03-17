@@ -35,7 +35,7 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
         
         Matrix4 pose[] =
         {
-            appendScale( Matrix4::translation( Vector3( 0.f, -height, 0.f ) ), Vector3( width, 0.1f, depth ) ),
+            appendScale( Matrix4::translation( Vector3( 0.f, -height, 0.f ) ), Vector3( width, 0.1f, depth )*2.f ),
         };
         _gfx_scene->SetMatrices( actor, pose, 1 );
     }
@@ -52,7 +52,7 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
 
     const float particle_radius = 0.05f;
     const Matrix4F init_pose = Matrix4F::translation( Vector3F( 0.5f, 3.f, 0.f ) );
-    FluidCreateBox( &_fluid, 10, 15, 10, particle_radius, init_pose );
+    FluidCreateBox( &_fluid, 10, 20, 10, particle_radius, init_pose );
 
     {
         const float boundary_particle_radius = particle_radius;

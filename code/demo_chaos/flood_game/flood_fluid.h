@@ -23,7 +23,7 @@ struct FluidNeighbourSearch
     void FindNeighbours( const Vector3F* points, u32 numPoints );
     void SetCellSize( float value );
     const Indices& GetNeighbours( u32 index ) const;
-
+    
     f32 _cell_size_inv = 0.f;
     hashmap_t _map;
     MapCells  _map_cells;
