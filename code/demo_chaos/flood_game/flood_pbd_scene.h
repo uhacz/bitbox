@@ -11,7 +11,11 @@ namespace bx{ namespace flood{
 struct PBDActorId
 {
     u32 i;
+
+    bool IsValid() const { return i != 0; }
+    static PBDActorId Invalid() { PBDActorId id = { 0 }; return id; }
 };
+inline bool operator == ( PBDActorId a, PBDActorId b ) { return a.i == b.i; }
 typedef array_t<PBDActorId> PBDActorIdArray;
 
 //////////////////////////////////////////////////////////////////////////
@@ -19,6 +23,9 @@ struct PBDActor
 {
     u32 begin;
     u32 count;
+
+    u32 end() const { return begin + count; }
+    static inline PBDActor Invalid() { PBDActor a = { UINT32_MAX, UINT32_MAX }; return a; }
 };
 typedef array_t<PBDActor> PBDActorArray;
 
@@ -42,31 +49,24 @@ struct PBDGridCell
 };
 
 //////////////////////////////////////////////////////////////////////////
-class PBDScene
+struct PBDScene
 {
-public:
     PBDScene( float particleRadius );
 
-    PBDActorId CreateStatic( u32 numParticles );
     PBDActorId CreateDynamic( u32 numParticles );
     void       Destroy( PBDActorId id );
 
-    void Manage();
+    PBDActor _AllocateActor( PBDActorId id, u32 numParticles );
+    void     _DeallocateActor( PBDActorId id );
+    void     _Defragment();
 
-    void PredictPosition( float deltaTime );
+    void PredictPosition( const Vec3& gravity, float deltaTime );
     void UpdateSpatialMap();
     void UpdateVelocity( float deltaTime );
     
     bool GetActorData( PBDActorData* data, PBDActorId id );
     bool GetGridCell( PBDGridCell* cell, PBDActorId id );
     bool GetGridCell( PBDGridCell* cell, const Vec3& point );
-
-private:
-    PBDActor _AllocateObject( u32 numParticles );
-    void     _DeallocateActor( PBDActor obj );
-    void     _Defragment();
-
-
 
     enum { eMAX_OBJECTS = 1024 };
 
@@ -75,14 +75,14 @@ private:
     Vec3Array   _p;          // predicted positions
     Vec3Array   _v;          // velocities
     FloatArray  _w;          // inverse of mass
+    FloatArray  _vdamping;   // velocity damping
     UintArray   _grid_index; // spatial grid index for fast lookup
     PBDActorIdArray _actor_id;// owner
 
                                 // --- object data
     id_array_t<eMAX_OBJECTS> _id_array;
-    PBDActorArray           _active_actors;
-    PBDActorArray           _free_actors;
-    PBDActorIdArray         _id_to_destroy;
+    PBDActorArray            _active_actors;
+    PBDActorArray            _free_actors;
 
     // --- spatial
     HashGridStatic _hash_grid;
