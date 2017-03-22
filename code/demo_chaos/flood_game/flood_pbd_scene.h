@@ -31,7 +31,7 @@ typedef array_t<PBDActor> PBDActorArray;
 
 //////////////////////////////////////////////////////////////////////////
 // --- This is temporary object use only in scope of single time step
-//     Do not store.
+//     Do not store for future use.
 struct PBDActorData
 {
     Vec3* x;
@@ -45,7 +45,6 @@ struct PBDActorData
 struct PBDGridCell
 {
     const u32* indices;
-    const PBDActorId* obj_ids;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -62,13 +61,14 @@ struct PBDScene
 
     void PredictPosition( const Vec3& gravity, float deltaTime );
     void UpdateSpatialMap();
+    void SolveConstraints();
     void UpdateVelocity( float deltaTime );
     
     bool GetActorData( PBDActorData* data, PBDActorId id );
-    bool GetGridCell( PBDGridCell* cell, PBDActorId id );
-    bool GetGridCell( PBDGridCell* cell, const Vec3& point );
+    bool GetGridCell( HashGridStatic::Indices* pointIndices, u32 pointIndex );
+    HashGridStatic::Indices GetGridCell( const Vec3& point );
 
-    enum { eMAX_OBJECTS = 1024 };
+    enum { eMAX_ACTORS = 1024 };
 
     // --- particle data
     Vec3Array   _x;          // positions at the beginning of time step
@@ -80,8 +80,8 @@ struct PBDScene
     PBDActorIdArray _actor_id;// owner
 
                                 // --- object data
-    id_array_t<eMAX_OBJECTS> _id_array;
-    PBDActorArray            _active_actors;
+    id_array_t<eMAX_ACTORS> _id_array;
+    PBDActor                 _active_actors[eMAX_ACTORS];
     PBDActorArray            _free_actors;
 
     // --- spatial

@@ -34,7 +34,7 @@ namespace hash_grid
         return hash_index;
     }
 
-    void Build( HashGridStatic* hg, const Vector3F* x, u32 count, u32 hashmapSize, float cellSize )
+    void Build( HashGridStatic* hg, u32* xGridIndices, const Vector3F* x, u32 count, u32 hashmapSize, float cellSize )
     {
         array::clear( hg->_lookup_array );
         array::clear( hg->_data );
@@ -51,20 +51,37 @@ namespace hash_grid
                 u32 hash_index;
             }data;
         };
-        array_t<u64> scratch;
+        array_t<u64>& scratch = hg->_scratch_buffer;
         array::reserve( scratch, count );
 
         const float cellSizeInv = 1.f / cellSize;
 
-        for( u32 i = 0; i < count; ++i )
+        if( xGridIndices )
         {
-            const u32 hash_index = ComputeIndex( x[i], cellSizeInv, hashmapSize );
+            for( u32 i = 0; i < count; ++i )
+            {
+                const u32 hash_index = ComputeIndex( x[i], cellSizeInv, hashmapSize );
 
-            Info info;
-            info.data.hash_index = hash_index;
-            info.data.point_index = i;
+                Info info;
+                info.data.hash_index = hash_index;
+                info.data.point_index = i;
 
-            array::push_back( scratch, info.key );
+                array::push_back( scratch, info.key );
+                xGridIndices[i] = hash_index;
+            }
+        }
+        else
+        {
+            for( u32 i = 0; i < count; ++i )
+            {
+                const u32 hash_index = ComputeIndex( x[i], cellSizeInv, hashmapSize );
+
+                Info info;
+                info.data.hash_index = hash_index;
+                info.data.point_index = i;
+
+                array::push_back( scratch, info.key );
+            }
         }
 
         std::sort( scratch.begin(), scratch.end(), std::less<u64>() );
@@ -106,19 +123,22 @@ namespace hash_grid
         hg->_cell_size = cellSize;
         hg->_cell_size_inv = cellSizeInv;
     }
-
-    //uwzgledniæ s¹siadów.
-
 }
 
 const HashGridStatic::Indices HashGridStatic::Lookup( const Vector3F& x ) const
 {
     const u32 index = hash_grid::ComputeIndex( x, _cell_size_inv, _lookup_array.size );
     SYS_ASSERT( index < _lookup_array.size );
+    return Get( index );
+}
+
+const HashGridStatic::Indices HashGridStatic::Get( u32 index ) const
+{
+    SYS_ASSERT( index < _lookup_array.size );
 
     const Bucket b = _lookup_array[index];
-    SYS_ASSERT( (b.begin + b.count) <= _data.size );
-    
+    SYS_ASSERT( ( b.begin + b.count ) <= _data.size );
+
     Indices indices;
     indices.data = _data.begin() + b.begin;
     indices.count = b.count;

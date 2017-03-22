@@ -60,7 +60,6 @@ PBDActor PBDScene::_AllocateActor( PBDActorId id, u32 numParticles )
 
     {
         id_t iid = MakeInternalId( id );
-        SYS_ASSERT( iid.index < _active_actors.size );
         _active_actors[iid.index] = actor;
     }
 
@@ -112,30 +111,61 @@ void PBDScene::PredictPosition( const Vec3& gravity, float deltaTime )
 
 void PBDScene::UpdateSpatialMap()
 {
-
+    const u32 spatial_map_size = ( _x.size * 3 ) / 2;
+    hash_grid::Build( &_hash_grid, _grid_index.begin(), _x.begin(), _x.size, spatial_map_size, _pt_radius * 2.f );
 }
 
 void PBDScene::UpdateVelocity( float deltaTime )
 {
+    const float delta_time_inv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
 
+    for( PBDActor actor : _active_actors )
+    {
+        const u32 begin = actor.begin;
+        const u32 end = actor.end();
+
+        for( u32 i = begin; i < end; ++i )
+        {
+            const Vec3& p0 = _x[i];
+            const Vec3& p1 = _p[i];
+
+            _v[i] = ( p1 - p0 ) * delta_time_inv;
+            _x[i] = p1;
+        }
+    }
 }
 
 bool PBDScene::GetActorData( PBDActorData* data, PBDActorId id )
 {
+    id_t iid = MakeInternalId( id );
+    if( !id_array::has( _id_array, iid ) )
+        return false;
 
+    const PBDActor& actor = _active_actors[iid.index];
+
+    data->x = _x.begin() + actor.begin;
+    data->p = _p.begin() + actor.begin;
+    data->v = _v.begin() + actor.begin;
+    data->w = _w.begin() + actor.begin;
+    data->count = actor.count;
+
+    return true;
 }
 
-bool PBDScene::GetGridCell( PBDGridCell* cell, PBDActorId id )
+bool PBDScene::GetGridCell( HashGridStatic::Indices* pointIndices, u32 pointIndex )
 {
+    if( pointIndex >= _x.size )
+        return false;
 
+    const u32 grid_index = _grid_index[pointIndex];
+    pointIndices[0] = _hash_grid.Get( grid_index );
+    return true;
 }
 
-bool PBDScene::GetGridCell( PBDGridCell* cell, const Vec3& point )
+HashGridStatic::Indices PBDScene::GetGridCell( const Vec3& point )
 {
-
+    return _hash_grid.Lookup( point );
 }
-
-
 
 }
 }//
