@@ -47,6 +47,7 @@ struct PBDGridCell
     const u32* indices;
 };
 
+
 //////////////////////////////////////////////////////////////////////////
 struct PBDScene
 {
@@ -81,8 +82,8 @@ struct PBDScene
 
                                 // --- object data
     id_array_t<eMAX_ACTORS> _id_array;
-    PBDActor                 _active_actors[eMAX_ACTORS];
-    PBDActorArray            _free_actors;
+    PBDActor                _active_actors[eMAX_ACTORS];
+    PBDActorArray           _free_actors;
 
     // --- spatial
     HashGridStatic _hash_grid;
@@ -91,5 +92,80 @@ struct PBDScene
     const f32 _pt_radius_inv;
 };
 
+
+
+}}//
+
+namespace bx{ namespace flood{
+//////////////////////////////////////////////////////////////////////////
+// PBD cloth
+namespace PBDCloth
+{
+    struct CDistance
+    {
+        u16 i0, i1;
+        f32 rl; // rest length
+    };
+    struct CBending
+    {
+        u16 i0, i1, i2, i3;
+        f32 ra; // rest angle
+    };
+
+    typedef array_t<CDistance> CDistanceArray;
+    typedef array_t<CBending>  CBendingArray;
+
+    struct ActorDesc
+    {
+        const Vec3* positions = nullptr;
+        const u32* indices = nullptr;
+
+        const u16* cdistance_indices = nullptr; // 2 indices per constraint
+        const u16* cbending_indices = nullptr;  // 4 indices per constraint
+
+        u32 num_particles = 0;
+        u32 num_cdistance = 0;
+        u32 num_cbending = 0;
+    };
+
+    struct Actor : PBDActor
+    {
+        PBDActorId pbd_actor;
+    };
+
+    struct ActorId : PBDActorId
+    {};
+
+    typedef array_t<Actor> ActorArray;
+    typedef array_t<ActorId> ActorIdArray;
+};
+
+zastanowiæ siê nad zarz¹dzaniem aktorami w solverach
+
+struct PBDClothSolver
+{
+    PBDClothSolver( PBDScene* scene )
+        : _scene( scene )
+    {}
+
+    PBDCloth::ActorId CreateActor( const PBDCloth::ActorDesc& desc );
+    void DestroyActor( PBDCloth::ActorId id );
+
+    void SolveConstraints( u32 numIterations = 4 );
+
+    PBDScene* Scene() { return _scene; }
+    PBDActorId SceneActorId( PBDCloth::ActorId id ) const;
+    
+    PBDCloth::CDistanceArray _cdistance;
+    PBDCloth::CBendingArray _cbending;
+    PBDCloth::ActorIdArray  _actor_id;
+
+
+    id_array_t<PBDScene::eMAX_ACTORS> _id_array;
+    PBDCloth::ActorArray _active_actors;
+    PBDCloth::ActorArray _free_actors;
+
+    PBDScene* _scene = nullptr;
+};
 }}//
 

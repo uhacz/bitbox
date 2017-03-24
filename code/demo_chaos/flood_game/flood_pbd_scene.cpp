@@ -14,7 +14,7 @@ namespace bx{ namespace flood{
         PBDActor a;
         a.begin = UINT32_MAX;
         a.count = UINT32_MAX;
-
+        return a;
     }
 
 PBDScene::PBDScene( float particleRadius )
@@ -165,6 +165,34 @@ bool PBDScene::GetGridCell( HashGridStatic::Indices* pointIndices, u32 pointInde
 HashGridStatic::Indices PBDScene::GetGridCell( const Vec3& point )
 {
     return _hash_grid.Lookup( point );
+}
+
+}
+}//
+
+namespace bx{ namespace flood{
+
+static inline id_t MakeInternalId( PBDCloth::ActorId id )
+{
+    return make_id( id.i );
+}
+static inline PBDCloth::Actor MakeInvalidClothActor()
+{
+    PBDCloth::Actor a;
+    a.begin = UINT32_MAX;
+    a.count = UINT32_MAX;
+    a.pbd_actor = PBDActorId::Invalid();
+    return a;
+}
+
+PBDActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
+{
+    
+}
+
+void PBDClothSolver::SolveConstraints( u32 numIterations /*= 4 */ )
+{
+
 }
 
 }
