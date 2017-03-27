@@ -170,24 +170,43 @@ HashGridStatic::Indices PBDScene::GetGridCell( const Vec3& point )
 }
 }//
 
+#include <util/id_table.h>
+#include <util/buffer_utils.h>
 namespace bx{ namespace flood{
 
 static inline id_t MakeInternalId( PBDCloth::ActorId id )
 {
     return make_id( id.i );
 }
-static inline PBDCloth::Actor MakeInvalidClothActor()
-{
-    PBDCloth::Actor a;
-    a.begin = UINT32_MAX;
-    a.count = UINT32_MAX;
-    a.pbd_actor = PBDActorId::Invalid();
-    return a;
-}
 
-PBDActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
+//static inline PBDCloth::Actor MakeInvalidClothActor()
+//{
+//    PBDCloth::Actor a;
+//    a.begin = UINT32_MAX;
+//    a.count = UINT32_MAX;
+//    a.pbd_actor = PBDActorId::Invalid();
+//    return a;
+//}
+
+PBDCloth::ActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
 {
-    
+    PBDActorId scene_actor_id = _scene->CreateDynamic( desc.num_particles );
+
+    u32 mem_size = 0;
+    mem_size += sizeof( PBDCloth::Actor );
+    mem_size += desc.num_cdistance * sizeof( PBDCloth::CDistance );
+    mem_size += desc.num_cbending * sizeof( PBDCloth::CBending );
+
+    void* mem = BX_MALLOC( bxDefaultAllocator(), mem_size, 4 );
+
+    bxBufferChunker chunker( mem, mem_size );
+
+    PBDCloth::Actor* actor = chunker.add< PBDCloth::Actor >();
+    actor->cdistance = chunker.add<PBDCloth::CDistance>( desc.num_cdistance );
+    actor->cbending  = chunker.add<PBDCloth::CBending >( desc.num_cbending );
+
+    chunker.check();
+
 }
 
 void PBDClothSolver::SolveConstraints( u32 numIterations /*= 4 */ )

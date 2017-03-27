@@ -128,19 +128,31 @@ namespace PBDCloth
         u32 num_cbending = 0;
     };
 
-    struct Actor : PBDActor
+    struct Range
     {
+        u32 begin;
+        u32 count;
+    };
+
+    struct Actor
+    {
+        //CDistance* cdistance;
+        //CBending*  cbending;
         PBDActorId pbd_actor;
+
+        u32 begin_cdistance;
+        u32 begin_cbending;
+        u32 count_cdistance;
+        u32 count_cbending;
     };
 
     struct ActorId : PBDActorId
     {};
 
     typedef array_t<Actor> ActorArray;
+    typedef array_t<Actor*> ActorPtrArray;
     typedef array_t<ActorId> ActorIdArray;
 };
-
-zastanowiæ siê nad zarz¹dzaniem aktorami w solverach
 
 struct PBDClothSolver
 {
@@ -154,16 +166,35 @@ struct PBDClothSolver
     void SolveConstraints( u32 numIterations = 4 );
 
     PBDScene* Scene() { return _scene; }
+
     PBDActorId SceneActorId( PBDCloth::ActorId id ) const;
-    
+    bool Has( PBDActorId id ) const;
+
+    // --- shared arrays
     PBDCloth::CDistanceArray _cdistance;
     PBDCloth::CBendingArray _cbending;
-    PBDCloth::ActorIdArray  _actor_id;
+    
+    // --- per actor arrays
+    array_t< PBDCloth::Range >      _range_cdistance;
+    array_t< PBDCloth::Range >      _range_cbending;
+    array_t< PBDCloth::ActorId >    _actor_id;
+    hashmap_t                       _scene_actor_map;
+
+    //PBDActorIdArray         _scene_actor_id;
+    //PBDCloth::ActorIdArray  _cloth_actor_id;
+    //PBDCloth::ActorPtrArray _actors;
+
+    enum { eMAX_ACTORS = PBDScene::eMAX_ACTORS };
+
+    //id_table_t<eMAX_ACTORS> _id_table;
+    //PBDCloth::Actor*        _actors[eMAX_ACTORS] = {};
+    //PBDCloth::ActorId       _actors_id[eMAX_ACTORS] = {};
+    //
 
 
-    id_array_t<PBDScene::eMAX_ACTORS> _id_array;
-    PBDCloth::ActorArray _active_actors;
-    PBDCloth::ActorArray _free_actors;
+    id_array_t<eMAX_ACTORS> _id_array;
+    array_t<u32>  _active_actor_indices;
+    array_t<u32>  _free_actor_indices; // used only for defragmentation purposes
 
     PBDScene* _scene = nullptr;
 };
