@@ -5,16 +5,10 @@
 
 namespace bx{ namespace flood{
 
-    static inline id_t MakeInternalId( PBDActorId id )
+    template< typename T >
+    static inline id_t MakeInternalId( T id )
     {
         return make_id( id.i );
-    }
-    static inline PBDActor MakeInvalidActor()
-    {
-        PBDActor a;
-        a.begin = UINT32_MAX;
-        a.count = UINT32_MAX;
-        return a;
     }
 
 PBDScene::PBDScene( float particleRadius )
@@ -171,47 +165,86 @@ HashGridStatic::Indices PBDScene::GetGridCell( const Vec3& point )
 }//
 
 #include <util/id_table.h>
+#include <util/hashmap.h>
 #include <util/buffer_utils.h>
 namespace bx{ namespace flood{
-
-static inline id_t MakeInternalId( PBDCloth::ActorId id )
-{
-    return make_id( id.i );
-}
-
-//static inline PBDCloth::Actor MakeInvalidClothActor()
-//{
-//    PBDCloth::Actor a;
-//    a.begin = UINT32_MAX;
-//    a.count = UINT32_MAX;
-//    a.pbd_actor = PBDActorId::Invalid();
-//    return a;
-//}
 
 PBDCloth::ActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
 {
     PBDActorId scene_actor_id = _scene->CreateDynamic( desc.num_particles );
 
-    u32 mem_size = 0;
-    mem_size += sizeof( PBDCloth::Actor );
-    mem_size += desc.num_cdistance * sizeof( PBDCloth::CDistance );
-    mem_size += desc.num_cbending * sizeof( PBDCloth::CBending );
+    const id_t iid = id_table::create( _id_container );
+    u32 index = iid.index;
 
-    void* mem = BX_MALLOC( bxDefaultAllocator(), mem_size, 4 );
+    PBDCloth::Range& cdistance_range = _range_cdistance[index];
+    cdistance_range.begin = _cdistance.size;
+    cdistance_range.count = desc.num_cdistance;
 
-    bxBufferChunker chunker( mem, mem_size );
+    PBDCloth::Range& cbending_range = _range_cbending[index];
+    cbending_range.begin  = _cbending.size;
+    cbending_range.count  = desc.num_cbending;
+    
+    _actor_id[index].i = iid.hash;
 
-    PBDCloth::Actor* actor = chunker.add< PBDCloth::Actor >();
-    actor->cdistance = chunker.add<PBDCloth::CDistance>( desc.num_cdistance );
-    actor->cbending  = chunker.add<PBDCloth::CBending >( desc.num_cbending );
+    {
+        SYS_ASSERT( !hashmap::lookup( _scene_actor_map, iid.hash ) );
+        hashmap_t::cell_t* map_cell = hashmap::insert( _scene_actor_map, iid.hash );
+        map_cell->value = scene_actor_id.i;
+    }
+    {
+        SYS_ASSERT( !hashmap::lookup( _cloth_actor_map, scene_actor_id.i ) );
+        hashmap_t::cell_t* map_cell = hashmap::insert( _cloth_actor_map, scene_actor_id.i );
+        map_cell->value = iid.hash;
+    }
 
-    chunker.check();
+    PBDActorData scene_actor_data;
+    bool bres = _scene->GetActorData( &scene_actor_data, scene_actor_id );
+    SYS_ASSERT( bres == true );
+
+    const float particle_mass_inv = ( desc.particle_mass > FLT_EPSILON ) ? 1.f / desc.particle_mass : 0.f;
+    
+    for( u32 i = 0; i < scene_actor_data.count; ++i )
+    {
+        scene_actor_data.x[i] = desc.positions[i];
+        scene_actor_data.p[i] = desc.positions[i];
+        scene_actor_data.v[i] = Vec3( 0.f );
+        scene_actor_data.w[i] = particle_mass_inv;
+    }
+
+    return PBDCloth::ActorId::Make( iid.hash );
+}
+
+void PBDClothSolver::DestroyActor( PBDCloth::ActorId id )
+{
+    id_t iid = MakeInternalId( id );
+    
+    if( !id_table::has( _id_container, iid ) )
+        return;
+
+
+
+}
+
+void PBDClothSolver::_Defragment()
+{
 
 }
 
 void PBDClothSolver::SolveConstraints( u32 numIterations /*= 4 */ )
 {
 
+}
+
+PBDActorId PBDClothSolver::SceneActorId( PBDCloth::ActorId id ) const
+{
+    const hashmap_t::cell_t* cell = hashmap::lookup( _scene_actor_map, id.i );
+    return ( cell ) ? PBDActorId::Make( (u32)cell->value ) : PBDActorId::Invalid();
+}
+
+PBDCloth::ActorId PBDClothSolver::ClothActorId( PBDActorId id ) const
+{
+    const hashmap_t::cell_t* cell = hashmap::lookup( _cloth_actor_map, id.i );
+    return ( cell ) ? PBDCloth::ActorId::Make( (u32)cell->value ) : PBDCloth::ActorId::Invalid();
 }
 
 }

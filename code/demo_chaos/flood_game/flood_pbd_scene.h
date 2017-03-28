@@ -8,13 +8,18 @@
 namespace bx{ namespace flood{
 
 //////////////////////////////////////////////////////////////////////////
-struct PBDActorId
+
+template< typename T >
+struct TPBDActorId
 {
-    u32 i;
+    T i;
 
     bool IsValid() const { return i != 0; }
-    static PBDActorId Invalid() { PBDActorId id = { 0 }; return id; }
+    static TPBDActorId<T> Make( u32 hash ) { TPBDActorId<T> id = { hash }; return id; }
+    static TPBDActorId<T> Invalid() { return Make( 0 ); }
 };
+
+typedef TPBDActorId<u32> PBDActorId;
 inline bool operator == ( PBDActorId a, PBDActorId b ) { return a.i == b.i; }
 typedef array_t<PBDActorId> PBDActorIdArray;
 
@@ -62,7 +67,6 @@ struct PBDScene
 
     void PredictPosition( const Vec3& gravity, float deltaTime );
     void UpdateSpatialMap();
-    void SolveConstraints();
     void UpdateVelocity( float deltaTime );
     
     bool GetActorData( PBDActorData* data, PBDActorId id );
@@ -118,39 +122,35 @@ namespace PBDCloth
     struct ActorDesc
     {
         const Vec3* positions = nullptr;
-        const u32* indices = nullptr;
-
+        
         const u16* cdistance_indices = nullptr; // 2 indices per constraint
         const u16* cbending_indices = nullptr;  // 4 indices per constraint
 
         u32 num_particles = 0;
         u32 num_cdistance = 0;
         u32 num_cbending = 0;
+
+        f32 particle_mass = 1.f;
     };
 
     struct Range
     {
-        u32 begin;
-        u32 count;
+        u32 begin = 0;
+        u32 count = 0;
     };
 
-    struct Actor
-    {
-        //CDistance* cdistance;
-        //CBending*  cbending;
-        PBDActorId pbd_actor;
+    //struct Actor
+    //{
+    //    PBDActorId pbd_actor;
 
-        u32 begin_cdistance;
-        u32 begin_cbending;
-        u32 count_cdistance;
-        u32 count_cbending;
-    };
-
-    struct ActorId : PBDActorId
-    {};
-
-    typedef array_t<Actor> ActorArray;
-    typedef array_t<Actor*> ActorPtrArray;
+    //    u32 begin_cdistance;
+    //    u32 begin_cbending;
+    //    u32 count_cdistance;
+    //    u32 count_cbending;
+    //};
+    typedef TPBDActorId<u32> ActorId;
+    //typedef array_t<Actor> ActorArray;
+    //typedef array_t<Actor*> ActorPtrArray;
     typedef array_t<ActorId> ActorIdArray;
 };
 
@@ -162,29 +162,35 @@ struct PBDClothSolver
 
     PBDCloth::ActorId CreateActor( const PBDCloth::ActorDesc& desc );
     void DestroyActor( PBDCloth::ActorId id );
+    void _Defragment();
 
     void SolveConstraints( u32 numIterations = 4 );
-
-    PBDScene* Scene() { return _scene; }
-
-    PBDActorId SceneActorId( PBDCloth::ActorId id ) const;
-    bool Has( PBDActorId id ) const;
+    
+    PBDScene*         Scene        ()                              { return _scene; }
+    PBDActorId        SceneActorId ( PBDCloth::ActorId id ) const;
+    PBDCloth::ActorId ClothActorId ( PBDActorId id )        const;
 
     // --- shared arrays
     PBDCloth::CDistanceArray _cdistance;
-    PBDCloth::CBendingArray _cbending;
+    PBDCloth::CBendingArray  _cbending;
     
     // --- per actor arrays
-    array_t< PBDCloth::Range >      _range_cdistance;
-    array_t< PBDCloth::Range >      _range_cbending;
-    array_t< PBDCloth::ActorId >    _actor_id;
+    enum { eMAX_ACTORS = PBDScene::eMAX_ACTORS };
+    PBDCloth::Range      _range_cdistance[eMAX_ACTORS] = {};
+    PBDCloth::Range      _range_cbending [eMAX_ACTORS] = {};
+    PBDCloth::ActorId    _actor_id       [eMAX_ACTORS] = {};
     hashmap_t                       _scene_actor_map;
+    hashmap_t                       _cloth_actor_map;
+
+    id_table_t<eMAX_ACTORS> _id_container;
+    array_t<u32>  _active_actor_indices;
+    array_t<u32>  _free_actor_indices; // used only for defragmentation purposes
+
 
     //PBDActorIdArray         _scene_actor_id;
     //PBDCloth::ActorIdArray  _cloth_actor_id;
     //PBDCloth::ActorPtrArray _actors;
 
-    enum { eMAX_ACTORS = PBDScene::eMAX_ACTORS };
 
     //id_table_t<eMAX_ACTORS> _id_table;
     //PBDCloth::Actor*        _actors[eMAX_ACTORS] = {};
@@ -192,10 +198,7 @@ struct PBDClothSolver
     //
 
 
-    id_array_t<eMAX_ACTORS> _id_array;
-    array_t<u32>  _active_actor_indices;
-    array_t<u32>  _free_actor_indices; // used only for defragmentation purposes
-
+    
     PBDScene* _scene = nullptr;
 };
 }}//
