@@ -3,6 +3,8 @@
 #include <util/array.h>
 #include <util/id_array.h>
 
+#include "flood_pbd.h"
+
 namespace bx{ namespace flood{
 
     template< typename T >
@@ -178,13 +180,14 @@ PBDCloth::ActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
 
     PBDCloth::Range& cdistance_range = _range_cdistance[index];
     cdistance_range.begin = _cdistance.size;
-    cdistance_range.count = desc.num_cdistance;
+    cdistance_range.count = desc.num_cdistance_indices;
 
     PBDCloth::Range& cbending_range = _range_cbending[index];
     cbending_range.begin  = _cbending.size;
-    cbending_range.count  = desc.num_cbending;
+    cbending_range.count  = desc.num_cbending_indices;
     
     _actor_id[index].i = iid.hash;
+    _scene_actor_id[index] = scene_actor_id;
 
     {
         SYS_ASSERT( !hashmap::lookup( _scene_actor_map, iid.hash ) );
@@ -211,7 +214,12 @@ PBDCloth::ActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
         scene_actor_data.w[i] = particle_mass_inv;
     }
 
-    return PBDCloth::ActorId::Make( iid.hash );
+    create constraints
+
+    PBDCloth::ActorId cloth_actor_id = PBDCloth::ActorId::Make( iid.hash );
+    array::push_back( _active_actor_indices, cloth_actor_id );
+
+    return cloth_actor_id;
 }
 
 void PBDClothSolver::DestroyActor( PBDCloth::ActorId id )
@@ -221,18 +229,45 @@ void PBDClothSolver::DestroyActor( PBDCloth::ActorId id )
     if( !id_table::has( _id_container, iid ) )
         return;
 
-
+    // TODO
 
 }
 
 void PBDClothSolver::_Defragment()
 {
-
+    // TODO
 }
 
 void PBDClothSolver::SolveConstraints( u32 numIterations /*= 4 */ )
 {
+    using namespace PBDCloth;
 
+    for( PBDCloth::ActorId id: _active_actor_indices )
+    {
+        id_t iid = MakeInternalId( id );
+        PBDActorId scene_actor_id = _scene_actor_id[iid.index];
+
+        PBDActorData data;
+        if( !_scene->GetActorData( &data, scene_actor_id ) )
+            continue;
+
+        const Range& cdistance_range = _range_cdistance[iid.index];
+        const Range& cbending_range = _range_cbending[iid.index];
+
+        for( u32 sit = 0; sit < numIterations; ++sit )
+        {
+            for( u32 i = cdistance_range.begin; i < cdistance_range.end(); ++i )
+            {
+                const CDistance& c = _cdistance[i];
+                Vector3F dpos[2];                
+                if( pbd::SolveDistanceConstraint( dpos, data.p[c.i0], data.p[c.i1], data.w[c.i0], data.w[c.i1], c.rl, 1.f, 1.f ) )
+                {
+                    data.p[c.i0] += dpos[0];
+                    data.p[c.i1] += dpos[1];
+                }
+            }
+        }
+    }
 }
 
 PBDActorId PBDClothSolver::SceneActorId( PBDCloth::ActorId id ) const

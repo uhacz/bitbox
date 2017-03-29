@@ -2,6 +2,7 @@
 #include "..\renderer_type.h"
 #include "..\game_time.h"
 #include "flood_fluid.h"
+#include "flood_pbd_scene.h"
 #include <rdi\rdi_backend.h>
 
 
@@ -43,6 +44,11 @@ struct Level
 
 
     StaticBody _boundary[6];
+
+    PBDScene* _pbd_scene = nullptr;
+    PBDClothSolver* _pbd_cloth_solver = nullptr;
+    PBDCloth::ActorId _cloth_id;
+
 };
 
 }}

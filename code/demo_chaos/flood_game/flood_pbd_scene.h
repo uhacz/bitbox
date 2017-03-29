@@ -127,8 +127,8 @@ namespace PBDCloth
         const u16* cbending_indices = nullptr;  // 4 indices per constraint
 
         u32 num_particles = 0;
-        u32 num_cdistance = 0;
-        u32 num_cbending = 0;
+        u32 num_cdistance_indices = 0;
+        u32 num_cbending_indices = 0;
 
         f32 particle_mass = 1.f;
     };
@@ -137,6 +137,8 @@ namespace PBDCloth
     {
         u32 begin = 0;
         u32 count = 0;
+
+        u32 end() const { return begin + count; }
     };
 
     //struct Actor
@@ -179,12 +181,13 @@ struct PBDClothSolver
     PBDCloth::Range      _range_cdistance[eMAX_ACTORS] = {};
     PBDCloth::Range      _range_cbending [eMAX_ACTORS] = {};
     PBDCloth::ActorId    _actor_id       [eMAX_ACTORS] = {};
+    PBDActorId           _scene_actor_id [eMAX_ACTORS] = {};
     hashmap_t                       _scene_actor_map;
     hashmap_t                       _cloth_actor_map;
 
     id_table_t<eMAX_ACTORS> _id_container;
-    array_t<u32>  _active_actor_indices;
-    array_t<u32>  _free_actor_indices; // used only for defragmentation purposes
+    array_t<PBDCloth::ActorId>  _active_actor_indices;
+    array_t<PBDCloth::ActorId>  _free_actor_indices; // used only for defragmentation purposes
 
 
     //PBDActorIdArray         _scene_actor_id;
