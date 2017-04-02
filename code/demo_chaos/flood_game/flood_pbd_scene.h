@@ -110,6 +110,7 @@ namespace PBDCloth
         u16 i0, i1;
         f32 rl; // rest length
     };
+    
     struct CBending
     {
         u16 i0, i1, i2, i3;

@@ -168,6 +168,7 @@ HashGridStatic::Indices PBDScene::GetGridCell( const Vec3& point )
 
 #include <util/id_table.h>
 #include <util/hashmap.h>
+#include <util/common.h>
 #include <util/buffer_utils.h>
 namespace bx{ namespace flood{
 
@@ -180,11 +181,11 @@ PBDCloth::ActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
 
     PBDCloth::Range& cdistance_range = _range_cdistance[index];
     cdistance_range.begin = _cdistance.size;
-    cdistance_range.count = desc.num_cdistance_indices;
+    cdistance_range.count = desc.num_cdistance_indices / 2;
 
     PBDCloth::Range& cbending_range = _range_cbending[index];
     cbending_range.begin  = _cbending.size;
-    cbending_range.count  = desc.num_cbending_indices;
+    cbending_range.count  = desc.num_cbending_indices / 4;
     
     _actor_id[index].i = iid.hash;
     _scene_actor_id[index] = scene_actor_id;
@@ -214,7 +215,55 @@ PBDCloth::ActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
         scene_actor_data.w[i] = particle_mass_inv;
     }
 
-    create constraints
+    SYS_ASSERT( (desc.num_cdistance_indices % 2) == 0 );
+    for( u32 i = 0; i < desc.num_cdistance_indices; i+=2 )
+    {
+        PBDCloth::CDistance c;
+        c.i0 = desc.cdistance_indices[i];
+        c.i1 = desc.cdistance_indices[i+1];
+        SYS_ASSERT( c.i0 < scene_actor_data.count );
+        SYS_ASSERT( c.i1 < scene_actor_data.count );
+
+        const Vector3F& p0 = scene_actor_data.x[c.i0];
+        const Vector3F& p1 = scene_actor_data.x[c.i1];
+        c.rl = length( p0 - p1 );
+        array::push_back( _cdistance, c );
+    }
+    SYS_ASSERT( _cdistance.size == cdistance_range.end() );
+
+    SYS_ASSERT( ( desc.num_cbending_indices % 4 ) == 0 );
+    for( u32 i = 0; i < desc.num_cbending_indices; i += 4 )
+    {
+        PBDCloth::CBending c;
+        c.i0 = desc.cbending_indices[i];
+        c.i1 = desc.cbending_indices[i+1];
+        c.i2 = desc.cbending_indices[i+2];
+        c.i3 = desc.cbending_indices[i+3];
+        SYS_ASSERT( c.i0 < scene_actor_data.count );
+        SYS_ASSERT( c.i1 < scene_actor_data.count );
+        SYS_ASSERT( c.i2 < scene_actor_data.count );
+        SYS_ASSERT( c.i3 < scene_actor_data.count );
+
+        const Vector3F& p0 = scene_actor_data.x[c.i0];
+        const Vector3F& p1 = scene_actor_data.x[c.i1];
+        const Vector3F& p2 = scene_actor_data.x[c.i2];
+        const Vector3F& p3 = scene_actor_data.x[c.i3];
+        
+        const Vector3F v01 = p1 - p0;
+        const Vector3F v02 = p2 - p0;
+        const Vector3F v03 = p3 - p0;
+
+        const Vector3F nA = normalize( cross( v01, v02 ) );
+        const Vector3F nB = normalize( cross( v01, v03 ) );
+
+        float cosine = dot( nA, nB );
+        cosine = clamp( cosine, -1.f, 1.f );
+        c.ra = ::acosf( cosine );
+        
+        array::push_back( _cbending, c );
+    }
+    SYS_ASSERT( _cbending.size == cbending_range.end() );
+
 
     PBDCloth::ActorId cloth_actor_id = PBDCloth::ActorId::Make( iid.hash );
     array::push_back( _active_actor_indices, cloth_actor_id );

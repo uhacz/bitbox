@@ -140,7 +140,7 @@ void Level::Tick( const GameTime& time )
     colliders.static_bodies = _boundary;
     colliders.num_static_bodies = 5;
 
-    FluidTick( &_fluid, _fluid_sim_params, colliders, time.DeltaTimeSec() );
+    //FluidTick( &_fluid, _fluid_sim_params, colliders, time.DeltaTimeSec() );
 
     //StaticBodyDebugDraw( _boundary[0], 0x333333FF );
     //StaticBodyDebugDraw( _boundary[1], 0x333333FF );
