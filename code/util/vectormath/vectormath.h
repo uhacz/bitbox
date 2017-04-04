@@ -39,8 +39,6 @@ using QuatF    = smath::Quat;
 using Matrix3F = smath::Matrix3;
 using Matrix4F = smath::Matrix4;
 
-
-
 #define __SSE__
 #define _VECTORMATH_NO_SCALAR_CAST 1
 #include "SSE/vectormath_aos.h"

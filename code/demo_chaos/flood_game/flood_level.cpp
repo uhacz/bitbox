@@ -110,12 +110,21 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
             4,8, 5,9, 6,10, 7,11,
             8,12, 9,13, 10,14, 11,15,
         };
+        const float particle_mass[16] =
+        {
+            1.f, 1.f, 1.f, 1.f,
+            1.f, 1.f, 1.f, 1.f,
+            1.f, 1.f, 1.f, 1.f,
+            0.f, 1.f, 0.f, 1.f,
+        };
+
         PBDCloth::ActorDesc cloth_desc = {};
-        cloth_desc.particle_mass = 1.f;
+        cloth_desc.particle_mass = particle_mass;
         cloth_desc.positions = cloth_points;
         cloth_desc.cdistance_indices = cdistance_indices;
         cloth_desc.num_particles = 16;
         cloth_desc.num_cdistance_indices = sizeof( cdistance_indices ) / sizeof( *cdistance_indices );
+        cloth_desc.num_particle_masses = 16;
         
         _cloth_id = _pbd_cloth_solver->CreateActor( cloth_desc );
     }
@@ -162,6 +171,13 @@ void Level::Tick( const GameTime& time )
     //    rdi::debug_draw::AddSphere( Vector4( pa, _fluid.particle_radius ), 0xFF0000FF, 1 );
 
     //}
+    Vector3F gravity( 0.f, -1.f, 0.f );
+    _pbd_scene->PredictPosition( gravity, time.DeltaTimeSec() );
+    _pbd_scene->UpdateSpatialMap();
+    _pbd_cloth_solver->SolveConstraints();
+    _pbd_scene->UpdateVelocity( time.DeltaTimeSec() );
+    
+    _pbd_cloth_solver->_DebugDraw( _cloth_id, 0xFF0000FF );
 
     if( ImGui::Begin( "Level" ) )
     {

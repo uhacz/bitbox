@@ -1,9 +1,11 @@
 #include "flood_pbd_scene.h"
+#include "flood_pbd.h"
+
 #include <util/debug.h>
 #include <util/array.h>
 #include <util/id_array.h>
 
-#include "flood_pbd.h"
+#include <rdi/rdi_debug_draw.h>
 
 namespace bx{ namespace flood{
 
@@ -55,8 +57,8 @@ PBDActor PBDScene::_AllocateActor( PBDActorId id, u32 numParticles )
     }
 
     {
-        id_t iid = MakeInternalId( id );
-        _active_actors[iid.index] = actor;
+        u32 data_index = _DataIndex( id );
+        _active_actors[data_index] = actor;
     }
 
     return actor;
@@ -65,9 +67,9 @@ PBDActor PBDScene::_AllocateActor( PBDActorId id, u32 numParticles )
 void PBDScene::_DeallocateActor( PBDActorId id )
 {
     id_t iid = MakeInternalId( id );
-
-    PBDActor actor = _active_actors[iid.index];
-    _active_actors[iid.index] = PBDActor::Invalid();
+    u32 data_index = _DataIndex( id );
+    PBDActor actor = _active_actors[data_index];
+    _active_actors[data_index] = PBDActor::Invalid();
 
     array::push_back( _free_actors, actor );
 
@@ -89,14 +91,16 @@ void PBDScene::_Defragment()
 
 void PBDScene::PredictPosition( const Vec3& gravity, float deltaTime )
 {
-    for( PBDActor actor : _active_actors )
+    for( u32 i = 0; i < id_array::size( _id_array ); ++i )
+    //for( PBDActor actor : _active_actors )
     {
+        PBDActor actor = _active_actors[i];
         const u32 begin = actor.begin;
         const u32 end = actor.end();
 
         for( u32 i = begin; i < end; ++i )
         {
-            Vec3 v = _v[i] + gravity * deltaTime;
+            Vec3 v = _v[i] + gravity * deltaTime * _w[i];
             v *= ::powf( 1.f - _vdamping[i], deltaTime );
 
             _p[i] += v * deltaTime;
@@ -107,6 +111,9 @@ void PBDScene::PredictPosition( const Vec3& gravity, float deltaTime )
 
 void PBDScene::UpdateSpatialMap()
 {
+    if( id_array::size( _id_array ) == 0 )
+        return;
+
     const u32 spatial_map_size = ( _x.size * 3 ) / 2;
     hash_grid::Build( &_hash_grid, _grid_index.begin(), _x.begin(), _x.size, spatial_map_size, _pt_radius * 2.f );
 }
@@ -115,8 +122,10 @@ void PBDScene::UpdateVelocity( float deltaTime )
 {
     const float delta_time_inv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
 
-    for( PBDActor actor : _active_actors )
+    for( u32 i = 0; i < id_array::size( _id_array ); ++i )
+    //for( PBDActor actor : _active_actors )
     {
+        PBDActor actor = _active_actors[i];
         const u32 begin = actor.begin;
         const u32 end = actor.end();
 
@@ -163,6 +172,13 @@ HashGridStatic::Indices PBDScene::GetGridCell( const Vec3& point )
     return _hash_grid.Lookup( point );
 }
 
+u32 PBDScene::_DataIndex( PBDActorId id )
+{
+    id_t iid = MakeInternalId( id );
+    SYS_ASSERT( id_array::has( _id_array, iid ) );
+    return id_array::index( _id_array, iid );
+}
+
 }
 }//
 
@@ -172,7 +188,13 @@ HashGridStatic::Indices PBDScene::GetGridCell( const Vec3& point )
 #include <util/buffer_utils.h>
 namespace bx{ namespace flood{
 
-PBDCloth::ActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
+    PBDClothSolver::PBDClothSolver( PBDScene* scene ) 
+        : _scene( scene )
+    {
+
+    }
+
+    PBDCloth::ActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
 {
     PBDActorId scene_actor_id = _scene->CreateDynamic( desc.num_particles );
 
@@ -190,11 +212,11 @@ PBDCloth::ActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
     _actor_id[index].i = iid.hash;
     _scene_actor_id[index] = scene_actor_id;
 
-    {
-        SYS_ASSERT( !hashmap::lookup( _scene_actor_map, iid.hash ) );
-        hashmap_t::cell_t* map_cell = hashmap::insert( _scene_actor_map, iid.hash );
-        map_cell->value = scene_actor_id.i;
-    }
+    //{
+    //    SYS_ASSERT( !hashmap::lookup( _scene_actor_map, iid.hash ) );
+    //    hashmap_t::cell_t* map_cell = hashmap::insert( _scene_actor_map, iid.hash );
+    //    map_cell->value = scene_actor_id.i;
+    //}
     {
         SYS_ASSERT( !hashmap::lookup( _cloth_actor_map, scene_actor_id.i ) );
         hashmap_t::cell_t* map_cell = hashmap::insert( _cloth_actor_map, scene_actor_id.i );
@@ -205,14 +227,18 @@ PBDCloth::ActorId PBDClothSolver::CreateActor( const PBDCloth::ActorDesc& desc )
     bool bres = _scene->GetActorData( &scene_actor_data, scene_actor_id );
     SYS_ASSERT( bres == true );
 
-    const float particle_mass_inv = ( desc.particle_mass > FLT_EPSILON ) ? 1.f / desc.particle_mass : 0.f;
+    //const float particle_mass_inv = ( desc.particle_mass > FLT_EPSILON ) ? 1.f / desc.particle_mass : 0.f;
     
     for( u32 i = 0; i < scene_actor_data.count; ++i )
     {
         scene_actor_data.x[i] = desc.positions[i];
         scene_actor_data.p[i] = desc.positions[i];
         scene_actor_data.v[i] = Vec3( 0.f );
-        scene_actor_data.w[i] = particle_mass_inv;
+
+        float pmass = ( desc.particle_mass ) ? desc.particle_mass[i % desc.num_particle_masses] : 1.f;
+        float pmass_inv = ( pmass > FLT_EPSILON ) ? 1.f / pmass : 0.f;
+
+        scene_actor_data.w[i] = pmass_inv;
     }
 
     SYS_ASSERT( (desc.num_cdistance_indices % 2) == 0 );
@@ -319,10 +345,35 @@ void PBDClothSolver::SolveConstraints( u32 numIterations /*= 4 */ )
     }
 }
 
+void PBDClothSolver::_DebugDraw( PBDCloth::ActorId actorId, u32 color )
+{
+    id_t iid = MakeInternalId( actorId );
+    if( !id_table::has( _id_container, iid ) )
+        return;
+
+    PBDActorId scene_actor_id = _scene_actor_id[iid.index];
+
+    PBDActorData data;
+    if( !_scene->GetActorData( &data, scene_actor_id ) )
+        return;
+
+    for( u32 i = 0; i < data.count; ++i )
+    {
+        Vector3 p( xyz_to_m128( &data.x[i].x ) );
+        rdi::debug_draw::AddSphere( Vector4( p, _scene->_pt_radius ), color, 1 );
+    }
+}
+
 PBDActorId PBDClothSolver::SceneActorId( PBDCloth::ActorId id ) const
 {
-    const hashmap_t::cell_t* cell = hashmap::lookup( _scene_actor_map, id.i );
-    return ( cell ) ? PBDActorId::Make( (u32)cell->value ) : PBDActorId::Invalid();
+    id_t iid = MakeInternalId( id );
+    if( !id_table::has( _id_container, iid ) )
+        return PBDActorId::Invalid();
+
+    return _scene_actor_id[iid.index];
+
+    //const hashmap_t::cell_t* cell = hashmap::lookup( _scene_actor_map, id.i );
+    //return ( cell ) ? PBDActorId::Make( (u32)cell->value ) : PBDActorId::Invalid();
 }
 
 PBDCloth::ActorId PBDClothSolver::ClothActorId( PBDActorId id ) const

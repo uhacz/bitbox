@@ -73,6 +73,8 @@ struct PBDScene
     bool GetGridCell( HashGridStatic::Indices* pointIndices, u32 pointIndex );
     HashGridStatic::Indices GetGridCell( const Vec3& point );
 
+    u32 _DataIndex( PBDActorId id );
+
     enum { eMAX_ACTORS = 1024 };
 
     // --- particle data
@@ -86,7 +88,7 @@ struct PBDScene
 
                                 // --- object data
     id_array_t<eMAX_ACTORS> _id_array;
-    PBDActor                _active_actors[eMAX_ACTORS];
+    PBDActor                _active_actors[eMAX_ACTORS] = {};
     PBDActorArray           _free_actors;
 
     // --- spatial
@@ -126,12 +128,12 @@ namespace PBDCloth
         
         const u16* cdistance_indices = nullptr; // 2 indices per constraint
         const u16* cbending_indices = nullptr;  // 4 indices per constraint
+        const f32* particle_mass = nullptr;
 
         u32 num_particles = 0;
         u32 num_cdistance_indices = 0;
         u32 num_cbending_indices = 0;
-
-        f32 particle_mass = 1.f;
+        u32 num_particle_masses = 0;
     };
 
     struct Range
@@ -159,15 +161,14 @@ namespace PBDCloth
 
 struct PBDClothSolver
 {
-    PBDClothSolver( PBDScene* scene )
-        : _scene( scene )
-    {}
+    PBDClothSolver( PBDScene* scene );
 
     PBDCloth::ActorId CreateActor( const PBDCloth::ActorDesc& desc );
     void DestroyActor( PBDCloth::ActorId id );
     void _Defragment();
 
     void SolveConstraints( u32 numIterations = 4 );
+    void _DebugDraw( PBDCloth::ActorId actorId, u32 color );
     
     PBDScene*         Scene        ()                              { return _scene; }
     PBDActorId        SceneActorId ( PBDCloth::ActorId id ) const;
@@ -183,7 +184,7 @@ struct PBDClothSolver
     PBDCloth::Range      _range_cbending [eMAX_ACTORS] = {};
     PBDCloth::ActorId    _actor_id       [eMAX_ACTORS] = {};
     PBDActorId           _scene_actor_id [eMAX_ACTORS] = {};
-    hashmap_t                       _scene_actor_map;
+    //hashmap_t                       _scene_actor_map;
     hashmap_t                       _cloth_actor_map;
 
     id_table_t<eMAX_ACTORS> _id_container;
