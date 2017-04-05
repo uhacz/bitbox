@@ -32,6 +32,13 @@ namespace pbd
         return 1;
     }
 
+    inline int SolveDihedralConstraint( Vector3F result[4],
+        const Vector3F& p0, const Vector3F& p1, const Vector3F& p2, const Vector3F& p3, 
+        float w0, float w1, float w2, float w3,
+        float restAngle, float stiffness )
+    {
+    }
+
 
 }
 
