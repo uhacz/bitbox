@@ -30,46 +30,46 @@ void ShutDown( Deffered* gfx )
     gfx->renderer.ShutDown( bx::GResourceManager() );
 }
 
-void DrawScene( rdi::CommandQueue* cmdq, Deffered* gfx, gfx::Scene scene, const gfx::Camera& camera )
+void Deffered::DrawScene( rdi::CommandQueue* cmdq, gfx::Scene scene, const gfx::Camera& camera )
 {
-    gfx->geometry_pass.PrepareScene( cmdq, scene, camera );
-    gfx->geometry_pass.Flush( cmdq );
+    geometry_pass.PrepareScene( cmdq, scene, camera );
+    geometry_pass.Flush( cmdq );
 
-    rdi::TextureDepth depthTexture = rdi::GetTextureDepth( gfx->geometry_pass.GBuffer() );
-    rdi::TextureRW normalsTexture = rdi::GetTexture( gfx->geometry_pass.GBuffer(), 2 );
-    gfx->shadow_pass.PrepareScene( cmdq, scene, camera );
-    gfx->shadow_pass.Flush( cmdq, depthTexture, normalsTexture );
+    rdi::TextureDepth depthTexture = rdi::GetTextureDepth( geometry_pass.GBuffer() );
+    rdi::TextureRW normalsTexture = rdi::GetTexture( geometry_pass.GBuffer(), 2 );
+    shadow_pass.PrepareScene( cmdq, scene, camera );
+    shadow_pass.Flush( cmdq, depthTexture, normalsTexture );
 
-    gfx->ssao_pass.PrepareScene( cmdq, camera );
-    gfx->ssao_pass.Flush( cmdq, depthTexture, normalsTexture );
+    ssao_pass.PrepareScene( cmdq, camera );
+    ssao_pass.Flush( cmdq, depthTexture, normalsTexture );
 
-    gfx->light_pass.PrepareScene( cmdq, scene, camera );
-    gfx->light_pass.Flush( cmdq,
-                            gfx->renderer.GetFramebuffer( gfx::EFramebuffer::SWAP ),
-                            gfx->geometry_pass.GBuffer(),
-                            gfx->shadow_pass.ShadowMap(),
-                            gfx->ssao_pass.SsaoTexture() );
+    light_pass.PrepareScene( cmdq, scene, camera );
+    light_pass.Flush( cmdq,
+                      renderer.GetFramebuffer( gfx::EFramebuffer::SWAP ),
+                      geometry_pass.GBuffer(),
+                      shadow_pass.ShadowMap(),
+                      ssao_pass.SsaoTexture() );
 }
 
-void PostProcess( rdi::CommandQueue* cmdq, Deffered* gfx, const gfx::Camera& camera, float deltaTimeSec )
+void Deffered::PostProcess( rdi::CommandQueue* cmdq, const gfx::Camera& camera, float deltaTimeSec )
 {
-    rdi::TextureDepth depthTexture = rdi::GetTextureDepth( gfx->geometry_pass.GBuffer() );
+    rdi::TextureDepth depthTexture = rdi::GetTextureDepth( geometry_pass.GBuffer() );
 
-    rdi::TextureRW srcColor = gfx->renderer.GetFramebuffer( gfx::EFramebuffer::SWAP );
-    rdi::TextureRW dstColor = gfx->renderer.GetFramebuffer( gfx::EFramebuffer::COLOR );
-    gfx->post_pass.DoToneMapping( cmdq, dstColor, srcColor, deltaTimeSec );
+    rdi::TextureRW srcColor = renderer.GetFramebuffer( gfx::EFramebuffer::SWAP );
+    rdi::TextureRW dstColor = renderer.GetFramebuffer( gfx::EFramebuffer::COLOR );
+    post_pass.DoToneMapping( cmdq, dstColor, srcColor, deltaTimeSec );
     
     gfx::Renderer::DebugDraw( cmdq, dstColor, depthTexture, camera );
 }
 
-void Rasterize( rdi::CommandQueue* cmdq, Deffered* gfx, const gfx::Camera& camera )
+void Deffered::Rasterize( rdi::CommandQueue* cmdq, const gfx::Camera& camera )
 {
     rdi::ResourceRO* toRasterize[] =
     {
-        &gfx->renderer.GetFramebuffer( gfx::EFramebuffer::COLOR ),
-        &gfx->ssao_pass.SsaoTexture(),
-        &gfx->shadow_pass.ShadowMap(),
-        &gfx->shadow_pass.DepthMap(),
+        &renderer.GetFramebuffer( gfx::EFramebuffer::COLOR ),
+        &ssao_pass.SsaoTexture(),
+        &shadow_pass.ShadowMap(),
+        &shadow_pass.DepthMap(),
     };
     const int toRasterizeN = sizeof( toRasterize ) / sizeof( *toRasterize );
     static int dstColorSelect = 0;
@@ -81,7 +81,7 @@ void Rasterize( rdi::CommandQueue* cmdq, Deffered* gfx, const gfx::Camera& camer
     }
 
     rdi::ResourceRO texture = *toRasterize[dstColorSelect];
-    gfx->renderer.RasterizeFramebuffer( cmdq, texture, camera, win->width, win->height );
+    renderer.RasterizeFramebuffer( cmdq, texture, camera, win->width, win->height );
 }
 
 }}///

@@ -119,9 +119,9 @@ void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
     gfx::Scene gfx_scene = _level->_gfx_scene;
 
     // ---
-    game_gfx::DrawScene( cmdq, _gfx, gfx_scene, *active_camera );
-    game_gfx::PostProcess( cmdq, _gfx, *active_camera, time.DeltaTimeSec() );
-    game_gfx::Rasterize( cmdq, _gfx, *active_camera );
+    _gfx->DrawScene( cmdq, gfx_scene, *active_camera );
+    _gfx->PostProcess( cmdq, *active_camera, time.DeltaTimeSec() );
+    _gfx->Rasterize( cmdq, *active_camera );
 }
 
 }
