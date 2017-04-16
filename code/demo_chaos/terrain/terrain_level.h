@@ -1,23 +1,18 @@
 #pragma once
 
-#include "../game_simple.h"
+#include "..\game_simple.h"
 
-#include <util/camera.h>
+namespace bx { namespace terrain {
 
-namespace bx{ namespace flood{
-
-struct FloodGame : GameSimple
+struct TerrainGame : GameSimple
 {
-    virtual ~FloodGame() {}
+    virtual ~TerrainGame() {}
 
 protected:
     void StartUpImpl() override;
 };
 
 //////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-struct Level;
 class LevelState : public GameState
 {
 public:
@@ -32,7 +27,8 @@ public:
     void OnRender( const GameTime& time, rdi::CommandQueue* cmdq ) override;
 
     game_gfx::Deffered* _gfx = nullptr;
-    Level*              _level = nullptr;
+    gfx::Scene          _gfx_scene = nullptr;
 };
+
 
 }}//

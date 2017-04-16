@@ -26,13 +26,8 @@ public:
     void OnUpdate( const GameTime& time ) override;
     void OnRender( const GameTime& time, rdi::CommandQueue* cmdq ) override;
         
-    gfx::Camera             _dev_camera           = {};
-    gfx::CameraInputContext _dev_camera_input_ctx = {};
-
     game_gfx::Deffered* _gfx   = nullptr;
     Level*              _level = nullptr;
-
-    bool _use_dev_camera = false;
 };
 
 //////////////////////////////////////////////////////////////////////////

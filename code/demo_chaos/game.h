@@ -2,7 +2,9 @@
 
 #include <vector>
 #include <util/type.h>
+#include <util/camera.h>
 #include <rdi/rdi_backend.h>
+#include "renderer_camera.h"
 
 #include "game_time.h"
 #include "profiler.h"
@@ -11,6 +13,7 @@ namespace bx
 {
 
 //////////////////////////////////////////////////////////////////////////
+class Game;
 class GameState
 {
 public:
@@ -25,6 +28,8 @@ public:
     virtual void OnBackgroundUpdate( const GameTime& time ) {}
     virtual void OnRender          ( const GameTime& time, rdi::CommandQueue* cmdq ) {}
     virtual void OnBackgroundRender( const GameTime& time, rdi::CommandQueue* cmdq ) {}
+
+    Game* GetGame();
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -42,7 +47,8 @@ struct GameStateId
 class Game
 {
 public:
-    virtual ~Game() {}
+    Game();
+    virtual ~Game();
 
     GameStateId AddState( GameState* state );
     GameStateId FindState( const char* name );
@@ -59,6 +65,11 @@ public:
     void Render();
     void Pause ();
     void Resume();
+
+          gfx::Camera& GetDevCamera()       { return _dev_camera; }
+    const gfx::Camera& GetDevCamera() const { return _dev_camera; }
+
+    bool UseDevCamera() const { return _use_dev_camera; }
 
 protected:
     virtual void StartUpImpl    () {}
@@ -79,6 +90,12 @@ private:
     bool _pause = false;
 
     Remotery* _rmt = nullptr;
+
+protected:
+    gfx::Camera             _dev_camera = {};
+    gfx::CameraInputContext _dev_camera_input_ctx = {};
+
+    bool _use_dev_camera = true;
 };
 
 }///

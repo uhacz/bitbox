@@ -14,35 +14,10 @@ namespace bx {namespace flood {
 
 void FloodGame::StartUpImpl()
 {
-    game_gui::StartUp();
-    game_gfx::StartUp( &_gfx );
-
+    GameSimple::StartUpImpl();
     LevelState* level_state = BX_NEW( bxDefaultAllocator(), LevelState, &_gfx );
     GameStateId level_state_id = AddState( level_state );
     PushState( level_state_id );
-}
-
-void FloodGame::ShutDownImpl()
-{
-    game_gfx::ShutDown( &_gfx );
-    game_gui::ShutDown();
-}
-
-bool FloodGame::PreUpdateImpl( const GameTime& time )
-{
-    game_gui::NewFrame();
-    return true;
-}
-
-void FloodGame::PreRenderImpl( const GameTime& time, rdi::CommandQueue* cmdq )
-{
-    _gfx.renderer.BeginFrame( cmdq );
-}
-
-void FloodGame::PostRenderImpl( const GameTime& time, rdi::CommandQueue* cmdq )
-{
-    game_gui::Render();
-    _gfx.renderer.EndFrame( cmdq );
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -55,7 +30,7 @@ void LevelState::OnStartUp()
     _level = BX_NEW( bxDefaultAllocator(), Level );
     _level->StartUp( _gfx, "level" );
 
-    _dev_camera.world = Matrix4( Matrix3::rotationX( -PI/8 ),  Vector3( 0.f, 4.5f, 9.f ) );
+    GetGame()->GetDevCamera().world = Matrix4( Matrix3::rotationX( -PI/8 ),  Vector3( 0.f, 4.5f, 9.f ) );
 }
 
 void LevelState::OnShutDown()
@@ -69,19 +44,6 @@ void LevelState::OnShutDown()
 
 void LevelState::OnUpdate( const GameTime& time )
 {
-    bxWindow* win = bxWindow_get();
-    if( bxInput_isKeyPressedOnce( &win->input.kbd, '1' ) )
-    {
-        _use_dev_camera = !_use_dev_camera;
-    }
-    if( _use_dev_camera )
-    {
-        game_util::DevCameraCollectInput( &_dev_camera_input_ctx, time.DeltaTimeSec(), 0.005f );
-        _dev_camera.world = _dev_camera_input_ctx.computeMovement( _dev_camera.world, 0.05f );
-
-        gfx::computeMatrices( &_dev_camera );
-    }
-
     if( _level )
     {
         _level->Tick( time );
@@ -91,10 +53,7 @@ void LevelState::OnUpdate( const GameTime& time )
 void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
 {
     gfx::Camera* active_camera = nullptr;
-    if( _use_dev_camera )
-    {
-        active_camera = &_dev_camera;
-    }
+    active_camera = &GetGame()->GetDevCamera();
 
     if( !_level )
         return;

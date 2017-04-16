@@ -1,14 +1,31 @@
 #include "game.h"
-#include "util\debug.h"
-#include "util\string_util.h"
-#include "rdi\rdi_backend_dx11.h"
-#include "util\memory.h"
+#include <util\debug.h>
+#include <util\string_util.h>
+#include <util\memory.h>
+#include <system/window.h>
+#include <rdi\rdi_backend_dx11.h>
+
 #include "imgui\imgui.h"
+#include "renderer_camera.h"
+#include "game_util.h"
 
 namespace bx
 {
 
-GameStateId Game::AddState( GameState* state )
+    static Game* __game = nullptr;
+
+    Game::Game()
+    {
+        SYS_ASSERT( __game == nullptr );
+        __game = this;
+    }
+
+    Game::~Game()
+    {
+        __game = nullptr;
+    }
+
+    GameStateId Game::AddState( GameState* state )
 {
     if( std::find( _states.begin(), _states.end(), state ) == _states.end() )
     {
@@ -118,8 +135,23 @@ bool Game::Update()
     }
     _time.time_not_paused_us += deltaTimeUS;
     
-    bool result = true;
 
+    { // dev camera
+        bxWindow* win = bxWindow_get();
+        if( bxInput_isKeyPressedOnce( &win->input.kbd, '1' ) )
+        {
+            _use_dev_camera = !_use_dev_camera;
+        }
+        if( _use_dev_camera )
+        {
+            game_util::DevCameraCollectInput( &_dev_camera_input_ctx, _time.DeltaTimeSec(), 0.005f );
+            _dev_camera.world = _dev_camera_input_ctx.computeMovement( _dev_camera.world, 0.05f );
+
+            gfx::computeMatrices( &_dev_camera );
+        }
+    }
+
+    bool result = true;
     {
         rmt_ScopedCPUSample( PreUpdate, 0 );
         result &= PreUpdateImpl( _time );
@@ -217,6 +249,11 @@ void Game::Resume()
         state->OnResume();
     }
     _pause = false;
+}
+
+Game* GameState::GetGame()
+{
+    return __game;
 }
 
 }//
