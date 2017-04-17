@@ -115,6 +115,7 @@
     <ClCompile Include="ship_game\ship_player.cpp" />
     <ClCompile Include="ship_game\ship_terrain.cpp" />
     <ClCompile Include="spatial_hash_grid.cpp" />
+    <ClCompile Include="terrain\terrain.cpp" />
     <ClCompile Include="terrain\terrain_level.cpp" />
     <ClCompile Include="test_game\test_game.cpp" />
   </ItemGroup>
@@ -179,6 +180,7 @@
     <ClInclude Include="ship_game\ship_player.h" />
     <ClInclude Include="ship_game\ship_terrain.h" />
     <ClInclude Include="spatial_hash_grid.h" />
+    <ClInclude Include="terrain\terrain.h" />
     <ClInclude Include="terrain\terrain_level.h" />
     <ClInclude Include="test_game\test_game.h" />
   </ItemGroup>
