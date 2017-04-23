@@ -337,4 +337,35 @@ void AddFrustum( const Matrix4& viewProj, u32 colorRGBA, int depth )
     AddFrustum( corners, colorRGBA, depth );
 }
 
+void AddSphere( const Vector4F& pos_radius, u32 colorRGBA, int depth )
+{
+    AddSphere( toVector4( pos_radius ), colorRGBA, depth );
+}
+void AddBox( const Matrix4F& pose, const Vector3F& ext, u32 colorRGBA, int depth )
+{
+    return AddBox( toMatrix4( pose ), toVector3( ext ), colorRGBA, depth );
+}
+void AddLine( const Vector3F& pointA, const Vector3F& pointB, u32 colorRGBA, int depth )
+{
+    return AddLine( toVector3( pointA ), toVector3( pointB ), colorRGBA, depth );
+}
+void AddAxes( const Matrix4F& pose )
+{
+    return AddAxes( toMatrix4( pose ) );
+}
+
+void AddFrustum( const Matrix4F& viewProj, u32 colorRGBA, int depth )
+{
+    return AddFrustum( toMatrix4( viewProj ), colorRGBA, depth );
+}
+void AddFrustum( const Vector3F corners[8], u32 colorRGBA, int depth )
+{
+    Vector3 cornersV3[8];
+    for( u32 i = 0; i < 8; ++i )
+    {
+        cornersV3[i] = toVector3( corners[i] );
+    }
+    AddFrustum( cornersV3, colorRGBA, depth );
+}
+
 }}}///

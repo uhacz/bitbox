@@ -69,6 +69,7 @@ public:
             float mY;
             float mZ;
         };
+        float xyz[3];
     };
     
 public:
@@ -367,6 +368,7 @@ public:
             float mZ;
             float mW;
         };
+        float xyzw[4];
     };
 public:
     // Default constructor; does no initialization
@@ -675,6 +677,7 @@ public:
             float mY;
             float mZ;
         };
+        float xyz[3];
     };
 
 public:
@@ -918,6 +921,7 @@ public:
             float mZ;
             float mW;
         };
+        float xyzw[4];
     };
 
 public:

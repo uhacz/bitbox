@@ -348,13 +348,18 @@ inline Vector3F projectPointOnPlane( const Vector3F& point, const Vector4F& plan
     return Qp;
 }
 
-inline Vector3F projectVectorOnPlane( const Vector3F& vec, const Vector4F& plane )
+inline Vector3F projectVectorOnPlane( const Vector3F& vec, const Vector3F& planeNormal )
 {
-    const Vector3F& n = plane.getXYZ();
+    const Vector3F& n = planeNormal;
     const Vector3F& V = vec;
     const Vector3F W = V - dot( V, n ) * n;
     return W;
 }
+inline Vector3F projectVectorOnPlane( const Vector3F& vec, const Vector4F& plane )
+{
+    return projectVectorOnPlane( vec, plane.getXYZ() );
+}
+
 
 inline Matrix3 computeBasis( const Vector3& n )
 {
@@ -435,4 +440,64 @@ inline void addStoreXYZArray( const Vector3 &vec0, const Vector3 &vec1, const Ve
 	threeQuads[0] = _mm_add_ps( threeQuads[0], vec_sel( vec0.get128(), xxxx, xsw ) );
 	threeQuads[1] = _mm_add_ps( threeQuads[1], _mm_shuffle_ps( vec1.get128(), vec2.get128(), _MM_SHUFFLE( 1, 0, 2, 1 ) ) );
 	threeQuads[2] = _mm_add_ps( threeQuads[2], vec_sel( _mm_shuffle_ps( vec3.get128(), vec3.get128(), _MM_SHUFFLE( 2, 1, 0, 3 ) ), zzzz, zsw ) );
+}
+
+//////////////////////////////////////////////////////////////////////////
+inline Vector3 toVector3( const Vector3F& v ) { return Vector3( v.x, v.y, v.z ); }
+inline Vector4 toVector4( const Vector4F& v ) { return Vector4( v.x, v.y, v.z, v.w ); }
+inline Quat    toQuat   ( const QuatF& q )    { return Quat( q.x, q.y, q.z, q.w ); }
+inline Matrix3 toMatrix3( const Matrix3F& m )
+{
+    return Matrix3(
+        toVector3( m.getCol0() ),
+        toVector3( m.getCol1() ),
+        toVector3( m.getCol2() )
+        );
+}
+
+inline Matrix4 toMatrix4( const Matrix4F& m )
+{
+    return Matrix4(
+        toVector4( m.getCol0() ),
+        toVector4( m.getCol1() ),
+        toVector4( m.getCol2() ),
+        toVector4( m.getCol3() )
+        );
+}
+//////////////////////////////////////////////////////////////////////////
+inline Vector3F toVector3F( const Vector3& v ) 
+{ 
+    Vector3F result;
+    m128_to_xyz( result.xyz, v.get128() );
+    return result;
+}
+inline Vector4F toVector4F( const Vector4& v )
+{
+    Vector4F result;
+    m128_to_xyzw( result.xyzw, v.get128() );
+    return result;
+}
+inline QuatF    toQuatF( const Quat& q )
+{
+    QuatF result;
+    m128_to_xyzw( result.xyzw, q.get128() );
+    return result;
+}
+inline Matrix3F toMatrix3F( const Matrix3& m )
+{
+    return Matrix3F(
+        toVector3F( m.getCol0() ),
+        toVector3F( m.getCol1() ),
+        toVector3F( m.getCol2() )
+        );
+}
+
+inline Matrix4F toMatrix4F( const Matrix4& m )
+{
+    return Matrix4F(
+        toVector4F( m.getCol0() ),
+        toVector4F( m.getCol1() ),
+        toVector4F( m.getCol2() ),
+        toVector4F( m.getCol3() )
+        );
 }

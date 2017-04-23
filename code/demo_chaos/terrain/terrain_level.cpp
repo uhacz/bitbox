@@ -24,15 +24,25 @@ void LevelState::OnStartUp()
     _gfx_scene->GetSunSkyLight()->sky_cubemap = gfx::GTextureManager()->CreateFromFile( "texture/sky1_cubemap.dds" );
 
     game_util::CreateDebugMaterials();
+
+    terrain::CreateInfo create_info = {};
+    _tinstance = terrain::Create( create_info );
+
+    gfx::Camera& camera = GetGame()->GetDevCamera();
+    camera.world = Matrix4( Matrix3::identity(), Vector3( 0.f, 5.f, 10.f ) );
+
 }
 
 void LevelState::OnShutDown()
 {
+    terrain::Destroy( &_tinstance );
     _gfx->renderer.DestroyScene( &_gfx_scene );
 }
 
 void LevelState::OnUpdate( const GameTime& time )
 {
+    const gfx::Camera& camera = GetGame()->GetDevCamera();
+    terrain::Tick( _tinstance, toMatrix4F( camera.world ) );
 }
 
 void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )

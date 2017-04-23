@@ -1,6 +1,7 @@
 #pragma once
 
 #include "..\game_simple.h"
+#include "terrain.h"
 
 namespace bx { namespace terrain {
 
@@ -28,6 +29,8 @@ public:
 
     game_gfx::Deffered* _gfx = nullptr;
     gfx::Scene          _gfx_scene = nullptr;
+
+    terrain::Instance* _tinstance = nullptr;
 };
 
 
