@@ -1,6 +1,7 @@
 #include "terrain_level.h"
 #include "..\game_util.h"
 #include "rdi\rdi_debug_draw.h"
+#include "util\common.h"
 
 namespace bx { namespace terrain {
 
@@ -26,10 +27,15 @@ void LevelState::OnStartUp()
     game_util::CreateDebugMaterials();
 
     terrain::CreateInfo create_info = {};
+    create_info.tile_side_length = 5.f;
+    create_info.radius[0] = 1.f;
+    create_info.radius[1] = 2.f;
+    create_info.radius[2] = 3.f;
+    create_info.radius[3] = 4.f;
     _tinstance = terrain::Create( create_info );
 
     gfx::Camera& camera = GetGame()->GetDevCamera();
-    camera.world = Matrix4( Matrix3::identity(), Vector3( 0.f, 5.f, 10.f ) );
+    camera.world = Matrix4( Matrix3::rotationX( -PI/2 ), Vector3( 0.f, 35.f, 10.f ) );
 
 }
 
