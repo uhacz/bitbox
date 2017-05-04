@@ -188,6 +188,7 @@ struct Instance
         const Vector2I delta_abs = absPerElem( delta );
         const u32 last_index = _num_tiles_per_side - 1;
 
+        const Vector2UI old_data_center = _data_center;
         // determine new data center coords
         if( delta.x > 0 )
         {
@@ -213,10 +214,15 @@ struct Instance
         const Vector2I n_jumps = maxPerElem( Vector2I( 1 ), Vector2I( _num_tiles_in_radius ) - delta_abs );
         const i32 radius = (i32)_num_tiles_in_radius;
 
+        if( delta.x && delta.y )
+        {
+            int a = 0;
+        }
+
         if( delta.x )
         {
             JumpFunction jump_func = ( delta.x > 0 ) ? wrap_inc_u32 : wrap_dec_u32;
-            u32 data_col_begin = (*jump_func)( _data_center.x, 0, last_index );
+            u32 data_col_begin = (*jump_func)( old_data_center.x, 0, last_index );
             i32 xoffset = 1;
             for( i32 j = 0; j < n_jumps.x; ++j, ++xoffset )
                 data_col_begin = (*jump_func)( data_col_begin, 0, last_index );
@@ -224,7 +230,11 @@ struct Instance
             if( delta.x < 0 )
                 xoffset = -xoffset;
 
-            for( i32 zoffset = -radius, data_row = 0; zoffset <= radius; ++zoffset, ++data_row )
+            u32 data_row = old_data_center.y;
+            for( u32 i = 0; i < radius; ++i )
+                data_row = wrap_dec_u32( data_row, 0, last_index );
+
+            for( i32 zoffset = -radius; zoffset <= radius; ++zoffset )
             {
                 u32 data_col = data_col_begin;
                 for( i32 i = 0; i < delta_abs.x; ++i )
@@ -239,6 +249,7 @@ struct Instance
 
                     data_col = (*jump_func)( data_col, 0, last_index );
                 }
+                data_row = wrap_inc_u32( data_row, 0, last_index );
             }
 
         }
@@ -260,6 +271,8 @@ struct Instance
                 {
                     u32 data_index = GetFlatIndex( Vector2UI( data_col, data_row ), _num_tiles_per_side );
                     SYS_ASSERT( data_index < _tiles_world_pos.size );
+                    if( _tiles_flags[data_index] & ETileFlag::NEED_REBUILD )
+                        continue;
                     
                     Vector2I grid_pos = new_grid_observer_pos + Vector2I( xoffset, zoffset );
                     Vector3F world_pos = toVector3Fxz( grid_pos ) * _info.tile_side_length;
@@ -269,6 +282,12 @@ struct Instance
                     data_row = ( *jump_func )( data_row, 0, last_index );
                 }
             }
+        }
+
+
+        for( u32 i = 0; i < _tiles_flags.size; ++i )
+        {
+            _tiles_flags[i] &= ~ETileFlag::NEED_REBUILD;
         }
 
         _grid_observer_pos = new_grid_observer_pos;
