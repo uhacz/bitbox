@@ -2,20 +2,6 @@
 #include "debug.h"
 #include "array.h"
 
-hashmap_t::hashmap_t( int initSize, bxAllocator* alloc )
-    : allocator( alloc )
-{
-    cells = (cell_t*)BX_MALLOC( alloc, initSize * sizeof( cell_t ), ALIGNOF( cell_t ) );
-    capacity = initSize;
-    size = 0;
-    memset( cells, 0, capacity* sizeof( cell_t ) );
-}
-hashmap_t::~hashmap_t()
-{
-    BX_FREE0( allocator, cells );
-}
-
-
 namespace hashmap
 {
     

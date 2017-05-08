@@ -40,19 +40,6 @@ namespace array
     template< typename T > void     insert();
 }///
 
-template< typename T > array_t<T>::array_t( bxAllocator* alloc /* = bxDefaultAllocator */ )
-    : size(0)
-    , capacity(0)
-    , allocator( alloc )
-    , data(0)
-{}
-
-template< typename T >
-array_t<T>::~array_t()
-{
-    BX_FREE0( allocator, data );
-}
-
 namespace array
 {
     template< typename T > int push_back( array_t<T>& arr, const T& value )

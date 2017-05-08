@@ -5,18 +5,6 @@
 #define BX_ID_TABLE_T_DEF u32 MAX, typename Tid
 #define BX_ID_TABLE_T_ARG MAX, Tid
 
-template <BX_ID_TABLE_T_DEF>
-inline id_table_t<BX_ID_TABLE_T_ARG>::id_table_t()
-    : _freelist( BX_INVALID_ID )
-    , _next_id( 0 )
-    , _size( 0 )
-{
-    for( u32 i = 0; i < MAX; i++ )
-    {
-        _ids[i].id = BX_INVALID_ID;
-    }
-}
-
 namespace id_table
 {
     template <BX_ID_TABLE_T_DEF>

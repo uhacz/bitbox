@@ -27,11 +27,11 @@ void LevelState::OnStartUp()
     game_util::CreateDebugMaterials();
 
     terrain::CreateInfo create_info = {};
-    create_info.tile_side_length = 5.f;
+    create_info.tile_side_length = 8.f;
     create_info.radius[0] = 1.f;
     create_info.radius[1] = 2.f;
     create_info.radius[2] = 3.f;
-    create_info.radius[3] = 4.f;
+    create_info.radius[3] = 8.f;
     _tinstance = terrain::Create( create_info );
 
     gfx::Camera& camera = GetGame()->GetDevCamera();

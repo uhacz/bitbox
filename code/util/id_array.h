@@ -3,32 +3,6 @@
 #define BX_ID_ARRAY_T_DEF u32 MAX, typename Tid
 #define BX_ID_ARRAY_T_ARG MAX, Tid
 
-template <BX_ID_ARRAY_T_DEF>
-inline id_array_t<BX_ID_ARRAY_T_ARG>::id_array_t()
-    : _freelist( BX_INVALID_ID )
-    , _next_id( 0 )
-    , _size( 0 )
-{
-    for( u32 i = 0; i < MAX; i++ )
-    {
-        _sparse[i].id = BX_INVALID_ID;
-    }
-}
-
-//template <u32 MAX>
-//inline T& id_array_t<T, MAX>::operator[]( u32 i )
-//{
-//    SYS_ASSERT_TXT( i < _size, "Index out of bounds" );
-//    return _objects[i];
-//}
-//
-//template <u32 MAX>
-//inline const T& id_array_t<T, MAX>::operator[]( u32 i ) const
-//{
-//    SYS_ASSERT_TXT( i < _size, "Index out of bounds" );
-//    return _objects[i];
-//}
-
 namespace id_array
 {
     template <BX_ID_ARRAY_T_DEF>

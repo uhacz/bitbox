@@ -28,14 +28,6 @@ namespace queue_internal
     }
 }///
 
-template<typename T > queue_t<T>::queue_t(bxAllocator* alloc)
-    : data( alloc )
-    , size(0)
-    , offset(0)
-{}
-template< typename T > queue_t<T>::~queue_t()
-{}
-
 namespace queue
 {
     template< typename T > const T&  front( const queue_t<T>& q ) { return q[0]; }

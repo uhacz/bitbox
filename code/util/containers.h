@@ -11,10 +11,16 @@ struct array_t
     bxAllocator* allocator;
     T* data;
     
-    explicit array_t( bxAllocator* alloc = bxDefaultAllocator() );
-    ~array_t();
+    explicit array_t<T>::array_t( bxAllocator* alloc = bxDefaultAllocator() )
+        : size( 0 ), capacity( 0 ), allocator( alloc ), data( 0 ) 
+    {}
 
-    T &operator[]( int i) { return data[i]; }
+    ~array_t()
+    {
+        BX_FREE0( allocator, data );
+    }
+
+          T &operator[]( int i) { return data[i]; }
     const T &operator[]( int i) const { return data[i]; }
 
     T* begin() { return data; }
@@ -31,8 +37,11 @@ struct queue_t
     u32 size;
     u32 offset;
 
-    explicit queue_t( bxAllocator* alloc = bxDefaultAllocator() );
-    ~queue_t();
+    explicit queue_t( bxAllocator* alloc = bxDefaultAllocator() ) 
+        : data( alloc ) , size( 0 ) , offset( 0 )
+    {}
+    ~queue_t()
+    {}
 
           T& operator[]( int i )        { return data[(i + offset) % data.size]; }
     const T& operator[]( int i ) const  { return data[(i + offset) % data.size]; }
@@ -52,8 +61,22 @@ struct hashmap_t
     size_t size;
     size_t capacity;
 
-    hashmap_t( int initSize = 16, bxAllocator* alloc = bxDefaultAllocator() );
-    ~hashmap_t();
+    hashmap_t( int initSize = 16, bxAllocator* alloc = bxDefaultAllocator() ) 
+        : allocator( alloc )
+    {
+        cells = (cell_t*)BX_MALLOC( alloc, initSize * sizeof( cell_t ), ALIGNOF( cell_t ) );
+        capacity = initSize;
+        size = 0;
+        for( u32 i = 0; i < capacity; ++i )
+        {
+            cells[i].key = 0;
+            cells[i].value = 0;
+        }
+    }
+    hashmap_t::~hashmap_t()
+    {
+        BX_FREE0( allocator, cells );
+    }
 };
 
 
@@ -76,7 +99,13 @@ inline id_t make_id( u32 hash ){
 template <u32 MAX, typename Tid = id_t >
 struct id_array_t
 {
-    id_array_t();
+    id_array_t() : _freelist( BX_INVALID_ID ) , _next_id( 0 ) , _size( 0 )
+    {
+        for( u32 i = 0; i < MAX; i++ )
+        {
+            _sparse[i].id = BX_INVALID_ID;
+        }
+    }
 
     //T& operator[]( u32 index );
     //const T& operator[]( u32 index ) const;
@@ -94,7 +123,13 @@ struct id_array_t
 template <u32 MAX, typename Tid = id_t>
 struct id_table_t
 {
-    id_table_t();
+    id_table_t() : _freelist( BX_INVALID_ID ) , _next_id( 0 ) , _size( 0 )
+    {
+        for( u32 i = 0; i < MAX; i++ )
+        {
+            _ids[i].id = BX_INVALID_ID;
+        }
+    }
 
     u16 _freelist;
 
