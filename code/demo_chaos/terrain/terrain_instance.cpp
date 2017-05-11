@@ -26,10 +26,18 @@ void Instance::Gui()
     ImGui::End();
 }
 
+namespace
+{
+    inline u32 _ComputeNumSamples( u32 numDivisions )
+    {
+        const u32 a = ( 2 + numDivisions );
+        return a*a;
+    }
+}
 void Instance::_Init()
 {
     const f32 side_length = _info.tile_side_length;
-    const f32 max_radius = _info.radius[CreateInfo::NUM_LODS - 1] * side_length;
+    const f32 max_radius = _info.radius[Const::ELod::LAST_INDEX] * side_length;
 
     u32 num_tiles_per_side = ( u32 )::ceil( max_radius / side_length );
     num_tiles_per_side += ( num_tiles_per_side % 2 ) ? 0 : 1;
@@ -60,6 +68,12 @@ void Instance::_Init()
             array::push_back( _tiles_flags, u8( 0 ) );
         }
     }
+
+    _num_tile_samples = _ComputeNumSamples( _info.min_tesselation_level + Const::ELod::COUNT );
+    array::resize( _tiles_samples, _num_tile_samples );
+    for( f32& sample : _tiles_samples )
+        sample = 0.f;
+
 }
 
 namespace

@@ -77,6 +77,7 @@ public:
         //}
 
         //_game = BX_NEW( bxDefaultAllocator(), bx::ship::ShipGame );
+        //_game = BX_NEW( bxDefaultAllocator(), bx::flood::FloodGame );
         _game = BX_NEW( bxDefaultAllocator(), bx::terrain::TerrainGame );
         _game->StartUp();
 
@@ -235,6 +236,7 @@ public:
     bx::Game* _game = nullptr;
 };
 
+//////////////////////////////////////////////////////////////////////////
 int main( int argc, const char* argv[] )
 {
     bxWindow* window = bxWindow_create( "demo", 1280, 720, false, 0 );
