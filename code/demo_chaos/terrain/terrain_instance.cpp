@@ -28,10 +28,19 @@ void Instance::Gui()
 
 namespace
 {
-    inline u32 _ComputeNumSamples( u32 numDivisions )
+    inline u32 _ComputeNumDivisions( u32 tessLevel )
     {
-        const u32 a = ( 2 + numDivisions );
+        return 2 + tessLevel;
+    }
+    inline u32 _ComputeNumSamples( u32 tessLevel )
+    {
+        const u32 a = _ComputeNumDivisions( tessLevel );
         return a*a;
+    }
+
+    void _GenerateTileIndices( u32* output, u32 tessLevel )
+    {
+        const u32 n
     }
 }
 void Instance::_Init()
@@ -65,15 +74,21 @@ void Instance::_Init()
             const Vector3F pos( x, y, z );
             const Vector3F final_pos = ( pos * side_length ) + zero_offset + observer_offset;
             array::push_back( _tiles_world_pos, final_pos );
-            array::push_back( _tiles_flags, u8( 0 ) );
+            array::push_back( _tiles_flags, (u8)0 );
         }
     }
 
     _num_tile_samples = _ComputeNumSamples( _info.min_tesselation_level + Const::ELod::COUNT );
-    array::resize( _tiles_samples, _num_tile_samples );
+
+    array::resize( _tiles_samples, _num_tile_samples * _tiles_world_pos.size );
     for( f32& sample : _tiles_samples )
         sample = 0.f;
 
+
+    for( u32 i = 0; i < _tiles_world_pos.size; ++i )
+    {
+        _GenerateTileSamples( i );
+    }
 }
 
 namespace
@@ -190,6 +205,18 @@ void Instance::_ComputeTiles()
     _grid_center_pos = _grid_observer_pos;
 }
 
+void Instance::_GenerateTileSamples( u32 tileIndex )
+{
+    const u32 n_side_divisions = _ComputeNumDivisions( _info.min_tesselation_level + Const::ELod::COUNT );
+    SYS_ASSERT( n_side_divisions >= 2 );
+    SYS_ASSERT( (n_side_divisions*n_side_divisions) == _num_tile_samples );
+    f32* samples = _TileSamples( tileIndex );
+
+    const f32 segment_len = _info.tile_side_length / (f32)( n_side_divisions - 1 );
+    
+    // TODO : generate samples 
+}
+
 void Instance::Tick()
 {
     // initialization
@@ -200,6 +227,10 @@ void Instance::Tick()
 
     for( u32 i = 0; i < _tiles_flags.size; ++i )
     {
+        if( _tiles_flags[i] & ETileFlag::NEED_REBUILD )
+        {
+            _GenerateTileSamples( i );
+        }
         _tiles_flags[i] &= ~ETileFlag::NEED_REBUILD;
     }
 }
