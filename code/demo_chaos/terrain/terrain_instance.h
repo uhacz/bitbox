@@ -54,9 +54,15 @@ struct Instance
     Vector2UI _data_center{ 0 };
 
     Vector2I   _ComputePosOnGrid( const Vector3F& posWS )       { return toVector2xz<i32>( projectVectorOnPlane( posWS, _up_axis ) * _tile_side_length_inv ); }
+    f32*       _TileSamples( u32 tileIndex )
+    {
+        SYS_ASSERT( ( ( tileIndex * _num_tile_samples ) + _num_tile_samples ) <= _tiles_samples.size );
+        return _tiles_samples.begin() + ( tileIndex*_num_tile_samples );
+    }
 
     void _Init();
     void _ComputeTiles();
+    void _GenerateTileSamples( u32 tileIndex );
 
     void Tick();
     void DebugDraw( u32 color );
