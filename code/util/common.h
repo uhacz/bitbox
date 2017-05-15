@@ -111,6 +111,11 @@ inline int moduloNegInf( int a, int b )
     return resultA;
 }
 
+inline unsigned isPowerOfTwo( unsigned int x )
+{
+    return ( ( x != 0 ) && ( ( x & ( ~x + 1 ) ) == x ) );
+}
+
 //////////////////////////////////////////////////////////////////////////
 #define DECL_WRAP_INC( type_name, type, stype, bit_mask ) \
 	static inline type wrap_inc_##type_name( const type val, const type min, const type max ) \

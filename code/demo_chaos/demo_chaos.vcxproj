@@ -101,6 +101,8 @@
     <ClCompile Include="imgui\imgui_impl_dx11.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="profiler\Remotery.c" />
+    <ClCompile Include="puzzle_game\puzzle_level.cpp" />
+    <ClCompile Include="puzzle_game\puzzle_player.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="renderer_camera.cpp" />
     <ClCompile Include="renderer_material.cpp">
@@ -168,6 +170,8 @@
     <ClInclude Include="pbd_rigid_body.h" />
     <ClInclude Include="profiler.h" />
     <ClInclude Include="profiler\Remotery.h" />
+    <ClInclude Include="puzzle_game\puzzle_level.h" />
+    <ClInclude Include="puzzle_game\puzzle_player.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="renderer_camera.h" />
     <ClInclude Include="renderer_material.h" />

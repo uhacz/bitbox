@@ -25,6 +25,7 @@
 #include "test_game/test_game.h"
 #include "ship_game/ship_game.h"
 #include "flood_game/flood_game.h"
+#include "puzzle_game/puzzle_level.h"
 #include "terrain/terrain_level.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -78,7 +79,8 @@ public:
 
         //_game = BX_NEW( bxDefaultAllocator(), bx::ship::ShipGame );
         //_game = BX_NEW( bxDefaultAllocator(), bx::flood::FloodGame );
-        _game = BX_NEW( bxDefaultAllocator(), bx::terrain::TerrainGame );
+        //_game = BX_NEW( bxDefaultAllocator(), bx::terrain::TerrainGame );
+        _game = BX_NEW( bxDefaultAllocator(), bx::puzzle::PuzzleGame );
         _game->StartUp();
 
         return true;
