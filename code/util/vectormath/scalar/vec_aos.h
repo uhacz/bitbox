@@ -482,7 +482,20 @@ inline const Vector3 normalize( const Vector3 & vec )
         ( vec.getZ() * lenInv )
     );
 }
+inline const Vector3 normalizeSafe( const Vector3 & vec, float eps )
+{
+    float lenSqr, lenInv;
+    lenSqr = lengthSqr( vec );
+    if( lenSqr < eps )
+        return Vector3( 0.f );
 
+    lenInv = ( 1.0f / sqrtf( lenSqr ) );
+    return Vector3(
+        ( vec.getX() * lenInv ),
+        ( vec.getY() * lenInv ),
+        ( vec.getZ() * lenInv )
+        );
+}
 inline const Vector3 cross( const Vector3 & vec0, const Vector3 & vec1 )
 {
     return Vector3(

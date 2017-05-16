@@ -125,4 +125,51 @@ private:
     u32 _tail = 0;
 };
 
+//////////////////////////////////////////////////////////////////////////
+template< u32 CAPACITY /*must be power of 2*/ >
+struct ring_t
+{
+    typedef ring_t<CAPACITY> ring_type;
+
+    u32 _read = 0;
+    u32 _write = 0;
+
+    ring_t()
+    {
+        // check if CAPACITY is power of 2
+        SYS_STATIC_ASSERT( ( ( CAPACITY != 0 ) && ( ( CAPACITY  & ( ~CAPACITY + 1 ) ) == CAPACITY ) ) );
+    }
+
+    static inline u32 _mask( u32 val ) { return val & ( CAPACITY - 1 ); }
+
+    u32 push() { SYS_ASSERT( !full() ); return _mask( _write++ ); }
+    u32 push_over() { return _mask( _write++ ); }
+    u32 shift() { SYS_ASSERT( !empty() ); return _mask( _read++ ); }
+    bool peek( u32* i ) const
+    {
+        if( empty() )
+            return false;
+
+        i[0] = _read;
+        return true;
+    }
+
+    bool empty() const { return _read == _write; }
+    bool full() const { return size() == CAPACITY; }
+    u32  size() const { return _write - _read; }
+    void clear() { _write = _read = 0; }
+
+    struct iterator
+    {
+        ring_type& _ring;
+        u32 _it;
+        iterator( ring_type& r ) : _ring( r ), _it( 0 )
+        {}
+
+        const u32 operator * () const { return _mask( _ring._read + _it ); }
+        void next() { ++_it; }
+        void done() { _read._write <= _it; }
+    };
+};
+
 }//

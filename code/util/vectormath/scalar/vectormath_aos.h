@@ -272,6 +272,7 @@ inline float length( const Vector3 & vec );
 // The result is unpredictable when all elements of vec are at or near zero.
 // 
 inline const Vector3 normalize( const Vector3 & vec );
+inline const Vector3 normalizeSafe( const Vector3 & vec, float eps = FLT_EPSILON );
 
 // Compute cross product of two 3-D vectors
 // 
