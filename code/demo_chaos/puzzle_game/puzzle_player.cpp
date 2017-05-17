@@ -3,7 +3,9 @@
 
 #include <util\id_table.h>
 #include <util\time.h>
-#include "rdi\rdi_debug_draw.h"
+#include <rdi\rdi_debug_draw.h>
+
+#include "../imgui/imgui.h"
 
 namespace bx { namespace puzzle {
 
@@ -16,9 +18,10 @@ struct PlayerData
     IdTable          _id_table                        = {};
     Player           _id         [Const::MAX_PLAYERS] = {};
     PlayerName       _name       [Const::MAX_PLAYERS] = {};
-    PlayerPose       _pose       [Const::MAX_PLAYERS] = {};
     PlayerInput      _input      [Const::MAX_PLAYERS] = {};
     Matrix3F         _input_basis[Const::MAX_PLAYERS] = {};
+    PlayerPose       _pose       [Const::MAX_PLAYERS] = {};
+    Vector3F         _velocity   [Const::MAX_PLAYERS] = {};
     PlayerPoseBuffer _pose_buffer[Const::MAX_PLAYERS] = {};
 
     Vector3F _up_dir{ 0.f, 1.f, 0.f };
@@ -28,7 +31,8 @@ struct PlayerData
 
     struct Params
     {
-        f32 move_speed = 3.f;
+        f32 move_speed = 10.f;
+        f32 velocity_damping = 0.9f;
     }_params;
 
     bool IsAlive( id_t id ) const { return id_table::has( _id_table, id ); }
@@ -46,6 +50,7 @@ Player PlayerCreate( const char* name )
     gData._id[id.index] = { id.hash };
     SetName( &gData._name[id.index], name );
     gData._pose[id.index] = {};
+    gData._velocity[id.index] = Vector3F( 0.f );
     gData._input[id.index] = {};
     gData._input_basis[id.index] = Matrix3F::identity();
     Clear( &gData._pose_buffer[id.index] );
@@ -102,10 +107,33 @@ namespace
         const Vector3F move_vector_ws_flat = normalizeSafe( projectVectorOnPlane( move_vector_ws, upDir ) ) * move_vector_len;
         return move_vector_ws_flat;
     }
+
+    static void _SplitVelocityXZ_Y( Vector3F* velXZ, Vector3F* velY, const Vector3F& vel, const Vector3F& upDir )
+    {
+        velXZ[0] = projectVectorOnPlane( vel, upDir );
+        velY[0] = vel - velXZ[0];
+    }
+    static Vector3F _ApplySpeedLimitXZ( const Vector3F& vel, const Vector3F& upDir, float spdLimit )
+    {
+        Vector3F velXZ, velY;
+        _SplitVelocityXZ_Y( &velXZ, &velY, vel, upDir );
+        {
+            const float spd = length( velXZ );
+            const float velScaler = ( spdLimit / spd );
+            const float a = ( spd > spdLimit ) ? velScaler : 1.f;
+            velXZ *= a;
+        }
+        return velXZ + velY;
+    }
+
 }
 
 void PlayerTick( u64 deltaTimeUS )
 {
+    //TODO: fixed time step
+    //      shape physics
+    //      collisions
+
     u32 alive_indices[Const::MAX_PLAYERS] = {};
     u32 num_alive = 0;
     for( u32 i = 0; i < Const::MAX_PLAYERS; ++i )
@@ -119,23 +147,60 @@ void PlayerTick( u64 deltaTimeUS )
     }
 
     const float delta_time_s = (float)bxTime::toSeconds( gData._delta_time_us );
-
+    const float velocity_damping = ::pow( 1.f - gData._params.velocity_damping, delta_time_s );
     for( u32 ialive = 0; ialive < num_alive; ++ialive )
     {
         const u32 i = alive_indices[ialive];
         PlayerPose& pose = gData._pose[i];
         const PlayerInput& input = gData._input[i];
         const Matrix3F& basis = gData._input_basis[i];
+        
         Write( &gData._pose_buffer[i], pose, input, basis, gData._time_us );
 
         Vector3F move_vec_ls = _ComputePlayerLocalMoveVector( input );
         Vector3F move_vec_ws = _ComputePlayerWorldMoveVector( move_vec_ls, basis, gData._up_dir );
 
-        pose.pos += move_vec_ws * delta_time_s * gData._params.move_speed;
+        const Vector3F curr_vel = gData._velocity[i];
+        const Vector3F acc = ( move_vec_ws * gData._params.move_speed );
+        Vector3F vel = curr_vel + acc * delta_time_s;
+        if( lengthSqr( move_vec_ws ) <= 0.1f )
+            vel *= velocity_damping;
+        else
+        {
+            const float d = maxOfPair( 0.f, dot( normalizeSafe( curr_vel ), normalizeSafe( acc ) ) );
+            const float damping = lerp( d, velocity_damping, 1.f );
+            vel *= damping;
+        }
+
+        vel = _ApplySpeedLimitXZ( vel, gData._up_dir, gData._params.move_speed );
+
+        pose.pos += vel * delta_time_s;
+
+        gData._velocity[i] = vel;
     }
     
     gData._delta_time_us = deltaTimeUS;
     gData._time_us += deltaTimeUS;
+
+
+
+    if( ImGui::Begin( "Player" ) )
+    {
+        ImGui::SliderFloat( "move speed", &gData._params.move_speed, 0.f, 100.f );
+        ImGui::SliderFloat( "velocity damping", &gData._params.velocity_damping, 0.f, 1.f );
+
+        for( u32 ialive = 0; ialive < num_alive; ++ialive )
+        {
+            const u32 i = alive_indices[ialive];
+
+            if( ImGui::TreeNode( gData._name[i].str ) )
+            {
+                ImGui::Text( "speed: %.4f", length( gData._velocity[i] ) );
+                ImGui::TreePop();
+            }
+        }
+    }
+    ImGui::End();
 }
 
 void PlayerDraw( Player pl )
