@@ -40,7 +40,7 @@ namespace
 
     void _GenerateTileIndices( u32* output, u32 tessLevel )
     {
-        const u32 n
+        
     }
 }
 void Instance::_Init()

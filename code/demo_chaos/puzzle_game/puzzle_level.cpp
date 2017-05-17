@@ -3,6 +3,7 @@
 #include "..\game_util.h"
 #include "rdi\rdi_debug_draw.h"
 #include "util\common.h"
+#include "..\..\system\window.h"
 
 namespace bx { namespace puzzle {
 
@@ -42,16 +43,29 @@ void LevelState::OnStartUp()
         _gfx_scene->SetMatrices( actor, pose, 1 );
     }
 
+    _player = PlayerCreate( "playerLocal" );
+
 }
 
 void LevelState::OnShutDown()
 {
+    PlayerDestroy( _player );
+
     _gfx->renderer.DestroyScene( &_gfx_scene );
 }
 
 void LevelState::OnUpdate( const GameTime& time )
 {
     const gfx::Camera& camera = GetGame()->GetDevCamera();
+
+    bxWindow* window = bxWindow_get();
+    const bxInput& input = window->input;
+
+    const Matrix3F player_basis = toMatrix3F( camera.world.getUpper3x3() );
+    PlayerCollectInput( _player, input, player_basis, time.delta_time_us );
+
+
+    PlayerTick( time.delta_time_us );
 }
 
 void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
@@ -60,6 +74,8 @@ void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
     active_camera = &GetGame()->GetDevCamera();
 
     rdi::debug_draw::AddAxes( Matrix4::identity() );
+
+    PlayerDraw( _player );
 
     gfx::Scene gfx_scene = _gfx_scene;
 

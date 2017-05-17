@@ -1,6 +1,7 @@
 #pragma once
 
 #include "..\game_simple.h"
+#include "puzzle_player.h"
 
 namespace bx { namespace puzzle{
 
@@ -28,6 +29,8 @@ public:
 
     game_gfx::Deffered* _gfx = nullptr;
     gfx::Scene          _gfx_scene = nullptr;
+
+    Player _player = {};
 };
 
 }}//

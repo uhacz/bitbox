@@ -103,6 +103,7 @@
     <ClCompile Include="profiler\Remotery.c" />
     <ClCompile Include="puzzle_game\puzzle_level.cpp" />
     <ClCompile Include="puzzle_game\puzzle_player.cpp" />
+    <ClCompile Include="puzzle_game\puzzle_player_internal.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="renderer_camera.cpp" />
     <ClCompile Include="renderer_material.cpp">
@@ -172,6 +173,7 @@
     <ClInclude Include="profiler\Remotery.h" />
     <ClInclude Include="puzzle_game\puzzle_level.h" />
     <ClInclude Include="puzzle_game\puzzle_player.h" />
+    <ClInclude Include="puzzle_game\puzzle_player_internal.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="renderer_camera.h" />
     <ClInclude Include="renderer_material.h" />
