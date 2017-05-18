@@ -72,4 +72,8 @@ struct PlayerPoseBuffer
 void Clear( PlayerPoseBuffer* ppb );
 u32  Write( PlayerPoseBuffer* ppb, const PlayerPose& pose, const PlayerInput& input, const Matrix3F& basis, u64 ts );
 bool Read( PlayerPose* pose, PlayerInput* input, Matrix3F* basis, u64* ts, PlayerPoseBuffer* ppb );
+bool Peek( PlayerPose* pose, PlayerInput* input, Matrix3F* basis, u64* ts, const PlayerPoseBuffer& ppb, u32 index );
+u32  BackIndex( const PlayerPoseBuffer& ppb );
+
+
 }}//

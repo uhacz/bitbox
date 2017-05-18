@@ -56,7 +56,7 @@ void Collect( PlayerInput* playerInput, const bxInput& input, float deltaTime )
         //bxLogInfo( "x: %f, y: %f", analogX, analogX );
     }
 
-    const float RC = 0.01f;
+    const float RC = 0.1f;
     playerInput->analogX = signalFilter_lowPass( analogX, playerInput->analogX, RC, deltaTime );
     playerInput->analogY = signalFilter_lowPass( analogY, playerInput->analogY, RC, deltaTime );
     playerInput->jump = jump; // signalFilter_lowPass( jump, charInput->jump, 0.01f, deltaTime );
@@ -100,6 +100,18 @@ bool Read( PlayerPose* pose, PlayerInput* input, Matrix3F* basis, u64* ts, Playe
     ts[0] = ppb->timestamp[index];
 
     return true;
+}
+
+bool Peek( PlayerPose* pose, PlayerInput* input, Matrix3F* basis, u64* ts, const PlayerPoseBuffer& ppb, u32 index )
+{
+
+}
+
+u32 BackIndex( const PlayerPoseBuffer& ppb )
+{
+    u32 back_index = ppb._ring._write;
+    back_index = wrap_dec_u32( back_index, 0, UINT32_MAX );
+    return ppb._ring._mask( back_index );
 }
 
 }}//

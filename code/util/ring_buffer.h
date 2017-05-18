@@ -143,7 +143,6 @@ struct ring_t
     static inline u32 _mask( u32 val ) { return val & ( CAPACITY - 1 ); }
 
     u32 push() { SYS_ASSERT( !full() ); return _mask( _write++ ); }
-    u32 push_over() { return _mask( _write++ ); }
     u32 shift() { SYS_ASSERT( !empty() ); return _mask( _read++ ); }
     bool peek( u32* i ) const
     {
@@ -156,7 +155,7 @@ struct ring_t
 
     bool empty() const { return _read == _write; }
     bool full() const { return size() == CAPACITY; }
-    u32  size() const { return _write - _read; }
+    u32  size() const { return _mask( _write - _read ); }
     void clear() { _write = _read = 0; }
 
     struct iterator

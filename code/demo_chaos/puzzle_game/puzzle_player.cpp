@@ -28,6 +28,7 @@ struct PlayerData
 
     u64 _time_us = 0;
     u64 _delta_time_us = 0;
+    f32 _delta_time_acc = 0.f;
 
     struct Params
     {
@@ -96,7 +97,6 @@ namespace
         Vector3F move_vector{ 0.f };
         move_vector += Vector3F::xAxis() * input.analogX;
         move_vector -= Vector3F::zAxis() * input.analogY;
-
         return move_vector;
     }
 
@@ -126,7 +126,54 @@ namespace
         return velXZ + velY;
     }
 
+    void _PlayerWriteBuffer( u32 index )
+    {
+        const PlayerPose& pose = gData._pose[index];
+        const PlayerInput& input = gData._input[index];
+        const Matrix3F& basis = gData._input_basis[index];
+        Write( &gData._pose_buffer[index], pose, input, basis, gData._time_us );
+    }
+
+    void _PlayerUpdate( u32 index, float deltaTimeS )
+    {
+        const float velocity_damping = ::pow( 1.f - gData._params.velocity_damping, deltaTimeS );
+        
+        const PlayerInput& input = gData._input[index];
+        const Matrix3F& basis = gData._input_basis[index];
+
+        Vector3F move_vec_ls = _ComputePlayerLocalMoveVector( input );
+        Vector3F move_vec_ws = _ComputePlayerWorldMoveVector( move_vec_ls, basis, gData._up_dir );
+
+        // --- this value is form 0 to 1 range
+        const float move_vec_ls_len = minOfPair( length( move_vec_ls ), 1.f );
+        const float curr_move_speed = gData._params.move_speed * move_vec_ls_len;
+
+        const Vector3F curr_vel = gData._velocity[index];
+        const Vector3F acc = ( move_vec_ws * curr_move_speed );
+        Vector3F vel = curr_vel + acc * deltaTimeS;
+
+        // --- velocity damping
+        if( lengthSqr( move_vec_ws ) <= 0.1f )
+        {
+            vel *= velocity_damping;
+        }
+        else
+        {
+            const float d = maxOfPair( 0.f, dot( normalizeSafe( curr_vel ), normalizeSafe( acc ) ) );
+            const float damping = lerp( d*d, velocity_damping, 1.f );
+            vel *= damping;
+        }
+
+        vel = _ApplySpeedLimitXZ( vel, gData._up_dir, curr_move_speed );
+
+        gData._pose[index].pos += vel * deltaTimeS;
+        gData._velocity[index] = vel;
+
+    }
+
 }
+
+
 
 void PlayerTick( u64 deltaTimeUS )
 {
@@ -147,36 +194,23 @@ void PlayerTick( u64 deltaTimeUS )
     }
 
     const float delta_time_s = (float)bxTime::toSeconds( gData._delta_time_us );
-    const float velocity_damping = ::pow( 1.f - gData._params.velocity_damping, delta_time_s );
+    const float fixed_dt_s = 1.f / 60.f;
+    gData._delta_time_acc += delta_time_s;
+    u32 iteration_count = 0;
+    while( gData._delta_time_acc >= fixed_dt_s )
+    {
+        ++iteration_count;
+        gData._delta_time_acc -= fixed_dt_s;
+    }
+
     for( u32 ialive = 0; ialive < num_alive; ++ialive )
     {
         const u32 i = alive_indices[ialive];
-        PlayerPose& pose = gData._pose[i];
-        const PlayerInput& input = gData._input[i];
-        const Matrix3F& basis = gData._input_basis[i];
-        
-        Write( &gData._pose_buffer[i], pose, input, basis, gData._time_us );
-
-        Vector3F move_vec_ls = _ComputePlayerLocalMoveVector( input );
-        Vector3F move_vec_ws = _ComputePlayerWorldMoveVector( move_vec_ls, basis, gData._up_dir );
-
-        const Vector3F curr_vel = gData._velocity[i];
-        const Vector3F acc = ( move_vec_ws * gData._params.move_speed );
-        Vector3F vel = curr_vel + acc * delta_time_s;
-        if( lengthSqr( move_vec_ws ) <= 0.1f )
-            vel *= velocity_damping;
-        else
+        for( u32 it = 0; it < iteration_count; ++it )
         {
-            const float d = maxOfPair( 0.f, dot( normalizeSafe( curr_vel ), normalizeSafe( acc ) ) );
-            const float damping = lerp( d, velocity_damping, 1.f );
-            vel *= damping;
+            _PlayerWriteBuffer( i );
+            _PlayerUpdate( i, fixed_dt_s );
         }
-
-        vel = _ApplySpeedLimitXZ( vel, gData._up_dir, gData._params.move_speed );
-
-        pose.pos += vel * delta_time_s;
-
-        gData._velocity[i] = vel;
     }
     
     gData._delta_time_us = deltaTimeUS;
@@ -211,6 +245,8 @@ void PlayerDraw( Player pl )
         id_t id = { gData._id[i].i };
         if( !gData.IsAlive( id ) )
             continue;
+
+        u32 back_index = BackIndex( gData._pose_buffer[id.index] );
 
         const PlayerPose& pose = gData._pose[i];
         
