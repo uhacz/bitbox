@@ -130,7 +130,6 @@ template< u32 CAPACITY /*must be power of 2*/ >
 struct ring_t
 {
     typedef ring_t<CAPACITY> ring_type;
-
     u32 _read = 0;
     u32 _write = 0;
 
@@ -157,17 +156,21 @@ struct ring_t
     bool full() const { return size() == CAPACITY; }
     u32  size() const { return _mask( _write - _read ); }
     void clear() { _write = _read = 0; }
+    u32 capacity() const { return CAPACITY; }
 
     struct iterator
     {
-        ring_type& _ring;
+        const ring_type& _ring;
         u32 _it;
-        iterator( ring_type& r ) : _ring( r ), _it( 0 )
+        iterator( const ring_type& r ) : _ring( r ), _it( 0 )
         {}
 
         const u32 operator * () const { return _mask( _ring._read + _it ); }
+        iterator& operator +=( u32 i ) { _it += i; return *this; }
+        iterator& operator + ( u32 i ) { _it += i; return *this; }
+        
         void next() { ++_it; }
-        void done() { _read._write <= _it; }
+        bool done() { _ring._write <= _it; }
     };
 };
 

@@ -104,7 +104,26 @@ bool Read( PlayerPose* pose, PlayerInput* input, Matrix3F* basis, u64* ts, Playe
 
 bool Peek( PlayerPose* pose, PlayerInput* input, Matrix3F* basis, u64* ts, const PlayerPoseBuffer& ppb, u32 index )
 {
+    if( index >= ppb._ring.capacity() )
+        return false;
 
+    pose[0]  = ppb.poses[index];
+    input[0] = ppb.input[index];
+    basis[0] = ppb.basis[index];
+    ts[0]    = ppb.timestamp[index];
+
+    return true;
+
+}
+
+bool PeekPose( PlayerPose* pose, const PlayerPoseBuffer& ppb, u32 index )
+{
+    if( index >= ppb._ring.capacity() )
+        return false;
+
+    pose[0] = ppb.poses[index];
+
+    return true;
 }
 
 u32 BackIndex( const PlayerPoseBuffer& ppb )

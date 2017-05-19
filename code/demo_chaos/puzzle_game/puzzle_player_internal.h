@@ -17,6 +17,8 @@ namespace Const
     static const u8 MAX_PLAYERS = 2;
     static const u8 POSE_BUFFER_SIZE = 16;
     static const u8 POSE_BUFFER_LEN_MS = (u8)( (double)POSE_BUFFER_SIZE * (1.0/double(FRAMERATE) ) );
+
+    const float FIXED_DT = 1.f / 60.f;
 }//
 
 //////////////////////////////////////////////////////////////////////////
@@ -73,6 +75,7 @@ void Clear( PlayerPoseBuffer* ppb );
 u32  Write( PlayerPoseBuffer* ppb, const PlayerPose& pose, const PlayerInput& input, const Matrix3F& basis, u64 ts );
 bool Read( PlayerPose* pose, PlayerInput* input, Matrix3F* basis, u64* ts, PlayerPoseBuffer* ppb );
 bool Peek( PlayerPose* pose, PlayerInput* input, Matrix3F* basis, u64* ts, const PlayerPoseBuffer& ppb, u32 index );
+bool PeekPose( PlayerPose* pose, const PlayerPoseBuffer& ppb, u32 index );
 u32  BackIndex( const PlayerPoseBuffer& ppb );
 
 

@@ -194,13 +194,13 @@ void PlayerTick( u64 deltaTimeUS )
     }
 
     const float delta_time_s = (float)bxTime::toSeconds( gData._delta_time_us );
-    const float fixed_dt_s = 1.f / 60.f;
+    
     gData._delta_time_acc += delta_time_s;
     u32 iteration_count = 0;
-    while( gData._delta_time_acc >= fixed_dt_s )
+    while( gData._delta_time_acc >= Const::FIXED_DT )
     {
         ++iteration_count;
-        gData._delta_time_acc -= fixed_dt_s;
+        gData._delta_time_acc -= Const::FIXED_DT;
     }
 
     for( u32 ialive = 0; ialive < num_alive; ++ialive )
@@ -209,7 +209,7 @@ void PlayerTick( u64 deltaTimeUS )
         for( u32 it = 0; it < iteration_count; ++it )
         {
             _PlayerWriteBuffer( i );
-            _PlayerUpdate( i, fixed_dt_s );
+            _PlayerUpdate( i, Const::FIXED_DT );
         }
     }
     
@@ -240,22 +240,35 @@ void PlayerTick( u64 deltaTimeUS )
 void PlayerDraw( Player pl )
 {
     const float rad = 0.5f;
+
+    const float frameAlpha = gData._delta_time_acc / Const::FIXED_DT;
+
     for( u32 i = 0; i < Const::MAX_PLAYERS; ++i )
     {
         id_t id = { gData._id[i].i };
         if( !gData.IsAlive( id ) )
             continue;
 
-        u32 back_index = BackIndex( gData._pose_buffer[id.index] );
+        PlayerPose render_pose;
 
-        const PlayerPose& pose = gData._pose[i];
+
+        u32 back_index = BackIndex( gData._pose_buffer[id.index] );
+        if( PeekPose( &render_pose, gData._pose_buffer[id.index], back_index ) )
+        {
+            const PlayerPose& pose = gData._pose[i];
+            render_pose = Lerp( frameAlpha, render_pose, pose );
+        }
+        else
+        {
+            render_pose = gData._pose[i];
+        }
         
         if( (i % 2) == 0 )
-            rdi::debug_draw::AddSphere( Vector4F( pose.pos, rad ), 0xFF0000FF, 1 );
+            rdi::debug_draw::AddSphere( Vector4F( render_pose.pos, rad ), 0xFF0000FF, 1 );
         else
-            rdi::debug_draw::AddBox( Matrix4F(pose.rot, pose.pos ), Vector3F( rad ), 0xFF0000FF, 1 );
+            rdi::debug_draw::AddBox( Matrix4F( render_pose.rot, render_pose.pos ), Vector3F( rad ), 0xFF0000FF, 1 );
 
-        rdi::debug_draw::AddAxes( appendScale( Matrix4F( pose.rot, pose.pos ), Vector3F(rad) ) );
+        rdi::debug_draw::AddAxes( appendScale( Matrix4F( render_pose.rot, render_pose.pos ), Vector3F(rad) ) );
         
     }
 }
