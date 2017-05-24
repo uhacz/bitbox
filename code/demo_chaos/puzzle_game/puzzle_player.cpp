@@ -168,9 +168,7 @@ namespace
 
         gData._pose[index].pos += vel * deltaTimeS;
         gData._velocity[index] = vel;
-
     }
-
 }
 
 
