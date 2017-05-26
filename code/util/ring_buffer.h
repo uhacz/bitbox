@@ -140,6 +140,12 @@ struct ring_t
     }
 
     static inline u32 _mask( u32 val ) { return val & ( CAPACITY - 1 ); }
+    static inline i32 _abs( i32 val )
+    {
+        // https://graphics.stanford.edu/~seander/bithacks.html#IntegerAbs
+        const i32 mask = val >> ( sizeof( CAPACITY ) * CHAR_BIT - 1 );
+        return ( val + mask ) ^ mask;
+    }
 
     u32 push() { SYS_ASSERT( !full() ); return _mask( _write++ ); }
     u32 shift() { SYS_ASSERT( !empty() ); return _mask( _read++ ); }
@@ -153,8 +159,8 @@ struct ring_t
     }
 
     bool empty() const { return _read == _write; }
-    bool full() const { return size() == CAPACITY; }
-    u32  size() const { return _mask( _write - _read ); }
+    bool full() const { return size() >= CAPACITY; }
+    u32  size() const { return _abs( (i32)(_write - _read) ); }
     void clear() { _write = _read = 0; }
     u32 capacity() const { return CAPACITY; }
 
@@ -170,7 +176,7 @@ struct ring_t
         iterator& operator + ( u32 i ) { _it += i; return *this; }
         
         void next() { ++_it; }
-        bool done() { _ring._write <= _it; }
+        bool done() { return _it >= _ring.size(); }
     };
 };
 

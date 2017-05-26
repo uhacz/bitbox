@@ -134,12 +134,9 @@ namespace
         Write( &gData._pose_buffer[index], pose, input, basis, gData._time_us );
     }
 
-    void _PlayerUpdate( u32 index, float deltaTimeS )
+    void _PlayerUpdate( u32 index, const PlayerInput& input, const Matrix3F& basis, float deltaTimeS )
     {
         const float velocity_damping = ::pow( 1.f - gData._params.velocity_damping, deltaTimeS );
-        
-        const PlayerInput& input = gData._input[index];
-        const Matrix3F& basis = gData._input_basis[index];
 
         Vector3F move_vec_ls = _ComputePlayerLocalMoveVector( input );
         Vector3F move_vec_ws = _ComputePlayerWorldMoveVector( move_vec_ls, basis, gData._up_dir );
@@ -169,13 +166,19 @@ namespace
         gData._pose[index].pos += vel * deltaTimeS;
         gData._velocity[index] = vel;
     }
-}
 
+    void _PlayerUpdate( u32 index, float deltaTimeS )
+    {
+        const PlayerInput& input = gData._input[index];
+        const Matrix3F& basis = gData._input_basis[index];
+        _PlayerUpdate( index, input, basis, deltaTimeS );
+    }
+}
 
 
 void PlayerTick( u64 deltaTimeUS )
 {
-    //TODO: fixed time step
+    //TODO: 
     //      shape physics
     //      collisions
 
