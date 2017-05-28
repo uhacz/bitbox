@@ -18,7 +18,7 @@ namespace Const
     static const u8 POSE_BUFFER_SIZE = 16;
     static const u8 POSE_BUFFER_LEN_MS = (u8)( (double)POSE_BUFFER_SIZE * (1.0/double(FRAMERATE) ) );
 
-    const float FIXED_DT = 1.f / 60.f;
+    const float FIXED_DT = (float)( 1.0 / double( FRAMERATE ) );
 }//
 
 //////////////////////////////////////////////////////////////////////////
@@ -77,6 +77,54 @@ bool Read( PlayerPose* pose, PlayerInput* input, Matrix3F* basis, u64* ts, Playe
 bool Peek( PlayerPose* pose, PlayerInput* input, Matrix3F* basis, u64* ts, const PlayerPoseBuffer& ppb, u32 index );
 bool PeekPose( PlayerPose* pose, const PlayerPoseBuffer& ppb, u32 index );
 u32  BackIndex( const PlayerPoseBuffer& ppb );
+
+}}//
+
+
+namespace bx { namespace puzzle {
+
+struct PhysicsSolver;
+struct BodyId { u32 i; };
+inline BodyId BodyIdInvalid() { return { 0 }; }
+
+
+struct ConstraintInfo
+{
+    enum EType : u32
+    {
+        eDISTANCE = 0,
+        _COUNT_,
+    };
+
+    BodyId id = BodyIdInvalid();
+    EType type = eDISTANCE;
+    u32 index[4] = {};
+};
+
+// ---
+void Create      ( PhysicsSolver** solver, u32 maxParticles );
+void Destroy     ( PhysicsSolver** solver );
+void SetFrequency( PhysicsSolver* solver, u32 freq );
+void Solve       ( PhysicsSolver* solver, u32 numIterations, float deltaTime );
+
+// --- 
+BodyId CreateSoftBody( PhysicsSolver* solver, u32 numParticles );
+BodyId CreateCloth   ( PhysicsSolver* solver, u32 numParticles );
+BodyId CreateRope    ( PhysicsSolver* solver, u32 numParticles );
+void   Destroy       ( PhysicsSolver* solver, BodyId id );
+
+// ---
+void   SetConstraints( PhysicsSolver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints );
+
+// --- 
+Vector3F* MapPosition    ( PhysicsSolver* solver, BodyId id );
+Vector3F* MapVelocity    ( PhysicsSolver* solver, BodyId id );
+f32*      MapMassInv     ( PhysicsSolver* solver, BodyId id );
+Vector3F* MapRestPosition( PhysicsSolver* solver, BodyId id );
+void      Unmap          ( PhysicsSolver* solver, void* ptr );
+
+
+
 
 
 }}//

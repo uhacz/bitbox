@@ -134,3 +134,126 @@ u32 BackIndex( const PlayerPoseBuffer& ppb )
 }
 
 }}//
+
+
+#include <util/array.h>
+
+namespace bx { namespace puzzle {
+
+    namespace physics
+    {
+        enum EConst
+        {
+            eMAX_BODIES = 64,
+        };
+
+        enum EBody
+        {
+            eSOFT = 0,
+            eCLOTH,
+            eROPE,
+            _BODY_COUNT_,
+        };
+    }//
+
+    // --- 
+    using Vector3Array = array_t<Vector3F>;
+    using F32Array = array_t<f32>;
+    using U32Array = array_t<u32>;
+
+    
+    
+    // --- constraints
+    struct DistanceC
+    {
+        u32 i0;
+        u32 i1;
+        f32 rl;
+    };
+    struct BendingC
+    {
+        u32 i0;
+        u32 i1;
+        u32 i2;
+        u32 i3;
+        f32 ra;
+    };
+    using DistanceCArray = array_t<DistanceC>;
+    using BendingCArray  = array_t<BendingC>;
+
+    // --- bodies
+    struct PhysicsBody
+    {
+        u32 begin = 0;
+        u32 count = 0;
+    };
+    inline bool IsAlive( const PhysicsBody& body ) { return body.count != 0; }
+
+    struct PhysicsSoftBody
+    {
+        PhysicsBody body;
+        u32 rest_pos_begin = 0;
+        u32 rest_pos_count = 0;
+
+        Vector3Array   rest_p;
+        DistanceCArray distance_c;
+    };
+    struct PhysicsClothBody
+    {
+        PhysicsBody body;
+        DistanceCArray distance_c;
+    };
+
+    // --- body id
+    union BodyIdInternal
+    {
+        u32 i;
+        struct
+        {
+            u32 id    : 16;
+            u32 index : 12;
+            u32 type  : 4; // EBody
+        };
+    };
+    inline BodyId         ToBodyId        ( BodyIdInternal idi ) { return{ idi.i }; }
+    inline BodyIdInternal ToBodyIdInternal( BodyId id )          { return{ id.i }; }
+    using IdTable = id_table_t< physics::eMAX_BODIES, BodyIdInternal >;
+
+
+struct PhysicsSolver
+{
+    Vector3Array p0;
+    Vector3Array p1;
+    Vector3Array v;
+    Vector3Array w;
+        
+    IdTable          id_tbl    [physics::_BODY_COUNT_];
+    PhysicsSoftBody  soft_body [physics::eMAX_BODIES];
+    PhysicsClothBody cloth_body[physics::eMAX_BODIES];
+
+    u32 num_iterations = 4;
+    u32 frequency = 60;
+    f32 delta_time = 1.f / frequency;
+};
+
+void Create( PhysicsSolver** solver, u32 maxParticles )
+{
+
+}
+
+void Destroy( PhysicsSolver** solver )
+{
+
+}
+
+void SetFrequency( PhysicsSolver* solver, u32 freq )
+{
+
+}
+
+void Solve( PhysicsSolver* solver, u32 numIterations, float deltaTime )
+{
+
+}
+
+}}//
