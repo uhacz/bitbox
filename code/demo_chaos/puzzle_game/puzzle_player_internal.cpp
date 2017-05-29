@@ -137,24 +137,39 @@ u32 BackIndex( const PlayerPoseBuffer& ppb )
 
 
 #include <util/array.h>
+#include <util/id_table.h>
 
 namespace bx { namespace puzzle {
 
-    namespace physics
+namespace physics
+{
+    namespace EConst
     {
-        enum EConst
+        enum E
         {
             eMAX_BODIES = 64,
         };
+    }//
 
-        enum EBody
+    namespace EBody
+    {
+        enum E
         {
             eSOFT = 0,
             eCLOTH,
             eROPE,
-            _BODY_COUNT_,
+            _COUNT_,
         };
     }//
+
+    struct ParticleManager
+    {
+        u32 capacity;
+        u32 size;
+
+
+    };
+
 
     // --- 
     using Vector3Array = array_t<Vector3F>;
@@ -203,6 +218,11 @@ namespace bx { namespace puzzle {
         PhysicsBody body;
         DistanceCArray distance_c;
     };
+    struct PhysicsBodyRope
+    {
+        PhysicsBody body;
+        DistanceCArray distance_c;
+    };
 
     // --- body id
     union BodyIdInternal
@@ -217,43 +237,77 @@ namespace bx { namespace puzzle {
     };
     inline BodyId         ToBodyId        ( BodyIdInternal idi ) { return{ idi.i }; }
     inline BodyIdInternal ToBodyIdInternal( BodyId id )          { return{ id.i }; }
-    using IdTable = id_table_t< physics::eMAX_BODIES, BodyIdInternal >;
+    using IdTable = id_table_t< EConst::eMAX_BODIES, BodyIdInternal >;
 
 
-struct PhysicsSolver
+// --- solver
+struct Solver
 {
     Vector3Array p0;
     Vector3Array p1;
     Vector3Array v;
     Vector3Array w;
         
-    IdTable          id_tbl    [physics::_BODY_COUNT_];
-    PhysicsSoftBody  soft_body [physics::eMAX_BODIES];
-    PhysicsClothBody cloth_body[physics::eMAX_BODIES];
+    IdTable          id_tbl    [EBody::_COUNT_];
+    PhysicsSoftBody  soft_body [EConst::eMAX_BODIES];
+    PhysicsClothBody cloth_body[EConst::eMAX_BODIES];
 
     u32 num_iterations = 4;
     u32 frequency = 60;
     f32 delta_time = 1.f / frequency;
 };
+void ReserveParticles( Solver* solver, u32 count )
+{
+    array::reserve( solver->p0, count );
+    array::reserve( solver->p1, count );
+    array::reserve( solver->v , count );
+    array::reserve( solver->w , count );
+}
 
-void Create( PhysicsSolver** solver, u32 maxParticles )
+void Create( Solver** solver, u32 maxParticles )
+{
+    Solver* s = BX_NEW( bxDefaultAllocator(), Solver );
+    ReserveParticles( s, maxParticles );
+
+    solver[0] = s;
+}
+
+void Destroy( Solver** solver )
+{
+    BX_DELETE0( bxDefaultAllocator(), solver[0] );
+}
+
+void SetFrequency( Solver* solver, u32 freq )
+{
+    SYS_ASSERT( freq != 0 );
+    solver->frequency = freq;
+    solver->delta_time = (f32)( 1.0 / (double)freq );
+}
+
+void Solve( Solver* solver, u32 numIterations, float deltaTime )
 {
 
 }
 
-void Destroy( PhysicsSolver** solver )
+BodyId CreateSoftBody( Solver* solver, u32 numParticles )
 {
 
 }
 
-void SetFrequency( PhysicsSolver* solver, u32 freq )
+BodyId CreateCloth( Solver* solver, u32 numParticles )
 {
 
 }
 
-void Solve( PhysicsSolver* solver, u32 numIterations, float deltaTime )
+BodyId CreateRope( Solver* solver, u32 numParticles )
+{
+    BodyIdInternal idi = id_table::create( solver->id_tbl[EBody::eROPE] );
+
+}
+void DestroyBody( Solver* solver, BodyId id )
 {
 
 }
 
+}//
 }}//

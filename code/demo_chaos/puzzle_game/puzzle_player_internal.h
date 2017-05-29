@@ -83,7 +83,9 @@ u32  BackIndex( const PlayerPoseBuffer& ppb );
 
 namespace bx { namespace puzzle {
 
-struct PhysicsSolver;
+namespace physics
+{
+struct Solver;
 struct BodyId { u32 i; };
 inline BodyId BodyIdInvalid() { return { 0 }; }
 
@@ -102,29 +104,28 @@ struct ConstraintInfo
 };
 
 // ---
-void Create      ( PhysicsSolver** solver, u32 maxParticles );
-void Destroy     ( PhysicsSolver** solver );
-void SetFrequency( PhysicsSolver* solver, u32 freq );
-void Solve       ( PhysicsSolver* solver, u32 numIterations, float deltaTime );
+void Create      ( Solver** solver, u32 maxParticles );
+void Destroy     ( Solver** solver );
+void SetFrequency( Solver* solver, u32 freq );
+void Solve       ( Solver* solver, u32 numIterations, float deltaTime );
 
 // --- 
-BodyId CreateSoftBody( PhysicsSolver* solver, u32 numParticles );
-BodyId CreateCloth   ( PhysicsSolver* solver, u32 numParticles );
-BodyId CreateRope    ( PhysicsSolver* solver, u32 numParticles );
-void   Destroy       ( PhysicsSolver* solver, BodyId id );
+BodyId CreateSoftBody( Solver* solver, u32 numParticles );
+BodyId CreateCloth   ( Solver* solver, u32 numParticles );
+BodyId CreateRope    ( Solver* solver, u32 numParticles );
+void   DestroyBody   ( Solver* solver, BodyId id );
 
 // ---
-void   SetConstraints( PhysicsSolver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints );
+void   SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints );
 
 // --- 
-Vector3F* MapPosition    ( PhysicsSolver* solver, BodyId id );
-Vector3F* MapVelocity    ( PhysicsSolver* solver, BodyId id );
-f32*      MapMassInv     ( PhysicsSolver* solver, BodyId id );
-Vector3F* MapRestPosition( PhysicsSolver* solver, BodyId id );
-void      Unmap          ( PhysicsSolver* solver, void* ptr );
+Vector3F* MapPosition    ( Solver* solver, BodyId id );
+Vector3F* MapVelocity    ( Solver* solver, BodyId id );
+f32*      MapMassInv     ( Solver* solver, BodyId id );
+Vector3F* MapRestPosition( Solver* solver, BodyId id );
+void      Unmap          ( Solver* solver, void* ptr );
 
 
 
-
-
+}//
 }}//
