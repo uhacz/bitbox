@@ -20,7 +20,7 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v120</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -111,6 +111,7 @@
     <ClInclude Include="poly\par_shapes.h" />
     <ClInclude Include="poly\poly_shape.h" />
     <ClInclude Include="pool_allocator.h" />
+    <ClInclude Include="process.h" />
     <ClInclude Include="queue.h" />
     <ClInclude Include="random.h" />
     <ClInclude Include="range_splitter.h" />
@@ -163,6 +164,7 @@
     <ClCompile Include="perlin_noise.cpp" />
     <ClCompile Include="poly\poly_shape.cpp" />
     <ClCompile Include="pool_allocator.cpp" />
+    <ClCompile Include="process.cpp" />
     <ClCompile Include="ring_buffer.cpp" />
     <ClCompile Include="string_util.cpp" />
     <ClCompile Include="tag.cpp" />
