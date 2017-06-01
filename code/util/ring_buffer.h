@@ -148,13 +148,20 @@ struct ring_t
     }
 
     u32 push() { SYS_ASSERT( !full() ); return _mask( _write++ ); }
-    u32 shift() { SYS_ASSERT( !empty() ); return _mask( _read++ ); }
+    u32 shift()
+    {
+        SYS_ASSERT( !empty() );
+        u32 result = _mask( _read );
+        _read++;
+        return result;
+    }
+
     bool peek( u32* i ) const
     {
         if( empty() )
             return false;
 
-        i[0] = _read;
+        i[0] = _mask( _read );
         return true;
     }
 

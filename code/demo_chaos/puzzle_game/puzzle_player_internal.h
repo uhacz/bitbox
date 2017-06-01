@@ -98,7 +98,6 @@ struct ConstraintInfo
         _COUNT_,
     };
 
-    BodyId id = BodyIdInvalid();
     EType type = eDISTANCE;
     u32 index[4] = {};
 };
