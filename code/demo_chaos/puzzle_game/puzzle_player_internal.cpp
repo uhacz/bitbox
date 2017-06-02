@@ -188,6 +188,13 @@ struct BendingC
     u32 i3;
     f32 ra;
 };
+
+struct RestPositionC
+{
+    Vector3F rest_pos;
+    u32 particle_index;
+};
+
 using DistanceCArray = array_t<DistanceC>;
 using BendingCArray  = array_t<BendingC>;
 
@@ -255,6 +262,8 @@ struct Solver
     Vector3Array v;
     F32Array     w;
         
+    DistanceCArray   distance_c;
+
     IdTable          id_tbl    [EBody::_COUNT_];
     PhysicsBody      bodies    [EBody::_COUNT_][EConst::eMAX_BODIES];
     PhysicsParams    params    [EBody::_COUNT_][EConst::eMAX_BODIES];
@@ -271,6 +280,16 @@ struct Solver
     u32 num_iterations = 4;
     u32 frequency = 60;
     f32 delta_time = 1.f / frequency;
+
+    union Flags
+    {
+        u32 all = 0;
+        struct
+        {
+            u32 rebuild_constraints : 1;
+        };
+    } flags;
+
 
     u32 Capacity() const { return p0.capacity; }
     u32 Size    () const { return p0.size; }
@@ -347,25 +366,86 @@ namespace
 {
 static void GarbageCollector( Solver* solver )
 {
-
-    
 }
 
-static void PredictPositions( Solver* solver, const PhysicsBody& body, const PhysicsParams& params, float deltaTime )
+static void RebuldConstraints( Solver* solver )
 {
+    if( !solver->flags.rebuild_constraints )
+        return;
 
+    for( u32 iab = 0; iab < solver->active_bodies_count; ++iab )
+    {
+        const BodyIdInternal idi = solver->active_bodies_idi[iab];
+        
+        if( idi.type == EBody::eSOFT )
+        {
+            const PhysicsSoftBody& soft = solver->soft_body[idi.index];
+
+        }
+        else if( idi.type == EBody::eCLOTH )
+        {
+        
+        }
+        else if( idi.type == EBody::eROPE )
+        {
+           
+        }
+    }
+
+
+    solver->flags.rebuild_constraints = 0;
+}
+
+static void PredictPositions( Solver* solver, const PhysicsBody& body, const PhysicsParams& params, const Vector3F& gravityAcc, float deltaTime )
+{
+    const u32 pbegin = body.begin;
+    const u32 pend = body.begin + body.count;
+
+    SYS_ASSERT( pend <= solver->Size() );
+
+    const float damping_coeff = ::pow( 1.f - params.vel_damping, deltaTime );
+
+    const Vector3F gravityDV = gravityAcc * deltaTime;
+
+    for( u32 i = pbegin; i < pend; ++i )
+    {
+        Vector3F p = solver->p0[i];
+        Vector3F v = solver->v[i];
+
+        v += gravityDV;
+        v *= damping_coeff;
+
+        p += v * deltaTime;
+
+        solver->p1[i] = p;
+        solver->v[i] = v;
+    }
 }
 static void UpdateVelocities( Solver* solver, float deltaTime )
 {
+    const float delta_time_inv = ( deltaTime > FLT_EPSILON ) ? 1.f / deltaTime : 0.f;
 
+    const u32 pbegin = 0;
+    const u32 pend = solver->Size();
+    for( u32 i = pbegin; i < pend; ++i )
+    {
+        const Vector3F& p0 = solver->p0[i];
+        const Vector3F& p1 = solver->p1[i];
+
+        solver->v[i] = ( p1 - p0 ) * deltaTime;
+        solver->p0[i] = p1;
+    }
 }
 
 
-}
+}//
 
 void Solve( Solver* solver, u32 numIterations, float deltaTime )
 {
     GarbageCollector( solver );
+    RebuldConstraints( solver );
+
+    const Vector3F gravity_acc( 0.f, -9.82f, 0.f );
 
     const u32 n = solver->active_bodies_count;
     for( u32 i = 0; i < n; ++i )
@@ -374,7 +454,7 @@ void Solve( Solver* solver, u32 numIterations, float deltaTime )
         const PhysicsBody& body = GetPhysicsBody( solver, idi );
         const PhysicsParams& params = GetPhysicsParams( solver, idi );
 
-        PredictPositions( solver, body, params, deltaTime );
+        PredictPositions( solver, body, params, gravity_acc, deltaTime );
     }
 
     // collision detection
@@ -407,7 +487,7 @@ namespace
 
         const u32 index = solver->active_bodies_count++;
         solver->active_bodies_idi[index] = idi;
-
+        
         return idi;
     }
 }
@@ -444,6 +524,8 @@ void DestroyBody( Solver* solver, BodyId id )
 
     
     array::push_back( solver->_to_deallocate, body );
+
+    solver->flags.rebuild_constraints = 1;
 }
 
 
@@ -521,6 +603,9 @@ void SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraint
         SYS_ASSERT( false );
         break;
     }
+
+    solver->flags.rebuild_constraints = 1;
+
 }
 
 }//
