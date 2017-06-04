@@ -62,7 +62,7 @@ void MultiThreadStepper::renderDone()
 	}
 }
 
-bool MultiThreadStepper::advance(PxScene* scene, PxReal dt, void* scratchBlock, PxU32 scratchBlockSize)
+bool MultiThreadStepper::advance( PxScene* scene, PxReal dt, void* scratchBlock, PxU32 scratchBlockSize )
 {
 	mScratchBlock = scratchBlock;
 	mScratchBlockSize = scratchBlockSize;

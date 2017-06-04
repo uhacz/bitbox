@@ -91,7 +91,7 @@ public:
 		mCompletion1.setStepper(this);
 	};
 
-	~MultiThreadStepper()	{}
+    virtual ~MultiThreadStepper() {}
 
 	virtual bool			advance(PxScene* scene, PxReal dt, void* scratchBlock, PxU32 scratchBlockSize);
 	virtual void			substepDone(StepperTask* ownerTask);

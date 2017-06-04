@@ -65,6 +65,8 @@ void PlayerDestroy( Player pl )
     if( !id_table::has( gData._id_table, id ) )
         return;
 
+    gData._name[id.index].~PlayerName();
+    
     id_table::destroy( gData._id_table, id );
 }
 

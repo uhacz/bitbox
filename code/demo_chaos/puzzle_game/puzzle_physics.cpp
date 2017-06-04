@@ -542,5 +542,52 @@ void SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraint
 
 }
 
+u32 GetNbParticles( Solver* solver, BodyId id )
+{
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    return ( IsValid( solver, idi ) ) ? GetPhysicsBody( solver, ToBodyIdInternal( id ) ).count : 0;
+}
+
+Vector3F* MapPosition( Solver* solver, BodyId id )
+{
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    if( !IsValid( solver, idi ) )
+        return nullptr;
+
+    PhysicsBody body = GetPhysicsBody( solver, ToBodyIdInternal( id ) );
+    return solver->p0.begin() + body.begin;
+}
+
+Vector3F* MapVelocity( Solver* solver, BodyId id )
+{
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    if( !IsValid( solver, idi ) )
+        return nullptr;
+
+    PhysicsBody body = GetPhysicsBody( solver, ToBodyIdInternal( id ) );
+    return solver->v.begin() + body.begin;
+}
+
+f32* MapMassInv( Solver* solver, BodyId id )
+{
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    if( !IsValid( solver, idi ) )
+        return nullptr;
+
+    PhysicsBody body = GetPhysicsBody( solver, ToBodyIdInternal( id ) );
+    return solver->w.begin() + body.begin;
+}
+
+Vector3F* MapRestPosition( Solver* solver, BodyId id )
+{
+    return nullptr;
+}
+
+void Unmap( Solver* solver, void* ptr )
+{
+    ( void )solver;
+    // TODO: implement
+}
+
 }//
 }}//

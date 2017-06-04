@@ -187,9 +187,9 @@ namespace
 
 void bxNoise_perlin( float out[4], float x, float y, float z )
 {
-    const float fi = floor( x );
-    const float fj = floor( y );
-    const float fk = floor( z );
+    const float fi = ::floorf( x );
+    const float fj = ::floorf( y );
+    const float fk = ::floorf( z );
 
     const int i = (int)fi;
     const int j = (int)fj;

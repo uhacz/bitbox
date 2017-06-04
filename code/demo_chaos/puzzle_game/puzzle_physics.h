@@ -39,11 +39,12 @@ void   DestroyBody   ( Solver* solver, BodyId id );
 void   SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints );
 
 // --- 
-Vector3F* MapPosition    ( Solver* solver, BodyId id );
-Vector3F* MapVelocity    ( Solver* solver, BodyId id );
-f32*      MapMassInv     ( Solver* solver, BodyId id );
-Vector3F* MapRestPosition( Solver* solver, BodyId id );
-void      Unmap          ( Solver* solver, void* ptr );
+u32       GetNbParticles  ( Solver* solver, BodyId id );
+Vector3F* MapPosition     ( Solver* solver, BodyId id );
+Vector3F* MapVelocity     ( Solver* solver, BodyId id );
+f32*      MapMassInv      ( Solver* solver, BodyId id );
+Vector3F* MapRestPosition ( Solver* solver, BodyId id );
+void      Unmap           ( Solver* solver, void* ptr );
 
 
 

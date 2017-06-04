@@ -265,6 +265,8 @@ void phxSceneDestroy( PhxScene** scene )
 
     //s->scene->setSimulationEventCallback( NULL );
     BX_FREE0( bxDefaultAllocator(), s->scratchBuffer );
+
+    s->stepper->shutdown();
     BX_DELETE0( bxDefaultAllocator(), s->stepper );
     releasePhysXObject( s->controllerManager );
     releasePhysXObject( s->scene );
