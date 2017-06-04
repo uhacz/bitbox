@@ -5,11 +5,11 @@ namespace bx{ namespace gfx{
 
 float Camera::aspect() const
 {
-    return( abs( params.vAperture ) < 0.0001f ) ? params.hAperture : params.hAperture / params.vAperture;
+    return( fabsf( params.vAperture ) < 0.0001f ) ? params.hAperture : params.hAperture / params.vAperture;
 }
 float Camera::fov() const
 {
-    return 2.f * atan( ( 0.5f * params.hAperture ) / ( params.focalLength * 0.03937f ) );
+    return 2.f * atanf( ( 0.5f * params.hAperture ) / ( params.focalLength * 0.03937f ) );
 }
 Vector3 Camera::worldEye() const
 {

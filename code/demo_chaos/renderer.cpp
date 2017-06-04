@@ -294,7 +294,7 @@ namespace
     {
         // Derive two remaining vectors
         Vector3 right, up;
-        if( ::abs( dir.getY().getAsFloat() ) > 0.9999f )
+        if( ::fabsf( dir.getY().getAsFloat() ) > 0.9999f )
         {
             right = Vector3( 1.0f, 0.0f, 0.0f );
         }

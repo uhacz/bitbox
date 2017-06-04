@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -19,13 +19,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -62,7 +62,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>Xinput9_1_0.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;dxguid.lib;libconfig.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CharacterKinematicCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CommonCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CookingCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3ExtensionsCHECKED.lib;$(PHYSX_SDK)\Lib\win64\PxTaskCHECKED.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Xinput9_1_0.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;dxguid.lib;libconfig.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CharacterKinematicCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CommonCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CookingCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3ExtensionsCHECKED.lib;$(PHYSX_SDK)\..\PxShared\lib\vc14win64\PxTaskCHECKED_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -102,6 +102,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="profiler\Remotery.c" />
     <ClCompile Include="puzzle_game\puzzle_level.cpp" />
+    <ClCompile Include="puzzle_game\puzzle_physics.cpp" />
     <ClCompile Include="puzzle_game\puzzle_player.cpp" />
     <ClCompile Include="puzzle_game\puzzle_player_internal.cpp" />
     <ClCompile Include="renderer.cpp" />
@@ -172,6 +173,7 @@
     <ClInclude Include="profiler.h" />
     <ClInclude Include="profiler\Remotery.h" />
     <ClInclude Include="puzzle_game\puzzle_level.h" />
+    <ClInclude Include="puzzle_game\puzzle_physics.h" />
     <ClInclude Include="puzzle_game\puzzle_player.h" />
     <ClInclude Include="puzzle_game\puzzle_player_internal.h" />
     <ClInclude Include="renderer.h" />

@@ -172,12 +172,12 @@ namespace bx{ namespace gfx{
     bool CameraInputContext::anyMovement() const
     {
         const float sum =
-            ::abs( _leftInputX ) +
-            ::abs( _leftInputY ) +
-            ::abs( _rightInputX ) +
-            ::abs( _rightInputY ) +
-            ::abs( _upDown );
-
+            ::fabsf( _leftInputX ) +
+            ::fabsf( _leftInputY ) +
+            ::fabsf( _rightInputX ) +
+            ::fabsf( _rightInputY ) +
+            ::fabsf( _upDown );
+                  
         return sum > 0.01f;
     }
 

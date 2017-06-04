@@ -136,7 +136,7 @@ namespace
 
     void _PlayerUpdate( u32 index, const PlayerInput& input, const Matrix3F& basis, float deltaTimeS )
     {
-        const float velocity_damping = ::pow( 1.f - gData._params.velocity_damping, deltaTimeS );
+        const float velocity_damping = ::powf( 1.f - gData._params.velocity_damping, deltaTimeS );
 
         Vector3F move_vec_ls = _ComputePlayerLocalMoveVector( input );
         Vector3F move_vec_ws = _ComputePlayerWorldMoveVector( move_vec_ls, basis, gData._up_dir );

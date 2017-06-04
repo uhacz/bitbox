@@ -107,7 +107,7 @@ void Player::Tick( const PlayerCamera& camera, const Terrain& terrain, float del
 
     const float g = 9.82f; // 9.82f;
     
-    const float input_01_x = ::abs( _input._analog_x ) * 0.25f + 0.75f;
+    const float input_01_x = ::fabsf( _input._analog_x ) * 0.25f + 0.75f;
     const float input_01_y = -_input._analog_y * 0.5f + 0.5f;
     
     const float attack_angle_x = attack_angle_curve.Value( input_01_x );

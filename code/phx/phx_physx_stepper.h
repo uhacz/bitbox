@@ -30,7 +30,7 @@
 #ifndef SAMPLE_STEPPER_H
 #define SAMPLE_STEPPER_H
 
-#include <pxtask/PxTask.h>
+#include <task/PxTask.h>
 #include <PxPhysicsAPI.h>
 #include <PsTime.h>
 #include <PsSync.h>

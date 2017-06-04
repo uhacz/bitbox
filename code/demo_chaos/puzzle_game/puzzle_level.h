@@ -2,6 +2,7 @@
 
 #include "..\game_simple.h"
 #include "puzzle_player.h"
+#include "puzzle_physics.h"
 
 namespace bx { namespace puzzle{
 
@@ -31,6 +32,8 @@ public:
     gfx::Scene          _gfx_scene = nullptr;
 
     Player _player = {};
+    physics::Solver* _solver = nullptr;
+    physics::BodyId _rope;
 };
 
 }}//

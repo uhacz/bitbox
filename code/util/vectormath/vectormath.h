@@ -393,7 +393,7 @@ inline float computeAngle( const Vector3& v0, const Vector3& v1 )
     const float cosine = dot( v0, v1 ).getAsFloat();
     const float sine = length( cross( v0, v1 ) ).getAsFloat();
 
-    return ::atan2( sine, cosine );
+    return ::atan2f( sine, cosine );
 }
 
 struct TransformTQ

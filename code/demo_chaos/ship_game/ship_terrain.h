@@ -3,7 +3,7 @@
 #include <util/type.h>
 #include <util/vectormath/vectormath.h>
 #include <util/filesystem.h>
-#include <util/containers.h>
+#include <util/array.h>
 #include <rdi/rdi_backend.h>
 
 #include "../renderer_type.h"
@@ -26,9 +26,9 @@ struct Terrain
     array_t<float3_t> _debug_points;
     array_t<float3_t> _debug_normals;
 
-    array_t<rdi::RenderSource> _rsources = {};
-    array_t<gfx::ActorID > _actors = {};
-    rdi::IndexBuffer _index_buffer_tile = {};
+    array_t<rdi::RenderSource> _rsources;
+    array_t<gfx::ActorID > _actors;
+    rdi::IndexBuffer _index_buffer_tile;
 
     void CreateFromFile( const char* filename, gfx::Scene scene );
     void Destroy();

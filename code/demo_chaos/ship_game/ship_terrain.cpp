@@ -219,7 +219,7 @@ namespace bx{ namespace ship{
 
         const float ext_x = _num_samples_x * 0.5f;
         const float ext_z = _num_samples_z * 0.5f;
-        const float ext_y = ::abs( min_y ) + 30.f;
+        const float ext_y = ::fabsf( min_y ) + 30.f;
 
         Matrix4 transform = Matrix4::translation( Vector3( -ext_x, -ext_y, -ext_z ) );
         transform = appendScale( transform, Vector3( _sample_scale_xz, _sample_scale_y, _sample_scale_xz ) );
@@ -231,7 +231,7 @@ namespace bx{ namespace ship{
                 const u32 linear_index = iz * _num_samples_x + ix;
 
                 const f32 fx = (f32)ix;
-                const f32 fy = ::exp( _samples[linear_index] ) - 1.f;
+                const f32 fy = ::expf( _samples[linear_index] ) - 1.f;
                 const f32 fz = (f32)iz;
                 const Vector3 p = mulAsVec4( transform, Vector3( fx, fy, fz ) );
                 

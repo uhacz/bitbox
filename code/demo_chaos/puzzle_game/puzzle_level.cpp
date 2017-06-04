@@ -45,10 +45,14 @@ void LevelState::OnStartUp()
 
     _player = PlayerCreate( "playerLocal" );
 
+    physics::Create( &_solver, 1024 * 8 );
+    _rope = physics::CreateRope( _solver, 16 );
 }
 
 void LevelState::OnShutDown()
 {
+    physics::DestroyBody( _solver, _rope );
+    physics::Destroy( &_solver );
     PlayerDestroy( _player );
 
     _gfx->renderer.DestroyScene( &_gfx_scene );

@@ -52,7 +52,7 @@ unsigned int bxPolarDecomposition( const Matrix3& a, Matrix3& u, Matrix3& h, uns
         if ( (h_norm < FLT_EPSILON) || (u_norm < FLT_EPSILON) )
             break;
 
-        const float gamma = pow( h_norm / u_norm, 0.25f );
+        const float gamma = ::powf( h_norm / u_norm, 0.25f );
         const float inv_gamma = float( 1.0 ) / gamma;
 
         // Determine the delta to 'u'
@@ -88,10 +88,10 @@ Vector4 toAxisAngle( const Quat& q )
         return Vector4( 1.0f, 0.f, 0.f, 0.f );
     }
 
-    const float s = ::sqrt( s2 );
+    const float s = ::sqrtf( s2 );
     const Vector3 axis = q.getXYZ() * s;
     const float w = q.getW().getAsFloat();
-    const float angle = (abs( w ) < quatEpsilon) ? PI : ::atan2( s2*s, w ) * 2.f;
+    const float angle = (::fabsf( w ) < quatEpsilon) ? PI : ::atan2f( s2*s, w ) * 2.f;
     return Vector4( axis, angle );
     
     //if ( s2 < quatEpsilon*quatEpsilon )  // can't extract a sensible axis

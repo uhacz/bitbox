@@ -62,7 +62,7 @@ static float lengthSqr( const Vec3& v )
 static Vec3 normalize( const Vec3& v, float eps = 0.001f )
 {
     const float lenSqr = lengthSqr( v );
-    if( abs(lenSqr) <= eps )
+    if( ::fabsf(lenSqr) <= eps )
     {
         return Vec3(0.f);
     }

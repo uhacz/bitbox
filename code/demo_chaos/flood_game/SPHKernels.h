@@ -50,7 +50,7 @@ namespace PBD
 				}
 				else
 				{
-					res = m_k * (2.0f*pow(1.0f-q,3));
+					res = m_k * (2.0f*::powf(1.0f-q,3));
 				}
 			}
 			return res;
@@ -107,8 +107,8 @@ namespace PBD
         {
             m_radius = val;
             static const float pi = static_cast<float>( M_PI );
-            m_k = 315.0f / ( 64.0f*pi*pow( m_radius, 9 ) );
-            m_l = -945.0f / ( 32.0f*pi*pow( m_radius, 9 ) );
+            m_k = 315.0f / ( 64.0f*pi*::powf( m_radius, 9 ) );
+            m_l = -945.0f / ( 32.0f*pi*::powf( m_radius, 9 ) );
             m_m = m_l;
             m_W_zero = W( Vector3F(0.f) );
         }
@@ -212,7 +212,7 @@ namespace PBD
         static void setRadius( float val )
         {
             m_radius = val;
-            const float radius6 = pow( m_radius, 6 );
+            const float radius6 = ::powf( m_radius, 6 );
             static const float pi = static_cast<float>( M_PI );
             m_k = 15.0f / ( pi*radius6 );
             m_l = -45.0f / ( pi*radius6 );
@@ -231,7 +231,7 @@ namespace PBD
             const float radius2 = m_radius*m_radius;
             if( r2 <= radius2 )
             {
-                const float hr3 = pow( m_radius - sqrt( r2 ), 3 );
+                const float hr3 = powf( m_radius - sqrtf( r2 ), 3 );
                 res = m_k * hr3;
             }
             return res;
@@ -244,7 +244,7 @@ namespace PBD
             const float radius2 = m_radius*m_radius;
             if( r2 <= radius2 )
             {
-                const float hr3 = pow( m_radius - sqrt( r2 ), 3 );
+                const float hr3 = powf( m_radius - sqrtf( r2 ), 3 );
                 res = m_k * hr3;
             }
             return res;
@@ -261,7 +261,7 @@ namespace PBD
             const float radius2 = m_radius*m_radius;
             if( r2 <= radius2 )
             {
-                const float r_l = sqrt( r2 );
+                const float r_l = sqrtf( r2 );
                 const float hr = m_radius - r_l;
                 const float hr2 = hr*hr;
                 const float normalizator = 1.f / r_l ;// ( r_l > FLT_EPSILON ) ? 1.f / r_l : 0.f;

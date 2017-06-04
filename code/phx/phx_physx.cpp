@@ -111,7 +111,7 @@ struct PhxScene
     Stepper* stepper = nullptr;
     void* scratchBuffer = nullptr;
 
-    PhysxSimulationCallback callback;
+    PhysxSimulationCallback* callback = nullptr;
 };
 
 bool phxContextStartup( PhxContext** phx, int maxThreads )
@@ -126,7 +126,7 @@ bool phxContextStartup( PhxContext** phx, int maxThreads )
     if ( !p->physics )
         goto physx_start_up_error;
 
-    if ( !PxInitExtensions( *p->physics ) )
+    if ( !PxInitExtensions( *p->physics, nullptr ) )
         goto physx_start_up_error;
 
     p->cooking = PxCreateCooking( PX_PHYSICS_VERSION, *p->foundation, PxCookingParams( PxTolerancesScale() ) );
@@ -402,7 +402,7 @@ bool phxActorCreateDynamic( PhxActor** actor, PhxContext* ctx, const Matrix4& po
     const PxTransform pxPose = toPxTransform( pose );
     const PxTransform pxShapeOffset = toPxTransform( shapeOffset );
     const PhxGeometryConversion geom( geometry );
-    const float d = (density == 0.f) ? 10.f : ::abs( density );
+    const float d = (density == 0.f) ? 10.f : ::fabsf( density );
     PxMaterial* pxMaterial = ctx->defaultMaterial;
 
     PxRigidDynamic* pxActor = PxCreateDynamic( *sdk, pxPose, *geom.geometry, *pxMaterial, d, pxShapeOffset );
@@ -478,6 +478,8 @@ namespace
 
 bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4& pose, const PhxHeightField& geometry, const PhxMaterial* material /*= nullptr */, const Matrix4& shapeOffset /*= Matrix4::identity()*/ )
 {
+    SYS_NOT_IMPLEMENTED;
+#if 0
     PxPhysics* sdk = ctx->physics;
 
     const PxTransform pxPose = toPxTransform( pose );
@@ -510,6 +512,7 @@ bool phxActorCreateHeightfield( PhxActor** actor, PhxContext* ctx, const Matrix4
     physxActorShapesCollisionGroupSet( pxActor, 1, 0xFFFFFFFF );
 
     actor[0] = pxActor;
+#endif
     return true;
 }
 
@@ -549,7 +552,7 @@ void phxActorTargetPoseSet( PhxActor* actor, const Matrix4& pose, PhxScene* scen
     (void)scene;
     PxRigidActor* rigid = (PxRigidActor*)actor;
     SYS_ASSERT( rigid->getScene() == scene->scene );
-    SYS_ASSERT( rigid->isRigidDynamic() != nullptr );
+    SYS_ASSERT( rigid->is<PxRigidDynamic>() != nullptr );
 
     const PxTransform pxPose = toPxTransform( pose );
     PxRigidDynamic* rigidDynamic = (PxRigidDynamic*)rigid;
@@ -629,7 +632,7 @@ bool phxCCTCreate( PhxCCT** cct, PhxScene* scene, const PhxCCTDesc& desc )
     cdesc.stepOffset = 0.0f;//cdesc.radius;
     cdesc.slopeLimit = 0.0f;//0.707f;
     //cdesc.invisibleWallHeight = cdesc.radius;
-    cdesc.nonWalkableMode = PxCCTNonWalkableMode::ePREVENT_CLIMBING;
+    cdesc.nonWalkableMode = PxControllerNonWalkableMode::ePREVENT_CLIMBING;
 
     cdesc.position = toPxExtendedVec3( desc.position );
     cdesc.upDirection = toPxVec3( desc.upDirection );

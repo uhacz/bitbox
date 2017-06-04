@@ -195,7 +195,7 @@ int dx11Compiler::Compile( CompiledShader* fx_bin, const SourceShader& fx_src, c
             }
 
 
-            print_info( "\t\t%s shader: %s (%u B)\n", rdi::EStage::name[j], pass.entry_points[j], code_blob->GetBufferSize() );
+            print_info( "\t\t%s shader: %s (%llu B)\n", rdi::EStage::name[j], pass.entry_points[j], code_blob->GetBufferSize() );
 
             Dx11FetchShaderReflection( &bin_pass.reflection, code_blob->GetBufferPointer(), code_blob->GetBufferSize(), j );
 
