@@ -33,7 +33,7 @@ public:
 
     Player _player = {};
     physics::Solver* _solver = nullptr;
-    physics::BodyId _rope;
+    physics::BodyId _rope[5];
 };
 
 }}//

@@ -46,12 +46,16 @@ void LevelState::OnStartUp()
     _player = PlayerCreate( "playerLocal" );
 
     physics::Create( &_solver, 1024 * 8 );
-    _rope = physics::CreateRope( _solver, 16 );
+
+    for( u32 i = 0; i < 5; i++ )
+        _rope[i] = physics::CreateRopeAtPoint( _solver, Vector3F( -( i / 2.f ), 10.f, 0.f ), Vector3F::xAxis(), 10.f );
 }
 
 void LevelState::OnShutDown()
 {
-    physics::DestroyBody( _solver, _rope );
+    for( u32 i = 0; i < 5; i++ )
+        physics::DestroyBody( _solver, _rope[i] );
+
     physics::Destroy( &_solver );
     PlayerDestroy( _player );
 
@@ -67,9 +71,15 @@ void LevelState::OnUpdate( const GameTime& time )
 
     const Matrix3F player_basis = toMatrix3F( camera.world.getUpper3x3() );
     PlayerCollectInput( _player, input, player_basis, time.delta_time_us );
-
-
+    
     PlayerTick( time.delta_time_us );
+    physics::Solve( _solver, 4, time.DeltaTimeSec() );
+
+    for( size_t i = 0; i < 5; i++ )
+    {
+        physics::DebugDraw( _solver, _rope[i], physics::DebugDrawBodyParams() );
+    }
+
 }
 
 void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )

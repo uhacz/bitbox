@@ -1,6 +1,7 @@
 #include "puzzle_physics.h"
 #include <util/array.h>
 #include <util/id_table.h>
+#include "rdi/rdi_debug_draw.h"
 
 namespace bx { namespace puzzle {
 
@@ -61,44 +62,13 @@ struct RestPositionC
 using DistanceCArray = array_t<DistanceC>;
 using BendingCArray  = array_t<BendingC>;
 
-struct PhysicsParams
-{
-    f32 vel_damping      = 0.1f;
-    f32 static_friction  = 0.1f;
-    f32 dynamic_friction = 0.1f;
-    f32 restitution      = 0.2f;
-};
-
 // --- bodies
-struct PhysicsBody
+struct Body
 {
     u32 begin = 0;
     u32 count = 0;
 };
-inline bool IsValid( const PhysicsBody& body ) { return body.count != 0; }
-
-struct PhysicsSoftBody
-{
-    //PhysicsBody body;
-    //PhysicsParams params;
-    u32 rest_pos_begin = 0;
-    u32 rest_pos_count = 0;
-
-    Vector3Array   rest_p;
-    DistanceCArray distance_c;
-};
-struct PhysicsClothBody
-{
-    //PhysicsBody body;
-    //PhysicsParams params;
-    DistanceCArray distance_c;
-};
-struct PhysicsBodyRope
-{
-    //PhysicsBody body;
-    //PhysicsParams params;
-    DistanceCArray distance_c;
-};
+inline bool IsValid( const Body& body ) { return body.count != 0; }
 
 // --- body id
 union BodyIdInternal
@@ -113,10 +83,20 @@ union BodyIdInternal
 };
 static inline bool operator == ( const BodyIdInternal a, const BodyIdInternal b ) { return a.i == b.i; }
 
+#define _PHYSICS_VALIDATE_ID( returnValue ) \
+    { \
+        BodyIdInternal idi = ToBodyIdInternal( id ); \
+        if( !IsValid( solver, idi ) ) \
+            return returnValue; \
+    }
+
+#define PHYSICS_VALIDATE_ID( returnValue ) _PHYSICS_VALIDATE_ID( returnValue )
+#define  PHYSICS_VALIDATE_ID_NO_RETURN _PHYSICS_VALIDATE_ID( ; )
+
 static inline BodyId         ToBodyId        ( BodyIdInternal idi ) { return{ idi.i }; }
 static inline BodyIdInternal ToBodyIdInternal( BodyId id )          { return{ id.i }; }
 using IdTable = id_table_t< EConst::eMAX_BODIES, BodyIdInternal >;
-using PhysicsBodyArray = array_t<PhysicsBody>;
+using PhysicsBodyArray = array_t<Body>;
 using BodyIdInternalArray = array_t<BodyIdInternal>;
 
 
@@ -128,10 +108,11 @@ struct Solver
     Vector3Array v;
     F32Array     w;
         
-    IdTable          id_tbl    [EBody::_COUNT_];
-    PhysicsBody      bodies    [EBody::_COUNT_][EConst::eMAX_BODIES];
-    PhysicsParams    params    [EBody::_COUNT_][EConst::eMAX_BODIES];
+    IdTable    id_tbl     [EBody::_COUNT_];
+    Body       bodies     [EBody::_COUNT_][EConst::eMAX_BODIES];
+    BodyParams body_params[EBody::_COUNT_][EConst::eMAX_BODIES];
 
+    // constraints points indices are relative to body
     DistanceCArray distance_c[EBody::_COUNT_][EConst::eMAX_BODIES];
 
     //PhysicsSoftBody  soft_body [EConst::eMAX_BODIES];
@@ -146,6 +127,8 @@ struct Solver
     u32 num_iterations = 4;
     u32 frequency = 60;
     f32 delta_time = 1.f / frequency;
+    f32 delta_time_acc = 0.f;
+    f32 particle_radius = 0.1f;
 
     union Flags
     {
@@ -176,12 +159,12 @@ static void ReserveParticles( Solver* solver, u32 count )
     array::reserve( solver->w , count );
 }
 
-static PhysicsBody AllocateBody( Solver* solver, u32 particleAmount )
+static Body AllocateBody( Solver* solver, u32 particleAmount )
 {
     if( solver->Size() + particleAmount > solver->Capacity() )
         return{};
 
-    PhysicsBody body;
+    Body body;
     body.begin = solver->Size();
     body.count = particleAmount;
 
@@ -200,24 +183,24 @@ static inline bool IsValid( const Solver* solver, BodyIdInternal idi )
 {
     return id_table::has( solver->id_tbl[idi.type], idi );
 }
-static inline const PhysicsBody& GetPhysicsBody( const Solver* solver, BodyIdInternal idi )
+static inline const Body& GetBody( const Solver* solver, BodyIdInternal idi )
 {
     SYS_ASSERT( IsValid( solver, idi ) );
     return solver->bodies[idi.type][idi.index];
 }
-static inline const PhysicsParams& GetPhysicsParams( const Solver* solver, BodyIdInternal idi )
+static inline const BodyParams& GetBodyParams( const Solver* solver, BodyIdInternal idi )
 {
     SYS_ASSERT( IsValid( solver, idi ) );
-    return solver->params[idi.type][idi.index];
+    return solver->body_params[idi.type][idi.index];
 }
 }//
 
 
-void Create( Solver** solver, u32 maxParticles )
+void Create( Solver** solver, u32 maxParticles, float particleRadius )
 {
     Solver* s = BX_NEW( bxDefaultAllocator(), Solver );
     ReserveParticles( s, maxParticles );
-
+    s->particle_radius = particleRadius;
     solver[0] = s;
 }
 
@@ -257,33 +240,9 @@ static void GarbageCollector( Solver* solver )
 
 static void RebuldConstraints( Solver* solver )
 {
-    //if( !solver->flags.rebuild_constraints )
-    //    return;
-
-    //for( u32 iab = 0; iab < solver->active_bodies_count; ++iab )
-    //{
-    //    const BodyIdInternal idi = solver->active_bodies_idi[iab];
-    //    
-    //    if( idi.type == EBody::eSOFT )
-    //    {
-    //        const PhysicsSoftBody& soft = solver->soft_body[idi.index];
-
-    //    }
-    //    else if( idi.type == EBody::eCLOTH )
-    //    {
-    //    
-    //    }
-    //    else if( idi.type == EBody::eROPE )
-    //    {
-    //       
-    //    }
-    //}
-
-
-    //solver->flags.rebuild_constraints = 0;
 }
 
-static void PredictPositions( Solver* solver, const PhysicsBody& body, const PhysicsParams& params, const Vector3F& gravityAcc, float deltaTime )
+static void PredictPositions( Solver* solver, const Body& body, const BodyParams& params, const Vector3F& gravityAcc, float deltaTime )
 {
     const u32 pbegin = body.begin;
     const u32 pend = body.begin + body.count;
@@ -298,8 +257,9 @@ static void PredictPositions( Solver* solver, const PhysicsBody& body, const Phy
     {
         Vector3F p = solver->p0[i];
         Vector3F v = solver->v[i];
+        const float w = solver->w[i];
 
-        v += gravityDV;
+        v += gravityDV * w;
         v *= damping_coeff;
 
         p += v * deltaTime;
@@ -319,7 +279,7 @@ static void UpdateVelocities( Solver* solver, float deltaTime )
         const Vector3F& p0 = solver->p0[i];
         const Vector3F& p1 = solver->p1[i];
 
-        solver->v[i] = ( p1 - p0 ) * deltaTime;
+        solver->v[i] = ( p1 - p0 ) * delta_time_inv;
         solver->p0[i] = p1;
     }
 }
@@ -349,22 +309,17 @@ inline int SolveDistanceC(
     return 1;
 }
 
-
-}//
-
-void Solve( Solver* solver, u32 numIterations, float deltaTime )
+static void SolveInternal( Solver* solver, u32 numIterations )
 {
-    GarbageCollector( solver );
-    RebuldConstraints( solver );
-
+    const float deltaTime = solver->delta_time;
     const Vector3F gravity_acc( 0.f, -9.82f, 0.f );
 
     const u32 n = solver->active_bodies_count;
     for( u32 i = 0; i < n; ++i )
     {
         const BodyIdInternal idi = solver->active_bodies_idi[i];
-        const PhysicsBody& body = GetPhysicsBody( solver, idi );
-        const PhysicsParams& params = GetPhysicsParams( solver, idi );
+        const Body& body = GetBody( solver, idi );
+        const BodyParams& params = GetBodyParams( solver, idi );
 
         PredictPositions( solver, body, params, gravity_acc, deltaTime );
     }
@@ -379,27 +334,46 @@ void Solve( Solver* solver, u32 numIterations, float deltaTime )
         {
             for( u32 i = 0; i < EConst::eMAX_BODIES; ++i )
             {
+                const Body& body = solver->bodies[itype][i];
                 const DistanceCArray& carray = solver->distance_c[itype][i];
                 for( DistanceC c : carray )
                 {
-                    const Vector3F& p0 = solver->p1[c.i0];
-                    const Vector3F& p1 = solver->p1[c.i1];
-                    const f32 w0 = solver->w[c.i0];
-                    const f32 w1 = solver->w[c.i1];
+                    const u32 i0 = body.begin + c.i0;
+                    const u32 i1 = body.begin + c.i1;
+
+                    const Vector3F& p0 = solver->p1[i0];
+                    const Vector3F& p1 = solver->p1[i1];
+                    const f32 w0 = solver->w[i0];
+                    const f32 w1 = solver->w[i1];
 
                     Vector3F dpos0, dpos1;
                     if( SolveDistanceC( &dpos0, &dpos1, p0, p1, w0, w1, c.rl, 1.f ) )
                     {
-                        solver->p1[c.i0] += dpos0;
-                        solver->p1[c.i1] += dpos1;
+                        solver->p1[i0] += dpos0;
+                        solver->p1[i1] += dpos1;
                     }
                 }
             }
         }
-        // TODO: arrange constraints in linear sorted array with buckets to process constraints in effective way (even on gpu)
     }
 
     UpdateVelocities( solver, deltaTime );
+}
+
+}//
+
+void Solve( Solver* solver, u32 numIterations, float deltaTime )
+{
+    GarbageCollector( solver );
+    RebuldConstraints( solver );
+
+    solver->delta_time_acc += deltaTime;
+
+    while( solver->delta_time_acc >= solver->delta_time )
+    {
+        SolveInternal( solver, numIterations );
+        solver->delta_time_acc -= solver->delta_time;
+    }
 
 }
 
@@ -409,7 +383,7 @@ namespace
     {
         SYS_ASSERT( type < EBody::_COUNT_ );
 
-        PhysicsBody body = AllocateBody( solver, numParticles );
+        Body body = AllocateBody( solver, numParticles );
         if( !IsValid( body ) )
             return{ 0 };
         
@@ -450,7 +424,7 @@ void DestroyBody( Solver* solver, BodyId id )
     if( !id_table::has( solver->id_tbl[idi.type], idi ) )
         return;
 
-    const PhysicsBody& body = GetPhysicsBody( solver, idi );
+    const Body& body = GetBody( solver, idi );
     SYS_ASSERT( IsValid( body ) );
 
     id_table::destroy( solver->id_tbl[idi.type], idi );
@@ -462,7 +436,7 @@ void DestroyBody( Solver* solver, BodyId id )
 
 namespace
 {
-    static inline bool IsInRange( const PhysicsBody& body, u32 index )
+    static inline bool IsInRange( const Body& body, u32 index )
     {
         return ( index >= body.begin ) && ( index < ( body.begin + body.count ) );
     }
@@ -479,18 +453,18 @@ namespace
         out->rl = length( p1 - p0 );
     }
 
-    static void SetConstraints( PhysicsSoftBody* soft, const Solver* solver, const PhysicsBody& body, const ConstraintInfo* constraints, u32 numConstraints )
-    {
+    //static void SetConstraints( PhysicsSoftBody* soft, const Solver* solver, const PhysicsBody& body, const ConstraintInfo* constraints, u32 numConstraints )
+    //{
 
-    }
-    static void SetConstraints( PhysicsClothBody* cloth, const Solver* solver, const PhysicsBody& body, const ConstraintInfo* constraints, u32 numConstraints )
-    {
+    //}
+    //static void SetConstraints( PhysicsClothBody* cloth, const Solver* solver, const PhysicsBody& body, const ConstraintInfo* constraints, u32 numConstraints )
+    //{
 
-    }
+    //}
 
     static void SetConstraintsRope( BodyIdInternal idi, Solver* solver, const ConstraintInfo* constraints, u32 numConstraints )
     {
-        const PhysicsBody& body = GetPhysicsBody( solver, idi );
+        const Body& body = GetBody( solver, idi );
         DistanceCArray& outArray = solver->distance_c[EBody::eROPE][idi.index];
         for( u32 i = 0; i < numConstraints; ++i )
         {
@@ -498,13 +472,15 @@ namespace
             if( info.type != ConstraintInfo::eDISTANCE )
                 continue;
 
-            const u32 i0 = info.index[0];
-            const u32 i1 = info.index[1];
+            const u32 relative_i0 = info.index[0];
+            const u32 relative_i1 = info.index[1];
+            const u32 absolute_i0 = body.begin + relative_i0;
+            const u32 absolute_i1 = body.begin + relative_i1;
 
-            if( IsInRange( body, i0 ) && IsInRange( body, i1 ) )
+            if( IsInRange( body, absolute_i0 ) && IsInRange( body, absolute_i1 ) )
             {
                 DistanceC c;
-                ComputeConstraint( &c, solver->p0.begin() + body.begin, i0, i1 );
+                ComputeConstraint( &c, solver->p0.begin() + body.begin, relative_i0, relative_i1 );
                 array::push_back( outArray, c );
             }
         }
@@ -515,11 +491,13 @@ namespace
 
 void SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints )
 {
-    BodyIdInternal idi = ToBodyIdInternal( id );
-    if( !IsValid( solver, idi ) )
-        return;
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+    //BodyIdInternal idi = ToBodyIdInternal( id );
+    //if( !IsValid( solver, idi ) )
+    //    return;
 
-    const PhysicsBody& body = GetPhysicsBody( solver, idi );
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    const Body& body = GetBody( solver, idi );
 
     switch( idi.type )
     {
@@ -544,37 +522,30 @@ void SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraint
 
 u32 GetNbParticles( Solver* solver, BodyId id )
 {
-    const BodyIdInternal idi = ToBodyIdInternal( id );
-    return ( IsValid( solver, idi ) ) ? GetPhysicsBody( solver, ToBodyIdInternal( id ) ).count : 0;
+    PHYSICS_VALIDATE_ID( 0 );
+    return GetBody( solver, ToBodyIdInternal( id ) ).count;
 }
 
 Vector3F* MapPosition( Solver* solver, BodyId id )
 {
-    const BodyIdInternal idi = ToBodyIdInternal( id );
-    if( !IsValid( solver, idi ) )
-        return nullptr;
-
-    PhysicsBody body = GetPhysicsBody( solver, ToBodyIdInternal( id ) );
+    PHYSICS_VALIDATE_ID( nullptr );
+    Body body = GetBody( solver, ToBodyIdInternal( id ) );
     return solver->p0.begin() + body.begin;
 }
 
 Vector3F* MapVelocity( Solver* solver, BodyId id )
 {
-    const BodyIdInternal idi = ToBodyIdInternal( id );
-    if( !IsValid( solver, idi ) )
-        return nullptr;
+    PHYSICS_VALIDATE_ID( nullptr );
 
-    PhysicsBody body = GetPhysicsBody( solver, ToBodyIdInternal( id ) );
+    Body body = GetBody( solver, ToBodyIdInternal( id ) );
     return solver->v.begin() + body.begin;
 }
 
 f32* MapMassInv( Solver* solver, BodyId id )
 {
-    const BodyIdInternal idi = ToBodyIdInternal( id );
-    if( !IsValid( solver, idi ) )
-        return nullptr;
+    PHYSICS_VALIDATE_ID( nullptr );
 
-    PhysicsBody body = GetPhysicsBody( solver, ToBodyIdInternal( id ) );
+    Body body = GetBody( solver, ToBodyIdInternal( id ) );
     return solver->w.begin() + body.begin;
 }
 
@@ -587,6 +558,100 @@ void Unmap( Solver* solver, void* ptr )
 {
     ( void )solver;
     // TODO: implement
+}
+
+bool GetBodyParams( BodyParams* params, const Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID( false );
+
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    params[0] = solver->body_params[idi.type][idi.index];
+    return true;
+}
+
+void SetBodyParams( Solver* solver, BodyId id, const BodyParams& params )
+{
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    solver->body_params[idi.type][idi.index] = params;
+}
+
+float GetParticleRadius( const Solver* solver )
+{
+    return solver->particle_radius;
+}
+
+}//
+}}//
+
+namespace bx{ namespace puzzle{
+
+namespace physics{
+
+BodyId CreateRopeAtPoint( Solver* solver, const Vector3F& attach, const Vector3F& axis, float len )
+{
+    const float pradius = physics::GetParticleRadius( solver );
+
+    const u32 num_points = (u32)( len / pradius );
+    const float step = len / (float)( num_points - 1 );
+    BodyId rope = physics::CreateRope( solver, num_points );
+
+    Vector3F* points = physics::MapPosition( solver, rope );
+    f32* mass_inv = physics::MapMassInv( solver, rope );
+
+    points[0] = attach;
+    mass_inv[0] = 0.f;
+    for( u32 i = 1; i < num_points; ++i )
+    {
+        points[i] = points[i - 1] + axis * step;
+        mass_inv[i] = 1.f;
+    }
+
+    physics::Unmap( solver, mass_inv );
+    physics::Unmap( solver, points );
+
+    array_t< physics::ConstraintInfo >c_info;
+    array::reserve( c_info, num_points - 1 );
+    for( u32 i = 0; i < num_points - 1; ++i )
+    {
+        physics::ConstraintInfo& info = c_info[i];
+        info.type = physics::ConstraintInfo::eDISTANCE;
+        info.index[0] = i;
+        info.index[1] = i + 1;
+    }
+    physics::SetConstraints( solver, rope, c_info.begin(), num_points - 1 );
+
+    return rope;
+}
+
+void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )
+{
+    BodyIdInternal idi = ToBodyIdInternal( id );
+    if( !IsValid( solver, idi ) )
+        return;
+
+    const Body& body = GetBody( solver, idi );
+    const Vector3F* points = solver->p0.begin() + body.begin;
+
+    if( params.draw_points )
+    {
+        const float radius = solver->particle_radius;
+        for( u32 i = 0; i < body.count; ++i )
+            rdi::debug_draw::AddSphere( Vector4F( points[i], radius ), params.point_color, 1 );
+    }
+    if( params.draw_constraints )
+    {
+        {
+            const DistanceCArray& constraints = solver->distance_c[idi.type][idi.index];
+            for( DistanceC c : constraints )
+            {
+                const Vector3F& p0 = points[c.i0];
+                const Vector3F& p1 = points[c.i1];
+                rdi::debug_draw::AddLine( p0, p1, params.constraint_color, 1 );
+            }
+        }
+    }
 }
 
 }//
