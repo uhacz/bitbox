@@ -16,6 +16,7 @@ struct BodyParams
     f32 static_friction = 0.1f;
     f32 dynamic_friction = 0.1f;
     f32 restitution = 0.2f;
+    f32 stiffness = 1.0f;
 };
 
 struct ConstraintInfo
@@ -37,10 +38,8 @@ void SetFrequency( Solver* solver, u32 freq );
 void Solve       ( Solver* solver, u32 numIterations, float deltaTime );
 
 // --- 
-BodyId CreateSoftBody( Solver* solver, u32 numParticles );
-BodyId CreateCloth   ( Solver* solver, u32 numParticles );
-BodyId CreateRope    ( Solver* solver, u32 numParticles );
-void   DestroyBody   ( Solver* solver, BodyId id );
+BodyId CreateBody ( Solver* solver, u32 numParticles );
+void   DestroyBody( Solver* solver, BodyId id );
 
 // ---
 void   SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints );
@@ -67,7 +66,8 @@ namespace puzzle {
 namespace physics
 {
 
-BodyId CreateRopeAtPoint( Solver* solver, const Vector3F& attach, const Vector3F& axis, float len );
+BodyId CreateRope( Solver* solver, const Vector3F& attach, const Vector3F& axis, float len, float particleMass );
+BodyId CreateCloth( Solver* solver, const Vector3F& attach, const Vector3F& axis, float width, float height, float particleMass );
 
 
 //////////////////////////////////////////////////////////////////////////

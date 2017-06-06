@@ -48,7 +48,12 @@ void LevelState::OnStartUp()
     physics::Create( &_solver, 1024 * 8 );
 
     for( u32 i = 0; i < 5; i++ )
-        _rope[i] = physics::CreateRopeAtPoint( _solver, Vector3F( -( i / 2.f ), 10.f, 0.f ), Vector3F::xAxis(), 10.f );
+    {
+        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ), 10.f, 0.f ), Vector3F::xAxis(), 10.f, 1.f + ( i * 0.1f ) );
+        float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
+        mass_inv[0] = 0.f;
+        physics::Unmap( _solver, mass_inv );
+    }
 }
 
 void LevelState::OnShutDown()

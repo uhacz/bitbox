@@ -20,11 +20,10 @@ struct HashGridStatic
     {
         const u32* data;
         u32 count;
-    };
 
-    //array_t< Hash > _data;
-    //array_t< Bucket > _buckets;
-    //hashmap_t _bucket_map;
+        const u32* begin() const { return data; }
+        const u32* end()   const { return data + count; }
+    };
 
     array_t<Bucket> _lookup_array; // here is stored index in data array
     array_t<u32>    _data;   
