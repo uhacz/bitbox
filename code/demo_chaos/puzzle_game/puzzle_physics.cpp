@@ -17,15 +17,6 @@ namespace EConst
     };
 }//
 
-
-
-// --- 
-using Vector3Array = array_t<Vector3F>;
-using F32Array = array_t<f32>;
-using U32Array = array_t<u32>;
-
-    
-    
 // --- constraints
 struct DistanceC
 {
@@ -45,18 +36,14 @@ struct BendingC
 struct CollisionC
 {
     Vector4F plane;
-    u32 pindex;
+    u32 pindex_abs; // unlike rest of constraints this index is absolute index
 };
 
 struct RestPositionC
 {
     Vector3F rest_pos;
-    u32 particle_index;
+    u32 pindex;
 };
-
-using CollisionCArray = array_t<CollisionC>;
-using DistanceCArray  = array_t<DistanceC>;
-using BendingCArray   = array_t<BendingC>;
 
 // --- bodies
 struct Body
@@ -90,14 +77,25 @@ static inline bool operator == ( const BodyIdInternal a, const BodyIdInternal b 
 
 static inline BodyId         ToBodyId        ( BodyIdInternal idi ) { return{ idi.i }; }
 static inline BodyIdInternal ToBodyIdInternal( BodyId id )          { return{ id.i }; }
-using IdTable = id_table_t< EConst::MAX_BODIES, BodyIdInternal >;
-using PhysicsBodyArray = array_t<Body>;
+
+
+using IdTable             = id_table_t< EConst::MAX_BODIES, BodyIdInternal >;
+using Vector3Array        = array_t<Vector3F>;
+using F32Array            = array_t<f32>;
+using U32Array            = array_t<u32>;
+
+using PhysicsBodyArray    = array_t<Body>;
 using BodyIdInternalArray = array_t<BodyIdInternal>;
+using CollisionCArray     = array_t<CollisionC>;
+using DistanceCArray      = array_t<DistanceC>;
+using BendingCArray       = array_t<BendingC>;
 
 
 // --- solver
 struct Solver
 {
+    Vector3Array x; // interpolated positions
+    Vector3Array pp;// prev positions (stored before each time step)
     Vector3Array p0;
     Vector3Array p1;
     Vector3Array v;
@@ -151,6 +149,8 @@ static void ShutDown( Solver* solver )
 }
 static void ReserveParticles( Solver* solver, u32 count )
 {
+    array::reserve( solver->x , count );
+    array::reserve( solver->pp, count );
     array::reserve( solver->p0, count );
     array::reserve( solver->p1, count );
     array::reserve( solver->v , count );
@@ -281,6 +281,20 @@ static void UpdateVelocities( Solver* solver, float deltaTime )
         solver->p0[i] = p1;
     }
 }
+static void InterpolatePositions( Solver* solver )
+{
+    const float t = solver->delta_time_acc / solver->delta_time;
+
+    const u32 pbegin = 0;
+    const u32 pend = solver->Size();
+    for( u32 i = pbegin; i < pend; ++i )
+    {
+        const Vector3F& pp = solver->pp[i];
+        const Vector3F& p0 = solver->p0[i];
+
+        solver->x[i] = lerp( t, pp, p0 );
+    }
+}
 
 inline int SolveDistanceC( Vector3F* resultA, Vector3F* resultB, const Vector3F& posA, const Vector3F& posB, f32 massInvA, f32 massInvB, f32 restLength, f32 stiffness )
 {
@@ -354,7 +368,7 @@ static void SolveInternal( Solver* solver, u32 numIterations )
                     if( len_sqr <= radius_sqr )
                     {
                         //rdi::debug_draw::AddBox( Matrix4F::translation( p0 ), Vector3F( solver->particle_radius ), 0xFF0000FF, 1 );
-                        CollisionC c;a
+                        CollisionC c;
                         
                     }
 
@@ -411,9 +425,12 @@ void Solve( Solver* solver, u32 numIterations, float deltaTime )
 
     while( solver->delta_time_acc >= solver->delta_time )
     {
+        memcpy( solver->pp.begin(), solver->p0.begin(), solver->Size() * sizeof( Vector3F ) );
         SolveInternal( solver, numIterations );
         solver->delta_time_acc -= solver->delta_time;
     }
+
+    InterpolatePositions( solver );
 
 }
 
@@ -639,7 +656,7 @@ void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )
         return;
 
     const Body& body = GetBody( solver, idi );
-    const Vector3F* points = solver->p0.begin() + body.begin;
+    const Vector3F* points = solver->x.begin() + body.begin;
 
     if( params.draw_points )
     {
