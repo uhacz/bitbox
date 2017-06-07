@@ -115,7 +115,7 @@ void PBDScene::UpdateSpatialMap()
         return;
 
     const u32 spatial_map_size = ( _x.size * 3 ) / 2;
-    hash_grid::Build( &_hash_grid, _grid_index.begin(), _x.begin(), _x.size, spatial_map_size, _pt_radius * 2.f );
+    Build( &_hash_grid, _grid_index.begin(), _x.begin(), _x.size, spatial_map_size, _pt_radius * 2.f );
 }
 
 void PBDScene::UpdateVelocity( float deltaTime )

@@ -2,27 +2,18 @@
 #include <util/array.h>
 #include <util/id_table.h>
 #include "rdi/rdi_debug_draw.h"
+#include "../spatial_hash_grid.h"
 
 namespace bx { namespace puzzle {
 
 namespace physics
 {
-//namespace EBody
-//{
-//    enum E
-//    {
-//        eSOFT = 0,
-//        eCLOTH,
-//        eROPE,
-//        _COUNT_,
-//    };
-//}//
 
 namespace EConst
 {
     enum E
     {
-        eMAX_BODIES = 64,
+        MAX_BODIES = 64,
     };
 }//
 
@@ -51,6 +42,11 @@ struct BendingC
     u32 i3;
     f32 ra;
 };
+struct CollisionC
+{
+    Vector4F plane;
+    u32 pindex;
+};
 
 struct RestPositionC
 {
@@ -58,8 +54,9 @@ struct RestPositionC
     u32 particle_index;
 };
 
-using DistanceCArray = array_t<DistanceC>;
-using BendingCArray  = array_t<BendingC>;
+using CollisionCArray = array_t<CollisionC>;
+using DistanceCArray  = array_t<DistanceC>;
+using BendingCArray   = array_t<BendingC>;
 
 // --- bodies
 struct Body
@@ -93,7 +90,7 @@ static inline bool operator == ( const BodyIdInternal a, const BodyIdInternal b 
 
 static inline BodyId         ToBodyId        ( BodyIdInternal idi ) { return{ idi.i }; }
 static inline BodyIdInternal ToBodyIdInternal( BodyId id )          { return{ id.i }; }
-using IdTable = id_table_t< EConst::eMAX_BODIES, BodyIdInternal >;
+using IdTable = id_table_t< EConst::MAX_BODIES, BodyIdInternal >;
 using PhysicsBodyArray = array_t<Body>;
 using BodyIdInternalArray = array_t<BodyIdInternal>;
 
@@ -107,16 +104,23 @@ struct Solver
     F32Array     w;
         
     IdTable    id_tbl;
-    Body       bodies     [EConst::eMAX_BODIES];
-    BodyParams body_params[EConst::eMAX_BODIES];
+    Body       bodies     [EConst::MAX_BODIES];
+    BodyParams body_params[EConst::MAX_BODIES];
 
+    // constraints points indices are absolute
+    CollisionCArray collision_c;
+    
     // constraints points indices are relative to body
-    DistanceCArray distance_c[EConst::eMAX_BODIES];
+    DistanceCArray distance_c[EConst::MAX_BODIES];
+    
 
-    BodyIdInternal   active_bodies_idi[EConst::eMAX_BODIES] = {};
+    BodyIdInternal   active_bodies_idi[EConst::MAX_BODIES] = {};
     u16              active_bodies_count = 0;
 
     BodyIdInternalArray _to_deallocate;
+
+    HashGridStatic _hash_grid;
+    U32Array _grid_indices;
 
     u32 num_iterations = 4;
     u32 frequency = 60;
@@ -315,7 +319,50 @@ static void SolveInternal( Solver* solver, u32 numIterations )
     }
 
     // collision detection
-    {}
+    {
+        const Vector3F* points = solver->p1.begin();
+        const u32 n = solver->p1.size;
+        const float cell_size = solver->particle_radius * 2.f;
+        const u32 hash_grid_size = n * 4;
+        array::reserve( solver->_grid_indices, n );
+        array::reserve( solver->collision_c, n );
+
+        u32* indices = solver->_grid_indices.begin();
+
+        Build( &solver->_hash_grid, indices, points, n, hash_grid_size, cell_size );
+
+        const float radius_sqr = solver->particle_radius*solver->particle_radius;
+        const u32 n_active = solver->active_bodies_count;
+        for( u32 iactive = 0; iactive < n_active; ++iactive )
+        {
+            const BodyIdInternal idi = solver->active_bodies_idi[iactive];
+            const u32 i = idi.index;
+            const Body& body = solver->bodies[i];
+            const u32 body_end = body.begin + body.count;
+            for( u32 ip0 = body.begin; ip0 < body_end; ++ip0 )
+            {
+                const Vector3F& p0 = solver->p1[ip0];
+                const HashGridStatic::Indices indices = solver->_hash_grid.Get( solver->_grid_indices[ip0] );
+                for( u32 ip1 : indices )
+                {
+                    if( ip1 == ip0 )
+                        continue;
+
+                    const Vector3F& p1 = solver->p1[ip1];
+                    const Vector3F v = p1 - p0;
+                    const float len_sqr = lengthSqr( v );
+                    if( len_sqr <= radius_sqr )
+                    {
+                        //rdi::debug_draw::AddBox( Matrix4F::translation( p0 ), Vector3F( solver->particle_radius ), 0xFF0000FF, 1 );
+                        CollisionC c;a
+                        
+                    }
+
+                }
+            }
+        }
+
+    }
 
     // solve constraints
     for( u32 sit = 0; sit < numIterations; ++sit )

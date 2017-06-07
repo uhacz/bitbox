@@ -5,8 +5,8 @@
 
 namespace bx
 {
-namespace hash_grid
-{
+//namespace hash_grid
+//{
     static __forceinline u32 MakeHash( int x, int y, int z, u32 hashmapSize )
     {
         static const u32 prime[] = 
@@ -52,6 +52,7 @@ namespace hash_grid
             }data;
         };
         array_t<u64>& scratch = hg->_scratch_buffer;
+        array::clear( scratch );
         array::reserve( scratch, count );
 
         const float cellSizeInv = 1.f / cellSize;
@@ -123,11 +124,11 @@ namespace hash_grid
         hg->_cell_size = cellSize;
         hg->_cell_size_inv = cellSizeInv;
     }
-}
+//}
 
 const HashGridStatic::Indices HashGridStatic::Lookup( const Vector3F& x ) const
 {
-    const u32 index = hash_grid::ComputeIndex( x, _cell_size_inv, _lookup_array.size );
+    const u32 index = ComputeIndex( x, _cell_size_inv, _lookup_array.size );
     SYS_ASSERT( index < _lookup_array.size );
     return Get( index );
 }

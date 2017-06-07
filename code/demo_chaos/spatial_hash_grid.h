@@ -9,7 +9,6 @@ namespace bx
 
 struct HashGridStatic
 {
-
     struct Bucket
     {
         u32 begin;
@@ -34,10 +33,6 @@ struct HashGridStatic
     const Indices Lookup( const Vector3F& x ) const;
     const Indices Get( u32 index ) const;
 };
-
-namespace hash_grid
-{
-    void Build( HashGridStatic* hg, u32* xGridIndices, const Vector3F* x, u32 count, u32 hashmapSize, float cellSize );
-}//
+void Build( HashGridStatic* hg, u32* xGridIndices, const Vector3F* x, u32 count, u32 hashmapSize, float cellSize );
 
 }//

@@ -178,7 +178,10 @@ bool Game::Update()
 
     if( ImGui::Begin( "GameUpdate" ) )
     {
-        ImGui::Text( "DeltaTime: %f", _time.DeltaTimeSec() );
+        const float dt = _time.DeltaTimeSec();
+        const float dt_inv = ( dt>FLT_EPSILON ) ? 1.f / dt : 0.f;
+        ImGui::Text( "DeltaTime: %f", dt );
+        ImGui::Text( "FPS: %.2f", dt_inv );
     }
     ImGui::End();
 
