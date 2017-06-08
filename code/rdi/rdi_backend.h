@@ -839,7 +839,7 @@ namespace context
         ClearColorBuffers( cmdq, &colorTex, 1, r, g, b, a );
     }
 
-    void Swap( CommandQueue* cmdq );
+    void Swap( CommandQueue* cmdq, unsigned syncInterval = 0 );
     void GenerateMipmaps( CommandQueue* cmdq, TextureRW texture );
     TextureRW GetBackBufferTexture( CommandQueue* cmdq );
 }/// 

@@ -106,6 +106,7 @@ struct Solver
     Vector3Array p1;
     Vector3Array v;
     F32Array     w;
+    F32Array     collision_r;
         
     IdTable    id_tbl;
     Body       bodies     [EConst::MAX_BODIES];
@@ -162,6 +163,7 @@ static void ReserveParticles( Solver* solver, u32 count )
     array::reserve( solver->p1, count );
     array::reserve( solver->v , count );
     array::reserve( solver->w , count );
+    array::reserve( solver->collision_r, count );
 }
 
 static Body AllocateBody( Solver* solver, u32 particleAmount )
@@ -179,6 +181,7 @@ static Body AllocateBody( Solver* solver, u32 particleAmount )
         array::push_back( solver->p1, Vector3F( 0.f ) );
         array::push_back( solver->v, Vector3F( 0.f ) );
         array::push_back( solver->w, 1.f );
+        array::push_back( solver->collision_r, 1.f );
     }
 
     return body;
@@ -271,6 +274,8 @@ static void PredictPositions( Solver* solver, const Body& body, const BodyParams
 
         solver->p1[i] = p;
         solver->v[i] = v;
+
+        //rdi::debug_draw::AddSphere( Vector4F( p, solver->particle_radius ), 0xFF0000FF, 1 );
     }
 }
 static void UpdateVelocities( Solver* solver, float deltaTime )
@@ -284,8 +289,16 @@ static void UpdateVelocities( Solver* solver, float deltaTime )
         const Vector3F& p0 = solver->p0[i];
         const Vector3F& p1 = solver->p1[i];
 
-        solver->v[i] = ( p1 - p0 ) * delta_time_inv;
+        Vector3F v = ( p1 - p0 ) * delta_time_inv;
         solver->p0[i] = p1;
+
+        const float restitution = solver->collision_r[i];
+        v *= restitution;
+        solver->collision_r[i] = 1.f;
+
+        solver->v[i] = v;
+
+        //rdi::debug_draw::AddLine( p0, p0 + v, 0x0000FFFF, 1 );
     }
 }
 static void InterpolatePositions( Solver* solver )
@@ -328,6 +341,8 @@ static void SolveInternal( Solver* solver, u32 numIterations )
 {
     const float deltaTime = solver->delta_time;
     const float pradius = solver->particle_radius;
+    const float pradius2 = 2 * pradius;
+    const float pradius2_sqr = pradius2*pradius2;
 
     const Vector3F gravity_acc( 0.f, -9.82f, 0.f );
 
@@ -345,7 +360,6 @@ static void SolveInternal( Solver* solver, u32 numIterations )
     {
         const Vector3F* points = solver->p1.begin();
         const u32 n = solver->p1.size;
-        const float cell_size = solver->particle_radius * 2.f;
         const u32 hash_grid_size = n * 4;
         array::reserve( solver->_grid_indices, n );
         array::reserve( solver->collision_c, n * 2 );
@@ -354,11 +368,9 @@ static void SolveInternal( Solver* solver, u32 numIterations )
         array::clear( solver->particle_collision_c );
 
         u32* indices = solver->_grid_indices.begin();
-
-        Build( &solver->_hash_grid, indices, points, n, hash_grid_size, cell_size );
-
-        const float radius2 = 2 * pradius;
-        const float radius2_sqr = radius2*radius2;
+        Build( &solver->_hash_grid, indices, points, n, hash_grid_size, pradius2 );
+        
+        const float collision_threshold = pradius2_sqr - FLT_EPSILON;
         const u32 n_active = solver->active_bodies_count;
         for( u32 iactive = 0; iactive < n_active; ++iactive )
         {
@@ -371,49 +383,45 @@ static void SolveInternal( Solver* solver, u32 numIterations )
             for( u32 ip0 = body.begin; ip0 < body_end; ++ip0 )
             {
                 const Vector3F& p0 = solver->p1[ip0];
-                const HashGridStatic::Indices indices = solver->_hash_grid.Get( solver->_grid_indices[ip0] );
-                for( u32 ip1 : indices )
+                
+                for( f32 dz = -pradius; dz <= pradius; dz += pradius )
                 {
-                    if( ip1 == ip0 )
-                        continue;
-
-                    const float w0 = solver->w[ip0];
-                    const float w1 = solver->w[ip1];
-                    const float wsum = w0 + w1;
-                    if( wsum > FLT_EPSILON )
+                    for( f32 dy = -pradius; dy <= pradius; dy += pradius )
                     {
-                        const Vector3F& p1 = solver->p1[ip1];
-                        const Vector3F v = p1 - p0;
-                        const float len_sqr = lengthSqr( v );
-                        if( len_sqr < radius2_sqr )
+                        for( f32 dx = -pradius; dx <= pradius; dx += pradius )
                         {
-                            ParticleCollisionC c;
-                            c.i0 = ip0;
-                            c.i1 = ip1;
-                            array::push_back( solver->particle_collision_c, c );
-                                                        
-                            rdi::debug_draw::AddBox( Matrix4F::translation( p0 ), Vector3F( solver->particle_radius ), 0xFF0000FF, 1 );
-                            //const float wsum_inv = 1.f / wsum;
-                            //const float a0 = w0 * wsum_inv;
-                            //
-                            ////const float normalizator = ( len_sqr > FLT_EPSILON ) ? 1.f / ::sqrtf( len_sqr ) : 0.f;
-                            //const Vector3F normal = normalizeSafe( v );
-                            //const Vector3F point = lerp( 0.5f, p1, p0 );
-                            //
-                            //if( w0 > FLT_EPSILON )
-                            //{
-                            //    CollisionC c;
-                            //    c.plane = makePlane( -normal, point );
-                            //    c.pindex_abs = ip0;
-                            //    array::push_back( solver->collision_c, c );
-                            //}
-                            //if( w1 > FLT_EPSILON )
-                            //{
-                            //    CollisionC c;
-                            //    c.plane = makePlane( normal, point );
-                            //    c.pindex_abs = ip1;
-                            //    array::push_back( solver->collision_c, c );
-                            //}
+                            Vector3F lookup_pos = p0 + Vector3F( dx, dy, dz );
+                            //const HashGridStatic::Indices indices = solver->_hash_grid.Get( solver->_grid_indices[ip0] );
+                            const HashGridStatic::Indices indices = solver->_hash_grid.Lookup( lookup_pos );
+                            for( u32 ip1 : indices )
+                            {
+                                if( ip1 == ip0 )
+                                    continue;
+
+                                //if( ip0 == 7 )
+                                //{
+                                //    rdi::debug_draw::AddBox( Matrix4F::translation( p0 ), Vector3F( solver->particle_radius ), 0x00FF00FF, 1 );
+                                //    const Vector3F& p1 = solver->p1[ip1];
+                                //    rdi::debug_draw::AddBox( Matrix4F::translation( p1 ), Vector3F( solver->particle_radius ), 0xFF0000FF, 1 );
+                                //}
+
+                                const float w0 = solver->w[ip0];
+                                const float w1 = solver->w[ip1];
+                                const float wsum = w0 + w1;
+                                if( wsum > FLT_EPSILON )
+                                {
+                                    const Vector3F& p1 = solver->p1[ip1];
+                                    const Vector3F v = p1 - p0;
+                                    const float len_sqr = lengthSqr( v );
+                                    if( len_sqr < collision_threshold )
+                                    {
+                                        ParticleCollisionC c;
+                                        c.i0 = ip0;
+                                        c.i1 = ip1;
+                                        array::push_back( solver->particle_collision_c, c );
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -421,42 +429,82 @@ static void SolveInternal( Solver* solver, u32 numIterations )
         }
 
     }
+    // collision
+    for( const ParticleCollisionC& c : solver->particle_collision_c )
+    {
+        const Vector3F& p0 = solver->p1[c.i0];
+        const Vector3F& p1 = solver->p1[c.i1];
 
+        //const BodyParams& params0 = solver->body_params[c.i0];
+        //const BodyParams& params1 = solver->body_params[c.i1];
+
+        const Vector3F v = p1 - p0;
+        const float dsqr = lengthSqr( v );
+        if( dsqr < pradius2_sqr )
+        {
+            const float w0 = solver->w[c.i0];
+            const float w1 = solver->w[c.i1];
+            const float wsum = w0 + w1;
+            const float wsum_inv = 1.f / wsum;
+            const float d = ::sqrtf( dsqr );
+            const float drcp = ( d > FLT_EPSILON ) ? 1.f / d : 0.f;
+            const Vector3F n = v * drcp;
+            const Vector3F dpos = n * ( d - pradius2 ) * wsum_inv;
+            const Vector3F dpos0 = dpos * w0;
+            const Vector3F dpos1 = -dpos * w1;
+
+            solver->p1[c.i0] = p0 + dpos0;
+            solver->p1[c.i1] = p1 + dpos1;
+        }
+    #if 0
+        const float dist_sqr = lengthSqr( v );
+        if( dist_sqr < pradius2_sqr )
+        {
+            const float w0 = solver->w[c.i0];
+            const float w1 = solver->w[c.i1];
+
+            const float wsum = w0 + w1;
+            float wsum_inv = 1.f / wsum;
+
+            Vector3F n = normalize( v );
+            float d = ::sqrtf( dist_sqr );
+            //n *= ( d > FLT_EPSILON ) ? 1.f / d : 0.f;
+
+            const float restitution = 0.5f; // ( params0.restitution + params1.restitution ) * 0.5f;
+
+            const float diff = d - pradius2;
+            const Vector3F dpos = n * diff * wsum_inv;
+
+            const Vector3F dpos0 = dpos * w0;// * ( 1 + restitution );
+            const Vector3F dpos1 = -dpos * w1;// * ( 1 + restitution );
+
+            solver->p1[c.i0] += dpos0;
+            solver->p1[c.i1] += dpos1;
+
+            //solver->collision_r[c.i0] = minOfPair( solver->collision_r[c.i0], restitution );
+            //solver->collision_r[c.i1] = minOfPair( solver->collision_r[c.i1], restitution );
+
+        }
+    #endif
+    }
 
 
     // solve constraints
     for( u32 sit = 0; sit < numIterations; ++sit )
     {
-        // collision
-        const float pradius2 = pradius*2.f;
-        const float pradius2_sqr = pradius2*pradius2;
-        for( const ParticleCollisionC& c : solver->particle_collision_c )
-        {
-            const Vector3F& p0 = solver->p1[c.i0];
-            const Vector3F& p1 = solver->p1[c.i1];
-            const float dist_sqr = lengthSqr( p1 - p0 );
-            if( dist_sqr < pradius2_sqr )
-            {
-                const float w0 = solver->w[c.i0];
-                const float w1 = solver->w[c.i1];
-                Vector3F dpos0, dpos1;
-                SolveDistanceC( &dpos0, &dpos1, p0, p1, w0, w1, pradius2, 1.f );
-                solver->p1[c.i0] += dpos0;
-                solver->p1[c.i1] += dpos1;
-            }
-        }
+        
 
-        for( const CollisionC& c : solver->collision_c )
-        {
-            const Vector3F& p = solver->p1[c.pindex_abs];
-            float d = dot( c.plane, Vector4F( p, 1.f ) );
-            if( d < pradius )
-            {
-                d -= pradius;
-                const Vector3F newp = p - (c.plane.getXYZ() * d);
-                solver->p1[c.pindex_abs] = newp;
-            }
-        }
+        //for( const CollisionC& c : solver->collision_c )
+        //{
+        //    const Vector3F& p = solver->p1[c.pindex_abs];
+        //    float d = dot( c.plane, Vector4F( p, 1.f ) );
+        //    if( d < pradius )
+        //    {
+        //        d -= pradius;
+        //        const Vector3F newp = p - (c.plane.getXYZ() * d);
+        //        solver->p1[c.pindex_abs] = newp;
+        //    }
+        //}
         
         
         
@@ -501,7 +549,7 @@ void Solve( Solver* solver, u32 numIterations, float deltaTime )
     RebuldConstraints( solver );
 
     solver->delta_time_acc += deltaTime;
-
+    //solver->delta_time = 0.001f;
     while( solver->delta_time_acc >= solver->delta_time )
     {
         memcpy( solver->pp.begin(), solver->p0.begin(), solver->Size() * sizeof( Vector3F ) );
@@ -736,7 +784,7 @@ void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )
 
     const Body& body = GetBody( solver, idi );
     const Vector3F* points = solver->x.begin() + body.begin;
-
+    
     if( params.draw_points )
     {
         const float radius = solver->particle_radius;

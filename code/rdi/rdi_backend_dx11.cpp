@@ -1659,9 +1659,9 @@ void ClearColorBuffers( CommandQueue* cmdq, TextureRW* colorTex, unsigned nColor
 
 
 
-void Swap( CommandQueue* cmdq )
+void Swap( CommandQueue* cmdq, unsigned syncInterval )
 {
-    cmdq->_swapChain->Present( 0, 0 );
+    cmdq->_swapChain->Present( syncInterval, 0 );
 }
 void GenerateMipmaps( CommandQueue* cmdq, TextureRW texture )
 {

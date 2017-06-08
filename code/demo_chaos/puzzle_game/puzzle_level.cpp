@@ -45,12 +45,13 @@ void LevelState::OnStartUp()
 
     _player = PlayerCreate( "playerLocal" );
 
-    physics::Create( &_solver, 1024 * 8, 0.5f );
+    physics::Create( &_solver, 1024 * 8, 0.051f );
+    physics::SetFrequency( _solver, 120 );
 
     const Vector3F axis[5] =
     {
         Vector3F::xAxis(),
-       -Vector3F::xAxis(),
+        Vector3F::zAxis(),
         -Vector3F::yAxis(),
         -Vector3F::zAxis(),
         -Vector3F::xAxis(),
@@ -58,10 +59,17 @@ void LevelState::OnStartUp()
 
     for( u32 i = 0; i < NUM_ROPES; i++ )
     {
-        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 10.f, 0.f ), axis[i], 4.f, 1.f + ( i * 0.1f ) );
+        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 10.f, 0.f ), axis[i % 5], 10.f, 1.f + ( i * 0.1f ) );
         float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
         mass_inv[0] = 0.f;
         physics::Unmap( _solver, mass_inv );
+
+        physics::BodyParams params;
+        physics::GetBodyParams( &params, _solver, _rope[i] );
+        params.restitution = 1.0f;
+        physics::SetBodyParams( _solver, _rope[i], params );
+
+
     }
 }
 
@@ -89,9 +97,9 @@ void LevelState::OnUpdate( const GameTime& time )
     PlayerTick( time.delta_time_us );
     physics::Solve( _solver, 4, time.DeltaTimeSec() );
 
-    for( size_t i = 0; i < 5; i++ )
+    for( size_t i = 0; i < NUM_ROPES; i++ )
     {
-        physics::DebugDraw( _solver, _rope[i], physics::DebugDrawBodyParams() );
+        physics::DebugDraw( _solver, _rope[i], physics::DebugDrawBodyParams().NoConstraints() );
     }
 
 }
