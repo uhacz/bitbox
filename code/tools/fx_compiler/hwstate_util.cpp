@@ -5,18 +5,18 @@ using namespace bx;
 
 namespace DepthFunc
 {
-	gdi::EDepthFunc fromString( const char* str )
+	rdi::EDepthFunc::Enum fromString( const char* str )
     {
-        gdi::EDepthFunc value = gdi::eDEPTH_FUNC_LEQUAL;
+        rdi::EDepthFunc::Enum value = rdi::EDepthFunc::LEQUAL;
 
-	    if	   ( !strcmp( str, "NEVER" 	  ) ) value = gdi::eDEPTH_FUNC_NEVER;
-	    else if( !strcmp( str, "LESS" 	  ) ) value = gdi::eDEPTH_FUNC_LESS;
-	    else if( !strcmp( str, "EQUAL" 	  ) ) value = gdi::eDEPTH_FUNC_EQUAL;
-	    else if( !strcmp( str, "LEQUAL"   ) ) value = gdi::eDEPTH_FUNC_LEQUAL;
-	    else if( !strcmp( str, "GREATER"  ) ) value = gdi::eDEPTH_FUNC_GREATER;
-	    else if( !strcmp( str, "NOTEQUAL" ) ) value = gdi::eDEPTH_FUNC_NOTEQUAL;
-	    else if( !strcmp( str, "GEQUAL"   ) ) value = gdi::eDEPTH_FUNC_GEQUAL;
-	    else if( !strcmp( str, "ALWAYS"   ) ) value = gdi::eDEPTH_FUNC_ALWAYS;
+	    if	   ( !strcmp( str, "NEVER" 	  ) ) value = rdi::EDepthFunc::NEVER;
+	    else if( !strcmp( str, "LESS" 	  ) ) value = rdi::EDepthFunc::LESS;
+	    else if( !strcmp( str, "EQUAL" 	  ) ) value = rdi::EDepthFunc::EQUAL;
+	    else if( !strcmp( str, "LEQUAL"   ) ) value = rdi::EDepthFunc::LEQUAL;
+	    else if( !strcmp( str, "GREATER"  ) ) value = rdi::EDepthFunc::GREATER;
+	    else if( !strcmp( str, "NOTEQUAL" ) ) value = rdi::EDepthFunc::NOTEQUAL;
+	    else if( !strcmp( str, "GEQUAL"   ) ) value = rdi::EDepthFunc::GEQUAL;
+	    else if( !strcmp( str, "ALWAYS"   ) ) value = rdi::EDepthFunc::ALWAYS;
 
 	    return value;
     }
@@ -24,35 +24,35 @@ namespace DepthFunc
 
 namespace BlendFactor
 {
-	gdi::EBlendFactor fromString( const char* str )
+	rdi::EBlendFactor::Enum fromString( const char* str )
     {
-        gdi::EBlendFactor value = gdi::eBLEND_ZERO;
+        rdi::EBlendFactor::Enum value = rdi::EBlendFactor::ZERO;
 	
-	    if	   ( !strcmp( str, "ZERO" 				 ) )	value = gdi::eBLEND_ZERO;
-	    else if( !strcmp( str, "ONE" 				 ) )	value = gdi::eBLEND_ONE;
-	    else if( !strcmp( str, "SRC_COLOR" 			 ) )	value = gdi::eBLEND_SRC_COLOR;
-	    else if( !strcmp( str, "ONE_MINUS_SRC_COLOR" ) )	value = gdi::eBLEND_ONE_MINUS_SRC_COLOR;
-	    else if( !strcmp( str, "DST_COLOR" 			 ) )	value = gdi::eBLEND_DST_COLOR;
-	    else if( !strcmp( str, "ONE_MINUS_DST_COLOR" ) )	value = gdi::eBLEND_ONE_MINUS_DST_COLOR;
-	    else if( !strcmp( str, "SRC_ALPHA" 			 ) )	value = gdi::eBLEND_SRC_ALPHA;
-	    else if( !strcmp( str, "ONE_MINUS_SRC_ALPHA" ) )	value = gdi::eBLEND_ONE_MINUS_SRC_ALPHA;
-	    else if( !strcmp( str, "DST_ALPHA" 			 ) )	value = gdi::eBLEND_DST_ALPHA;
-	    else if( !strcmp( str, "ONE_MINUS_DST_ALPHA" ) )	value = gdi::eBLEND_ONE_MINUS_DST_ALPHA;
-	    else if( !strcmp( str, "SRC_ALPHA_SATURATE"  ) )	value = gdi::eBLEND_SRC_ALPHA_SATURATE;
+	    if	   ( !strcmp( str, "ZERO" 				 ) )	value = rdi::EBlendFactor::ZERO;
+	    else if( !strcmp( str, "ONE" 				 ) )	value = rdi::EBlendFactor::ONE;
+	    else if( !strcmp( str, "SRC_COLOR" 			 ) )	value = rdi::EBlendFactor::SRC_COLOR;
+	    else if( !strcmp( str, "ONE_MINUS_SRC_COLOR" ) )	value = rdi::EBlendFactor::ONE_MINUS_SRC_COLOR;
+	    else if( !strcmp( str, "DST_COLOR" 			 ) )	value = rdi::EBlendFactor::DST_COLOR;
+	    else if( !strcmp( str, "ONE_MINUS_DST_COLOR" ) )	value = rdi::EBlendFactor::ONE_MINUS_DST_COLOR;
+	    else if( !strcmp( str, "SRC_ALPHA" 			 ) )	value = rdi::EBlendFactor::SRC_ALPHA;
+	    else if( !strcmp( str, "ONE_MINUS_SRC_ALPHA" ) )	value = rdi::EBlendFactor::ONE_MINUS_SRC_ALPHA;
+	    else if( !strcmp( str, "DST_ALPHA" 			 ) )	value = rdi::EBlendFactor::DST_ALPHA;
+	    else if( !strcmp( str, "ONE_MINUS_DST_ALPHA" ) )	value = rdi::EBlendFactor::ONE_MINUS_DST_ALPHA;
+	    else if( !strcmp( str, "SRC_ALPHA_SATURATE"  ) )	value = rdi::EBlendFactor::SRC_ALPHA_SATURATE;
 	    return value;
     }
 }//
 
 namespace BlendEquation
 {
-    gdi::EBlendEquation fromString( const char* str )
+    rdi::EBlendEquation::Enum fromString( const char* str )
     {
-        gdi::EBlendEquation value = gdi::eBLEND_ADD;
-        if     ( !strcmp( str, "ADD"         ) ) value = gdi::eBLEND_ADD; 
-        else if( !strcmp( str, "SUB"         ) ) value = gdi::eBLEND_SUB;
-        else if( !strcmp( str, "REVERSE_SUB" ) ) value = gdi::eBLEND_REVERSE_SUB;
-        else if( !strcmp( str, "MIN"         ) ) value = gdi::eBLEND_MIN;
-        else if( !strcmp( str, "MAX"         ) ) value = gdi::eBLEND_MAX;
+        rdi::EBlendEquation::Enum value = rdi::EBlendEquation::ADD;
+        if     ( !strcmp( str, "ADD"         ) ) value = rdi::EBlendEquation::ADD; 
+        else if( !strcmp( str, "SUB"         ) ) value = rdi::EBlendEquation::SUB;
+        else if( !strcmp( str, "REVERSE_SUB" ) ) value = rdi::EBlendEquation::REVERSE_SUB;
+        else if( !strcmp( str, "MIN"         ) ) value = rdi::EBlendEquation::MIN;
+        else if( !strcmp( str, "MAX"         ) ) value = rdi::EBlendEquation::MAX;
 
         return value;
     }
@@ -60,23 +60,23 @@ namespace BlendEquation
 
 namespace Culling
 {
-	gdi::ECulling fromString( const char* str )
+	rdi::ECullMode::Enum fromString( const char* str )
     {
-        gdi::ECulling value = gdi::eCULL_BACK;
-	    if	   ( !strcmp( str, "NONE"  ) ) value = gdi::eCULL_NONE;
-	    else if( !strcmp( str, "BACK"  ) ) value = gdi::eCULL_BACK;
-	    else if( !strcmp( str, "FRONT" ) ) value = gdi::eCULL_FRONT;
+        rdi::ECullMode::Enum value = rdi::ECullMode::BACK;
+	    if	   ( !strcmp( str, "NONE"  ) ) value = rdi::ECullMode::NONE;
+	    else if( !strcmp( str, "BACK"  ) ) value = rdi::ECullMode::BACK;
+	    else if( !strcmp( str, "FRONT" ) ) value = rdi::ECullMode::FRONT;
 	    return value;
     }
 }//
 
 namespace Fillmode
 {
-	gdi::EFillmode fromString( const char* str )
+	rdi::EFillMode::Enum fromString( const char* str )
     {
-        gdi::EFillmode value = gdi::eFILL_SOLID;
-	    if( !strcmp( str, "SOLID" ) ) value = gdi::eFILL_SOLID;
-	    if( !strcmp( str, "WIREFRAME" ) ) value = gdi::eFILL_WIREFRAME;
+        rdi::EFillMode::Enum value = rdi::EFillMode::SOLID;
+	    if( !strcmp( str, "SOLID"     ) ) value = rdi::EFillMode::SOLID;
+	    if( !strcmp( str, "WIREFRAME" ) ) value = rdi::EFillMode::WIREFRAME;
 	    return value;
     }
 }// 
@@ -91,11 +91,11 @@ namespace ColorMask
         const char* g = strchr( str, 'G' );
         const char* b = strchr( str, 'B' );
         const char* a = strchr( str, 'A' );
-
-	    value |= (r) ? gdi::eCOLOR_MASK_RED : 0;
-	    value |= (g) ? gdi::eCOLOR_MASK_GREEN : 0;
-	    value |= (b) ? gdi::eCOLOR_MASK_BLUE : 0;
-	    value |= (a) ? gdi::eCOLOR_MASK_ALPHA : 0;
+        
+        value |= ( r ) ? rdi::EColorMask::RED : 0;
+        value |= ( g ) ? rdi::EColorMask::GREEN : 0;
+        value |= ( b ) ? rdi::EColorMask::BLUE : 0;
+        value |= ( a ) ? rdi::EColorMask::ALPHA : 0;
 
 	    return value;
     }

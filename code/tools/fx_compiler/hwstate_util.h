@@ -1,30 +1,31 @@
 #pragma once
 
-#include <gdi/gdi_backend.h>
+//#include <gdi/gdi_backend.h>
+#include <rdi/rdi_backend.h>
 
 namespace DepthFunc
 {
-	extern bx::gdi::EDepthFunc fromString( const char* str );
+	extern bx::rdi::EDepthFunc::Enum fromString( const char* str );
 }//
 
 namespace BlendFactor
 {
-	extern bx::gdi::EBlendFactor fromString( const char* str );
+	extern bx::rdi::EBlendFactor::Enum fromString( const char* str );
 }//
 
 namespace BlendEquation
 {
-    extern bx::gdi::EBlendEquation fromString( const char* str );
+    extern bx::rdi::EBlendEquation::Enum fromString( const char* str );
 }//
 
 namespace Culling
 {
-	extern bx::gdi::ECulling fromString( const char* str );
+	extern bx::rdi::ECullMode::Enum fromString( const char* str );
 }//
 
 namespace Fillmode
 {
-	extern bx::gdi::EFillmode fromString( const char* str );
+	extern bx::rdi::EFillMode::Enum fromString( const char* str );
 }// 
 
 namespace ColorMask

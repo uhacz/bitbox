@@ -300,7 +300,7 @@ namespace tjdb
         rdi::Shutdown();
 
         ResourceManager* rsMan = GResourceManager();
-        ResourceManager::shutdown( &rsMan );
+        ResourceManager::shutdown();
         bxConfig::global_deinit();
     }
 

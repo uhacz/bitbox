@@ -5,6 +5,7 @@
 
 int main( int argc, const char** argv )
 {
+    bx::memory::StartUp();
 #if FINAL == 1
     unsigned w = 1920;
     unsigned h = 1080;
@@ -27,5 +28,6 @@ int main( int argc, const char** argv )
         bxWindow_release();
     }
 
+    bx::memory::ShutDown();
     return 0;
 }

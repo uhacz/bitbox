@@ -22,18 +22,6 @@ namespace Const
 }//
 
 //////////////////////////////////////////////////////////////////////////
-struct PlayerName
-{
-    char* str = nullptr;
-
-    ~PlayerName()
-    {
-        BX_FREE0( bxDefaultAllocator(), str );
-    }
-};
-void SetName( PlayerName* pn, const char* str );
-
-//////////////////////////////////////////////////////////////////////////
 struct PlayerInput
 {
     f32 analogX = 0.f;

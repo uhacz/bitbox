@@ -33,7 +33,9 @@ public:
 
     Player _player = {};
     physics::Solver* _solver = nullptr;
-    physics::BodyId _rope[5];
+
+    static const unsigned NUM_ROPES = 2;
+    physics::BodyId _rope[NUM_ROPES];
 };
 
 }}//

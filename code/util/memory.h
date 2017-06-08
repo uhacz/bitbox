@@ -35,6 +35,8 @@ void BX_DELETE( bxAllocator* alloc, T* ptr )
 
 namespace bx{
 namespace memory{
+    void StartUp();
+    void ShutDown();
 
     inline void* alignForward( void *p, u32 align )
     {

@@ -3,12 +3,6 @@
 namespace bx{ namespace puzzle {
 
 //////////////////////////////////////////////////////////////////////////
-void SetName( PlayerName* pn, const char* str )
-{
-    pn->str = string::duplicate( pn->str, str );
-}
-
-//////////////////////////////////////////////////////////////////////////
 void Collect( PlayerInput* playerInput, const bxInput& input, float deltaTime )
 {
     float analogX = 0.f;

@@ -392,7 +392,7 @@ static void SolveInternal( Solver* solver, u32 numIterations )
                             c.i1 = ip1;
                             array::push_back( solver->particle_collision_c, c );
                                                         
-                            //rdi::debug_draw::AddBox( Matrix4F::translation( p0 ), Vector3F( solver->particle_radius ), 0xFF0000FF, 1 );
+                            rdi::debug_draw::AddBox( Matrix4F::translation( p0 ), Vector3F( solver->particle_radius ), 0xFF0000FF, 1 );
                             //const float wsum_inv = 1.f / wsum;
                             //const float a0 = w0 * wsum_inv;
                             //
@@ -691,7 +691,7 @@ BodyId CreateRope( Solver* solver, const Vector3F& attach, const Vector3F& axis,
     const float pradius = physics::GetParticleRadius( solver );
 
     const u32 num_points = (u32)( len / ( pradius * 2.f ) );
-    const float step = (len / (float)( num_points )) + 0.05f;
+    const float step = ( len / (float)( num_points ) );
     const float particle_mass_inv = ( particleMass > FLT_EPSILON ) ? 1.f / particleMass : 0.f;
     BodyId rope = physics::CreateBody( solver, num_points );
 

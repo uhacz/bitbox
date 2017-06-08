@@ -1,8 +1,11 @@
 #include <system/application.h>
 #include <system/window.h>
-#include <gdi/gdi_context.h>
-#include <gdi/gdi_render_source.h>
-#include <gdi/gdi_shader.h>
+//#include <gdi/gdi_context.h>
+//#include <gdi/gdi_render_source.h>
+//#include <gdi/gdi_shader.h>
+
+#include <rdi/rdi.h>
+
 #include <resource_manager/resource_manager.h>
 
 #include <util/vectormath/vectormath.h>
@@ -12,6 +15,7 @@
 #include <util/random.h>
 #include <util/time.h>
 #include <stdio.h>
+#include "util/camera.h"
 //#include "gfx/gfx_camera.h"
 
 static const Vector4 spheres[] =
@@ -374,40 +378,44 @@ public:
     virtual bool startup( int argc, const char** argv )
     {
         bxWindow* win = bxWindow_get();
-        _resourceManager = bxResourceManager::startup( "d:/dev/code/bitBox/assets/" );
+        bx::ResourceManager::startup( "d:/dev/code/bitBox/assets/" );
         //_resourceManager = bxResourceManager::startup( "d:/tmp/bitBox/assets/" );
-        bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
+        bx::rdi::Startup( (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
-        _gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
-        _gdiContext->_Startup( _gdiDevice );
 
-        {//// fullScreenQuad
-            const float vertices[] =
-            {
-                -1.f, -1.f, 0.f, 0.f, 0.f,
-                1.f, -1.f, 0.f, 1.f, 0.f,
-                1.f, 1.f, 0.f, 1.f, 1.f,
 
-                -1.f, -1.f, 0.f, 0.f, 0.f,
-                1.f, 1.f, 0.f, 1.f, 1.f,
-                -1.f, 1.f, 0.f, 0.f, 1.f,
-            };
-            bxGdiVertexStreamDesc vsDesc;
-            vsDesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
-            vsDesc.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 );
-            bxGdiVertexBuffer vBuffer = _gdiDevice->createVertexBuffer( vsDesc, 6, vertices );
+        //bxGdi::backendStartup( &_gdiDevice, (uptr)win->hwnd, win->width, win->height, win->full_screen );
 
-            _fullScreenQuad = bxGdi::renderSource_new( 1 );
-            bxGdi::renderSource_setVertexBuffer( _fullScreenQuad, vBuffer, 0 );
-        }
-        {
-            _fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "pathtracer" );
-        }
-        {
-            _spheresBuffer = _gdiDevice->createBuffer( 1024, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
-            _colorsBuffer  = _gdiDevice->createBuffer( 1024, bxGdiFormat( bxGdi::eTYPE_FLOAT, 3 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+        //_gdiContext = BX_NEW( bxDefaultAllocator(), bxGdiContext );
+        //_gdiContext->_Startup( _gdiDevice );
 
-        }
+        //{//// fullScreenQuad
+        //    const float vertices[] =
+        //    {
+        //        -1.f, -1.f, 0.f, 0.f, 0.f,
+        //        1.f, -1.f, 0.f, 1.f, 0.f,
+        //        1.f, 1.f, 0.f, 1.f, 1.f,
+
+        //        -1.f, -1.f, 0.f, 0.f, 0.f,
+        //        1.f, 1.f, 0.f, 1.f, 1.f,
+        //        -1.f, 1.f, 0.f, 0.f, 1.f,
+        //    };
+        //    bxGdiVertexStreamDesc vsDesc;
+        //    vsDesc.addBlock( bxGdi::eSLOT_POSITION, bxGdi::eTYPE_FLOAT, 3 );
+        //    vsDesc.addBlock( bxGdi::eSLOT_TEXCOORD0, bxGdi::eTYPE_FLOAT, 2 );
+        //    bxGdiVertexBuffer vBuffer = _gdiDevice->createVertexBuffer( vsDesc, 6, vertices );
+
+        //    _fullScreenQuad = bxGdi::renderSource_new( 1 );
+        //    bxGdi::renderSource_setVertexBuffer( _fullScreenQuad, vBuffer, 0 );
+        //}
+        //{
+        //    _fxI = bxGdi::shaderFx_createWithInstance( _gdiDevice, _resourceManager, "pathtracer" );
+        //}
+        //{
+        //    _spheresBuffer = _gdiDevice->createBuffer( 1024, bxGdiFormat( bxGdi::eTYPE_FLOAT, 4 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+        //    _colorsBuffer  = _gdiDevice->createBuffer( 1024, bxGdiFormat( bxGdi::eTYPE_FLOAT, 3 ), bxGdi::eBIND_SHADER_RESOURCE, bxGdi::eCPU_WRITE, bxGdi::eGPU_READ );
+
+        //}
 
         const Vector3 eye = Vector3( 2.f, 5.f, 25.f );
         _camera_worldMatrix = inverse( Matrix4::lookAt( Point3(eye), Point3(0.f), Vector3::yAxis() ) );
@@ -418,17 +426,17 @@ public:
     }
     virtual void shutdown()
     {
-        _gdiDevice->releaseBuffer( &_colorsBuffer );
-        _gdiDevice->releaseBuffer( &_spheresBuffer );
+        //_gdiDevice->releaseBuffer( &_colorsBuffer );
+        //_gdiDevice->releaseBuffer( &_spheresBuffer );
 
-        bxGdi::shaderFx_releaseWithInstance( _gdiDevice, &_fxI );
-        bxGdi::renderSource_releaseAndFree( _gdiDevice, &_fullScreenQuad );
+        //bxGdi::shaderFx_releaseWithInstance( _gdiDevice, &_fxI );
+        //bxGdi::renderSource_releaseAndFree( _gdiDevice, &_fullScreenQuad );
 
-        _gdiContext->_Shutdown();
-        BX_DELETE0( bxDefaultAllocator(), _gdiContext );
+        //_gdiContext->_Shutdown();
+        //BX_DELETE0( bxDefaultAllocator(), _gdiContext );
 
-        bxGdi::backendShutdown( &_gdiDevice );
-        bxResourceManager::shutdown( &_resourceManager );
+        bx::rdi::Shutdown();
+        bx::ResourceManager::shutdown();
     }
     virtual bool update( u64 deltaTimeUS )
     {
@@ -440,49 +448,49 @@ public:
 
         const float deltaTime = (float)bxTime::toSeconds( deltaTimeUS );
 
-        bxGfx::cameraUtil_updateInput( &_camera_inputCtx, &win->input, 1.f, deltaTime );
-        _camera_worldMatrix = bxGfx::cameraUtil_movement( _camera_worldMatrix
-            , _camera_inputCtx.leftInputX * 0.25f 
-            , _camera_inputCtx.leftInputY * 0.25f 
-            , _camera_inputCtx.rightInputX * deltaTime * 5.f
-            , _camera_inputCtx.rightInputY * deltaTime * 5.f
-            , _camera_inputCtx.upDown * 0.25f );
+        //bxGfx::cameraUtil_updateInput( &_camera_inputCtx, &win->input, 1.f, deltaTime );
+        //_camera_worldMatrix = bxGfx::cameraUtil_movement( _camera_worldMatrix
+        //    , _camera_inputCtx.leftInputX * 0.25f 
+        //    , _camera_inputCtx.leftInputY * 0.25f 
+        //    , _camera_inputCtx.rightInputX * deltaTime * 5.f
+        //    , _camera_inputCtx.rightInputY * deltaTime * 5.f
+        //    , _camera_inputCtx.upDown * 0.25f );
 
-        const float2_t resolution = float2_t(( float)win->width, (float)win->height );
-        const float aspect = resolution.x / resolution.y;
+        //const float2_t resolution = float2_t(( float)win->width, (float)win->height );
+        //const float aspect = resolution.x / resolution.y;
 
-        _fxI->setUniform( "_cameraX", _camera_worldMatrix.getCol0() );
-        _fxI->setUniform( "_cameraY", _camera_worldMatrix.getCol1() );
-        _fxI->setUniform( "_cameraZ", _camera_worldMatrix.getCol2() );
-        _fxI->setUniform( "_cameraEye", _camera_worldMatrix.getTranslation() );
-        _fxI->setUniform( "_sunDir", _sunDir );
-        _fxI->setUniform( "_sunColor", _sunColor );
-        _fxI->setUniform( "_resolution", resolution );
-        _fxI->setUniform( "_aspect", aspect );
-        _fxI->setUniform( "_time", bxTime::toSeconds( _timeUS ) );
-        _fxI->setUniform( "_numSpheres", nSpheres );
-        {
-            u8* dstData = bxGdi::buffer_map( _gdiContext->backend(), _spheresBuffer, 0, nSpheres );
-            memcpy( dstData, spheres, sizeof( spheres ) );
-            _gdiContext->backend()->unmap( _spheresBuffer.rs );
-        }
-        {
-            u8* dstData = bxGdi::buffer_map( _gdiContext->backend(), _colorsBuffer, 0, nSpheres );
-            memcpy( dstData, colors, sizeof( colors ) );
-            _gdiContext->backend()->unmap( _colorsBuffer.rs );
-        }
-        
-        _gdiContext->changeToMainFramebuffer();
-        _gdiContext->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 0 );
-        _gdiContext->setBufferRO( _spheresBuffer, 0, bxGdi::eSTAGE_MASK_PIXEL );
-        _gdiContext->setBufferRO( _colorsBuffer, 1, bxGdi::eSTAGE_MASK_PIXEL );
+        //_fxI->setUniform( "_cameraX", _camera_worldMatrix.getCol0() );
+        //_fxI->setUniform( "_cameraY", _camera_worldMatrix.getCol1() );
+        //_fxI->setUniform( "_cameraZ", _camera_worldMatrix.getCol2() );
+        //_fxI->setUniform( "_cameraEye", _camera_worldMatrix.getTranslation() );
+        //_fxI->setUniform( "_sunDir", _sunDir );
+        //_fxI->setUniform( "_sunColor", _sunColor );
+        //_fxI->setUniform( "_resolution", resolution );
+        //_fxI->setUniform( "_aspect", aspect );
+        //_fxI->setUniform( "_time", bxTime::toSeconds( _timeUS ) );
+        //_fxI->setUniform( "_numSpheres", nSpheres );
+        //{
+        //    u8* dstData = bxGdi::buffer_map( _gdiContext->backend(), _spheresBuffer, 0, nSpheres );
+        //    memcpy( dstData, spheres, sizeof( spheres ) );
+        //    _gdiContext->backend()->unmap( _spheresBuffer.rs );
+        //}
+        //{
+        //    u8* dstData = bxGdi::buffer_map( _gdiContext->backend(), _colorsBuffer, 0, nSpheres );
+        //    memcpy( dstData, colors, sizeof( colors ) );
+        //    _gdiContext->backend()->unmap( _colorsBuffer.rs );
+        //}
+        //
+        //_gdiContext->changeToMainFramebuffer();
+        //_gdiContext->clearBuffers( 0.f, 0.f, 0.f, 1.f, 1.f, 1, 0 );
+        //_gdiContext->setBufferRO( _spheresBuffer, 0, bxGdi::eSTAGE_MASK_PIXEL );
+        //_gdiContext->setBufferRO( _colorsBuffer, 1, bxGdi::eSTAGE_MASK_PIXEL );
 
-        bxGdi::renderSource_enable( _gdiContext, _fullScreenQuad );
-        bxGdi::shaderFx_enable( _gdiContext, _fxI, 0 );
+        //bxGdi::renderSource_enable( _gdiContext, _fullScreenQuad );
+        //bxGdi::shaderFx_enable( _gdiContext, _fxI, 0 );
 
-        bxGdi::renderSurface_draw( _gdiContext, bxGdi::renderSource_surface( _fullScreenQuad, bxGdi::eTRIANGLES ) );
+        //bxGdi::renderSurface_draw( _gdiContext, bxGdi::renderSource_surface( _fullScreenQuad, bxGdi::eTRIANGLES ) );
 
-        _gdiContext->backend()->swap();
+        //_gdiContext->backend()->swap();
 
         _timeUS += deltaTimeUS;
 
@@ -490,17 +498,20 @@ public:
 
     }
 
-    bxGdiDeviceBackend* _gdiDevice;
-    bxGdiContext*       _gdiContext;
-    bxResourceManager* _resourceManager;
+    //bxGdiDeviceBackend* _gdiDevice;
+    //bxGdiContext*       _gdiContext;
 
-    bxGdiShaderFx_Instance* _fxI;
-    bxGdiRenderSource* _fullScreenQuad;
+    //bxGdiShaderFx_Instance* _fxI;
+    //bxGdiRenderSource* _fullScreenQuad;
+    //
+    //bxGdiBuffer _spheresBuffer;
+    //bxGdiBuffer _colorsBuffer;
 
-    bxGdiBuffer _spheresBuffer;
-    bxGdiBuffer _colorsBuffer;
+    bx::rdi::Pipeline _pipeline = BX_RDI_NULL_HANDLE;
+    bx::rdi::BufferRO _spheresBuffer;
+    bx::rdi::BufferRO _colorsBuffer;
 
-    bxGfxCamera_InputContext _camera_inputCtx;
+    bx::gfx::CameraInputContext _camera_inputCtx;
     Matrix4 _camera_worldMatrix;
 
     u64 _timeUS;
@@ -510,6 +521,7 @@ public:
 int main( int argc, const char* argv[] )
 {
     //bxPathTracer::doPathTracing( 1024, 1024, 2048, 16 );
+    bx::memory::StartUp();
 
     bxWindow* window = bxWindow_create( "demo", 640, 640, false, 0 );
     if ( window )
@@ -524,5 +536,6 @@ int main( int argc, const char* argv[] )
         bxWindow_release();
     }
 
+    bx::memory::ShutDown();
     return 0;
 }

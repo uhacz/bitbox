@@ -17,8 +17,8 @@
 #include <util/filesystem.h>
 #include <util/memory.h>
 
-#include <gdi/gdi_shader.h>
-#include <gdi/dx11/gdi_backend_dx11.h>
+
+#include <rdi/rdi_backend_dx11.h>
 #include "util/buffer_utils.h"
 #include "util/hash.h"
 
@@ -85,7 +85,7 @@ namespace
         return ok;
     }
     
-    void _extract_hwstate( bxGdiHwStateDesc* hwstate, config_setting_t* hwstate_setting )
+    void _extract_hwstate( rdi::HardwareStateDesc* hwstate, config_setting_t* hwstate_setting )
     {
         //blend.enable = 0;
         //blend.color_mask = ColorMask::eALL;
@@ -167,19 +167,19 @@ namespace
         {
             config_setting_t* cfgpass = config_setting_get_elem( cfg_passes, i );
 
-            const char* entry_points[gdi::eDRAW_STAGES_COUNT] = 
+            const char* entry_points[rdi::EStage::DRAW_STAGES_COUNT] =
             {
                 0,
                 0,
             };
 
-            const char* versions[gdi::eDRAW_STAGES_COUNT] = 
+            const char* versions[rdi::EStage::DRAW_STAGES_COUNT] =
             {
                 "vs_5_0",
                 "ps_5_0",
             };
 
-            ConfigPass::MacroDefine defs[gdi::cMAX_SHADER_MACRO+1];
+            ConfigPass::MacroDefine defs[rdi::cMAX_SHADER_MACRO+1];
             memset( defs, 0 , sizeof(defs) );
             config_setting_t* macro_setting = config_setting_get_member( cfgpass, "define" );
             int n_defs = 0;
@@ -193,28 +193,28 @@ namespace
                     defs[idef].def = config_setting_get_string( def );
                 }
             }
-            SYS_ASSERT( n_defs < gdi::cMAX_SHADER_MACRO );
+            SYS_ASSERT( n_defs < rdi::cMAX_SHADER_MACRO );
             {
                 defs[n_defs].name = cfgpass->name;
                 defs[n_defs].def = "1";
                 ++n_defs;
             }
 
-            bxGdiHwStateDesc hwstate;
+            rdi::HardwareStateDesc hwstate;
             config_setting_t* hwstate_setting = config_setting_get_member( cfgpass, "hwstate" );
             if( hwstate_setting )
             {
                 _extract_hwstate( &hwstate, hwstate_setting );
             }
 
-            config_setting_lookup_string( cfgpass, "vertex"  , &entry_points[gdi::eSTAGE_VERTEX] );
-            config_setting_lookup_string( cfgpass, "pixel"   , &entry_points[gdi::eSTAGE_PIXEL] );
+            config_setting_lookup_string( cfgpass, "vertex"  , &entry_points[rdi::EStage::VERTEX] );
+            config_setting_lookup_string( cfgpass, "pixel"   , &entry_points[rdi::EStage::PIXEL] );
             //config_setting_lookup_string( cfgpass, "geometry", &entry_points[gdi::eSTAGE_GEOMETRY] );
             //config_setting_lookup_string( cfgpass, "domain"  , &entry_points[gdi::eSTAGE_DOMAIN] );
             //config_setting_lookup_string( cfgpass, "hull"    , &entry_points[gdi::eSTAGE_HULL] );
 
-            config_setting_lookup_string( cfgpass, "vs_ver", &versions[gdi::eSTAGE_VERTEX] );
-            config_setting_lookup_string( cfgpass, "ps_ver", &versions[gdi::eSTAGE_PIXEL] );
+            config_setting_lookup_string( cfgpass, "vs_ver", &versions[rdi::EStage::VERTEX] );
+            config_setting_lookup_string( cfgpass, "ps_ver", &versions[rdi::EStage::PIXEL] );
             //config_setting_lookup_string( cfgpass, "gs_ver", &versions[gdi::eSTAGE_GEOMETRY] );
             //config_setting_lookup_string( cfgpass, "ds_ver", &versions[gdi::eSTAGE_DOMAIN] );
             //config_setting_lookup_string( cfgpass, "hs_ver", &versions[gdi::eSTAGE_HULL] );
@@ -228,7 +228,7 @@ namespace
             SYS_STATIC_ASSERT( sizeof( p.defs ) == sizeof( defs ) );
             memcpy( p.defs, defs, sizeof( p.defs ) );
 
-            for( int i = 0; i < gdi::eDRAW_STAGES_COUNT; ++i )
+            for( int i = 0; i < rdi::EStage::DRAW_STAGES_COUNT; ++i )
             {
                 p.entry_points[i] = entry_points[i];
                 p.versions[i] = versions[i];
@@ -299,7 +299,7 @@ namespace fxTool
     {
         for( int ipass = 0; ipass < (int)fx_binary->passes.size(); ++ipass )
         {
-            for( int j = 0; j < gdi::eDRAW_STAGES_COUNT; ++j )
+            for( int j = 0; j < rdi::EStage::DRAW_STAGES_COUNT; ++j )
             {
                 ID3DBlob* code_blob = to_ID3DBlob( fx_binary->passes[ipass].bytecode[j] );
                 ID3DBlob* disasm_blob = to_ID3DBlob( fx_binary->passes[ipass].disassembly[j] );
@@ -417,7 +417,7 @@ public:
         {
             const BinaryPass& bin_pass = fx_binary.passes[ipass];
 
-            for( int j = 0; j < gdi::eDRAW_STAGES_COUNT; ++j )
+            for( int j = 0; j < rdi::EStage::DRAW_STAGES_COUNT; ++j )
 		    {
                 if( !bin_pass.bytecode[j].ptr )
                     continue;
@@ -427,7 +427,7 @@ public:
                 out_filename_base.append( "." );
                 out_filename_base.append( bin_pass.name );
                 out_filename_base.append( "." );
-                out_filename_base.append( gdi::stageName[j] );
+                out_filename_base.append( rdi::EStage::name[j] );
                 
                 {
                     std::string out_filename;
@@ -632,8 +632,8 @@ class dx11Compiler : public Compiler
 {
     ID3DBlob* _compile_shader( int stage, const char* shader_source, const char* entry_point, const char** shader_macro )
     {
-        SYS_ASSERT( stage < gdi::eSTAGE_COUNT );
-        const char* shader_model[gdi::eSTAGE_COUNT] = 
+        SYS_ASSERT( stage < rdi::EStage::COUNT );
+        const char* shader_model[rdi::EStage::COUNT] =
         {
             "vs_5_0",
             "ps_5_0",
@@ -644,12 +644,12 @@ class dx11Compiler : public Compiler
         };
 
         D3D_SHADER_MACRO* ptr_macro_defs = 0;
-        D3D_SHADER_MACRO macro_defs_array[gdi::cMAX_SHADER_MACRO+1];
+        D3D_SHADER_MACRO macro_defs_array[rdi::cMAX_SHADER_MACRO+1];
         memset( macro_defs_array, 0, sizeof(macro_defs_array) );
 
         if( shader_macro )
         {
-            const int n_macro = to_D3D_SHADER_MACRO_array( macro_defs_array, gdi::cMAX_SHADER_MACRO+1, shader_macro );
+            const int n_macro = to_D3D_SHADER_MACRO_array( macro_defs_array, rdi::cMAX_SHADER_MACRO+1, shader_macro );
             ptr_macro_defs = macro_defs_array;
         }
 
@@ -707,7 +707,7 @@ public:
             print_info( "\tcompiling pass: %s ...\n", pass.name );
 
             BinaryPass bin_pass;
-            for( int j = 0; j < gdi::eDRAW_STAGES_COUNT; ++j )
+            for( int j = 0; j < rdi::EStage::DRAW_STAGES_COUNT; ++j )
             {
                 if( !pass.entry_points[j] )
                     continue;
@@ -723,7 +723,7 @@ public:
                         print_error( "D3DDisassemble failed\n" );
                     }
                 }
-                bx::gdi::dx11FetchShaderReflection( &bin_pass.reflection, code_blob->GetBufferPointer(), code_blob->GetBufferSize(), j );
+                rdi::Dx11FetchShaderReflection( &bin_pass.reflection, code_blob->GetBufferPointer(), code_blob->GetBufferSize(), j );
 
                 bin_pass.bytecode[j] = to_Blob( code_blob );
                 bin_pass.disassembly[j] = to_Blob( code_disasm );

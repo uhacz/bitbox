@@ -37,9 +37,20 @@ struct bxAllocator_Default: public bxAllocator
     }
 };
 
-static struct bxAllocator_Default __defaultAllocator;
+static struct bxAllocator_Default* __defaultAllocator = nullptr;
 
 struct bxAllocator* bxDefaultAllocator()
 {
-    return &__defaultAllocator;
+    return __defaultAllocator;
+}
+
+void bx::memory::StartUp()
+{
+    __defaultAllocator = new bxAllocator_Default();
+}
+
+void bx::memory::ShutDown()
+{
+    delete __defaultAllocator;
+    __defaultAllocator = nullptr;
 }

@@ -62,7 +62,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>Xinput9_1_0.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;dxguid.lib;libconfig.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CharacterKinematicCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CommonCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CookingCHECKED_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3ExtensionsCHECKED.lib;$(PHYSX_SDK)\..\PxShared\lib\vc14win64\PxTaskCHECKED_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Xinput9_1_0.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;dxguid.lib;libconfig.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -81,14 +81,13 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>Xinput9_1_0.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;dxguid.lib;libconfig.lib;$(PHYSX_SDK)\Lib\win64\PhysX3_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3CharacterKinematic_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3Common_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3Cooking_x64.lib;$(PHYSX_SDK)\Lib\win64\PhysX3Extensions.lib;$(PHYSX_SDK)\Lib\win64\PxTask.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Xinput9_1_0.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;dxguid.lib;libconfig.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="flood_game\flood_fluid.cpp" />
     <ClCompile Include="flood_game\flood_game.cpp" />
     <ClCompile Include="flood_game\flood_level.cpp" />
-    <ClCompile Include="flood_game\flood_pbd_scene.cpp" />
     <ClCompile Include="flood_game\SPHKernels.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="game_gfx.cpp" />
@@ -125,9 +124,6 @@
     <ClCompile Include="test_game\test_game.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\phx\phx.vcxproj">
-      <Project>{2f15f600-6dda-4beb-a95f-eab6abcd71bc}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\rdi\rdi.vcxproj">
       <Project>{5146d804-4a7f-442f-9085-5adc06bf9769}</Project>
     </ProjectReference>
@@ -152,9 +148,6 @@
     <ClInclude Include="flood_game\flood_game.h" />
     <ClInclude Include="flood_game\flood_helpers.h" />
     <ClInclude Include="flood_game\flood_level.h" />
-    <ClInclude Include="flood_game\flood_pbd.h" />
-    <ClInclude Include="flood_game\flood_rigid_body.h" />
-    <ClInclude Include="flood_game\flood_pbd_scene.h" />
     <ClInclude Include="flood_game\SPHKernels.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="game_gfx.h" />
@@ -169,7 +162,6 @@
     <ClInclude Include="imgui\stb_rect_pack.h" />
     <ClInclude Include="imgui\stb_textedit.h" />
     <ClInclude Include="imgui\stb_truetype.h" />
-    <ClInclude Include="pbd_rigid_body.h" />
     <ClInclude Include="profiler.h" />
     <ClInclude Include="profiler\Remotery.h" />
     <ClInclude Include="puzzle_game\puzzle_level.h" />

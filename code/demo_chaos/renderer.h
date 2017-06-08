@@ -46,16 +46,12 @@ public:
     void RasterizeFramebuffer( rdi::CommandQueue* cmdq, const rdi::ResourceRO source, const Camera& camera, u32 windowW, u32 windowH );
     static void DrawFullScreenQuad( rdi::CommandQueue* cmdq );
     static void DebugDraw( rdi::CommandQueue* cmdq, rdi::TextureRW targetColor, rdi::TextureDepth targetDepth, const Camera& camera );
-    //SharedMeshContainer& GetSharedMesh() { return _shared_mesh; }
     
 private:
     RendererDesc _desc = {};
 
-    //rdi::ShaderFile* _shf_texutil = nullptr;
     rdi::Pipeline _pipeline_copy_texture_rgba = BX_RDI_NULL_HANDLE;
     rdi::RenderTarget _render_target = BX_RDI_NULL_HANDLE;
-
-    //SharedMeshContainer _shared_mesh = {};
 
     struct
     {

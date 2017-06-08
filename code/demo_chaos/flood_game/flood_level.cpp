@@ -12,8 +12,6 @@ namespace bx{ namespace flood{
 
 
 //////////////////////////////////////////////////////////////////////////
-
-
 void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
 {
     _name = string::duplicate( (char*)_name, levelName );
@@ -86,56 +84,10 @@ void Level::StartUp( game_gfx::Deffered* gfx, const char* levelName )
     }
 
     _fluid_sim_params.gravity = Vector3F( 0.f );
-
-    _pbd_scene = BX_NEW( bxDefaultAllocator(), PBDScene, particle_radius );
-    _pbd_cloth_solver = BX_NEW( bxDefaultAllocator(), PBDClothSolver, _pbd_scene );
-
-    
-    {
-        const Vector3F cloth_points[16] =
-        {
-            Vector3F( 0.f, 0.0f, 0.f ), Vector3F( 0.1f, 0.0f, 0.f ), Vector3F( 0.2f, 0.0f, 0.f ), Vector3F( 0.3f, 0.0f, 0.f ),
-            Vector3F( 0.f, 0.1f, 0.f ), Vector3F( 0.1f, 0.1f, 0.f ), Vector3F( 0.2f, 0.1f, 0.f ), Vector3F( 0.3f, 0.1f, 0.f ),
-            Vector3F( 0.f, 0.2f, 0.f ), Vector3F( 0.1f, 0.2f, 0.f ), Vector3F( 0.2f, 0.2f, 0.f ), Vector3F( 0.3f, 0.2f, 0.f ),
-            Vector3F( 0.f, 0.3f, 0.f ), Vector3F( 0.1f, 0.3f, 0.f ), Vector3F( 0.2f, 0.3f, 0.f ), Vector3F( 0.3f, 0.3f, 0.f )
-        };
-        const u16 cdistance_indices[] = 
-        {
-            0,1, 1,2, 2,3,
-            4,5, 5,6, 6,7,
-            8,9, 9,10, 10,11,
-            12,13, 13,14, 14,15,
-
-            0,4, 1,5, 2,6, 3,7,
-            4,8, 5,9, 6,10, 7,11,
-            8,12, 9,13, 10,14, 11,15,
-        };
-        const float particle_mass[16] =
-        {
-            1.f, 1.f, 1.f, 1.f,
-            1.f, 1.f, 1.f, 1.f,
-            1.f, 1.f, 1.f, 1.f,
-            0.f, 1.f, 0.f, 1.f,
-        };
-
-        PBDCloth::ActorDesc cloth_desc = {};
-        cloth_desc.particle_mass = particle_mass;
-        cloth_desc.positions = cloth_points;
-        cloth_desc.cdistance_indices = cdistance_indices;
-        cloth_desc.num_particles = 16;
-        cloth_desc.num_cdistance_indices = sizeof( cdistance_indices ) / sizeof( *cdistance_indices );
-        cloth_desc.num_particle_masses = 16;
-        
-        _cloth_id = _pbd_cloth_solver->CreateActor( cloth_desc );
-    }
-
 }
 
 void Level::ShutDown( game_gfx::Deffered* gfx )
 {
-    BX_DELETE0( bxDefaultAllocator(), _pbd_cloth_solver );
-    BX_DELETE0( bxDefaultAllocator(), _pbd_scene );
-
     gfx->renderer.DestroyScene( &_gfx_scene );
     string::free( (char*)_name );
     _name = nullptr;
@@ -149,7 +101,7 @@ void Level::Tick( const GameTime& time )
     colliders.static_bodies = _boundary;
     colliders.num_static_bodies = 5;
 
-    //FluidTick( &_fluid, _fluid_sim_params, colliders, time.DeltaTimeSec() );
+    FluidTick( &_fluid, _fluid_sim_params, colliders, time.DeltaTimeSec() );
 
     //StaticBodyDebugDraw( _boundary[0], 0x333333FF );
     //StaticBodyDebugDraw( _boundary[1], 0x333333FF );
@@ -171,13 +123,13 @@ void Level::Tick( const GameTime& time )
     //    rdi::debug_draw::AddSphere( Vector4( pa, _fluid.particle_radius ), 0xFF0000FF, 1 );
 
     //}
-    Vector3F gravity( 0.f, -1.f, 0.f );
-    _pbd_scene->PredictPosition( gravity, time.DeltaTimeSec() );
-    _pbd_scene->UpdateSpatialMap();
-    _pbd_cloth_solver->SolveConstraints();
-    _pbd_scene->UpdateVelocity( time.DeltaTimeSec() );
-    
-    _pbd_cloth_solver->_DebugDraw( _cloth_id, 0xFF0000FF );
+    //Vector3F gravity( 0.f, -1.f, 0.f );
+    //_pbd_scene->PredictPosition( gravity, time.DeltaTimeSec() );
+    //_pbd_scene->UpdateSpatialMap();
+    //_pbd_cloth_solver->SolveConstraints();
+    //_pbd_scene->UpdateVelocity( time.DeltaTimeSec() );
+    //
+    //_pbd_cloth_solver->_DebugDraw( _cloth_id, 0xFF0000FF );
 
     if( ImGui::Begin( "Level" ) )
     {

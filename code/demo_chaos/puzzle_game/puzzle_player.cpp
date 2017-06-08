@@ -17,7 +17,7 @@ struct PlayerData
     
     IdTable          _id_table                        = {};
     Player           _id         [Const::MAX_PLAYERS] = {};
-    PlayerName       _name       [Const::MAX_PLAYERS] = {};
+    char*            _name       [Const::MAX_PLAYERS] = {};
     PlayerInput      _input      [Const::MAX_PLAYERS] = {};
     Matrix3F         _input_basis[Const::MAX_PLAYERS] = {};
     PlayerPose       _pose       [Const::MAX_PLAYERS] = {};
@@ -49,7 +49,7 @@ Player PlayerCreate( const char* name )
     id_t id = id_table::create( gData._id_table );
 
     gData._id[id.index] = { id.hash };
-    SetName( &gData._name[id.index], name );
+    gData._name[id.index] = string::duplicate( gData._name[id.index], name );
     gData._pose[id.index] = {};
     gData._velocity[id.index] = Vector3F( 0.f );
     gData._input[id.index] = {};
@@ -65,8 +65,7 @@ void PlayerDestroy( Player pl )
     if( !id_table::has( gData._id_table, id ) )
         return;
 
-    gData._name[id.index].~PlayerName();
-    
+    string::free_and_null( &gData._name[id.index] );
     id_table::destroy( gData._id_table, id );
 }
 
@@ -230,7 +229,7 @@ void PlayerTick( u64 deltaTimeUS )
         {
             const u32 i = alive_indices[ialive];
 
-            if( ImGui::TreeNode( gData._name[i].str ) )
+            if( ImGui::TreeNode( gData._name[i] ) )
             {
                 ImGui::Text( "speed: %.4f", length( gData._velocity[i] ) );
                 ImGui::TreePop();

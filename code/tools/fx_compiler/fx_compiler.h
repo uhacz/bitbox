@@ -1,7 +1,9 @@
 #pragma once
 
-#include <gdi/gdi_backend.h>
-#include <gdi/gdi_shader_reflection.h>
+//#include <gdi/gdi_backend.h>
+//#include <gdi/gdi_shader_reflection.h>
+#include <rdi/rdi_backend.h>
+#include <rdi/rdi_shader_reflection.h>
 #include <util/array.h>
 #include <util/vector.h>
 #include <string>
@@ -18,11 +20,12 @@ namespace fxTool
             const char* def;
         };
         const char* name;
-        const char* entry_points[bx::gdi::eDRAW_STAGES_COUNT];
-        const char* versions[bx::gdi::eDRAW_STAGES_COUNT];
+        const char* entry_points[bx::rdi::EStage::DRAW_STAGES_COUNT];
+        const char* versions    [bx::rdi::EStage::DRAW_STAGES_COUNT];
 
-        bx::gdi::HardwareStateDesc hwstate;
-        MacroDefine defs[bx::gdi::cMAX_SHADER_MACRO+1];
+
+        bx::rdi::HardwareStateDesc hwstate;
+        MacroDefine defs[bx::rdi::cMAX_SHADER_MACRO+1];
     };
     struct BinaryPass
     {
@@ -41,13 +44,13 @@ namespace fxTool
         };
 
         std::string name;
-        bx::gdi::HardwareStateDesc hwstate = {};
-        bx::gdi::VertexLayout vertex_layout = {};
+        bx::rdi::HardwareStateDesc hwstate = {};
+        bx::rdi::VertexLayout vertex_layout = {};
 
-        Blob bytecode[bx::gdi::eDRAW_STAGES_COUNT];
-        Blob disassembly[bx::gdi::eDRAW_STAGES_COUNT];
+        Blob bytecode   [bx::rdi::EStage::DRAW_STAGES_COUNT];
+        Blob disassembly[bx::rdi::EStage::DRAW_STAGES_COUNT];
 
-        bx::gdi::ShaderReflection reflection;
+        bx::rdi::ShaderReflection reflection;
     };
 
     struct FxSourceDesc
