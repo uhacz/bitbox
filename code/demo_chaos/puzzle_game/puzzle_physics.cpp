@@ -38,6 +38,11 @@ struct CollisionC
     Vector4F plane;
     u32 pindex_abs;
 };
+struct ParticleCollisionC
+{
+    u32 i0;
+    u32 i1;
+};
 
 struct RestPositionC
 {
@@ -84,11 +89,12 @@ using Vector3Array        = array_t<Vector3F>;
 using F32Array            = array_t<f32>;
 using U32Array            = array_t<u32>;
 
-using PhysicsBodyArray    = array_t<Body>;
-using BodyIdInternalArray = array_t<BodyIdInternal>;
-using CollisionCArray     = array_t<CollisionC>;
-using DistanceCArray      = array_t<DistanceC>;
-using BendingCArray       = array_t<BendingC>;
+using PhysicsBodyArray        = array_t<Body>;
+using BodyIdInternalArray     = array_t<BodyIdInternal>;
+using CollisionCArray         = array_t<CollisionC>;
+using ParticleCollisionCArray = array_t<ParticleCollisionC>;
+using DistanceCArray          = array_t<DistanceC>;
+using BendingCArray           = array_t<BendingC>;
 
 
 // --- solver
@@ -107,6 +113,7 @@ struct Solver
 
     // constraints points indices are absolute
     CollisionCArray collision_c;
+    ParticleCollisionCArray particle_collision_c;
     
     // constraints points indices are relative to body
     DistanceCArray distance_c[EConst::MAX_BODIES];
@@ -342,7 +349,9 @@ static void SolveInternal( Solver* solver, u32 numIterations )
         const u32 hash_grid_size = n * 4;
         array::reserve( solver->_grid_indices, n );
         array::reserve( solver->collision_c, n * 2 );
+        array::reserve( solver->particle_collision_c, n * 2 );
         array::clear( solver->collision_c );
+        array::clear( solver->particle_collision_c );
 
         u32* indices = solver->_grid_indices.begin();
 
@@ -368,37 +377,44 @@ static void SolveInternal( Solver* solver, u32 numIterations )
                     if( ip1 == ip0 )
                         continue;
 
-                    const Vector3F& p1 = solver->p1[ip1];
-                    const Vector3F v = p1 - p0;
-                    const float len_sqr = lengthSqr( v );
-                    if( len_sqr < radius2_sqr )
+                    const float w0 = solver->w[ip0];
+                    const float w1 = solver->w[ip1];
+                    const float wsum = w0 + w1;
+                    if( wsum > FLT_EPSILON )
                     {
-                        rdi::debug_draw::AddBox( Matrix4F::translation( p0 ), Vector3F( solver->particle_radius ), 0xFF0000FF, 1 );
-
-                        const float w0 = solver->w[ip0];
-                        const float w1 = solver->w[ip1];
-                        const float wsum = w0 + w1;
-                        if( wsum > FLT_EPSILON )
+                        const Vector3F& p1 = solver->p1[ip1];
+                        const Vector3F v = p1 - p0;
+                        const float len_sqr = lengthSqr( v );
+                        if( len_sqr < radius2_sqr )
                         {
-                            const float wsum_inv = 1.f / wsum;
-                            const float a0 = w0 * wsum_inv;
-                            
-                            //const float normalizator = ( len_sqr > FLT_EPSILON ) ? 1.f / ::sqrtf( len_sqr ) : 0.f;
-                            const Vector3F normal = normalizeSafe( v );
-                            const Vector3F point = lerp( 0.5f, p1, p0 );
-                            CollisionC c0, c1;
-                            c0.plane = makePlane( -normal, point );
-                            c0.pindex_abs = ip0;
-
-                            c1.plane = makePlane( normal, point );
-                            c1.pindex_abs = ip1;
-
-                            array::push_back( solver->collision_c, c0 );
-                            array::push_back( solver->collision_c, c1 );
+                            ParticleCollisionC c;
+                            c.i0 = ip0;
+                            c.i1 = ip1;
+                            array::push_back( solver->particle_collision_c, c );
+                                                        
+                            //rdi::debug_draw::AddBox( Matrix4F::translation( p0 ), Vector3F( solver->particle_radius ), 0xFF0000FF, 1 );
+                            //const float wsum_inv = 1.f / wsum;
+                            //const float a0 = w0 * wsum_inv;
+                            //
+                            ////const float normalizator = ( len_sqr > FLT_EPSILON ) ? 1.f / ::sqrtf( len_sqr ) : 0.f;
+                            //const Vector3F normal = normalizeSafe( v );
+                            //const Vector3F point = lerp( 0.5f, p1, p0 );
+                            //
+                            //if( w0 > FLT_EPSILON )
+                            //{
+                            //    CollisionC c;
+                            //    c.plane = makePlane( -normal, point );
+                            //    c.pindex_abs = ip0;
+                            //    array::push_back( solver->collision_c, c );
+                            //}
+                            //if( w1 > FLT_EPSILON )
+                            //{
+                            //    CollisionC c;
+                            //    c.plane = makePlane( normal, point );
+                            //    c.pindex_abs = ip1;
+                            //    array::push_back( solver->collision_c, c );
+                            //}
                         }
-
-
-                        
                     }
                 }
             }
@@ -412,6 +428,24 @@ static void SolveInternal( Solver* solver, u32 numIterations )
     for( u32 sit = 0; sit < numIterations; ++sit )
     {
         // collision
+        const float pradius2 = pradius*2.f;
+        const float pradius2_sqr = pradius2*pradius2;
+        for( const ParticleCollisionC& c : solver->particle_collision_c )
+        {
+            const Vector3F& p0 = solver->p1[c.i0];
+            const Vector3F& p1 = solver->p1[c.i1];
+            const float dist_sqr = lengthSqr( p1 - p0 );
+            if( dist_sqr < pradius2_sqr )
+            {
+                const float w0 = solver->w[c.i0];
+                const float w1 = solver->w[c.i1];
+                Vector3F dpos0, dpos1;
+                SolveDistanceC( &dpos0, &dpos1, p0, p1, w0, w1, pradius2, 1.f );
+                solver->p1[c.i0] += dpos0;
+                solver->p1[c.i1] += dpos1;
+            }
+        }
+
         for( const CollisionC& c : solver->collision_c )
         {
             const Vector3F& p = solver->p1[c.pindex_abs];
@@ -419,7 +453,7 @@ static void SolveInternal( Solver* solver, u32 numIterations )
             if( d < pradius )
             {
                 d -= pradius;
-                const Vector3F newp = p - c.plane.getXYZ() * ( d );
+                const Vector3F newp = p - (c.plane.getXYZ() * d);
                 solver->p1[c.pindex_abs] = newp;
             }
         }
@@ -657,7 +691,7 @@ BodyId CreateRope( Solver* solver, const Vector3F& attach, const Vector3F& axis,
     const float pradius = physics::GetParticleRadius( solver );
 
     const u32 num_points = (u32)( len / ( pradius * 2.f ) );
-    const float step = (len / (float)( num_points ));
+    const float step = (len / (float)( num_points )) + 0.05f;
     const float particle_mass_inv = ( particleMass > FLT_EPSILON ) ? 1.f / particleMass : 0.f;
     BodyId rope = physics::CreateBody( solver, num_points );
 
