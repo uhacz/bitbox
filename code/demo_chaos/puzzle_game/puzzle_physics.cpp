@@ -257,7 +257,6 @@ static void PredictPositions( Solver* solver, const Body& body, const BodyParams
     SYS_ASSERT( pend <= solver->Size() );
 
     const float damping_coeff = ::powf( 1.f - params.vel_damping, deltaTime );
-
     const Vector3F gravityDV = gravityAcc * deltaTime;
 
     for( u32 i = pbegin; i < pend; ++i )
