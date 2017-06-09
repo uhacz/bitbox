@@ -19,10 +19,11 @@ static FILE* _OpenFile( const char* path, const char* mode )
 		return 0;
 	}
 
-	FILE* f = fopen( path, mode );
-	if( !f )
+    FILE* f = nullptr;
+    errno_t err = fopen_s( &f, path, mode );
+	if( err != 0 )
 	{
-		bxLogError( "Can not open file %s\n", path );
+        bxLogError( "Can not open file %s (mode: %s | errno: %d)\n", path, mode, err );
 	}
 
 	return f;
@@ -82,10 +83,9 @@ int readTextFile( unsigned char** outBuffer, size_t* outSizeInBytes, const char*
 
 int writeFile( const char* absPath, unsigned char* buf, size_t sizeInBytes )
 {
-	FILE *fp = fopen( absPath, "wb" );
+    FILE* fp = _OpenFile( absPath, "wb" );
 	if ( !fp )
 	{
-		bxLogError( "Can't open file to write '%s'\n", absPath );
 		return -1;
 	}
 
@@ -194,7 +194,7 @@ void bxFileSystem::absolutePath( bxFS::Path* absolutePath, const char* relativeP
 {
 	const size_t relativePathLength = strlen( relativePath );
 	SYS_ASSERT( ( relativePathLength + _rootDirLength ) <= Path::ePATH_LEN );
-    sprintf( absolutePath->name, "%s%s", _rootDir, relativePath );
+    sprintf_s( absolutePath->name, bxFS::Path::ePATH_LEN, "%s%s", _rootDir, relativePath );
     absolutePath->length = relativePathLength + _rootDirLength;
 }
 

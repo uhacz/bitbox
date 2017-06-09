@@ -11,13 +11,13 @@
 
 void bxDebugAssert( int expression, const char *format, ... )
 {
-	char str[1024];
+    char str[1024];
 
 	if( !expression )
 	{
 		va_list arglist;
 		va_start( arglist, format );
-		vsprintf( str, format, arglist );
+		vsprintf_s( str, 1024, format, arglist );
 		va_end( arglist );
 		bxDebugHalt( str );
 	}

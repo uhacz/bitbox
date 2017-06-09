@@ -18,9 +18,9 @@ extern void checkFloat( float x );
 
 #ifdef LOGGER_ENABLED
 
-#define bxLogInfo( ... ) printf_s( __VA_ARGS__ ); printf_s( " : at %s:%d - ", __FILE__, __LINE__ ); printf( "\n" )
-#define bxLogWarning( ... ) printf_s( "WARNING: " ); printf_s( __VA_ARGS__ ); printf_s( " : at %s:%d - ", __FILE__, __LINE__ ); printf( "\n" )
-#define bxLogError( ... ) printf_s( "ERROR: " ); printf_s( __VA_ARGS__ ); printf_s( " : at %s:%d - ", __FILE__, __LINE__ ); printf( "\n" )
+#define bxLogInfo( ... ) printf_s( __VA_ARGS__ ); printf_s( " : at %s:%d - \n", __FILE__, __LINE__ )
+#define bxLogWarning( ... ) printf_s( "WARNING: " ); printf_s( __VA_ARGS__ ); printf_s( " : at %s:%d - \n", __FILE__, __LINE__ )
+#define bxLogError( ... ) printf_s( "ERROR: " ); printf_s( __VA_ARGS__ ); printf_s( " : at %s:%d - \n", __FILE__, __LINE__ )
 
 #else
 
@@ -35,7 +35,7 @@ extern void checkFloat( float x );
 #define AT __FILE__ ":" MAKE_STR(__LINE__)
 #define SYS_ASSERT( expression ) bxDebugAssert( expression, "ASSERTION FAILED " AT " " #expression "\n" )
 #define SYS_ASSERT_TXT( expression, txt, ... ) bxDebugAssert( expression, "ASSERTION FAILED " AT " " #expression "\n" #txt, __VA_ARGS__ )
-//#define SYS_STATIC_ASSERT( expression ) typedef char(&foobar)[ (expression) ? 1 : 0 ]
+
 #define SYS_STATIC_ASSERT( expression ) static_assert( expression, "" )
 #define SYS_NOT_IMPLEMENTED SYS_ASSERT( false && "not implemented" )
 

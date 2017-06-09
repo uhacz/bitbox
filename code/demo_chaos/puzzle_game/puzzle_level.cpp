@@ -45,7 +45,7 @@ void LevelState::OnStartUp()
 
     _player = PlayerCreate( "playerLocal" );
 
-    physics::Create( &_solver, 1024 * 8, 0.051f );
+    physics::Create( &_solver, 1024 * 8, 0.1f );
     physics::SetFrequency( _solver, 120 );
 
     const Vector3F axis[5] =
@@ -59,7 +59,7 @@ void LevelState::OnStartUp()
 
     for( u32 i = 0; i < NUM_ROPES; i++ )
     {
-        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 10.f, 0.f ), axis[i % 5], 10.f, 1.f + ( i * 0.1f ) );
+        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 15.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
         float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
         mass_inv[0] = 0.f;
         physics::Unmap( _solver, mass_inv );

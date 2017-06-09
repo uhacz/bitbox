@@ -126,7 +126,6 @@ struct Solver
     BodyIdInternalArray _to_deallocate;
 
     HashGridStatic _hash_grid;
-    U32Array _grid_indices;
 
     u32 num_iterations = 4;
     u32 frequency = 60;
@@ -274,8 +273,6 @@ static void PredictPositions( Solver* solver, const Body& body, const BodyParams
 
         solver->p1[i] = p;
         solver->v[i] = v;
-
-        //rdi::debug_draw::AddSphere( Vector4F( p, solver->particle_radius ), 0xFF0000FF, 1 );
     }
 }
 static void UpdateVelocities( Solver* solver, float deltaTime )
@@ -297,8 +294,6 @@ static void UpdateVelocities( Solver* solver, float deltaTime )
         solver->collision_r[i] = 1.f;
 
         solver->v[i] = v;
-
-        //rdi::debug_draw::AddLine( p0, p0 + v, 0x0000FFFF, 1 );
     }
 }
 static void InterpolatePositions( Solver* solver )
@@ -314,6 +309,73 @@ static void InterpolatePositions( Solver* solver )
 
         solver->x[i] = lerp( t, pp, p0 );
     }
+}
+
+static void GenerateCollisionConstraints( Solver* solver )
+{
+    const float pradius2 = solver->particle_radius*2.f;
+    const float pradius2_sqr = pradius2*pradius2;
+
+    const Vector3F* points = solver->p1.begin();
+    const u32 n = solver->p1.size;
+    const u32 hash_grid_size = n * 4;
+
+    array::reserve( solver->collision_c, n * 2 );
+    array::reserve( solver->particle_collision_c, n * 2 );
+    array::clear( solver->collision_c );
+    array::clear( solver->particle_collision_c );
+
+    Build( &solver->_hash_grid, nullptr, points, n, hash_grid_size, pradius2 );
+
+    const float collision_threshold = pradius2_sqr - FLT_EPSILON;
+    const u32 n_active = solver->active_bodies_count;
+    for( u32 iactive = 0; iactive < n_active; ++iactive )
+    {
+        const BodyIdInternal idi = solver->active_bodies_idi[iactive];
+        const u32 i = idi.index;
+
+        const Body& body = solver->bodies[i];
+        const u32 body_end = body.begin + body.count;
+
+        for( u32 ip0 = body.begin; ip0 < body_end; ++ip0 )
+        {
+            const Vector3F& p0 = solver->p1[ip0];
+            const i32x3 p0_grid = solver->_hash_grid.ComputeGridPos( p0 );
+            for( i32 dz = -1; dz <= 1; ++dz )
+            {
+                for( i32 dy = -1; dy <= 1; ++dy )
+                {
+                    for( i32 dx = -1; dx <= 1; ++dx )
+                    {
+                        const i32x3 lookup_pos_grid( p0_grid.x + dx, p0_grid.y + dy, p0_grid.z + dz );
+                        const HashGridStatic::Indices indices = solver->_hash_grid.Lookup( lookup_pos_grid );
+                        for( u32 ip1 : indices )
+                        {
+                            if( ip1 == ip0 )
+                                continue;
+
+                            const float w0 = solver->w[ip0];
+                            const float w1 = solver->w[ip1];
+                            const float wsum = w0 + w1;
+                            if( wsum > FLT_EPSILON )
+                            {
+                                const Vector3F& p1 = solver->p1[ip1];
+                                const Vector3F v = p1 - p0;
+                                const float len_sqr = lengthSqr( v );
+                                if( len_sqr < collision_threshold )
+                                {
+                                    ParticleCollisionC c;
+                                    c.i0 = ip0;
+                                    c.i1 = ip1;
+                                    array::push_back( solver->particle_collision_c, c );
+                                }
+                            }
+                        }// ip1
+                    }// dx
+                }// dy
+            }// dz
+        }// ip0
+    }// iactive
 }
 
 inline int SolveDistanceC( Vector3F* resultA, Vector3F* resultB, const Vector3F& posA, const Vector3F& posB, f32 massInvA, f32 massInvB, f32 restLength, f32 stiffness )
@@ -358,77 +420,9 @@ static void SolveInternal( Solver* solver, u32 numIterations )
 
     // collision detection
     {
-        const Vector3F* points = solver->p1.begin();
-        const u32 n = solver->p1.size;
-        const u32 hash_grid_size = n * 4;
-        array::reserve( solver->_grid_indices, n );
-        array::reserve( solver->collision_c, n * 2 );
-        array::reserve( solver->particle_collision_c, n * 2 );
-        array::clear( solver->collision_c );
-        array::clear( solver->particle_collision_c );
-
-        u32* indices = solver->_grid_indices.begin();
-        Build( &solver->_hash_grid, indices, points, n, hash_grid_size, pradius2 );
-        
-        const float collision_threshold = pradius2_sqr - FLT_EPSILON;
-        const u32 n_active = solver->active_bodies_count;
-        for( u32 iactive = 0; iactive < n_active; ++iactive )
-        {
-            const BodyIdInternal idi = solver->active_bodies_idi[iactive];
-            const u32 i = idi.index;
-
-            const Body& body = solver->bodies[i];
-            const u32 body_end = body.begin + body.count;
-            
-            for( u32 ip0 = body.begin; ip0 < body_end; ++ip0 )
-            {
-                const Vector3F& p0 = solver->p1[ip0];
-                
-                for( f32 dz = -pradius; dz <= pradius; dz += pradius )
-                {
-                    for( f32 dy = -pradius; dy <= pradius; dy += pradius )
-                    {
-                        for( f32 dx = -pradius; dx <= pradius; dx += pradius )
-                        {
-                            Vector3F lookup_pos = p0 + Vector3F( dx, dy, dz );
-                            //const HashGridStatic::Indices indices = solver->_hash_grid.Get( solver->_grid_indices[ip0] );
-                            const HashGridStatic::Indices indices = solver->_hash_grid.Lookup( lookup_pos );
-                            for( u32 ip1 : indices )
-                            {
-                                if( ip1 == ip0 )
-                                    continue;
-
-                                //if( ip0 == 7 )
-                                //{
-                                //    rdi::debug_draw::AddBox( Matrix4F::translation( p0 ), Vector3F( solver->particle_radius ), 0x00FF00FF, 1 );
-                                //    const Vector3F& p1 = solver->p1[ip1];
-                                //    rdi::debug_draw::AddBox( Matrix4F::translation( p1 ), Vector3F( solver->particle_radius ), 0xFF0000FF, 1 );
-                                //}
-
-                                const float w0 = solver->w[ip0];
-                                const float w1 = solver->w[ip1];
-                                const float wsum = w0 + w1;
-                                if( wsum > FLT_EPSILON )
-                                {
-                                    const Vector3F& p1 = solver->p1[ip1];
-                                    const Vector3F v = p1 - p0;
-                                    const float len_sqr = lengthSqr( v );
-                                    if( len_sqr < collision_threshold )
-                                    {
-                                        ParticleCollisionC c;
-                                        c.i0 = ip0;
-                                        c.i1 = ip1;
-                                        array::push_back( solver->particle_collision_c, c );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
+        GenerateCollisionConstraints( solver );
     }
+
     // collision
     for( const ParticleCollisionC& c : solver->particle_collision_c )
     {

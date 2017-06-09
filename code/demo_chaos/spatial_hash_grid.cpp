@@ -133,6 +133,13 @@ const HashGridStatic::Indices HashGridStatic::Lookup( const Vector3F& x ) const
     return Get( index );
 }
 
+const HashGridStatic::Indices HashGridStatic::Lookup( const i32x3& xGrid ) const
+{
+    const u32 index = MakeHash( xGrid.x, xGrid.y, xGrid.z, _lookup_array.size );
+    SYS_ASSERT( index < _lookup_array.size );
+    return Get( index );
+}
+
 const HashGridStatic::Indices HashGridStatic::Get( u32 index ) const
 {
     SYS_ASSERT( index < _lookup_array.size );
@@ -144,6 +151,11 @@ const HashGridStatic::Indices HashGridStatic::Get( u32 index ) const
     indices.data = _data.begin() + b.begin;
     indices.count = b.count;
     return indices;
+}
+
+const i32x3 HashGridStatic::ComputeGridPos( const Vector3F& x ) const
+{
+    return Discretize( x, _cell_size_inv );
 }
 
 }//

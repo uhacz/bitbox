@@ -38,7 +38,7 @@ char* string::duplicate( char* old_string, const char* new_string )
         old_string = (char*)BX_MALLOC( bxDefaultAllocator(), new_len + 1, 1 );
     }
 
-    strcpy( old_string, new_string );
+    strcpy_s( old_string, new_len+1, new_string );
     return old_string;
 }
 
@@ -52,7 +52,7 @@ char* string::create( const char* str, size_t len )
     SYS_ASSERT( strlen( str ) >= len );
     char* out = (char*)BX_MALLOC( bxDefaultAllocator(), (u32)len + 1, 1 ); //memory_alloc( len + 1 );
     out[len] = 0;
-    strncpy( out, str, len );
+    strncpy_s( out, len, str, len );
 
     return out;
 }
@@ -81,13 +81,14 @@ bool string::equal( const char* str0, const char* str1 )
 
 int string::append( char* buffer, int size_buffer, const char* format, ... )
 {
-    char str_format[1024] = {0};
+    const size_t N = 1024;
+    char str_format[N] = {0};
     
     if( format )
     {
         va_list arglist;
         va_start( arglist, format );
-        vsprintf( str_format, format, arglist );
+        vsprintf_s( str_format, N, format, arglist );
         va_end( arglist );
     }
 

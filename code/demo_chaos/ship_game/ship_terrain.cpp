@@ -301,7 +301,7 @@ namespace bx{ namespace ship{
                 rdi::RenderSource rsource = rdi::CreateRenderSource( desc );
                 
                 char actorName[32];
-                sprintf( actorName, "terrain_%u_%u", tx, tz );
+                sprintf_s( actorName, 32, "terrain_%u_%u", tx, tz );
                 gfx::ActorID actor = scene->Add( actorName, 1 );
 
                 scene->SetRenderSource( actor, rsource );

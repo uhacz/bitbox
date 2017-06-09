@@ -106,4 +106,9 @@
       <Project>{0ebf648f-cb37-414f-89c5-0d73bcd6adde}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ProjectExtensions>
+    <VisualStudio>
+      <UserProperties />
+    </VisualStudio>
+  </ProjectExtensions>
 </Project>

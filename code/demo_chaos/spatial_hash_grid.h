@@ -31,7 +31,9 @@ struct HashGridStatic
     f32 _cell_size_inv = 0.f;
     
     const Indices Lookup( const Vector3F& x ) const;
+    const Indices Lookup( const i32x3& xGrid ) const;
     const Indices Get( u32 index ) const;
+    const i32x3 ComputeGridPos( const Vector3F& x ) const;
 };
 void Build( HashGridStatic* hg, u32* xGridIndices, const Vector3F* x, u32 count, u32 hashmapSize, float cellSize );
 

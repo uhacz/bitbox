@@ -5,6 +5,10 @@ namespace bx
 using socket_t  = size_t;
 using address_t = size_t;
 
+struct IP4Str
+{
+    char c_str[22];
+};
 
 namespace ESocket
 {
@@ -14,6 +18,9 @@ namespace ESocket
         UDP,
     };
 }//
+
+address_t CreateAddress( const char* ip, unsigned short port );
+IP4Str    AddressToString( address_t addr );
 
 socket_t CreateSocket( ESocket::Type type );
 void     DestroySocket( socket_t sock );

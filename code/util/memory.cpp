@@ -15,7 +15,7 @@ struct bxAllocator_Default: public bxAllocator
         if( _allocatedSize != 0 )
         {
             dlmalloc_stats();
-            bxLogError( "Detected memory leaks! Leak size: %u", _allocatedSize );
+            bxLogError( "Detected memory leaks! Leak size: %llu", _allocatedSize );
         }
     }
     virtual void* alloc( size_t size, size_t align )
