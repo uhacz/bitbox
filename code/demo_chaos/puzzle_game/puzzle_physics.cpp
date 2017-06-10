@@ -605,8 +605,8 @@ void Solve( Solver* solver, u32 numIterations, float deltaTime )
 {
     GarbageCollector( solver );
 
-    solver->delta_time_acc += deltaTime;
     //solver->delta_time = 0.001f;
+    solver->delta_time_acc += deltaTime;
     while( solver->delta_time_acc >= solver->delta_time )
     {
         memcpy( solver->pp.begin(), solver->p0.begin(), solver->Size() * sizeof( Vector3F ) );
@@ -843,6 +843,92 @@ BodyId CreateRope( Solver* solver, const Vector3F& attach, const Vector3F& axis,
 BodyId CreateCloth( Solver* solver, const Vector3F& attach, const Vector3F& axis, float width, float height, float particleMass )
 {
     return{0};
+}
+
+BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass )
+{
+    const f32 pradius = physics::GetParticleRadius( solver );
+    const f32 pradius2 = pradius * 2.f;
+
+    const u32 w = (u32)( width / pradius2 );
+    const u32 h = (u32)( height / pradius2 );
+    const u32 d = (u32)( depth / pradius2 );
+    u32 num_particles = 0;
+    for( u32 iz = 0; iz < d; ++iz )
+    {
+        for( u32 iy = 0; iy < h; ++iy )
+        {
+            for( u32 ix = 0; ix < w; ++ix )
+            {
+                bool is_on_edge = false;
+                is_on_edge |= iz == 0 || iz == ( d - 1 );
+                is_on_edge |= iy == 0 || iy == ( h - 1 );
+                is_on_edge |= ix == 0 || ix == ( w - 1 );
+                if( !is_on_edge )
+                    continue;
+
+                ++num_particles;
+            }
+        }
+    }
+
+    //const u32 num_particles = 2 * ( w*h + h*d + w*d );
+    BodyId id = CreateBody( solver, num_particles );
+
+    const Vector3F begin_pos_ls =
+        -Vector3F(
+            (f32)(w/2) - ( 1 - ( w % 2 ) ) * 0.5f,
+            (f32)(h/2) - ( 1 - ( h % 2 ) ) * 0.5f,
+            (f32)(d/2) - ( 1 - ( d % 2 ) ) * 0.5f
+            ) * pradius2;
+
+    const f32 particle_mass_inv = ( particleMass > FLT_EPSILON ) ? 1.f / particleMass : 0.f;
+    Vector3F* pos = MapPosition( solver, id );
+    f32* mass_inv = MapMassInv( solver, id );
+
+    array_t< ShapeMatchingCInfo > shape_match_cinfo;
+    array::reserve( shape_match_cinfo, num_particles );
+
+    u32 pcounter = 0;
+    for( u32 iz = 0; iz < d; ++iz )
+    {
+        for( u32 iy = 0; iy < h; ++iy )
+        {
+            for( u32 ix = 0; ix < w; ++ix )
+            {
+                bool is_on_edge = false;
+                is_on_edge |= iz == 0 || iz == ( d - 1 );
+                is_on_edge |= iy == 0 || iy == ( h - 1 );
+                is_on_edge |= ix == 0 || ix == ( w - 1 );
+                if( !is_on_edge )
+                    continue;
+
+                const Vector3F pos_ls = begin_pos_ls + Vector3F( (f32)ix, (f32)iy, (f32)iz ) * pradius2;
+                const Vector3F pos_ws = ( pose * Point3F( pos_ls ) ).getXYZ();
+
+                pos[pcounter] = pos_ws;
+                mass_inv[pcounter] = particle_mass_inv;
+
+                ShapeMatchingCInfo info;
+                info.i = pcounter;
+                info.rest_pos = pos_ls;
+                info.mass = particleMass;
+                array::push_back( shape_match_cinfo, info );
+
+                pcounter += 1;
+            }
+        }
+    }
+
+
+    SYS_ASSERT( pcounter == num_particles );
+
+    Unmap( solver, mass_inv );
+    Unmap( solver, pos );
+
+    SetShapeMatchingConstraints( solver, id, shape_match_cinfo.begin(), shape_match_cinfo.size );
+
+    return id;
 }
 
 void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )

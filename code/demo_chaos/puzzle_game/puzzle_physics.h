@@ -50,7 +50,6 @@ u32       GetNbParticles  ( Solver* solver, BodyId id );
 Vector3F* MapPosition     ( Solver* solver, BodyId id );
 Vector3F* MapVelocity     ( Solver* solver, BodyId id );
 f32*      MapMassInv      ( Solver* solver, BodyId id );
-Vector3F* MapRestPosition ( Solver* solver, BodyId id );
 void      Unmap           ( Solver* solver, void* ptr );
 
 bool      GetBodyParams( BodyParams* params, const Solver* solver, BodyId id );
@@ -69,6 +68,7 @@ namespace physics
 
 BodyId CreateRope( Solver* solver, const Vector3F& attach, const Vector3F& axis, float len, float particleMass );
 BodyId CreateCloth( Solver* solver, const Vector3F& attach, const Vector3F& axis, float width, float height, float particleMass );
+BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass );
 
 
 //////////////////////////////////////////////////////////////////////////

@@ -68,9 +68,11 @@ void LevelState::OnStartUp()
         physics::GetBodyParams( &params, _solver, _rope[i] );
         params.restitution = 1.0f;
         physics::SetBodyParams( _solver, _rope[i], params );
-
-
     }
+
+
+    Matrix4F soft_pose = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4, PI/4,PI/4) ), Vector3F( 0.f, 5.f, 0.f ) );
+    _soft = physics::CreateSoftBox( _solver, soft_pose, 2.0f, 2.0f, 2.0f, 10.f );
 }
 
 void LevelState::OnShutDown()
@@ -102,34 +104,7 @@ void LevelState::OnUpdate( const GameTime& time )
         physics::DebugDraw( _solver, _rope[i], physics::DebugDrawBodyParams().NoConstraints() );
     }
 
-    {// test box
-        u32 w = 4;
-        u32 h = 4;
-        u32 d = 4;
-
-        const f32 pradius = physics::GetParticleRadius( _solver );
-        const f32 pradius2 = pradius * 2.f;
-
-        Matrix4F pose = Matrix4F::translation( Vector3F( 5.f, 5.f, 0.f ) );
-
-        const Vector3F begin_pos = Vector3F( (f32)w, (f32)h, (f32)d ) * -0.5f * pradius2;
-        
-        for( u32 iz = 0; iz < d; ++iz )
-        {
-            for( u32 iy = 0; iy < h; ++iy )
-            {
-                for( u32 ix = 0; ix < w; ++ix )
-                {
-                    const Vector3F relative_pos = Vector3F( (f32)ix, (f32)iy, (f32)iz ) * pradius2;
-                    const Vector3F pos = ( pose * Point3F( begin_pos + relative_pos ) ).getXYZ();
-
-                    rdi::debug_draw::AddSphere( Vector4F( pos, pradius ), 0xFF0000FF, 1 );
-
-                }
-            }
-        }
-
-    }
+    physics::DebugDraw( _solver, _soft, physics::DebugDrawBodyParams().Points( 0xFF0000FF ) );
 
 }
 
