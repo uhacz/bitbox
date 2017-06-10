@@ -7,6 +7,7 @@
 #define BX_POLAR_DECOMPOSITION_DEFAULT_MAX_ITERATIONS 16
 
 unsigned int bxPolarDecomposition( const Matrix3& a, Matrix3& u, Matrix3& h, unsigned maxIterations = BX_POLAR_DECOMPOSITION_DEFAULT_MAX_ITERATIONS );
+unsigned int PolarDecomposition( const Matrix3F& a, Matrix3F& u, Matrix3F& h, unsigned maxIterations = BX_POLAR_DECOMPOSITION_DEFAULT_MAX_ITERATIONS );
 Vector4 toAxisAngle( const Quat& q );
 
 

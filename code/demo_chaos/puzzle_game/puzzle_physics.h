@@ -19,16 +19,15 @@ struct BodyParams
     f32 stiffness = 1.0f;
 };
 
-struct ConstraintInfo
+struct DistanceCInfo
 {
-    enum EType : u32
-    {
-        eDISTANCE = 0,
-        _COUNT_,
-    };
-
-    EType type = eDISTANCE;
-    u32 index[4] = {};
+    u32 i0, i1;
+};
+struct ShapeMatchingCInfo
+{
+    Vector3F rest_pos{ 0.f }; // relative position (object space)
+    u32 i = UINT32_MAX; // particle index
+    f32 mass = 1.f;
 };
 
 // ---
@@ -42,7 +41,9 @@ BodyId CreateBody ( Solver* solver, u32 numParticles );
 void   DestroyBody( Solver* solver, BodyId id );
 
 // ---
-void   SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints );
+//void   SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints );
+void     SetDistanceConstraints( Solver* solver, BodyId id, const DistanceCInfo* constraints, u32 numConstraints );
+void     SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatchingCInfo* constraints, u32 numConstraints );
 
 // --- 
 u32       GetNbParticles  ( Solver* solver, BodyId id );

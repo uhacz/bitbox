@@ -3,6 +3,7 @@
 #include <util/id_table.h>
 #include "rdi/rdi_debug_draw.h"
 #include "../spatial_hash_grid.h"
+#include "util/math.h"
 
 namespace bx { namespace puzzle {
 
@@ -18,6 +19,21 @@ namespace EConst
 }//
 
 // --- constraints
+
+// collision constraints are generated from scratch in every frame. 
+// Thus particle indices are absolute for simplicity sake.
+struct CollisionC
+{
+    Vector4F plane;
+    u32 i;
+};
+struct ParticleCollisionC
+{
+    u32 i0;
+    u32 i1;
+};
+
+// in all constraints below particle indices are relative to body
 struct DistanceC
 {
     u32 i0;
@@ -33,21 +49,11 @@ struct BendingC
     u32 i3;
     f32 ra;
 };
-struct CollisionC
-{
-    Vector4F plane;
-    u32 pindex_abs;
-};
-struct ParticleCollisionC
-{
-    u32 i0;
-    u32 i1;
-};
 
-struct RestPositionC
+struct ShapeMatchingC
 {
     Vector3F rest_pos;
-    u32 pindex;
+    f32 mass;
 };
 
 // --- bodies
@@ -57,6 +63,11 @@ struct Body
     u32 count = 0;
 };
 inline bool IsValid( const Body& body ) { return body.count != 0; }
+struct BodyCOM // center of mass
+{
+    QuatF rot = QuatF::identity();
+    Vector3F pos = Vector3F( 0.f );
+};
 
 // --- body id
 union BodyIdInternal
@@ -95,6 +106,7 @@ using CollisionCArray         = array_t<CollisionC>;
 using ParticleCollisionCArray = array_t<ParticleCollisionC>;
 using DistanceCArray          = array_t<DistanceC>;
 using BendingCArray           = array_t<BendingC>;
+using ShapeMatchingCArray     = array_t<ShapeMatchingC>;
 
 
 // --- solver
@@ -111,15 +123,16 @@ struct Solver
     IdTable    id_tbl;
     Body       bodies     [EConst::MAX_BODIES];
     BodyParams body_params[EConst::MAX_BODIES];
+    BodyCOM    body_com   [EConst::MAX_BODIES];
 
-    // constraints points indices are absolute
+    // constraints where points indices are absolute
     CollisionCArray collision_c;
     ParticleCollisionCArray particle_collision_c;
     
-    // constraints points indices are relative to body
-    DistanceCArray distance_c[EConst::MAX_BODIES];
+    // constraints where points indices are relative to body
+    DistanceCArray      distance_c[EConst::MAX_BODIES];
+    ShapeMatchingCArray shape_matching_c[EConst::MAX_BODIES];
     
-
     BodyIdInternal   active_bodies_idi[EConst::MAX_BODIES] = {};
     u16              active_bodies_count = 0;
 
@@ -243,10 +256,6 @@ static void GarbageCollector( Solver* solver )
             }
         }
     }
-}
-
-static void RebuldConstraints( Solver* solver )
-{
 }
 
 static void PredictPositions( Solver* solver, const Body& body, const BodyParams& params, const Vector3F& gravityAcc, float deltaTime )
@@ -373,8 +382,58 @@ static void GenerateCollisionConstraints( Solver* solver )
                     }// dx
                 }// dy
             }// dz
+        
+            // --temp for testing
+            CollisionC c;
+            c.i = ip0;
+            c.plane = makePlane( Vector3F::yAxis(), Vector3F( 0.f ) );
+            array::push_back( solver->collision_c, c );
         }// ip0
     }// iactive
+}
+
+static void SolveCollisionConstraints( Solver* solver )
+{
+    const float pradius = solver->particle_radius;
+    const float pradius2 = solver->particle_radius*2.f;
+    const float pradius2_sqr = pradius2*pradius2;
+    // collision
+    for( const ParticleCollisionC& c : solver->particle_collision_c )
+    {
+        const Vector3F& p0 = solver->p1[c.i0];
+        const Vector3F& p1 = solver->p1[c.i1];
+
+        const Vector3F v = p1 - p0;
+        const float dsqr = lengthSqr( v );
+        if( dsqr < pradius2_sqr )
+        {
+            const float w0 = solver->w[c.i0];
+            const float w1 = solver->w[c.i1];
+            const float wsum = w0 + w1;
+            const float wsum_inv = 1.f / wsum;
+            const float d = ::sqrtf( dsqr );
+            const float drcp = ( d > FLT_EPSILON ) ? 1.f / d : 0.f;
+            const Vector3F n = v * drcp;
+            const Vector3F dpos = n * ( d - pradius2 ) * wsum_inv;
+            const Vector3F dpos0 = dpos * w0;
+            const Vector3F dpos1 = -dpos * w1;
+
+            solver->p1[c.i0] = p0 + dpos0;
+            solver->p1[c.i1] = p1 + dpos1;
+        }
+    }
+
+    for( const CollisionC& c : solver->collision_c )
+    {
+        const Vector3F& p = solver->p1[c.i];
+        float d = dot( c.plane, Vector4F( p, 1.f ) );
+        if( d < pradius )
+        {
+            d -= pradius;
+            const Vector3F newp = p - (c.plane.getXYZ() * d);
+            solver->p1[c.i] = newp;
+        }
+    }
 }
 
 inline int SolveDistanceC( Vector3F* resultA, Vector3F* resultB, const Vector3F& posA, const Vector3F& posB, f32 massInvA, f32 massInvB, f32 restLength, f32 stiffness )
@@ -397,6 +456,113 @@ inline int SolveDistanceC( Vector3F* resultA, Vector3F* resultB, const Vector3F&
 
     return 1;
 }
+static void SolveDistanceConstraints( Solver* solver )
+{
+    const u32 n_active = solver->active_bodies_count;
+    for( u32 iactive = 0; iactive < n_active; ++iactive )
+    {
+        const BodyIdInternal idi = solver->active_bodies_idi[iactive];
+        const u32 i = idi.index;
+
+        const Body& body = solver->bodies[i];
+        const BodyParams& params = solver->body_params[i];
+
+        const DistanceCArray& carray = solver->distance_c[i];
+        for( DistanceC c : carray )
+        {
+            const u32 i0 = body.begin + c.i0;
+            const u32 i1 = body.begin + c.i1;
+
+            const Vector3F& p0 = solver->p1[i0];
+            const Vector3F& p1 = solver->p1[i1];
+            const f32 w0 = solver->w[i0];
+            const f32 w1 = solver->w[i1];
+
+            Vector3F dpos0, dpos1;
+            if( SolveDistanceC( &dpos0, &dpos1, p0, p1, w0, w1, c.rl, params.stiffness ) )
+            {
+                solver->p1[i0] += dpos0;
+                solver->p1[i1] += dpos1;
+            }
+        }
+    }
+}
+
+static void SoftBodyUpdatePose( Matrix3F* rotation, Vector3F* centerOfMass, const Vector3F* pos, const ShapeMatchingC* shapeMatchingC, int nPoints )
+{
+    Vector3F com( 0.f );
+    f32 totalMass( 0.f );
+    for( int ipoint = 0; ipoint < nPoints; ++ipoint )
+    {
+        const f32 mass = shapeMatchingC[ipoint].mass;
+        com += pos[ipoint] * mass;
+        totalMass += mass;
+    }
+    com /= totalMass;
+
+    Vector3F col0( FLT_EPSILON, 0.f, 0.f );
+    Vector3F col1( 0.f, FLT_EPSILON * 2.f, 0.f );
+    Vector3F col2( 0.f, 0.f, FLT_EPSILON * 4.f );
+    for( int ipoint = 0; ipoint < nPoints; ++ipoint )
+    {
+        const f32 mass = shapeMatchingC[ipoint].mass;
+        const Vector3F& q = shapeMatchingC[ipoint].rest_pos;
+        const Vector3F p = ( pos[ipoint] - com ) * mass;
+        col0 += p * q.getX();
+        col1 += p * q.getY();
+        col2 += p * q.getZ();
+    }
+    Matrix3F Apq( col0, col1, col2 );
+    Matrix3F R, S;
+    PolarDecomposition( Apq, R, S );
+
+    rotation[0] = R;
+    centerOfMass[0] = com;
+}
+static inline void SolveShapeMatchingC( Vector3F* result, const Matrix3F& R, const Vector3F& com, const Vector3F& restPos, const Vector3F& pos, float shapeStiffness )
+{
+    const Vector3F goalPos = com + R * ( restPos );
+    const Vector3F dpos = goalPos - pos;
+    result[0] = dpos * shapeStiffness;
+}
+static void SolveShapeMatchingConstraints( Solver* solver )
+{
+    const u32 n_active = solver->active_bodies_count;
+    for( u32 iactive = 0; iactive < n_active; ++iactive )
+    {
+        const BodyIdInternal idi = solver->active_bodies_idi[iactive];
+        const u32 i = idi.index;
+        const ShapeMatchingCArray& shape_matching_c = solver->shape_matching_c[i];
+        if( array::empty( shape_matching_c ) )
+            continue;
+
+        const Body&     body = solver->bodies[i];
+        const Vector3F* pos = solver->p1.begin() + body.begin;
+        SYS_ASSERT( shape_matching_c.size == body.count );
+
+
+        Matrix3F rotation;
+        Vector3F center_of_mass_pos;
+        SoftBodyUpdatePose( &rotation, &center_of_mass_pos, pos, shape_matching_c.begin(), body.count );
+
+        BodyCOM& com = solver->body_com[i];
+        com.rot = normalize( QuatF( rotation ) );
+        com.pos = center_of_mass_pos;
+
+        for( u32 i = 0; i < body.count; ++i )
+        {
+            const u32 pindex = body.begin + i;
+            const Vector3F& p = solver->p1[pindex];
+            const ShapeMatchingC& c = shape_matching_c[i];
+
+            Vector3F dpos;
+            SolveShapeMatchingC( &dpos, rotation, center_of_mass_pos, c.rest_pos, p, 1.f );
+            solver->p1[pindex] += dpos;
+        }
+
+    }
+}
+
 
 static void SolveInternal( Solver* solver, u32 numIterations )
 {
@@ -422,113 +588,12 @@ static void SolveInternal( Solver* solver, u32 numIterations )
         GenerateCollisionConstraints( solver );
     }
 
-    // collision
-    for( const ParticleCollisionC& c : solver->particle_collision_c )
-    {
-        const Vector3F& p0 = solver->p1[c.i0];
-        const Vector3F& p1 = solver->p1[c.i1];
-
-        //const BodyParams& params0 = solver->body_params[c.i0];
-        //const BodyParams& params1 = solver->body_params[c.i1];
-
-        const Vector3F v = p1 - p0;
-        const float dsqr = lengthSqr( v );
-        if( dsqr < pradius2_sqr )
-        {
-            const float w0 = solver->w[c.i0];
-            const float w1 = solver->w[c.i1];
-            const float wsum = w0 + w1;
-            const float wsum_inv = 1.f / wsum;
-            const float d = ::sqrtf( dsqr );
-            const float drcp = ( d > FLT_EPSILON ) ? 1.f / d : 0.f;
-            const Vector3F n = v * drcp;
-            const Vector3F dpos = n * ( d - pradius2 ) * wsum_inv;
-            const Vector3F dpos0 = dpos * w0;
-            const Vector3F dpos1 = -dpos * w1;
-
-            solver->p1[c.i0] = p0 + dpos0;
-            solver->p1[c.i1] = p1 + dpos1;
-        }
-    #if 0
-        const float dist_sqr = lengthSqr( v );
-        if( dist_sqr < pradius2_sqr )
-        {
-            const float w0 = solver->w[c.i0];
-            const float w1 = solver->w[c.i1];
-
-            const float wsum = w0 + w1;
-            float wsum_inv = 1.f / wsum;
-
-            Vector3F n = normalize( v );
-            float d = ::sqrtf( dist_sqr );
-            //n *= ( d > FLT_EPSILON ) ? 1.f / d : 0.f;
-
-            const float restitution = 0.5f; // ( params0.restitution + params1.restitution ) * 0.5f;
-
-            const float diff = d - pradius2;
-            const Vector3F dpos = n * diff * wsum_inv;
-
-            const Vector3F dpos0 = dpos * w0;// * ( 1 + restitution );
-            const Vector3F dpos1 = -dpos * w1;// * ( 1 + restitution );
-
-            solver->p1[c.i0] += dpos0;
-            solver->p1[c.i1] += dpos1;
-
-            //solver->collision_r[c.i0] = minOfPair( solver->collision_r[c.i0], restitution );
-            //solver->collision_r[c.i1] = minOfPair( solver->collision_r[c.i1], restitution );
-
-        }
-    #endif
-    }
-
-
     // solve constraints
     for( u32 sit = 0; sit < numIterations; ++sit )
     {
-        
-
-        //for( const CollisionC& c : solver->collision_c )
-        //{
-        //    const Vector3F& p = solver->p1[c.pindex_abs];
-        //    float d = dot( c.plane, Vector4F( p, 1.f ) );
-        //    if( d < pradius )
-        //    {
-        //        d -= pradius;
-        //        const Vector3F newp = p - (c.plane.getXYZ() * d);
-        //        solver->p1[c.pindex_abs] = newp;
-        //    }
-        //}
-        
-        
-        
-        const u32 n_active = solver->active_bodies_count;
-        for( u32 iactive = 0; iactive < n_active; ++iactive )
-        {
-            const BodyIdInternal idi = solver->active_bodies_idi[iactive];
-            const u32 i = idi.index;
-            
-            const Body& body = solver->bodies[i];
-            const BodyParams& params = solver->body_params[i];
-
-            const DistanceCArray& carray = solver->distance_c[i];
-            for( DistanceC c : carray )
-            {
-                const u32 i0 = body.begin + c.i0;
-                const u32 i1 = body.begin + c.i1;
-
-                const Vector3F& p0 = solver->p1[i0];
-                const Vector3F& p1 = solver->p1[i1];
-                const f32 w0 = solver->w[i0];
-                const f32 w1 = solver->w[i1];
-
-                Vector3F dpos0, dpos1;
-                if( SolveDistanceC( &dpos0, &dpos1, p0, p1, w0, w1, c.rl, params.stiffness ) )
-                {
-                    solver->p1[i0] += dpos0;
-                    solver->p1[i1] += dpos1;
-                }
-            }
-        }
+        SolveCollisionConstraints( solver );        
+        SolveDistanceConstraints( solver );
+        SolveShapeMatchingConstraints( solver );        
     }
 
     UpdateVelocities( solver, deltaTime );
@@ -539,7 +604,6 @@ static void SolveInternal( Solver* solver, u32 numIterations )
 void Solve( Solver* solver, u32 numIterations, float deltaTime )
 {
     GarbageCollector( solver );
-    RebuldConstraints( solver );
 
     solver->delta_time_acc += deltaTime;
     //solver->delta_time = 0.001f;
@@ -613,50 +677,63 @@ namespace
         out->i1 = i1;
         out->rl = length( p1 - p0 );
     }
+    
 
-    //static void SetConstraints( PhysicsSoftBody* soft, const Solver* solver, const PhysicsBody& body, const ConstraintInfo* constraints, u32 numConstraints )
-    //{
-
-    //}
-    //static void SetConstraints( PhysicsClothBody* cloth, const Solver* solver, const PhysicsBody& body, const ConstraintInfo* constraints, u32 numConstraints )
-    //{
-
-    //}
-
-    static void SetConstraintsInternal( BodyIdInternal idi, Solver* solver, const ConstraintInfo* constraints, u32 numConstraints )
-    {
-        const Body& body = GetBody( solver, idi );
-        DistanceCArray& outArray = solver->distance_c[idi.index];
-        for( u32 i = 0; i < numConstraints; ++i )
-        {
-            const ConstraintInfo& info = constraints[i];
-            if( info.type != ConstraintInfo::eDISTANCE )
-                continue;
-
-            const u32 relative_i0 = info.index[0];
-            const u32 relative_i1 = info.index[1];
-            const u32 absolute_i0 = body.begin + relative_i0;
-            const u32 absolute_i1 = body.begin + relative_i1;
-
-            if( IsInRange( body, absolute_i0 ) && IsInRange( body, absolute_i1 ) )
-            {
-                DistanceC c;
-                ComputeConstraint( &c, solver->p0.begin() + body.begin, relative_i0, relative_i1 );
-                array::push_back( outArray, c );
-            }
-        }
-    }
 }//
 
-
-
-void SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints )
+void SetDistanceConstraints( Solver* solver, BodyId id, const DistanceCInfo* constraints, u32 numConstraints )
 {
     PHYSICS_VALIDATE_ID_NO_RETURN;
 
     const BodyIdInternal idi = ToBodyIdInternal( id );
-    SetConstraintsInternal( idi, solver, constraints, numConstraints );
+    const Body& body = GetBody( solver, idi );
+
+    DistanceCArray& outArray = solver->distance_c[idi.index];
+
+    for( u32 i = 0; i < numConstraints; ++i )
+    {
+        const DistanceCInfo& info = constraints[i];
+
+        const u32 relative_i0 = info.i0;
+        const u32 relative_i1 = info.i1;
+        const u32 absolute_i0 = body.begin + relative_i0;
+        const u32 absolute_i1 = body.begin + relative_i1;
+
+        if( IsInRange( body, absolute_i0 ) && IsInRange( body, absolute_i1 ) )
+        {
+            DistanceC c;
+            ComputeConstraint( &c, solver->p0.begin() + body.begin, relative_i0, relative_i1 );
+            array::push_back( outArray, c );
+        }
+    }
 }
+
+void SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatchingCInfo* constraints, u32 numConstraints )
+{
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    const Body& body = GetBody( solver, idi );
+
+    ShapeMatchingCArray& outArray = solver->shape_matching_c[idi.index];
+
+    for( u32 i = 0; i < numConstraints; ++i )
+    {
+        const ShapeMatchingCInfo& info = constraints[i];
+
+        const u32 relative_i = info.i;
+        const u32 absolute_i = body.begin + relative_i;
+
+        if( IsInRange( body, absolute_i ) )
+        {
+            ShapeMatchingC c;
+            c.rest_pos = info.rest_pos;
+            c.mass = info.mass;
+            array::push_back( outArray, c );
+        }
+    }
+}
+
 
 u32 GetNbParticles( Solver* solver, BodyId id )
 {
@@ -750,16 +827,15 @@ BodyId CreateRope( Solver* solver, const Vector3F& attach, const Vector3F& axis,
     physics::Unmap( solver, mass_inv );
     physics::Unmap( solver, points );
 
-    array_t< physics::ConstraintInfo >c_info;
+    array_t< physics::DistanceCInfo >c_info;
     array::reserve( c_info, num_points - 1 );
     for( u32 i = 0; i < num_points - 1; ++i )
     {
-        physics::ConstraintInfo& info = c_info[i];
-        info.type = physics::ConstraintInfo::eDISTANCE;
-        info.index[0] = i;
-        info.index[1] = i + 1;
+        physics::DistanceCInfo& info = c_info[i];
+        info.i0 = i;
+        info.i1 = i + 1;
     }
-    physics::SetConstraints( solver, rope, c_info.begin(), num_points - 1 );
+    physics::SetDistanceConstraints( solver, rope, c_info.begin(), num_points - 1 );
 
     return rope;
 }

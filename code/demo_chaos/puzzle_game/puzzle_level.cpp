@@ -52,14 +52,14 @@ void LevelState::OnStartUp()
     {
         Vector3F::xAxis(),
         Vector3F::zAxis(),
-        -Vector3F::yAxis(),
+        normalize( -Vector3F::yAxis() + Vector3F::zAxis() ),
         -Vector3F::zAxis(),
         -Vector3F::xAxis(),
     };
 
     for( u32 i = 0; i < NUM_ROPES; i++ )
     {
-        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 15.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
+        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
         float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
         mass_inv[0] = 0.f;
         physics::Unmap( _solver, mass_inv );
@@ -100,6 +100,35 @@ void LevelState::OnUpdate( const GameTime& time )
     for( size_t i = 0; i < NUM_ROPES; i++ )
     {
         physics::DebugDraw( _solver, _rope[i], physics::DebugDrawBodyParams().NoConstraints() );
+    }
+
+    {// test box
+        u32 w = 4;
+        u32 h = 4;
+        u32 d = 4;
+
+        const f32 pradius = physics::GetParticleRadius( _solver );
+        const f32 pradius2 = pradius * 2.f;
+
+        Matrix4F pose = Matrix4F::translation( Vector3F( 5.f, 5.f, 0.f ) );
+
+        const Vector3F begin_pos = Vector3F( (f32)w, (f32)h, (f32)d ) * -0.5f * pradius2;
+        
+        for( u32 iz = 0; iz < d; ++iz )
+        {
+            for( u32 iy = 0; iy < h; ++iy )
+            {
+                for( u32 ix = 0; ix < w; ++ix )
+                {
+                    const Vector3F relative_pos = Vector3F( (f32)ix, (f32)iy, (f32)iz ) * pradius2;
+                    const Vector3F pos = ( pose * Point3F( begin_pos + relative_pos ) ).getXYZ();
+
+                    rdi::debug_draw::AddSphere( Vector4F( pos, pradius ), 0xFF0000FF, 1 );
+
+                }
+            }
+        }
+
     }
 
 }
