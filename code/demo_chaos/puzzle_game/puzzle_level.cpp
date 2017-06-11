@@ -45,8 +45,8 @@ void LevelState::OnStartUp()
 
     _player = PlayerCreate( "playerLocal" );
 
-    physics::Create( &_solver, 1024 * 8, 0.1f );
-    physics::SetFrequency( _solver, 120 );
+    physics::Create( &_solver, 1024 * 8, 0.2f );
+    physics::SetFrequency( _solver, 60 );
 
     const Vector3F axis[5] =
     {
@@ -72,7 +72,7 @@ void LevelState::OnStartUp()
 
 
     Matrix4F soft_pose = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4, PI/4,PI/4) ), Vector3F( 0.f, 5.f, 0.f ) );
-    _soft = physics::CreateSoftBox( _solver, soft_pose, 2.0f, 2.0f, 2.0f, 10.f );
+    _soft = physics::CreateSoftBox( _solver, soft_pose, 1.0f, 1.0f, 1.0f, 10.f );
 }
 
 void LevelState::OnShutDown()

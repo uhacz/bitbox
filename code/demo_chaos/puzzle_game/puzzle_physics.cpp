@@ -392,6 +392,23 @@ static void GenerateCollisionConstraints( Solver* solver )
     }// iactive
 }
 
+static inline Vector3F ComputeFrictionDeltaPos( const Vector3F& tangent, const Vector3F& normal, float depth_positive, float sFriction, float dFriction )
+{
+    const float tangent_len = length( tangent );
+    Vector3F dpos_friction( 0.f );
+    if( tangent_len < depth_positive * sFriction )
+    {
+        dpos_friction = tangent;
+    }
+    else
+    {
+        const float a = minOfPair( depth_positive * dFriction / tangent_len, 1.f );
+        dpos_friction = tangent * a;
+    }
+
+    return dpos_friction;
+}
+
 static void SolveCollisionConstraints( Solver* solver )
 {
     const float pradius = solver->particle_radius;
@@ -418,10 +435,18 @@ static void SolveCollisionConstraints( Solver* solver )
             const Vector3F dpos0 = dpos * w0;
             const Vector3F dpos1 = -dpos * w1;
 
+            const Vector3F newp0 = p0 + dpos0;
+            const Vector3F newp1 = p1 + dpos1;
+
+
+
             solver->p1[c.i0] = p0 + dpos0;
             solver->p1[c.i1] = p1 + dpos1;
         }
     }
+
+    const float tmp_sfriction = 0.99f;
+    const float tmp_dfriction = 0.5f;
 
     for( const CollisionC& c : solver->collision_c )
     {
@@ -430,8 +455,13 @@ static void SolveCollisionConstraints( Solver* solver )
         if( d < pradius )
         {
             d -= pradius;
-            const Vector3F newp = p - (c.plane.getXYZ() * d);
-            solver->p1[c.i] = newp;
+            const Vector3F n = c.plane.getXYZ();
+            const Vector3F newp = p - (n * d);
+            const Vector3F& oldp = solver->p0[c.i];
+
+            const Vector3F xt = projectVectorOnPlane( newp - oldp, n );
+            const Vector3F dpos_friction = ComputeFrictionDeltaPos( xt, n, -d, tmp_sfriction, tmp_dfriction );
+            solver->p1[c.i] = newp - dpos_friction;
         }
     }
 }
@@ -591,9 +621,9 @@ static void SolveInternal( Solver* solver, u32 numIterations )
     // solve constraints
     for( u32 sit = 0; sit < numIterations; ++sit )
     {
-        SolveCollisionConstraints( solver );        
         SolveDistanceConstraints( solver );
         SolveShapeMatchingConstraints( solver );        
+        SolveCollisionConstraints( solver );
     }
 
     UpdateVelocities( solver, deltaTime );
