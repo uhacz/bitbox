@@ -22,7 +22,7 @@ namespace EConst
 
 // collision constraints are generated from scratch in every frame. 
 // Thus particle indices are absolute for simplicity sake.
-struct CollisionC
+struct PlaneCollisionC
 {
     Vector4F plane;
     u32 i;
@@ -99,10 +99,11 @@ using IdTable             = id_table_t< EConst::MAX_BODIES, BodyIdInternal >;
 using Vector3Array        = array_t<Vector3F>;
 using F32Array            = array_t<f32>;
 using U32Array            = array_t<u32>;
+using U16Array            = array_t<u16>;
 
 using PhysicsBodyArray        = array_t<Body>;
 using BodyIdInternalArray     = array_t<BodyIdInternal>;
-using CollisionCArray         = array_t<CollisionC>;
+using CollisionCArray         = array_t<PlaneCollisionC>;
 using ParticleCollisionCArray = array_t<ParticleCollisionC>;
 using DistanceCArray          = array_t<DistanceC>;
 using BendingCArray           = array_t<BendingC>;
@@ -118,6 +119,7 @@ struct Solver
     Vector3Array p1;
     Vector3Array v;
     F32Array     w;
+    U16Array     body_index;
     F32Array     collision_r;
         
     IdTable    id_tbl;
@@ -126,7 +128,7 @@ struct Solver
     BodyCOM    body_com   [EConst::MAX_BODIES];
 
     // constraints where points indices are absolute
-    CollisionCArray collision_c;
+    CollisionCArray         plane_collision_c;
     ParticleCollisionCArray particle_collision_c;
     
     // constraints where points indices are relative to body
@@ -175,6 +177,7 @@ static void ReserveParticles( Solver* solver, u32 count )
     array::reserve( solver->p1, count );
     array::reserve( solver->v , count );
     array::reserve( solver->w , count );
+    array::reserve( solver->body_index, count );
     array::reserve( solver->collision_r, count );
 }
 
@@ -193,6 +196,7 @@ static Body AllocateBody( Solver* solver, u32 particleAmount )
         array::push_back( solver->p1, Vector3F( 0.f ) );
         array::push_back( solver->v, Vector3F( 0.f ) );
         array::push_back( solver->w, 1.f );
+        array::push_back( solver->body_index, UINT16_MAX );
         array::push_back( solver->collision_r, 1.f );
     }
 
@@ -272,7 +276,8 @@ static void PredictPositions( Solver* solver, const Body& body, const BodyParams
     {
         Vector3F p = solver->p0[i];
         Vector3F v = solver->v[i];
-        const float w = solver->w[i];
+        float w = solver->w[i];
+        w = ( w > FLT_EPSILON ) ? 1.f : 0.f;
 
         v += gravityDV * w;
         v *= damping_coeff;
@@ -328,9 +333,9 @@ static void GenerateCollisionConstraints( Solver* solver )
     const u32 n = solver->p1.size;
     const u32 hash_grid_size = n * 4;
 
-    array::reserve( solver->collision_c, n * 2 );
+    array::reserve( solver->plane_collision_c, n * 2 );
     array::reserve( solver->particle_collision_c, n * 2 );
-    array::clear( solver->collision_c );
+    array::clear( solver->plane_collision_c );
     array::clear( solver->particle_collision_c );
 
     Build( &solver->_hash_grid, nullptr, points, n, hash_grid_size, pradius2 );
@@ -384,10 +389,10 @@ static void GenerateCollisionConstraints( Solver* solver )
             }// dz
         
             // --temp for testing
-            CollisionC c;
+            PlaneCollisionC c;
             c.i = ip0;
             c.plane = makePlane( Vector3F::yAxis(), Vector3F( 0.f ) );
-            array::push_back( solver->collision_c, c );
+            array::push_back( solver->plane_collision_c, c );
         }// ip0
     }// iactive
 }
@@ -430,25 +435,34 @@ static void SolveCollisionConstraints( Solver* solver )
             const float wsum_inv = 1.f / wsum;
             const float d = ::sqrtf( dsqr );
             const float drcp = ( d > FLT_EPSILON ) ? 1.f / d : 0.f;
+            const float depth = d - pradius2;
             const Vector3F n = v * drcp;
-            const Vector3F dpos = n * ( d - pradius2 ) * wsum_inv;
+            const Vector3F dpos = n *  depth * wsum_inv;
             const Vector3F dpos0 = dpos * w0;
             const Vector3F dpos1 = -dpos * w1;
 
             const Vector3F newp0 = p0 + dpos0;
             const Vector3F newp1 = p1 + dpos1;
+            
+            const Vector3F& oldp0 = solver->p0[c.i0];
+            const Vector3F& oldp1 = solver->p1[c.i0];
 
+            const u16 body_index0 = solver->body_index[c.i0];
+            const u16 body_index1 = solver->body_index[c.i1];
+            const BodyParams& params0 = solver->body_params[body_index0];
+            const BodyParams& params1 = solver->body_params[body_index1];
 
+            const Vector3F xt = projectVectorOnPlane( ( newp1 - oldp1 ) - ( newp0 - oldp0 ), n );
+            
+            const Vector3F dpos_friction0 = ComputeFrictionDeltaPos( xt, n, -depth, params0.static_friction, params0.dynamic_friction );
+            const Vector3F dpos_friction1 = ComputeFrictionDeltaPos(-xt, n, -depth, params1.static_friction, params1.dynamic_friction );
 
-            solver->p1[c.i0] = p0 + dpos0;
-            solver->p1[c.i1] = p1 + dpos1;
+            solver->p1[c.i0] = newp0 + dpos_friction0*w0 * wsum_inv;
+            solver->p1[c.i1] = newp1 + dpos_friction1*w1 * wsum_inv;
         }
     }
 
-    const float tmp_sfriction = 0.99f;
-    const float tmp_dfriction = 0.5f;
-
-    for( const CollisionC& c : solver->collision_c )
+    for( const PlaneCollisionC& c : solver->plane_collision_c )
     {
         const Vector3F& p = solver->p1[c.i];
         float d = dot( c.plane, Vector4F( p, 1.f ) );
@@ -459,8 +473,11 @@ static void SolveCollisionConstraints( Solver* solver )
             const Vector3F newp = p - (n * d);
             const Vector3F& oldp = solver->p0[c.i];
 
+            const u16 body_index = solver->body_index[c.i];
+            const BodyParams& params0 = solver->body_params[body_index];
+
             const Vector3F xt = projectVectorOnPlane( newp - oldp, n );
-            const Vector3F dpos_friction = ComputeFrictionDeltaPos( xt, n, -d, tmp_sfriction, tmp_dfriction );
+            const Vector3F dpos_friction = ComputeFrictionDeltaPos( xt, n, -d, params0.static_friction, params0.dynamic_friction );
             solver->p1[c.i] = newp - dpos_friction;
         }
     }
@@ -659,6 +676,8 @@ namespace
         BodyIdInternal idi = id_table::create( solver->id_tbl );
         
         solver->bodies[idi.index] = body;
+        for( u32 i = body.begin; i < body.begin + numParticles; ++i )
+            solver->body_index[i] = idi.index;
 
         const u32 index = solver->active_bodies_count++;
         solver->active_bodies_idi[index] = idi;
@@ -684,8 +703,6 @@ void DestroyBody( Solver* solver, BodyId id )
 
     id_table::destroy( solver->id_tbl, idi );
     array::push_back( solver->_to_deallocate, idi );
-
-    //solver->flags.rebuild_constraints = 1;
 }
 
 

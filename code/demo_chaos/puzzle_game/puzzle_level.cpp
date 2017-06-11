@@ -70,9 +70,11 @@ void LevelState::OnStartUp()
         physics::SetBodyParams( _solver, _rope[i], params );
     }
 
+    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4, PI/4,PI/4) ), Vector3F( 0.f, 3.f, 2.f ) );
+    _soft0 = physics::CreateSoftBox( _solver, soft_pose0, 2.0f, 2.0f, 2.0f, 1.f );
 
-    Matrix4F soft_pose = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4, PI/4,PI/4) ), Vector3F( 0.f, 5.f, 0.f ) );
-    _soft = physics::CreateSoftBox( _solver, soft_pose, 1.0f, 1.0f, 1.0f, 10.f );
+    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 1.f, 10.f, 2.f ) );
+    _soft1 = physics::CreateSoftBox( _solver, soft_pose1, 2.0f, 2.0f, 2.0f, 3.f );
 }
 
 void LevelState::OnShutDown()
@@ -104,7 +106,8 @@ void LevelState::OnUpdate( const GameTime& time )
         physics::DebugDraw( _solver, _rope[i], physics::DebugDrawBodyParams().NoConstraints() );
     }
 
-    physics::DebugDraw( _solver, _soft, physics::DebugDrawBodyParams().Points( 0xFF0000FF ) );
+    physics::DebugDraw( _solver, _soft0, physics::DebugDrawBodyParams().Points( 0xFF0000FF ) );
+    physics::DebugDraw( _solver, _soft1, physics::DebugDrawBodyParams().Points( 0x00FF00FF ) );
 
 }
 

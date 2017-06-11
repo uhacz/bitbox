@@ -36,7 +36,8 @@ public:
 
     static const unsigned NUM_ROPES = 5;
     physics::BodyId _rope[NUM_ROPES];
-    physics::BodyId _soft;
+    physics::BodyId _soft0;
+    physics::BodyId _soft1;
 };
 
 }}//
