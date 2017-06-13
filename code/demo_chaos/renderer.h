@@ -91,6 +91,7 @@ private:
 
     rdi::ResourceDescriptor  _rdesc_frame_data;
     rdi::ConstantBuffer      _cbuffer_frame_data = {};
+    rdi::BufferRO            _particle_buffer = {};
     gfx::VertexTransformData _vertex_transform_data;
     rdi::CommandBuffer       _command_buffer;
 };

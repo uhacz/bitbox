@@ -70,10 +70,10 @@ void LevelState::OnStartUp()
         physics::SetBodyParams( _solver, _rope[i], params );
     }
 
-    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4, PI/4,PI/4) ), Vector3F( 0.f, 3.f, 2.f ) );
+    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4, PI/4,PI/4) ), Vector3F( 0.f, 13.f, 2.f ) );
     _soft0 = physics::CreateSoftBox( _solver, soft_pose0, 2.0f, 2.0f, 2.0f, 1.f );
 
-    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 1.f, 10.f, 2.f ) );
+    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 2.f, 3.f, 2.f ) );
     _soft1 = physics::CreateSoftBox( _solver, soft_pose1, 2.0f, 2.0f, 2.0f, 3.f );
 }
 

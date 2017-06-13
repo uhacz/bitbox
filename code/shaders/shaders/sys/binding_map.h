@@ -10,6 +10,7 @@
 //world matrices (vertex shader)
 #define SLOT_INSTANCE_DATA_WORLD 0 
 #define SLOT_INSTANCE_DATA_WORLD_IT 1
+#define SLOT_INSTANCE_PARTICLE_DATA 2
 
 //pixel shader
 #define SLOT_LIGHTS_DATA 0

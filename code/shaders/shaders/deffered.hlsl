@@ -14,15 +14,23 @@ passes:
             USE_TEXTURES = 1;
         };
     };
+
+    geometry_particle = 
+    {
+        
+    };
 }; #~header
 
 #include <sys/vertex_transform.hlsl>
 #include <sys/samplers.hlsl>
 #include <material_data.h>
 
+Buffer<float4> _particle_data : register(TSLOT(SLOT_INSTANCE_PARTICLE_DATA));
+
 struct in_VS
 {
     uint instanceID : SV_InstanceID;
+    uint vertexID : SV_VertexID;
     float3 pos : POSITION;
     float3 normal : NORMAL;
 #if defined(USE_TEXTURES)
@@ -90,6 +98,23 @@ in_PS vs_geometry_main(in_VS IN)
     OUT.texcoord = IN.texcoord;
 #endif
     return OUT;
+}
+
+in_PS vs_geometry_particle_main( in_VS IN )
+{
+    in_PS OUT = (in_PS) 0;
+
+    float4 pdata = _particle_data[IN.instanceID];
+    
+    const float4 xoffset = float4(-1.f, 1.f, 1.f, -1.f);
+    const float4 yoffset = float4(-1.f, -1.f, 1.f, 1.f);
+
+    float3 local_pos = float3(xoffset[IN.vertexID], yoffset[IN.vertexID], 0.f);
+    float3 world_pos = pdata.xyz + local_pos * pdata.w;
+
+
+
+
 }
 
 out_PS ps_geometry_main( in_PS IN )

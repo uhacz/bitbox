@@ -261,6 +261,11 @@ void GeometryPass::_StartUp( GeometryPass* pass, const RendererDesc& rndDesc )
     }
 
     {
+        
+        pass->_particle_buffer = rdi::device::CreateBufferRO( 1024*8, rdi::Format( rdi::EDataType::FLOAT, 4 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
+    }
+
+    {
         pass->_cbuffer_frame_data = rdi::device::CreateConstantBuffer( sizeof( FrameData ) );
         rdi::ResourceBinding binding = rdi::ResourceBinding( "FrameData", rdi::EBindingType::UNIFORM ).Slot( SLOT_FRAME_DATA ).StageMask( rdi::EStage::ALL_STAGES_MASK );
         rdi::ResourceLayout layout = {};
@@ -284,6 +289,7 @@ void GeometryPass::_ShutDown( GeometryPass* pass )
 
     rdi::DestroyCommandBuffer( &pass->_command_buffer );
     rdi::DestroyResourceDescriptor( &pass->_rdesc_frame_data );
+    rdi::device::DestroyBufferRO( &pass->_particle_buffer );
     rdi::device::DestroyConstantBuffer( &pass->_cbuffer_frame_data );
     rdi::DestroyRenderTarget( &pass->_rtarget_gbuffer );
 }
