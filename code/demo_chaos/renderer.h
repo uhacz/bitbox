@@ -83,6 +83,7 @@ private:
 
     struct FrameData
     {
+        Matrix4 _camera_world;
         Matrix4 _view;
         Matrix4 _view_proj;
     };

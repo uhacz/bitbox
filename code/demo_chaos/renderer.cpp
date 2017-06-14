@@ -214,11 +214,11 @@ void GeometryPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Cam
 {
     {
         FrameData fdata;
+        fdata._camera_world = camera.world;
         fdata._view = camera.view;
         fdata._view_proj = camera.view_proj;
 
         rdi::context::UpdateCBuffer( cmdq, _cbuffer_frame_data, &fdata );
-        //rdi::BindResources( cmdq, _rdesc_frame_data );
     }
 
     {
