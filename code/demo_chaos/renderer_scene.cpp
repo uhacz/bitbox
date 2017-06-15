@@ -19,6 +19,7 @@ namespace ESceneFlags
     {
         MESH_SOURCE_HANDLE = BIT_OFFSET( 0 ),
         MESH_SOURCE_RSOURCE = BIT_OFFSET( 1 ),
+        MESH_SOURCE_CALLBACK = BIT_OFFSET( 2 ),
     };
 }//
 
@@ -28,7 +29,6 @@ Matrix4* getMatrixPtr( MeshMatrix& m, u32 numInstances )
     SYS_ASSERT( numInstances > 0 );
     return ( numInstances == 1 ) ? (Matrix4*)m._single : m._multi;
 }
-
 
 void SceneImpl::Prepare( const char* name, bxAllocator* allocator )
 {
@@ -149,7 +149,7 @@ ActorID SceneImpl::Find( const char* name )
 void SceneImpl::SetMeshHandle( ActorID actorId, MeshHandle handle )
 {
     const u32 index = _GetIndex( actorId );
-    SYS_ASSERT( ( _mesh_data.flags[index] & ESceneFlags::MESH_SOURCE_RSOURCE ) == 0 );
+    SYS_ASSERT( ( _mesh_data.flags[index] & ~( ESceneFlags::MESH_SOURCE_HANDLE ) == 0 ) );
     _mesh_data.mesh_source[index].handle = handle;
     _mesh_data.flags[index] |= ESceneFlags::MESH_SOURCE_HANDLE;
 }
@@ -157,9 +157,19 @@ void SceneImpl::SetMeshHandle( ActorID actorId, MeshHandle handle )
 void SceneImpl::SetRenderSource( ActorID actorId, rdi::RenderSource rsource )
 {
     const u32 index = _GetIndex( actorId );
-    SYS_ASSERT( ( _mesh_data.flags[index] & ESceneFlags::MESH_SOURCE_HANDLE ) == 0 );
+    SYS_ASSERT( ( _mesh_data.flags[index] & ~( ESceneFlags::MESH_SOURCE_RSOURCE ) == 0 ) );
     _mesh_data.mesh_source[index].rsource = rsource;
     _mesh_data.flags[index] |= ESceneFlags::MESH_SOURCE_RSOURCE;
+}
+
+void SceneImpl::SetSceneCallback( ActorID actorId, DrawCallback * functionPtr, void * userData )
+{
+    const u32 index = _GetIndex( actorId );
+    SYS_ASSERT( ( _mesh_data.flags[index] & ~( ESceneFlags::MESH_SOURCE_CALLBACK ) == 0 ) );
+    _mesh_data.mesh_source[index].callback.function_ptr = functionPtr;
+    _mesh_data.mesh_source[index].callback.udata = userData;
+
+    _mesh_data.flags[index] |= ESceneFlags::MESH_SOURCE_CALLBACK;
 }
 
 void SceneImpl::SetMaterial( ActorID mi, MaterialHandle m )
@@ -202,9 +212,16 @@ namespace renderer_scene_internal
         };
     };
 
-    inline rdi::RenderSource GetRenderSource( MeshSource src, u32 flags )
+    inline u32 GetRenderSource( rdi::RenderSource* rsource, MeshSource::Callback* cb,  MeshSource src, u32 flags )
     {
-        return ( flags & ESceneFlags::MESH_SOURCE_HANDLE ) ? GMeshManager()->RenderSource( src.handle ) : src.rsource;
+        if( flags & ESceneFlags::MESH_SOURCE_CALLBACK )
+        {
+            cb[0] = src.callback;
+            return ESceneFlags::MESH_SOURCE_CALLBACK;
+        }
+        rsource[0] = ( flags & ESceneFlags::MESH_SOURCE_HANDLE ) ? GMeshManager()->RenderSource( src.handle ) : src.rsource;
+
+        return flags;
     }
 
 }///
@@ -218,7 +235,11 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
 
         //MeshHandle hmesh = _mesh_data.meshes[i];
         //rdi::RenderSource rsource = GMeshManager()->RenderSource( hmesh );
-        rdi::RenderSource rsource = renderer_scene_internal::GetRenderSource( _mesh_data.mesh_source[i], _mesh_data.flags[i] );
+
+        MeshSource::Callback callback = {};
+        rdi::RenderSource rsource = {};
+
+        renderer_scene_internal::GetRenderSource( &rsource, &callback, _mesh_data.mesh_source[i], _mesh_data.flags[i] );
         MaterialPipeline material_pipeline = GMaterialManager()->Pipeline( _mesh_data.materials[i] );
 
         for( u32 imatrix = 0; imatrix < num_instances; ++imatrix )
@@ -240,9 +261,15 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
             rdi::SetResourcesCmd* resources_cmd = rdi::AllocateCommand<rdi::SetResourcesCmd>( cmdb, pipeline_cmd );
             resources_cmd->desc = material_pipeline.resource_desc;
 
-            rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, resources_cmd );
-            draw_cmd->rsource = rsource;
-            draw_cmd->num_instances = 1;
+            if( callback.function_ptr )
+            {
+            }
+            else
+            {
+                rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, resources_cmd );
+                draw_cmd->rsource = rsource;
+                draw_cmd->num_instances = 1;
+            }
 
             rdi::SubmitCommand( cmdb, instance_cmd, skey.hash );
         }

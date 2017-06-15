@@ -264,6 +264,12 @@ namespace bx{ namespace rdi{
         static const DispatchFunction DISPATCH_FUNCTION;
         ResourceDescriptor desc;
     };
+    struct SetRenderSourceCmd : Command
+    {
+        static const DispatchFunction DISPATCH_FUNCTION;
+        RenderSource rsource = BX_RDI_NULL_HANDLE;
+    };
+
     struct DrawCmd : Command
     {
         static const DispatchFunction DISPATCH_FUNCTION;
@@ -271,17 +277,43 @@ namespace bx{ namespace rdi{
         u16 rsouce_range = 0;
         u16 num_instances = 0;
     };
+    struct RawDrawCallCmd : Command
+    {
+        static const DispatchFunction DISPATCH_FUNCTION;
+        u32 num_vertices = 0;
+        u32 start_index = 0;
+        u32 num_instances = 0;
+    };
     struct UpdateConstantBufferCmd : Command
     {
         static const DispatchFunction DISPATCH_FUNCTION;
         ConstantBuffer cbuffer = {};
         u8* DataPtr() { return (u8*)(this + 1); }
     };
+    struct UpdateBufferCmd : Command
+    {
+        static const DispatchFunction DISPATCH_FUNCTION;
+        Resource resource = {};
+        u32 size = 0;
+        u8* DataPtr() { return (u8*)( this + 1 ); }
+    };
+    
+    using DrawCallback = void( *)( rdi::CommandQueue* cmdq, void* userData );
+    struct DrawCallbackCmd : Command
+    {
+        static const DispatchFunction DISPATCH_FUNCTION;
+        DrawCallback* ptr;
+        void* user_data;a
+    };
 
     void SetPipelineCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
     void SetResourcesCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
+    void SetRenderSourceCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
     void DrawCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
+    void RawDrawCallCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
     void UpdateConstantBufferCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
+    void UpdateBufferCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
+    void DrawCallbackCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );
     
     //////////////////////////////////////////////////////////////////////////
     /// @dataCapacity : additional data for commands eg. for UpdateConstantBufferCmd data

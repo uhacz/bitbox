@@ -18,11 +18,26 @@ union MeshMatrix
     u8 _single[64] = {};
     Matrix4* _multi;
 };
+
+
+
 union MeshSource
 {
-    rdi::RenderSource rsource = BX_RDI_NULL_HANDLE;
+    struct Callback
+    {
+        DrawCallback* function_ptr;
+        void* udata;
+    } callback;
+    rdi::RenderSource rsource;
     MeshHandle handle;
+
+    MeshSource()
+    {
+        callback.function_ptr = nullptr;
+        callback.udata = nullptr;
+    }
 };
+
 
 // --- 
 struct SunSkyLight
@@ -34,6 +49,12 @@ struct SunSkyLight
     TextureHandle sky_cubemap = {};
 };
 // ---
+
+struct ParticleData
+{
+    Vector4F* data = nullptr;
+    u32 count;
+};
 
 //////////////////////////////////////////////////////////////////////////
 struct VertexTransformData;
@@ -51,6 +72,7 @@ struct SceneImpl
     // -- actor can have handle OR rsource. Never both at the same time.
     void SetMeshHandle( ActorID actorId, MeshHandle handle );
     void SetRenderSource( ActorID actorId, rdi::RenderSource rsource );
+    void SetSceneCallback( ActorID actorId, DrawCallback* functionPtr, void* userData );
 
     void SetMaterial( ActorID mi, MaterialHandle m );
     void SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
@@ -66,10 +88,16 @@ struct SceneImpl
     
 
 private:
+    enum
+    {
+        MAX_PARTICLES = 8,
+    };
+
     //////////////////////////////////////////////////////////////////////////
     void _SetToDefaults( u32 index );
     void _AllocateMeshData( u32 newSize, bxAllocator* allocator );
     u32  _GetIndex( ActorID mi );
+    u32 _GetParticleIndex( ActorID id );
 
     struct MeshData
     {
@@ -86,7 +114,6 @@ private:
         u32             size           = 0;
         u32             capacity       = 0;
     }_mesh_data;
-
 
     SunSkyLight* _sun_sky_light = nullptr;
 

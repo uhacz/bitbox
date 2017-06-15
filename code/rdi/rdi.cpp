@@ -602,8 +602,19 @@ void DestroyRenderSource( RenderSource* rsource, bxAllocator* allocator /*= null
 }
 void BindRenderSource( CommandQueue* cmdq, RenderSource renderSource )
 {
-    context::SetVertexBuffers( cmdq, renderSource->vertex_buffers, 0, renderSource->num_vertex_buffers );
-    context::SetIndexBuffer( cmdq, renderSource->index_buffer );
+    rdi::VertexBuffer* vbuffers = nullptr;
+    u32 num_vbuffers = 0;
+
+    rdi::IndexBuffer ibuffer = {};
+
+    if( renderSource )
+    {
+        vbuffers     = renderSource->vertex_buffers;
+        num_vbuffers = renderSource->num_vertex_buffers;
+        ibuffer      = renderSource->index_buffer;
+    }
+    context::SetVertexBuffers( cmdq, vbuffers, 0, num_vbuffers );
+    context::SetIndexBuffer( cmdq, ibuffer );
 }
 
 void SubmitRenderSource( CommandQueue* cmdq, RenderSource renderSource, u32 rangeIndex )
@@ -714,6 +725,10 @@ namespace bx { namespace rdi {
     const DispatchFunction UpdateConstantBufferCmd::DISPATCH_FUNCTION = UpdateConstantBufferCmdDispatch;
     const DispatchFunction SetPipelineCmd::DISPATCH_FUNCTION = SetPipelineCmdDispatch;
     const DispatchFunction SetResourcesCmd::DISPATCH_FUNCTION = SetResourcesCmdDispatch;
+    const DispatchFunction SetRenderSourceCmd::DISPATCH_FUNCTION = SetRenderSourceCmdDispatch;
+    const DispatchFunction RawDrawCallCmd::DISPATCH_FUNCTION = RawDrawCallCmdDispatch;
+    const DispatchFunction UpdateBufferCmd::DISPATCH_FUNCTION = UpdateBufferCmdDispatch;
+    
     
     void SetPipelineCmdDispatch(  CommandQueue* cmdq, Command* cmdAddr )
     {
@@ -726,6 +741,12 @@ namespace bx { namespace rdi {
         BindResources( cmdq, cmd->desc );
     }
 
+    void SetRenderSourceCmdDispatch( CommandQueue * cmdq, Command * cmdAddr )
+    {
+        SetRenderSourceCmd* cmd = (SetRenderSourceCmd*)cmdAddr;
+        BindRenderSource( cmdq, cmd->rsource );
+    }
+
     void DrawCmdDispatch( CommandQueue* cmdq, Command* cmdAddr )
     {
         DrawCmd* cmd = (DrawCmd*)cmdAddr;
@@ -733,10 +754,24 @@ namespace bx { namespace rdi {
         SubmitRenderSourceInstanced( cmdq, cmd->rsource, cmd->num_instances, cmd->rsouce_range );
     }
 
+    void RawDrawCallCmdDispatch( CommandQueue * cmdq, Command * cmdAddr )
+    {
+        RawDrawCallCmd* cmd = (RawDrawCallCmd*)cmdAddr;
+        context::DrawInstanced( cmdq, cmd->num_vertices, cmd->start_index, cmd->num_instances );
+    }
+
     void UpdateConstantBufferCmdDispatch( CommandQueue* cmdq, Command* cmdAddr )
     {
         UpdateConstantBufferCmd* cmd = (UpdateConstantBufferCmd*)cmdAddr;
         context::UpdateCBuffer( cmdq, cmd->cbuffer, cmd->DataPtr() );
+    }
+
+    void UpdateBufferCmdDispatch( CommandQueue * cmdq, Command * cmdAddr )
+    {
+        UpdateBufferCmd* cmd = (UpdateBufferCmd*)cmdAddr;
+        u8* mapped_ptr = context::Map( cmdq, cmd->resource, 0, EMapType::WRITE );
+        memcpy( mapped_ptr, cmd->DataPtr(), cmd->size );
+        context::Unmap( cmdq, cmd->resource );
     }
 
         //////////////////////////////////////////////////////////////////////////

@@ -68,6 +68,15 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
+namespace EGBuffer
+{
+    enum E : u8
+    {
+        ALBEDO_SPEC = 0,
+        WPOS_ROUGH,
+        WNRM_METAL,
+    };
+}
 class GeometryPass
 {
 public:

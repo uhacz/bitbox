@@ -36,7 +36,7 @@ void Deffered::DrawScene( rdi::CommandQueue* cmdq, gfx::Scene scene, const gfx::
     geometry_pass.Flush( cmdq );
 
     rdi::TextureDepth depthTexture = rdi::GetTextureDepth( geometry_pass.GBuffer() );
-    rdi::TextureRW normalsTexture = rdi::GetTexture( geometry_pass.GBuffer(), 2 );
+    rdi::TextureRW normalsTexture = rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::WNRM_METAL );
     shadow_pass.PrepareScene( cmdq, scene, camera );
     shadow_pass.Flush( cmdq, depthTexture, normalsTexture );
 
