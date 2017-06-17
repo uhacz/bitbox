@@ -728,7 +728,7 @@ namespace bx { namespace rdi {
     const DispatchFunction SetRenderSourceCmd::DISPATCH_FUNCTION = SetRenderSourceCmdDispatch;
     const DispatchFunction RawDrawCallCmd::DISPATCH_FUNCTION = RawDrawCallCmdDispatch;
     const DispatchFunction UpdateBufferCmd::DISPATCH_FUNCTION = UpdateBufferCmdDispatch;
-    
+    const DispatchFunction DrawCallbackCmd::DISPATCH_FUNCTION = DrawCallbackCmdDispatch;
     
     void SetPipelineCmdDispatch(  CommandQueue* cmdq, Command* cmdAddr )
     {
@@ -772,6 +772,12 @@ namespace bx { namespace rdi {
         u8* mapped_ptr = context::Map( cmdq, cmd->resource, 0, EMapType::WRITE );
         memcpy( mapped_ptr, cmd->DataPtr(), cmd->size );
         context::Unmap( cmdq, cmd->resource );
+    }
+
+    void DrawCallbackCmdDispatch( CommandQueue * cmdq, Command * cmdAddr )
+    {
+        DrawCallbackCmd* cmd = (DrawCallbackCmd*)cmdAddr;
+        ( *cmd->ptr )( cmdq, cmd->flags, cmd->user_data );
     }
 
         //////////////////////////////////////////////////////////////////////////

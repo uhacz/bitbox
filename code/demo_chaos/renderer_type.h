@@ -20,4 +20,13 @@ namespace bx{ namespace gfx{
     //inline bool IsValid( MaterialHandle h ) { return h.i != 0; }
     //inline bool IsValid( TextureHandle1 h ) { return h.i != 0; }
 
+    namespace ESceneDrawFlag
+    {
+        enum E
+        {
+            COLOR = BIT_OFFSET( 0 ),
+            SHADOW = BIT_OFFSET( 1 )
+        };
+    }//
+
 }}///

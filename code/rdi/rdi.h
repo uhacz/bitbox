@@ -298,12 +298,12 @@ namespace bx{ namespace rdi{
         u8* DataPtr() { return (u8*)( this + 1 ); }
     };
     
-    using DrawCallback = void( *)( rdi::CommandQueue* cmdq, void* userData );
     struct DrawCallbackCmd : Command
     {
         static const DispatchFunction DISPATCH_FUNCTION;
         DrawCallback* ptr;
-        void* user_data;a
+        void* user_data;
+        u32 flags;
     };
 
     void SetPipelineCmdDispatch( CommandQueue* cmdq, Command* cmdAddr );

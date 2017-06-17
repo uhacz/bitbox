@@ -99,3 +99,21 @@ void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params );
 }//
 
 }}//
+
+
+// --- gfx
+namespace bx { namespace puzzle {
+namespace physics
+{
+struct Gfx;
+void Create( Gfx** gfx );
+void Destroy( Gfx** gfx );
+
+bool AddBody( Gfx* gfx, BodyId id );
+
+
+
+
+
+}//
+}}//

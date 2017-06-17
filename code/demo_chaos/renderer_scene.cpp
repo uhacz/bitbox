@@ -149,7 +149,7 @@ ActorID SceneImpl::Find( const char* name )
 void SceneImpl::SetMeshHandle( ActorID actorId, MeshHandle handle )
 {
     const u32 index = _GetIndex( actorId );
-    SYS_ASSERT( ( _mesh_data.flags[index] & ~( ESceneFlags::MESH_SOURCE_HANDLE ) == 0 ) );
+    SYS_ASSERT( ( _mesh_data.flags[index] & ~ESceneFlags::MESH_SOURCE_HANDLE ) == 0 );
     _mesh_data.mesh_source[index].handle = handle;
     _mesh_data.flags[index] |= ESceneFlags::MESH_SOURCE_HANDLE;
 }
@@ -157,15 +157,15 @@ void SceneImpl::SetMeshHandle( ActorID actorId, MeshHandle handle )
 void SceneImpl::SetRenderSource( ActorID actorId, rdi::RenderSource rsource )
 {
     const u32 index = _GetIndex( actorId );
-    SYS_ASSERT( ( _mesh_data.flags[index] & ~( ESceneFlags::MESH_SOURCE_RSOURCE ) == 0 ) );
+    SYS_ASSERT( ( _mesh_data.flags[index] & ~ESceneFlags::MESH_SOURCE_RSOURCE ) == 0 );
     _mesh_data.mesh_source[index].rsource = rsource;
     _mesh_data.flags[index] |= ESceneFlags::MESH_SOURCE_RSOURCE;
 }
 
-void SceneImpl::SetSceneCallback( ActorID actorId, DrawCallback * functionPtr, void * userData )
+void SceneImpl::SetSceneCallback( ActorID actorId, rdi::DrawCallback * functionPtr, void * userData )
 {
     const u32 index = _GetIndex( actorId );
-    SYS_ASSERT( ( _mesh_data.flags[index] & ~( ESceneFlags::MESH_SOURCE_CALLBACK ) == 0 ) );
+    SYS_ASSERT( ( _mesh_data.flags[index] & ~ESceneFlags::MESH_SOURCE_CALLBACK ) == 0 );
     _mesh_data.mesh_source[index].callback.function_ptr = functionPtr;
     _mesh_data.mesh_source[index].callback.udata = userData;
 
@@ -238,7 +238,6 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
 
         MeshSource::Callback callback = {};
         rdi::RenderSource rsource = {};
-
         renderer_scene_internal::GetRenderSource( &rsource, &callback, _mesh_data.mesh_source[i], _mesh_data.flags[i] );
         MaterialPipeline material_pipeline = GMaterialManager()->Pipeline( _mesh_data.materials[i] );
 
@@ -263,6 +262,10 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
 
             if( callback.function_ptr )
             {
+                rdi::DrawCallbackCmd* cb_cmd = rdi::AllocateCommand< rdi::DrawCallbackCmd >( cmdb, resources_cmd );
+                cb_cmd->ptr = callback.function_ptr;
+                cb_cmd->user_data = callback.udata;
+                cb_cmd->flags = ESceneDrawFlag::COLOR;
             }
             else
             {
@@ -285,7 +288,9 @@ void SceneImpl::BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransfo
     {
         const u32 num_instances   = _mesh_data.num_instances[i];
         Matrix4* matrices         = getMatrixPtr( _mesh_data.matrices[i], num_instances );
-        rdi::RenderSource rsource = renderer_scene_internal::GetRenderSource( _mesh_data.mesh_source[i], _mesh_data.flags[i] );
+        MeshSource::Callback callback = {};
+        rdi::RenderSource rsource = {};
+        renderer_scene_internal::GetRenderSource( &rsource, &callback, _mesh_data.mesh_source[i], _mesh_data.flags[i] );
         //MeshHandle hmesh          = _mesh_data.meshes[i];
         //rdi::RenderSource rsource = GMeshManager()->RenderSource( hmesh );
 
@@ -301,9 +306,21 @@ void SceneImpl::BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransfo
             skey.material = 0;
 
             rdi::Command* instance_cmd = vtransform->SetCurrent( cmdb, batch_offset, nullptr );
-            rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, instance_cmd );
-            draw_cmd->rsource = rsource;
-            draw_cmd->num_instances = 1;
+
+            if( callback.function_ptr )
+            {
+                rdi::DrawCallbackCmd* cb_cmd = rdi::AllocateCommand< rdi::DrawCallbackCmd >( cmdb, instance_cmd );
+                cb_cmd->ptr = callback.function_ptr;
+                cb_cmd->user_data = callback.udata;
+                cb_cmd->flags = ESceneDrawFlag::SHADOW;
+            }
+            else
+            {
+                rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, instance_cmd );
+                draw_cmd->rsource = rsource;
+                draw_cmd->num_instances = 1;
+            }
+
 
             rdi::SubmitCommand( cmdb, instance_cmd, skey.hash );
         }
