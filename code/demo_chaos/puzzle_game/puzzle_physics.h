@@ -106,14 +106,11 @@ namespace bx { namespace puzzle {
 namespace physics
 {
 struct Gfx;
-void Create( Gfx** gfx );
+void Create( Gfx** gfx, Solver* solver );
 void Destroy( Gfx** gfx );
 
 bool AddBody( Gfx* gfx, BodyId id );
-
-
-
-
+void Tick( Gfx* gfx, Solver* solver );
 
 }//
 }}//

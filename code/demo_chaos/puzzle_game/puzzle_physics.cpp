@@ -1009,3 +1009,26 @@ void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )
 
 }//
 }}//
+
+#include "../renderer_scene.h"
+namespace bx { namespace puzzle {
+namespace physics
+{
+
+struct Gfx
+{
+    gfx::ActorID id_gfx [EConst::MAX_BODIES] = {};
+    BodyId       id_body[EConst::MAX_BODIES] = {};
+    u32          size = 0;
+    Solver* solver = nullptr;
+
+};
+void Create( Gfx** gfx, Solver* solver );
+void Destroy( Gfx** gfx );
+
+bool AddBody( Gfx* gfx, BodyId id );
+void Tick( Gfx* gfx );
+
+}//
+}}//
+
