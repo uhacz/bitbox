@@ -14,23 +14,11 @@ passes:
             USE_TEXTURES = 1;
         };
     };
-
-    geometry_particle = 
-    {
-        vertex = "vs_geometry_particle_main";
-        pixel = "ps_geometry_particle_main";
-        define =
-        {
-            PARTICLES = 1;
-        };
-    };
 }; #~header
 
 #include <sys/vertex_transform.hlsl>
 #include <sys/samplers.hlsl>
 #include <material_data.h>
-
-Buffer<float4> _particle_data : register(TSLOT(SLOT_INSTANCE_PARTICLE_DATA));
 
 struct in_VS
 {
@@ -42,16 +30,6 @@ struct in_VS
 #endif
 }; 
 
-struct in_VSP
-{
-    uint instanceID : SV_InstanceID;
-    uint vertexID : SV_VertexID;
-    float3 pos : POSITION;
-    float3 normal : NORMAL;
-    float2 texcoord : TEXCOORD0;
-};
-
-
 struct in_PS
 {
     float4 hpos : SV_Position;
@@ -60,14 +38,6 @@ struct in_PS
 #if defined(USE_TEXTURES) || defined(PARTICLES)
     float2 texcoord : TEXCOORD2;
 #endif
-};
-
-struct in_PSP
-{
-    float4 hpos : SV_Position;
-    float3 wpos : TEXCOORD0;
-    float3 wnrm : TEXCOORD1;
-    float2 texcoord : TEXCOORD2;
 };
 
 struct out_PS
@@ -122,32 +92,6 @@ in_PS vs_geometry_main(in_VS IN)
     return OUT;
 }
 
-in_PSP vs_geometry_particle_main( in_VSP IN )
-{
-    in_PSP OUT = (in_PSP) 0;
-
-    float4 pdata = _particle_data[IN.instanceID];
-    
-    const float4 xoffset = float4(-1.f, 1.f, 1.f, -1.f);
-    const float4 yoffset = float4(-1.f, -1.f, 1.f, 1.f);
-    const float4 uoffset = float4( 0.f, 1.f, 1.f, 0.f );
-    const float4 voffset = float4( 0.f, 0.f, 1.f, 1.f );
-
-    float3 pos_ls = float3(xoffset[IN.vertexID], yoffset[IN.vertexID], 0.f);
-    float3 nrm_ls = float3( 0.f, 0.f, 1.f );
-    float3 pos_ws = pdata.xyz + pos_ls * pdata.w;
-    float3 nrm_ws = mul( (float3x3)_camera_world, nrm_ls );
-
-    float4 wpos4 = float4( pos_ws, 1.0 );
-    OUT.hpos = mul( _viewProj, wpos4 );
-    OUT.wpos = pos_ws;
-    OUT.wnrm = nrm_ws;
-    OUT.texcoord = float2( uoffset[IN.vertexID], voffset[IN.vertexID] );
-
-    return OUT;
-
-}
-
 out_PS ps_geometry_main( in_PS IN )
 {
     float3 albedo_value = diffuse_color;
@@ -164,26 +108,6 @@ out_PS ps_geometry_main( in_PS IN )
     metallic_value *= metallic_tex.Sample( _samp_point, uv ).r;
 #endif
     
-    roughness_value = max( 0.01, roughness_value );
-
-    float3 N = normalize( IN.wnrm );
-
-    out_PS OUT = (out_PS)0;
-    OUT.albedo_spec = float4( albedo_value.rgb, specular_value );
-    OUT.wpos_rough = float4( IN.wpos, roughness_value );
-    OUT.wnrm_metal = float4( N, metallic_value );
-
-    return OUT;
-}
-
-out_PS ps_geometry_particle_main( in_PSP IN )
-{
-    float3 albedo_value = diffuse_color;
-    albedo_value *= diffuse;
-    float specular_value = specular;
-    float roughness_value = roughness;
-    float metallic_value = metallic;
-
     roughness_value = max( 0.01, roughness_value );
 
     float3 N = normalize( IN.wnrm );

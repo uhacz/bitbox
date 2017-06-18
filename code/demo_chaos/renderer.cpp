@@ -227,7 +227,7 @@ void GeometryPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Cam
         rdi::ClearCommandBuffer( _command_buffer );
         rdi::BeginCommandBuffer( _command_buffer );
 
-        scene->BuildCommandBuffer( _command_buffer, &_vertex_transform_data, camera );
+        scene->BuildCommandBuffer( _command_buffer, &_vertex_transform_data, _rdesc_frame_data, camera );
 
         rdi::EndCommandBuffer( _command_buffer );
 

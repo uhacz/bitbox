@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "util", "code\util\util.vcxproj", "{C72DED4C-E82A-4E26-B7A8-715F4747CCEC}"
 EndProject
@@ -26,6 +26,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo_tjdb", "code\demo_tjdb\demo_tjdb.vcxproj", "{753F2519-5524-4CDB-80C9-EF9F6B5AEEFF}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "demo_chaos", "code\demo_chaos\demo_chaos.vcxproj", "{4E8C69E9-84D0-45B1-BEBD-0D5BF7412255}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B825D183-8D6D-42C7-85A2-B9F0E96C3259} = {B825D183-8D6D-42C7-85A2-B9F0E96C3259}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "rdi", "code\rdi\rdi.vcxproj", "{5146D804-4A7F-442F-9085-5ADC06BF9769}"
 EndProject

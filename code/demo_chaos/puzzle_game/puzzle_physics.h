@@ -39,7 +39,7 @@ void Solve       ( Solver* solver, u32 numIterations, float deltaTime );
 // --- 
 BodyId CreateBody ( Solver* solver, u32 numParticles );
 void   DestroyBody( Solver* solver, BodyId id );
-
+bool   IsBodyAlive( Solver* solver, BodyId id );
 // ---
 //void   SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints );
 void     SetDistanceConstraints( Solver* solver, BodyId id, const DistanceCInfo* constraints, u32 numConstraints );
@@ -101,16 +101,18 @@ void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params );
 }}//
 
 
+#include "../renderer_type.h"
+#include "../renderer_camera.h"
 // --- gfx
 namespace bx { namespace puzzle {
 namespace physics
 {
 struct Gfx;
-void Create( Gfx** gfx, Solver* solver );
+void Create( Gfx** gfx, Solver* solver, gfx::Scene scene );
 void Destroy( Gfx** gfx );
 
 bool AddBody( Gfx* gfx, BodyId id );
-void Tick( Gfx* gfx, Solver* solver );
+void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera );
 
 }//
 }}//

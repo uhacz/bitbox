@@ -47,6 +47,7 @@ void LevelState::OnStartUp()
 
     physics::Create( &_solver, 1024 * 8, 0.2f );
     physics::SetFrequency( _solver, 60 );
+    physics::Create( &_solver_gfx, _solver, _gfx_scene );
 
     const Vector3F axis[5] =
     {
@@ -59,7 +60,7 @@ void LevelState::OnStartUp()
 
     for( u32 i = 0; i < NUM_ROPES; i++ )
     {
-        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
+        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 5.f, 1.f + ( i * 0.5f ) );
         float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
         mass_inv[0] = 0.f;
         physics::Unmap( _solver, mass_inv );
@@ -71,10 +72,12 @@ void LevelState::OnStartUp()
     }
 
     Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4, PI/4,PI/4) ), Vector3F( 0.f, 13.f, 2.f ) );
-    _soft0 = physics::CreateSoftBox( _solver, soft_pose0, 2.0f, 2.0f, 2.0f, 1.f );
+    _soft0 = physics::CreateSoftBox( _solver, soft_pose0, 1.0f, 1.0f, 1.0f, 1.f );
 
     Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 2.f, 3.f, 2.f ) );
-    _soft1 = physics::CreateSoftBox( _solver, soft_pose1, 2.0f, 2.0f, 2.0f, 3.f );
+    _soft1 = physics::CreateSoftBox( _solver, soft_pose1, 1.0f, 1.0f, 1.0f, 3.f );
+
+    physics::AddBody( _solver_gfx, _soft0 );
 }
 
 void LevelState::OnShutDown()
@@ -82,6 +85,7 @@ void LevelState::OnShutDown()
     for( u32 i = 0; i < NUM_ROPES; i++ )
         physics::DestroyBody( _solver, _rope[i] );
 
+    physics::Destroy( &_solver_gfx );
     physics::Destroy( &_solver );
     PlayerDestroy( _player );
 
@@ -121,6 +125,8 @@ void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
     PlayerDraw( _player );
 
     gfx::Scene gfx_scene = _gfx_scene;
+
+    physics::Tick( _solver_gfx, cmdq, *active_camera );
 
     //// ---
     _gfx->DrawScene( cmdq, gfx_scene, *active_camera );

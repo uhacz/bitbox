@@ -104,11 +104,11 @@ struct ResourceBinding
 
 struct ResourceLayout
 {
-    ResourceBinding* bindings = nullptr;
+    const ResourceBinding* bindings = nullptr;
     u32 num_bindings = 0;
 
     ResourceLayout() {}
-    ResourceLayout( ResourceBinding* b, u32 n )
+    ResourceLayout( const ResourceBinding* b, u32 n )
         : bindings( b ), num_bindings( n ) {}
 };
 struct ResourceDescriptorMemoryRequirments
@@ -301,7 +301,7 @@ namespace bx{ namespace rdi{
     struct DrawCallbackCmd : Command
     {
         static const DispatchFunction DISPATCH_FUNCTION;
-        DrawCallback* ptr;
+        DrawCallback ptr;
         void* user_data;
         u32 flags;
     };

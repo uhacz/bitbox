@@ -162,7 +162,7 @@ void SceneImpl::SetRenderSource( ActorID actorId, rdi::RenderSource rsource )
     _mesh_data.flags[index] |= ESceneFlags::MESH_SOURCE_RSOURCE;
 }
 
-void SceneImpl::SetSceneCallback( ActorID actorId, rdi::DrawCallback * functionPtr, void * userData )
+void SceneImpl::SetSceneCallback( ActorID actorId, rdi::DrawCallback functionPtr, void * userData )
 {
     const u32 index = _GetIndex( actorId );
     SYS_ASSERT( ( _mesh_data.flags[index] & ~ESceneFlags::MESH_SOURCE_CALLBACK ) == 0 );
@@ -226,7 +226,7 @@ namespace renderer_scene_internal
 
 }///
 
-void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Camera& camera )
+void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, rdi::ResourceDescriptor frameDataRDesc, const Camera& camera )
 {
     for( u32 i = 0; i < _mesh_data.size; ++i )
     {
@@ -239,6 +239,32 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
         MeshSource::Callback callback = {};
         rdi::RenderSource rsource = {};
         renderer_scene_internal::GetRenderSource( &rsource, &callback, _mesh_data.mesh_source[i], _mesh_data.flags[i] );
+        if( callback.function_ptr )
+        {
+            for( u32 imatrix = 0; imatrix < num_instances; ++imatrix )
+            {
+                const Matrix4& matrix = matrices[imatrix];
+                const float depth = cameraDepth( camera.world, matrix.getTranslation() ).getAsFloat();
+
+                const u32 batch_offset = vtransform->AddBatch( &matrix, 1 );
+
+                renderer_scene_internal::SortKey skey;
+                skey.depth = TypeReinterpert( depth ).u;
+                skey.material = _mesh_data.materials[i].i;
+
+                rdi::Command* instance_cmd = vtransform->SetCurrent( cmdb, batch_offset, nullptr );
+
+                rdi::DrawCallbackCmd* cb_cmd = rdi::AllocateCommand< rdi::DrawCallbackCmd >( cmdb, instance_cmd );
+                cb_cmd->ptr = callback.function_ptr;
+                cb_cmd->user_data = callback.udata;
+                cb_cmd->flags = ESceneDrawFlag::COLOR;
+
+                rdi::SubmitCommand( cmdb, instance_cmd, skey.hash );
+            }
+            continue;
+        }
+
+
         MaterialPipeline material_pipeline = GMaterialManager()->Pipeline( _mesh_data.materials[i] );
 
         for( u32 imatrix = 0; imatrix < num_instances; ++imatrix )
@@ -257,22 +283,15 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
             rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand<rdi::SetPipelineCmd>( cmdb, instance_cmd );
             pipeline_cmd->pipeline = material_pipeline.pipeline;
 
-            rdi::SetResourcesCmd* resources_cmd = rdi::AllocateCommand<rdi::SetResourcesCmd>( cmdb, pipeline_cmd );
-            resources_cmd->desc = material_pipeline.resource_desc;
+            rdi::SetResourcesCmd* resources_cmd_fdata = rdi::AllocateCommand<rdi::SetResourcesCmd>( cmdb, pipeline_cmd );
+            resources_cmd_fdata->desc = frameDataRDesc;
 
-            if( callback.function_ptr )
-            {
-                rdi::DrawCallbackCmd* cb_cmd = rdi::AllocateCommand< rdi::DrawCallbackCmd >( cmdb, resources_cmd );
-                cb_cmd->ptr = callback.function_ptr;
-                cb_cmd->user_data = callback.udata;
-                cb_cmd->flags = ESceneDrawFlag::COLOR;
-            }
-            else
-            {
-                rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, resources_cmd );
-                draw_cmd->rsource = rsource;
-                draw_cmd->num_instances = 1;
-            }
+            rdi::SetResourcesCmd* resources_cmd = rdi::AllocateCommand<rdi::SetResourcesCmd>( cmdb, resources_cmd_fdata );
+            resources_cmd->desc = material_pipeline.resource_desc;
+            
+            rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, resources_cmd );
+            draw_cmd->rsource = rsource;
+            draw_cmd->num_instances = 1;
 
             rdi::SubmitCommand( cmdb, instance_cmd, skey.hash );
         }

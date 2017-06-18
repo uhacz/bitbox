@@ -25,7 +25,7 @@ union MeshSource
 {
     struct Callback
     {
-        rdi::DrawCallback* function_ptr;
+        rdi::DrawCallback function_ptr;
         void* udata;
     } callback;
     rdi::RenderSource rsource;
@@ -72,13 +72,13 @@ struct SceneImpl
     // -- actor can have handle OR rsource. Never both at the same time.
     void SetMeshHandle( ActorID actorId, MeshHandle handle );
     void SetRenderSource( ActorID actorId, rdi::RenderSource rsource );
-    void SetSceneCallback( ActorID actorId, rdi::DrawCallback* functionPtr, void* userData );
+    void SetSceneCallback( ActorID actorId, rdi::DrawCallback functionPtr, void* userData );
 
     void SetMaterial( ActorID mi, MaterialHandle m );
     void SetMatrices( ActorID mi, const Matrix4* matrices, u32 count, u32 startIndex = 0 );
     void SetLocalAABB( ActorID mi, const bxAABB& aabb );
 
-    void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Camera& camera );
+    void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, rdi::ResourceDescriptor frameDataRDesc, const Camera& camera );
     void BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Matrix4& lightWorld, const ViewFrustum& lightFrustum );
     void ComputeAABB( bxAABB* sceneWorldAABB );
 
@@ -88,11 +88,6 @@ struct SceneImpl
     
 
 private:
-    enum
-    {
-        MAX_PARTICLES = 8,
-    };
-
     //////////////////////////////////////////////////////////////////////////
     void _SetToDefaults( u32 index );
     void _AllocateMeshData( u32 newSize, bxAllocator* allocator );

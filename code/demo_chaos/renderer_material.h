@@ -81,15 +81,15 @@ private:
     void _ReleaseDataByIndex( u32 index );
 
     static const u8 MAX_COUNT = 128;
-    id_table_t< MAX_COUNT > _id_to_index;
-    MaterialPipeline         _material_pipeline[MAX_COUNT] = {};
-    MaterialData             _data[MAX_COUNT] = {};
-    rdi::ConstantBuffer      _data_cbuffer[MAX_COUNT] = {};
-    MaterialTextureHandles   _textures[MAX_COUNT] = {};
-    u32                      _hashed_names[MAX_COUNT] = {};
+    id_table_t< MAX_COUNT >  _id_to_index;
+    MaterialPipeline         _material_pipeline [MAX_COUNT] = {};
+    MaterialData             _data              [MAX_COUNT] = {};
+    rdi::ConstantBuffer      _data_cbuffer      [MAX_COUNT] = {};
+    MaterialTextureHandles   _textures          [MAX_COUNT] = {};
+    u32                      _hashed_names      [MAX_COUNT] = {};
 
 
-    rdi::Pipeline _pipeline_tex = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline _pipeline_tex   = BX_RDI_NULL_HANDLE;
     rdi::Pipeline _pipeline_notex = BX_RDI_NULL_HANDLE;
 
     bxBenaphore _lock;
