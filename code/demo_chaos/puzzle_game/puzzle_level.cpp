@@ -43,6 +43,18 @@ void LevelState::OnStartUp()
         _gfx_scene->SetMatrices( actor, pose, 1 );
     }
 
+    {
+        gfx::ActorID actor = _gfx_scene->Add( "sphere", 1 );
+        _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "blue" ) );
+        _gfx_scene->SetMeshHandle( actor, gfx::GMeshManager()->Find( ":sphere" ) );
+
+        Matrix4 pose[] =
+        {
+            Matrix4::translation( Vector3( 6.f, 2.f, 0.f ) ),
+        };
+        _gfx_scene->SetMatrices( actor, pose, 1 );
+    }
+
     _player = PlayerCreate( "playerLocal" );
 
     physics::Create( &_solver, 1024 * 8, 0.2f );
@@ -60,7 +72,7 @@ void LevelState::OnStartUp()
 
     for( u32 i = 0; i < NUM_ROPES; i++ )
     {
-        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 5.f, 1.f + ( i * 0.5f ) );
+        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
         float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
         mass_inv[0] = 0.f;
         physics::Unmap( _solver, mass_inv );
@@ -68,16 +80,22 @@ void LevelState::OnStartUp()
         physics::BodyParams params;
         physics::GetBodyParams( &params, _solver, _rope[i] );
         params.restitution = 1.0f;
+        params.dynamic_friction = 0.1f;
         physics::SetBodyParams( _solver, _rope[i], params );
+
+        physics::AddBody( _solver_gfx, _rope[i] );
     }
 
+
+    const float a = 2.f;
     Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4, PI/4,PI/4) ), Vector3F( 0.f, 13.f, 2.f ) );
-    _soft0 = physics::CreateSoftBox( _solver, soft_pose0, 1.0f, 1.0f, 1.0f, 1.f );
+    _soft0 = physics::CreateSoftBox( _solver, soft_pose0, a,a,a, 1.f );
 
     Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 2.f, 3.f, 2.f ) );
-    _soft1 = physics::CreateSoftBox( _solver, soft_pose1, 1.0f, 1.0f, 1.0f, 3.f );
+    _soft1 = physics::CreateSoftBox( _solver, soft_pose1, a,a,a, 3.f );
 
     physics::AddBody( _solver_gfx, _soft0 );
+    physics::AddBody( _solver_gfx, _soft1 );
 }
 
 void LevelState::OnShutDown()
@@ -105,13 +123,13 @@ void LevelState::OnUpdate( const GameTime& time )
     PlayerTick( time.delta_time_us );
     physics::Solve( _solver, 4, time.DeltaTimeSec() );
 
-    for( size_t i = 0; i < NUM_ROPES; i++ )
-    {
-        physics::DebugDraw( _solver, _rope[i], physics::DebugDrawBodyParams().NoConstraints() );
-    }
+    //for( size_t i = 0; i < NUM_ROPES; i++ )
+    //{
+    //    physics::DebugDraw( _solver, _rope[i], physics::DebugDrawBodyParams().NoConstraints() );
+    //}
 
-    physics::DebugDraw( _solver, _soft0, physics::DebugDrawBodyParams().Points( 0xFF0000FF ) );
-    physics::DebugDraw( _solver, _soft1, physics::DebugDrawBodyParams().Points( 0x00FF00FF ) );
+    //physics::DebugDraw( _solver, _soft0, physics::DebugDrawBodyParams().Points( 0xFF0000FF ) );
+    //physics::DebugDraw( _solver, _soft1, physics::DebugDrawBodyParams().Points( 0x00FF00FF ) );
 
 }
 

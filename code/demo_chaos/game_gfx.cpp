@@ -67,6 +67,9 @@ void Deffered::Rasterize( rdi::CommandQueue* cmdq, const gfx::Camera& camera )
     rdi::ResourceRO* toRasterize[] =
     {
         &renderer.GetFramebuffer( gfx::EFramebuffer::COLOR ),
+        &rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::ALBEDO_SPEC ),
+        &rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::WNRM_METAL ),
+        &rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::WPOS_ROUGH ),
         &ssao_pass.SsaoTexture(),
         &shadow_pass.ShadowMap(),
         &shadow_pass.DepthMap(),

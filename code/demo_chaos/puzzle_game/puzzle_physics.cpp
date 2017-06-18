@@ -654,6 +654,7 @@ void Solve( Solver* solver, u32 numIterations, float deltaTime )
 
     //solver->delta_time = 0.001f;
     solver->delta_time_acc += deltaTime;
+    solver->delta_time_acc = clamp( solver->delta_time_acc, 0.f, 0.5f );
     while( solver->delta_time_acc >= solver->delta_time )
     {
         memcpy( solver->pp.begin(), solver->p0.begin(), solver->Size() * sizeof( Vector3F ) );

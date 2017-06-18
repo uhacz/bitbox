@@ -23,7 +23,7 @@ struct in_PS
 {
     float4 hpos : SV_Position;
     float3 wpos : TEXCOORD0;
-    float3 wnrm : TEXCOORD1;
+    //float3 wnrm : TEXCOORD1;
     float2 texcoord : TEXCOORD2;
 };
 
@@ -61,20 +61,19 @@ in_PS vs_main( in_VS IN )
     
     const float4 xoffset = float4(-1.f, 1.f,-1.f, 1.f );
     const float4 yoffset = float4(-1.f, -1.f, 1.f, 1.f);
-    const float4 uoffset = float4( 0.f, 1.f, 1.f, 0.f );
+    const float4 uoffset = float4( 0.f, 1.f, 0.f, 1.f );
     const float4 voffset = float4( 0.f, 0.f, 1.f, 1.f );
 
     float3x3 camera_rot = ( float3x3 )_camera_world;
     
     float3 pos_ls = float3(xoffset[IN.vertexID], yoffset[IN.vertexID], 0.f);
-    float3 nrm_ls = float3( 0.f, 0.f,-1.f );
+    //float3 nrm_ls = float3( 0.f, 0.f, 1.f );
     float3 pos_ws =  pdata.xyz + mul( camera_rot, pos_ls * _point_size );
-    float3 nrm_ws = mul( camera_rot, nrm_ls );
+    //float3 nrm_ws = mul( camera_rot, nrm_ls );
 
     float4 wpos4 = float4( pos_ws, 1.0 );
     OUT.hpos = mul( _viewProj, wpos4 );
     OUT.wpos = pos_ws;
-    OUT.wnrm = nrm_ws;
     OUT.texcoord = float2( uoffset[IN.vertexID], voffset[IN.vertexID] );
 
     return OUT;
@@ -83,20 +82,22 @@ in_PS vs_main( in_VS IN )
 
 out_PS ps_main( in_PS IN )
 {
-    float2 uv = IN.texcoord * 0.5f - 0.5f;
+    float2 uv = IN.texcoord * 2.f - 1.f;
     float len = length( uv );
-    if( len > _point_size )
+    if( ( len * _point_size ) > _point_size )
         discard;
+    
+    float3 N;
+    N.xy = uv;
+    N.z = sqrt(1.f - len);
+    N = normalize(N);
 
-
-    float3 albedo_value = float3(1,0,0 );
-    float specular_value = 0.01f;
-    float roughness_value = 0.99f;
+    float3 albedo_value = _color;
+    float specular_value = 0.5f;
+    float roughness_value = 0.85f;
     float metallic_value = 0.f;
 
     roughness_value = max( 0.01, roughness_value );
-
-    float3 N = normalize( IN.wnrm );
 
     out_PS OUT = (out_PS)0;
     OUT.albedo_spec = float4( albedo_value.rgb, specular_value );
