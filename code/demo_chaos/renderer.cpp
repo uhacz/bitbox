@@ -395,17 +395,16 @@ bool ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camer
     Vector3 cameraFrustumCorners[8];
     viewFrustumExtractCorners( cameraFrustumCorners, camera.proj * camera.view );
         
-    LightMatrices lightMatrices;
-    _ComputeLightMatrixOrtho( &lightMatrices, ws_corners, sunSky->sun_direction );
+    _ComputeLightMatrixOrtho( &_matrices, ws_corners, sunSky->sun_direction );
     
     {
-        const ViewFrustum lightFrustum = viewFrustumExtract( lightMatrices.proj * lightMatrices.view );
+        const ViewFrustum lightFrustum = viewFrustumExtract( _matrices.proj * _matrices.view );
         _vertex_transform_data.Map( cmdq );
 
         rdi::ClearCommandBuffer( _cmd_buffer );
         rdi::BeginCommandBuffer( _cmd_buffer );
         
-        scene->BuildCommandBufferShadow( _cmd_buffer, &_vertex_transform_data, lightMatrices.world, lightFrustum );
+        scene->BuildCommandBufferShadow( _cmd_buffer, &_vertex_transform_data, _pipeline_depth, _matrices.world, lightFrustum );
 
         rdi::EndCommandBuffer( _cmd_buffer );
 
@@ -415,14 +414,14 @@ bool ShadowPass::PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camer
     {
         const Matrix4 sc = Matrix4::scale( Vector3( 0.5f, 0.5f, 0.5f ) );
         const Matrix4 tr = Matrix4::translation( Vector3( 1.f, 1.f, 1.f ) );
-        const Matrix4 proj = sc * tr * lightMatrices.proj;
+        const Matrix4 proj = sc * tr * _matrices.proj;
 
         ShadowPass::MaterialData mdata;
         memset( &mdata, 0x00, sizeof( mdata ) );
 
         mdata.cameraViewProjInv = inverse( camera.view_proj );
-        mdata.lightViewProj = cameraMatrixProjectionDx11( lightMatrices.proj ) * lightMatrices.view;
-        mdata.lightViewProj_01 = proj * lightMatrices.view;
+        mdata.lightViewProj = cameraMatrixProjectionDx11( _matrices.proj ) * _matrices.view;
+        mdata.lightViewProj_01 = proj * _matrices.view;
         m128_to_xyz( mdata.lightDirectionWS.xyzw, sunSky->sun_direction.get128() );
 
         mdata.depthMapSize = float2_t( _depth_map.info.width, _depth_map.info.height );

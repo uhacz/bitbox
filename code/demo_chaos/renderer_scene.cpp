@@ -298,7 +298,7 @@ void SceneImpl::BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData
     }
 }
 
-void SceneImpl::BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Matrix4& lightWorld, const ViewFrustum& lightFrustum )
+void SceneImpl::BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, rdi::Pipeline depthPipeline, const Matrix4& lightWorld, const ViewFrustum& lightFrustum )
 {
     bxAABB aabb = bxAABB::prepare();
 
@@ -335,7 +335,11 @@ void SceneImpl::BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransfo
             }
             else
             {
-                rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, instance_cmd );
+                rdi::SetPipelineCmd* pipeline_cmd = rdi::AllocateCommand< rdi::SetPipelineCmd >( cmdb, instance_cmd );
+                pipeline_cmd->pipeline = depthPipeline;
+                pipeline_cmd->bindResources = 1;
+
+                rdi::DrawCmd* draw_cmd = rdi::AllocateCommand< rdi::DrawCmd >( cmdb, pipeline_cmd );
                 draw_cmd->rsource = rsource;
                 draw_cmd->num_instances = 1;
             }

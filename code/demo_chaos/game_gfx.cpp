@@ -30,20 +30,28 @@ void ShutDown( Deffered* gfx )
     gfx->renderer.ShutDown( bx::GResourceManager() );
 }
 
-void Deffered::DrawScene( rdi::CommandQueue* cmdq, gfx::Scene scene, const gfx::Camera& camera )
+void Deffered::PrepareScene( rdi::CommandQueue* cmdq, gfx::Scene scene, const gfx::Camera& camera )
 {
     geometry_pass.PrepareScene( cmdq, scene, camera );
+    shadow_pass.PrepareScene( cmdq, scene, camera );
+    ssao_pass.PrepareScene( cmdq, camera );
+    light_pass.PrepareScene( cmdq, scene, camera );
+}
+
+void Deffered::Draw( rdi::CommandQueue* cmdq )
+{
+    //geometry_pass.PrepareScene( cmdq, scene, camera );
     geometry_pass.Flush( cmdq );
 
     rdi::TextureDepth depthTexture = rdi::GetTextureDepth( geometry_pass.GBuffer() );
     rdi::TextureRW normalsTexture = rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::WNRM_METAL );
-    shadow_pass.PrepareScene( cmdq, scene, camera );
+    //shadow_pass.PrepareScene( cmdq, scene, camera );
     shadow_pass.Flush( cmdq, depthTexture, normalsTexture );
 
-    ssao_pass.PrepareScene( cmdq, camera );
+    //ssao_pass.PrepareScene( cmdq, camera );
     ssao_pass.Flush( cmdq, depthTexture, normalsTexture );
 
-    light_pass.PrepareScene( cmdq, scene, camera );
+    //light_pass.PrepareScene( cmdq, scene, camera );
     light_pass.Flush( cmdq,
                       renderer.GetFramebuffer( gfx::EFramebuffer::SWAP ),
                       geometry_pass.GBuffer(),

@@ -68,7 +68,8 @@ void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
     gfx::Scene gfx_scene = _level->_gfx_scene;
 
     //// ---
-    _gfx->DrawScene( cmdq, gfx_scene, *active_camera );
+    _gfx->PrepareScene( cmdq, gfx_scene, *active_camera );
+    _gfx->Draw( cmdq );
     _gfx->PostProcess( cmdq, *active_camera, time.DeltaTimeSec() );
     _gfx->Rasterize( cmdq, *active_camera );
 }

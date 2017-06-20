@@ -110,6 +110,14 @@ private:
 class ShadowPass
 {
 public:
+    struct LightMatrices
+    {
+        Matrix4 world;
+        Matrix4 view;
+        Matrix4 proj;
+    };
+
+public:
     bool PrepareScene( rdi::CommandQueue* cmdq, Scene scene, const Camera& camera );
     void Flush( rdi::CommandQueue* cmdq, rdi::TextureDepth sceneDepthTex, rdi::ResourceRO sceneNormalsTex );
 
@@ -120,17 +128,14 @@ public:
     rdi::TextureDepth DepthMap () const { return _depth_map; }
     rdi::TextureRW    ShadowMap() const { return _shadow_map; }
     
+    const LightMatrices& GetMatrices() const { return _matrices; }
+
 private:
-    struct LightMatrices
-    {
-        Matrix4 world;
-        Matrix4 view;
-        Matrix4 proj;
-    };
     void _ComputeLightMatrixOrtho( LightMatrices* matrices, const Vector3 wsFrustumCorners[8], const Vector3 wsLightDirection );
 
-
 private:
+    LightMatrices _matrices;
+
 #include <shaders/shaders/shadow_data.h>
     rdi::TextureDepth _depth_map      = {};
     rdi::TextureRW    _shadow_map     = {};

@@ -5,6 +5,11 @@ passes:
         vertex = "vs_main";
         pixel = "ps_main";
     };
+    shadow = 
+    {
+        vertex = "vs_shadow_main";
+        pixel = "ps_shadow_main";
+    };
 }; #~header
 
 #include <sys/vertex_transform.hlsl>
@@ -23,7 +28,6 @@ struct in_PS
 {
     float4 hpos : SV_Position;
     float3 wpos : TEXCOORD0;
-    //float3 wnrm : TEXCOORD1;
     float2 texcoord : TEXCOORD2;
 };
 
@@ -53,28 +57,36 @@ cbuffer MaterialData : register( BSLOT( SLOT_MATERIAL_DATA ) )
     MATERIAL_TEXTURES;
 #endif
 
+float3 GetWorldPos( in uint instanceID, in uint vertexID, in Buffer<float3> inputData, in float3x3 camera_rot )
+{
+    float3 pdata = inputData[instanceID];
+
+    const float4 xoffset = float4( -1.f, 1.f, -1.f, 1.f );
+    const float4 yoffset = float4( -1.f, -1.f, 1.f, 1.f );
+
+    float3 pos_ls = float3( xoffset[vertexID], yoffset[vertexID], 0.f );
+    float3 pos_ws = pdata.xyz + mul( camera_rot, pos_ls * _point_size );
+
+    return pos_ws;
+}
+float2 GetTexcoord( in uint instanceID, in uint vertexID )
+{
+    const float4 uoffset = float4( 0.f, 1.f, 0.f, 1.f );
+    const float4 voffset = float4( 0.f, 0.f, 1.f, 1.f );
+    return float2( uoffset[vertexID], voffset[vertexID] );
+}
+
 in_PS vs_main( in_VS IN )
 {
     in_PS OUT = (in_PS) 0;
 
-    float3 pdata = _particle_data[IN.instanceID];
-    
-    const float4 xoffset = float4(-1.f, 1.f,-1.f, 1.f );
-    const float4 yoffset = float4(-1.f, -1.f, 1.f, 1.f);
-    const float4 uoffset = float4( 0.f, 1.f, 0.f, 1.f );
-    const float4 voffset = float4( 0.f, 0.f, 1.f, 1.f );
-
     float3x3 camera_rot = ( float3x3 )_camera_world;
-    
-    float3 pos_ls = float3(xoffset[IN.vertexID], yoffset[IN.vertexID], 0.f);
-    //float3 nrm_ls = float3( 0.f, 0.f, 1.f );
-    float3 pos_ws =  pdata.xyz + mul( camera_rot, pos_ls * _point_size );
-    //float3 nrm_ws = mul( camera_rot, nrm_ls );
+    float3 pos_ws = GetWorldPos( IN.instanceID, IN.vertexID, _particle_data, camera_rot );
 
     float4 wpos4 = float4( pos_ws, 1.0 );
     OUT.hpos = mul( _viewProj, wpos4 );
     OUT.wpos = pos_ws;
-    OUT.texcoord = float2( uoffset[IN.vertexID], voffset[IN.vertexID] );
+    OUT.texcoord = GetTexcoord( IN.instanceID, IN.vertexID );
 
     return OUT;
 
@@ -99,13 +111,47 @@ out_PS ps_main( in_PS IN )
 
     roughness_value = max( 0.01, roughness_value );
 
+    float3 wpos = IN.wpos + N*len;
+
     out_PS OUT = (out_PS)0;
     OUT.albedo_spec = float4( albedo_value.rgb, specular_value );
-    OUT.wpos_rough = float4( IN.wpos, roughness_value );
+    OUT.wpos_rough = float4( wpos, roughness_value );
     OUT.wnrm_metal = float4( N, metallic_value );
 
     return OUT;
 }
 
 
+struct in_VS_shadow
+{
+    uint instanceID : SV_InstanceID;
+    uint vertexID : SV_VertexID;
+};
 
+struct in_PS_shadow
+{
+    float4 hpos	: SV_Position;
+};
+
+struct out_PS_shadow
+{};
+
+in_PS_shadow vs_shadow_main( in_VS_shadow IN )
+{
+    in_PS_shadow OUT = (in_PS_shadow)0;
+
+    float3x3 camera_rot = ( float3x3 )_camera_world;
+    float3 pos_ws = GetWorldPos( IN.instanceID, IN.vertexID, _particle_data, camera_rot );
+
+    float4 wpos4 = float4( pos_ws, 1.0 );
+    OUT.hpos = mul( _viewProj, wpos4 );
+    
+    return OUT;
+}
+
+[earlydepthstencil]
+out_PS_shadow ps_shadow_main( in_PS_shadow input )
+{
+    out_PS_shadow OUT;
+    return OUT;
+}

@@ -1021,6 +1021,8 @@ void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )
 #include "../renderer_material.h"
 #include <resource_manager\resource_manager.h>
 #include <util/color.h>
+#include <util/camera.h>
+
 namespace bx { namespace puzzle {
 namespace physics
 {
@@ -1057,7 +1059,10 @@ struct Gfx
     Solver*      solver = nullptr;
 
     rdi::Pipeline pipeline = BX_RDI_NULL_HANDLE;
+    rdi::Pipeline pipeline_shadow = BX_RDI_NULL_HANDLE;
+
     rdi::ConstantBuffer cbuffer_fdata = {};
+    rdi::ConstantBuffer cbuffer_fdata_shadow = {};
     rdi::ConstantBuffer cbuffer_mdata = {};
 
     rdi::ResourceLayout rlayout_fdata = {};
@@ -1092,22 +1097,34 @@ static void StartUp( Gfx* gfx )
     gfx->pipeline = rdi::CreatePipeline( pipeline_desc );
     SYS_ASSERT( gfx->pipeline != BX_RDI_NULL_HANDLE );
 
+    pipeline_desc.Shader( sfile, "shadow" );
+    gfx->pipeline_shadow = rdi::CreatePipeline( pipeline_desc );
+    SYS_ASSERT( gfx->pipeline_shadow != BX_RDI_NULL_HANDLE );
+
     rdi::ShaderFileUnload( &sfile, GResourceManager() );
 
-    gfx->cbuffer_fdata = rdi::device::CreateConstantBuffer( sizeof( GfxFrameData ) );
-    gfx->cbuffer_mdata = rdi::device::CreateConstantBuffer( sizeof( GfxMaterialData ) );
+    gfx->cbuffer_fdata        = rdi::device::CreateConstantBuffer( sizeof( GfxFrameData ) );
+    gfx->cbuffer_fdata_shadow = rdi::device::CreateConstantBuffer( sizeof( GfxFrameData ) );
+    gfx->cbuffer_mdata        = rdi::device::CreateConstantBuffer( sizeof( GfxMaterialData ) );
     gfx->rlayout_fdata = rdi::ResourceLayout( GfxGpuResource::bindings_fdata, GfxGpuResource::bindings_fdata_count );
     gfx->rlayout_mdata = rdi::ResourceLayout( GfxGpuResource::bindings_mdata, GfxGpuResource::bindings_mdata_count );
 
     gfx->rdesc_fdata = rdi::CreateResourceDescriptor( gfx->rlayout_fdata );
     rdi::SetConstantBuffer( gfx->rdesc_fdata, "FrameData", &gfx->cbuffer_fdata );
+
+    rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( gfx->pipeline_shadow );
+    rdi::SetConstantBuffer( rdesc, "FrameData", &gfx->cbuffer_fdata_shadow );
+
 }
 
 static void ShutDown( Gfx* gfx )
 {
     rdi::device::DestroyConstantBuffer( &gfx->cbuffer_mdata );
+    rdi::device::DestroyConstantBuffer( &gfx->cbuffer_fdata_shadow );
     rdi::device::DestroyConstantBuffer( &gfx->cbuffer_fdata );
     rdi::DestroyResourceDescriptor( &gfx->rdesc_fdata );
+    
+    rdi::DestroyPipeline( &gfx->pipeline_shadow );
     rdi::DestroyPipeline( &gfx->pipeline );
 
     for( u32 i = 0; i < gfx->size; ++i )
@@ -1134,11 +1151,14 @@ static void DrawCallback( rdi::CommandQueue* cmdq, u32 flags, void* userData )
         rdi::context::UpdateCBuffer( cmdq, gfx->cbuffer_mdata, &color_4f );
 
         rdi::BindPipeline( cmdq, gfx->pipeline, false );
-        
+        rdi::BindResources( cmdq, gfx->rdesc_fdata );
+    }
+    else if( flags & gfx::ESceneDrawFlag::SHADOW )
+    {
+        rdi::BindPipeline( cmdq, gfx->pipeline_shadow, true );
     }
 
     rdi::BindResources( cmdq, gfx->gpu_rdesc[ddata->index] );
-    rdi::BindResources( cmdq, gfx->rdesc_fdata );
     rdi::context::SetVertexBuffers( cmdq, nullptr, 0, 0 );
     rdi::context::SetIndexBuffer( cmdq, rdi::IndexBuffer() );
     rdi::context::DrawInstanced( cmdq, 4, 0, num_particles );
@@ -1195,7 +1215,7 @@ bool AddBody( Gfx* gfx, BodyId id )
     return true;
 }
 
-void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera )
+void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera, const Matrix4& lightWorld, const Matrix4& lightProj )
 {
     // do garbage collection
 
@@ -1204,11 +1224,18 @@ void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera )
         
         // --- frame data
         GfxFrameData fdata;
-        memset( &fdata, 0x00, sizeof( GfxFrameData ) );
+        memset( &fdata, 0x00, sizeof( fdata ) );
         fdata._camera_world = camera.world;
         fdata._viewProj = camera.view_proj;
         fdata._point_size = GetParticleRadius( solver );
         rdi::context::UpdateCBuffer( cmdq, gfx->cbuffer_fdata, &fdata );
+
+        GfxFrameData fdata_shadow;
+        memset( &fdata_shadow, 0x00, sizeof( fdata_shadow ) );
+        fdata_shadow._camera_world = lightWorld;
+        fdata_shadow._viewProj = gfx::cameraMatrixProjectionDx11( lightProj ) * inverse( lightWorld );
+        fdata_shadow._point_size = fdata._point_size;
+        rdi::context::UpdateCBuffer( cmdq, gfx->cbuffer_fdata_shadow, &fdata_shadow );
 
         // --- entity data
         for( u32 i = 0; i < gfx->size; ++i )

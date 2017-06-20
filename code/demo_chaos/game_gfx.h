@@ -17,7 +17,8 @@ namespace game_gfx
         gfx::LightPass light_pass;
         gfx::PostProcessPass post_pass;
 
-        void DrawScene( rdi::CommandQueue* cmdq, gfx::Scene scene, const gfx::Camera& camera );
+        void PrepareScene( rdi::CommandQueue* cmdq, gfx::Scene scene, const gfx::Camera& camera );
+        void Draw( rdi::CommandQueue* cmdq );
         void PostProcess( rdi::CommandQueue* cmdq, const gfx::Camera& camera, float deltaTimeSec );
         void Rasterize( rdi::CommandQueue* cmdq, const gfx::Camera& camera );
     };

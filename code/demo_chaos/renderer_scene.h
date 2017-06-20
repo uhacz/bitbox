@@ -79,7 +79,7 @@ struct SceneImpl
     void SetLocalAABB( ActorID mi, const bxAABB& aabb );
 
     void BuildCommandBuffer( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, rdi::ResourceDescriptor frameDataRDesc, const Camera& camera );
-    void BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, const Matrix4& lightWorld, const ViewFrustum& lightFrustum );
+    void BuildCommandBufferShadow( rdi::CommandBuffer cmdb, VertexTransformData* vtransform, rdi::Pipeline depthPipeline, const Matrix4& lightWorld, const ViewFrustum& lightFrustum );
     void ComputeAABB( bxAABB* sceneWorldAABB );
 
     void EnableSunSkyLight( const SunSkyLight& data = SunSkyLight() );
@@ -92,7 +92,6 @@ private:
     void _SetToDefaults( u32 index );
     void _AllocateMeshData( u32 newSize, bxAllocator* allocator );
     u32  _GetIndex( ActorID mi );
-    u32 _GetParticleIndex( ActorID id );
 
     struct MeshData
     {

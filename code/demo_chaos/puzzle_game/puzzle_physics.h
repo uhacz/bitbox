@@ -112,7 +112,7 @@ void Create( Gfx** gfx, Solver* solver, gfx::Scene scene );
 void Destroy( Gfx** gfx );
 
 bool AddBody( Gfx* gfx, BodyId id );
-void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera );
+void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera, const Matrix4& lightWorld, const Matrix4& lightProj );
 
 }//
 }}//

@@ -144,10 +144,13 @@ void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
 
     gfx::Scene gfx_scene = _gfx_scene;
 
-    physics::Tick( _solver_gfx, cmdq, *active_camera );
+    _gfx->PrepareScene( cmdq, gfx_scene, *active_camera );
+    
+    const gfx::ShadowPass::LightMatrices& lightMatrices = _gfx->shadow_pass.GetMatrices();
+    physics::Tick( _solver_gfx, cmdq, *active_camera, lightMatrices.world, lightMatrices.proj );
 
     //// ---
-    _gfx->DrawScene( cmdq, gfx_scene, *active_camera );
+    _gfx->Draw( cmdq );
     _gfx->PostProcess( cmdq, *active_camera, time.DeltaTimeSec() );
     _gfx->Rasterize( cmdq, *active_camera );
 }
