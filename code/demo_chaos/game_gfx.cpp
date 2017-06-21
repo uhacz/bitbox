@@ -72,17 +72,18 @@ void Deffered::PostProcess( rdi::CommandQueue* cmdq, const gfx::Camera& camera, 
 
 void Deffered::Rasterize( rdi::CommandQueue* cmdq, const gfx::Camera& camera )
 {
-    rdi::ResourceRO* toRasterize[] =
+    rdi::ResourceRO toRasterize[] =
     {
-        &renderer.GetFramebuffer( gfx::EFramebuffer::COLOR ),
-        &rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::ALBEDO_SPEC ),
-        &rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::WNRM_METAL ),
-        &rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::WPOS_ROUGH ),
-        &ssao_pass.SsaoTexture(),
-        &shadow_pass.ShadowMap(),
-        &shadow_pass.DepthMap(),
+        renderer.GetFramebuffer( gfx::EFramebuffer::COLOR ),
+        rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::ALBEDO_SPEC ),
+        rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::WNRM_METAL ),
+        rdi::GetTexture( geometry_pass.GBuffer(), gfx::EGBuffer::WPOS_ROUGH ),
+        ssao_pass.SsaoTexture(),
+        shadow_pass.ShadowMap(),
+        shadow_pass.DepthMap(),
     };
     const int toRasterizeN = sizeof( toRasterize ) / sizeof( *toRasterize );
+    
     static int dstColorSelect = 0;
 
     bxWindow* win = bxWindow_get();
@@ -91,7 +92,7 @@ void Deffered::Rasterize( rdi::CommandQueue* cmdq, const gfx::Camera& camera )
         dstColorSelect = ( dstColorSelect + 1 ) % toRasterizeN;
     }
 
-    rdi::ResourceRO texture = *toRasterize[dstColorSelect];
+    rdi::ResourceRO texture = toRasterize[dstColorSelect];
     renderer.RasterizeFramebuffer( cmdq, texture, camera, win->width, win->height );
 }
 

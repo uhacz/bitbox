@@ -36,7 +36,9 @@ public:
     physics::Gfx*    _solver_gfx = nullptr;
 
     static const unsigned NUM_ROPES = 5;
+    static const unsigned NUM_RIGID = 25;
     physics::BodyId _rope[NUM_ROPES];
+    physics::BodyId _rigid[NUM_RIGID];
     physics::BodyId _soft0;
     physics::BodyId _soft1;
 };

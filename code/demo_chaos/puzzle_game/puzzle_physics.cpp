@@ -80,6 +80,7 @@ union BodyIdInternal
     };
 };
 static inline bool operator == ( const BodyIdInternal a, const BodyIdInternal b ) { return a.i == b.i; }
+static inline bool operator == ( const BodyId a, const BodyId b ) { return a.i == b.i; }
 
 #define _PHYSICS_VALIDATE_ID( returnValue ) \
     { \
@@ -1050,6 +1051,7 @@ struct Gfx
 {
     gfx::ActorID            id_scene  [EConst::MAX_BODIES] = {};
     BodyId                  id_body   [EConst::MAX_BODIES] = {};
+    u32                     color     [EConst::MAX_BODIES] = {};
     rdi::ResourceDescriptor gpu_rdesc [EConst::MAX_BODIES] = {};
     rdi::BufferRO           gpu_buffer[EConst::MAX_BODIES] = {};
     GfxDrawData             draw_data [EConst::MAX_BODIES] = {};
@@ -1141,13 +1143,14 @@ static void DrawCallback( rdi::CommandQueue* cmdq, u32 flags, void* userData )
     Gfx* gfx = ddata->gfx;
     Solver* solver = gfx->solver;
 
-    BodyId id = gfx->id_body[ddata->index];
+    const u32 index = ddata->index;
+    BodyId id = gfx->id_body[index];
     const u32 num_particles = GetNbParticles( solver, id );
-
+    
     if( flags & gfx::ESceneDrawFlag::COLOR )
     {
         Vector4F color_4f;
-        bxColor::u32ToFloat4( 0xFF0000FF, &color_4f.mX );
+        bxColor::u32ToFloat4( gfx->color[index], &color_4f.mX );
         rdi::context::UpdateCBuffer( cmdq, gfx->cbuffer_mdata, &color_4f );
 
         rdi::BindPipeline( cmdq, gfx->pipeline, false );
@@ -1158,7 +1161,7 @@ static void DrawCallback( rdi::CommandQueue* cmdq, u32 flags, void* userData )
         rdi::BindPipeline( cmdq, gfx->pipeline_shadow, true );
     }
 
-    rdi::BindResources( cmdq, gfx->gpu_rdesc[ddata->index] );
+    rdi::BindResources( cmdq, gfx->gpu_rdesc[index] );
     rdi::context::SetVertexBuffers( cmdq, nullptr, 0, 0 );
     rdi::context::SetIndexBuffer( cmdq, rdi::IndexBuffer() );
     rdi::context::DrawInstanced( cmdq, 4, 0, num_particles );
@@ -1213,6 +1216,22 @@ bool AddBody( Gfx* gfx, BodyId id )
     gfx->id_scene[index] = scene_id;
 
     return true;
+}
+
+void SetColor( Gfx* gfx, BodyId id, u32 colorRGBA )
+{
+    u32 index = UINT32_MAX;
+    for( u32 i = 0; i < gfx->size; ++i )
+    {
+        if( gfx->id_body[i] == id )
+        {
+            index = i;
+            break;
+        }
+    }
+
+    if( index != UINT32_MAX )
+        gfx->color[index] = colorRGBA;
 }
 
 void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera, const Matrix4& lightWorld, const Matrix4& lightProj )
