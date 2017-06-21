@@ -53,10 +53,6 @@ cbuffer MaterialData : register( BSLOT( SLOT_MATERIAL_DATA ) )
     float4 _color;
 }; 
 
-#if defined( USE_TEXTURES )
-    MATERIAL_TEXTURES;
-#endif
-
 float3 GetWorldPos( in uint instanceID, in uint vertexID, in Buffer<float3> inputData, in float3x3 camera_rot )
 {
     float3 pdata = inputData[instanceID];
@@ -69,12 +65,13 @@ float3 GetWorldPos( in uint instanceID, in uint vertexID, in Buffer<float3> inpu
 
     return pos_ws;
 }
-float2 GetTexcoord( in uint instanceID, in uint vertexID )
+float2 GetTexcoord( in uint vertexID )
 {
     const float4 uoffset = float4( 0.f, 1.f, 0.f, 1.f );
     const float4 voffset = float4( 0.f, 0.f, 1.f, 1.f );
     return float2( uoffset[vertexID], voffset[vertexID] );
 }
+
 
 in_PS vs_main( in_VS IN )
 {
@@ -86,7 +83,7 @@ in_PS vs_main( in_VS IN )
     float4 wpos4 = float4( pos_ws, 1.0 );
     OUT.hpos = mul( _viewProj, wpos4 );
     OUT.wpos = pos_ws;
-    OUT.texcoord = GetTexcoord( IN.instanceID, IN.vertexID );
+    OUT.texcoord = GetTexcoord( IN.vertexID );
 
     return OUT;
 
@@ -99,14 +96,15 @@ out_PS ps_main( in_PS IN )
     if( ( len * _point_size ) > _point_size )
         discard;
     
+    float3x3 camera_rot = ( float3x3 )_camera_world;
     float3 N;
     N.xy = uv;
     N.z = sqrt(1.f - len);
-    N = normalize(N);
+    N = normalize( mul( camera_rot, N ) );
 
     float3 albedo_value = _color;
-    float specular_value = 0.5f;
-    float roughness_value = 0.85f;
+    float specular_value = 0.05f;
+    float roughness_value = 0.5f;
     float metallic_value = 0.f;
 
     roughness_value = max( 0.01, roughness_value );
@@ -131,6 +129,7 @@ struct in_VS_shadow
 struct in_PS_shadow
 {
     float4 hpos	: SV_Position;
+    float2 texcoord : TEXCOORD0;
 };
 
 struct out_PS_shadow
@@ -145,13 +144,19 @@ in_PS_shadow vs_shadow_main( in_VS_shadow IN )
 
     float4 wpos4 = float4( pos_ws, 1.0 );
     OUT.hpos = mul( _viewProj, wpos4 );
+    OUT.texcoord = GetTexcoord( IN.vertexID );
     
     return OUT;
 }
 
-[earlydepthstencil]
-out_PS_shadow ps_shadow_main( in_PS_shadow input )
+//[earlydepthstencil]
+out_PS_shadow ps_shadow_main( in_PS_shadow IN )
 {
     out_PS_shadow OUT;
+    float2 uv = IN.texcoord * 2.f - 1.f;
+    float len = length( uv );
+    if( ( len * _point_size ) > _point_size )
+        discard;
+
     return OUT;
 }
