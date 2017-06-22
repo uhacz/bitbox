@@ -17,6 +17,9 @@ void PuzzleGame::StartUpImpl()
 
 }
 
+
+
+
 void LevelState::OnStartUp()
 {
     _gfx_scene = _gfx->renderer.CreateScene( "terrainLevel" );

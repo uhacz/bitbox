@@ -986,6 +986,11 @@ BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float d
     return id;
 }
 
+BodyId CreateRigidBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass )
+{
+    
+}
+
 void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )
 {
     BodyIdInternal idi = ToBodyIdInternal( id );

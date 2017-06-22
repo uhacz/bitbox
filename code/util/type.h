@@ -146,3 +146,14 @@ typedef atomic64 atomic;
 
 #define MAKE_STR(x) MAKE_STR_(x)
 #define MAKE_STR_(x) #x
+
+template <typename T, size_t N>
+size_t sizeof_array( const T( &)[N] )
+{
+    return N;
+}
+
+inline bool is_pow2( int n )
+{
+    return ( n&( n - 1 ) ) == 0;
+}

@@ -58,4 +58,6 @@ namespace bx
         return _mm_movemask_ps( c );
         //return ( tmax >= maxf4( zeroVec, tmin ) & tmin < rayLength );
     }
+
+
 }///

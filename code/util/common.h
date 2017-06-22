@@ -116,6 +116,18 @@ inline unsigned isPowerOfTwo( unsigned int x )
     return ( ( x != 0 ) && ( ( x & ( ~x + 1 ) ) == x ) );
 }
 
+inline float Sign( float x )
+{
+    return x < 0.0f ? -1.0f : 1.0f;
+}
+template <typename T>
+inline void Swap( T& a, T& b )
+{
+    T tmp = a;
+    a = b;
+    b = tmp;
+}
+
 //////////////////////////////////////////////////////////////////////////
 #define DECL_WRAP_INC( type_name, type, stype, bit_mask ) \
 	static inline type wrap_inc_##type_name( const type val, const type min, const type max ) \

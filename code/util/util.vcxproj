@@ -104,6 +104,7 @@
     <ClInclude Include="hashmap.h" />
     <ClInclude Include="id_array.h" />
     <ClInclude Include="id_table.h" />
+    <ClInclude Include="intersect.h" />
     <ClInclude Include="linear_allocator.h" />
     <ClInclude Include="math.h" />
     <ClInclude Include="memory.h" />

@@ -82,7 +82,7 @@ void Deffered::Rasterize( rdi::CommandQueue* cmdq, const gfx::Camera& camera )
         shadow_pass.ShadowMap(),
         shadow_pass.DepthMap(),
     };
-    const int toRasterizeN = sizeof( toRasterize ) / sizeof( *toRasterize );
+    const int toRasterizeN = (int)sizeof_array( toRasterize );
     
     static int dstColorSelect = 0;
 
