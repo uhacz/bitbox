@@ -900,7 +900,18 @@ BodyId CreateCloth( Solver* solver, const Vector3F& attach, const Vector3F& axis
     return{0};
 }
 
-BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass )
+
+
+static inline bool EdgeDetect( u32 ix, u32 iy, u32 iz, u32 w, u32 d, u32 h )
+{
+    bool is_on_edge = false;
+    is_on_edge |= iz == 0 || iz == ( d - 1 );
+    is_on_edge |= iy == 0 || iy == ( h - 1 );
+    is_on_edge |= ix == 0 || ix == ( w - 1 );
+
+    return is_on_edge;
+}
+BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass, bool shell )
 {
     const f32 pradius = physics::GetParticleRadius( solver );
     const f32 pradius2 = pradius * 2.f;
@@ -908,23 +919,27 @@ BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float d
     const u32 w = (u32)( width / pradius2 );
     const u32 h = (u32)( height / pradius2 );
     const u32 d = (u32)( depth / pradius2 );
+    
     u32 num_particles = 0;
-    for( u32 iz = 0; iz < d; ++iz )
+    if( shell )
     {
-        for( u32 iy = 0; iy < h; ++iy )
+        for( u32 iz = 0; iz < d; ++iz )
         {
-            for( u32 ix = 0; ix < w; ++ix )
+            for( u32 iy = 0; iy < h; ++iy )
             {
-                bool is_on_edge = false;
-                is_on_edge |= iz == 0 || iz == ( d - 1 );
-                is_on_edge |= iy == 0 || iy == ( h - 1 );
-                is_on_edge |= ix == 0 || ix == ( w - 1 );
-                if( !is_on_edge )
-                    continue;
+                for( u32 ix = 0; ix < w; ++ix )
+                {
+                    if( !EdgeDetect( ix, iy, iz, w, h, d ) )
+                        continue;
 
-                ++num_particles;
+                    ++num_particles;
+                }
             }
         }
+    }
+    else
+    {
+        num_particles = w*h*d;
     }
 
     //const u32 num_particles = 2 * ( w*h + h*d + w*d );
@@ -951,12 +966,11 @@ BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float d
         {
             for( u32 ix = 0; ix < w; ++ix )
             {
-                bool is_on_edge = false;
-                is_on_edge |= iz == 0 || iz == ( d - 1 );
-                is_on_edge |= iy == 0 || iy == ( h - 1 );
-                is_on_edge |= ix == 0 || ix == ( w - 1 );
-                if( !is_on_edge )
-                    continue;
+                if( shell )
+                {
+                    if( !EdgeDetect( ix, iy, iz, w, h, d ) )
+                        continue;
+                }
 
                 const Vector3F pos_ls = begin_pos_ls + Vector3F( (f32)ix, (f32)iy, (f32)iz ) * pradius2;
                 const Vector3F pos_ws = ( pose * Point3F( pos_ls ) ).getXYZ();
@@ -988,7 +1002,8 @@ BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float d
 
 BodyId CreateRigidBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass )
 {
-    
+    BodyId id;
+    return id;
 }
 
 void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )

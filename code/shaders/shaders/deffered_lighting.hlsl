@@ -100,6 +100,8 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float  depthCS     = depthTexture.Load( positionSS );
     float shadow       = shadowMap.SampleLevel( _samp_bilinear, IN.uv, 0 );
     float ssao         = ssaoMap.SampleLevel( _samp_point, IN.uv, 0 ).r;
+    ssao = ssao*0.5 + 0.5;
+
 
     float metalness  = wnrm_metal.w;
     float roughness  = wpos_rough.w;
@@ -137,8 +139,8 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float3 diffuse  = ComputeDiffuse( baseColor, f0, NdotL );
     float3 specular = ComputeSpecular( baseColor, f0, roughness, HdotL, NdotH, NdotV, NdotL );
     
-    float3 color = sun_color * ( specular + diffuse ) * sun_intensity * shadow;
-
+    float3 color = sun_color * ( specular + diffuse ) * sun_intensity; // *shadow;
+    
 #ifdef USE_SKYBOX
     //float glossyExponent = roughnessToShininess( roughness );
     float a2 = roughness * roughness;
@@ -148,13 +150,17 @@ float3 ps_lighting(in_PS IN) : SV_Target0
     float MIPlevel = log2( environment_map_width * sqrt( 3 ) ) - 0.5 * log2( specPower + 1 );    
     float3 diffuse_env = skybox.SampleLevel( _samp_bilinear, N, environment_map_max_mip ).rgb;
     float3 specular_env = skybox.SampleLevel( _samp_bilinear, R, MIPlevel ).rgb;
-
-    color += ( diffuse * diffuse_env + specular_env * Fresnel( f0, NdotV ) ) * sky_intensity * PI_RCP;
+    float3 color_from_sky_diff = ( diffuse * diffuse_env );
+    float3 color_from_sky_spec = ( specular_env * Fresnel( f0, NdotV ) );
+    float3 color_from_sky = ( color_from_sky_diff + color_from_sky_spec ) * sky_intensity * PI_RCP;
+    color += color_from_sky;
 #else
     float ambientCoeff = 0.015f;
     float NdotL_ambient = saturate( -dot( N, -L ) ) * ambientCoeff * 0.1 + ambientCoeff;
     float3 ambient = NdotL_ambient * albedo_spec.rgb * PI_RCP * sky_intensity;
 #endif
+
+    color = lerp( color*0.5f, color, shadow );
     color = lerp( color*ssao, color, shadow );
     return float4( color, 1.0 );
 }
