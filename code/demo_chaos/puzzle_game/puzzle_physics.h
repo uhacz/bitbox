@@ -9,6 +9,7 @@ namespace physics
 struct Solver;
 struct BodyId { u32 i; };
 inline BodyId BodyIdInvalid() { return { 0 }; }
+static inline bool operator == ( const BodyId a, const BodyId b ) { return a.i == b.i; }
 
 struct BodyParams
 {
@@ -102,19 +103,3 @@ void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params );
 }}//
 
 
-#include "../renderer_type.h"
-#include "../renderer_camera.h"
-// --- gfx
-namespace bx { namespace puzzle {
-namespace physics
-{
-struct Gfx;
-void Create( Gfx** gfx, Solver* solver, gfx::Scene scene );
-void Destroy( Gfx** gfx );
-
-bool AddBody( Gfx* gfx, BodyId id );
-void SetColor( Gfx* gfx, BodyId id, u32 colorRGBA );
-void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera, const Matrix4& lightWorld, const Matrix4& lightProj );
-
-}//
-}}//
