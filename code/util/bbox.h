@@ -3,6 +3,37 @@
 #include "vectormath/vectormath.h"
 #include "type.h"
 
+struct AABBF
+{
+    Vector3F min, max;
+
+    AABBF( const Vector3F& a, const Vector3F& b )
+        : min(a), max(b) {}
+
+    static inline AABBF prepare()
+    {
+        return AABBF( Vector3F( FLT_MAX ), Vector3F( -FLT_MAX ) );
+    }
+    static inline Vector3F size( const AABBF& bbox )
+    {
+        return bbox.max - bbox.min;
+    }
+    static inline Vector3F center( const AABBF& bbox )
+    {
+        return bbox.min + ( bbox.max - bbox.min ) * 0.5f;
+    }
+
+    static inline AABBF extend( const AABBF& bbox, const Vector3F& point )
+    {
+        return AABBF( minPerElem( bbox.min, point ), maxPerElem( bbox.max, point ) );
+    }
+
+    static inline AABBF merge( const AABBF& a, const AABBF& b )
+    {
+        return AABBF( minPerElem( a.min, b.min ), maxPerElem( a.max, b.max ) );
+    }
+};
+
 struct bxAABB
 {
     bxAABB() {}

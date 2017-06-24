@@ -27,6 +27,7 @@ struct DistanceCInfo
 struct ShapeMatchingCInfo
 {
     Vector3F rest_pos{ 0.f }; // relative position (object space)
+    Vector4F local_normal{ 0.f }; // used for sdf collision resolving
     u32 i = UINT32_MAX; // particle index
     f32 mass = 1.f;
 };
@@ -61,6 +62,8 @@ float     GetParticleRadius( const Solver* solver );
 }}//
 
 // --- utils
+struct bxPolyShape;
+
 namespace bx {
 namespace puzzle {
 
@@ -70,7 +73,11 @@ namespace physics
 BodyId CreateRope( Solver* solver, const Vector3F& attach, const Vector3F& axis, float len, float particleMass );
 BodyId CreateCloth( Solver* solver, const Vector3F& attach, const Vector3F& axis, float width, float height, float particleMass );
 BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass, bool shell = false );
-BodyId CreateRigidBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass );
+
+BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const Vector3F* srcPos, u32 numPositions, const u32* srcIndices, u32 numIndices, float particleMass );
+BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const bxPolyShape& shape, float particleMass );
+BodyId CreateBox( Solver* solver, const Matrix4F& pose, const Vector3F& extents, float particleMass );
+BodyId CreateSphere( Solver* solver, const Matrix4F& pose, float radius, float particleMass );
 
 
 //////////////////////////////////////////////////////////////////////////

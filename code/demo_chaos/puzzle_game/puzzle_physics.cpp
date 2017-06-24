@@ -7,6 +7,11 @@
 #include <util/math.h>
 
 #include <rdi/rdi_debug_draw.h>
+#include "util/bbox.h"
+#include "util/grid.h"
+#include "sdf.h"
+#include "voxelize.h"
+#include "util/poly/poly_shape.h"
 
 namespace bx { namespace puzzle {
 
@@ -95,6 +100,7 @@ static inline BodyIdInternal ToBodyIdInternal( BodyId id )          { return{ id
 
 using IdTable             = id_table_t< EConst::MAX_BODIES, BodyIdInternal >;
 using Vector3Array        = array_t<Vector3F>;
+using Vector4Array        = array_t<Vector4F>;
 using F32Array            = array_t<f32>;
 using U32Array            = array_t<u32>;
 using U16Array            = array_t<u16>;
@@ -132,6 +138,7 @@ struct Solver
     // constraints where points indices are relative to body
     DistanceCArray      distance_c[EConst::MAX_BODIES];
     ShapeMatchingCArray shape_matching_c[EConst::MAX_BODIES];
+    Vector4Array        sdf_normal[EConst::MAX_BODIES];
     
     BodyIdInternal   active_bodies_idi[EConst::MAX_BODIES] = {};
     u16              active_bodies_count = 0;
@@ -767,7 +774,9 @@ void SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatching
     const BodyIdInternal idi = ToBodyIdInternal( id );
     const Body& body = GetBody( solver, idi );
 
-    ShapeMatchingCArray& outArray = solver->shape_matching_c[idi.index];
+    ShapeMatchingCArray& sm_out_array = solver->shape_matching_c[idi.index];
+    Vector4Array& sdf_out_array = solver->sdf_normal[idi.index];
+
 
     for( u32 i = 0; i < numConstraints; ++i )
     {
@@ -781,7 +790,8 @@ void SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatching
             ShapeMatchingC c;
             c.rest_pos = info.rest_pos;
             c.mass = info.mass;
-            array::push_back( outArray, c );
+            array::push_back( sm_out_array, c );
+            array::push_back( sdf_out_array, info.local_normal );
         }
     }
 }
@@ -956,6 +966,12 @@ BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float d
     array_t< ShapeMatchingCInfo > shape_match_cinfo;
     array::reserve( shape_match_cinfo, num_particles );
 
+    //bxGrid voxel_grid( w + 2, h + 2, d + 2 );
+    array_t<u32> voxel_volume;
+    array::reserve( voxel_volume, num_particles );
+    //for( u32 i = 0; i < voxel_grid.numCells(); ++i )
+    //    array::push_back( voxel_volume, 0u );
+    
     u32 pcounter = 0;
     for( u32 iz = 0; iz < d; ++iz )
     {
@@ -981,25 +997,223 @@ BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float d
                 info.mass = particleMass;
                 array::push_back( shape_match_cinfo, info );
 
+
+                //u32 voxel_index = voxel_grid.index( ix + 1, iy + 1, iz + 1 );
+                const u32 voxel_index = pcounter;
+                voxel_volume[voxel_index] = UINT32_MAX;
+
                 pcounter += 1;
+
+
             }
         }
     }
 
-
+    //array_t<f32> sdf;
+    //array::reserve( sdf, voxel_volume.capacity );
+    //MakeSDF( voxel_volume.begin(), w, h, d, sdf.begin() );
+    //
+    //array_t<Vector4F> sdf_field;
+    //array::reserve( sdf_field, voxel_volume.capacity );
+    //for ( u32 iz = 0; iz < d; ++iz )
+    //{
+    //    for( u32 iy = 0; iy < h; ++iy )
+    //    {
+    //        for( u32 ix = 0; ix < w; ++ix )
+    //        {
+    //            const float value = SampleSDF( sdf.begin(), w, h, d, ix, iy, iz );
+    //            Vector3F grad;
+    //            SampleSDFGrad( &grad.mX, sdf.begin(), w, h, d, ix, iy, iz );
+    //            array::push_back( sdf_field, Vector4F( grad, value ) );
+    //        }
+    //    }
+    //}
+    
     SYS_ASSERT( pcounter == num_particles );
 
     Unmap( solver, mass_inv );
     Unmap( solver, pos );
 
     SetShapeMatchingConstraints( solver, id, shape_match_cinfo.begin(), shape_match_cinfo.size );
+    return id;
+}
+
+static AABBF ComputeAABB( const Vector3F* points, u32 numPoints )
+{
+    AABBF aabb = AABBF::prepare();
+    for( u32 i = 0; i < numPoints; ++i )
+        aabb = AABBF::extend( aabb, points[i] );
+    return aabb;
+}
+
+BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const Vector3F* srcPos, u32 numPositions, const u32* srcIndices, u32 numIndices, float particleMass )
+{
+    array_t<Vector3F> positions;
+    array::reserve( positions, numPositions );
+    
+    // --- prepare positions
+
+    // rotate points first
+    //const Matrix3F rotation = pose.getUpper3x3();
+    for( u32 i = 0; i < numPositions; ++i )
+        positions[i] = srcPos[i];
+        //positions[i] = rotation * srcPos[i];
+
+    AABBF local_aabb         = ComputeAABB( positions.begin(), numPositions );
+    Vector3F local_aabb_size = AABBF::size( local_aabb );
+    float max_edge           = maxElem( local_aabb_size );
+
+    // put mesh at the origin and scale to specified size
+    const Matrix4F xform = Matrix4F::scale( scale * ( 1.f / max_edge ) ); // prependScale( scale * ( 1.f / max_edge ), Matrix4F::translation( -local_aabb.min ) );
+    for( u32 i = 0; i < numPositions; ++i )
+        positions[i] = ( xform * Point3F( positions[i] ) ).getXYZ();
+
+    // recompute bounds
+    local_aabb      = ComputeAABB( positions.begin(), numPositions );
+    local_aabb_size = AABBF::size( local_aabb );
+    max_edge        = maxElem( local_aabb_size );
+    
+
+    // tweak spacing to avoid edge cases for particles laying on the boundary
+    // just covers the case where an edge is a whole multiple of the spacing.
+    const float pradius = GetParticleRadius( solver );
+    const float spacing = pradius * 2.f;
+    const float spacing_eps =  spacing  * ( 1.0f - 1e-4f );
+
+    // make sure to have at least one particle in each dimension
+    int dx, dy, dz;
+    dx = spacing > local_aabb_size.x ? 1 : int( local_aabb_size.x / spacing_eps );
+    dy = spacing > local_aabb_size.y ? 1 : int( local_aabb_size.y / spacing_eps );
+    dz = spacing > local_aabb_size.z ? 1 : int( local_aabb_size.z / spacing_eps );
+    int max_dim = maxOfPair( maxOfPair( dx, dy ), dz );
+    
+    // expand border by two voxels to ensure adequate sampling at edges
+    local_aabb.min -= 2.0f*Vector3F( spacing );
+    local_aabb.max += 2.0f*Vector3F( spacing );
+    max_dim += 4;
+
+    const u32 max_dim_pow3 = max_dim*max_dim*max_dim;
+
+    array_t<u32> voxels;
+    array::reserve( voxels, max_dim_pow3 );
+
+    // we shift the voxelization bounds so that the voxel centers
+    // lie symmetrically to the center of the object. this reduces the 
+    // chance of missing features, and also better aligns the particles
+    // with the mesh
+    Vector3F meshOffset;
+    meshOffset.x = 0.5f * ( spacing - ( local_aabb_size.x - ( dx - 1 )*spacing ) );
+    meshOffset.y = 0.5f * ( spacing - ( local_aabb_size.y - ( dy - 1 )*spacing ) );
+    meshOffset.z = 0.5f * ( spacing - ( local_aabb_size.z - ( dz - 1 )*spacing ) );
+    local_aabb.min -= meshOffset;
+
+    // --- vexelize
+    Voxelize( 
+        (const float*)positions.begin(), numPositions, (const int*)srcIndices, numIndices, 
+        max_dim, max_dim, max_dim, &voxels[0], local_aabb.min, local_aabb.min + Vector3F( max_dim*spacing ) 
+        );
+    // --- 
+
+    // --- make sdf
+    array_t<i32> indices;
+    array_t<f32> sdf;
+    array::reserve( indices, max_dim_pow3 );
+    array::reserve( sdf, max_dim_pow3 );
+
+    MakeSDF( &voxels[0], max_dim, max_dim, max_dim, &sdf[0] );
+    // --- 
+
+    u32 num_particles = 0;
+    for( u32 i = 0; i < voxels.capacity; ++i )
+        num_particles += ( voxels[i] ) ? 1 : 0;
+
+    BodyId id = CreateBody( solver, num_particles );
+
+    const f32 particle_mass_inv = ( particleMass > FLT_EPSILON ) ? 1.f / particleMass : 0.f;
+    Vector3F* body_pos = MapPosition( solver, id );
+    f32*      body_mass_inv = MapMassInv( solver, id );
+
+    array_t< ShapeMatchingCInfo > shape_match_cinfo;
+    array::reserve( shape_match_cinfo, num_particles );
+
+    u32 body_particle_index = 0;
+    const Vector3F translation = pose.getTranslation();
+    for( int x = 0; x < max_dim; ++x )
+    {
+        for( int y = 0; y < max_dim; ++y )
+        {
+            for( int z = 0; z < max_dim; ++z )
+            {
+                const int index = z*max_dim*max_dim + y*max_dim + x;
+
+                if( !voxels[index] )
+                    continue;
+
+                const Vector3F grid_pos = Vector3F( float( x ) + 0.5f, float( y ) + 0.5f, float( z ) + 0.5f );
+                const Vector3F pos_ls = local_aabb.min + spacing*grid_pos;
+                const Vector3F pos_ws = (pose * Point3F(pos_ls)).getXYZ();
+
+                // normalize the sdf value and transform to world scale
+                Vector3F sdf_grad;
+                SampleSDFGrad( &sdf_grad.x, sdf.begin(), max_dim, x, y, z );
+                const Vector3F n = normalizeSafeF( sdf_grad );
+                const float d = sdf[index] * max_edge;
+                const Vector4F nrm_ls( n, d );
+
+                body_pos[body_particle_index] = pos_ws;
+                body_mass_inv[body_particle_index] = particle_mass_inv;
+                
+                {
+                    ShapeMatchingCInfo info;
+                    info.rest_pos = pos_ls;
+                    info.local_normal = nrm_ls;
+                    info.mass = particleMass;
+                    info.i = body_particle_index;
+                    array::push_back( shape_match_cinfo, info );
+                }
+
+                body_particle_index += 1;
+            }
+        }
+    }
+
+    SYS_ASSERT( num_particles == body_particle_index );
+    SYS_ASSERT( num_particles == shape_match_cinfo.size );
+
+    SetShapeMatchingConstraints( solver, id, shape_match_cinfo.begin(), shape_match_cinfo.size );
+
+    Unmap( solver, body_mass_inv );
+    Unmap( solver, body_pos );
 
     return id;
 }
 
-BodyId CreateRigidBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass )
+
+
+BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const bxPolyShape& shape, float particleMass )
 {
-    BodyId id;
+    const Vector3F* positions = (Vector3F*)shape.positions;
+    const u32* indices = shape.indices;
+    BodyId id = CreateFromShape( solver, pose, scale, positions, shape.num_vertices, indices, shape.num_indices, particleMass );
+    
+    return id;
+}
+
+BodyId CreateBox( Solver* solver, const Matrix4F& pose, const Vector3F& extents, float particleMass )
+{
+    bxPolyShape shape;
+    bxPolyShape_createBox( &shape, 1 );
+    BodyId id = CreateFromShape( solver, pose, extents*2.f, shape, particleMass );
+    bxPolyShape_deallocateShape( &shape );
+    return id;
+}
+
+BodyId CreateSphere( Solver* solver, const Matrix4F& pose, float radius, float particleMass )
+{
+    bxPolyShape shape;
+    bxPolyShape_createShpere( &shape, 8 );
+    BodyId id = CreateFromShape( solver, pose, Vector3F(radius*2.f), shape, particleMass );
+    bxPolyShape_deallocateShape( &shape );
     return id;
 }
 

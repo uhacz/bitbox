@@ -74,6 +74,16 @@ namespace
 
 
 	// returns true if point is on the surface
+    //static inline bool CoordEdgeDetect( int ix, int iy, int iz, u32 w, u32 d, u32 h )
+    //{
+    //    bool is_on_edge = false;
+    //    is_on_edge |= iz == 0 || iz >= ( d - 1 );
+    //    is_on_edge |= iy == 0 || iy >= ( h - 1 );
+    //    is_on_edge |= ix == 0 || ix >= ( w - 1 );
+
+    //    return is_on_edge;
+    //}
+
 	bool EdgeDetect(const uint32_t* img, uint32_t w, uint32_t h, uint32_t d, int x, int y, int z, float& dist)
 	{
 		bool center = Sample(img, w, h, d, x, y, z) != 0;
@@ -86,7 +96,10 @@ namespace
 			{
 				for (int i=x-1; i <= x+1; ++i)
 				{
-					if ((0 != Sample(img, w, h, d, i, j, k)) != center)
+                    const bool data_edge = ( 0 != Sample( img, w, h, d, i, j, k ) ) != center;
+                    //const bool coord_edge = CoordEdgeDetect( i, j, k, w, h, d ) && center;
+
+					if ( data_edge /*|| coord_edge*/ )
 					{
 						int dx = x-i;
 						int dy = y-j;
@@ -307,6 +320,15 @@ float SampleSDF( const float* sdf, int dim, int x, int y, int z )
     return sdf[z*dim*dim + y*dim + x];
 }
 
+//float SampleSDF( const float* sdf, int dimX, int dimY, int dimZ, int x, int y, int z )
+//{
+//    SYS_ASSERT( x < dimX && x >= 0 );
+//    SYS_ASSERT( y < dimY && y >= 0 );
+//    SYS_ASSERT( z < dimZ && z >= 0 );
+//    
+//    return sdf[z*dimX*dimY + y*dimX + x];
+//}
+
 void SampleSDFGrad( float grad[3], const float* sdf, int dim, int x, int y, int z )
 {
     int x0 = max( x - 1, 0 );
@@ -322,6 +344,22 @@ void SampleSDFGrad( float grad[3], const float* sdf, int dim, int x, int y, int 
     grad[1] = ( SampleSDF( sdf, dim, x, y1, z ) - SampleSDF( sdf, dim, x, y0, z ) )*( dim*0.5f );
     grad[2] = ( SampleSDF( sdf, dim, x, y, z1 ) - SampleSDF( sdf, dim, x, y, z0 ) )*( dim*0.5f );
 }
+
+//void SampleSDFGrad( float grad[3], const float* sdf, int dimX, int dimY, int dimZ, int x, int y, int z )
+//{
+//    int x0 = max( x - 1, 0 );
+//    int x1 = min( x + 1, dimX - 1 );
+//
+//    int y0 = max( y - 1, 0 );
+//    int y1 = min( y + 1, dimY - 1 );
+//
+//    int z0 = max( z - 1, 0 );
+//    int z1 = min( z + 1, dimZ - 1 );
+//
+//    grad[0] = ( SampleSDF( sdf, dimX, dimY, dimZ, x1, y, z ) - SampleSDF( sdf, dimX, dimY, dimZ, x0, y, z ) )*( dimX*0.5f );
+//    grad[1] = ( SampleSDF( sdf, dimX, dimY, dimZ, x, y1, z ) - SampleSDF( sdf, dimX, dimY, dimZ, x, y0, z ) )*( dimY*0.5f );
+//    grad[2] = ( SampleSDF( sdf, dimX, dimY, dimZ, x, y, z1 ) - SampleSDF( sdf, dimX, dimY, dimZ, x, y, z0 ) )*( dimZ*0.5f );
+//}
 
 /*
 // Brute-force 2D SDF generation
