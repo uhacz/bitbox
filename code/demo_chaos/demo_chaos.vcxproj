@@ -104,6 +104,7 @@
     <ClCompile Include="puzzle_game\puzzle_level.cpp" />
     <ClCompile Include="puzzle_game\puzzle_physics.cpp" />
     <ClCompile Include="puzzle_game\puzzle_physics_gfx.cpp" />
+    <ClCompile Include="puzzle_game\puzzle_physics_util.cpp" />
     <ClCompile Include="puzzle_game\puzzle_player.cpp" />
     <ClCompile Include="puzzle_game\puzzle_player_internal.cpp" />
     <ClCompile Include="puzzle_game\sdf.cpp" />
@@ -173,11 +174,13 @@
     <ClInclude Include="puzzle_game\puzzle_physics.h" />
     <ClInclude Include="puzzle_game\puzzle_physics_gfx.h" />
     <ClInclude Include="puzzle_game\puzzle_physics_internal.h" />
+    <ClInclude Include="puzzle_game\puzzle_physics_pbd.h" />
     <ClInclude Include="puzzle_game\puzzle_physics_util.h" />
     <ClInclude Include="puzzle_game\puzzle_player.h" />
     <ClInclude Include="puzzle_game\puzzle_player_internal.h" />
     <ClInclude Include="puzzle_game\sdf.h" />
     <ClInclude Include="puzzle_game\voxelize.h" />
+    <ClInclude Include="puzzle_game\puzzle_physics_type.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="renderer_camera.h" />
     <ClInclude Include="renderer_material.h" />

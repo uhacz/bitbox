@@ -27,13 +27,15 @@
 
 #include "aabbtree.h"
 #include <util/intersect.h>
+#include <util/array.h>
 //#include "maths.h"
 //#include "platform.h"
 
 #include <algorithm>
 #include <iostream>
 
-using namespace std;
+
+//using namespace std;
 
 #if _WIN32
 _declspec (thread) uint32_t AABBTree::s_traceDepth;
@@ -140,7 +142,8 @@ void AABBTree::Build()
     const uint32_t numFaces = m_numFaces;
 
     // build initial list of faces
-    m_faces.reserve(numFaces);
+    //m_faces.reserve(numFaces);
+    array::reserve( m_faces, numFaces );
 	/*	
     for (uint32_t i=0; i < numFaces; ++i)
     {
@@ -149,16 +152,23 @@ void AABBTree::Build()
 	*/
 
     // calculate bounds of each face and store
-    m_faceBounds.reserve(numFaces);   
+    //m_faceBounds.reserve(numFaces);   
+    array::reserve( m_faceBounds, numFaces );
     
-	std::vector<Bounds> stack;
+	//std::vector<Bounds> stack;
+    array_t<Bounds> stack;
+
 	for (uint32_t i=0; i < numFaces; ++i)
     {
 		Bounds top;
         CalculateFaceBounds(&i, 1, top.m_min, top.m_max);
 		
-		m_faces.push_back(i);
-		m_faceBounds.push_back(top);
+		//m_faces.push_back(i);
+		//m_faceBounds.push_back(top);
+
+        array::push_back( m_faces, i );
+        array::push_back( m_faceBounds, top );
+
 		/*
 		stack.push_back(top);
 
@@ -199,7 +209,8 @@ void AABBTree::Build()
 		*/
     }
 
-	m_nodes.reserve(uint32_t(numFaces*1.5f));
+	//m_nodes.reserve(uint32_t(numFaces*1.5f));
+    array::reserve( m_nodes, uint32_t( numFaces*1.5f ) );
 
     // allocate space for all the nodes
 	m_freeNode = 1;
@@ -222,8 +233,8 @@ void AABBTree::Build()
     cout << "Max depth: " << m_treeDepth << endl;
 	*/
     // free some memory
-    FaceBoundsArray f;
-    m_faceBounds.swap(f);
+    //FaceBoundsArray f;
+    //m_faceBounds.swap(f);
 }
 
 // partion faces around the median face
@@ -273,8 +284,14 @@ uint32_t AABBTree::PartitionSAH(Node& n, uint32_t* faces, uint32_t numFaces)
 		std::sort(faces, faces+numFaces, predicate);
 
 		// two passes over data to calculate upper and lower bounds
-		vector<float> cumulativeLower(numFaces);
-		vector<float> cumulativeUpper(numFaces);
+		//vector<float> cumulativeLower(numFaces);
+		//vector<float> cumulativeUpper(numFaces);
+        
+        array_t<float> cumulativeLower;
+        array_t<float> cumulativeUpper;
+        array::reserve( cumulativeLower, numFaces );
+        array::reserve( cumulativeUpper, numFaces );
+
 
 		Bounds lower;
 		Bounds upper;
@@ -318,13 +335,14 @@ void AABBTree::BuildRecursive(uint32_t nodeIndex, uint32_t* faces, uint32_t numF
     const uint32_t kMaxFacesPerLeaf = 6;
     
     // if we've run out of nodes allocate some more
-    if (nodeIndex >= m_nodes.size())
+    if (nodeIndex >= m_nodes.size )
     {
-		uint32_t s = std::max(uint32_t(1.5f*m_nodes.size()), 512U);
+		uint32_t s = std::max(uint32_t(1.5f*m_nodes.size), 512U);
 
 		//cout << "Resizing tree, current size: " << m_nodes.size()*sizeof(Node) << " new size: " << s*sizeof(Node) << endl;
 
-        m_nodes.resize(s);
+        //m_nodes.resize(s);
+        array::resize( m_nodes, s );
     }
 
     // a reference to the current node, need to be careful here as this reference may become invalid if array is resized
@@ -332,7 +350,7 @@ void AABBTree::BuildRecursive(uint32_t nodeIndex, uint32_t* faces, uint32_t numF
 
 	// track max tree depth
     ++s_depth;
-    m_treeDepth = max(m_treeDepth, s_depth);
+    m_treeDepth = std::max(m_treeDepth, s_depth);
 
 	CalculateFaceBounds(faces, numFaces, n.m_minExtents, n.m_maxExtents);
 

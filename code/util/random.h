@@ -75,4 +75,19 @@ namespace bxRand
         const float max_value = base_value * ( 1.f + randomization );
         return rnd.getf( min_value, max_value );
     }
+
+    // returns a random unit vector (also can add an offset to generate around an off axis vector)
+    inline Vector3F unitVector( bxRandomGen& rnd )
+    {
+        float phi = rnd.getf( PI2 );
+        float theta = rnd.getf( PI2 );
+
+        float cosTheta = ::cosf( theta );
+        float sinTheta = ::sinf( theta );
+
+        float cosPhi = ::cosf( phi );
+        float sinPhi = ::sinf( phi );
+
+        return Vector3F( cosTheta*sinPhi, cosPhi, sinTheta*sinPhi );
+    }
 }///

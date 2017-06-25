@@ -111,7 +111,7 @@ inline bool IntersectPlaneAABB( const Vector4F& plane, const Vector3F& center, c
 
 //////////////////////////////////////////////////////////////////////////
 // Moller and Trumbore's method
-inline bool IntersectRayTriTwoSided( const Vector3F& p, const Vector3F& dir, const Vector3F& a, const Vector3F& b, const Vector3F& c, float& t, float& u, float& v, float& w, float& sign )//Vector3F* normal)
+inline bool IntersectRayTriTwoSided( const Vector3F& p, const Vector3F& dir, const Vector3F& a, const Vector3F& b, const Vector3F& c, float& t, float& u, float& v, float& w, float& sign )
 {
     Vector3F ab = b - a;
     Vector3F ac = c - a;
@@ -134,8 +134,6 @@ inline bool IntersectRayTriTwoSided( const Vector3F& p, const Vector3F& dir, con
         return false;
 
     u = 1.0f - v - w;
-    //if (normal)
-    //*normal = n;
     sign = d;
 
     return true;

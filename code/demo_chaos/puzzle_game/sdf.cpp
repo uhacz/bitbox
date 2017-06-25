@@ -222,7 +222,7 @@ void MakeSDF(const uint32_t* img, uint32_t w, uint32_t h, uint32_t d, float* out
 	const float scale = 1.0f / max(max(w, h), d);
 
 	std::vector<Coord3D> queue;
-
+    queue.reserve( w*h*d );
 	// find surface points
 	for (uint32_t z=0; z < d; ++z)
 	{

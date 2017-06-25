@@ -245,7 +245,7 @@ void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera, const M
             rdi::BufferRO gpu_buffer = gfx->gpu_buffer[i];
 
             const u32 num_particles = GetNbParticles( solver, body_id );
-            Vector3F* particle_data = MapPosition( solver, body_id );
+            Vector3F* particle_data = MapInterpolatedPositions( solver, body_id );
             u8* gpu_mapped_data = rdi::context::Map( cmdq, gpu_buffer, 0, rdi::EMapType::WRITE );
             
             memcpy( gpu_mapped_data, particle_data, num_particles * sizeof( *particle_data ) );            

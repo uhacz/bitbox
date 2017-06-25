@@ -7,11 +7,7 @@
 #include <util/math.h>
 
 #include <rdi/rdi_debug_draw.h>
-#include "util/bbox.h"
-#include "util/grid.h"
-#include "sdf.h"
-#include "voxelize.h"
-#include "util/poly/poly_shape.h"
+#include "puzzle_physics_pbd.h"
 
 namespace bx { namespace puzzle {
 
@@ -20,43 +16,7 @@ namespace physics
 
 
 
-// --- constraints
 
-// collision constraints are generated from scratch in every frame. 
-// Thus particle indices are absolute for simplicity sake.
-struct PlaneCollisionC
-{
-    Vector4F plane;
-    u32 i;
-};
-struct ParticleCollisionC
-{
-    u32 i0;
-    u32 i1;
-};
-
-// in all constraints below particle indices are relative to body
-struct DistanceC
-{
-    u32 i0;
-    u32 i1;
-    f32 rl;
-};
-
-struct BendingC
-{
-    u32 i0;
-    u32 i1;
-    u32 i2;
-    u32 i3;
-    f32 ra;
-};
-
-struct ShapeMatchingC
-{
-    Vector3F rest_pos;
-    f32 mass;
-};
 
 // --- bodies
 struct Body
@@ -402,22 +362,7 @@ static void GenerateCollisionConstraints( Solver* solver )
     }// iactive
 }
 
-static inline Vector3F ComputeFrictionDeltaPos( const Vector3F& tangent, const Vector3F& normal, float depth_positive, float sFriction, float dFriction )
-{
-    const float tangent_len = length( tangent );
-    Vector3F dpos_friction( 0.f );
-    if( tangent_len < depth_positive * sFriction )
-    {
-        dpos_friction = tangent;
-    }
-    else
-    {
-        const float a = minOfPair( depth_positive * dFriction / tangent_len, 1.f );
-        dpos_friction = tangent * a;
-    }
 
-    return dpos_friction;
-}
 
 static void SolveCollisionConstraints( Solver* solver )
 {
@@ -488,26 +433,7 @@ static void SolveCollisionConstraints( Solver* solver )
     }
 }
 
-inline int SolveDistanceC( Vector3F* resultA, Vector3F* resultB, const Vector3F& posA, const Vector3F& posB, f32 massInvA, f32 massInvB, f32 restLength, f32 stiffness )
-{
-    float wSum = massInvA + massInvB;
-    if( wSum < FLT_EPSILON )
-        return 0;
 
-    float wSumInv = 1.f / wSum;
-    
-    Vector3F n = posB - posA;
-    float d = length( n );
-    n = ( d > FLT_EPSILON ) ? n / d : n;
-
-    const float diff = d - restLength;
-    const Vector3F dpos = n * stiffness * diff * wSumInv;
-
-    resultA[0] = dpos * massInvA;
-    resultB[0] = -dpos * massInvB;
-
-    return 1;
-}
 static void SolveDistanceConstraints( Solver* solver )
 {
     const u32 n_active = solver->active_bodies_count;
@@ -540,43 +466,6 @@ static void SolveDistanceConstraints( Solver* solver )
     }
 }
 
-static void SoftBodyUpdatePose( Matrix3F* rotation, Vector3F* centerOfMass, const Vector3F* pos, const ShapeMatchingC* shapeMatchingC, int nPoints )
-{
-    Vector3F com( 0.f );
-    f32 totalMass( 0.f );
-    for( int ipoint = 0; ipoint < nPoints; ++ipoint )
-    {
-        const f32 mass = shapeMatchingC[ipoint].mass;
-        com += pos[ipoint] * mass;
-        totalMass += mass;
-    }
-    com /= totalMass;
-
-    Vector3F col0( FLT_EPSILON, 0.f, 0.f );
-    Vector3F col1( 0.f, FLT_EPSILON * 2.f, 0.f );
-    Vector3F col2( 0.f, 0.f, FLT_EPSILON * 4.f );
-    for( int ipoint = 0; ipoint < nPoints; ++ipoint )
-    {
-        const f32 mass = shapeMatchingC[ipoint].mass;
-        const Vector3F& q = shapeMatchingC[ipoint].rest_pos;
-        const Vector3F p = ( pos[ipoint] - com ) * mass;
-        col0 += p * q.getX();
-        col1 += p * q.getY();
-        col2 += p * q.getZ();
-    }
-    Matrix3F Apq( col0, col1, col2 );
-    Matrix3F R, S;
-    PolarDecomposition( Apq, R, S );
-
-    rotation[0] = R;
-    centerOfMass[0] = com;
-}
-static inline void SolveShapeMatchingC( Vector3F* result, const Matrix3F& R, const Vector3F& com, const Vector3F& restPos, const Vector3F& pos, float shapeStiffness )
-{
-    const Vector3F goalPos = com + R * ( restPos );
-    const Vector3F dpos = goalPos - pos;
-    result[0] = dpos * shapeStiffness;
-}
 static void SolveShapeMatchingConstraints( Solver* solver )
 {
     const u32 n_active = solver->active_bodies_count;
@@ -767,6 +656,66 @@ void SetDistanceConstraints( Solver* solver, BodyId id, const DistanceCInfo* con
     }
 }
 
+void CalculateLocalPositions( Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    const Body& body = GetBody( solver, idi );
+
+    ShapeMatchingCArray& sm_out_array = solver->shape_matching_c[idi.index];
+    array::clear( sm_out_array );
+    array::reserve( sm_out_array, body.count );
+
+    const u32 body_end = body.begin + body.count;
+    const Vector3F* rest_positions = solver->p0.begin();
+    const f32* mass_inv = solver->w.begin();
+
+    // calculate mean
+    Vector3F shape_offset( 0.f );
+
+    //for( u32 i = body.begin; i < body_end; ++i )
+    //    shape_offset += rest_positions[i];
+
+    //shape_offset /= float( body.count );
+    
+    // calculate center of mass
+    Vector3F com( 0.f );
+
+    // By substracting shape_offset the calculation is done in relative coordinates
+    for( u32 i = body.begin; i < body_end; ++i )
+        com += rest_positions[i] -shape_offset;
+
+    com /= float( body.count );
+
+    for( u32 i = body.begin; i < body_end; ++i )
+    {
+        ShapeMatchingC c;
+        c.mass = ( mass_inv[i] > FLT_EPSILON ) ? 1.f / mass_inv[i] : 0.f;
+        c.rest_pos = (rest_positions[i] - shape_offset) - com;
+        array::push_back( sm_out_array, c );
+    }
+}
+
+void SetSDFData( Solver* solver, BodyId id, const Vector4F* sdfData, u32 count )
+{
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    const Body& body = GetBody( solver, idi );
+    SYS_ASSERT( body.count == count );
+
+    Vector4Array& sdf_out_array = solver->sdf_normal[idi.index];
+    array::clear( sdf_out_array );
+    array::reserve( sdf_out_array, body.count );
+
+    for( u32 i = 0; i < count; ++i )
+    {
+        array::push_back( sdf_out_array, sdfData[i] );
+    }
+}
+
+#if 0
 void SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatchingCInfo* constraints, u32 numConstraints )
 {
     PHYSICS_VALIDATE_ID_NO_RETURN;
@@ -776,7 +725,7 @@ void SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatching
 
     ShapeMatchingCArray& sm_out_array = solver->shape_matching_c[idi.index];
     Vector4Array& sdf_out_array = solver->sdf_normal[idi.index];
-
+    Vector3F* body_pos = MapPosition( solver, id );
 
     for( u32 i = 0; i < numConstraints; ++i )
     {
@@ -794,13 +743,22 @@ void SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatching
             array::push_back( sdf_out_array, info.local_normal );
         }
     }
-}
 
+
+}
+#endif
 
 u32 GetNbParticles( Solver* solver, BodyId id )
 {
     PHYSICS_VALIDATE_ID( 0 );
     return GetBody( solver, ToBodyIdInternal( id ) ).count;
+}
+
+Vector3F* MapInterpolatedPositions( Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID( nullptr );
+    Body body = GetBody( solver, ToBodyIdInternal( id ) );
+    return solver->x.begin() + body.begin;
 }
 
 Vector3F* MapPosition( Solver* solver, BodyId id )
@@ -866,356 +824,7 @@ namespace bx{ namespace puzzle{
 
 namespace physics{
 
-BodyId CreateRope( Solver* solver, const Vector3F& attach, const Vector3F& axis, float len, float particleMass )
-{
-    const float pradius = physics::GetParticleRadius( solver );
 
-    const u32 num_points = (u32)( len / ( pradius * 2.f ) );
-    const float step = ( len / (float)( num_points ) );
-    const float particle_mass_inv = ( particleMass > FLT_EPSILON ) ? 1.f / particleMass : 0.f;
-    BodyId rope = physics::CreateBody( solver, num_points );
-
-    Vector3F* points = physics::MapPosition( solver, rope );
-    f32* mass_inv = physics::MapMassInv( solver, rope );
-    
-    points[0] = attach;
-    mass_inv[0] = particle_mass_inv;
-    for( u32 i = 1; i < num_points; ++i )
-    {
-        points[i] = points[i - 1] + axis * step;
-        mass_inv[i] = particle_mass_inv;
-    }
-
-    physics::Unmap( solver, mass_inv );
-    physics::Unmap( solver, points );
-
-    array_t< physics::DistanceCInfo >c_info;
-    array::reserve( c_info, num_points - 1 );
-    for( u32 i = 0; i < num_points - 1; ++i )
-    {
-        physics::DistanceCInfo& info = c_info[i];
-        info.i0 = i;
-        info.i1 = i + 1;
-    }
-    physics::SetDistanceConstraints( solver, rope, c_info.begin(), num_points - 1 );
-
-    return rope;
-}
-
-BodyId CreateCloth( Solver* solver, const Vector3F& attach, const Vector3F& axis, float width, float height, float particleMass )
-{
-    return{0};
-}
-
-
-
-static inline bool EdgeDetect( u32 ix, u32 iy, u32 iz, u32 w, u32 d, u32 h )
-{
-    bool is_on_edge = false;
-    is_on_edge |= iz == 0 || iz == ( d - 1 );
-    is_on_edge |= iy == 0 || iy == ( h - 1 );
-    is_on_edge |= ix == 0 || ix == ( w - 1 );
-
-    return is_on_edge;
-}
-BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass, bool shell )
-{
-    const f32 pradius = physics::GetParticleRadius( solver );
-    const f32 pradius2 = pradius * 2.f;
-
-    const u32 w = (u32)( width / pradius2 );
-    const u32 h = (u32)( height / pradius2 );
-    const u32 d = (u32)( depth / pradius2 );
-    
-    u32 num_particles = 0;
-    if( shell )
-    {
-        for( u32 iz = 0; iz < d; ++iz )
-        {
-            for( u32 iy = 0; iy < h; ++iy )
-            {
-                for( u32 ix = 0; ix < w; ++ix )
-                {
-                    if( !EdgeDetect( ix, iy, iz, w, h, d ) )
-                        continue;
-
-                    ++num_particles;
-                }
-            }
-        }
-    }
-    else
-    {
-        num_particles = w*h*d;
-    }
-
-    //const u32 num_particles = 2 * ( w*h + h*d + w*d );
-    BodyId id = CreateBody( solver, num_particles );
-
-    const Vector3F begin_pos_ls =
-        -Vector3F(
-            (f32)(w/2) - ( 1 - ( w % 2 ) ) * 0.5f,
-            (f32)(h/2) - ( 1 - ( h % 2 ) ) * 0.5f,
-            (f32)(d/2) - ( 1 - ( d % 2 ) ) * 0.5f
-            ) * pradius2;
-
-    const f32 particle_mass_inv = ( particleMass > FLT_EPSILON ) ? 1.f / particleMass : 0.f;
-    Vector3F* pos = MapPosition( solver, id );
-    f32* mass_inv = MapMassInv( solver, id );
-
-    array_t< ShapeMatchingCInfo > shape_match_cinfo;
-    array::reserve( shape_match_cinfo, num_particles );
-
-    //bxGrid voxel_grid( w + 2, h + 2, d + 2 );
-    array_t<u32> voxel_volume;
-    array::reserve( voxel_volume, num_particles );
-    //for( u32 i = 0; i < voxel_grid.numCells(); ++i )
-    //    array::push_back( voxel_volume, 0u );
-    
-    u32 pcounter = 0;
-    for( u32 iz = 0; iz < d; ++iz )
-    {
-        for( u32 iy = 0; iy < h; ++iy )
-        {
-            for( u32 ix = 0; ix < w; ++ix )
-            {
-                if( shell )
-                {
-                    if( !EdgeDetect( ix, iy, iz, w, h, d ) )
-                        continue;
-                }
-
-                const Vector3F pos_ls = begin_pos_ls + Vector3F( (f32)ix, (f32)iy, (f32)iz ) * pradius2;
-                const Vector3F pos_ws = ( pose * Point3F( pos_ls ) ).getXYZ();
-
-                pos[pcounter] = pos_ws;
-                mass_inv[pcounter] = particle_mass_inv;
-
-                ShapeMatchingCInfo info;
-                info.i = pcounter;
-                info.rest_pos = pos_ls;
-                info.mass = particleMass;
-                array::push_back( shape_match_cinfo, info );
-
-
-                //u32 voxel_index = voxel_grid.index( ix + 1, iy + 1, iz + 1 );
-                const u32 voxel_index = pcounter;
-                voxel_volume[voxel_index] = UINT32_MAX;
-
-                pcounter += 1;
-
-
-            }
-        }
-    }
-
-    //array_t<f32> sdf;
-    //array::reserve( sdf, voxel_volume.capacity );
-    //MakeSDF( voxel_volume.begin(), w, h, d, sdf.begin() );
-    //
-    //array_t<Vector4F> sdf_field;
-    //array::reserve( sdf_field, voxel_volume.capacity );
-    //for ( u32 iz = 0; iz < d; ++iz )
-    //{
-    //    for( u32 iy = 0; iy < h; ++iy )
-    //    {
-    //        for( u32 ix = 0; ix < w; ++ix )
-    //        {
-    //            const float value = SampleSDF( sdf.begin(), w, h, d, ix, iy, iz );
-    //            Vector3F grad;
-    //            SampleSDFGrad( &grad.mX, sdf.begin(), w, h, d, ix, iy, iz );
-    //            array::push_back( sdf_field, Vector4F( grad, value ) );
-    //        }
-    //    }
-    //}
-    
-    SYS_ASSERT( pcounter == num_particles );
-
-    Unmap( solver, mass_inv );
-    Unmap( solver, pos );
-
-    SetShapeMatchingConstraints( solver, id, shape_match_cinfo.begin(), shape_match_cinfo.size );
-    return id;
-}
-
-static AABBF ComputeAABB( const Vector3F* points, u32 numPoints )
-{
-    AABBF aabb = AABBF::prepare();
-    for( u32 i = 0; i < numPoints; ++i )
-        aabb = AABBF::extend( aabb, points[i] );
-    return aabb;
-}
-
-BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const Vector3F* srcPos, u32 numPositions, const u32* srcIndices, u32 numIndices, float particleMass )
-{
-    array_t<Vector3F> positions;
-    array::reserve( positions, numPositions );
-    
-    // --- prepare positions
-
-    // rotate points first
-    //const Matrix3F rotation = pose.getUpper3x3();
-    for( u32 i = 0; i < numPositions; ++i )
-        positions[i] = srcPos[i];
-        //positions[i] = rotation * srcPos[i];
-
-    AABBF local_aabb         = ComputeAABB( positions.begin(), numPositions );
-    Vector3F local_aabb_size = AABBF::size( local_aabb );
-    float max_edge           = maxElem( local_aabb_size );
-
-    // put mesh at the origin and scale to specified size
-    const Matrix4F xform = Matrix4F::scale( scale * ( 1.f / max_edge ) ); // prependScale( scale * ( 1.f / max_edge ), Matrix4F::translation( -local_aabb.min ) );
-    for( u32 i = 0; i < numPositions; ++i )
-        positions[i] = ( xform * Point3F( positions[i] ) ).getXYZ();
-
-    // recompute bounds
-    local_aabb      = ComputeAABB( positions.begin(), numPositions );
-    local_aabb_size = AABBF::size( local_aabb );
-    max_edge        = maxElem( local_aabb_size );
-    
-
-    // tweak spacing to avoid edge cases for particles laying on the boundary
-    // just covers the case where an edge is a whole multiple of the spacing.
-    const float pradius = GetParticleRadius( solver );
-    const float spacing = pradius * 2.f;
-    const float spacing_eps =  spacing  * ( 1.0f - 1e-4f );
-
-    // make sure to have at least one particle in each dimension
-    int dx, dy, dz;
-    dx = spacing > local_aabb_size.x ? 1 : int( local_aabb_size.x / spacing_eps );
-    dy = spacing > local_aabb_size.y ? 1 : int( local_aabb_size.y / spacing_eps );
-    dz = spacing > local_aabb_size.z ? 1 : int( local_aabb_size.z / spacing_eps );
-    int max_dim = maxOfPair( maxOfPair( dx, dy ), dz );
-    
-    // expand border by two voxels to ensure adequate sampling at edges
-    local_aabb.min -= 2.0f*Vector3F( spacing );
-    local_aabb.max += 2.0f*Vector3F( spacing );
-    max_dim += 4;
-
-    const u32 max_dim_pow3 = max_dim*max_dim*max_dim;
-
-    array_t<u32> voxels;
-    array::reserve( voxels, max_dim_pow3 );
-
-    // we shift the voxelization bounds so that the voxel centers
-    // lie symmetrically to the center of the object. this reduces the 
-    // chance of missing features, and also better aligns the particles
-    // with the mesh
-    Vector3F meshOffset;
-    meshOffset.x = 0.5f * ( spacing - ( local_aabb_size.x - ( dx - 1 )*spacing ) );
-    meshOffset.y = 0.5f * ( spacing - ( local_aabb_size.y - ( dy - 1 )*spacing ) );
-    meshOffset.z = 0.5f * ( spacing - ( local_aabb_size.z - ( dz - 1 )*spacing ) );
-    local_aabb.min -= meshOffset;
-
-    // --- vexelize
-    Voxelize( 
-        (const float*)positions.begin(), numPositions, (const int*)srcIndices, numIndices, 
-        max_dim, max_dim, max_dim, &voxels[0], local_aabb.min, local_aabb.min + Vector3F( max_dim*spacing ) 
-        );
-    // --- 
-
-    // --- make sdf
-    array_t<i32> indices;
-    array_t<f32> sdf;
-    array::reserve( indices, max_dim_pow3 );
-    array::reserve( sdf, max_dim_pow3 );
-
-    MakeSDF( &voxels[0], max_dim, max_dim, max_dim, &sdf[0] );
-    // --- 
-
-    u32 num_particles = 0;
-    for( u32 i = 0; i < voxels.capacity; ++i )
-        num_particles += ( voxels[i] ) ? 1 : 0;
-
-    BodyId id = CreateBody( solver, num_particles );
-
-    const f32 particle_mass_inv = ( particleMass > FLT_EPSILON ) ? 1.f / particleMass : 0.f;
-    Vector3F* body_pos = MapPosition( solver, id );
-    f32*      body_mass_inv = MapMassInv( solver, id );
-
-    array_t< ShapeMatchingCInfo > shape_match_cinfo;
-    array::reserve( shape_match_cinfo, num_particles );
-
-    u32 body_particle_index = 0;
-    const Vector3F translation = pose.getTranslation();
-    for( int x = 0; x < max_dim; ++x )
-    {
-        for( int y = 0; y < max_dim; ++y )
-        {
-            for( int z = 0; z < max_dim; ++z )
-            {
-                const int index = z*max_dim*max_dim + y*max_dim + x;
-
-                if( !voxels[index] )
-                    continue;
-
-                const Vector3F grid_pos = Vector3F( float( x ) + 0.5f, float( y ) + 0.5f, float( z ) + 0.5f );
-                const Vector3F pos_ls = local_aabb.min + spacing*grid_pos;
-                const Vector3F pos_ws = (pose * Point3F(pos_ls)).getXYZ();
-
-                // normalize the sdf value and transform to world scale
-                Vector3F sdf_grad;
-                SampleSDFGrad( &sdf_grad.x, sdf.begin(), max_dim, x, y, z );
-                const Vector3F n = normalizeSafeF( sdf_grad );
-                const float d = sdf[index] * max_edge;
-                const Vector4F nrm_ls( n, d );
-
-                body_pos[body_particle_index] = pos_ws;
-                body_mass_inv[body_particle_index] = particle_mass_inv;
-                
-                {
-                    ShapeMatchingCInfo info;
-                    info.rest_pos = pos_ls;
-                    info.local_normal = nrm_ls;
-                    info.mass = particleMass;
-                    info.i = body_particle_index;
-                    array::push_back( shape_match_cinfo, info );
-                }
-
-                body_particle_index += 1;
-            }
-        }
-    }
-
-    SYS_ASSERT( num_particles == body_particle_index );
-    SYS_ASSERT( num_particles == shape_match_cinfo.size );
-
-    SetShapeMatchingConstraints( solver, id, shape_match_cinfo.begin(), shape_match_cinfo.size );
-
-    Unmap( solver, body_mass_inv );
-    Unmap( solver, body_pos );
-
-    return id;
-}
-
-
-
-BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const bxPolyShape& shape, float particleMass )
-{
-    const Vector3F* positions = (Vector3F*)shape.positions;
-    const u32* indices = shape.indices;
-    BodyId id = CreateFromShape( solver, pose, scale, positions, shape.num_vertices, indices, shape.num_indices, particleMass );
-    
-    return id;
-}
-
-BodyId CreateBox( Solver* solver, const Matrix4F& pose, const Vector3F& extents, float particleMass )
-{
-    bxPolyShape shape;
-    bxPolyShape_createBox( &shape, 1 );
-    BodyId id = CreateFromShape( solver, pose, extents*2.f, shape, particleMass );
-    bxPolyShape_deallocateShape( &shape );
-    return id;
-}
-
-BodyId CreateSphere( Solver* solver, const Matrix4F& pose, float radius, float particleMass )
-{
-    bxPolyShape shape;
-    bxPolyShape_createShpere( &shape, 8 );
-    BodyId id = CreateFromShape( solver, pose, Vector3F(radius*2.f), shape, particleMass );
-    bxPolyShape_deallocateShape( &shape );
-    return id;
-}
 
 void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )
 {
