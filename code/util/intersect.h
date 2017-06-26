@@ -26,7 +26,7 @@ inline bool IntersectRaySphere( const Vector3F& sphereOrigin, float sphereRadius
         else
         {
             // length of the half cord
-            float thc = sqrt( radiusSq - dSq );
+            float thc = sqrtf( radiusSq - dSq );
 
             // closest intersection
             t = dprojr - thc;

@@ -339,50 +339,53 @@ static void GenerateCollisionConstraints( Solver* solver )
                             const float w0 = solver->w[ip0];
                             const float w1 = solver->w[ip1];
                             const float wsum = w0 + w1;
-                            if( wsum > FLT_EPSILON )
+                            if( wsum < FLT_EPSILON )
+                                continue;
+                            
+                            const Vector3F& p1 = solver->p1[ip1];
+                            const Vector3F v = p1 - p0;
+                            const float len_sqr = lengthSqr( v );
+                            if( len_sqr >= collision_threshold )
+                                continue;
+
+                            const u32 body_i0 = solver->body_index[ip0];
+                            const u32 body_i1 = solver->body_index[ip1];
+                            const bool has_sdf0 = solver->sdf_normal[body_i0].size > 0;
+                            const bool has_sdf1 = solver->sdf_normal[body_i1].size > 0;
+
+                            if( has_sdf0 && has_sdf1 )
                             {
-                                const Vector3F& p1 = solver->p1[ip1];
-                                const Vector3F v = p1 - p0;
-                                const float len_sqr = lengthSqr( v );
-                                if( len_sqr < collision_threshold )
+                                if( body_i0 != body_i1 )
                                 {
-                                    const u32 body_i0 = solver->body_index[ip0];
-                                    const u32 body_i1 = solver->body_index[ip1];
-                                    const bool has_sdf0 = solver->sdf_normal[body_i0].size > 0;
-                                    const bool has_sdf1 = solver->sdf_normal[body_i1].size > 0;
+                                    const Body& body0 = solver->bodies[body_i0];
+                                    const Body& body1 = solver->bodies[body_i1];
+                                    SYS_ASSERT( ip0 >= body0.begin );
+                                    SYS_ASSERT( ip1 >= body1.begin );
 
-                                    if( has_sdf0 && has_sdf1 && body_i0 != body_i1 )
-                                    {
-                                        const Body& body0 = solver->bodies[body_i0];
-                                        const Body& body1 = solver->bodies[body_i1];
-                                        SYS_ASSERT( ip0 >= body0.begin );
-                                        SYS_ASSERT( ip1 >= body1.begin );
-                                        
-                                        const u32 ip0_rel = ip0 - body0.begin;
-                                        const u32 ip1_rel = ip1 - body1.begin;
+                                    const u32 ip0_rel = ip0 - body0.begin;
+                                    const u32 ip1_rel = ip1 - body1.begin;
 
-                                        SYS_ASSERT( ip0_rel < solver->sdf_normal[body_i0].size );
-                                        SYS_ASSERT( ip1_rel < solver->sdf_normal[body_i1].size );
+                                    SYS_ASSERT( ip0_rel < solver->sdf_normal[body_i0].size );
+                                    SYS_ASSERT( ip1_rel < solver->sdf_normal[body_i1].size );
 
-                                        const Vector4F& sdf0 = solver->sdf_normal[body_i0][ip0_rel];
-                                        const Vector4F& sdf1 = solver->sdf_normal[body_i1][ip1_rel];
+                                    const Vector4F& sdf0 = solver->sdf_normal[body_i0][ip0_rel];
+                                    const Vector4F& sdf1 = solver->sdf_normal[body_i1][ip1_rel];
 
-                                        SDFCollisionC c;
-                                        c.n = ( sdf0.w < sdf1.w ) ? sdf0.getXYZ() : -sdf1.getXYZ();
-                                        c.d = minOfPair( sdf0.w, sdf1.w );
-                                        c.i0 = ip0;
-                                        c.i1 = ip1;
-                                        array::push_back( solver->sdf_collision_c, c );
-
-                                    }
-                                    else
-                                    {
-                                        ParticleCollisionC c;
-                                        c.i0 = ip0;
-                                        c.i1 = ip1;
-                                        array::push_back( solver->particle_collision_c, c );
-                                    }
+                                    SDFCollisionC c;
+                                    c.n = ( sdf0.w < sdf1.w ) ? sdf0.getXYZ() : -sdf1.getXYZ();
+                                    c.d = minOfPair( sdf0.w, sdf1.w );
+                                    c.i0 = ip0;
+                                    c.i1 = ip1;
+                                    array::push_back( solver->sdf_collision_c, c );
                                 }
+
+                            }
+                            else
+                            {
+                                ParticleCollisionC c;
+                                c.i0 = ip0;
+                                c.i1 = ip1;
+                                array::push_back( solver->particle_collision_c, c );
                             }
                         }// ip1
                     }// dx
@@ -399,7 +402,21 @@ static void GenerateCollisionConstraints( Solver* solver )
 }
 
 
+static inline void ComputeFriction( Vector3F frictionDpos[2], Solver* solver, u32 i0, u32 i1, const Vector3F& newp0, const Vector3F& newp1, const Vector3F& n, float depth )
+{
+    const Vector3F& oldp0 = solver->p0[i0];
+    const Vector3F& oldp1 = solver->p1[i1];
 
+    const u16 body_index0 = solver->body_index[i0];
+    const u16 body_index1 = solver->body_index[i1];
+    const BodyParams& params0 = solver->body_params[body_index0];
+    const BodyParams& params1 = solver->body_params[body_index1];
+
+    const Vector3F xt = projectVectorOnPlane( ( newp1 - oldp1 ) - ( newp0 - oldp0 ), n );
+
+    frictionDpos[0] = ComputeFrictionDeltaPos( xt, n, -depth, params0.static_friction, params0.dynamic_friction );
+    frictionDpos[1] = ComputeFrictionDeltaPos( -xt, n, -depth, params1.static_friction, params1.dynamic_friction );
+}
 static void SolveCollisionConstraints( Solver* solver )
 {
     const float pradius = solver->particle_radius;
@@ -430,21 +447,11 @@ static void SolveCollisionConstraints( Solver* solver )
             const Vector3F newp0 = p0 + dpos0;
             const Vector3F newp1 = p1 + dpos1;
             
-            const Vector3F& oldp0 = solver->p0[c.i0];
-            const Vector3F& oldp1 = solver->p1[c.i0];
+            Vector3F dpos_friction[2];
+            ComputeFriction( dpos_friction, solver, c.i0, c.i1, newp0, newp1, n, depth );
 
-            const u16 body_index0 = solver->body_index[c.i0];
-            const u16 body_index1 = solver->body_index[c.i1];
-            const BodyParams& params0 = solver->body_params[body_index0];
-            const BodyParams& params1 = solver->body_params[body_index1];
-
-            const Vector3F xt = projectVectorOnPlane( ( newp1 - oldp1 ) - ( newp0 - oldp0 ), n );
-            
-            const Vector3F dpos_friction0 = ComputeFrictionDeltaPos( xt, n, -depth, params0.static_friction, params0.dynamic_friction );
-            const Vector3F dpos_friction1 = ComputeFrictionDeltaPos(-xt, n, -depth, params1.static_friction, params1.dynamic_friction );
-
-            solver->p1[c.i0] = newp0 + dpos_friction0*w0 * wsum_inv;
-            solver->p1[c.i1] = newp1 + dpos_friction1*w1 * wsum_inv;
+            solver->p1[c.i0] = newp0 + dpos_friction[0]*w0 * wsum_inv;
+            solver->p1[c.i1] = newp1 + dpos_friction[1]*w1 * wsum_inv;
         }
     }
 
@@ -487,8 +494,11 @@ static void SolveCollisionConstraints( Solver* solver )
             const Vector3F newp0 = p0 + dpos0;
             const Vector3F newp1 = p1 + dpos1;
 
-            solver->p1[c.i0] = newp0;
-            solver->p1[c.i1] = newp1;
+            Vector3F dpos_friction[2];
+            ComputeFriction( dpos_friction, solver, c.i0, c.i1, newp0, newp1, n, depth );
+
+            solver->p1[c.i0] = newp0 + dpos_friction[0]*w0 * wsum_inv;
+            solver->p1[c.i1] = newp1 + dpos_friction[1]*w1 * wsum_inv;
             
         }
     }

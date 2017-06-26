@@ -196,7 +196,7 @@ BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& sc
     // tweak spacing to avoid edge cases for particles laying on the boundary
     // just covers the case where an edge is a whole multiple of the spacing.
     const float pradius = GetParticleRadius( solver );
-    const float spacing = pradius * 2.f;
+    const float spacing = pradius * 1.25f;
     const float spacing_eps = spacing * ( 1.0f - 1e-4f );
 
     // make sure to have at least one particle in each dimension
@@ -269,7 +269,7 @@ BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& sc
 
                 const Vector3F grid_pos = Vector3F( float( x ) + 0.5f, float( y ) + 0.5f, float( z ) + 0.5f );
                 const Vector3F jitter_pos = bxRand::unitVector( rnd ) * jitter;
-                const Vector3F pos_ls = local_aabb.min + spacing*grid_pos; // +jitter_pos;
+                const Vector3F pos_ls = local_aabb.min + spacing*grid_pos + jitter_pos;
                 const Vector3F pos_ws = (pose * Point3F(pos_ls)).getXYZ();
 
                 // normalize the sdf value and transform to world scale
