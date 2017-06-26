@@ -94,11 +94,11 @@ void LevelState::OnStartUp()
 
 
     const float a = 1.f;
-    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4) ), Vector3F( 0.f, 15.f, 0.f ) );
+    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(0.f) ), Vector3F( 0.f, 1.f, 0.f ) );
     //_soft0 = physics::CreateSoftBox( _solver, soft_pose0, a,a,a, 1.f );
     _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F(a), 1.f );
 
-    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 1.f, 18.f, 1.f ) );
+    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.f, 18.f, 0.f ) );
     //_soft1 = physics::CreateSoftBox( _solver, soft_pose1, a,a,a, 3.f );
     _soft1 = physics::CreateSphere( _solver, soft_pose1, a, 1.f );
 
@@ -110,10 +110,11 @@ void LevelState::OnStartUp()
     const float rigidA = 0.5f;
     for( u32 i = 0; i < NUM_RIGID; ++i )
     {
-        const float x = -(float)NUM_RIGID * 0.5f + (float)i*0.5f;
-        const float y = 5.f + i;
+        const float x = -(float)NUM_RIGID * 0.25f;// +(float)i*1.1f;
+        const float y = rigidA + i * rigidA*1.9f;
 
-        Matrix4F pose = Matrix4F( Matrix3F::rotationZYX( Vector3F( i*0.1f*PI, i*0.2f*PI, PI / 4 ) ), Vector3F( x, y, -2.f ) );
+        //Matrix4F pose = Matrix4F( Matrix3F::rotationZYX( Vector3F( i*0.1f*PI, i*0.2f*PI, PI / 4 ) ), Vector3F( x, y, 0.f ) );
+        Matrix4F pose = Matrix4F( Matrix3F::identity(), Vector3F( x, y, 0.f ) );
         //_rigid[i] = physics::CreateSoftBox( _solver, pose, rigidA,rigidA,rigidA, 1.f );
         _rigid[i] = physics::CreateBox( _solver, pose, Vector3F( rigidA ), 1.f );
 

@@ -69,6 +69,7 @@ using PhysicsBodyArray        = array_t<Body>;
 using BodyIdInternalArray     = array_t<BodyIdInternal>;
 using CollisionCArray         = array_t<PlaneCollisionC>;
 using ParticleCollisionCArray = array_t<ParticleCollisionC>;
+using SDFCollisionCArray      = array_t<SDFCollisionC>;
 using DistanceCArray          = array_t<DistanceC>;
 using BendingCArray           = array_t<BendingC>;
 using ShapeMatchingCArray     = array_t<ShapeMatchingC>;
@@ -94,6 +95,7 @@ struct Solver
     // constraints where points indices are absolute
     CollisionCArray         plane_collision_c;
     ParticleCollisionCArray particle_collision_c;
+    SDFCollisionCArray      sdf_collision_c;
     
     // constraints where points indices are relative to body
     DistanceCArray      distance_c[EConst::MAX_BODIES];
@@ -300,8 +302,10 @@ static void GenerateCollisionConstraints( Solver* solver )
 
     array::reserve( solver->plane_collision_c, n * 2 );
     array::reserve( solver->particle_collision_c, n * 2 );
+    array::reserve( solver->sdf_collision_c, n * 2 );
     array::clear( solver->plane_collision_c );
     array::clear( solver->particle_collision_c );
+    array::clear( solver->sdf_collision_c );
 
     Build( &solver->_hash_grid, nullptr, points, n, hash_grid_size, pradius2 );
 
@@ -342,10 +346,42 @@ static void GenerateCollisionConstraints( Solver* solver )
                                 const float len_sqr = lengthSqr( v );
                                 if( len_sqr < collision_threshold )
                                 {
-                                    ParticleCollisionC c;
-                                    c.i0 = ip0;
-                                    c.i1 = ip1;
-                                    array::push_back( solver->particle_collision_c, c );
+                                    const u32 body_i0 = solver->body_index[ip0];
+                                    const u32 body_i1 = solver->body_index[ip1];
+                                    const bool has_sdf0 = solver->sdf_normal[body_i0].size > 0;
+                                    const bool has_sdf1 = solver->sdf_normal[body_i1].size > 0;
+
+                                    if( has_sdf0 && has_sdf1 && body_i0 != body_i1 )
+                                    {
+                                        const Body& body0 = solver->bodies[body_i0];
+                                        const Body& body1 = solver->bodies[body_i1];
+                                        SYS_ASSERT( ip0 >= body0.begin );
+                                        SYS_ASSERT( ip1 >= body1.begin );
+                                        
+                                        const u32 ip0_rel = ip0 - body0.begin;
+                                        const u32 ip1_rel = ip1 - body1.begin;
+
+                                        SYS_ASSERT( ip0_rel < solver->sdf_normal[body_i0].size );
+                                        SYS_ASSERT( ip1_rel < solver->sdf_normal[body_i1].size );
+
+                                        const Vector4F& sdf0 = solver->sdf_normal[body_i0][ip0_rel];
+                                        const Vector4F& sdf1 = solver->sdf_normal[body_i1][ip1_rel];
+
+                                        SDFCollisionC c;
+                                        c.n = ( sdf0.w < sdf1.w ) ? sdf0.getXYZ() : -sdf1.getXYZ();
+                                        c.d = minOfPair( sdf0.w, sdf1.w );
+                                        c.i0 = ip0;
+                                        c.i1 = ip1;
+                                        array::push_back( solver->sdf_collision_c, c );
+
+                                    }
+                                    else
+                                    {
+                                        ParticleCollisionC c;
+                                        c.i0 = ip0;
+                                        c.i1 = ip1;
+                                        array::push_back( solver->particle_collision_c, c );
+                                    }
                                 }
                             }
                         }// ip1
@@ -409,6 +445,51 @@ static void SolveCollisionConstraints( Solver* solver )
 
             solver->p1[c.i0] = newp0 + dpos_friction0*w0 * wsum_inv;
             solver->p1[c.i1] = newp1 + dpos_friction1*w1 * wsum_inv;
+        }
+    }
+
+    for( const SDFCollisionC& c : solver->sdf_collision_c )
+    {
+        const Vector3F& p0 = solver->p1[c.i0];
+        const Vector3F& p1 = solver->p1[c.i1];
+
+        const Vector3F v = p1 - p0;
+        const float dsqr = lengthSqr( v );
+        if( dsqr < pradius2_sqr )
+        {
+            const float w0 = solver->w[c.i0];
+            const float w1 = solver->w[c.i1];
+            const float wsum = w0 + w1;
+            const float wsum_inv = 1.f / wsum;
+
+            const float d = ::sqrtf( dsqr );
+            
+            Vector3F n = c.n;
+            float depth = c.d;
+
+            // boundary particle
+            // modify contact normal to prevent bouncing
+            if( c.d < d )
+            {
+                const float drcp = ( d > FLT_EPSILON ) ? 1.f / d : 0.f;
+                n = v * drcp;
+                const float v_dot_n = dot( v, c.n );
+                if( v_dot_n < 0.f )
+                    n = normalizeSafeF( n - c.n*v_dot_n*2.f );
+
+                depth = d - pradius2;
+            }
+
+            const Vector3F dpos = n * depth * wsum_inv;
+            const Vector3F dpos0 = dpos * w0;
+            const Vector3F dpos1 =-dpos * w1;
+
+            const Vector3F newp0 = p0 + dpos0;
+            const Vector3F newp1 = p1 + dpos1;
+
+            solver->p1[c.i0] = newp0;
+            solver->p1[c.i1] = newp1;
+            
         }
     }
 
@@ -674,10 +755,10 @@ void CalculateLocalPositions( Solver* solver, BodyId id )
     // calculate mean
     Vector3F shape_offset( 0.f );
 
-    //for( u32 i = body.begin; i < body_end; ++i )
-    //    shape_offset += rest_positions[i];
+    for( u32 i = body.begin; i < body_end; ++i )
+        shape_offset += rest_positions[i];
 
-    //shape_offset /= float( body.count );
+    shape_offset /= float( body.count );
     
     // calculate center of mass
     Vector3F com( 0.f );

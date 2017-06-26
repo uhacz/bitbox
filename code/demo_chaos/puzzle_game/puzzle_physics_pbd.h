@@ -20,6 +20,13 @@ struct ParticleCollisionC
     u32 i0;
     u32 i1;
 };
+struct SDFCollisionC
+{
+    Vector3F n;
+    f32 d;
+    u32 i0;
+    u32 i1;
+};
 
 // in all constraints below particle indices are relative to body
 struct DistanceC
