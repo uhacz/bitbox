@@ -30,8 +30,9 @@
 //#include "core.h"
 //#include "maths.h"
 
-#include <vector>
+//#include <vector>
 #include <util/vectormath/vectormath.h>
+#include <util/containers.h>
 
 class AABBTree
 {
@@ -114,11 +115,11 @@ private:
         Vector3F m_max;
     };
 
-    typedef std::vector<u32> IndexArray;
-    typedef std::vector<Vector3F> PositionArray;
-    typedef std::vector<Node> NodeArray;
-    typedef std::vector<u32> FaceArray;
-    typedef std::vector<Bounds> FaceBoundsArray;
+    typedef array_t<u32> IndexArray;
+    typedef array_t<Vector3F> PositionArray;
+    typedef array_t<Node> NodeArray;
+    typedef array_t<u32> FaceArray;
+    typedef array_t<Bounds> FaceBoundsArray;
 
 	// partition the objects and return the number of objects in the lower partition
 	u32 PartitionMedian(Node& n, u32* faces, u32 numFaces);
@@ -130,7 +131,7 @@ private:
  
     void CalculateFaceBounds(u32* faces, u32 numFaces, Vector3F& outMinExtents, Vector3F& outMaxExtents);
     u32 GetNumFaces() const { return m_numFaces; }
-	u32 GetNumNodes() const { return u32(m_nodes.size()); }
+	u32 GetNumNodes() const { return u32(m_nodes.size); }
 
 	// track the next free node
 	u32 m_freeNode;

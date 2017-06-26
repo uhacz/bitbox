@@ -3,6 +3,7 @@
 #include "..\game_simple.h"
 #include "puzzle_player.h"
 #include "puzzle_physics.h"
+#include "puzzle_physics_gfx.h"
 
 namespace bx { namespace puzzle{
 

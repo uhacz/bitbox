@@ -220,6 +220,11 @@ inline const Vector3 normalizeSafeApprox( const Vector3& v, const floatInVec& ep
     return select( Vector3(0.f), normalizeApprox(v), lengthSqr( v ) >= eps );
 }
 
+inline const Vector3F normalizeSafeF( const Vector3F& v, float eps = FLT_EPSILON )
+{
+    return select( Vector3F( 0.f ), normalize( v ), lengthSqr( v ) >= eps );
+}
+
 inline floatInVec linearstepf4( const floatInVec& min, const floatInVec& max, const floatInVec& t )
 {
     return ( clampf4( t, min, max ) - min ) / ( max - min );

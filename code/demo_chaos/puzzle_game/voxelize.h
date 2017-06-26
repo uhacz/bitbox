@@ -32,4 +32,4 @@
 #include <util/vectormath/vectormath.h>
 
 // voxelizes a mesh using a single pass parity algorithm
-void Voxelize(const float* vertices, int numVertices, const int* indices, int numTriangleIndices, u32 width, u32 height, u32 depth, u32* volume, Vector3F minExtents, Vector3F maxExtents);
+void Voxelize(const float* vertices, int numVertices, const int* indices, int numTriangleIndices, u32 width, u32 height, u32 depth, u32* volume, const Vector3F& minExtents, const Vector3F& maxExtents);

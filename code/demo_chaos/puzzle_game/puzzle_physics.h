@@ -1,14 +1,13 @@
 #pragma once
 
 #include <util/vectormath/vectormath.h>
+#include "puzzle_physics_type.h"
 
 namespace bx { namespace puzzle {
 
 namespace physics
 {
-struct Solver;
-struct BodyId { u32 i; };
-inline BodyId BodyIdInvalid() { return { 0 }; }
+
 
 struct BodyParams
 {
@@ -26,6 +25,7 @@ struct DistanceCInfo
 struct ShapeMatchingCInfo
 {
     Vector3F rest_pos{ 0.f }; // relative position (object space)
+    Vector4F local_normal{ 0.f }; // used for sdf collision resolving
     u32 i = UINT32_MAX; // particle index
     f32 mass = 1.f;
 };
@@ -42,15 +42,19 @@ void   DestroyBody( Solver* solver, BodyId id );
 bool   IsBodyAlive( Solver* solver, BodyId id );
 // ---
 //void   SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints );
-void     SetDistanceConstraints( Solver* solver, BodyId id, const DistanceCInfo* constraints, u32 numConstraints );
-void     SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatchingCInfo* constraints, u32 numConstraints );
+void     SetDistanceConstraints ( Solver* solver, BodyId id, const DistanceCInfo* constraints, u32 numConstraints );
+void     CalculateLocalPositions( Solver* solver, BodyId id );
+void     SetSDFData             ( Solver* solver, BodyId id, const Vector4F* sdfData, u32 count );
+
+//void     SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatchingCInfo* constraints, u32 numConstraints );
 
 // --- 
-u32       GetNbParticles  ( Solver* solver, BodyId id );
-Vector3F* MapPosition     ( Solver* solver, BodyId id );
-Vector3F* MapVelocity     ( Solver* solver, BodyId id );
-f32*      MapMassInv      ( Solver* solver, BodyId id );
-void      Unmap           ( Solver* solver, void* ptr );
+u32       GetNbParticles          ( Solver* solver, BodyId id );
+Vector3F* MapInterpolatedPositions( Solver* solver, BodyId id );
+Vector3F* MapPosition             ( Solver* solver, BodyId id );
+Vector3F* MapVelocity             ( Solver* solver, BodyId id );
+f32*      MapMassInv              ( Solver* solver, BodyId id );
+void      Unmap                   ( Solver* solver, void* ptr );
 
 bool      GetBodyParams( BodyParams* params, const Solver* solver, BodyId id );
 void      SetBodyParams( Solver* solver, BodyId id, const BodyParams& params );
@@ -59,18 +63,9 @@ float     GetParticleRadius( const Solver* solver );
 }//
 }}//
 
-// --- utils
-namespace bx {
-namespace puzzle {
-
+namespace bx {namespace puzzle {
 namespace physics
 {
-
-BodyId CreateRope( Solver* solver, const Vector3F& attach, const Vector3F& axis, float len, float particleMass );
-BodyId CreateCloth( Solver* solver, const Vector3F& attach, const Vector3F& axis, float width, float height, float particleMass );
-BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass, bool shell = false );
-BodyId CreateRigidBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass );
-
 
 //////////////////////////////////////////////////////////////////////////
 struct DebugDrawBodyParams
@@ -102,19 +97,3 @@ void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params );
 }}//
 
 
-#include "../renderer_type.h"
-#include "../renderer_camera.h"
-// --- gfx
-namespace bx { namespace puzzle {
-namespace physics
-{
-struct Gfx;
-void Create( Gfx** gfx, Solver* solver, gfx::Scene scene );
-void Destroy( Gfx** gfx );
-
-bool AddBody( Gfx* gfx, BodyId id );
-void SetColor( Gfx* gfx, BodyId id, u32 colorRGBA );
-void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera, const Matrix4& lightWorld, const Matrix4& lightProj );
-
-}//
-}}//

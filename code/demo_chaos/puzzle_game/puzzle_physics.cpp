@@ -1,60 +1,22 @@
 #include "puzzle_physics.h"
+#include "puzzle_physics_internal.h"
+#include "../spatial_hash_grid.h"
+
 #include <util/array.h>
 #include <util/id_table.h>
-#include "rdi/rdi_debug_draw.h"
-#include "../spatial_hash_grid.h"
-#include "util/math.h"
+#include <util/math.h>
+
+#include <rdi/rdi_debug_draw.h>
+#include "puzzle_physics_pbd.h"
 
 namespace bx { namespace puzzle {
 
 namespace physics
 {
 
-namespace EConst
-{
-    enum E
-    {
-        MAX_BODIES = 64,
-    };
-}//
 
-// --- constraints
 
-// collision constraints are generated from scratch in every frame. 
-// Thus particle indices are absolute for simplicity sake.
-struct PlaneCollisionC
-{
-    Vector4F plane;
-    u32 i;
-};
-struct ParticleCollisionC
-{
-    u32 i0;
-    u32 i1;
-};
 
-// in all constraints below particle indices are relative to body
-struct DistanceC
-{
-    u32 i0;
-    u32 i1;
-    f32 rl;
-};
-
-struct BendingC
-{
-    u32 i0;
-    u32 i1;
-    u32 i2;
-    u32 i3;
-    f32 ra;
-};
-
-struct ShapeMatchingC
-{
-    Vector3F rest_pos;
-    f32 mass;
-};
 
 // --- bodies
 struct Body
@@ -80,7 +42,7 @@ union BodyIdInternal
     };
 };
 static inline bool operator == ( const BodyIdInternal a, const BodyIdInternal b ) { return a.i == b.i; }
-static inline bool operator == ( const BodyId a, const BodyId b ) { return a.i == b.i; }
+
 
 #define _PHYSICS_VALIDATE_ID( returnValue ) \
     { \
@@ -98,6 +60,7 @@ static inline BodyIdInternal ToBodyIdInternal( BodyId id )          { return{ id
 
 using IdTable             = id_table_t< EConst::MAX_BODIES, BodyIdInternal >;
 using Vector3Array        = array_t<Vector3F>;
+using Vector4Array        = array_t<Vector4F>;
 using F32Array            = array_t<f32>;
 using U32Array            = array_t<u32>;
 using U16Array            = array_t<u16>;
@@ -135,6 +98,7 @@ struct Solver
     // constraints where points indices are relative to body
     DistanceCArray      distance_c[EConst::MAX_BODIES];
     ShapeMatchingCArray shape_matching_c[EConst::MAX_BODIES];
+    Vector4Array        sdf_normal[EConst::MAX_BODIES];
     
     BodyIdInternal   active_bodies_idi[EConst::MAX_BODIES] = {};
     u16              active_bodies_count = 0;
@@ -398,22 +362,7 @@ static void GenerateCollisionConstraints( Solver* solver )
     }// iactive
 }
 
-static inline Vector3F ComputeFrictionDeltaPos( const Vector3F& tangent, const Vector3F& normal, float depth_positive, float sFriction, float dFriction )
-{
-    const float tangent_len = length( tangent );
-    Vector3F dpos_friction( 0.f );
-    if( tangent_len < depth_positive * sFriction )
-    {
-        dpos_friction = tangent;
-    }
-    else
-    {
-        const float a = minOfPair( depth_positive * dFriction / tangent_len, 1.f );
-        dpos_friction = tangent * a;
-    }
 
-    return dpos_friction;
-}
 
 static void SolveCollisionConstraints( Solver* solver )
 {
@@ -484,26 +433,7 @@ static void SolveCollisionConstraints( Solver* solver )
     }
 }
 
-inline int SolveDistanceC( Vector3F* resultA, Vector3F* resultB, const Vector3F& posA, const Vector3F& posB, f32 massInvA, f32 massInvB, f32 restLength, f32 stiffness )
-{
-    float wSum = massInvA + massInvB;
-    if( wSum < FLT_EPSILON )
-        return 0;
 
-    float wSumInv = 1.f / wSum;
-    
-    Vector3F n = posB - posA;
-    float d = length( n );
-    n = ( d > FLT_EPSILON ) ? n / d : n;
-
-    const float diff = d - restLength;
-    const Vector3F dpos = n * stiffness * diff * wSumInv;
-
-    resultA[0] = dpos * massInvA;
-    resultB[0] = -dpos * massInvB;
-
-    return 1;
-}
 static void SolveDistanceConstraints( Solver* solver )
 {
     const u32 n_active = solver->active_bodies_count;
@@ -536,43 +466,6 @@ static void SolveDistanceConstraints( Solver* solver )
     }
 }
 
-static void SoftBodyUpdatePose( Matrix3F* rotation, Vector3F* centerOfMass, const Vector3F* pos, const ShapeMatchingC* shapeMatchingC, int nPoints )
-{
-    Vector3F com( 0.f );
-    f32 totalMass( 0.f );
-    for( int ipoint = 0; ipoint < nPoints; ++ipoint )
-    {
-        const f32 mass = shapeMatchingC[ipoint].mass;
-        com += pos[ipoint] * mass;
-        totalMass += mass;
-    }
-    com /= totalMass;
-
-    Vector3F col0( FLT_EPSILON, 0.f, 0.f );
-    Vector3F col1( 0.f, FLT_EPSILON * 2.f, 0.f );
-    Vector3F col2( 0.f, 0.f, FLT_EPSILON * 4.f );
-    for( int ipoint = 0; ipoint < nPoints; ++ipoint )
-    {
-        const f32 mass = shapeMatchingC[ipoint].mass;
-        const Vector3F& q = shapeMatchingC[ipoint].rest_pos;
-        const Vector3F p = ( pos[ipoint] - com ) * mass;
-        col0 += p * q.getX();
-        col1 += p * q.getY();
-        col2 += p * q.getZ();
-    }
-    Matrix3F Apq( col0, col1, col2 );
-    Matrix3F R, S;
-    PolarDecomposition( Apq, R, S );
-
-    rotation[0] = R;
-    centerOfMass[0] = com;
-}
-static inline void SolveShapeMatchingC( Vector3F* result, const Matrix3F& R, const Vector3F& com, const Vector3F& restPos, const Vector3F& pos, float shapeStiffness )
-{
-    const Vector3F goalPos = com + R * ( restPos );
-    const Vector3F dpos = goalPos - pos;
-    result[0] = dpos * shapeStiffness;
-}
 static void SolveShapeMatchingConstraints( Solver* solver )
 {
     const u32 n_active = solver->active_bodies_count;
@@ -763,6 +656,66 @@ void SetDistanceConstraints( Solver* solver, BodyId id, const DistanceCInfo* con
     }
 }
 
+void CalculateLocalPositions( Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    const Body& body = GetBody( solver, idi );
+
+    ShapeMatchingCArray& sm_out_array = solver->shape_matching_c[idi.index];
+    array::clear( sm_out_array );
+    array::reserve( sm_out_array, body.count );
+
+    const u32 body_end = body.begin + body.count;
+    const Vector3F* rest_positions = solver->p0.begin();
+    const f32* mass_inv = solver->w.begin();
+
+    // calculate mean
+    Vector3F shape_offset( 0.f );
+
+    //for( u32 i = body.begin; i < body_end; ++i )
+    //    shape_offset += rest_positions[i];
+
+    //shape_offset /= float( body.count );
+    
+    // calculate center of mass
+    Vector3F com( 0.f );
+
+    // By substracting shape_offset the calculation is done in relative coordinates
+    for( u32 i = body.begin; i < body_end; ++i )
+        com += rest_positions[i] -shape_offset;
+
+    com /= float( body.count );
+
+    for( u32 i = body.begin; i < body_end; ++i )
+    {
+        ShapeMatchingC c;
+        c.mass = ( mass_inv[i] > FLT_EPSILON ) ? 1.f / mass_inv[i] : 0.f;
+        c.rest_pos = (rest_positions[i] - shape_offset) - com;
+        array::push_back( sm_out_array, c );
+    }
+}
+
+void SetSDFData( Solver* solver, BodyId id, const Vector4F* sdfData, u32 count )
+{
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    const Body& body = GetBody( solver, idi );
+    SYS_ASSERT( body.count == count );
+
+    Vector4Array& sdf_out_array = solver->sdf_normal[idi.index];
+    array::clear( sdf_out_array );
+    array::reserve( sdf_out_array, body.count );
+
+    for( u32 i = 0; i < count; ++i )
+    {
+        array::push_back( sdf_out_array, sdfData[i] );
+    }
+}
+
+#if 0
 void SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatchingCInfo* constraints, u32 numConstraints )
 {
     PHYSICS_VALIDATE_ID_NO_RETURN;
@@ -770,7 +723,9 @@ void SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatching
     const BodyIdInternal idi = ToBodyIdInternal( id );
     const Body& body = GetBody( solver, idi );
 
-    ShapeMatchingCArray& outArray = solver->shape_matching_c[idi.index];
+    ShapeMatchingCArray& sm_out_array = solver->shape_matching_c[idi.index];
+    Vector4Array& sdf_out_array = solver->sdf_normal[idi.index];
+    Vector3F* body_pos = MapPosition( solver, id );
 
     for( u32 i = 0; i < numConstraints; ++i )
     {
@@ -784,16 +739,26 @@ void SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatching
             ShapeMatchingC c;
             c.rest_pos = info.rest_pos;
             c.mass = info.mass;
-            array::push_back( outArray, c );
+            array::push_back( sm_out_array, c );
+            array::push_back( sdf_out_array, info.local_normal );
         }
     }
-}
 
+
+}
+#endif
 
 u32 GetNbParticles( Solver* solver, BodyId id )
 {
     PHYSICS_VALIDATE_ID( 0 );
     return GetBody( solver, ToBodyIdInternal( id ) ).count;
+}
+
+Vector3F* MapInterpolatedPositions( Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID( nullptr );
+    Body body = GetBody( solver, ToBodyIdInternal( id ) );
+    return solver->x.begin() + body.begin;
 }
 
 Vector3F* MapPosition( Solver* solver, BodyId id )
@@ -859,152 +824,7 @@ namespace bx{ namespace puzzle{
 
 namespace physics{
 
-BodyId CreateRope( Solver* solver, const Vector3F& attach, const Vector3F& axis, float len, float particleMass )
-{
-    const float pradius = physics::GetParticleRadius( solver );
 
-    const u32 num_points = (u32)( len / ( pradius * 2.f ) );
-    const float step = ( len / (float)( num_points ) );
-    const float particle_mass_inv = ( particleMass > FLT_EPSILON ) ? 1.f / particleMass : 0.f;
-    BodyId rope = physics::CreateBody( solver, num_points );
-
-    Vector3F* points = physics::MapPosition( solver, rope );
-    f32* mass_inv = physics::MapMassInv( solver, rope );
-    
-    points[0] = attach;
-    mass_inv[0] = particle_mass_inv;
-    for( u32 i = 1; i < num_points; ++i )
-    {
-        points[i] = points[i - 1] + axis * step;
-        mass_inv[i] = particle_mass_inv;
-    }
-
-    physics::Unmap( solver, mass_inv );
-    physics::Unmap( solver, points );
-
-    array_t< physics::DistanceCInfo >c_info;
-    array::reserve( c_info, num_points - 1 );
-    for( u32 i = 0; i < num_points - 1; ++i )
-    {
-        physics::DistanceCInfo& info = c_info[i];
-        info.i0 = i;
-        info.i1 = i + 1;
-    }
-    physics::SetDistanceConstraints( solver, rope, c_info.begin(), num_points - 1 );
-
-    return rope;
-}
-
-BodyId CreateCloth( Solver* solver, const Vector3F& attach, const Vector3F& axis, float width, float height, float particleMass )
-{
-    return{0};
-}
-
-
-
-static inline bool EdgeDetect( u32 ix, u32 iy, u32 iz, u32 w, u32 d, u32 h )
-{
-    bool is_on_edge = false;
-    is_on_edge |= iz == 0 || iz == ( d - 1 );
-    is_on_edge |= iy == 0 || iy == ( h - 1 );
-    is_on_edge |= ix == 0 || ix == ( w - 1 );
-
-    return is_on_edge;
-}
-BodyId CreateSoftBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass, bool shell )
-{
-    const f32 pradius = physics::GetParticleRadius( solver );
-    const f32 pradius2 = pradius * 2.f;
-
-    const u32 w = (u32)( width / pradius2 );
-    const u32 h = (u32)( height / pradius2 );
-    const u32 d = (u32)( depth / pradius2 );
-    
-    u32 num_particles = 0;
-    if( shell )
-    {
-        for( u32 iz = 0; iz < d; ++iz )
-        {
-            for( u32 iy = 0; iy < h; ++iy )
-            {
-                for( u32 ix = 0; ix < w; ++ix )
-                {
-                    if( !EdgeDetect( ix, iy, iz, w, h, d ) )
-                        continue;
-
-                    ++num_particles;
-                }
-            }
-        }
-    }
-    else
-    {
-        num_particles = w*h*d;
-    }
-
-    //const u32 num_particles = 2 * ( w*h + h*d + w*d );
-    BodyId id = CreateBody( solver, num_particles );
-
-    const Vector3F begin_pos_ls =
-        -Vector3F(
-            (f32)(w/2) - ( 1 - ( w % 2 ) ) * 0.5f,
-            (f32)(h/2) - ( 1 - ( h % 2 ) ) * 0.5f,
-            (f32)(d/2) - ( 1 - ( d % 2 ) ) * 0.5f
-            ) * pradius2;
-
-    const f32 particle_mass_inv = ( particleMass > FLT_EPSILON ) ? 1.f / particleMass : 0.f;
-    Vector3F* pos = MapPosition( solver, id );
-    f32* mass_inv = MapMassInv( solver, id );
-
-    array_t< ShapeMatchingCInfo > shape_match_cinfo;
-    array::reserve( shape_match_cinfo, num_particles );
-
-    u32 pcounter = 0;
-    for( u32 iz = 0; iz < d; ++iz )
-    {
-        for( u32 iy = 0; iy < h; ++iy )
-        {
-            for( u32 ix = 0; ix < w; ++ix )
-            {
-                if( shell )
-                {
-                    if( !EdgeDetect( ix, iy, iz, w, h, d ) )
-                        continue;
-                }
-
-                const Vector3F pos_ls = begin_pos_ls + Vector3F( (f32)ix, (f32)iy, (f32)iz ) * pradius2;
-                const Vector3F pos_ws = ( pose * Point3F( pos_ls ) ).getXYZ();
-
-                pos[pcounter] = pos_ws;
-                mass_inv[pcounter] = particle_mass_inv;
-
-                ShapeMatchingCInfo info;
-                info.i = pcounter;
-                info.rest_pos = pos_ls;
-                info.mass = particleMass;
-                array::push_back( shape_match_cinfo, info );
-
-                pcounter += 1;
-            }
-        }
-    }
-
-
-    SYS_ASSERT( pcounter == num_particles );
-
-    Unmap( solver, mass_inv );
-    Unmap( solver, pos );
-
-    SetShapeMatchingConstraints( solver, id, shape_match_cinfo.begin(), shape_match_cinfo.size );
-
-    return id;
-}
-
-BodyId CreateRigidBox( Solver* solver, const Matrix4F& pose, float width, float depth, float height, float particleMass )
-{
-    BodyId id;
-    return id;
-}
 
 void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )
 {
@@ -1038,262 +858,4 @@ void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )
 }//
 }}//
 
-#include "../renderer_scene.h"
-#include "../renderer_material.h"
-#include <resource_manager\resource_manager.h>
-#include <util/color.h>
-#include <util/camera.h>
-
-namespace bx { namespace puzzle {
-namespace physics
-{
-
-struct Gfx;
-struct GfxDrawData
-{
-    Gfx* gfx = nullptr;
-    u32 index = UINT32_MAX;
-};
-
-struct GfxFrameData
-{
-    Matrix4 _camera_world;
-    Matrix4 _viewProj;
-    float _point_size;
-    f32 __padding__[3];
-};
-struct GfxMaterialData
-{
-    Vector4F color;
-};
-
-struct Gfx
-{
-    gfx::ActorID            id_scene  [EConst::MAX_BODIES] = {};
-    BodyId                  id_body   [EConst::MAX_BODIES] = {};
-    u32                     color     [EConst::MAX_BODIES] = {};
-    rdi::ResourceDescriptor gpu_rdesc [EConst::MAX_BODIES] = {};
-    rdi::BufferRO           gpu_buffer[EConst::MAX_BODIES] = {};
-    GfxDrawData             draw_data [EConst::MAX_BODIES] = {};
-    u32                     size = 0;
-    
-    gfx::Scene   scene  = nullptr;
-    Solver*      solver = nullptr;
-
-    rdi::Pipeline pipeline = BX_RDI_NULL_HANDLE;
-    rdi::Pipeline pipeline_shadow = BX_RDI_NULL_HANDLE;
-
-    rdi::ConstantBuffer cbuffer_fdata = {};
-    rdi::ConstantBuffer cbuffer_fdata_shadow = {};
-    rdi::ConstantBuffer cbuffer_mdata = {};
-
-    rdi::ResourceLayout rlayout_fdata = {};
-    rdi::ResourceLayout rlayout_mdata = {};
-    rdi::ResourceDescriptor rdesc_fdata = {};
-};
-
-namespace GfxGpuResource
-{
-    static const rdi::ResourceBinding bindings_fdata[] =
-    {
-        rdi::ResourceBinding( "FrameData", rdi::EBindingType::UNIFORM ).Slot( SLOT_FRAME_DATA ).StageMask( rdi::EStage::PIXEL_MASK|rdi::EStage::VERTEX_MASK ),
-    };
-    static const u32 bindings_fdata_count = sizeof( bindings_fdata ) / sizeof( *bindings_fdata );
-
-    static const rdi::ResourceBinding bindings_mdata[] =
-    {
-        rdi::ResourceBinding( "_particle_data", rdi::EBindingType::READ_ONLY ).Slot( SLOT_INSTANCE_PARTICLE_DATA ).StageMask( rdi::EStage::VERTEX_MASK ),
-        rdi::ResourceBinding( "MaterialData", rdi::EBindingType::UNIFORM ).Slot( SLOT_MATERIAL_DATA ).StageMask( rdi::EStage::PIXEL_MASK ),
-    };
-    static const u32 bindings_mdata_count = sizeof( bindings_mdata ) / sizeof( *bindings_mdata );
-}//
-
-
-static void StartUp( Gfx* gfx )
-{
-    rdi::ShaderFile* sfile = rdi::ShaderFileLoad( "shader/bin/deffered_particles.shader", GResourceManager() );
-    rdi::PipelineDesc pipeline_desc = {};
-    pipeline_desc.topology = rdi::ETopology::TRIANGLE_STRIP;
-
-    pipeline_desc.Shader( sfile, "simple" );
-    gfx->pipeline = rdi::CreatePipeline( pipeline_desc );
-    SYS_ASSERT( gfx->pipeline != BX_RDI_NULL_HANDLE );
-
-    pipeline_desc.Shader( sfile, "shadow" );
-    gfx->pipeline_shadow = rdi::CreatePipeline( pipeline_desc );
-    SYS_ASSERT( gfx->pipeline_shadow != BX_RDI_NULL_HANDLE );
-
-    rdi::ShaderFileUnload( &sfile, GResourceManager() );
-
-    gfx->cbuffer_fdata        = rdi::device::CreateConstantBuffer( sizeof( GfxFrameData ) );
-    gfx->cbuffer_fdata_shadow = rdi::device::CreateConstantBuffer( sizeof( GfxFrameData ) );
-    gfx->cbuffer_mdata        = rdi::device::CreateConstantBuffer( sizeof( GfxMaterialData ) );
-    gfx->rlayout_fdata = rdi::ResourceLayout( GfxGpuResource::bindings_fdata, GfxGpuResource::bindings_fdata_count );
-    gfx->rlayout_mdata = rdi::ResourceLayout( GfxGpuResource::bindings_mdata, GfxGpuResource::bindings_mdata_count );
-
-    gfx->rdesc_fdata = rdi::CreateResourceDescriptor( gfx->rlayout_fdata );
-    rdi::SetConstantBuffer( gfx->rdesc_fdata, "FrameData", &gfx->cbuffer_fdata );
-
-    rdi::ResourceDescriptor rdesc = rdi::GetResourceDescriptor( gfx->pipeline_shadow );
-    rdi::SetConstantBuffer( rdesc, "FrameData", &gfx->cbuffer_fdata_shadow );
-
-}
-
-static void ShutDown( Gfx* gfx )
-{
-    rdi::device::DestroyConstantBuffer( &gfx->cbuffer_mdata );
-    rdi::device::DestroyConstantBuffer( &gfx->cbuffer_fdata_shadow );
-    rdi::device::DestroyConstantBuffer( &gfx->cbuffer_fdata );
-    rdi::DestroyResourceDescriptor( &gfx->rdesc_fdata );
-    
-    rdi::DestroyPipeline( &gfx->pipeline_shadow );
-    rdi::DestroyPipeline( &gfx->pipeline );
-
-    for( u32 i = 0; i < gfx->size; ++i )
-    {
-        rdi::device::DestroyBufferRO( &gfx->gpu_buffer[i] );
-        rdi::DestroyResourceDescriptor( &gfx->gpu_rdesc[i] );
-        bxLogError( "Unreleased physics::Gfx entity!!" );
-    }
-}
-
-static void DrawCallback( rdi::CommandQueue* cmdq, u32 flags, void* userData )
-{
-    GfxDrawData* ddata = (GfxDrawData*)userData;
-    Gfx* gfx = ddata->gfx;
-    Solver* solver = gfx->solver;
-
-    const u32 index = ddata->index;
-    BodyId id = gfx->id_body[index];
-    const u32 num_particles = GetNbParticles( solver, id );
-    
-    if( flags & gfx::ESceneDrawFlag::COLOR )
-    {
-        Vector4F color_4f;
-        bxColor::u32ToFloat4( gfx->color[index], &color_4f.mX );
-        rdi::context::UpdateCBuffer( cmdq, gfx->cbuffer_mdata, &color_4f );
-
-        rdi::BindPipeline( cmdq, gfx->pipeline, false );
-        rdi::BindResources( cmdq, gfx->rdesc_fdata );
-    }
-    else if( flags & gfx::ESceneDrawFlag::SHADOW )
-    {
-        rdi::BindPipeline( cmdq, gfx->pipeline_shadow, true );
-    }
-
-    rdi::BindResources( cmdq, gfx->gpu_rdesc[index] );
-    rdi::context::SetVertexBuffers( cmdq, nullptr, 0, 0 );
-    rdi::context::SetIndexBuffer( cmdq, rdi::IndexBuffer() );
-    rdi::context::DrawInstanced( cmdq, 4, 0, num_particles );
-}
-
-void Create( Gfx** gfx, Solver* solver, gfx::Scene scene )
-{
-    Gfx* g = BX_NEW( bxDefaultAllocator(), Gfx );
-    g->scene = scene;
-    g->solver = solver;
-    StartUp( g );
-
-    gfx[0] = g;
-}
-void Destroy( Gfx** gfx )
-{
-    if( !gfx[0] )
-        return;
-
-    ShutDown( gfx[0] );
-
-    BX_DELETE0( bxDefaultAllocator(), gfx[0] );
-}
-
-bool AddBody( Gfx* gfx, BodyId id )
-{
-    if( !IsBodyAlive( gfx->solver, id ) )
-        return false;
-    
-    const u32 index = gfx->size++;
-    char name[64];
-    snprintf( name, 64, "PhysicsBody%u", index );
-   
-    gfx->id_body[index] = id;
-
-    const u32 num_particles = GetNbParticles( gfx->solver, id );
-    rdi::BufferRO gpu_buffer = rdi::device::CreateBufferRO( num_particles, rdi::Format( rdi::EDataType::FLOAT, 3 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
-    gfx->gpu_buffer[index] = gpu_buffer;
-
-    rdi::ResourceDescriptor rdesc = rdi::CreateResourceDescriptor( gfx->rlayout_mdata );
-    rdi::SetResourceRO( rdesc, "_particle_data", &gpu_buffer );
-    rdi::SetConstantBuffer( rdesc, "MaterialData", &gfx->cbuffer_mdata );
-    gfx->gpu_rdesc[index] = rdesc;
-
-
-    GfxDrawData& ddata = gfx->draw_data[index];
-    ddata.gfx = gfx;
-    ddata.index = index;
-
-    gfx::ActorID scene_id = gfx->scene->Add( name, 1 );
-    gfx->scene->SetSceneCallback( scene_id, DrawCallback, &ddata );
-    gfx->id_scene[index] = scene_id;
-
-    return true;
-}
-
-void SetColor( Gfx* gfx, BodyId id, u32 colorRGBA )
-{
-    u32 index = UINT32_MAX;
-    for( u32 i = 0; i < gfx->size; ++i )
-    {
-        if( gfx->id_body[i] == id )
-        {
-            index = i;
-            break;
-        }
-    }
-
-    if( index != UINT32_MAX )
-        gfx->color[index] = colorRGBA;
-}
-
-void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera, const Matrix4& lightWorld, const Matrix4& lightProj )
-{
-    // do garbage collection
-
-    {// set gpu data
-        Solver* solver = gfx->solver;
-        
-        // --- frame data
-        GfxFrameData fdata;
-        memset( &fdata, 0x00, sizeof( fdata ) );
-        fdata._camera_world = camera.world;
-        fdata._viewProj = camera.view_proj;
-        fdata._point_size = GetParticleRadius( solver );
-        rdi::context::UpdateCBuffer( cmdq, gfx->cbuffer_fdata, &fdata );
-
-        GfxFrameData fdata_shadow;
-        memset( &fdata_shadow, 0x00, sizeof( fdata_shadow ) );
-        fdata_shadow._camera_world = lightWorld;
-        fdata_shadow._viewProj = gfx::cameraMatrixProjectionDx11( lightProj ) * inverse( lightWorld );
-        fdata_shadow._point_size = fdata._point_size;
-        rdi::context::UpdateCBuffer( cmdq, gfx->cbuffer_fdata_shadow, &fdata_shadow );
-
-        // --- entity data
-        for( u32 i = 0; i < gfx->size; ++i )
-        {
-            BodyId body_id = gfx->id_body[i];
-            rdi::BufferRO gpu_buffer = gfx->gpu_buffer[i];
-
-            const u32 num_particles = GetNbParticles( solver, body_id );
-            Vector3F* particle_data = MapPosition( solver, body_id );
-            u8* gpu_mapped_data = rdi::context::Map( cmdq, gpu_buffer, 0, rdi::EMapType::WRITE );
-            
-            memcpy( gpu_mapped_data, particle_data, num_particles * sizeof( *particle_data ) );            
-            
-            rdi::context::Unmap( cmdq, gpu_buffer );
-            Unmap( solver, particle_data );
-        }
-    }
-}
-
-}//
-}}//
 

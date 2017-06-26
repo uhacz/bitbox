@@ -1,9 +1,11 @@
 #include "puzzle_level.h"
-
 #include "..\game_util.h"
-#include "rdi\rdi_debug_draw.h"
-#include "util\common.h"
-#include "..\..\system\window.h"
+
+#include <rdi\rdi_debug_draw.h>
+#include <util\common.h>
+#include <system\window.h>
+
+#include "puzzle_physics_util.h"
 
 namespace bx { namespace puzzle {
 
@@ -73,44 +75,47 @@ void LevelState::OnStartUp()
         -Vector3F::xAxis(),
     };
 
-    for( u32 i = 0; i < NUM_ROPES; i++ )
-    {
-        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
-        float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
-        mass_inv[0] = 0.f;
-        physics::Unmap( _solver, mass_inv );
+    //for( u32 i = 0; i < NUM_ROPES; i++ )
+    //{
+    //    _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
+    //    float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
+    //    mass_inv[0] = 0.f;
+    //    physics::Unmap( _solver, mass_inv );
 
-        physics::BodyParams params;
-        physics::GetBodyParams( &params, _solver, _rope[i] );
-        params.restitution = 1.0f;
-        params.dynamic_friction = 0.1f;
-        physics::SetBodyParams( _solver, _rope[i], params );
+    //    physics::BodyParams params;
+    //    physics::GetBodyParams( &params, _solver, _rope[i] );
+    //    params.restitution = 1.0f;
+    //    params.dynamic_friction = 0.1f;
+    //    physics::SetBodyParams( _solver, _rope[i], params );
 
-        physics::AddBody( _solver_gfx, _rope[i] );
-        physics::SetColor( _solver_gfx, _rope[i], 0x0000FFFF );
-    }
+    //    physics::AddBody( _solver_gfx, _rope[i] );
+    //    physics::SetColor( _solver_gfx, _rope[i], 0x0000FFFF );
+    //}
 
 
-    const float a = 2.f;
-    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4, PI/4,PI/4) ), Vector3F( 0.f, 13.f, 2.f ) );
-    _soft0 = physics::CreateSoftBox( _solver, soft_pose0, a,a,a, 1.f );
+    const float a = 1.f;
+    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(PI/4) ), Vector3F( 0.f, 15.f, 0.f ) );
+    //_soft0 = physics::CreateSoftBox( _solver, soft_pose0, a,a,a, 1.f );
+    _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F(a), 1.f );
 
-    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 2.f, 3.f, 2.f ) );
-    _soft1 = physics::CreateSoftBox( _solver, soft_pose1, a,a,a, 3.f );
+    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 1.f, 18.f, 1.f ) );
+    //_soft1 = physics::CreateSoftBox( _solver, soft_pose1, a,a,a, 3.f );
+    _soft1 = physics::CreateSphere( _solver, soft_pose1, a, 1.f );
 
     physics::AddBody( _solver_gfx, _soft0 );
     physics::AddBody( _solver_gfx, _soft1 );
     physics::SetColor( _solver_gfx, _soft0, 0xFFFF00FF );
     physics::SetColor( _solver_gfx, _soft1, 0xFFFF00FF );
 
-    const float rigidA = 1.f;
+    const float rigidA = 0.5f;
     for( u32 i = 0; i < NUM_RIGID; ++i )
     {
         const float x = -(float)NUM_RIGID * 0.5f + (float)i*0.5f;
         const float y = 5.f + i;
 
         Matrix4F pose = Matrix4F( Matrix3F::rotationZYX( Vector3F( i*0.1f*PI, i*0.2f*PI, PI / 4 ) ), Vector3F( x, y, -2.f ) );
-        _rigid[i] = physics::CreateSoftBox( _solver, pose, rigidA,rigidA,rigidA, 1.f );
+        //_rigid[i] = physics::CreateSoftBox( _solver, pose, rigidA,rigidA,rigidA, 1.f );
+        _rigid[i] = physics::CreateBox( _solver, pose, Vector3F( rigidA ), 1.f );
 
         physics::AddBody( _solver_gfx, _rigid[i] );
         physics::SetColor( _solver_gfx, _rigid[i], 0x00FF00FF );

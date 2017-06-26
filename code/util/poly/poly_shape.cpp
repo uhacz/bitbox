@@ -139,6 +139,11 @@ void bxPolyShape_copy( bxPolyShape* dst, int vOffset, int iOffset, const bxPolyS
 }
 
 
+void bxPolyShape_copy( bxPolyShape* dst, const bxPolyShape& src )
+{
+    bxPolyShape_copy( dst, 0, 0, src );
+}
+
 void bxPolyShape_createCube( bxPolyShape* shape, const int iterations[6], float extent )
 {
     const float a = extent;
