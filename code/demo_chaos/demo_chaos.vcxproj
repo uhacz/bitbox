@@ -178,6 +178,7 @@
     <ClInclude Include="puzzle_game\puzzle_physics_util.h" />
     <ClInclude Include="puzzle_game\puzzle_player.h" />
     <ClInclude Include="puzzle_game\puzzle_player_internal.h" />
+    <ClInclude Include="puzzle_game\puzzle_scene.h" />
     <ClInclude Include="puzzle_game\sdf.h" />
     <ClInclude Include="puzzle_game\voxelize.h" />
     <ClInclude Include="puzzle_game\puzzle_physics_type.h" />

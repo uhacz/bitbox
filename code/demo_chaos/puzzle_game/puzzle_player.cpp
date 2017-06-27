@@ -1,6 +1,12 @@
 #include "puzzle_player.h"
 #include "puzzle_player_internal.h"
 
+#include "puzzle_physics.h"
+#include "puzzle_physics_util.h"
+#include "puzzle_physics_gfx.h"
+
+#include "puzzle_scene.h"
+
 #include <util\id_table.h>
 #include <util\time.h>
 #include <rdi\rdi_debug_draw.h>
@@ -23,6 +29,7 @@ struct PlayerData
     PlayerPose       _pose       [Const::MAX_PLAYERS] = {};
     Vector3F         _velocity   [Const::MAX_PLAYERS] = {};
     PlayerPoseBuffer _pose_buffer[Const::MAX_PLAYERS] = {};
+    physics::BodyId  _body_id    [Const::MAX_PLAYERS] = {};
 
     Vector3F _up_dir{ 0.f, 1.f, 0.f };
 
@@ -41,7 +48,7 @@ struct PlayerData
 };
 static PlayerData gData = {};
 
-Player PlayerCreate( const char* name )
+Player PlayerCreate( const char* name, SceneCtx* sctx )
 {
     if( id_table::size( gData._id_table ) == Const::MAX_PLAYERS )
         return { 0 };
@@ -55,6 +62,16 @@ Player PlayerCreate( const char* name )
     gData._input[id.index] = {};
     gData._input_basis[id.index] = Matrix3F::identity();
     Clear( &gData._pose_buffer[id.index] );
+
+    const PlayerPose pp = gData._pose[id.index];
+    
+    physics::BodyId body_id = physics::CreateSphere( sctx->phx_solver, PlayerPose::toMatrix4( pp ), 0.75f, 1.0f );
+    physics::AddBody( sctx->phx_gfx, body_id );
+    physics::SetColor( sctx->phx_gfx, body_id, 0xFFFFFFFF );
+
+    gData._body_id[id.index] = body_id;
+
+
 
     return { id.hash };
 }
@@ -177,7 +194,7 @@ namespace
 }
 
 
-void PlayerTick( u64 deltaTimeUS )
+void PlayerTick( SceneCtx* sctx, u64 deltaTimeUS )
 {
     //TODO: 
     //      shape physics
@@ -213,6 +230,13 @@ void PlayerTick( u64 deltaTimeUS )
             _PlayerWriteBuffer( i );
             _PlayerUpdate( i, Const::FIXED_DT );
         }
+
+        physics::BodyId body_id = gData._body_id[i];
+        const PlayerPose& pp = gData._pose[i];
+        physics::BodyCoM phx_com = physics::GetBodyCoM( sctx->phx_solver, body_id );
+        const Vector3F f = ( pp.pos - phx_com.pos ) * 60.f;
+        physics::SetExternalForce( sctx->phx_solver, body_id, f );
+
     }
     
     gData._delta_time_us = deltaTimeUS;
@@ -237,6 +261,11 @@ void PlayerTick( u64 deltaTimeUS )
         }
     }
     ImGui::End();
+}
+
+void PlayerPostPhysicsTick( SceneCtx* sctx )
+{
+
 }
 
 void PlayerDraw( Player pl )

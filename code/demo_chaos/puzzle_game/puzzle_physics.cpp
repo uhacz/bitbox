@@ -25,11 +25,6 @@ struct Body
     u32 count = 0;
 };
 inline bool IsValid( const Body& body ) { return body.count != 0; }
-struct BodyCOM // center of mass
-{
-    QuatF rot = QuatF::identity();
-    Vector3F pos = Vector3F( 0.f );
-};
 
 // --- body id
 union BodyIdInternal
@@ -90,7 +85,8 @@ struct Solver
     IdTable    id_tbl;
     Body       bodies     [EConst::MAX_BODIES];
     BodyParams body_params[EConst::MAX_BODIES];
-    BodyCOM    body_com   [EConst::MAX_BODIES];
+    BodyCoM    body_com   [EConst::MAX_BODIES];
+    Vector3F   body_ext_force[EConst::MAX_BODIES];
 
     // constraints where points indices are absolute
     CollisionCArray         plane_collision_c;
@@ -131,6 +127,14 @@ struct Solver
 };
 namespace
 {
+
+static void StartUp( Solver* solver )
+{
+    for( u32 i = 0; i < EConst::MAX_BODIES; ++i )
+    {
+        solver->body_ext_force[i] = Vector3F( 0.f );
+    }
+}
 
 static void ShutDown( Solver* solver )
 {
@@ -192,6 +196,8 @@ void Create( Solver** solver, u32 maxParticles, float particleRadius )
     Solver* s = BX_NEW( bxDefaultAllocator(), Solver );
     ReserveParticles( s, maxParticles );
     s->particle_radius = particleRadius;
+
+    StartUp( s );
     solver[0] = s;
 }
 
@@ -229,7 +235,7 @@ static void GarbageCollector( Solver* solver )
     }
 }
 
-static void PredictPositions( Solver* solver, const Body& body, const BodyParams& params, const Vector3F& gravityAcc, float deltaTime )
+static void PredictPositions( Solver* solver, const Body& body, const BodyParams& params, const Vector3F& gravityAcc, const Vector3F& extForce, float deltaTime )
 {
     const u32 pbegin = body.begin;
     const u32 pend = body.begin + body.count;
@@ -238,7 +244,7 @@ static void PredictPositions( Solver* solver, const Body& body, const BodyParams
 
     const float damping_coeff = ::powf( 1.f - params.vel_damping, deltaTime );
     const Vector3F gravityDV = gravityAcc * deltaTime;
-
+    const Vector3F extForceDV = extForce * deltaTime;
     for( u32 i = pbegin; i < pend; ++i )
     {
         Vector3F p = solver->p0[i];
@@ -246,7 +252,7 @@ static void PredictPositions( Solver* solver, const Body& body, const BodyParams
         float w = solver->w[i];
         w = ( w > FLT_EPSILON ) ? 1.f : 0.f;
 
-        v += gravityDV * w;
+        v += ( gravityDV + extForceDV ) * w;
         v *= damping_coeff;
 
         p += v * deltaTime;
@@ -577,7 +583,7 @@ static void SolveShapeMatchingConstraints( Solver* solver )
         Vector3F center_of_mass_pos;
         SoftBodyUpdatePose( &rotation, &center_of_mass_pos, pos, shape_matching_c.begin(), body.count );
 
-        BodyCOM& com = solver->body_com[i];
+        BodyCoM& com = solver->body_com[i];
         com.rot = normalize( QuatF( rotation ) );
         com.pos = center_of_mass_pos;
 
@@ -611,8 +617,17 @@ static void SolveInternal( Solver* solver, u32 numIterations )
         const BodyIdInternal idi = solver->active_bodies_idi[i];
         const Body& body = GetBody( solver, idi );
         const BodyParams& params = GetBodyParams( solver, idi );
+        const Vector3F& ext_force = solver->body_ext_force[idi.index];
 
-        PredictPositions( solver, body, params, gravity_acc, deltaTime );
+        PredictPositions( solver, body, params, gravity_acc, ext_force, deltaTime );
+
+        
+    }
+
+    for( u32 i = 0; i < n_active; ++i )
+    {
+        const BodyIdInternal idi = solver->active_bodies_idi[i];
+        solver->body_ext_force[idi.index] = Vector3F( 0.f );
     }
 
     // collision detection
@@ -665,9 +680,13 @@ namespace
         for( u32 i = body.begin; i < body.begin + numParticles; ++i )
             solver->body_index[i] = idi.index;
 
+        solver->body_ext_force[idi.index] = Vector3F( 0.f );
+
         const u32 index = solver->active_bodies_count++;
         solver->active_bodies_idi[index] = idi;
         
+
+
         return idi;
     }
 }
@@ -901,6 +920,27 @@ void SetBodyParams( Solver* solver, BodyId id, const BodyParams& params )
 
     const BodyIdInternal idi = ToBodyIdInternal( id );
     solver->body_params[idi.index] = params;
+}
+
+void SetExternalForce( Solver* solver, BodyId id, const Vector3F& force )
+{
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    solver->body_ext_force[idi.index] = force;
+}
+
+void AddExternalForce( Solver* solver, BodyId id, const Vector3F& force )
+{
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    solver->body_ext_force[idi.index] += force;
+}
+
+BodyCoM GetBodyCoM( Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID( BodyCoM() );
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    return solver->body_com[idi.index];
 }
 
 float GetParticleRadius( const Solver* solver )

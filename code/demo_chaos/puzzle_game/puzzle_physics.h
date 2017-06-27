@@ -18,6 +18,12 @@ struct BodyParams
     f32 stiffness = 1.0f;
 };
 
+struct BodyCoM // center of mass
+{
+    QuatF rot = QuatF::identity();
+    Vector3F pos = Vector3F( 0.f );
+};
+
 struct DistanceCInfo
 {
     u32 i0, i1;
@@ -56,9 +62,12 @@ Vector3F* MapVelocity             ( Solver* solver, BodyId id );
 f32*      MapMassInv              ( Solver* solver, BodyId id );
 void      Unmap                   ( Solver* solver, void* ptr );
 
+float     GetParticleRadius( const Solver* solver );
 bool      GetBodyParams( BodyParams* params, const Solver* solver, BodyId id );
 void      SetBodyParams( Solver* solver, BodyId id, const BodyParams& params );
-float     GetParticleRadius( const Solver* solver );
+void      SetExternalForce( Solver* solver, BodyId id, const Vector3F& force );
+void      AddExternalForce( Solver* solver, BodyId id, const Vector3F& force );
+BodyCoM   GetBodyCoM( Solver* solver, BodyId id );
 
 }//
 }}//

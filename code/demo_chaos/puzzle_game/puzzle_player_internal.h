@@ -38,6 +38,8 @@ struct PlayerPose
 {
     Vector3F pos{0.f};
     QuatF    rot = QuatF::identity();
+
+    static Matrix4F toMatrix4( const PlayerPose& pp ) { return Matrix4F( pp.rot, pp.pos ); }
 };
 inline PlayerPose Lerp( float t, const PlayerPose& a, const PlayerPose& b )
 {

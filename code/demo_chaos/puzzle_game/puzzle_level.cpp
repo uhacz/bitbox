@@ -6,6 +6,7 @@
 #include <system\window.h>
 
 #include "puzzle_physics_util.h"
+#include "puzzle_scene.h"
 
 namespace bx { namespace puzzle {
 
@@ -30,6 +31,11 @@ void LevelState::OnStartUp()
     _gfx_scene->GetSunSkyLight()->sky_cubemap = gfx::GTextureManager()->CreateFromFile( "texture/sky1_cubemap.dds" );
 
     game_util::CreateDebugMaterials();
+
+    physics::Create( &_solver, 1024 * 8, 0.2f );
+    physics::SetFrequency( _solver, 60 );
+    physics::Create( &_solver_gfx, _solver, _gfx_scene );
+
 
     gfx::Camera& camera = GetGame()->GetDevCamera();
     camera.world = Matrix4( Matrix3::rotationX( -PI / 4 ), Vector3( 0.f, 20.f, 21.f ) );
@@ -60,11 +66,12 @@ void LevelState::OnStartUp()
         _gfx_scene->SetMatrices( actor, pose, 1 );
     }
 
-    _player = PlayerCreate( "playerLocal" );
+    SceneCtx sctx;
+    sctx.phx_solver = _solver;
+    sctx.phx_gfx = _solver_gfx;
 
-    physics::Create( &_solver, 1024 * 8, 0.2f );
-    physics::SetFrequency( _solver, 60 );
-    physics::Create( &_solver_gfx, _solver, _gfx_scene );
+    _player = PlayerCreate( "playerLocal", &sctx );
+       
 
     const Vector3F axis[5] =
     {
@@ -85,7 +92,7 @@ void LevelState::OnStartUp()
         physics::BodyParams params;
         physics::GetBodyParams( &params, _solver, _rope[i] );
         params.restitution = 1.0f;
-        params.dynamic_friction = 0.1f;
+        params.dynamic_friction = 0.8f;
         physics::SetBodyParams( _solver, _rope[i], params );
 
         physics::AddBody( _solver_gfx, _rope[i] );
@@ -116,7 +123,10 @@ void LevelState::OnStartUp()
         //Matrix4F pose = Matrix4F( Matrix3F::rotationZYX( Vector3F( i*0.1f*PI, i*0.2f*PI, PI / 4 ) ), Vector3F( x, y, 0.f ) );
         Matrix4F pose = Matrix4F( Matrix3F::identity(), Vector3F( x, y, 2.f ) );
         //_rigid[i] = physics::CreateSoftBox( _solver, pose, rigidA,rigidA,rigidA, 1.f );
-        _rigid[i] = physics::CreateBox( _solver, pose, Vector3F( rigidA ), 1.f );
+        //if( i % 2 )
+            _rigid[i] = physics::CreateBox( _solver, pose, Vector3F( rigidA ), 1.f );
+        //else
+          //  _rigid[i] = physics::CreateSphere( _solver, pose, rigidA, 2.f );
 
         physics::AddBody( _solver_gfx, _rigid[i] );
         physics::SetColor( _solver_gfx, _rigid[i], 0x00FF00FF );
@@ -138,6 +148,10 @@ void LevelState::OnShutDown()
 
 void LevelState::OnUpdate( const GameTime& time )
 {
+    SceneCtx sctx;
+    sctx.phx_solver = _solver;
+    sctx.phx_gfx = _solver_gfx;
+    
     const gfx::Camera& camera = GetGame()->GetDevCamera();
 
     bxWindow* window = bxWindow_get();
@@ -146,8 +160,9 @@ void LevelState::OnUpdate( const GameTime& time )
     const Matrix3F player_basis = toMatrix3F( camera.world.getUpper3x3() );
     PlayerCollectInput( _player, input, player_basis, time.delta_time_us );
     
-    PlayerTick( time.delta_time_us );
-    physics::Solve( _solver, 4, time.DeltaTimeSec() );
+    PlayerTick( &sctx, time.delta_time_us );
+    physics::Solve( _solver, 8, time.DeltaTimeSec() );
+    PlayerPostPhysicsTick( &sctx );
 
     //for( size_t i = 0; i < NUM_ROPES; i++ )
     //{

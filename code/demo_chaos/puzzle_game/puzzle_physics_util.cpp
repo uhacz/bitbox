@@ -166,7 +166,7 @@ static AABBF ComputeAABB( const Vector3F* points, u32 numPoints )
     return aabb;
 }
 
-BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const Vector3F* srcPos, u32 numPositions, const u32* srcIndices, u32 numIndices, float particleMass )
+BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const Vector3F* srcPos, u32 numPositions, const u32* srcIndices, u32 numIndices, float particleMass, float spacingFactor )
 {
     const float jitter = 0.005f;
     bxRandomGen rnd( 0xDEADCEE1 );
@@ -196,7 +196,7 @@ BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& sc
     // tweak spacing to avoid edge cases for particles laying on the boundary
     // just covers the case where an edge is a whole multiple of the spacing.
     const float pradius = GetParticleRadius( solver );
-    const float spacing = pradius * 1.25f;
+    const float spacing = pradius * spacingFactor;
     const float spacing_eps = spacing * ( 1.0f - 1e-4f );
 
     // make sure to have at least one particle in each dimension
@@ -206,6 +206,9 @@ BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& sc
     dz = spacing > local_aabb_size.z ? 1 : int( local_aabb_size.z / spacing_eps );
     int max_dim = maxOfPair( maxOfPair( dx, dy ), dz );
     
+    // used to arrange particle 
+    const Vector3F spacing_fine = divPerElem( local_aabb_size, Vector3F( (f32)dx, (f32)dy, (f32)dz ) );
+
     // expand border by two voxels to ensure adequate sampling at edges
     local_aabb.min -= 2.0f*Vector3F( spacing );
     local_aabb.max += 2.0f*Vector3F( spacing );
@@ -269,7 +272,8 @@ BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& sc
 
                 const Vector3F grid_pos = Vector3F( float( x ) + 0.5f, float( y ) + 0.5f, float( z ) + 0.5f );
                 const Vector3F jitter_pos = bxRand::unitVector( rnd ) * jitter;
-                const Vector3F pos_ls = local_aabb.min + spacing*grid_pos + jitter_pos;
+                //const Vector3F pos_ls = local_aabb.min + spacing*grid_pos + jitter_pos;
+                const Vector3F pos_ls = local_aabb.min + mulPerElem( spacing_fine, grid_pos ) + jitter_pos;
                 const Vector3F pos_ws = (pose * Point3F(pos_ls)).getXYZ();
 
                 // normalize the sdf value and transform to world scale
@@ -301,11 +305,11 @@ BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& sc
 
 
 
-BodyId CreateFromPolyShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const bxPolyShape& shape, float particleMass )
+BodyId CreateFromPolyShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const bxPolyShape& shape, float particleMass, float spacingFactor )
 {
     const Vector3F* positions = (Vector3F*)shape.positions;
     const u32* indices = shape.indices;
-    BodyId id = CreateFromShape( solver, pose, scale, positions, shape.num_vertices, indices, shape.num_indices, particleMass );
+    BodyId id = CreateFromShape( solver, pose, scale, positions, shape.num_vertices, indices, shape.num_indices, particleMass, spacingFactor );
     
     return id;
 }
@@ -313,8 +317,8 @@ BodyId CreateFromPolyShape( Solver* solver, const Matrix4F& pose, const Vector3F
 BodyId CreateBox( Solver* solver, const Matrix4F& pose, const Vector3F& extents, float particleMass )
 {
     bxPolyShape shape;
-    bxPolyShape_createBox( &shape, 1 );
-    BodyId id = CreateFromPolyShape( solver, pose, extents*2.f, shape, particleMass );
+    bxPolyShape_createBox( &shape, 3 );
+    BodyId id = CreateFromPolyShape( solver, pose, extents*2.f, shape, particleMass, 1.5f );
     bxPolyShape_deallocateShape( &shape );
     return id;
 }
@@ -322,8 +326,8 @@ BodyId CreateBox( Solver* solver, const Matrix4F& pose, const Vector3F& extents,
 BodyId CreateSphere( Solver* solver, const Matrix4F& pose, float radius, float particleMass )
 {
     bxPolyShape shape;
-    bxPolyShape_createShpere( &shape, 8 );
-    BodyId id = CreateFromPolyShape( solver, pose, Vector3F(radius*2.f), shape, particleMass );
+    bxPolyShape_createShpere( &shape, 16 );
+    BodyId id = CreateFromPolyShape( solver, pose, Vector3F(radius*2.f), shape, particleMass, 1.f );
     bxPolyShape_deallocateShape( &shape );
     return id;
 }
