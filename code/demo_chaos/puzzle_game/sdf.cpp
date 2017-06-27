@@ -265,6 +265,7 @@ void MakeSDF(const uint32_t* img, uint32_t w, uint32_t h, uint32_t d, float* out
 			int ymin = max(c.j-1, 0), ymax = min(c.j+1, int(h-1));
 			int zmin = max(c.k-1, 0), zmax = min(c.k+1, int(d-1));
 
+
 			for (int z=zmin; z <= zmax; ++z)
 			{
 				for (int y=ymin; y <= ymax; ++y)
