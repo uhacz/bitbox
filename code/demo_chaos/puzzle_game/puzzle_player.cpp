@@ -8,7 +8,9 @@
 #include "puzzle_scene.h"
 
 #include <util\id_table.h>
+#include <util\array.h>
 #include <util\time.h>
+#include <util\poly\par_shapes.h>
 #include <rdi\rdi_debug_draw.h>
 
 #include "../imgui/imgui.h"
@@ -41,6 +43,7 @@ struct PlayerData
     {
         f32 move_speed = 10.f;
         f32 velocity_damping = 0.9f;
+        f32 radius = 0.5f;
     }_params;
 
     bool IsAlive( id_t id ) const { return id_table::has( _id_table, id ); }
@@ -48,7 +51,75 @@ struct PlayerData
 };
 static PlayerData gData = {};
 
-Player PlayerCreate( const char* name, SceneCtx* sctx )
+static inline Vector3F GetPlayerCenterPos( u32 index )
+{
+    const PlayerPose& pp = gData._pose[index];
+    const Vector3F offset = gData._up_dir * gData._params.radius;
+    return pp.pos + offset;
+}
+
+static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp, float radius )
+{
+    physics::Solver* solver = sctx->phx_solver;
+
+    //par_shapes_mesh* mesh   = par_shapes_create_subdivided_sphere( 3 );
+    par_shapes_mesh* mesh = par_shapes_create_parametric_sphere( 16, 16 );
+    physics::BodyId body_id = physics::CreateBody( solver, mesh->npoints );
+
+    const Vector3F* mesh_points = (Vector3F*)mesh->points;
+    Vector3F* body_points       = physics::MapPosition( solver, body_id );
+    f32* body_w                 = physics::MapMassInv( solver, body_id );
+
+    for( int i = 0; i < mesh->npoints; ++i )
+    {
+        const Vector3F& pos_ls = mesh_points[i] * radius;
+        const Vector3F pos_ws = fastTransform( pp.rot, pp.pos, pos_ls );
+
+        body_points[i] = pos_ws;
+        body_w[i] = 1.f;
+    }
+    
+    physics::Unmap( solver, body_w );
+    physics::Unmap( solver, body_points );
+
+    physics::CalculateLocalPositions( solver, body_id, 0.5f );
+
+    array_t< physics::DistanceCInfo >c_info;
+    for( int i = 0; i < mesh->ntriangles; ++i )
+    {
+        const int base_i = i * 3;
+        const u16 i0 = mesh->triangles[base_i+0];
+        const u16 i1 = mesh->triangles[base_i+1];
+        const u16 i2 = mesh->triangles[base_i+2];
+
+        physics::DistanceCInfo c;
+        
+        c.i0 = i0; c.i1 = i1;
+        array::push_back( c_info, c );
+
+        c.i0 = i1; c.i1 = i2;
+        array::push_back( c_info, c );
+
+        c.i0 = i0; c.i1 = i2;
+        array::push_back( c_info, c );
+    }
+    //physics::SetDistanceConstraints( solver, body_id, c_info.begin(), c_info.size );
+    physics::SetBodySelfCollisions( solver, body_id, false );
+
+    par_shapes_free_mesh( mesh );
+
+
+    physics::BodyParams params;
+    physics::GetBodyParams( &params, solver, body_id );
+    params.static_friction = 0.91f;
+    params.dynamic_friction = 0.91f;
+    physics::SetBodyParams( solver, body_id, params );
+
+
+    return body_id;
+}
+
+Player PlayerCreate( SceneCtx* sctx, const char* name, const Matrix4F& pose )
 {
     if( id_table::size( gData._id_table ) == Const::MAX_PLAYERS )
         return { 0 };
@@ -57,15 +128,14 @@ Player PlayerCreate( const char* name, SceneCtx* sctx )
 
     gData._id[id.index] = { id.hash };
     gData._name[id.index] = string::duplicate( gData._name[id.index], name );
-    gData._pose[id.index] = {};
+    gData._pose[id.index] = PlayerPose::fromMatrix4( pose );
     gData._velocity[id.index] = Vector3F( 0.f );
     gData._input[id.index] = {};
     gData._input_basis[id.index] = Matrix3F::identity();
     Clear( &gData._pose_buffer[id.index] );
 
-    const PlayerPose pp = gData._pose[id.index];
-    
-    physics::BodyId body_id = physics::CreateSphere( sctx->phx_solver, PlayerPose::toMatrix4( pp ), 0.75f, 1.0f );
+    //physics::BodyId body_id = physics::CreateSphere( sctx->phx_solver, pose, 0.75f, 1.0f );
+    physics::BodyId body_id = CreatePlayerPhysics( sctx, gData._pose[id.index], gData._params.radius );
     physics::AddBody( sctx->phx_gfx, body_id );
     physics::SetColor( sctx->phx_gfx, body_id, 0xFFFFFFFF );
 
@@ -213,7 +283,7 @@ void PlayerTick( SceneCtx* sctx, u64 deltaTimeUS )
     }
 
     const float delta_time_s = (float)bxTime::toSeconds( gData._delta_time_us );
-    
+    const float delta_time_srcp = ( delta_time_s > FLT_EPSILON ) ? 1.f / delta_time_s : 0.f;
     gData._delta_time_acc += delta_time_s;
     u32 iteration_count = 0;
     while( gData._delta_time_acc >= Const::FIXED_DT )
@@ -232,11 +302,38 @@ void PlayerTick( SceneCtx* sctx, u64 deltaTimeUS )
         }
 
         physics::BodyId body_id = gData._body_id[i];
-        const PlayerPose& pp = gData._pose[i];
-        physics::BodyCoM phx_com = physics::GetBodyCoM( sctx->phx_solver, body_id );
-        const Vector3F f = ( pp.pos - phx_com.pos ) * 60.f;
-        physics::SetExternalForce( sctx->phx_solver, body_id, f );
+        const u32 n_particles = physics::GetNbParticles( sctx->phx_solver, body_id );
+        const f32 pradius = physics::GetParticleRadius( sctx->phx_solver );
 
+        const Vector3F center_pos = GetPlayerCenterPos( i );
+        const Vector3F dst_pos = center_pos + gData._up_dir * pradius * 0.9f;
+        physics::BodyCoM phx_com = physics::GetBodyCoM( sctx->phx_solver, body_id );
+        const Vector3F f = ( dst_pos - phx_com.pos );
+
+        Vector3F* pos = physics::MapPosition( sctx->phx_solver, body_id );
+        Vector3F* vel = physics::MapVelocity( sctx->phx_solver, body_id );
+        
+        const float player_speed = length( gData._velocity[i] );
+        const float dist_to_travel = length( f );
+        if( dist_to_travel < pradius && player_speed < FLT_EPSILON )
+        {
+            for( u32 iparticle = 0; iparticle < n_particles; ++iparticle )
+            {
+                vel[iparticle] = Vector3F(0.f);
+            }
+        }
+        else
+        {
+            for( u32 iparticle = 0; iparticle < n_particles; ++iparticle )
+            {
+                const Vector3F& v = vel[iparticle];
+                vel[iparticle] += f;
+            }
+        }
+
+        physics::Unmap( sctx->phx_solver, vel );
+        physics::Unmap( sctx->phx_solver, pos );
+        //physics::SetExternalForce( sctx->phx_solver, body_id, f * 10.f );
     }
     
     gData._delta_time_us = deltaTimeUS;

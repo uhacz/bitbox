@@ -216,13 +216,16 @@ namespace
 		bool operator < (const Coord3D& c) const { return d > c.d; }
 	};
 }
-
+#include <map>
 void MakeSDF(const uint32_t* img, uint32_t w, uint32_t h, uint32_t d, float* output)
 {	
 	const float scale = 1.0f / max(max(w, h), d);
 
-	std::vector<Coord3D> queue;
-    queue.reserve( w*h*d );
+    // by using multimap there is significant performance boost in debug build
+    std::multimap<float, Coord3D> coord_heap;
+
+	//std::vector<Coord3D> queue;
+    //queue.reserve( w*h*d );
 	// find surface points
 	for (uint32_t z=0; z < d; ++z)
 	{
@@ -234,7 +237,8 @@ void MakeSDF(const uint32_t* img, uint32_t w, uint32_t h, uint32_t d, float* out
 				if (EdgeDetect(img, w, h, d, x, y, z, dist))
 				{
 					Coord3D c = {(int)x, (int)y, (int)z, dist, (int)x, (int)y, (int)z};
-					queue.push_back(c);
+					//queue.push_back(c);
+                    coord_heap.insert( std::pair<float, Coord3D>( dist, c ) );
 				}
 
 				output[z*w*h + y*w + x] = FLT_MAX;
@@ -242,12 +246,23 @@ void MakeSDF(const uint32_t* img, uint32_t w, uint32_t h, uint32_t d, float* out
 		}
 	}
 
+
+
 	// no occupied voxels so quit
-	if (queue.empty())
-		return;
+    if( coord_heap.empty() )
+        return;
 
-	std::make_heap(queue.begin(), queue.end());
+	//if (queue.empty())
+	//	return;
 
+	//std::make_heap(queue.begin(), queue.end());
+
+    //std::vector<float> output1( w*h*d );
+    //output1.resize( w*h*d );
+    //for( float& v : output1 )
+    //    v = FLT_MAX;
+
+#if 0
 	while (!queue.empty())
 	{
 		std::pop_heap(queue.begin(), queue.end());
@@ -255,7 +270,7 @@ void MakeSDF(const uint32_t* img, uint32_t w, uint32_t h, uint32_t d, float* out
 		Coord3D c = queue.back();
 		queue.pop_back();
 
-		// freeze coord if not already frozen
+        // freeze coord if not already frozen
 		if (output[c.k*w*h + c.j*w + c.i] == FLT_MAX)
 		{
 			output[c.k*w*h + c.j*w + c.i] = c.d;
@@ -293,6 +308,68 @@ void MakeSDF(const uint32_t* img, uint32_t w, uint32_t h, uint32_t d, float* out
 			}
 		}
 	}
+#endif
+
+    while( !coord_heap.empty() )
+    {
+        Coord3D c = coord_heap.begin()->second;
+        coord_heap.erase( coord_heap.begin() );
+
+        // freeze coord if not already frozen
+        if( output[c.k*w*h + c.j*w + c.i] == FLT_MAX )
+        {
+            output[c.k*w*h + c.j*w + c.i] = c.d;
+
+            // update neighbours
+            int xmin = max( c.i - 1, 0 ), xmax = min( c.i + 1, int( w - 1 ) );
+            int ymin = max( c.j - 1, 0 ), ymax = min( c.j + 1, int( h - 1 ) );
+            int zmin = max( c.k - 1, 0 ), zmax = min( c.k + 1, int( d - 1 ) );
+
+
+            for( int z = zmin; z <= zmax; ++z )
+            {
+                for( int y = ymin; y <= ymax; ++y )
+                {
+                    for( int x = xmin; x <= xmax; ++x )
+                    {
+                        if( ( c.i != x || c.j != y || c.k != z ) && output[z*w*h + y*w + x] == FLT_MAX )
+                        {
+                            int dx = x - c.si;
+                            int dy = y - c.sj;
+                            int dz = z - c.sk;
+
+                            // calculate distance to source coord
+                            float d = sqrtf( float( dx*dx + dy*dy + dz*dz ) ) + output[c.sk*w*h + c.sj*w + c.si];
+
+                            SYS_ASSERT( d > 0.0f );
+
+                            Coord3D newc = { x, y, z, d, c.si, c.sj, c.sk };
+                            coord_heap.insert( std::pair<float, Coord3D>( d, newc ) );
+
+                            //queue.push_back( newc );
+                            //std::push_heap( queue.begin(), queue.end() );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+#if 0
+    for( uint32_t z = 0; z < d; ++z )
+    {
+        for( uint32_t y = 0; y < h; ++y )
+        {
+            for( uint32_t x = 0; x < w; ++x )
+            {
+                u32 index = z*w*h + y*w + x;
+                const float diff = output[index] - output1[index];
+                SYS_ASSERT( ::fabsf( diff ) < 0.001f );
+            }
+        }
+    }
+#endif
+
 
 	for (uint32_t z=0; z < d; ++z)
 	{

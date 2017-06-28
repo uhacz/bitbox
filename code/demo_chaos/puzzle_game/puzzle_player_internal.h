@@ -40,6 +40,13 @@ struct PlayerPose
     QuatF    rot = QuatF::identity();
 
     static Matrix4F toMatrix4( const PlayerPose& pp ) { return Matrix4F( pp.rot, pp.pos ); }
+    static PlayerPose fromMatrix4( const Matrix4F& p ) 
+    { 
+        PlayerPose pp;
+        pp.pos = p.getTranslation();
+        pp.rot = QuatF( p.getUpper3x3() );
+        return pp;
+    }
 };
 inline PlayerPose Lerp( float t, const PlayerPose& a, const PlayerPose& b )
 {

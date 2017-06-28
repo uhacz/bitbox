@@ -47,12 +47,12 @@ BodyId CreateBody ( Solver* solver, u32 numParticles );
 void   DestroyBody( Solver* solver, BodyId id );
 bool   IsBodyAlive( Solver* solver, BodyId id );
 // ---
-//void   SetConstraints( Solver* solver, BodyId id, const ConstraintInfo* constraints, u32 numConstraints );
-void     SetDistanceConstraints ( Solver* solver, BodyId id, const DistanceCInfo* constraints, u32 numConstraints );
-void     CalculateLocalPositions( Solver* solver, BodyId id );
+void     SetDistanceConstraints ( Solver* solver, BodyId id, const DistanceCInfo* constraints, u32 numConstraints, float stiffness = 1.f );
+void     CalculateLocalPositions( Solver* solver, BodyId id, float stiffness = 1.f );
 void     SetSDFData             ( Solver* solver, BodyId id, const Vector4F* sdfData, u32 count );
 
-//void     SetShapeMatchingConstraints( Solver* solver, BodyId id, const ShapeMatchingCInfo* constraints, u32 numConstraints );
+
+
 
 // --- 
 u32       GetNbParticles          ( Solver* solver, BodyId id );
@@ -67,6 +67,7 @@ bool      GetBodyParams( BodyParams* params, const Solver* solver, BodyId id );
 void      SetBodyParams( Solver* solver, BodyId id, const BodyParams& params );
 void      SetExternalForce( Solver* solver, BodyId id, const Vector3F& force );
 void      AddExternalForce( Solver* solver, BodyId id, const Vector3F& force );
+void      SetBodySelfCollisions( Solver* solver, BodyId id, bool value );
 BodyCoM   GetBodyCoM( Solver* solver, BodyId id );
 
 }//

@@ -1,3 +1,5 @@
+#define PAR_SHAPES_IMPLEMENTATION
+
 #include "poly_shape.h"
 #include "../memory.h"
 #include "../debug.h"
@@ -887,3 +889,4 @@ picoDebugDraw::addLine( pv1, pv2, 0xff00ff00, 1.f, picoDebugDraw::eSpace_world, 
 //	DEALLOCATE0( util::default_allocator(), isosurf->points );
 //	memset( isosurf, 0, sizeof( IsoSurface ) );
 //}
+

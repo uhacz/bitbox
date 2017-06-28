@@ -14,10 +14,6 @@ namespace bx { namespace puzzle {
 namespace physics
 {
 
-
-
-
-
 // --- bodies
 struct Body
 {
@@ -59,6 +55,7 @@ using Vector4Array        = array_t<Vector4F>;
 using F32Array            = array_t<f32>;
 using U32Array            = array_t<u32>;
 using U16Array            = array_t<u16>;
+using U8Array             = array_t<u8>;
 
 using PhysicsBodyArray        = array_t<Body>;
 using BodyIdInternalArray     = array_t<BodyIdInternal>;
@@ -83,20 +80,24 @@ struct Solver
     F32Array     collision_r;
         
     IdTable    id_tbl;
-    Body       bodies     [EConst::MAX_BODIES];
-    BodyParams body_params[EConst::MAX_BODIES];
-    BodyCoM    body_com   [EConst::MAX_BODIES];
+    Body       bodies        [EConst::MAX_BODIES];
+    BodyParams body_params   [EConst::MAX_BODIES];
+    BodyCoM    body_com      [EConst::MAX_BODIES];
     Vector3F   body_ext_force[EConst::MAX_BODIES];
+    u8         body_flags    [EConst::MAX_BODIES];
 
     // constraints where points indices are absolute
     CollisionCArray         plane_collision_c;
     ParticleCollisionCArray particle_collision_c;
     SDFCollisionCArray      sdf_collision_c;
-    
+
+    Vector4Array            sdf_normal[EConst::MAX_BODIES];
+
     // constraints where points indices are relative to body
-    DistanceCArray      distance_c[EConst::MAX_BODIES];
-    ShapeMatchingCArray shape_matching_c[EConst::MAX_BODIES];
-    Vector4Array        sdf_normal[EConst::MAX_BODIES];
+    DistanceCArray      distance_c            [EConst::MAX_BODIES];
+    ShapeMatchingCArray shape_matching_c      [EConst::MAX_BODIES];
+    f32                 distance_c_stiff      [EConst::MAX_BODIES] = {};
+    f32                 shape_matching_c_stiff[EConst::MAX_BODIES] = {};
     
     BodyIdInternal   active_bodies_idi[EConst::MAX_BODIES] = {};
     u16              active_bodies_count = 0;
@@ -105,21 +106,10 @@ struct Solver
 
     HashGridStatic _hash_grid;
 
-    u32 num_iterations = 4;
     u32 frequency = 60;
     f32 delta_time = 1.f / frequency;
     f32 delta_time_acc = 0.f;
     f32 particle_radius = 0.1f;
-
-    union Flags
-    {
-        u32 all = 0;
-        struct
-        {
-            u32 rebuild_constraints : 1;
-        };
-    } flags;
-
 
     u32 Capacity() const { return p0.capacity; }
     u32 Size    () const { return p0.size; }
@@ -388,10 +378,17 @@ static void GenerateCollisionConstraints( Solver* solver )
                             }
                             else
                             {
-                                ParticleCollisionC c;
-                                c.i0 = ip0;
-                                c.i1 = ip1;
-                                array::push_back( solver->particle_collision_c, c );
+                                bool push_constraints = true;
+                                if( body_i0 == body_i1 )
+                                    push_constraints = (solver->body_flags[body_i0] & EConst::DISABLE_BODY_SELF_COLLISION) == 0;
+
+                                if( push_constraints )
+                                {
+                                    ParticleCollisionC c;
+                                    c.i0 = ip0;
+                                    c.i1 = ip1;
+                                    array::push_back( solver->particle_collision_c, c );
+                                }
                             }
                         }// ip1
                     }// dx
@@ -531,7 +528,7 @@ static void SolveCollisionConstraints( Solver* solver )
 }
 
 
-static void SolveDistanceConstraints( Solver* solver )
+static void SolveDistanceConstraints( Solver* solver, float solverIterationsRcp )
 {
     const u32 n_active = solver->active_bodies_count;
     for( u32 iactive = 0; iactive < n_active; ++iactive )
@@ -540,7 +537,9 @@ static void SolveDistanceConstraints( Solver* solver )
         const u32 i = idi.index;
 
         const Body& body = solver->bodies[i];
-        const BodyParams& params = solver->body_params[i];
+        float stiffness = solver->distance_c_stiff[i];
+        stiffness = 1.f - ::powf( 1.f - stiffness, solverIterationsRcp );
+        //const BodyParams& params = solver->body_params[i];
 
         const DistanceCArray& carray = solver->distance_c[i];
         for( DistanceC c : carray )
@@ -554,7 +553,7 @@ static void SolveDistanceConstraints( Solver* solver )
             const f32 w1 = solver->w[i1];
 
             Vector3F dpos0, dpos1;
-            if( SolveDistanceC( &dpos0, &dpos1, p0, p1, w0, w1, c.rl, params.stiffness ) )
+            if( SolveDistanceC( &dpos0, &dpos1, p0, p1, w0, w1, c.rl, stiffness ) )
             {
                 solver->p1[i0] += dpos0;
                 solver->p1[i1] += dpos1;
@@ -563,7 +562,7 @@ static void SolveDistanceConstraints( Solver* solver )
     }
 }
 
-static void SolveShapeMatchingConstraints( Solver* solver )
+static void SolveShapeMatchingConstraints( Solver* solver, float solverIterationsRcp )
 {
     const u32 n_active = solver->active_bodies_count;
     for( u32 iactive = 0; iactive < n_active; ++iactive )
@@ -575,6 +574,10 @@ static void SolveShapeMatchingConstraints( Solver* solver )
             continue;
 
         const Body&     body = solver->bodies[i];
+        
+        float stiffness = solver->shape_matching_c_stiff[i];
+        stiffness = 1.f - ::powf( 1.f - stiffness, solverIterationsRcp );
+        
         const Vector3F* pos = solver->p1.begin() + body.begin;
         SYS_ASSERT( shape_matching_c.size == body.count );
 
@@ -594,7 +597,7 @@ static void SolveShapeMatchingConstraints( Solver* solver )
             const ShapeMatchingC& c = shape_matching_c[i];
 
             Vector3F dpos;
-            SolveShapeMatchingC( &dpos, rotation, center_of_mass_pos, c.rest_pos, p, 1.f );
+            SolveShapeMatchingC( &dpos, rotation, center_of_mass_pos, c.rest_pos, p, stiffness );
             solver->p1[pindex] += dpos;
         }
 
@@ -636,10 +639,11 @@ static void SolveInternal( Solver* solver, u32 numIterations )
     }
 
     // solve constraints
+    const float num_iterations_rcp = 1.f / (float)numIterations;
     for( u32 sit = 0; sit < numIterations; ++sit )
     {
-        SolveDistanceConstraints( solver );
-        SolveShapeMatchingConstraints( solver );        
+        SolveDistanceConstraints( solver, num_iterations_rcp );
+        SolveShapeMatchingConstraints( solver, num_iterations_rcp );
         SolveCollisionConstraints( solver );
     }
 
@@ -681,6 +685,7 @@ namespace
             solver->body_index[i] = idi.index;
 
         solver->body_ext_force[idi.index] = Vector3F( 0.f );
+        solver->body_flags[idi.index] = 0;
 
         const u32 index = solver->active_bodies_count++;
         solver->active_bodies_idi[index] = idi;
@@ -739,7 +744,7 @@ namespace
 
 }//
 
-void SetDistanceConstraints( Solver* solver, BodyId id, const DistanceCInfo* constraints, u32 numConstraints )
+void SetDistanceConstraints( Solver* solver, BodyId id, const DistanceCInfo* constraints, u32 numConstraints, float stiffness )
 {
     PHYSICS_VALIDATE_ID_NO_RETURN;
 
@@ -747,6 +752,7 @@ void SetDistanceConstraints( Solver* solver, BodyId id, const DistanceCInfo* con
     const Body& body = GetBody( solver, idi );
 
     DistanceCArray& outArray = solver->distance_c[idi.index];
+    solver->distance_c_stiff[idi.index] = stiffness;
 
     for( u32 i = 0; i < numConstraints; ++i )
     {
@@ -766,13 +772,14 @@ void SetDistanceConstraints( Solver* solver, BodyId id, const DistanceCInfo* con
     }
 }
 
-void CalculateLocalPositions( Solver* solver, BodyId id )
+void CalculateLocalPositions( Solver* solver, BodyId id, float stiffness )
 {
     PHYSICS_VALIDATE_ID_NO_RETURN;
 
     const BodyIdInternal idi = ToBodyIdInternal( id );
     const Body& body = GetBody( solver, idi );
 
+    solver->shape_matching_c_stiff[idi.index] = stiffness;
     ShapeMatchingCArray& sm_out_array = solver->shape_matching_c[idi.index];
     array::clear( sm_out_array );
     array::reserve( sm_out_array, body.count );
@@ -934,6 +941,19 @@ void AddExternalForce( Solver* solver, BodyId id, const Vector3F& force )
     PHYSICS_VALIDATE_ID_NO_RETURN;
     const BodyIdInternal idi = ToBodyIdInternal( id );
     solver->body_ext_force[idi.index] += force;
+}
+
+void SetBodySelfCollisions( Solver* solver, BodyId id, bool value )
+{
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    u8 flags = solver->body_flags[idi.index];
+    if( value )
+        flags &= ~EConst::DISABLE_BODY_SELF_COLLISION;
+    else
+        flags |= EConst::DISABLE_BODY_SELF_COLLISION;
+
+    solver->body_flags[idi.index] = flags;
 }
 
 BodyCoM GetBodyCoM( Solver* solver, BodyId id )

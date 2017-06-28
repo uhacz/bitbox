@@ -9,5 +9,10 @@ namespace EConst
     {
         MAX_BODIES = 64,
     };
+
+    enum F
+    {
+        DISABLE_BODY_SELF_COLLISION = 1 << 0,
+    };
 }//
 }}}//

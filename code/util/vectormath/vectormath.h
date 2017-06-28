@@ -279,6 +279,21 @@ inline Vector3 fastTransform( const Quat& rot, const Vector3& trans, const Vecto
 {
     return trans + fastRotate( rot, point );
 }
+inline Vector3F fastRotate( const QuatF& q, const Vector3F& v )
+{
+    const Vector3F t = 2.f * cross( q.getXYZ(), v );
+    return v + q.getW() * t + cross( q.getXYZ(), t );
+}
+inline Vector3F fastRotateInv( const QuatF& q, const Vector3F& v )
+{
+    const Vector3F t = 2.f * cross( q.getXYZ(), v );
+    return v - q.getW() * t + cross( q.getXYZ(), t );
+}
+inline Vector3F fastTransform( const QuatF& rot, const Vector3F& trans, const Vector3F& point )
+{
+    return trans + fastRotate( rot, point );
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 /// compute pow( x, y ) for range [0, 1] using SSE

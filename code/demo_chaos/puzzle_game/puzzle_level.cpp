@@ -70,7 +70,7 @@ void LevelState::OnStartUp()
     sctx.phx_solver = _solver;
     sctx.phx_gfx = _solver_gfx;
 
-    _player = PlayerCreate( "playerLocal", &sctx );
+    _player = PlayerCreate( &sctx, "playerLocal", Matrix4F::translation( Vector3F( -2.f, 0.f, 5.f ) ) );
        
 
     const Vector3F axis[5] =

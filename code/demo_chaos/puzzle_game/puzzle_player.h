@@ -17,7 +17,7 @@ namespace physics
 
 struct Player { u32 i; };
 
-Player PlayerCreate( const char* name, SceneCtx* sctx );
+Player PlayerCreate( SceneCtx* sctx, const char* name, const Matrix4F& pose );
 void PlayerDestroy( Player pl );
 bool IsAlive( Player pl );
 

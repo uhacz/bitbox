@@ -73,7 +73,7 @@ void bxPolyShape_createShpere( bxPolyShape* shape, int iterations );
 void bxPolyShape_createCapsule( bxPolyShape* shape, int surfaces[6], int vertexCount[3], int iterations );
 
 
-
+#include "par_shapes.h"
 
 //struct Grid3D
 //{
