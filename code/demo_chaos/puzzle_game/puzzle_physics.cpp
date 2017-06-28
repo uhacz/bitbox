@@ -82,7 +82,9 @@ struct Solver
     IdTable    id_tbl;
     Body       bodies        [EConst::MAX_BODIES];
     BodyParams body_params   [EConst::MAX_BODIES];
-    BodyCoM    body_com      [EConst::MAX_BODIES];
+    BodyCoM    body_com0     [EConst::MAX_BODIES];
+    BodyCoM    body_com1     [EConst::MAX_BODIES];
+    BodyCoM    body_comi     [EConst::MAX_BODIES];
     Vector3F   body_ext_force[EConst::MAX_BODIES];
     u8         body_flags    [EConst::MAX_BODIES];
 
@@ -207,6 +209,11 @@ void SetFrequency( Solver* solver, u32 freq )
     solver->delta_time = (f32)( 1.0 / (double)freq );
 }
 
+f32 GetFrequency( Solver* solver )
+{
+    return (f32)solver->frequency;
+}
+
 namespace
 {
 static void GarbageCollector( Solver* solver )
@@ -272,6 +279,16 @@ static void UpdateVelocities( Solver* solver, float deltaTime )
         solver->v[i] = v;
     }
 }
+static void WritePrevData( Solver* solver )
+{
+    memcpy( solver->pp.begin(), solver->p0.begin(), solver->Size() * sizeof( Vector3F ) );
+    const u32 n_active = solver->active_bodies_count;
+    for( u32 i = 0; i < n_active; ++i )
+    {
+        const BodyIdInternal idi = solver->active_bodies_idi[i];
+        solver->body_com0[idi.index] = solver->body_com1[idi.index];
+    }
+}
 static void InterpolatePositions( Solver* solver )
 {
     const float t = solver->delta_time_acc / solver->delta_time;
@@ -285,6 +302,19 @@ static void InterpolatePositions( Solver* solver )
 
         solver->x[i] = lerp( t, pp, p0 );
     }
+
+    const u32 n_active = solver->active_bodies_count;
+    for( u32 i = 0; i < n_active; ++i )
+    {
+        const BodyIdInternal idi = solver->active_bodies_idi[i];
+        const BodyCoM& a = solver->body_com0[idi.index];
+        const BodyCoM& b = solver->body_com1[idi.index];
+        BodyCoM& c = solver->body_comi[idi.index];
+
+        c.rot = slerp( t, a.rot, b.rot );
+        c.pos = lerp( t, a.pos, b.pos );
+    }
+
 }
 
 static void GenerateCollisionConstraints( Solver* solver )
@@ -586,7 +616,7 @@ static void SolveShapeMatchingConstraints( Solver* solver, float solverIteration
         Vector3F center_of_mass_pos;
         SoftBodyUpdatePose( &rotation, &center_of_mass_pos, pos, shape_matching_c.begin(), body.count );
 
-        BodyCoM& com = solver->body_com[i];
+        BodyCoM& com = solver->body_com1[i];
         com.rot = normalize( QuatF( rotation ) );
         com.pos = center_of_mass_pos;
 
@@ -661,7 +691,7 @@ void Solve( Solver* solver, u32 numIterations, float deltaTime )
     solver->delta_time_acc = clamp( solver->delta_time_acc, 0.f, 0.5f );
     while( solver->delta_time_acc >= solver->delta_time )
     {
-        memcpy( solver->pp.begin(), solver->p0.begin(), solver->Size() * sizeof( Vector3F ) );
+        WritePrevData( solver );
         SolveInternal( solver, numIterations );
         solver->delta_time_acc -= solver->delta_time;
     }
@@ -960,7 +990,21 @@ BodyCoM GetBodyCoM( Solver* solver, BodyId id )
 {
     PHYSICS_VALIDATE_ID( BodyCoM() );
     const BodyIdInternal idi = ToBodyIdInternal( id );
-    return solver->body_com[idi.index];
+    return solver->body_com1[idi.index];
+}
+
+BodyCoM GetBodyCoMDisplacement( Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID( BodyCoM() );
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    const BodyCoM& a = solver->body_com0[idi.index];
+    const BodyCoM& b = solver->body_com1[idi.index];
+
+    BodyCoM c;
+    c.rot = b.rot * conj( a.rot );
+    c.pos = b.pos - a.pos;
+
+    return c;
 }
 
 float GetParticleRadius( const Solver* solver )

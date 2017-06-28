@@ -24,14 +24,15 @@ struct PlayerData
     using IdTable = id_table_t<Const::MAX_PLAYERS>;
     
     IdTable          _id_table                        = {};
-    Player           _id         [Const::MAX_PLAYERS] = {};
-    char*            _name       [Const::MAX_PLAYERS] = {};
-    PlayerInput      _input      [Const::MAX_PLAYERS] = {};
-    Matrix3F         _input_basis[Const::MAX_PLAYERS] = {};
-    PlayerPose       _pose       [Const::MAX_PLAYERS] = {};
-    Vector3F         _velocity   [Const::MAX_PLAYERS] = {};
-    PlayerPoseBuffer _pose_buffer[Const::MAX_PLAYERS] = {};
-    physics::BodyId  _body_id    [Const::MAX_PLAYERS] = {};
+    Player           _id               [Const::MAX_PLAYERS] = {};
+    char*            _name             [Const::MAX_PLAYERS] = {};
+    PlayerInput      _input            [Const::MAX_PLAYERS] = {};
+    Matrix3F         _input_basis      [Const::MAX_PLAYERS] = {};
+    PlayerPose       _pose             [Const::MAX_PLAYERS] = {};
+    Vector3F         _velocity         [Const::MAX_PLAYERS] = {};
+    PlayerPose       _interpolated_pose[Const::MAX_PLAYERS] = {};
+    PlayerPoseBuffer _pose_buffer      [Const::MAX_PLAYERS] = {};
+    physics::BodyId  _body_id          [Const::MAX_PLAYERS] = {};
 
     Vector3F _up_dir{ 0.f, 1.f, 0.f };
 
@@ -53,7 +54,7 @@ static PlayerData gData = {};
 
 static inline Vector3F GetPlayerCenterPos( u32 index )
 {
-    const PlayerPose& pp = gData._pose[index];
+    const PlayerPose& pp = gData._interpolated_pose[index];
     const Vector3F offset = gData._up_dir * gData._params.radius;
     return pp.pos + offset;
 }
@@ -62,8 +63,9 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
 {
     physics::Solver* solver = sctx->phx_solver;
 
-    //par_shapes_mesh* mesh   = par_shapes_create_subdivided_sphere( 3 );
-    par_shapes_mesh* mesh = par_shapes_create_parametric_sphere( 16, 16 );
+    par_shapes_mesh* mesh   = par_shapes_create_subdivided_sphere( 1 );
+    //par_shapes_mesh* mesh = par_shapes_create_parametric_sphere( 16, 16 );
+    //par_shapes_mesh* mesh = par_shapes_create_octohedron();
     physics::BodyId body_id = physics::CreateBody( solver, mesh->npoints );
 
     const Vector3F* mesh_points = (Vector3F*)mesh->points;
@@ -111,8 +113,9 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
 
     physics::BodyParams params;
     physics::GetBodyParams( &params, solver, body_id );
-    params.static_friction = 0.91f;
-    params.dynamic_friction = 0.91f;
+    params.static_friction = 0.05f;
+    params.dynamic_friction = 0.95f;
+    params.vel_damping = 0.99f;
     physics::SetBodyParams( solver, body_id, params );
 
 
@@ -126,22 +129,20 @@ Player PlayerCreate( SceneCtx* sctx, const char* name, const Matrix4F& pose )
 
     id_t id = id_table::create( gData._id_table );
 
-    gData._id[id.index] = { id.hash };
-    gData._name[id.index] = string::duplicate( gData._name[id.index], name );
-    gData._pose[id.index] = PlayerPose::fromMatrix4( pose );
-    gData._velocity[id.index] = Vector3F( 0.f );
-    gData._input[id.index] = {};
-    gData._input_basis[id.index] = Matrix3F::identity();
+    gData._id[id.index]                = { id.hash };
+    gData._name[id.index]              = string::duplicate( gData._name[id.index], name );
+    gData._pose[id.index]              = PlayerPose::fromMatrix4( pose );
+    gData._interpolated_pose[id.index] = gData._pose[id.index];
+    gData._velocity[id.index]          = Vector3F( 0.f );
+    gData._input[id.index]             = {};
+    gData._input_basis[id.index]       = Matrix3F::identity();
     Clear( &gData._pose_buffer[id.index] );
 
     //physics::BodyId body_id = physics::CreateSphere( sctx->phx_solver, pose, 0.75f, 1.0f );
     physics::BodyId body_id = CreatePlayerPhysics( sctx, gData._pose[id.index], gData._params.radius );
     physics::AddBody( sctx->phx_gfx, body_id );
     physics::SetColor( sctx->phx_gfx, body_id, 0xFFFFFFFF );
-
     gData._body_id[id.index] = body_id;
-
-
 
     return { id.hash };
 }
@@ -214,6 +215,14 @@ namespace
         return velXZ + velY;
     }
 
+    static Vector3F _ApplySpeedLimit( const Vector3F& vel, float spdLimit )
+    {
+        const float spd = length( vel );
+        const float velScaler = ( spdLimit / spd );
+        const float a = ( spd > spdLimit ) ? velScaler : 1.f;
+        return vel * a;
+    }
+
     void _PlayerWriteBuffer( u32 index )
     {
         const PlayerPose& pose = gData._pose[index];
@@ -255,10 +264,58 @@ namespace
         gData._velocity[index] = vel;
     }
 
+    static void _PlayerInterpolatePose( u32 index )
+    {
+        const float frameAlpha = gData._delta_time_acc / Const::FIXED_DT;
+        
+        PlayerPose interpolated_pose;
+        u32 back_index = BackIndex( gData._pose_buffer[index] );
+        if( PeekPose( &interpolated_pose, gData._pose_buffer[index], back_index ) )
+        {
+            const PlayerPose& pose = gData._pose[index];
+            interpolated_pose = Lerp( frameAlpha, interpolated_pose, pose );
+        }
+        else
+        {
+            interpolated_pose = gData._pose[index];
+        }
+
+        gData._interpolated_pose[index] = interpolated_pose;
+    }
+
+    static void _PlayerDrivePhysics( u32 i, physics::Solver* solver, float deltaTimeS )
+    {
+        physics::BodyId body_id = gData._body_id[i];
+        const u32 n_particles   = physics::GetNbParticles( solver, body_id );
+        const f32 pradius       = physics::GetParticleRadius( solver );
+
+        const Vector3F center_pos      = GetPlayerCenterPos( i );
+        const Vector3F dst_pos         = center_pos;// + gData._up_dir * pradius * 0.9f;
+        const physics::BodyCoM phx_com = physics::GetBodyCoM( solver, body_id );
+        const Vector3F f               = ( dst_pos - phx_com.pos );
+
+        Vector3F* vel = physics::MapVelocity( solver, body_id );
+
+        const float player_speed    = length( gData._velocity[i] );
+        const float dist_to_travel  = length( f );
+        for( u32 iparticle = 0; iparticle < n_particles; ++iparticle )
+        {
+            Vector3F v = vel[iparticle];
+            v += f;
+
+            if( length( v*deltaTimeS ) > dist_to_travel )
+                v = normalize( v ) * dist_to_travel;
+
+            vel[iparticle] = v;
+        }
+
+        physics::Unmap( solver, vel );
+    }
+
     void _PlayerUpdate( u32 index, float deltaTimeS )
     {
         const PlayerInput& input = gData._input[index];
-        const Matrix3F& basis = gData._input_basis[index];
+        const Matrix3F& basis    = gData._input_basis[index];
         _PlayerUpdate( index, input, basis, deltaTimeS );
     }
 }
@@ -283,7 +340,8 @@ void PlayerTick( SceneCtx* sctx, u64 deltaTimeUS )
     }
 
     const float delta_time_s = (float)bxTime::toSeconds( gData._delta_time_us );
-    const float delta_time_srcp = ( delta_time_s > FLT_EPSILON ) ? 1.f / delta_time_s : 0.f;
+    //const float delta_time_srcp = ( delta_time_s > FLT_EPSILON ) ? 1.f / delta_time_s : 0.f;
+
     gData._delta_time_acc += delta_time_s;
     u32 iteration_count = 0;
     while( gData._delta_time_acc >= Const::FIXED_DT )
@@ -301,41 +359,11 @@ void PlayerTick( SceneCtx* sctx, u64 deltaTimeUS )
             _PlayerUpdate( i, Const::FIXED_DT );
         }
 
-        physics::BodyId body_id = gData._body_id[i];
-        const u32 n_particles = physics::GetNbParticles( sctx->phx_solver, body_id );
-        const f32 pradius = physics::GetParticleRadius( sctx->phx_solver );
+        _PlayerInterpolatePose( i );
+        _PlayerDrivePhysics( i, sctx->phx_solver, delta_time_s );
 
-        const Vector3F center_pos = GetPlayerCenterPos( i );
-        const Vector3F dst_pos = center_pos + gData._up_dir * pradius * 0.9f;
-        physics::BodyCoM phx_com = physics::GetBodyCoM( sctx->phx_solver, body_id );
-        const Vector3F f = ( dst_pos - phx_com.pos );
-
-        Vector3F* pos = physics::MapPosition( sctx->phx_solver, body_id );
-        Vector3F* vel = physics::MapVelocity( sctx->phx_solver, body_id );
-        
-        const float player_speed = length( gData._velocity[i] );
-        const float dist_to_travel = length( f );
-        if( dist_to_travel < pradius && player_speed < FLT_EPSILON )
-        {
-            for( u32 iparticle = 0; iparticle < n_particles; ++iparticle )
-            {
-                vel[iparticle] = Vector3F(0.f);
-            }
-        }
-        else
-        {
-            for( u32 iparticle = 0; iparticle < n_particles; ++iparticle )
-            {
-                const Vector3F& v = vel[iparticle];
-                vel[iparticle] += f;
-            }
-        }
-
-        physics::Unmap( sctx->phx_solver, vel );
-        physics::Unmap( sctx->phx_solver, pos );
-        //physics::SetExternalForce( sctx->phx_solver, body_id, f * 10.f );
     }
-    
+
     gData._delta_time_us = deltaTimeUS;
     gData._time_us += deltaTimeUS;
 
@@ -362,7 +390,31 @@ void PlayerTick( SceneCtx* sctx, u64 deltaTimeUS )
 
 void PlayerPostPhysicsTick( SceneCtx* sctx )
 {
+    const float solver_frequency = physics::GetFrequency( sctx->phx_solver );
 
+    for( u32 i = 0; i < Const::MAX_PLAYERS; ++i )
+    {
+        id_t id = { gData._id[i].i };
+        if( !gData.IsAlive( id ) )
+            continue;
+    
+        const u32 index = id.index;
+
+        const physics::BodyId body_id    = gData._body_id[index];
+        const physics::BodyCoM com       = physics::GetBodyCoM( sctx->phx_solver, body_id );
+        const physics::BodyCoM com_displ = physics::GetBodyCoMDisplacement( sctx->phx_solver, body_id );
+        
+        const Vector3F body_vel = com_displ.pos * solver_frequency;
+        Vector3F player_vel     = gData._velocity[index];
+
+        const float body_spd   = length( body_vel );
+        const float player_spd = length( player_vel );
+
+        if( body_spd < player_spd*0.5f )
+            player_vel = normalizeSafe( player_vel ) * body_spd;
+
+        gData._velocity[index] = player_vel;
+    }
 }
 
 void PlayerDraw( Player pl )
@@ -377,19 +429,7 @@ void PlayerDraw( Player pl )
         if( !gData.IsAlive( id ) )
             continue;
 
-        PlayerPose render_pose;
-
-
-        u32 back_index = BackIndex( gData._pose_buffer[id.index] );
-        if( PeekPose( &render_pose, gData._pose_buffer[id.index], back_index ) )
-        {
-            const PlayerPose& pose = gData._pose[i];
-            render_pose = Lerp( frameAlpha, render_pose, pose );
-        }
-        else
-        {
-            render_pose = gData._pose[i];
-        }
+        const PlayerPose& render_pose = gData._interpolated_pose[id.index];
         
         if( (i % 2) == 0 )
             rdi::debug_draw::AddSphere( Vector4F( render_pose.pos, rad ), 0xFF0000FF, 1 );

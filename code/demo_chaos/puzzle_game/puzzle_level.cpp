@@ -82,32 +82,32 @@ void LevelState::OnStartUp()
         -Vector3F::xAxis(),
     };
 
-    for( u32 i = 0; i < NUM_ROPES; i++ )
-    {
-        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
-        float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
-        mass_inv[0] = 0.f;
-        physics::Unmap( _solver, mass_inv );
+    //for( u32 i = 0; i < NUM_ROPES; i++ )
+    //{
+    //    _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
+    //    float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
+    //    mass_inv[0] = 0.f;
+    //    physics::Unmap( _solver, mass_inv );
 
-        physics::BodyParams params;
-        physics::GetBodyParams( &params, _solver, _rope[i] );
-        params.restitution = 1.0f;
-        params.dynamic_friction = 0.8f;
-        physics::SetBodyParams( _solver, _rope[i], params );
+    //    physics::BodyParams params;
+    //    physics::GetBodyParams( &params, _solver, _rope[i] );
+    //    params.restitution = 1.0f;
+    //    params.dynamic_friction = 0.8f;
+    //    physics::SetBodyParams( _solver, _rope[i], params );
 
-        physics::AddBody( _solver_gfx, _rope[i] );
-        physics::SetColor( _solver_gfx, _rope[i], 0x0000FFFF );
-    }
+    //    physics::AddBody( _solver_gfx, _rope[i] );
+    //    physics::SetColor( _solver_gfx, _rope[i], 0x0000FFFF );
+    //}
 
 
     const float a = 1.0f;
     Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(0.f) ), Vector3F( 0.f, 1.f, 0.f ) );
     //_soft0 = physics::CreateSoftBox( _solver, soft_pose0, a,a,a, 1.f );
-    _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F(a), 1.f );
+    _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F(a), 5.f );
 
     Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.f, 10.f, 0.f ) );
     //_soft1 = physics::CreateSoftBox( _solver, soft_pose1, a,a,a, 3.f );
-    _soft1 = physics::CreateSphere( _solver, soft_pose1, a, 1.f );
+    _soft1 = physics::CreateSphere( _solver, soft_pose1, a, 5.f );
 
     physics::AddBody( _solver_gfx, _soft0 );
     physics::AddBody( _solver_gfx, _soft1 );
@@ -124,7 +124,7 @@ void LevelState::OnStartUp()
         Matrix4F pose = Matrix4F( Matrix3F::identity(), Vector3F( x, y, 2.f ) );
         //_rigid[i] = physics::CreateSoftBox( _solver, pose, rigidA,rigidA,rigidA, 1.f );
         //if( i % 2 )
-            _rigid[i] = physics::CreateBox( _solver, pose, Vector3F( rigidA ), 1.f );
+            _rigid[i] = physics::CreateBox( _solver, pose, Vector3F( rigidA ), 5.f*(i+1) );
         //else
           //  _rigid[i] = physics::CreateSphere( _solver, pose, rigidA, 2.f );
 

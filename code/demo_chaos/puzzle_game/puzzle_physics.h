@@ -40,6 +40,7 @@ struct ShapeMatchingCInfo
 void Create      ( Solver** solver, u32 maxParticles, float particleRadius = 0.1f );
 void Destroy     ( Solver** solver );
 void SetFrequency( Solver* solver, u32 freq );
+f32  GetFrequency( Solver* solver );
 void Solve       ( Solver* solver, u32 numIterations, float deltaTime );
 
 // --- 
@@ -69,6 +70,7 @@ void      SetExternalForce( Solver* solver, BodyId id, const Vector3F& force );
 void      AddExternalForce( Solver* solver, BodyId id, const Vector3F& force );
 void      SetBodySelfCollisions( Solver* solver, BodyId id, bool value );
 BodyCoM   GetBodyCoM( Solver* solver, BodyId id );
+BodyCoM   GetBodyCoMDisplacement( Solver* solver, BodyId id );
 
 }//
 }}//
