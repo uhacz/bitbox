@@ -44,7 +44,7 @@ struct PlayerData
     {
         f32 move_speed = 10.f;
         f32 velocity_damping = 0.9f;
-        f32 radius = 0.5f;
+        f32 radius = 0.75f;
     }_params;
 
     bool IsAlive( id_t id ) const { return id_table::has( _id_table, id ); }
@@ -84,7 +84,7 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
     physics::Unmap( solver, body_w );
     physics::Unmap( solver, body_points );
 
-    physics::CalculateLocalPositions( solver, body_id, 0.5f );
+    physics::CalculateLocalPositions( solver, body_id, 0.51f );
 
     array_t< physics::DistanceCInfo >c_info;
     for( int i = 0; i < mesh->ntriangles; ++i )
@@ -105,7 +105,7 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
         c.i0 = i0; c.i1 = i2;
         array::push_back( c_info, c );
     }
-    //physics::SetDistanceConstraints( solver, body_id, c_info.begin(), c_info.size );
+    physics::SetDistanceConstraints( solver, body_id, c_info.begin(), c_info.size );
     physics::SetBodySelfCollisions( solver, body_id, false );
 
     par_shapes_free_mesh( mesh );
@@ -114,7 +114,7 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
     physics::BodyParams params;
     physics::GetBodyParams( &params, solver, body_id );
     params.static_friction = 0.05f;
-    params.dynamic_friction = 0.95f;
+    params.dynamic_friction = 0.5f;
     params.vel_damping = 0.99f;
     physics::SetBodyParams( solver, body_id, params );
 

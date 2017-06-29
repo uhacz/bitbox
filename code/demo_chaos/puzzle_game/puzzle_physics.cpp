@@ -9,6 +9,8 @@
 #include <rdi/rdi_debug_draw.h>
 #include "puzzle_physics_pbd.h"
 
+#include "../imgui/imgui.h"
+
 namespace bx { namespace puzzle {
 
 namespace physics
@@ -112,6 +114,13 @@ struct Solver
     f32 delta_time = 1.f / frequency;
     f32 delta_time_acc = 0.f;
     f32 particle_radius = 0.1f;
+
+    struct
+    {
+        //u32 num_contacts[60] = {};
+        //u32 num_contacts_head = 0;
+        bool show_axes = false;
+    } _debug;
 
     u32 Capacity() const { return p0.capacity; }
     u32 Size    () const { return p0.size; }
@@ -611,14 +620,8 @@ static void SolveShapeMatchingConstraints( Solver* solver, float solverIteration
         const Vector3F* pos = solver->p1.begin() + body.begin;
         SYS_ASSERT( shape_matching_c.size == body.count );
 
-
-        Matrix3F rotation;
-        Vector3F center_of_mass_pos;
-        SoftBodyUpdatePose( &rotation, &center_of_mass_pos, pos, shape_matching_c.begin(), body.count );
-
         BodyCoM& com = solver->body_com1[i];
-        com.rot = normalize( QuatF( rotation ) );
-        com.pos = center_of_mass_pos;
+        SoftBodyUpdatePose1( &com.rot, &com.pos, pos, shape_matching_c.begin(), body.count );
 
         for( u32 i = 0; i < body.count; ++i )
         {
@@ -627,10 +630,9 @@ static void SolveShapeMatchingConstraints( Solver* solver, float solverIteration
             const ShapeMatchingC& c = shape_matching_c[i];
 
             Vector3F dpos;
-            SolveShapeMatchingC( &dpos, rotation, center_of_mass_pos, c.rest_pos, p, stiffness );
+            SolveShapeMatchingC( &dpos, com.rot, com.pos, c.rest_pos, p, stiffness );
             solver->p1[pindex] += dpos;
         }
-
     }
 }
 
@@ -1046,6 +1048,27 @@ void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params )
                 const Vector3F& p1 = points[c.i1];
                 rdi::debug_draw::AddLine( p0, p1, params.constraint_color, 1 );
             }
+        }
+    }
+}
+
+void DebugDraw( Solver* solver )
+{
+    if( ImGui::Begin( "Solver" ) )
+    {
+        ImGui::Checkbox( "Show axes", &solver->_debug.show_axes );
+    }
+    ImGui::End();
+
+
+    if( solver->_debug.show_axes )
+    {
+        const u32 n = solver->active_bodies_count;
+        for( u32 i = 0; i < n; ++i )
+        {
+            const BodyIdInternal idi = solver->active_bodies_idi[i];
+            const BodyCoM& com = solver->body_comi[idi.index];
+            rdi::debug_draw::AddAxes( Matrix4F( com.rot, com.pos ) );
         }
     }
 }

@@ -103,6 +103,7 @@ struct DebugDrawBodyParams
     DebugDrawBodyParams& NoConstraints() { draw_constraints = 0; return *this; }
 };
 void DebugDraw( Solver* solver, BodyId id, const DebugDrawBodyParams& params );
+void DebugDraw( Solver* solver );
 
 }//
 

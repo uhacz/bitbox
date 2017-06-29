@@ -171,6 +171,8 @@ void LevelState::OnUpdate( const GameTime& time )
 
     //physics::DebugDraw( _solver, _soft0, physics::DebugDrawBodyParams().Points( 0xFF0000FF ) );
     //physics::DebugDraw( _solver, _soft1, physics::DebugDrawBodyParams().Points( 0x00FF00FF ) );
+
+    physics::DebugDraw( _solver );
 }
 
 void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
