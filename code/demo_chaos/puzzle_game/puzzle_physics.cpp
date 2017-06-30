@@ -79,16 +79,25 @@ struct Solver
     Vector3Array v;
     F32Array     w;
     U16Array     body_index;
+    Vector3Array contact_normal;
     F32Array     collision_r;
         
     IdTable    id_tbl;
     Body       bodies        [EConst::MAX_BODIES];
-    BodyParams body_params   [EConst::MAX_BODIES];
+    //BodyParams body_params   [EConst::MAX_BODIES];
     BodyCoM    body_com0     [EConst::MAX_BODIES];
     BodyCoM    body_com1     [EConst::MAX_BODIES];
     BodyCoM    body_comi     [EConst::MAX_BODIES];
     Vector3F   body_ext_force[EConst::MAX_BODIES];
     u8         body_flags    [EConst::MAX_BODIES];
+
+    struct  
+    {
+        f32 vdamping   [EConst::MAX_BODIES];
+        f32 sfriction  [EConst::MAX_BODIES];
+        f32 dfriction  [EConst::MAX_BODIES];
+        f32 restitution[EConst::MAX_BODIES];
+    } body_params;
 
     // constraints where points indices are absolute
     CollisionCArray         plane_collision_c;
@@ -151,6 +160,8 @@ static void ReserveParticles( Solver* solver, u32 count )
     array::reserve( solver->w , count );
     array::reserve( solver->body_index, count );
     array::reserve( solver->collision_r, count );
+    array::reserve( solver->contact_normal, count );
+
 }
 
 static Body AllocateBody( Solver* solver, u32 particleAmount )
@@ -170,8 +181,9 @@ static Body AllocateBody( Solver* solver, u32 particleAmount )
         array::push_back( solver->w, 1.f );
         array::push_back( solver->body_index, UINT16_MAX );
         array::push_back( solver->collision_r, 1.f );
+        array::push_back( solver->contact_normal, Vector3F(0.f) );
     }
-
+    
     return body;
 }
 
@@ -184,11 +196,11 @@ static inline const Body& GetBody( const Solver* solver, BodyIdInternal idi )
     SYS_ASSERT( IsValid( solver, idi ) );
     return solver->bodies[idi.index];
 }
-static inline const BodyParams& GetBodyParams( const Solver* solver, BodyIdInternal idi )
-{
-    SYS_ASSERT( IsValid( solver, idi ) );
-    return solver->body_params[idi.index];
-}
+//static inline const BodyParams& GetBodyParams( const Solver* solver, BodyIdInternal idi )
+//{
+//    SYS_ASSERT( IsValid( solver, idi ) );
+//    return solver->body_params[idi.index];
+//}
 }//
 
 
@@ -241,24 +253,24 @@ static void GarbageCollector( Solver* solver )
     }
 }
 
-static void PredictPositions( Solver* solver, const Body& body, const BodyParams& params, const Vector3F& gravityAcc, const Vector3F& extForce, float deltaTime )
+static void PredictPositions( Solver* solver, const Body& body, f32 vdamping, const Vector3F& gravityAcc, const Vector3F& extForce, float deltaTime )
 {
     const u32 pbegin = body.begin;
     const u32 pend = body.begin + body.count;
 
     SYS_ASSERT( pend <= solver->Size() );
 
-    const float damping_coeff = ::powf( 1.f - params.vel_damping, deltaTime );
+    const float damping_coeff = ::powf( 1.f - vdamping, deltaTime );
     const Vector3F gravityDV = gravityAcc * deltaTime;
     const Vector3F extForceDV = extForce * deltaTime;
     for( u32 i = pbegin; i < pend; ++i )
     {
+        const float w = solver->w[i];
         Vector3F p = solver->p0[i];
         Vector3F v = solver->v[i];
-        float w = solver->w[i];
-        w = ( w > FLT_EPSILON ) ? 1.f : 0.f;
 
-        v += ( gravityDV + extForceDV ) * w;
+        v += gravityDV;
+        v += extForceDV * w;
         v *= damping_coeff;
 
         p += v * deltaTime;
@@ -281,9 +293,19 @@ static void UpdateVelocities( Solver* solver, float deltaTime )
         Vector3F v = ( p1 - p0 ) * delta_time_inv;
         solver->p0[i] = p1;
 
-        const float restitution = solver->collision_r[i];
-        v *= restitution;
-        solver->collision_r[i] = 1.f;
+        
+        Vector3F cn = solver->contact_normal[i];
+        const float cnlen = lengthSqr( cn );
+        if( cnlen > FLT_EPSILON )
+        {
+            const float restitution = solver->body_params.restitution[solver->body_index[i]];
+
+            cn = cn / ::sqrtf( cnlen );
+            Vector3F vprep = projectVectorOnPlane( v, cn );
+            v = ( v - vprep );
+            v *= restitution;
+            v += vprep;
+        }
 
         solver->v[i] = v;
     }
@@ -451,16 +473,40 @@ static inline void ComputeFriction( Vector3F frictionDpos[2], Solver* solver, u3
 
     const u16 body_index0 = solver->body_index[i0];
     const u16 body_index1 = solver->body_index[i1];
-    const BodyParams& params0 = solver->body_params[body_index0];
-    const BodyParams& params1 = solver->body_params[body_index1];
+    const f32 sfriction0 = solver->body_params.sfriction[body_index0];
+    const f32 sfriction1 = solver->body_params.sfriction[body_index1];
+    const f32 dfriction0 = solver->body_params.dfriction[body_index0];
+    const f32 dfriction1 = solver->body_params.dfriction[body_index1];
 
     const Vector3F xt = projectVectorOnPlane( ( newp1 - oldp1 ) - ( newp0 - oldp0 ), n );
 
-    frictionDpos[0] = ComputeFrictionDeltaPos( xt, n, -depth, params0.static_friction, params0.dynamic_friction );
-    frictionDpos[1] = ComputeFrictionDeltaPos( -xt, n, -depth, params1.static_friction, params1.dynamic_friction );
+    const float dynamic_coeff = maxOfPair( dfriction0, dfriction1 );
+    const float static_coeff  = maxOfPair( sfriction1, sfriction1 );
+
+    //if( lengthSqr( xt ) > FLT_EPSILON )
+    {
+        const Vector3F dpos = ComputeFrictionDeltaPos( xt, n, -depth, static_coeff, dynamic_coeff );
+        frictionDpos[0] = dpos;
+        frictionDpos[1] = -dpos;
+    }
 }
 static void SolveCollisionConstraints( Solver* solver )
 {
+    {// clear collisions data
+        const u32 n = solver->active_bodies_count;
+        for( u32 i = 0; i < n; ++i )
+        {
+            const BodyIdInternal idi = solver->active_bodies_idi[i];
+            const Body& body = solver->bodies[idi.index];
+            const u32 body_end = body.begin + body.count;
+            for( u32 j = body.begin; j < body_end; ++j )
+            {
+                solver->contact_normal[j] = Vector3F( 0.f );
+                solver->collision_r[j] = 1.f;
+            }
+        }
+    }
+
     const float pradius = solver->particle_radius;
     const float pradius2 = solver->particle_radius*2.f;
     const float pradius2_sqr = pradius2*pradius2;
@@ -488,12 +534,16 @@ static void SolveCollisionConstraints( Solver* solver )
 
             const Vector3F newp0 = p0 + dpos0;
             const Vector3F newp1 = p1 + dpos1;
-            
-            Vector3F dpos_friction[2];
-            ComputeFriction( dpos_friction, solver, c.i0, c.i1, newp0, newp1, n, depth );
 
+            solver->contact_normal[c.i0] += n;
+            solver->contact_normal[c.i1] -= n;
+                    
+            Vector3F dpos_friction[2] = { Vector3F( 0.f ), Vector3F( 0.f ) };
+            ComputeFriction( dpos_friction, solver, c.i0, c.i1, newp0, newp1, n, depth );
+            
             solver->p1[c.i0] = newp0 + dpos_friction[0]*w0 * wsum_inv;
             solver->p1[c.i1] = newp1 + dpos_friction[1]*w1 * wsum_inv;
+        
         }
     }
 
@@ -518,13 +568,13 @@ static void SolveCollisionConstraints( Solver* solver )
 
             // boundary particle
             // modify contact normal to prevent bouncing
-            if( c.d < d )
+            if( ::fabsf(c.d) < pradius2 )
             {
-                const float drcp = ( d > FLT_EPSILON ) ? 1.f / d : 0.f;
-                n = v * drcp;
                 const float v_dot_n = dot( v, c.n );
                 if( v_dot_n < 0.f )
-                    n = normalizeSafeF( n - c.n*v_dot_n*2.f );
+                    n = normalizeSafeF( v - 2.f*(v_dot_n)*c.n );
+                else
+                    n = v * ( ( d > FLT_EPSILON ) ? 1.f / d : 0.f );
 
                 depth = d - pradius2;
             }
@@ -536,11 +586,18 @@ static void SolveCollisionConstraints( Solver* solver )
             const Vector3F newp0 = p0 + dpos0;
             const Vector3F newp1 = p1 + dpos1;
 
-            Vector3F dpos_friction[2];
-            ComputeFriction( dpos_friction, solver, c.i0, c.i1, newp0, newp1, n, depth );
+            solver->contact_normal[c.i0] += n;
+            solver->contact_normal[c.i1] -= n;
+            //solver->p1[c.i0] = newp0;
+            //solver->p1[c.i1] = newp1;
 
+            Vector3F dpos_friction[2] = { Vector3F(0.f), Vector3F(0.f) };
+            ComputeFriction( dpos_friction, solver, c.i0, c.i1, newp0, newp1, n, depth );
+            //
             solver->p1[c.i0] = newp0 + dpos_friction[0]*w0 * wsum_inv;
             solver->p1[c.i1] = newp1 + dpos_friction[1]*w1 * wsum_inv;
+
+            //rdi::debug_draw::AddLine( p0, n, 0x0000FFFF, 1 );
             
         }
     }
@@ -554,13 +611,17 @@ static void SolveCollisionConstraints( Solver* solver )
             d -= pradius;
             const Vector3F n = c.plane.getXYZ();
             const Vector3F newp = p - (n * d);
+            solver->p1[c.i] = newp;
+            solver->contact_normal[c.i] += n;
+
             const Vector3F& oldp = solver->p0[c.i];
-
+            //
             const u16 body_index = solver->body_index[c.i];
-            const BodyParams& params0 = solver->body_params[body_index];
-
+            const f32 sfriction = solver->body_params.sfriction[body_index];
+            const f32 dfriction = solver->body_params.dfriction[body_index];
+            //
             const Vector3F xt = projectVectorOnPlane( newp - oldp, n );
-            const Vector3F dpos_friction = ComputeFrictionDeltaPos( xt, n, -d, params0.static_friction, params0.dynamic_friction );
+            const Vector3F dpos_friction = ComputeFrictionDeltaPos( xt, n, -d, sfriction, dfriction );
             solver->p1[c.i] = newp - dpos_friction;
         }
     }
@@ -651,10 +712,10 @@ static void SolveInternal( Solver* solver, u32 numIterations )
     {
         const BodyIdInternal idi = solver->active_bodies_idi[i];
         const Body& body = GetBody( solver, idi );
-        const BodyParams& params = GetBodyParams( solver, idi );
+        const f32 vdamping = solver->body_params.vdamping[idi.index];
         const Vector3F& ext_force = solver->body_ext_force[idi.index];
 
-        PredictPositions( solver, body, params, gravity_acc, ext_force, deltaTime );
+        PredictPositions( solver, body, vdamping, gravity_acc, ext_force, deltaTime );
 
         
     }
@@ -730,6 +791,9 @@ namespace
 BodyId CreateBody( Solver* solver, u32 numParticles )
 {
     BodyIdInternal idi = CreateBodyInternal( solver, numParticles );
+    BodyId id = ToBodyId( idi );
+    SetBodyParams( solver, id, BodyParams() );
+
     return ToBodyId( idi );
 }
 
@@ -949,7 +1013,11 @@ bool GetBodyParams( BodyParams* params, const Solver* solver, BodyId id )
     PHYSICS_VALIDATE_ID( false );
 
     const BodyIdInternal idi = ToBodyIdInternal( id );
-    params[0] = solver->body_params[idi.index];
+    const u32 i = idi.index;
+    params->vel_damping      = solver->body_params.vdamping[i];
+    params->static_friction  = solver->body_params.sfriction[i];
+    params->dynamic_friction = solver->body_params.dfriction[i];
+    params->restitution      = solver->body_params.restitution[i];
     return true;
 }
 
@@ -958,7 +1026,11 @@ void SetBodyParams( Solver* solver, BodyId id, const BodyParams& params )
     PHYSICS_VALIDATE_ID_NO_RETURN;
 
     const BodyIdInternal idi = ToBodyIdInternal( id );
-    solver->body_params[idi.index] = params;
+    const u32 i = idi.index;
+    solver->body_params.vdamping[i]     = params.vel_damping;
+    solver->body_params.sfriction[i]    = params.static_friction;
+    solver->body_params.dfriction[i]    = params.dynamic_friction;
+    solver->body_params.restitution[i]  = params.restitution;
 }
 
 void SetExternalForce( Solver* solver, BodyId id, const Vector3F& force )

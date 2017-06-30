@@ -12,10 +12,9 @@ namespace physics
 struct BodyParams
 {
     f32 vel_damping = 0.1f;
-    f32 static_friction = 0.7f;
-    f32 dynamic_friction = 0.6f;
+    f32 static_friction = 0.1f;
+    f32 dynamic_friction = 0.1f;
     f32 restitution = 0.2f;
-    f32 stiffness = 1.0f;
 };
 
 struct BodyCoM // center of mass

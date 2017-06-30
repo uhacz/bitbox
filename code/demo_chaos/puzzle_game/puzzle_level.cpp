@@ -100,14 +100,28 @@ void LevelState::OnStartUp()
     //}
 
 
-    const float a = 1.0f;
-    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(0.f) ), Vector3F( 0.f, 1.f, 0.f ) );
+    const float a = 0.5f;
+    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(0.f) ), Vector3F( 0.f, a, 0.f ) );
     //_soft0 = physics::CreateSoftBox( _solver, soft_pose0, a,a,a, 1.f );
-    _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F(a), 5.f );
+    _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F(a,a,a*2.f), 5.f );
+    {
+        physics::BodyParams params;
+        physics::GetBodyParams( &params, _solver, _soft0 );
+        params.static_friction = 1.f;
+        params.dynamic_friction = 0.8f;
+        physics::SetBodyParams( _solver, _soft0, params );
+    }
 
-    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.f, 10.f, 0.f ) );
+    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.f, a*4, 0.f ) );
     //_soft1 = physics::CreateSoftBox( _solver, soft_pose1, a,a,a, 3.f );
-    _soft1 = physics::CreateSphere( _solver, soft_pose1, a, 5.f );
+    _soft1 = physics::CreateBox( _solver, soft_pose1, Vector3F(a*10, a * 0.1f, a*2.f), 5.f );
+    {
+        physics::BodyParams params;
+        physics::GetBodyParams( &params, _solver, _soft1 );
+        params.static_friction = 1.f;
+        params.dynamic_friction = 0.8f;
+        physics::SetBodyParams( _solver, _soft1, params );
+    }
 
     physics::AddBody( _solver_gfx, _soft0 );
     physics::AddBody( _solver_gfx, _soft1 );
@@ -118,7 +132,7 @@ void LevelState::OnStartUp()
     for( u32 i = 0; i < NUM_RIGID; ++i )
     {
         const float x = -(float)NUM_RIGID * 0.25f;// +(float)i*1.1f;
-        const float y = rigidA + i * rigidA*2.f;
+        const float y = rigidA + i * rigidA*2.5f;
 
         //Matrix4F pose = Matrix4F( Matrix3F::rotationZYX( Vector3F( i*0.1f*PI, i*0.2f*PI, PI / 4 ) ), Vector3F( x, y, 0.f ) );
         Matrix4F pose = Matrix4F( Matrix3F::identity(), Vector3F( x, y, 2.f ) );
