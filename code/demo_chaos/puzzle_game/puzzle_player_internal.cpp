@@ -120,6 +120,17 @@ bool PeekPose( PlayerPose* pose, const PlayerPoseBuffer& ppb, u32 index )
     return true;
 }
 
+bool PeekInput( PlayerInput* input, Matrix3F* basis, const PlayerPoseBuffer& ppb, u32 index )
+{
+    if( index >= ppb._ring.capacity() )
+        return false;
+
+    input[0] = ppb.input[index];
+    if( basis )
+        basis[0] = ppb.basis[index];
+    return true;
+}
+
 u32 BackIndex( const PlayerPoseBuffer& ppb )
 {
     u32 back_index = ppb._ring._write;

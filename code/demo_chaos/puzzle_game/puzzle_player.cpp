@@ -78,7 +78,7 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
         const Vector3F pos_ws = fastTransform( pp.rot, pp.pos, pos_ls );
 
         body_points[i] = pos_ws;
-        body_w[i] = 1.f;
+        body_w[i] = 0.1f;
     }
     
     physics::Unmap( solver, body_w );
@@ -110,14 +110,8 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
 
     par_shapes_free_mesh( mesh );
 
-
-    physics::BodyParams params;
-    physics::GetBodyParams( &params, solver, body_id );
-    params.static_friction = 0.05f;
-    params.dynamic_friction = 0.5f;
-    params.vel_damping = 0.99f;
-    physics::SetBodyParams( solver, body_id, params );
-
+    physics::SetFriction( solver, body_id, physics::FrictionParams( 0.05f, 0.9f ) );
+    physics::SetVelocityDamping( solver, body_id, 0.5f );
 
     return body_id;
 }
@@ -231,6 +225,38 @@ namespace
         Write( &gData._pose_buffer[index], pose, input, basis, gData._time_us );
     }
 
+#if 0
+    static void _PlayerDrivePhysics( u32 i, physics::Solver* solver, float deltaTimeS )
+    {
+        physics::BodyId body_id = gData._body_id[i];
+        const u32 n_particles = physics::GetNbParticles( solver, body_id );
+        const f32 pradius = physics::GetParticleRadius( solver );
+
+        const Vector3F center_pos = GetPlayerCenterPos( i );
+        const Vector3F dst_pos = center_pos;// + gData._up_dir * pradius * 0.9f;
+        const physics::BodyCoM phx_com = physics::GetBodyCoM( solver, body_id );
+        const Vector3F f = ( dst_pos - phx_com.pos );
+
+        Vector3F* vel = physics::MapVelocity( solver, body_id );
+
+        const float player_speed = length( gData._velocity[i] );
+        const float dist_to_travel = length( f );
+        for( u32 iparticle = 0; iparticle < n_particles; ++iparticle )
+        {
+            Vector3F v = vel[iparticle];
+            v += f;
+
+            if( length( v*deltaTimeS ) > dist_to_travel )
+                v = normalize( v ) * dist_to_travel;
+
+            vel[iparticle] = v;
+        }
+
+        physics::Unmap( solver, vel );
+    }
+#endif
+    
+
     void _PlayerUpdate( u32 index, const PlayerInput& input, const Matrix3F& basis, float deltaTimeS )
     {
         const float velocity_damping = ::powf( 1.f - gData._params.velocity_damping, deltaTimeS );
@@ -244,6 +270,7 @@ namespace
 
         const Vector3F curr_vel = gData._velocity[index];
         const Vector3F acc = ( move_vec_ws * curr_move_speed );
+
         Vector3F vel = curr_vel + acc * deltaTimeS;
 
         // --- velocity damping
@@ -285,31 +312,39 @@ namespace
 
     static void _PlayerDrivePhysics( u32 i, physics::Solver* solver, float deltaTimeS )
     {
-        physics::BodyId body_id = gData._body_id[i];
-        const u32 n_particles   = physics::GetNbParticles( solver, body_id );
-        const f32 pradius       = physics::GetParticleRadius( solver );
-
-        const Vector3F center_pos      = GetPlayerCenterPos( i );
-        const Vector3F dst_pos         = center_pos;// + gData._up_dir * pradius * 0.9f;
-        const physics::BodyCoM phx_com = physics::GetBodyCoM( solver, body_id );
-        const Vector3F f               = ( dst_pos - phx_com.pos );
-
-        Vector3F* vel = physics::MapVelocity( solver, body_id );
-
-        const float player_speed    = length( gData._velocity[i] );
-        const float dist_to_travel  = length( f );
-        for( u32 iparticle = 0; iparticle < n_particles; ++iparticle )
+        PlayerInput pin;
+        Matrix3F basis;
+        u32 back_index = BackIndex( gData._pose_buffer[i] );
+        if( PeekInput( &pin, &basis, gData._pose_buffer[i], back_index ) )
         {
-            Vector3F v = vel[iparticle];
-            v += f;
+            Vector3F move_vec_ls = _ComputePlayerLocalMoveVector( pin );
+            Vector3F move_vec_ws = _ComputePlayerWorldMoveVector( move_vec_ls, basis, gData._up_dir );
 
-            if( length( v*deltaTimeS ) > dist_to_travel )
-                v = normalize( v ) * dist_to_travel;
+            // --- this value is form 0 to 1 range
+            const float move_vec_ls_len = minOfPair( length( move_vec_ls ), 1.f );
+            const float curr_move_speed = gData._params.move_speed * move_vec_ls_len;
 
-            vel[iparticle] = v;
+            const Vector3F acc = ( move_vec_ws * curr_move_speed );
+            physics::BodyId body_id = gData._body_id[i];
+            //physics::SetExternalForce( solver, body_id, acc );
+            const u32 n_particles = physics::GetNbParticles( solver, body_id );
+            Vector3F* vel = physics::MapVelocity( solver, body_id );
+
+            //const float player_speed = length( gData._velocity[i] );
+            //const float dist_to_travel = length( acc );
+            for( u32 iparticle = 0; iparticle < n_particles; ++iparticle )
+            {
+                Vector3F v = vel[iparticle];
+                v += acc * deltaTimeS;
+
+                //if( length( v*deltaTimeS ) > dist_to_travel )
+                //    v = normalize( v ) * dist_to_travel;
+
+                vel[iparticle] = v;
+            }
+
+            physics::Unmap( solver, vel );
         }
-
-        physics::Unmap( solver, vel );
     }
 
     void _PlayerUpdate( u32 index, float deltaTimeS )

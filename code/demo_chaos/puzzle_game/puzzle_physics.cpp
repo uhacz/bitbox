@@ -234,7 +234,10 @@ f32 GetFrequency( Solver* solver )
 {
     return (f32)solver->frequency;
 }
-
+float GetParticleRadius( const Solver* solver )
+{
+    return solver->particle_radius;
+}
 namespace
 {
 static void GarbageCollector( Solver* solver )
@@ -291,15 +294,20 @@ static void UpdateVelocities( Solver* solver, float deltaTime )
         const Vector3F& p1 = solver->p1[i];
 
         Vector3F v = ( p1 - p0 ) * delta_time_inv;
-        solver->p0[i] = p1;
+        
 
         
         Vector3F cn = solver->contact_normal[i];
         const float cnlen = lengthSqr( cn );
-        if( cnlen > FLT_EPSILON )
+        if( cnlen > 0.f )
         {
             const float restitution = solver->body_params.restitution[solver->body_index[i]];
 
+            if( restitution == 0.f )
+            {
+                int aa = 0;
+            }
+         
             cn = cn / ::sqrtf( cnlen );
             Vector3F vprep = projectVectorOnPlane( v, cn );
             v = ( v - vprep );
@@ -308,6 +316,7 @@ static void UpdateVelocities( Solver* solver, float deltaTime )
         }
 
         solver->v[i] = v;
+        solver->p0[i] = p1;
     }
 }
 static void WritePrevData( Solver* solver )
@@ -792,8 +801,10 @@ BodyId CreateBody( Solver* solver, u32 numParticles )
 {
     BodyIdInternal idi = CreateBodyInternal( solver, numParticles );
     BodyId id = ToBodyId( idi );
-    SetBodyParams( solver, id, BodyParams() );
-
+    SetFriction( solver, id, FrictionParams() );
+    SetRestitution( solver, id, 0.2f );
+    SetVelocityDamping( solver, id, 0.f );
+    
     return ToBodyId( idi );
 }
 
@@ -1008,29 +1019,76 @@ void Unmap( Solver* solver, void* ptr )
     // TODO: implement
 }
 
-bool GetBodyParams( BodyParams* params, const Solver* solver, BodyId id )
+//bool GetBodyParams( BodyParams* params, const Solver* solver, BodyId id )
+//{
+//    PHYSICS_VALIDATE_ID( false );
+//
+//    const BodyIdInternal idi = ToBodyIdInternal( id );
+//    const u32 i = idi.index;
+//    params->vel_damping      = solver->body_params.vdamping[i];
+//    params->static_friction  = solver->body_params.sfriction[i];
+//    params->dynamic_friction = solver->body_params.dfriction[i];
+//    params->restitution      = solver->body_params.restitution[i];
+//    return true;
+//}
+//
+//void SetBodyParams( Solver* solver, BodyId id, const BodyParams& params )
+//{
+//    PHYSICS_VALIDATE_ID_NO_RETURN;
+//
+//    const BodyIdInternal idi = ToBodyIdInternal( id );
+//    const u32 i = idi.index;
+//    solver->body_params.vdamping[i]     = params.vel_damping;
+//    solver->body_params.sfriction[i]    = params.static_friction;
+//    solver->body_params.dfriction[i]    = params.dynamic_friction;
+//    solver->body_params.restitution[i]  = params.restitution;
+//}
+
+FrictionParams GetFriction( Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID( FrictionParams() );
+
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    FrictionParams params;
+    params.static_value = solver->body_params.sfriction[idi.index];
+    params.dynamic_value= solver->body_params.dfriction[idi.index];
+
+    return params;
+}
+float GetRestitution( Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID( 0.f );
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    return solver->body_params.restitution[idi.index];
+}
+float GetVelocityDamping( Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID( 0.f );
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    return solver->body_params.vdamping[idi.index];
+}
+bool SetFriction( Solver* solver, BodyId id, const FrictionParams& params )
 {
     PHYSICS_VALIDATE_ID( false );
-
     const BodyIdInternal idi = ToBodyIdInternal( id );
-    const u32 i = idi.index;
-    params->vel_damping      = solver->body_params.vdamping[i];
-    params->static_friction  = solver->body_params.sfriction[i];
-    params->dynamic_friction = solver->body_params.dfriction[i];
-    params->restitution      = solver->body_params.restitution[i];
+    solver->body_params.dfriction[idi.index] = params.dynamic_value;
+    solver->body_params.sfriction[idi.index] = params.static_value;
+
     return true;
 }
-
-void SetBodyParams( Solver* solver, BodyId id, const BodyParams& params )
+bool SetRestitution( Solver* solver, BodyId id, float value )
 {
-    PHYSICS_VALIDATE_ID_NO_RETURN;
-
+    PHYSICS_VALIDATE_ID( false );
     const BodyIdInternal idi = ToBodyIdInternal( id );
-    const u32 i = idi.index;
-    solver->body_params.vdamping[i]     = params.vel_damping;
-    solver->body_params.sfriction[i]    = params.static_friction;
-    solver->body_params.dfriction[i]    = params.dynamic_friction;
-    solver->body_params.restitution[i]  = params.restitution;
+    solver->body_params.restitution[idi.index] = value;
+    return true;
+}
+bool  SetVelocityDamping( Solver* solver, BodyId id, float value )
+{
+    PHYSICS_VALIDATE_ID( false );
+    const BodyIdInternal idi = ToBodyIdInternal( id );
+    solver->body_params.vdamping[idi.index] = value;
+    return true;
 }
 
 void SetExternalForce( Solver* solver, BodyId id, const Vector3F& force )
@@ -1081,10 +1139,7 @@ BodyCoM GetBodyCoMDisplacement( Solver* solver, BodyId id )
     return c;
 }
 
-float GetParticleRadius( const Solver* solver )
-{
-    return solver->particle_radius;
-}
+
 
 }//
 }}//

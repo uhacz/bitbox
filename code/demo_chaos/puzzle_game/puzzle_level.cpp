@@ -33,7 +33,7 @@ void LevelState::OnStartUp()
     game_util::CreateDebugMaterials();
 
     physics::Create( &_solver, 1024 * 8, 0.2f );
-    physics::SetFrequency( _solver, 60 );
+    physics::SetFrequency( _solver, 120 );
     physics::Create( &_solver_gfx, _solver, _gfx_scene );
 
 
@@ -104,24 +104,14 @@ void LevelState::OnStartUp()
     Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(0.f) ), Vector3F( 0.f, a, 0.f ) );
     //_soft0 = physics::CreateSoftBox( _solver, soft_pose0, a,a,a, 1.f );
     _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F(a,a,a*2.f), 5.f );
-    {
-        physics::BodyParams params;
-        physics::GetBodyParams( &params, _solver, _soft0 );
-        params.static_friction = 1.f;
-        params.dynamic_friction = 0.8f;
-        physics::SetBodyParams( _solver, _soft0, params );
-    }
+    physics::SetFriction( _solver, _soft0, physics::FrictionParams(1.f, 0.8f) );
+    physics::SetRestitution( _solver, _soft0, 0.f );
 
     Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.f, a*4, 0.f ) );
     //_soft1 = physics::CreateSoftBox( _solver, soft_pose1, a,a,a, 3.f );
     _soft1 = physics::CreateBox( _solver, soft_pose1, Vector3F(a*10, a * 0.1f, a*2.f), 5.f );
-    {
-        physics::BodyParams params;
-        physics::GetBodyParams( &params, _solver, _soft1 );
-        params.static_friction = 1.f;
-        params.dynamic_friction = 0.8f;
-        physics::SetBodyParams( _solver, _soft1, params );
-    }
+    physics::SetFriction( _solver, _soft1, physics::FrictionParams( 1.f, 0.8f ) );
+    physics::SetRestitution( _solver, _soft1, 0.f );
 
     physics::AddBody( _solver_gfx, _soft0 );
     physics::AddBody( _solver_gfx, _soft1 );
@@ -142,6 +132,8 @@ void LevelState::OnStartUp()
         //else
           //  _rigid[i] = physics::CreateSphere( _solver, pose, rigidA, 2.f );
 
+        physics::SetFriction( _solver, _rigid[i], physics::FrictionParams( 0.5f, 0.8f ) );
+        physics::SetRestitution( _solver, _rigid[i], 1.f );
         physics::AddBody( _solver_gfx, _rigid[i] );
         physics::SetColor( _solver_gfx, _rigid[i], 0x00FF00FF );
     }
@@ -175,8 +167,8 @@ void LevelState::OnUpdate( const GameTime& time )
     PlayerCollectInput( _player, input, player_basis, time.delta_time_us );
     
     PlayerTick( &sctx, time.delta_time_us );
-    physics::Solve( _solver, 8, time.DeltaTimeSec() );
-    PlayerPostPhysicsTick( &sctx );
+    physics::Solve( _solver, 4, time.DeltaTimeSec() );
+    //PlayerPostPhysicsTick( &sctx );
 
     //for( size_t i = 0; i < NUM_ROPES; i++ )
     //{

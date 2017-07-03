@@ -9,13 +9,23 @@ namespace physics
 {
 
 
-struct BodyParams
+struct FrictionParams
 {
-    f32 vel_damping = 0.1f;
-    f32 static_friction = 0.1f;
-    f32 dynamic_friction = 0.1f;
-    f32 restitution = 0.2f;
+    f32 static_value = 0.1f;
+    f32 dynamic_value = 0.1f;
+    FrictionParams() {}
+    FrictionParams( f32 s, f32 d )
+        : static_value( s )
+        , dynamic_value( d )
+    {}
 };
+
+//struct BodyParams
+//{
+//    f32 vel_damping = 0.1f;
+//    FrictionParams friction;    
+//    f32 restitution = 0.2f;
+//};
 
 struct BodyCoM // center of mass
 {
@@ -36,11 +46,12 @@ struct ShapeMatchingCInfo
 };
 
 // ---
-void Create      ( Solver** solver, u32 maxParticles, float particleRadius = 0.1f );
-void Destroy     ( Solver** solver );
-void SetFrequency( Solver* solver, u32 freq );
-f32  GetFrequency( Solver* solver );
-void Solve       ( Solver* solver, u32 numIterations, float deltaTime );
+void  Create           ( Solver** solver, u32 maxParticles, float particleRadius = 0.1f );
+void  Destroy          ( Solver** solver );
+void  SetFrequency     ( Solver* solver, u32 freq );
+f32   GetFrequency     ( Solver* solver );
+float GetParticleRadius( const Solver* solver );
+void  Solve            ( Solver* solver, u32 numIterations, float deltaTime );
 
 // --- 
 BodyId CreateBody ( Solver* solver, u32 numParticles );
@@ -62,9 +73,17 @@ Vector3F* MapVelocity             ( Solver* solver, BodyId id );
 f32*      MapMassInv              ( Solver* solver, BodyId id );
 void      Unmap                   ( Solver* solver, void* ptr );
 
-float     GetParticleRadius( const Solver* solver );
-bool      GetBodyParams( BodyParams* params, const Solver* solver, BodyId id );
-void      SetBodyParams( Solver* solver, BodyId id, const BodyParams& params );
+
+//bool      GetBodyParams( BodyParams* params, const Solver* solver, BodyId id );
+//void      SetBodyParams( Solver* solver, BodyId id, const BodyParams& params );
+FrictionParams GetFriction       ( Solver* solver, BodyId id );
+float          GetRestitution    ( Solver* solver, BodyId id );
+float          GetVelocityDamping( Solver* solver, BodyId id );
+bool           SetFriction       ( Solver* solver, BodyId id, const FrictionParams& params );
+bool           SetRestitution    ( Solver* solver, BodyId id, float value );
+bool           SetVelocityDamping( Solver* solver, BodyId id, float value );
+
+
 void      SetExternalForce( Solver* solver, BodyId id, const Vector3F& force );
 void      AddExternalForce( Solver* solver, BodyId id, const Vector3F& force );
 void      SetBodySelfCollisions( Solver* solver, BodyId id, bool value );
