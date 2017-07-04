@@ -103,7 +103,7 @@ void LevelState::OnStartUp()
     const float a = 0.5f;
     Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(0.f) ), Vector3F( 0.f, a, 0.f ) );
     //_soft0 = physics::CreateSoftBox( _solver, soft_pose0, a,a,a, 1.f );
-    _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F(a,a,a*2.f), 5.f );
+    _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F(a,a,a*2.f), 0.f );
     physics::SetFriction( _solver, _soft0, physics::FrictionParams(1.f, 0.8f) );
     physics::SetRestitution( _solver, _soft0, 0.f );
 

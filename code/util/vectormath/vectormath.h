@@ -381,7 +381,11 @@ inline Vector3F projectVectorOnPlane( const Vector3F& vec, const Vector4F& plane
 {
     return projectVectorOnPlane( vec, plane.getXYZ() );
 }
-
+inline void splitVectorXZ_Y( Vector3F* xz, Vector3F* y, const Vector3F& v, const Vector3F& up )
+{
+    xz[0] = projectVectorOnPlane( v, up );
+    y[0] = v - xz[0];
+}
 
 inline Matrix3 computeBasis( const Vector3& n )
 {

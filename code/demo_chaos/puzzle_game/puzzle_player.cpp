@@ -42,9 +42,9 @@ struct PlayerData
 
     struct Params
     {
-        f32 move_speed = 10.f;
-        f32 velocity_damping = 0.9f;
-        f32 radius = 0.75f;
+        f32 move_speed = 20.f;
+        f32 velocity_damping = 0.99f;
+        f32 radius = 0.5f;
     }_params;
 
     bool IsAlive( id_t id ) const { return id_table::has( _id_table, id ); }
@@ -63,9 +63,9 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
 {
     physics::Solver* solver = sctx->phx_solver;
 
-    par_shapes_mesh* mesh   = par_shapes_create_subdivided_sphere( 1 );
+    par_shapes_mesh* mesh   = par_shapes_create_subdivided_sphere( 2 );
     //par_shapes_mesh* mesh = par_shapes_create_parametric_sphere( 16, 16 );
-    //par_shapes_mesh* mesh = par_shapes_create_octohedron();
+    //par_shapes_mesh* mesh = par_shapes_create_cube();
     physics::BodyId body_id = physics::CreateBody( solver, mesh->npoints );
 
     const Vector3F* mesh_points = (Vector3F*)mesh->points;
@@ -84,7 +84,7 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
     physics::Unmap( solver, body_w );
     physics::Unmap( solver, body_points );
 
-    physics::CalculateLocalPositions( solver, body_id, 0.51f );
+    physics::CalculateLocalPositions( solver, body_id, 0.251f );
 
     array_t< physics::DistanceCInfo >c_info;
     for( int i = 0; i < mesh->ntriangles; ++i )
@@ -111,7 +111,8 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
     par_shapes_free_mesh( mesh );
 
     physics::SetFriction( solver, body_id, physics::FrictionParams( 0.05f, 0.9f ) );
-    physics::SetVelocityDamping( solver, body_id, 0.5f );
+    physics::SetVelocityDamping( solver, body_id, 0.0f );
+    physics::SetRestitution( solver, body_id, 0.f );
 
     return body_id;
 }
@@ -191,15 +192,10 @@ namespace
         return move_vector_ws_flat;
     }
 
-    static void _SplitVelocityXZ_Y( Vector3F* velXZ, Vector3F* velY, const Vector3F& vel, const Vector3F& upDir )
-    {
-        velXZ[0] = projectVectorOnPlane( vel, upDir );
-        velY[0] = vel - velXZ[0];
-    }
     static Vector3F _ApplySpeedLimitXZ( const Vector3F& vel, const Vector3F& upDir, float spdLimit )
     {
         Vector3F velXZ, velY;
-        _SplitVelocityXZ_Y( &velXZ, &velY, vel, upDir );
+        splitVectorXZ_Y( &velXZ, &velY, vel, upDir );
         {
             const float spd = length( velXZ );
             const float velScaler = ( spdLimit / spd );
@@ -255,42 +251,119 @@ namespace
         physics::Unmap( solver, vel );
     }
 #endif
-    
-
-    void _PlayerUpdate( u32 index, const PlayerInput& input, const Matrix3F& basis, float deltaTimeS )
+    void _PlayerUpdateAfterPhysics( u32 index, physics::Solver* solver, float deltaTimeS )
     {
-        const float velocity_damping = ::powf( 1.f - gData._params.velocity_damping, deltaTimeS );
+        const physics::BodyId body_id = gData._body_id[index];
+        const physics::BodyCoM body_com   = physics::GetBodyCoM( solver, body_id );
+        const physics::BodyCoM body_displ = physics::GetBodyCoMDisplacement( solver, body_id );
 
-        Vector3F move_vec_ls = _ComputePlayerLocalMoveVector( input );
-        Vector3F move_vec_ws = _ComputePlayerWorldMoveVector( move_vec_ls, basis, gData._up_dir );
+        const float interpolation_factor = FLT_EPSILON;
+        const float alpha = 1.f - ::powf( interpolation_factor, deltaTimeS );
 
-        // --- this value is form 0 to 1 range
-        const float move_vec_ls_len = minOfPair( length( move_vec_ls ), 1.f );
-        const float curr_move_speed = gData._params.move_speed * move_vec_ls_len;
+        const Vector3F& up = gData._up_dir;
 
-        const Vector3F curr_vel = gData._velocity[index];
-        const Vector3F acc = ( move_vec_ws * curr_move_speed );
+        PlayerPose& pose = gData._pose[index];
+        Vector3F dir = fastRotate( pose.rot, Vector3F::zAxis() );
 
-        Vector3F vel = curr_vel + acc * deltaTimeS;
-
-        // --- velocity damping
-        if( lengthSqr( move_vec_ws ) <= 0.1f )
+        if( lengthSqr( body_displ.pos ) > FLT_EPSILON )
         {
-            vel *= velocity_damping;
-        }
-        else
-        {
-            const float d = maxOfPair( 0.f, dot( normalizeSafe( curr_vel ), normalizeSafe( acc ) ) );
-            const float damping = lerp( d*d, velocity_damping, 1.f );
-            vel *= damping;
+            Vector3F next_dir = normalize( body_displ.pos );
+            dir = normalizeSafeF( lerp( alpha, dir, next_dir ) );
         }
 
-        vel = _ApplySpeedLimitXZ( vel, gData._up_dir, curr_move_speed );
-
-        gData._pose[index].pos += vel * deltaTimeS;
-        gData._velocity[index] = vel;
+        Vector3F side = normalize( cross( up, dir ) );
+        Matrix3F rot = Matrix3F( side, up, dir );
+        pose.rot = QuatF( rot );
+        pose.pos = body_com.pos; // lerp( alpha, pose.pos, body_com.pos );
+        gData._velocity[index] = body_displ.pos / deltaTimeS;
     }
 
+    //void _PlayerUpdate( u32 index, const PlayerInput& input, const Matrix3F& basis, float deltaTimeS )
+    //{
+    //    const float velocity_damping = ::powf( 1.f - gData._params.velocity_damping, deltaTimeS );
+
+    //    Vector3F move_vec_ls = _ComputePlayerLocalMoveVector( input );
+    //    Vector3F move_vec_ws = _ComputePlayerWorldMoveVector( move_vec_ls, basis, gData._up_dir );
+
+    //    // --- this value is form 0 to 1 range
+    //    const float move_vec_ls_len = minOfPair( length( move_vec_ls ), 1.f );
+    //    const float curr_move_speed = gData._params.move_speed * move_vec_ls_len;
+
+    //    const Vector3F curr_vel = gData._velocity[index];
+    //    const Vector3F acc = ( move_vec_ws * curr_move_speed );
+
+    //    Vector3F vel = curr_vel + acc * deltaTimeS;
+
+    //    // --- velocity damping
+    //    if( lengthSqr( move_vec_ws ) <= 0.1f )
+    //    {
+    //        vel *= velocity_damping;
+    //    }
+    //    else
+    //    {
+    //        const float d = maxOfPair( 0.f, dot( normalizeSafe( curr_vel ), normalizeSafe( acc ) ) );
+    //        const float damping = lerp( d*d, velocity_damping, 1.f );
+    //        vel *= damping;
+    //    }
+
+    //    vel = _ApplySpeedLimitXZ( vel, gData._up_dir, curr_move_speed );
+
+    //    gData._pose[index].pos += vel * deltaTimeS;
+    //    gData._velocity[index] = vel;
+    //}
+    //void _PlayerUpdate( u32 index, float deltaTimeS )
+    //{
+    //    const PlayerInput& input = gData._input[index];
+    //    const Matrix3F& basis = gData._input_basis[index];
+    //    _PlayerUpdate( index, input, basis, deltaTimeS );
+    //}
+
+    static void _PlayerDrivePhysics( u32 i, physics::Solver* solver, float deltaTimeS )
+    {
+        PlayerInput pin;
+        Matrix3F basis;
+        u32 back_index = BackIndex( gData._pose_buffer[i] );
+        if( PeekInput( &pin, &basis, gData._pose_buffer[i], back_index ) )
+        {
+            Vector3F move_vec_ls = _ComputePlayerLocalMoveVector( pin );
+            Vector3F move_vec_ws = _ComputePlayerWorldMoveVector( move_vec_ls, basis, gData._up_dir );
+
+
+            physics::BodyId body_id = gData._body_id[i];
+
+            { // --- damping manipulation
+                const float vdamping = ( lengthSqr( move_vec_ls ) < 0.1f ) ? gData._params.velocity_damping : 0.f;
+                physics::SetVelocityDamping( solver, body_id, vdamping );
+            }
+            
+
+
+            // --- this value is form 0 to 1 range
+            const float move_vec_ls_len = minOfPair( length( move_vec_ls ), 1.f );
+            const float curr_move_speed = gData._params.move_speed * move_vec_ls_len;
+
+            const Vector3F acc = ( move_vec_ws * curr_move_speed );
+            
+            //physics::SetExternalForce( solver, body_id, acc );
+            const u32 n_particles = physics::GetNbParticles( solver, body_id );
+            Vector3F* vel = physics::MapVelocity( solver, body_id );
+
+            //const float player_speed = length( gData._velocity[i] );
+            //const float dist_to_travel = length( acc );
+            for( u32 iparticle = 0; iparticle < n_particles; ++iparticle )
+            {
+                Vector3F v = vel[iparticle];
+                v += acc * deltaTimeS;
+
+                //if( length( v*deltaTimeS ) > dist_to_travel )
+                //    v = normalize( v ) * dist_to_travel;
+                v = _ApplySpeedLimitXZ( v, gData._up_dir, gData._params.move_speed );
+                vel[iparticle] = v;
+            }
+
+            physics::Unmap( solver, vel );
+        }
+    }
     static void _PlayerInterpolatePose( u32 index )
     {
         const float frameAlpha = gData._delta_time_acc / Const::FIXED_DT;
@@ -309,59 +382,11 @@ namespace
 
         gData._interpolated_pose[index] = interpolated_pose;
     }
-
-    static void _PlayerDrivePhysics( u32 i, physics::Solver* solver, float deltaTimeS )
-    {
-        PlayerInput pin;
-        Matrix3F basis;
-        u32 back_index = BackIndex( gData._pose_buffer[i] );
-        if( PeekInput( &pin, &basis, gData._pose_buffer[i], back_index ) )
-        {
-            Vector3F move_vec_ls = _ComputePlayerLocalMoveVector( pin );
-            Vector3F move_vec_ws = _ComputePlayerWorldMoveVector( move_vec_ls, basis, gData._up_dir );
-
-            // --- this value is form 0 to 1 range
-            const float move_vec_ls_len = minOfPair( length( move_vec_ls ), 1.f );
-            const float curr_move_speed = gData._params.move_speed * move_vec_ls_len;
-
-            const Vector3F acc = ( move_vec_ws * curr_move_speed );
-            physics::BodyId body_id = gData._body_id[i];
-            //physics::SetExternalForce( solver, body_id, acc );
-            const u32 n_particles = physics::GetNbParticles( solver, body_id );
-            Vector3F* vel = physics::MapVelocity( solver, body_id );
-
-            //const float player_speed = length( gData._velocity[i] );
-            //const float dist_to_travel = length( acc );
-            for( u32 iparticle = 0; iparticle < n_particles; ++iparticle )
-            {
-                Vector3F v = vel[iparticle];
-                v += acc * deltaTimeS;
-
-                //if( length( v*deltaTimeS ) > dist_to_travel )
-                //    v = normalize( v ) * dist_to_travel;
-
-                vel[iparticle] = v;
-            }
-
-            physics::Unmap( solver, vel );
-        }
-    }
-
-    void _PlayerUpdate( u32 index, float deltaTimeS )
-    {
-        const PlayerInput& input = gData._input[index];
-        const Matrix3F& basis    = gData._input_basis[index];
-        _PlayerUpdate( index, input, basis, deltaTimeS );
-    }
 }
 
 
 void PlayerTick( SceneCtx* sctx, u64 deltaTimeUS )
 {
-    //TODO: 
-    //      shape physics
-    //      collisions
-
     u32 alive_indices[Const::MAX_PLAYERS] = {};
     u32 num_alive = 0;
     for( u32 i = 0; i < Const::MAX_PLAYERS; ++i )
@@ -388,15 +413,15 @@ void PlayerTick( SceneCtx* sctx, u64 deltaTimeUS )
     for( u32 ialive = 0; ialive < num_alive; ++ialive )
     {
         const u32 i = alive_indices[ialive];
-        for( u32 it = 0; it < iteration_count; ++it )
-        {
-            _PlayerWriteBuffer( i );
-            _PlayerUpdate( i, Const::FIXED_DT );
-        }
-
-        _PlayerInterpolatePose( i );
+        _PlayerWriteBuffer( i );
         _PlayerDrivePhysics( i, sctx->phx_solver, delta_time_s );
 
+        for( u32 it = 0; it < iteration_count; ++it )
+        {
+            //_PlayerUpdate( i, Const::FIXED_DT );
+            _PlayerUpdateAfterPhysics( i, sctx->phx_solver, Const::FIXED_DT );
+        }
+        _PlayerInterpolatePose( i );
     }
 
     gData._delta_time_us = deltaTimeUS;

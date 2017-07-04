@@ -265,6 +265,7 @@ static void PredictPositions( Solver* solver, const Body& body, f32 vdamping, co
 
     const float damping_coeff = ::powf( 1.f - vdamping, deltaTime );
     const Vector3F gravityDV = gravityAcc * deltaTime;
+    const Vector3F gravity_dir = normalizeSafeF( gravityAcc );
     const Vector3F extForceDV = extForce * deltaTime;
     for( u32 i = pbegin; i < pend; ++i )
     {
@@ -274,7 +275,12 @@ static void PredictPositions( Solver* solver, const Body& body, f32 vdamping, co
 
         v += gravityDV;
         v += extForceDV * w;
-        v *= damping_coeff;
+
+        // --- prevent damping velocity in gravity direction
+        Vector3F vxz, vy;
+        splitVectorXZ_Y( &vxz, &vy, v, gravity_dir );
+        vxz *= damping_coeff;
+        v = vxz + vy;
 
         p += v * deltaTime;
 
@@ -915,7 +921,7 @@ void CalculateLocalPositions( Solver* solver, BodyId id, float stiffness )
     for( u32 i = body.begin; i < body_end; ++i )
     {
         ShapeMatchingC c;
-        c.mass = ( mass_inv[i] > FLT_EPSILON ) ? 1.f / mass_inv[i] : 0.f;
+        c.mass = ( mass_inv[i] > FLT_EPSILON ) ? 1.f / mass_inv[i] : 1.f;
         c.rest_pos = (rest_positions[i] - shape_offset) - com;
         array::push_back( sm_out_array, c );
     }
