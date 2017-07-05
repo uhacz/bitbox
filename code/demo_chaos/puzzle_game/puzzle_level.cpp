@@ -107,9 +107,9 @@ void LevelState::OnStartUp()
     physics::SetFriction( _solver, _soft0, physics::FrictionParams(1.f, 0.8f) );
     physics::SetRestitution( _solver, _soft0, 0.f );
 
-    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.f, a*4, 0.f ) );
-    //_soft1 = physics::CreateSoftBox( _solver, soft_pose1, a,a,a, 3.f );
+    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.5f, a*40, 0.f ) );
     _soft1 = physics::CreateBox( _solver, soft_pose1, Vector3F(a*10, a * 0.1f, a*2.f), 5.f );
+    //_soft1 = physics::CreateSphere( _solver, soft_pose1, a*2, 5.f, 4 );
     physics::SetFriction( _solver, _soft1, physics::FrictionParams( 1.f, 0.8f ) );
     physics::SetRestitution( _solver, _soft1, 0.f );
 
@@ -122,18 +122,18 @@ void LevelState::OnStartUp()
     for( u32 i = 0; i < NUM_RIGID; ++i )
     {
         const float x = -(float)NUM_RIGID * 0.25f;// +(float)i*1.1f;
-        const float y = rigidA + i * rigidA*2.5f;
+        const float y = rigidA + i * rigidA*2.f;
 
         //Matrix4F pose = Matrix4F( Matrix3F::rotationZYX( Vector3F( i*0.1f*PI, i*0.2f*PI, PI / 4 ) ), Vector3F( x, y, 0.f ) );
         Matrix4F pose = Matrix4F( Matrix3F::identity(), Vector3F( x, y, 2.f ) );
         //_rigid[i] = physics::CreateSoftBox( _solver, pose, rigidA,rigidA,rigidA, 1.f );
         //if( i % 2 )
-            _rigid[i] = physics::CreateBox( _solver, pose, Vector3F( rigidA ), 5.f*(i+1) );
+            _rigid[i] = physics::CreateBox( _solver, pose, Vector3F( rigidA ), 1.f );
         //else
           //  _rigid[i] = physics::CreateSphere( _solver, pose, rigidA, 2.f );
 
-        physics::SetFriction( _solver, _rigid[i], physics::FrictionParams( 0.5f, 0.8f ) );
-        physics::SetRestitution( _solver, _rigid[i], 1.f );
+        physics::SetFriction( _solver, _rigid[i], physics::FrictionParams( 0.0f, 0.0f ) );
+        physics::SetRestitution( _solver, _rigid[i], 0.f );
         physics::AddBody( _solver_gfx, _rigid[i] );
         physics::SetColor( _solver_gfx, _rigid[i], 0x00FF00FF );
     }

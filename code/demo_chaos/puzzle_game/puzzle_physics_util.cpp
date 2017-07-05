@@ -265,7 +265,7 @@ BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& sc
             for( int z = 0; z < max_dim; ++z )
             {
                 const int index = z*max_dim*max_dim + y*max_dim + x;
-
+                indices[index] = UINT32_MAX;
                 if( !voxels[index] )
                     continue;
 
@@ -286,8 +286,59 @@ BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& sc
                 body_mass_inv[body_particle_index] = particle_mass_inv;
                 
                 array::push_back( sdf_data, nrm_ls );
+                indices[index] = body_particle_index;
+
                 body_particle_index += 1;
             }
+        }
+    }
+
+
+    const float springStiffness = 1.f;
+    if( springStiffness > 0.0f )
+    {
+        array_t<DistanceCInfo> cinfo_array;
+        // construct cross link springs to occupied cells
+        for( int x = 0; x < max_dim; ++x )
+        {
+            for( int y = 0; y < max_dim; ++y )
+            {
+                for( int z = 0; z < max_dim; ++z )
+                {
+                    const int centerCell = z*max_dim*max_dim + y*max_dim + x;
+
+                    // if voxel is marked as occupied the add a particle
+                    if( voxels[centerCell] )
+                    {
+                        const int width = 1;
+
+                        // create springs to all the neighbors within the width
+                        for( int i = x - width; i <= x + width; ++i )
+                        {
+                            for( int j = y - width; j <= y + width; ++j )
+                            {
+                                for( int k = z - width; k <= z + width; ++k )
+                                {
+                                    const int neighborCell = k*max_dim*max_dim + j*max_dim + i;
+
+                                    if( neighborCell > 0 && neighborCell < int( voxels.capacity ) && voxels[neighborCell] && neighborCell != centerCell )
+                                    {
+                                        DistanceCInfo cinfo;
+                                        cinfo.i0 = indices[centerCell];
+                                        cinfo.i1 = indices[neighborCell];
+                                        array::push_back( cinfo_array, cinfo );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if( cinfo_array.size )
+        {
+            SetDistanceConstraints( solver, id, cinfo_array.begin(), cinfo_array.size, springStiffness );
         }
     }
 
@@ -303,31 +354,58 @@ BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& sc
 }
 
 
+//
+//BodyId CreateFromPolyShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const bxPolyShape& shape, float particleMass, float spacingFactor, float jitter )
+//{
+//    const Vector3F* positions = (Vector3F*)shape.positions;
+//    const u32* indices = shape.indices;
+//    BodyId id = CreateFromShape( solver, pose, scale, positions, shape.num_vertices, indices, shape.num_indices, particleMass, spacingFactor, jitter );
+//    
+//    return id;
+//}
 
-BodyId CreateFromPolyShape( Solver* solver, const Matrix4F& pose, const Vector3F& scale, const bxPolyShape& shape, float particleMass, float spacingFactor, float jitter )
+BodyId CreateFromParShapes( Solver* solver, const Matrix4F& pose, const Vector3F& scale, par_shapes_mesh* mesh, float particleMass, float spacingFactor, float jitter )
 {
-    const Vector3F* positions = (Vector3F*)shape.positions;
-    const u32* indices = shape.indices;
-    BodyId id = CreateFromShape( solver, pose, scale, positions, shape.num_vertices, indices, shape.num_indices, particleMass, spacingFactor, jitter );
+    array_t<u32> indices32;
+    array::reserve( indices32, mesh->ntriangles * 3 );
+    for( int i = 0; i < mesh->ntriangles * 3; ++i )
+        array::push_back( indices32, (u32)mesh->triangles[i] );
+
+
+    ParShapesMeshMakeSymetric( mesh );
     
+    const Vector3F* points = (Vector3F*)mesh->points;
+    const u32 npoints = mesh->npoints;
+    const u32* indices = indices32.begin();
+    const u32  nindices = indices32.size;
+    
+    BodyId id = CreateFromShape( solver, pose, scale, points, npoints, indices, nindices, particleMass, 1.5f, 0.f );
     return id;
 }
+
 
 BodyId CreateBox( Solver* solver, const Matrix4F& pose, const Vector3F& extents, float particleMass )
 {
-    bxPolyShape shape;
-    bxPolyShape_createBox( &shape, 1 );
-    BodyId id = CreateFromPolyShape( solver, pose, extents*2.f, shape, particleMass, 1.5f, 0.f );
-    bxPolyShape_deallocateShape( &shape );
+    par_shapes_mesh* mesh = par_shapes_create_cube();
+    BodyId id = CreateFromParShapes( solver, pose, extents*2.f, mesh, particleMass, 1.5f, 0.f );
+    par_shapes_free_mesh( mesh );
+
+    //bxPolyShape shape;
+    //bxPolyShape_createBox( &shape, 1 );
+    //BodyId id = CreateFromPolyShape( solver, pose, extents*2.f, shape, particleMass, 1.5f, 0.f );
+    //bxPolyShape_deallocateShape( &shape );
     return id;
 }
 
-BodyId CreateSphere( Solver* solver, const Matrix4F& pose, float radius, float particleMass )
+BodyId CreateSphere( Solver* solver, const Matrix4F& pose, float radius, float particleMass, int subdiv )
 {
-    bxPolyShape shape;
-    bxPolyShape_createShpere( &shape, 16 );
-    BodyId id = CreateFromPolyShape( solver, pose, Vector3F(radius*2.f), shape, particleMass, 1.f, 0.005f );
-    bxPolyShape_deallocateShape( &shape );
+    par_shapes_mesh* mesh = par_shapes_create_subdivided_sphere( subdiv );
+    BodyId id = CreateFromParShapes( solver, pose, Vector3F( radius *2.f ), mesh, particleMass, 1.5f, 0.f );
+    par_shapes_free_mesh( mesh );
+    //bxPolyShape shape;
+    //bxPolyShape_createShpere( &shape, 16 );
+    //BodyId id = CreateFromPolyShape( solver, pose, Vector3F(radius*2.f), shape, particleMass, 1.f, 0.005f );
+    //bxPolyShape_deallocateShape( &shape );
     return id;
 }
 

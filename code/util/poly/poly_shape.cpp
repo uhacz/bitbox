@@ -663,6 +663,15 @@ void bxPolyShape_computeTangentSpace( bxPolyShape* shape )
 }
 
 //////////////////////////////////////////////////////////////////////////
+void ParShapesMeshMakeSymetric( par_shapes_mesh* mesh )
+{
+    Vector3F aabb[2];
+    par_shapes_compute_aabb( mesh, &aabb[0].x );
+    Vector3F offset = ( aabb[1] - aabb[0] ) * 0.5f;
+    par_shapes_translate( mesh, -offset.x, -offset.y, -offset.z );
+}
+
+//////////////////////////////////////////////////////////////////////////
 /// debug code
 /*
 static picoPolyShape::bxPolyShape pBox;

@@ -10,7 +10,7 @@
 #include <util\id_table.h>
 #include <util\array.h>
 #include <util\time.h>
-#include <util\poly\par_shapes.h>
+#include <util/poly/poly_shape.h>
 #include <rdi\rdi_debug_draw.h>
 
 #include "../imgui/imgui.h"
@@ -64,18 +64,20 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
     physics::Solver* solver = sctx->phx_solver;
 
     par_shapes_mesh* mesh   = par_shapes_create_subdivided_sphere( 2 );
-    //par_shapes_mesh* mesh = par_shapes_create_parametric_sphere( 16, 16 );
-    //par_shapes_mesh* mesh = par_shapes_create_cube();
+
     physics::BodyId body_id = physics::CreateBody( solver, mesh->npoints );
 
     const Vector3F* mesh_points = (Vector3F*)mesh->points;
     Vector3F* body_points       = physics::MapPosition( solver, body_id );
     f32* body_w                 = physics::MapMassInv( solver, body_id );
 
+    const float pradius = physics::GetParticleRadius( solver );
+    const Vector3F init_pos = pp.pos + gData._up_dir*(radius + pradius);
+
     for( int i = 0; i < mesh->npoints; ++i )
     {
         const Vector3F& pos_ls = mesh_points[i] * radius;
-        const Vector3F pos_ws = fastTransform( pp.rot, pp.pos, pos_ls );
+        const Vector3F pos_ws = fastTransform( pp.rot, init_pos, pos_ls );
 
         body_points[i] = pos_ws;
         body_w[i] = 0.1f;
@@ -84,7 +86,7 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
     physics::Unmap( solver, body_w );
     physics::Unmap( solver, body_points );
 
-    physics::CalculateLocalPositions( solver, body_id, 0.251f );
+    physics::CalculateLocalPositions( solver, body_id, 1.0f );
 
     array_t< physics::DistanceCInfo >c_info;
     for( int i = 0; i < mesh->ntriangles; ++i )
@@ -112,7 +114,7 @@ static physics::BodyId CreatePlayerPhysics( SceneCtx* sctx, const PlayerPose& pp
 
     physics::SetFriction( solver, body_id, physics::FrictionParams( 0.05f, 0.9f ) );
     physics::SetVelocityDamping( solver, body_id, 0.0f );
-    physics::SetRestitution( solver, body_id, 0.f );
+    physics::SetRestitution( solver, body_id, 1.f );
 
     return body_id;
 }

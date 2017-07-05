@@ -301,20 +301,22 @@ static void UpdateVelocities( Solver* solver, float deltaTime )
 
         Vector3F v = ( p1 - p0 ) * delta_time_inv;
         
-
-        
         Vector3F cn = solver->contact_normal[i];
         const float cnlen = lengthSqr( cn );
         if( cnlen > 0.f )
         {
             const float restitution = solver->body_params.restitution[solver->body_index[i]];
-
-            if( restitution == 0.f )
-            {
-                int aa = 0;
-            }
-         
             cn = cn / ::sqrtf( cnlen );
+            //float cn_dot_v = dot( cn, v );
+            //if( cn_dot_v < 0.f )
+            //{
+            //    v = -v;
+            //    cn_dot_v = -cn_dot_v;
+            //}
+            //
+            //v = v - cn*cn_dot_v*2.f;
+            
+            //
             Vector3F vprep = projectVectorOnPlane( v, cn );
             v = ( v - vprep );
             v *= restitution;
@@ -1128,7 +1130,7 @@ BodyCoM GetBodyCoM( Solver* solver, BodyId id )
 {
     PHYSICS_VALIDATE_ID( BodyCoM() );
     const BodyIdInternal idi = ToBodyIdInternal( id );
-    return solver->body_com1[idi.index];
+    return solver->body_comi[idi.index];
 }
 
 BodyCoM GetBodyCoMDisplacement( Solver* solver, BodyId id )

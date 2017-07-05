@@ -74,6 +74,9 @@ void bxPolyShape_createCapsule( bxPolyShape* shape, int surfaces[6], int vertexC
 
 
 #include "par_shapes.h"
+void ParShapesMeshMakeSymetric( par_shapes_mesh* mesh );
+
+
 
 //struct Grid3D
 //{
