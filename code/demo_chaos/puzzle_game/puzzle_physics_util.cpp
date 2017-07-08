@@ -410,3 +410,59 @@ BodyId CreateSphere( Solver* solver, const Matrix4F& pose, float radius, float p
 }
 
 }}}///
+
+
+
+#include "../imgui/imgui.h"
+namespace bx {namespace puzzle {
+namespace physics
+{
+
+void ShowGUI( Solver* solver )
+{
+    if( !ImGui::Begin( "Solver Edit" ) )
+    {
+        ImGui::End();
+        return;
+    }
+
+    const u32 n_bodies = GetNbBodies( solver );
+
+    ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 2, 2 ) );
+    ImGui::Columns( 2 );
+    ImGui::Separator();
+        
+    for( u32 i = 0; i < n_bodies; ++i )
+    {
+        const BodyId body_id = GetBodyId( solver, i );
+        const char* body_name = GetName( solver, body_id );
+            
+        ImGui::PushID( body_id.i );                      // Use object uid as identifier. Most commonly you could also use the object pointer as a base ID.
+        ImGui::AlignFirstTextHeightToWidgets();         // Text and Tree nodes are less high than regular widgets, here we add vertical spacing to make the tree lines equal high.
+        bool node_open = ImGui::TreeNode( "Object", "%s", body_name );
+
+        ImGui::NextColumn();
+        ImGui::AlignFirstTextHeightToWidgets();
+        if( ImGui::Button( "Delete" ) )
+        {
+            DestroyBody( solver, body_id );
+        }
+            
+        ImGui::NextColumn();
+
+        if( node_open )
+        {
+            
+            ImGui::TreePop();
+        }
+
+        ImGui::PopID();
+    }
+
+    ImGui::Columns( 1 );
+    ImGui::Separator();
+    ImGui::PopStyleVar();
+    ImGui::End();
+}
+
+}}}///

@@ -19,5 +19,12 @@ BodyId CreateFromShape( Solver* solver, const Matrix4F& pose, const Vector3F& sc
 BodyId CreateBox( Solver* solver, const Matrix4F& pose, const Vector3F& extents, float particleMass );
 BodyId CreateSphere( Solver* solver, const Matrix4F& pose, float radius, float particleMass, int subdiv = 1 );
 
-
 }}}//
+
+namespace bx {namespace puzzle {
+namespace physics
+{
+
+void ShowGUI( Solver* solver );
+
+}}}///

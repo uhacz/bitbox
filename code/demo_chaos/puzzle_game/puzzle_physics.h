@@ -1,6 +1,8 @@
 #pragma once
 
 #include <util/vectormath/vectormath.h>
+#include <util/bbox.h>
+
 #include "puzzle_physics_type.h"
 
 namespace bx { namespace puzzle {
@@ -20,18 +22,13 @@ struct FrictionParams
     {}
 };
 
-//struct BodyParams
-//{
-//    f32 vel_damping = 0.1f;
-//    FrictionParams friction;    
-//    f32 restitution = 0.2f;
-//};
-
 struct BodyCoM // center of mass
 {
     QuatF rot = QuatF::identity();
     Vector3F pos = Vector3F( 0.f );
 };
+using BodyAABB = AABBF;
+
 
 struct DistanceCInfo
 {
@@ -54,16 +51,19 @@ float GetParticleRadius( const Solver* solver );
 void  Solve            ( Solver* solver, u32 numIterations, float deltaTime );
 
 // --- 
-BodyId CreateBody ( Solver* solver, u32 numParticles );
-void   DestroyBody( Solver* solver, BodyId id );
-bool   IsBodyAlive( Solver* solver, BodyId id );
+BodyId      CreateBody ( Solver* solver, u32 numParticles, const char* name = nullptr );
+void        DestroyBody( Solver* solver, BodyId id );
+bool        IsBodyAlive( Solver* solver, BodyId id );
+void        SetName    ( Solver* solver, BodyId id, const char* name );
+const char* GetName    ( Solver* solver, BodyId id );
+
+u32         GetNbBodies( Solver* solver );
+BodyId      GetBodyId  ( Solver* solver, u32 index );
+
 // ---
 void     SetDistanceConstraints ( Solver* solver, BodyId id, const DistanceCInfo* constraints, u32 numConstraints, float stiffness = 1.f );
 void     CalculateLocalPositions( Solver* solver, BodyId id, float stiffness = 1.f );
 void     SetSDFData             ( Solver* solver, BodyId id, const Vector4F* sdfData, u32 count );
-
-
-
 
 // --- 
 u32       GetNbParticles          ( Solver* solver, BodyId id );

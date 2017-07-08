@@ -5,11 +5,13 @@
 #include <util/array.h>
 #include <util/id_table.h>
 #include <util/math.h>
+#include <util/string_util.h>
 
 #include <rdi/rdi_debug_draw.h>
 #include "puzzle_physics_pbd.h"
 
 #include "../imgui/imgui.h"
+#include "util/common.h"
 
 namespace bx { namespace puzzle {
 
@@ -35,6 +37,16 @@ union BodyIdInternal
     };
 };
 static inline bool operator == ( const BodyIdInternal a, const BodyIdInternal b ) { return a.i == b.i; }
+
+struct BodyName
+{
+    enum : u32
+    {
+        LENGTH = 127,
+        CAPACITY = LENGTH + 1,
+    };
+    char str[CAPACITY] = {};
+};
 
 
 #define _PHYSICS_VALIDATE_ID( returnValue ) \
@@ -88,8 +100,10 @@ struct Solver
     BodyCoM    body_com0     [EConst::MAX_BODIES];
     BodyCoM    body_com1     [EConst::MAX_BODIES];
     BodyCoM    body_comi     [EConst::MAX_BODIES];
+    BodyAABB   body_aabb     [EConst::MAX_BODIES];
     Vector3F   body_ext_force[EConst::MAX_BODIES];
     u8         body_flags    [EConst::MAX_BODIES];
+    BodyName   body_name     [EConst::MAX_BODIES];
 
     struct  
     {
@@ -133,8 +147,8 @@ struct Solver
 
     u32 Capacity() const { return p0.capacity; }
     u32 Size    () const { return p0.size; }
-
 };
+
 namespace
 {
 
@@ -364,7 +378,25 @@ static void InterpolatePositions( Solver* solver )
     }
 
 }
+static void ComputeAABB( Solver* solver )
+{
+    const u32 n_active = solver->active_bodies_count;
+    for( u32 i = 0; i < n_active; ++i )
+    {
+        const BodyIdInternal idi = solver->active_bodies_idi[i];
+        const Body& body = solver->bodies[idi.index];
+        
 
+        const u32 body_end = body.begin + body.count;
+        BodyAABB aabb = BodyAABB::prepare();
+        for( u32 i = body.begin; i < body_end; ++i )
+        {
+            const Vector3F& p = solver->x[i];
+            aabb = BodyAABB::extend( aabb, p );
+        }
+        solver->body_aabb[idi.index] = aabb;
+    }
+}
 static void GenerateCollisionConstraints( Solver* solver )
 {
     const float pradius2 = solver->particle_radius*2.f;
@@ -733,8 +765,6 @@ static void SolveInternal( Solver* solver, u32 numIterations )
         const Vector3F& ext_force = solver->body_ext_force[idi.index];
 
         PredictPositions( solver, body, vdamping, gravity_acc, ext_force, deltaTime );
-
-        
     }
 
     for( u32 i = 0; i < n_active; ++i )
@@ -777,6 +807,7 @@ void Solve( Solver* solver, u32 numIterations, float deltaTime )
     }
 
     InterpolatePositions( solver );
+    ComputeAABB( solver );
 
 }
 
@@ -805,7 +836,7 @@ namespace
         return idi;
     }
 }
-BodyId CreateBody( Solver* solver, u32 numParticles )
+BodyId CreateBody( Solver* solver, u32 numParticles, const char* name )
 {
     BodyIdInternal idi = CreateBodyInternal( solver, numParticles );
     BodyId id = ToBodyId( idi );
@@ -813,6 +844,15 @@ BodyId CreateBody( Solver* solver, u32 numParticles )
     SetRestitution( solver, id, 0.2f );
     SetVelocityDamping( solver, id, 0.f );
     
+    char name_buff[64];
+    const char* name_ptr = name;
+    if( !name_ptr )
+    {
+        snprintf( name_buff, 64, "Body_%u.%u", idi.id, idi.index );
+        name_ptr = name_buff;
+    }
+    SetName( solver, id, name_ptr );
+
     return ToBodyId( idi );
 }
 
@@ -836,6 +876,41 @@ bool IsBodyAlive( Solver * solver, BodyId id )
     return id_table::has( solver->id_tbl, idi );
 }
 
+
+void SetName( Solver* solver, BodyId id, const char* name )
+{
+    PHYSICS_VALIDATE_ID_NO_RETURN;
+    BodyIdInternal idi = ToBodyIdInternal( id );
+
+    const u32 name_len = string::length( name );
+    if( name_len >= BodyName::LENGTH )
+    {
+        bxLogWarning( "Body name is to long. Name '%s' will be truncated to propper size (%u chars)", name, BodyName::LENGTH );
+    }
+
+    BodyName& body_name = solver->body_name[idi.index];
+    const u32 len = minOfPair( name_len, (u32)BodyName::LENGTH );
+    memcpy( body_name.str, name, len );
+    body_name.str[len] = 0;
+}
+
+const char* GetName( Solver* solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID( nullptr );
+    BodyIdInternal idi = ToBodyIdInternal( id );
+    return solver->body_name[idi.index].str;
+}
+
+u32 GetNbBodies( Solver* solver )
+{
+    return solver->active_bodies_count;
+}
+BodyId GetBodyId( Solver* solver, u32 index )
+{
+    if( index >= solver->active_bodies_count )
+        return BodyIdInvalid();
+    return ToBodyId( solver->active_bodies_idi[index] );
+}
 
 namespace
 {

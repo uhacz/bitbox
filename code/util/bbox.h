@@ -10,6 +10,9 @@ struct AABBF
     AABBF( const Vector3F& a, const Vector3F& b )
         : min(a), max(b) {}
 
+    AABBF()
+        : min(-0.5f), max(0.5f) {}
+
     static inline AABBF prepare()
     {
         return AABBF( Vector3F( FLT_MAX ), Vector3F( -FLT_MAX ) );
