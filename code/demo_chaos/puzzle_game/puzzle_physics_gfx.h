@@ -9,8 +9,6 @@
 namespace bx { namespace puzzle {
 namespace physics
 {
-struct Gfx;
-
 void Create( Gfx** gfx, Solver* solver, gfx::Scene scene );
 void Destroy( Gfx** gfx );
 

@@ -409,16 +409,38 @@ BodyId CreateSphere( Solver* solver, const Matrix4F& pose, float radius, float p
     return id;
 }
 
-}}}///
+}
+
+}}///
 
 
 
 #include "../imgui/imgui.h"
+#include <rdi/rdi_debug_draw.h>
 namespace bx {namespace puzzle {
 namespace physics
 {
 
-void ShowGUI( Solver* solver )
+struct GUIContext
+{
+    Solver* solver = nullptr;
+    Gfx* gfx = nullptr;
+
+    BodyId selected_body_id = BodyIdInvalid();
+};
+void physics::Create( GUIContext ** gui, Solver * solver, Gfx * gfx )
+{
+    GUIContext* g = BX_NEW( bxDefaultAllocator(), GUIContext );
+    g->solver = solver;
+    g->gfx = gfx;
+
+    gui[0] = g;
+}
+void physics::Destroy( GUIContext ** gui )
+{
+    BX_DELETE0( bxDefaultAllocator(), gui[0] );
+}
+void ShowGUI( GUIContext* gui )
 {
     if( !ImGui::Begin( "Solver Edit" ) )
     {
@@ -426,12 +448,13 @@ void ShowGUI( Solver* solver )
         return;
     }
 
+    Solver* solver = gui->solver;
     const u32 n_bodies = GetNbBodies( solver );
 
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 2, 2 ) );
     ImGui::Columns( 2 );
     ImGui::Separator();
-        
+    
     for( u32 i = 0; i < n_bodies; ++i )
     {
         const BodyId body_id = GetBodyId( solver, i );
@@ -439,20 +462,29 @@ void ShowGUI( Solver* solver )
             
         ImGui::PushID( body_id.i );                      // Use object uid as identifier. Most commonly you could also use the object pointer as a base ID.
         ImGui::AlignFirstTextHeightToWidgets();         // Text and Tree nodes are less high than regular widgets, here we add vertical spacing to make the tree lines equal high.
-        bool node_open = ImGui::TreeNode( "Object", "%s", body_name );
+        
+        ImGuiTreeNodeFlags tree_flags = 0;
+        const bool is_body_id_selected = body_id == gui->selected_body_id;
+        if( is_body_id_selected )
+            tree_flags = ImGuiTreeNodeFlags_Selected;
 
-        ImGui::NextColumn();
-        ImGui::AlignFirstTextHeightToWidgets();
-        if( ImGui::Button( "Delete" ) )
-        {
-            DestroyBody( solver, body_id );
-        }
-            
-        ImGui::NextColumn();
+        ImGui::SetNextTreeNodeOpen( is_body_id_selected, ImGuiSetCond_Always );
+        bool node_open = ImGui::TreeNodeEx( "Object", tree_flags, "%s", body_name );
 
         if( node_open )
         {
+            ImGui::NextColumn();
+            ImGui::AlignFirstTextHeightToWidgets();
+            if( ImGui::Button( "Delete" ) )
+            {
+                DestroyBody( solver, body_id );
+            }
+            else
+            {
+                gui->selected_body_id = body_id;
+            }
             
+            ImGui::NextColumn();
             ImGui::TreePop();
         }
 
@@ -463,6 +495,16 @@ void ShowGUI( Solver* solver )
     ImGui::Separator();
     ImGui::PopStyleVar();
     ImGui::End();
+
+
+    if( IsBodyAlive( solver, gui->selected_body_id ) )
+    {
+        const BodyAABB& body_aabb = GetAABB( solver, gui->selected_body_id );
+        const Vector3F size = BodyAABB::size( body_aabb );
+        const Vector3F center = BodyAABB::center( body_aabb );
+
+        rdi::debug_draw::AddBox( Matrix4F::translation( center ), size*0.5f, 0xFF0000FF, 1 );
+    }
 }
 
 }}}///

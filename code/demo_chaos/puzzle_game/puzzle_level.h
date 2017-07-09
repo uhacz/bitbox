@@ -33,8 +33,9 @@ public:
     gfx::Scene          _gfx_scene = nullptr;
 
     Player _player = {};
-    physics::Solver* _solver = nullptr;
-    physics::Gfx*    _solver_gfx = nullptr;
+    physics::Solver*     _solver = nullptr;
+    physics::Gfx*        _solver_gfx = nullptr;
+    physics::GUIContext* _solver_gui = nullptr;
 
     static const unsigned NUM_ROPES = 5;
     static const unsigned NUM_RIGID = 5;

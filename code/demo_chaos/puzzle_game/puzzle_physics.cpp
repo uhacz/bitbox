@@ -96,7 +96,6 @@ struct Solver
         
     IdTable    id_tbl;
     Body       bodies        [EConst::MAX_BODIES];
-    //BodyParams body_params   [EConst::MAX_BODIES];
     BodyCoM    body_com0     [EConst::MAX_BODIES];
     BodyCoM    body_com1     [EConst::MAX_BODIES];
     BodyCoM    body_comi     [EConst::MAX_BODIES];
@@ -119,7 +118,6 @@ struct Solver
     SDFCollisionCArray      sdf_collision_c;
 
     Vector4Array            sdf_normal[EConst::MAX_BODIES];
-
     // constraints where points indices are relative to body
     DistanceCArray      distance_c            [EConst::MAX_BODIES];
     ShapeMatchingCArray shape_matching_c      [EConst::MAX_BODIES];
@@ -189,6 +187,8 @@ static Body AllocateBody( Solver* solver, u32 particleAmount )
 
     for( u32 i = 0; i < particleAmount; ++i )
     {
+        array::push_back( solver->x, Vector3F( 0.f ) );
+        array::push_back( solver->pp, Vector3F( 0.f ) );
         array::push_back( solver->p0, Vector3F( 0.f ) );
         array::push_back( solver->p1, Vector3F( 0.f ) );
         array::push_back( solver->v, Vector3F( 0.f ) );
@@ -254,6 +254,77 @@ float GetParticleRadius( const Solver* solver )
 }
 namespace
 {
+
+template< typename T, typename Tsize>
+void ArrayEraseRange( T* arr, Tsize& arrSize, u32 toEraseBegin, u32 toEraseCount )
+{
+    const u32 to_erase_end = toEraseBegin + toEraseCount;
+    SYS_ASSERT( to_erase_end <= arrSize );
+
+    if( to_erase_end == arrSize )
+        return;
+
+    const u32 n = arrSize - to_erase_end;
+
+    for( u32 i = 0; i < n; ++i )
+    {
+        const u32 idst = toEraseBegin + i;
+        const u32 isrc = to_erase_end + i;
+        arr[idst] = arr[isrc];
+    }
+
+    arrSize -= toEraseCount;
+}
+
+static void RemoveBodyData( Solver* solver, BodyIdInternal idi )
+{
+    const u32 index = idi.index;
+    const Body& body = GetBody( solver, idi );
+    
+    // --- remove particle data
+    ArrayEraseRange( solver->x.begin(), solver->x.size, body.begin, body.count ); // interpolated positions
+    ArrayEraseRange( solver->pp.begin(), solver->pp.size, body.begin, body.count );// prev positions (stored before each time step)
+    ArrayEraseRange( solver->p0.begin(), solver->p0.size, body.begin, body.count );
+    ArrayEraseRange( solver->p1.begin(), solver->p1.size, body.begin, body.count );
+    ArrayEraseRange( solver->v.begin(), solver->v.size, body.begin, body.count );
+    ArrayEraseRange( solver->w.begin(), solver->w.size, body.begin, body.count );
+    ArrayEraseRange( solver->body_index.begin(), solver->body_index.size, body.begin, body.count );
+    ArrayEraseRange( solver->contact_normal.begin(), solver->contact_normal.size, body.begin, body.count );
+    ArrayEraseRange( solver->collision_r.begin(), solver->collision_r.size, body.begin, body.count );
+
+    // --- remove body data
+    for( u32 i = 0; i < solver->active_bodies_count; ++i )
+    {
+        BodyIdInternal idi1 = solver->active_bodies_idi[i];
+        if( solver->bodies[idi1.index].begin > body.begin )
+        {
+            SYS_ASSERT( solver->bodies[idi1.index].begin >= body.count );
+            solver->bodies[idi1.index].begin -= body.count;
+        }
+    }
+    
+    solver->bodies                 [index] = {};
+    solver->body_com0              [index] = {};
+    solver->body_com1              [index] = {};
+    solver->body_comi              [index] = {};
+    solver->body_aabb              [index] = {};
+    solver->body_ext_force         [index] = Vector3F(0.f);
+    solver->body_flags             [index] = 0;
+    solver->body_name              [index].str[0] = 0;
+    solver->body_params.vdamping   [index] = 0.f;
+    solver->body_params.sfriction  [index] = 0.f;
+    solver->body_params.dfriction  [index] = 0.f;
+    solver->body_params.restitution[index] = 0.f;
+
+    array::clear( solver->sdf_normal[index] );
+    // constraints where points indices are relative to body
+    array::clear( solver->distance_c            [index] );
+    array::clear( solver->shape_matching_c      [index] );
+    solver->distance_c_stiff      [index] = 0.f;
+    solver->shape_matching_c_stiff[index] = 0.f;
+
+    id_table::destroy( solver->id_tbl, idi );
+}
 static void GarbageCollector( Solver* solver )
 {
     for( BodyIdInternal idi : solver->_to_deallocate )
@@ -262,8 +333,11 @@ static void GarbageCollector( Solver* solver )
         {
             if( idi == solver->active_bodies_idi[iactive] )
             {
-                const u32 last_index = --solver->active_bodies_count;
-                solver->active_bodies_idi[iactive] = solver->active_bodies_idi[last_index];
+                RemoveBodyData( solver, idi );
+                ArrayEraseRange( solver->active_bodies_idi, solver->active_bodies_count, iactive, 1 );
+                
+                //const u32 last_index = --solver->active_bodies_count;
+                solver->active_bodies_idi[solver->active_bodies_count].i = 0;
                 break;
             }
         }
@@ -866,7 +940,7 @@ void DestroyBody( Solver* solver, BodyId id )
     const Body& body = GetBody( solver, idi );
     SYS_ASSERT( IsValid( body ) );
 
-    id_table::destroy( solver->id_tbl, idi );
+    //id_table::destroy( solver->id_tbl, idi );
     array::push_back( solver->_to_deallocate, idi );
 }
 
@@ -899,6 +973,13 @@ const char* GetName( Solver* solver, BodyId id )
     PHYSICS_VALIDATE_ID( nullptr );
     BodyIdInternal idi = ToBodyIdInternal( id );
     return solver->body_name[idi.index].str;
+}
+
+BodyAABB GetAABB( Solver * solver, BodyId id )
+{
+    PHYSICS_VALIDATE_ID( BodyAABB() );
+    BodyIdInternal idi = ToBodyIdInternal( id );
+    return solver->body_aabb[idi.index];
 }
 
 u32 GetNbBodies( Solver* solver )

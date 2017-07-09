@@ -56,6 +56,7 @@ void        DestroyBody( Solver* solver, BodyId id );
 bool        IsBodyAlive( Solver* solver, BodyId id );
 void        SetName    ( Solver* solver, BodyId id, const char* name );
 const char* GetName    ( Solver* solver, BodyId id );
+BodyAABB    GetAABB    ( Solver* solver, BodyId id );
 
 u32         GetNbBodies( Solver* solver );
 BodyId      GetBodyId  ( Solver* solver, u32 index );

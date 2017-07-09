@@ -33,10 +33,10 @@ void LevelState::OnStartUp()
     game_util::CreateDebugMaterials();
 
     physics::Create( &_solver, 1024 * 8, 0.2f );
-    physics::SetFrequency( _solver, 120 );
+    physics::SetFrequency( _solver, 60 );
     physics::Create( &_solver_gfx, _solver, _gfx_scene );
-
-
+    physics::Create( &_solver_gui, _solver, _solver_gfx );
+    
     gfx::Camera& camera = GetGame()->GetDevCamera();
     camera.world = Matrix4( Matrix3::rotationX( -PI / 4 ), Vector3( 0.f, 20.f, 21.f ) );
 
@@ -107,8 +107,8 @@ void LevelState::OnStartUp()
     physics::SetFriction( _solver, _soft0, physics::FrictionParams(1.f, 0.8f) );
     physics::SetRestitution( _solver, _soft0, 0.f );
 
-    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.5f, a*40, 0.f ) );
-    _soft1 = physics::CreateBox( _solver, soft_pose1, Vector3F(a*10, a * 0.1f, a*2.f), 5.f );
+    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.5f, a*4, 0.f ) );
+    _soft1 = physics::CreateBox( _solver, soft_pose1, Vector3F(a*5, a * 0.1f, a*2.f), 5.f );
     //_soft1 = physics::CreateSphere( _solver, soft_pose1, a*2, 5.f, 4 );
     physics::SetFriction( _solver, _soft1, physics::FrictionParams( 1.f, 0.8f ) );
     physics::SetRestitution( _solver, _soft1, 0.f );
@@ -132,7 +132,7 @@ void LevelState::OnStartUp()
         //else
           //  _rigid[i] = physics::CreateSphere( _solver, pose, rigidA, 2.f );
 
-        physics::SetFriction( _solver, _rigid[i], physics::FrictionParams( 0.0f, 0.0f ) );
+        physics::SetFriction( _solver, _rigid[i], physics::FrictionParams( 0.5f, 0.8f ) );
         physics::SetRestitution( _solver, _rigid[i], 0.f );
         physics::AddBody( _solver_gfx, _rigid[i] );
         physics::SetColor( _solver_gfx, _rigid[i], 0x00FF00FF );
@@ -145,6 +145,7 @@ void LevelState::OnShutDown()
     for( u32 i = 0; i < NUM_ROPES; i++ )
         physics::DestroyBody( _solver, _rope[i] );
 
+    physics::Destroy( &_solver_gui );
     physics::Destroy( &_solver_gfx );
     physics::Destroy( &_solver );
     PlayerDestroy( _player );
@@ -179,7 +180,7 @@ void LevelState::OnUpdate( const GameTime& time )
     //physics::DebugDraw( _solver, _soft1, physics::DebugDrawBodyParams().Points( 0x00FF00FF ) );
 
     physics::DebugDraw( _solver );
-    physics::ShowGUI( _solver );
+    physics::ShowGUI( _solver_gui );
 }
 
 void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )

@@ -25,6 +25,9 @@ namespace bx {namespace puzzle {
 namespace physics
 {
 
-void ShowGUI( Solver* solver );
+struct GUIContext;
+void Create( GUIContext** gui, Solver* solver, Gfx* gfx );
+void Destroy( GUIContext** gui );
+void ShowGUI( GUIContext* gui );
 
 }}}///
