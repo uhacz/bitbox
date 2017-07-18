@@ -168,19 +168,13 @@ void Destroy( Gfx** gfx )
     BX_DELETE0( bxDefaultAllocator(), gfx[0] );
 }
 
-bool AddBody( Gfx* gfx, BodyId id )
+static u32 AddInternal( Gfx* gfx, const char* name, u32 numParticles )
 {
-    if( !IsBodyAlive( gfx->solver, id ) )
-        return false;
-    
-    const u32 index = gfx->size++;
-    char name[64];
-    snprintf( name, 64, "PhysicsBody%u", index );
-   
-    gfx->id_body[index] = id;
+    SYS_ASSERT( gfx->size < EConst::MAX_BODIES );
 
-    const u32 num_particles = GetNbParticles( gfx->solver, id );
-    rdi::BufferRO gpu_buffer = rdi::device::CreateBufferRO( num_particles, rdi::Format( rdi::EDataType::FLOAT, 3 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
+    const u32 index = gfx->size++;
+
+    rdi::BufferRO gpu_buffer = rdi::device::CreateBufferRO( numParticles, rdi::Format( rdi::EDataType::FLOAT, 3 ), rdi::ECpuAccess::WRITE, rdi::EGpuAccess::READ );
     gfx->gpu_buffer[index] = gpu_buffer;
 
     rdi::ResourceDescriptor rdesc = rdi::CreateResourceDescriptor( gfx->rlayout_mdata );
@@ -197,10 +191,39 @@ bool AddBody( Gfx* gfx, BodyId id )
     gfx->scene->SetSceneCallback( scene_id, DrawCallback, &ddata );
     gfx->id_scene[index] = scene_id;
 
-    return true;
+    return index;
 }
 
-void SetColor( Gfx* gfx, BodyId id, u32 colorRGBA )
+u32 AddBody( Gfx* gfx, BodyId id )
+{
+    if( !IsBodyAlive( gfx->solver, id ) )
+        return UINT32_MAX;
+    
+    const u32 num_particles = GetNbParticles( gfx->solver, id );
+
+    char name[64];
+    snprintf( name, 64, "PhysicsBody%u", gfx->size );
+   
+    const u32 index = AddInternal( gfx, name, num_particles );
+    gfx->id_body[index] = id;
+
+    return index;
+}
+
+u32 AddActor( Gfx* gfx, u32 numParticles, u32 colorRGBA /*= 0xFFFFFFFF */ )
+{
+    char name[64];
+    snprintf( name, 64, "PhysicsBody%u", gfx->size );
+
+    const u32 index = AddInternal( gfx, name, numParticles );
+    gfx->color[index] = colorRGBA;
+
+    gfx->id_body[index].i = 0;
+
+    return index;
+}
+
+u32 FindBody( Gfx* gfx, BodyId id )
 {
     u32 index = UINT32_MAX;
     for( u32 i = 0; i < gfx->size; ++i )
@@ -211,9 +234,34 @@ void SetColor( Gfx* gfx, BodyId id, u32 colorRGBA )
             break;
         }
     }
+    return index;
+}
 
+void SetColor( Gfx* gfx, BodyId id, u32 colorRGBA )
+{
+    const u32 index = FindBody( gfx, id );
     if( index != UINT32_MAX )
         gfx->color[index] = colorRGBA;
+}
+
+void SetParticleData( Gfx* gfx, rdi::CommandQueue* cmdq, u32 index, const Vector3F* pdata, u32 count )
+{
+    if( index >= gfx->size )
+    {
+        bxLogError( "physics::Gfx: Invalid index" );
+        return;
+    }
+
+    const rdi::BufferRO gpu_buffer = gfx->gpu_buffer[index];
+    const u32 gpu_buffer_size = rdi::util::GetNumElements( gpu_buffer );
+    const u32 elements_to_copy = minOfPair( gpu_buffer_size, count );
+    
+    SYS_ASSERT( sizeof( *pdata ) == gpu_buffer.format.ByteWidth() );
+    const u32 bytes_to_copy = elements_to_copy * gpu_buffer.format.ByteWidth();
+
+    u8* gpu_mapped_data = rdi::context::Map( cmdq, gpu_buffer, 0, rdi::EMapType::WRITE );
+        memcpy( gpu_mapped_data, pdata, bytes_to_copy );
+    rdi::context::Unmap( cmdq, gpu_buffer );
 }
 
 void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera, const Matrix4& lightWorld, const Matrix4& lightProj )
@@ -242,6 +290,9 @@ void Tick( Gfx* gfx, rdi::CommandQueue* cmdq, const gfx::Camera& camera, const M
         for( u32 i = 0; i < gfx->size; ++i )
         {
             BodyId body_id = gfx->id_body[i];
+            if( !IsBodyAlive( solver, body_id ) )
+                continue;
+
             rdi::BufferRO gpu_buffer = gfx->gpu_buffer[i];
 
             const u32 num_particles = GetNbParticles( solver, body_id );

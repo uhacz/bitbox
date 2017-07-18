@@ -607,17 +607,18 @@ struct ConstantBuffer : Resource
     u32 size_in_bytes = 0;
 };
 
-struct BufferRO : ResourceRO
+struct BufferDesc
 {
     u32 sizeInBytes = 0;
     u32 bind_flags = 0;
     Format format = {};
 };
-struct BufferRW : ResourceRW
+
+struct BufferRO : ResourceRO, BufferDesc
 {
-    u32 sizeInBytes = 0;
-    u32 bind_flags = 0;
-    Format format;
+};
+struct BufferRW : ResourceRW, BufferDesc
+{
 };
 
 struct TextureInfo
@@ -843,6 +844,14 @@ namespace context
     void GenerateMipmaps( CommandQueue* cmdq, TextureRW texture );
     TextureRW GetBackBufferTexture( CommandQueue* cmdq );
 }/// 
+
+namespace util
+{
+    inline unsigned GetNumElements( const BufferDesc& desc )
+    {
+        return desc.sizeInBytes / desc.format.ByteWidth();
+    }
+}
 
 }}///
 

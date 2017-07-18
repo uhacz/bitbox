@@ -420,14 +420,28 @@ BodyId CreateSphere( Solver* solver, const Matrix4F& pose, float radius, float p
 namespace bx {namespace puzzle {
 namespace physics
 {
-
+    enum ECreateStage
+    {
+        NONE,
+        INIT,
+        DEFINE_SCALE,
+        DEFINE_POSE,
+        COMMIT,
+    };
 struct GUIContext
 {
     Solver* solver = nullptr;
     Gfx* gfx = nullptr;
 
     BodyId selected_body_id = BodyIdInvalid();
+    
+    ECreateStage create_stage = ECreateStage::NONE;
+    Matrix4F create_pose = Matrix4F::identity();
+    par_shapes_mesh* create_mesh = nullptr;
+
 };
+
+//////////////////////////////////////////////////////////////////////////
 void physics::Create( GUIContext ** gui, Solver * solver, Gfx * gfx )
 {
     GUIContext* g = BX_NEW( bxDefaultAllocator(), GUIContext );
@@ -449,12 +463,36 @@ void ShowGUI( GUIContext* gui )
     }
 
     Solver* solver = gui->solver;
-    const u32 n_bodies = GetNbBodies( solver );
+    if( gui->create_stage == ECreateStage::NONE )
+    {
+        if( ImGui::Button( "CreateBox" ) )
+            gui->create_stage = ECreateStage::INIT;
+    }
+    else
+    {
+        switch( gui->create_stage )
+        {
+        case ECreateStage::INIT:
+            break;
+        case ECreateStage::DEFINE_SCALE:
+            break;
+        case ECreateStage::DEFINE_POSE:
+            break;
 
+        default:
+            break;
+        }
+    }
+        
+
+
+
+    ImGui::Separator();
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 2, 2 ) );
     ImGui::Columns( 2 );
     ImGui::Separator();
     
+    const u32 n_bodies = GetNbBodies( solver );
     for( u32 i = 0; i < n_bodies; ++i )
     {
         const BodyId body_id = GetBodyId( solver, i );
