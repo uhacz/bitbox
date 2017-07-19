@@ -2,6 +2,7 @@
 
 #include "puzzle_physics_type.h"
 #include <util\vectormath\vectormath.h>
+#include "../renderer_camera.h"
 
 
 struct bxPolyShape;
@@ -28,6 +29,6 @@ namespace physics
 struct GUIContext;
 void Create( GUIContext** gui, Solver* solver, Gfx* gfx );
 void Destroy( GUIContext** gui );
-void ShowGUI( GUIContext* gui );
+void ShowGUI( GUIContext* gui, const gfx::Camera& camera );
 
 }}}///

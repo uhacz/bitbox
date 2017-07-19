@@ -9,6 +9,9 @@
 #include <util/bbox.h>
 #include <util/poly/poly_shape.h>
 #include <util/random.h>
+#include "util/intersect.h"
+#include "util/camera.h"
+#include "puzzle_physics_gfx.h"
 
 namespace bx{ namespace puzzle{
 namespace physics{
@@ -424,9 +427,11 @@ namespace physics
     {
         NONE,
         INIT,
-        DEFINE_SCALE,
+        DEFINE_SCALE1,
+        DEFINE_SCALE2,
         DEFINE_POSE,
         COMMIT,
+        CANCEL,
     };
 struct GUIContext
 {
@@ -436,6 +441,8 @@ struct GUIContext
     BodyId selected_body_id = BodyIdInvalid();
     
     ECreateStage create_stage = ECreateStage::NONE;
+    Vector3F create_point[3] = {};
+    u8 create_point_valid[4] = {};
     Matrix4F create_pose = Matrix4F::identity();
     par_shapes_mesh* create_mesh = nullptr;
 
@@ -454,13 +461,15 @@ void physics::Destroy( GUIContext ** gui )
 {
     BX_DELETE0( bxDefaultAllocator(), gui[0] );
 }
-void ShowGUI( GUIContext* gui )
+void ShowGUI( GUIContext* gui, const gfx::Camera& camera )
 {
     if( !ImGui::Begin( "Solver Edit" ) )
     {
         ImGui::End();
         return;
     }
+
+    const Vector4F ground_plane = makePlane( Vector3F::yAxis(), Vector3F( 0.f ) );
 
     Solver* solver = gui->solver;
     if( gui->create_stage == ECreateStage::NONE )
@@ -470,17 +479,158 @@ void ShowGUI( GUIContext* gui )
     }
     else
     {
+        const ImGuiIO& io = ImGui::GetIO();
+
+        const float mouse_screen_pos_x = clamp( io.MousePos.x / io.DisplaySize.x, 0.f, 1.f );
+        const float mouse_screen_pos_y = 1.f - clamp( io.MousePos.y / io.DisplaySize.y, 0.f, 1.f );
+        const float click_screen_pos_x = clamp( io.MouseClickedPos[0].x / io.DisplaySize.x, 0.f, 1.f );
+        const float click_screen_pos_y = 1.f - clamp( io.MouseClickedPos[0].y / io.DisplaySize.y, 0.f, 1.f );
+        const Matrix4 camera_vp_inv = inverse( camera.view_proj );
+
+
         switch( gui->create_stage )
         {
         case ECreateStage::INIT:
-            break;
-        case ECreateStage::DEFINE_SCALE:
-            break;
+            {
+                if( io.MouseClicked[0] )
+                {
+                    gui->create_stage = ECreateStage::DEFINE_SCALE1;
+                }
+            }break;
+        case ECreateStage::DEFINE_SCALE1:
+            {
+                const bool points_valid = gui->create_point_valid[0] && gui->create_point_valid[1];
+
+                if( points_valid && io.MouseClicked[0] )
+                    gui->create_stage = ECreateStage::DEFINE_SCALE2;
+                else if( io.MouseClicked[0] || io.MouseClicked[1] || io.MouseClicked[2] )
+                    gui->create_stage = ECreateStage::CANCEL;
+                else
+                {
+                    struct Ray{ Vector3F ro, rd; };
+
+                    //////////////////////////////////////////////////////////////////////////
+                    auto L_create_ray = []( float screenX, float screenY, const Matrix4& vpInv ) -> Ray
+                    {
+                        const Vector3 from = gfx::cameraUnprojectNormalized( Vector3( screenX, screenY, 0.f ), vpInv );
+                        const Vector3 to = gfx::cameraUnprojectNormalized( Vector3( screenX, screenY, 1.f ), vpInv );
+
+                        return{ toVector3F( from ), normalizeSafeF( toVector3F( to - from ) ) };
+                    };
+
+                    auto L_cast_ray = [&gui]( u32 i, const Ray& r, const Vector4F& plane )
+                    {
+                        float t;
+                        if( IntersectRayPlane( r.ro, r.rd, plane, t ) )
+                        {
+                            const Vector3F point = r.ro + r.rd * t;
+                            gui->create_point[i] = point;
+                            gui->create_point_valid[i] = 1;
+                        }
+                    };
+                    //////////////////////////////////////////////////////////////////////////
+
+                    const Ray r0 = L_create_ray( click_screen_pos_x, click_screen_pos_y, camera_vp_inv );
+                    const Ray r1 = L_create_ray( mouse_screen_pos_x, mouse_screen_pos_y, camera_vp_inv );
+
+                    L_cast_ray( 0, r0, ground_plane );
+                    L_cast_ray( 1, r1, ground_plane );
+                }
+            }break;
+        case ECreateStage::DEFINE_SCALE2:
+            {
+                if( io.MouseClicked[0] )
+                    gui->create_stage = ECreateStage::COMMIT;
+                else if( io.MouseClicked[1] )
+                    gui->create_stage = ECreateStage::CANCEL;
+                else
+                {
+                    const Vector3F p0 = gui->create_point[0];
+                    const Vector3F p1 = gui->create_point[1];
+                    const Vector3F center = lerp( 0.5f, p0, p1 );
+                    const Vector4F center_ss = toVector4F( camera.view_proj * toVector4( Vector4F( center, 1.0f ) ) );
+                    const float z = center_ss.z / center_ss.w;
+
+                    const Vector3 from = gfx::cameraUnprojectNormalized( Vector3( click_screen_pos_x, click_screen_pos_y, z ), camera_vp_inv );
+                    const Vector3 to = gfx::cameraUnprojectNormalized( Vector3( mouse_screen_pos_x, mouse_screen_pos_y, z ), camera_vp_inv );
+                    const Vector3F v = toVector3F( to - from );
+                    const float d = dot( v, ground_plane.getXYZ() );
+                    const Vector3F p2 = center + ground_plane.getXYZ() * d;
+
+                    gui->create_point[2] = p2;
+                    gui->create_point_valid[2] = 1;
+                }
+            }break;
         case ECreateStage::DEFINE_POSE:
-            break;
+            {
+            }break;
+
+        case ECreateStage::COMMIT:
+            {
+                const Vector3F& p0 = gui->create_point[0];
+                const Vector3F& p1 = gui->create_point[1];
+                const Vector3F& p2 = gui->create_point[2];
+
+                const Vector3F pmin = minPerElem( p0, minPerElem( p1, p2 ) );
+                const Vector3F pmax = maxPerElem( p0, maxPerElem( p1, p2 ) );
+
+                const Vector3F center = lerp( 0.5f, pmin, pmax );
+                const Vector3F ext = ( pmax - pmin ) * 0.5f;
+                const Matrix4F pose = Matrix4F::translation( center );
+
+                BodyId id = CreateBox( solver, pose, ext, 1.f );
+                AddBody( gui->gfx, id );
+
+                gui->create_stage = ECreateStage::CANCEL;
+
+
+            }break;
+
+        case ECreateStage::CANCEL:
+            {
+                memset( gui->create_point_valid, 0x00, sizeof( gui->create_point_valid ) );
+                gui->create_stage = ECreateStage::NONE;
+            }break;
 
         default:
             break;
+        }
+
+
+
+        auto L_draw_box = []( const Vector3F& p0, const Vector3F& p1, const Vector3F& p2, u32 color )
+        {
+            const Vector3F pmin = minPerElem( p0, minPerElem( p1, p2 ) );
+            const Vector3F pmax = maxPerElem( p0, maxPerElem( p1, p2 ) );
+
+            const Vector3F center = lerp( 0.5f, pmin, pmax );
+            const Vector3F ext = ( pmax - pmin ) * 0.5f;
+
+            rdi::debug_draw::AddBox( Matrix4F::translation( center ), ext, color, 1 );
+        };
+
+        u32 points_valid_mask = 0;
+        for( u32 i = 0; i < 3; ++i )
+            points_valid_mask |= ( gui->create_point_valid[i] ) ? 1 << i : 0;
+
+        if( points_valid_mask == 0x1 )
+        {
+            rdi::debug_draw::AddSphere( Vector4F( gui->create_point[0], 0.1f ), 0xFF00FFFF, 1 );
+        }
+        else if( points_valid_mask == 0x3 )
+        {
+            const Vector3F p0 = gui->create_point[0];
+            const Vector3F p1 = gui->create_point[1];
+            
+            L_draw_box( p0, p1, p0, 0xFF00FFFF );
+        }
+        else if( points_valid_mask == 0x7 )
+        {
+            const Vector3F& p0 = gui->create_point[0];
+            const Vector3F& p1 = gui->create_point[1];
+            const Vector3F& p2 = gui->create_point[2];
+
+            L_draw_box( p0, p1, p2, 0xFF00FFFF );
         }
     }
         

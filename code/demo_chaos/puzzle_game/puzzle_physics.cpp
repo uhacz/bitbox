@@ -252,6 +252,7 @@ float GetParticleRadius( const Solver* solver )
 {
     return solver->particle_radius;
 }
+
 namespace
 {
 

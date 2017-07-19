@@ -54,7 +54,7 @@ inline bool SolveQuadratic( T a, T b, T c, T& minT, T& maxT )
         return true;
     }
 
-    T discriminant = b*b - T( 4.0 )*a*c;
+    T discriminant = b*b - T( 4.0f )*a*c;
 
     if( discriminant < 0.0f )
     {
@@ -62,7 +62,7 @@ inline bool SolveQuadratic( T a, T b, T c, T& minT, T& maxT )
     }
 
     // numerical receipes 5.6 (this method ensures numerical accuracy is preserved)
-    T t = T( -0.5 ) * ( b + Sign( b )*sqrt( discriminant ) );
+    T t = T( -0.5f ) * ( b + Sign( b )*sqrtf( discriminant ) );
     minT = t / a;
     maxT = c / t;
 
