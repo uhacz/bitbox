@@ -149,7 +149,7 @@ static void DrawCallback( rdi::CommandQueue* cmdq, u32 flags, void* userData )
     rdi::context::DrawInstanced( cmdq, 4, 0, num_particles );
 }
 
-void Create( Gfx** gfx, Solver* solver, gfx::Scene scene )
+void CreateGfx( Gfx** gfx, Solver* solver, gfx::Scene scene )
 {
     Gfx* g = BX_NEW( bxDefaultAllocator(), Gfx );
     g->scene = scene;
@@ -158,7 +158,7 @@ void Create( Gfx** gfx, Solver* solver, gfx::Scene scene )
 
     gfx[0] = g;
 }
-void Destroy( Gfx** gfx )
+void DestroyGfx( Gfx** gfx )
 {
     if( !gfx[0] )
         return;

@@ -43,10 +43,10 @@ struct ShapeMatchingCInfo
 };
 
 // ---
-void  Create           ( Solver** solver, u32 maxParticles, float particleRadius = 0.1f );
-void  Destroy          ( Solver** solver );
+void  CreateSolver     ( Solver** solver, u32 maxParticles, float particleRadius = 0.1f );
+void  DestroySolver    ( Solver** solver );
 void  SetFrequency     ( Solver* solver, u32 freq );
-f32   GetFrequency     ( Solver* solver );
+f32   GetFrequency     ( const Solver* solver );
 float GetParticleRadius( const Solver* solver );
 void  Solve            ( Solver* solver, u32 numIterations, float deltaTime );
 

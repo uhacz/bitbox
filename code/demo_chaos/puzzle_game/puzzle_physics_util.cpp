@@ -449,7 +449,7 @@ struct GUIContext
 };
 
 //////////////////////////////////////////////////////////////////////////
-void physics::Create( GUIContext ** gui, Solver * solver, Gfx * gfx )
+void physics::CreateGUI( GUIContext ** gui, Solver * solver, Gfx * gfx )
 {
     GUIContext* g = BX_NEW( bxDefaultAllocator(), GUIContext );
     g->solver = solver;
@@ -457,7 +457,7 @@ void physics::Create( GUIContext ** gui, Solver * solver, Gfx * gfx )
 
     gui[0] = g;
 }
-void physics::Destroy( GUIContext ** gui )
+void physics::DestroyGUI( GUIContext ** gui )
 {
     BX_DELETE0( bxDefaultAllocator(), gui[0] );
 }

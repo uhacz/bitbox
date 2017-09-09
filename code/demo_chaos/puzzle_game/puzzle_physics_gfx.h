@@ -9,8 +9,8 @@
 namespace bx { namespace puzzle {
 namespace physics
 {
-void Create( Gfx** gfx, Solver* solver, gfx::Scene scene );
-void Destroy( Gfx** gfx );
+void CreateGfx( Gfx** gfx, Solver* solver, gfx::Scene scene );
+void DestroyGfx( Gfx** gfx );
 
 u32  AddBody( Gfx* gfx, BodyId id );
 u32  AddActor( Gfx* gfx, u32 numParticles, u32 colorRGBA = 0xFFFFFFFF );

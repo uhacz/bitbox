@@ -27,8 +27,8 @@ namespace physics
 {
 
 struct GUIContext;
-void Create( GUIContext** gui, Solver* solver, Gfx* gfx );
-void Destroy( GUIContext** gui );
+void CreateGUI( GUIContext** gui, Solver* solver, Gfx* gfx );
+void DestroyGUI( GUIContext** gui );
 void ShowGUI( GUIContext* gui, const gfx::Camera& camera );
 
 }}}///

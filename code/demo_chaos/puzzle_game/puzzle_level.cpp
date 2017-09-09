@@ -32,123 +32,20 @@ void LevelState::OnStartUp()
 
     game_util::CreateDebugMaterials();
 
-    physics::Create( &_solver, 1024 * 8, 0.2f );
+    physics::CreateSolver( &_solver, 1024 * 8, 0.2f );
     physics::SetFrequency( _solver, 60 );
-    physics::Create( &_solver_gfx, _solver, _gfx_scene );
-    physics::Create( &_solver_gui, _solver, _solver_gfx );
+    physics::CreateGfx( &_solver_gfx, _solver, _gfx_scene );
+    physics::CreateGUI( &_solver_gui, _solver, _solver_gfx );
     
-    gfx::Camera& camera = GetGame()->GetDevCamera();
-    camera.world = Matrix4( Matrix3::rotationX( -PI / 4 ), Vector3( 0.f, 20.f, 21.f ) );
-
-    const float width = 64.f;
-    const float depth = 64.f;
-    {
-        gfx::ActorID actor = _gfx_scene->Add( "ground", 1 );
-        _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "grey" ) );
-        _gfx_scene->SetMeshHandle( actor, gfx::GMeshManager()->Find( ":box" ) );
-
-        Matrix4 pose[] =
-        {
-            appendScale( Matrix4::translation( Vector3( 0.f, 0.f, 0.f ) ), Vector3( width, 0.1f, depth ) ),
-        };
-        _gfx_scene->SetMatrices( actor, pose, 1 );
-    }
-
-    {
-        gfx::ActorID actor = _gfx_scene->Add( "sphere", 1 );
-        _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "blue" ) );
-        _gfx_scene->SetMeshHandle( actor, gfx::GMeshManager()->Find( ":sphere" ) );
-
-        Matrix4 pose[] =
-        {
-            Matrix4::translation( Vector3( 6.f, 2.f, 0.f ) ),
-        };
-        _gfx_scene->SetMatrices( actor, pose, 1 );
-    }
-
-    SceneCtx sctx;
-    sctx.phx_solver = _solver;
-    sctx.phx_gfx = _solver_gfx;
-
-    _player = PlayerCreate( &sctx, "playerLocal", Matrix4F::translation( Vector3F( -2.f, 0.f, 5.f ) ) );
-       
-
-    const Vector3F axis[5] =
-    {
-        Vector3F::xAxis(),
-        Vector3F::zAxis(),
-        normalize( -Vector3F::yAxis() + Vector3F::zAxis() ),
-        -Vector3F::zAxis(),
-        -Vector3F::xAxis(),
-    };
-
-    //for( u32 i = 0; i < NUM_ROPES; i++ )
-    //{
-    //    _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
-    //    float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
-    //    mass_inv[0] = 0.f;
-    //    physics::Unmap( _solver, mass_inv );
-
-    //    physics::BodyParams params;
-    //    physics::GetBodyParams( &params, _solver, _rope[i] );
-    //    params.restitution = 1.0f;
-    //    params.dynamic_friction = 0.8f;
-    //    physics::SetBodyParams( _solver, _rope[i], params );
-
-    //    physics::AddBody( _solver_gfx, _rope[i] );
-    //    physics::SetColor( _solver_gfx, _rope[i], 0x0000FFFF );
-    //}
-
-
-    const float a = 0.5f;
-    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F(0.f) ), Vector3F( 0.f, a, 0.f ) );
-    //_soft0 = physics::CreateSoftBox( _solver, soft_pose0, a,a,a, 1.f );
-    _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F(a,a,a*2.f), 0.f );
-    physics::SetFriction( _solver, _soft0, physics::FrictionParams(1.f, 0.8f) );
-    physics::SetRestitution( _solver, _soft0, 0.f );
-
-    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.5f, a*4, 0.f ) );
-    _soft1 = physics::CreateBox( _solver, soft_pose1, Vector3F(a*5, a * 0.1f, a*2.f), 5.f );
-    //_soft1 = physics::CreateSphere( _solver, soft_pose1, a*2, 5.f, 4 );
-    physics::SetFriction( _solver, _soft1, physics::FrictionParams( 1.f, 0.8f ) );
-    physics::SetRestitution( _solver, _soft1, 0.f );
-
-    physics::AddBody( _solver_gfx, _soft0 );
-    physics::AddBody( _solver_gfx, _soft1 );
-    physics::SetColor( _solver_gfx, _soft0, 0xFFFF00FF );
-    physics::SetColor( _solver_gfx, _soft1, 0xFFFF00FF );
-
-    const float rigidA = 0.5f;
-    for( u32 i = 0; i < NUM_RIGID; ++i )
-    {
-        const float x = -(float)NUM_RIGID * 0.25f;// +(float)i*1.1f;
-        const float y = rigidA + i * rigidA*2.f;
-
-        //Matrix4F pose = Matrix4F( Matrix3F::rotationZYX( Vector3F( i*0.1f*PI, i*0.2f*PI, PI / 4 ) ), Vector3F( x, y, 0.f ) );
-        Matrix4F pose = Matrix4F( Matrix3F::identity(), Vector3F( x, y, 2.f ) );
-        //_rigid[i] = physics::CreateSoftBox( _solver, pose, rigidA,rigidA,rigidA, 1.f );
-        //if( i % 2 )
-            _rigid[i] = physics::CreateBox( _solver, pose, Vector3F( rigidA ), 1.f );
-        //else
-          //  _rigid[i] = physics::CreateSphere( _solver, pose, rigidA, 2.f );
-
-        physics::SetFriction( _solver, _rigid[i], physics::FrictionParams( 0.5f, 0.8f ) );
-        physics::SetRestitution( _solver, _rigid[i], 0.f );
-        physics::AddBody( _solver_gfx, _rigid[i] );
-        physics::SetColor( _solver_gfx, _rigid[i], 0x00FF00FF );
-    }
+    _CreateTestLevel();
 
 }
 
 void LevelState::OnShutDown()
 {
-    for( u32 i = 0; i < NUM_ROPES; i++ )
-        physics::DestroyBody( _solver, _rope[i] );
-
-    physics::Destroy( &_solver_gui );
-    physics::Destroy( &_solver_gfx );
-    physics::Destroy( &_solver );
-    PlayerDestroy( _player );
+    physics::DestroyGUI( &_solver_gui );
+    physics::DestroyGfx( &_solver_gfx );
+    physics::DestroySolver( &_solver );
 
     _gfx->renderer.DestroyScene( &_gfx_scene );
 }
@@ -203,6 +100,118 @@ void LevelState::OnRender( const GameTime& time, rdi::CommandQueue* cmdq )
     _gfx->Draw( cmdq );
     _gfx->PostProcess( cmdq, *active_camera, time.DeltaTimeSec() );
     _gfx->Rasterize( cmdq, *active_camera );
+}
+
+void LevelState::_CreateTestLevel()
+{
+    gfx::Camera& camera = GetGame()->GetDevCamera();
+    camera.world = Matrix4( Matrix3::rotationX( -PI / 4 ), Vector3( 0.f, 20.f, 21.f ) );
+
+    const float width = 64.f;
+    const float depth = 64.f;
+    {
+        gfx::ActorID actor = _gfx_scene->Add( "ground", 1 );
+        _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "grey" ) );
+        _gfx_scene->SetMeshHandle( actor, gfx::GMeshManager()->Find( ":box" ) );
+
+        Matrix4 pose[] =
+        {
+            appendScale( Matrix4::translation( Vector3( 0.f, 0.f, 0.f ) ), Vector3( width, 0.1f, depth ) ),
+        };
+        _gfx_scene->SetMatrices( actor, pose, 1 );
+    }
+
+    {
+        gfx::ActorID actor = _gfx_scene->Add( "sphere", 1 );
+        _gfx_scene->SetMaterial( actor, gfx::GMaterialManager()->Find( "blue" ) );
+        _gfx_scene->SetMeshHandle( actor, gfx::GMeshManager()->Find( ":sphere" ) );
+
+        Matrix4 pose[] =
+        {
+            Matrix4::translation( Vector3( 6.f, 2.f, 0.f ) ),
+        };
+        _gfx_scene->SetMatrices( actor, pose, 1 );
+    }
+
+    SceneCtx sctx;
+    sctx.phx_solver = _solver;
+    sctx.phx_gfx = _solver_gfx;
+
+    _player = PlayerCreate( &sctx, "playerLocal", Matrix4F::translation( Vector3F( -2.f, 0.f, 5.f ) ) );
+
+
+    const Vector3F axis[5] =
+    {
+        Vector3F::xAxis(),
+        Vector3F::zAxis(),
+        normalize( -Vector3F::yAxis() + Vector3F::zAxis() ),
+        -Vector3F::zAxis(),
+        -Vector3F::xAxis(),
+    };
+
+    for( u32 i = 0; i < NUM_ROPES; i++ )
+    {
+        _rope[i] = physics::CreateRope( _solver, Vector3F( -( i / 2.f ) * 2.f, 13.f, 0.f ), axis[i % 5], 15.f, 1.f + ( i * 0.5f ) );
+        float* mass_inv = physics::MapMassInv( _solver, _rope[i] );
+        mass_inv[0] = 0.f;
+        physics::Unmap( _solver, mass_inv );
+
+        //physics::BodyParams params;
+        //physics::GetBodyParams( &params, _solver, _rope[i] );
+        //params.restitution = 1.0f;
+        //params.dynamic_friction = 0.8f;
+        //physics::SetBodyParams( _solver, _rope[i], params );
+
+        physics::AddBody( _solver_gfx, _rope[i] );
+        physics::SetColor( _solver_gfx, _rope[i], 0x0000FFFF );
+    }
+
+
+    const float a = 0.5f;
+    Matrix4F soft_pose0 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.f, a, 0.f ) );
+    //_soft0 = physics::CreateSoftBox( _solver, soft_pose0, a,a,a, 1.f );
+    _soft0 = physics::CreateBox( _solver, soft_pose0, Vector3F( a, a, a*2.f ), 0.f );
+    physics::SetFriction( _solver, _soft0, physics::FrictionParams( 1.f, 0.8f ) );
+    physics::SetRestitution( _solver, _soft0, 0.f );
+
+    Matrix4F soft_pose1 = Matrix4F( Matrix3F::rotationZYX( Vector3F( 0.f ) ), Vector3F( 0.5f, a * 4, 0.f ) );
+    _soft1 = physics::CreateBox( _solver, soft_pose1, Vector3F( a * 5, a * 0.1f, a*2.f ), 5.f );
+    //_soft1 = physics::CreateSphere( _solver, soft_pose1, a*2, 5.f, 4 );
+    physics::SetFriction( _solver, _soft1, physics::FrictionParams( 1.f, 0.8f ) );
+    physics::SetRestitution( _solver, _soft1, 0.f );
+
+    physics::AddBody( _solver_gfx, _soft0 );
+    physics::AddBody( _solver_gfx, _soft1 );
+    physics::SetColor( _solver_gfx, _soft0, 0xFFFF00FF );
+    physics::SetColor( _solver_gfx, _soft1, 0xFFFF00FF );
+
+    const float rigidA = 0.5f;
+    for( u32 i = 0; i < NUM_RIGID; ++i )
+    {
+        const float x = -(float)NUM_RIGID * 0.25f;// +(float)i*1.1f;
+        const float y = rigidA + i * rigidA*2.f;
+
+        //Matrix4F pose = Matrix4F( Matrix3F::rotationZYX( Vector3F( i*0.1f*PI, i*0.2f*PI, PI / 4 ) ), Vector3F( x, y, 0.f ) );
+        Matrix4F pose = Matrix4F( Matrix3F::identity(), Vector3F( x, y, 2.f ) );
+        //_rigid[i] = physics::CreateSoftBox( _solver, pose, rigidA,rigidA,rigidA, 1.f );
+        //if( i % 2 )
+        _rigid[i] = physics::CreateBox( _solver, pose, Vector3F( rigidA ), 1.f );
+        //else
+        //  _rigid[i] = physics::CreateSphere( _solver, pose, rigidA, 2.f );
+
+        physics::SetFriction( _solver, _rigid[i], physics::FrictionParams( 0.5f, 0.8f ) );
+        physics::SetRestitution( _solver, _rigid[i], 0.f );
+        physics::AddBody( _solver_gfx, _rigid[i] );
+        physics::SetColor( _solver_gfx, _rigid[i], 0x00FF00FF );
+    }
+}
+
+void LevelState::_DestroyTestLevel()
+{
+    for( u32 i = 0; i < NUM_ROPES; i++ )
+        physics::DestroyBody( _solver, _rope[i] );
+
+    PlayerDestroy( _player );
 }
 
 }}//

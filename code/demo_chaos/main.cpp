@@ -58,9 +58,9 @@ public:
         //}
 
         //_game = BX_NEW( bxDefaultAllocator(), bx::ship::ShipGame );
-        //_game = BX_NEW( bxDefaultAllocator(), bx::flood::FloodGame );
+        _game = BX_NEW( bxDefaultAllocator(), bx::flood::FloodGame );
         //_game = BX_NEW( bxDefaultAllocator(), bx::terrain::TerrainGame );
-        _game = BX_NEW( bxDefaultAllocator(), bx::puzzle::PuzzleGame );
+        //_game = BX_NEW( bxDefaultAllocator(), bx::puzzle::PuzzleGame );
         _game->StartUp();
 
         return true;

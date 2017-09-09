@@ -712,8 +712,8 @@ void FluidTick( Fluid* f, const FluidSimulationParams& params, const FluidCollid
             color = ( r << 24 ) | ( g << 16 ) | ( b << 8 ) | 0xFF;
         }
 
-        //rdi::debug_draw::AddSphere( Vector4( v3, f->particle_radius ), color, 1 );
-        rdi::debug_draw::AddBox( Matrix4::translation( v3 ), Vector3( f->particle_radius ), color, 1 );
+        rdi::debug_draw::AddSphere( Vector4( v3, f->particle_radius ), color, 1 );
+        //rdi::debug_draw::AddBox( Matrix4::translation( v3 ), Vector3( f->particle_radius ), color, 1 );
     }
 }
 

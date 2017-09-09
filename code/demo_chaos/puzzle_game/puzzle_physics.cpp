@@ -210,15 +210,10 @@ static inline const Body& GetBody( const Solver* solver, BodyIdInternal idi )
     SYS_ASSERT( IsValid( solver, idi ) );
     return solver->bodies[idi.index];
 }
-//static inline const BodyParams& GetBodyParams( const Solver* solver, BodyIdInternal idi )
-//{
-//    SYS_ASSERT( IsValid( solver, idi ) );
-//    return solver->body_params[idi.index];
-//}
 }//
 
 
-void Create( Solver** solver, u32 maxParticles, float particleRadius )
+void CreateSolver( Solver** solver, u32 maxParticles, float particleRadius )
 {
     Solver* s = BX_NEW( bxDefaultAllocator(), Solver );
     ReserveParticles( s, maxParticles );
@@ -228,7 +223,7 @@ void Create( Solver** solver, u32 maxParticles, float particleRadius )
     solver[0] = s;
 }
 
-void Destroy( Solver** solver )
+void DestroySolver( Solver** solver )
 {
     if( !solver[0] )
         return;
@@ -244,7 +239,7 @@ void SetFrequency( Solver* solver, u32 freq )
     solver->delta_time = (f32)( 1.0 / (double)freq );
 }
 
-f32 GetFrequency( Solver* solver )
+f32 GetFrequency( const Solver* solver )
 {
     return (f32)solver->frequency;
 }
@@ -356,20 +351,16 @@ static void PredictPositions( Solver* solver, const Body& body, f32 vdamping, co
     const Vector3F gravityDV = gravityAcc * deltaTime;
     const Vector3F gravity_dir = normalizeSafeF( gravityAcc );
     const Vector3F extForceDV = extForce * deltaTime;
+
     for( u32 i = pbegin; i < pend; ++i )
     {
         const float w = solver->w[i];
         Vector3F p = solver->p0[i];
         Vector3F v = solver->v[i];
 
-        v += gravityDV;
         v += extForceDV * w;
-
-        // --- prevent damping velocity in gravity direction
-        Vector3F vxz, vy;
-        splitVectorXZ_Y( &vxz, &vy, v, gravity_dir );
-        vxz *= damping_coeff;
-        v = vxz + vy;
+        v *= damping_coeff;
+        v += gravityDV * w;
 
         p += v * deltaTime;
 

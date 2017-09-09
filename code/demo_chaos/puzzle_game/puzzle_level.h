@@ -29,14 +29,18 @@ public:
     void OnUpdate( const GameTime& time ) override;
     void OnRender( const GameTime& time, rdi::CommandQueue* cmdq ) override;
 
+    void _CreateTestLevel();
+    void _DestroyTestLevel();
+
     game_gfx::Deffered* _gfx = nullptr;
     gfx::Scene          _gfx_scene = nullptr;
 
-    Player _player = {};
     physics::Solver*     _solver = nullptr;
     physics::Gfx*        _solver_gfx = nullptr;
     physics::GUIContext* _solver_gui = nullptr;
+    Player _player = {};
 
+    // --- test scene data
     static const unsigned NUM_ROPES = 5;
     static const unsigned NUM_RIGID = 5;
     physics::BodyId _rope[NUM_ROPES];
